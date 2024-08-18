@@ -30,7 +30,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 17,
+      "versionCode": 18,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png"
       },
@@ -96,7 +96,8 @@
         {
           "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

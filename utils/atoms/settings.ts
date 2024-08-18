@@ -1,6 +1,7 @@
 import { atom, useAtom } from "jotai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect } from "react";
+import { getLocales } from "expo-localization";
 
 type Settings = {
   autoRotate?: boolean;
@@ -10,6 +11,7 @@ type Settings = {
   deviceProfile?: "Expo" | "Native" | "Old";
   forceDirectPlay?: boolean;
   mediaListCollectionIds?: string[];
+  preferedLanguage?: string;
 };
 
 /**
@@ -33,6 +35,7 @@ const loadSettings = async (): Promise<Settings> => {
         deviceProfile: "Expo",
         forceDirectPlay: false,
         mediaListCollectionIds: [],
+        preferedLanguage: getLocales()[0] || "en",
       };
 };
 

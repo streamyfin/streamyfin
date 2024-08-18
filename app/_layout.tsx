@@ -17,6 +17,9 @@ import { useKeepAwake } from "expo-keep-awake";
 import { useSettings } from "@/utils/atoms/settings";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { I18nextProvider, useTranslation } from "react-i18next";
+import i18n from "@/i18n";
+import { getLocales } from "expo-localization";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -42,7 +45,9 @@ export default function RootLayout() {
 
   return (
     <JotaiProvider>
-      <Layout />
+      <I18nextProvider i18n={i18n}>
+        <Layout />
+      </I18nextProvider>
     </JotaiProvider>
   );
 }
@@ -51,6 +56,8 @@ function Layout() {
   const [settings, updateSettings] = useSettings();
 
   useKeepAwake();
+
+  const { i18n } = useTranslation();
 
   const queryClientRef = useRef<QueryClient>(
     new QueryClient({
@@ -73,6 +80,12 @@ function Layout() {
       ScreenOrientation.lockAsync(
         ScreenOrientation.OrientationLock.PORTRAIT_UP
       );
+  }, [settings]);
+
+  useEffect(() => {
+    i18n.changeLanguage(
+      settings?.preferedLanguage || getLocales()[0].languageCode || "en"
+    );
   }, [settings]);
 
   return (

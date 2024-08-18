@@ -20,11 +20,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { RefreshControl, ScrollView, View } from "react-native";
 
 export default function index() {
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  const { i18n, t } = useTranslation();
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -216,9 +219,9 @@ export default function index() {
   if (isConnected === false) {
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6 px-8">
-        <Text className="text-3xl font-bold mb-2">No Internet</Text>
+        <Text className="text-3xl font-bold mb-2">{t("home.noInternet")}</Text>
         <Text className="text-center opacity-70">
-          No worries, you can still watch{"\n"}downloaded content.
+          {t("home.noInternetMessage")}
         </Text>
         <View className="mt-4">
           <Button
@@ -229,7 +232,7 @@ export default function index() {
               <Ionicons name="arrow-forward" size={20} color="white" />
             }
           >
-            Go to downloads
+            {t("home.goToDownloads")}
           </Button>
         </View>
       </View>
@@ -239,10 +242,8 @@ export default function index() {
   if (isError)
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
-        <Text className="text-3xl font-bold mb-2">Oops!</Text>
-        <Text className="text-center opacity-70">
-          Something went wrong.{"\n"}Please log out and in again.
-        </Text>
+        <Text className="text-3xl font-bold mb-2">{t("home.oops")}</Text>
+        <Text className="text-center opacity-70">{t("home.errorMessage")}</Text>
       </View>
     );
 
@@ -265,14 +266,14 @@ export default function index() {
         <LargeMovieCarousel />
 
         <ScrollingCollectionList
-          title="Continue Watching"
+          title={t("home.continueWatching")}
           data={data}
           loading={isLoading}
           orientation="horizontal"
         />
 
         <ScrollingCollectionList
-          title="Next Up"
+          title={t("home.nextUp")}
           data={nextUpData}
           loading={isLoadingNextUp}
           orientation="horizontal"
@@ -283,19 +284,19 @@ export default function index() {
         ))}
 
         <ScrollingCollectionList
-          title="Recently Added in Movies"
+          title={t("home.recentlyAddedMovies")}
           data={recentlyAddedInMovies}
           loading={isLoadingRecentlyAddedMovies}
         />
 
         <ScrollingCollectionList
-          title="Recently Added in TV-Shows"
+          title={t("home.recentlyAddedTVShows")}
           data={recentlyAddedInTVShows}
           loading={isLoadingRecentlyAddedTVShows}
         />
 
         <ScrollingCollectionList
-          title="Suggestions"
+          title={t("home.suggestions")}
           data={suggestions}
           loading={isLoadingSuggestions}
           orientation="horizontal"

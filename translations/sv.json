@@ -1,0 +1,38 @@
+{
+  "login": {
+    "username_required": "Användarnamn krävs",
+    "error_title": "Fel",
+    "url_error_message": "URL måste börja med http eller https.",
+    "login_title": "Logga in",
+    "login_subtitle": "Logga in på ett användarkonto",
+    "username_placeholder": "Användarnamn",
+    "password_placeholder": "Lösenord",
+    "login_button": "Logga in"
+  },
+  "server": {
+    "server_label": "Server: {{serverURL}}",
+    "change_server": "Byt server",
+    "connect_to_server": "Anslut till din Jellyfin-server",
+    "server_url_placeholder": "Server URL",
+    "server_url_hint": "Server URL kräver http eller https",
+    "connect_button": "Anslut"
+  },
+  "home": {
+    "home": "Hem",
+    "noInternet": "Ingen Internet",
+    "noInternetMessage": "Ingen fara, du kan fortfarande titta\npå nedladdat innehåll.",
+    "goToDownloads": "Gå till nedladdningar",
+    "oops": "Hoppsan!",
+    "errorMessage": "Något gick fel.\nLogga ut och in igen.",
+    "continueWatching": "Fortsätt titta",
+    "nextUp": "Nästa upp",
+    "recentlyAddedMovies": "Nyligen tillagt i Filmer",
+    "recentlyAddedTVShows": "Nyligen tillagt i TV-Serier",
+    "suggestions": "Förslag"
+  },
+  "tabs": {
+    "home": "Hem",
+    "search": "Sök",
+    "library": "Bibliotek"
+  }
+}
