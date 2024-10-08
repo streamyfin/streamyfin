@@ -2,9 +2,21 @@ import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { Colors } from "@/constants/Colors";
 import { BlurView } from "expo-blur";
 import * as NavigationBar from "expo-navigation-bar";
-import { Tabs } from "expo-router";
 import React, { useEffect } from "react";
 import { Platform, StyleSheet } from "react-native";
+
+import {
+  createNativeBottomTabNavigator,
+  BottomSheetNavigationOptions,
+} from "react-native-bottom-tabs/react-navigation";
+
+import { withLayoutContext } from "expo-router";
+
+const { Navigator } = createNativeBottomTabNavigator();
+
+export const Tabs = withLayoutContext<any, typeof Navigator, any, any>(
+  Navigator
+);
 
 export default function TabLayout() {
   useEffect(() => {
@@ -16,70 +28,31 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      initialRouteName="home"
-      screenOptions={{
-        tabBarActiveTintColor: Colors.tabIconSelected,
+      sidebarAdaptable
+      options={{
         headerShown: false,
-        tabBarStyle: {
-          position: "absolute",
-          borderTopLeftRadius: 0,
-          borderTopRightRadius: 0,
-          borderTopWidth: 0,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === "android" ? 8 : 26,
-          height: Platform.OS === "android" ? 58 : 74,
-        },
-        tabBarBackground: () =>
-          Platform.OS === "ios" ? (
-            <BlurView
-              experimentalBlurMethod="dimezisBlurView"
-              intensity={95}
-              style={{
-                ...StyleSheet.absoluteFillObject,
-                overflow: "hidden",
-                borderTopLeftRadius: 0,
-                borderTopRightRadius: 0,
-                backgroundColor: "black",
-              }}
-            />
-          ) : undefined,
       }}
     >
       <Tabs.Screen redirect name="index" />
       <Tabs.Screen
         name="(home)"
         options={{
-          headerShown: false,
           title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "home" : "home-outline"}
-              color={color}
-            />
-          ),
+          tabBarIcon: () => ({ sfSymbol: "house" }),
         }}
       />
       <Tabs.Screen
         name="(search)"
         options={{
-          headerShown: false,
           title: "Search",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "search" : "search"} color={color} />
-          ),
+          tabBarIcon: () => ({ sfSymbol: "magnifyingglass" }),
         }}
       />
       <Tabs.Screen
         name="(libraries)"
         options={{
-          headerShown: false,
           title: "Library",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "apps" : "apps-outline"}
-              color={color}
-            />
-          ),
+          tabBarIcon: () => ({ sfSymbol: "server.rack" }),
         }}
       />
     </Tabs>
