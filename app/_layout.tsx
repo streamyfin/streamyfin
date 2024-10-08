@@ -334,6 +334,8 @@ function Layout() {
                           options={{
                             headerShown: false,
                             title: "",
+                            header: () => null,
+                            
                           }}
                         />
                         <Stack.Screen
