@@ -1,16 +1,12 @@
-import { TabBarIcon } from "@/components/navigation/TabBarIcon";
-import { Colors } from "@/constants/Colors";
-import { BlurView } from "expo-blur";
 import * as NavigationBar from "expo-navigation-bar";
 import React, { useEffect } from "react";
-import { Platform, StyleSheet } from "react-native";
+import { Platform } from "react-native";
 
 import { withLayoutContext } from "expo-router";
 
 import {
   createNativeBottomTabNavigator,
   NativeBottomTabNavigationEventMap,
-  NativeBottomTabNavigationOptions,
 } from "react-native-bottom-tabs/react-navigation";
 
 const { Navigator } = createNativeBottomTabNavigator();
