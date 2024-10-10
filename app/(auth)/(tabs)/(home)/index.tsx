@@ -6,6 +6,7 @@ import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import { TAB_HEIGHT } from "@/constants/Values";
+import { hello } from "@/modules/vlc-player";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -382,49 +383,9 @@ export default function index() {
     );
 
   return (
-    <ScrollView
-      nestedScrollEnabled
-      contentInsetAdjustmentBehavior="automatic"
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={refetch} />
-      }
-      key={"home"}
-      contentContainerStyle={{
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
-        paddingBottom: 16,
-      }}
-      style={{
-        marginBottom: TAB_HEIGHT,
-      }}
-    >
-      <View className="flex flex-col space-y-4">
-        <LargeMovieCarousel />
-
-        {sections.map((section, index) => {
-          if (section.type === "ScrollingCollectionList") {
-            return (
-              <ScrollingCollectionList
-                key={index}
-                title={section.title}
-                queryKey={section.queryKey}
-                queryFn={section.queryFn}
-                orientation={section.orientation}
-              />
-            );
-          } else if (section.type === "MediaListSection") {
-            return (
-              <MediaListSection
-                key={index}
-                queryKey={section.queryKey}
-                queryFn={section.queryFn}
-              />
-            );
-          }
-          return null;
-        })}
-      </View>
-    </ScrollView>
+    <View>
+      <Text>{hello()}</Text>
+    </View>
   );
 }
 
