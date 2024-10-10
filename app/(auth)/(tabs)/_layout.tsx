@@ -34,13 +34,13 @@ export default function TabLayout() {
   }, []);
 
   return (
-    <NativeTabs sidebarAdaptable>
+    <NativeTabs sidebarAdaptable ignoresTopSafeArea>
       <NativeTabs.Screen redirect name="index" />
       <NativeTabs.Screen
         name="(home)"
         options={{
           title: "Home",
-          tabBarIcon: () => ({ sfSymbol: "house" }),
+          tabBarIcon: ({ color, focused, size }) => ({ sfSymbol: "house" }),
         }}
       />
       <NativeTabs.Screen
