@@ -32,7 +32,6 @@ import {
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
-import { orientationAtom } from "@/utils/atoms/orientation";
 import {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -44,6 +43,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useOrientation } from "@/hooks/useOrientation";
 
 const MemoizedTouchableItemRouter = React.memo(TouchableItemRouter);
 
@@ -60,11 +60,12 @@ const Page = () => {
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
-  const [orientation] = useAtom(orientationAtom);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [sortOrderPreference, setOderByPreference] = useAtom(
     sortOrderPreferenceAtom
   );
+
+  const { orientation } = useOrientation();
 
   useEffect(() => {
     const sop = getSortOrderPreference(libraryId, sortOrderPreference);
@@ -106,11 +107,12 @@ const Page = () => {
     [libraryId, sortOrderPreference]
   );
 
-  const getNumberOfColumns = useCallback(() => {
-    if (orientation === ScreenOrientation.Orientation.PORTRAIT_UP) return 3;
-    if (screenWidth < 600) return 5;
-    if (screenWidth < 960) return 6;
-    if (screenWidth < 1280) return 7;
+  const nrOfCols = useMemo(() => {
+    if (screenWidth < 300) return 2;
+    if (screenWidth < 500) return 3;
+    if (screenWidth < 800) return 5;
+    if (screenWidth < 1000) return 6;
+    if (screenWidth < 1500) return 7;
     return 6;
   }, [screenWidth, orientation]);
 
@@ -219,7 +221,7 @@ const Page = () => {
 
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => (
-      <MemoizedTouchableItemRouter
+      <TouchableItemRouter
         key={item.Id}
         style={{
           width: "100%",
@@ -230,10 +232,10 @@ const Page = () => {
         <View
           style={{
             alignSelf:
-              orientation === ScreenOrientation.Orientation.PORTRAIT_UP
-                ? index % 3 === 0
+              orientation === ScreenOrientation.OrientationLock.PORTRAIT_UP
+                ? index % nrOfCols === 0
                   ? "flex-end"
-                  : (index + 1) % 3 === 0
+                  : (index + 1) % nrOfCols === 0
                   ? "flex-start"
                   : "center"
                 : "center",
@@ -244,7 +246,7 @@ const Page = () => {
           <ItemPoster item={item} />
           <ItemCardText item={item} />
         </View>
-      </MemoizedTouchableItemRouter>
+      </TouchableItemRouter>
     ),
     [orientation]
   );
@@ -429,6 +431,7 @@ const Page = () => {
 
   return (
     <FlashList
+      key={orientation}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
           <Text className="font-bold text-xl text-neutral-500">No results</Text>
@@ -437,10 +440,10 @@ const Page = () => {
       contentInsetAdjustmentBehavior="automatic"
       data={flatData}
       renderItem={renderItem}
-      extraData={orientation}
+      extraData={[orientation, nrOfCols]}
       keyExtractor={keyExtractor}
       estimatedItemSize={244}
-      numColumns={getNumberOfColumns()}
+      numColumns={nrOfCols}
       onEndReached={() => {
         if (hasNextPage) {
           fetchNextPage();

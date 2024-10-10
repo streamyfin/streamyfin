@@ -10,9 +10,9 @@ export function Input(props: TextInputProps) {
       className="p-4 border border-neutral-800 rounded-xl bg-neutral-900"
       allowFontScaling={false}
       style={[{ color: "white" }, style]}
-      {...otherProps}
       placeholderTextColor={"#9CA3AF"}
       clearButtonMode="while-editing"
+      {...otherProps}
     />
   );
 }

@@ -5,6 +5,7 @@ import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
+import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useState } from "react";
@@ -129,7 +130,7 @@ const Login: React.FC = () => {
           if (error.name === "AbortError") {
             console.log(`Request to ${protocol}${url} timed out`);
           } else {
-            console.error(`Error checking ${protocol}${url}:`, error);
+            console.log(`Error checking ${protocol}${url}:`, error);
           }
         }
       }
@@ -195,16 +196,18 @@ const Login: React.FC = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1, height: "100%" }}
         >
-          <View className="flex flex-col justify-between px-4 h-full gap-y-2">
-            <View></View>
-            <View>
+          <View className="flex flex-col w-full h-full relative items-center justify-center">
+            <View className="px-4 -mt-20">
               <View className="mb-4">
                 <Text className="text-3xl font-bold mb-1">
                   {serverName || "Streamyfin"}
                 </Text>
-                <Text className="text-neutral-500 mb-2">
-                  Server: {api.basePath}
-                </Text>
+                <View className="bg-neutral-900 rounded-xl p-4 mb-2 flex flex-row items-center justify-between">
+                  <Text className="">URL</Text>
+                  <Text numberOfLines={1} className="shrink">
+                    {api.basePath}
+                  </Text>
+                </View>
                 <Button
                   color="black"
                   onPress={() => {
@@ -261,11 +264,11 @@ const Login: React.FC = () => {
               <Text className="text-red-600 mb-2">{error}</Text>
             </View>
 
-            <View className="mt-auto mb-2">
+            <View className="absolute bottom-0 left-0 w-full px-4 mb-2">
               <Button
                 color="black"
                 onPress={handleQuickConnect}
-                className="mb-2"
+                className="w-full mb-2"
               >
                 Use Quick Connect
               </Button>
@@ -285,9 +288,17 @@ const Login: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <View className="flex flex-col px-4 justify-between h-full">
-          <View></View>
-          <View className="flex flex-col gap-y-2">
+        <View className="flex flex-col h-full relative items-center justify-center w-full">
+          <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">
+            <Image
+              style={{
+                width: 100,
+                height: 100,
+                marginLeft: -23,
+                marginBottom: -20,
+              }}
+              source={require("@/assets/images/StreamyFinFinal.png")}
+            />
             <Text className="text-3xl font-bold">Streamyfin</Text>
             <Text className="text-neutral-500">
               Connect to your Jellyfin server
@@ -303,14 +314,16 @@ const Login: React.FC = () => {
               maxLength={500}
             />
           </View>
-          <Button
-            loading={loadingServerCheck}
-            disabled={loadingServerCheck}
-            onPress={async () => await handleConnect(serverURL)}
-            className="mb-2"
-          >
-            Connect
-          </Button>
+          <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
+            <Button
+              loading={loadingServerCheck}
+              disabled={loadingServerCheck}
+              onPress={async () => await handleConnect(serverURL)}
+              className="w-full grow"
+            >
+              Connect
+            </Button>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

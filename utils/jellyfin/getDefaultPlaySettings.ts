@@ -9,7 +9,7 @@ import { Settings } from "../atoms/settings";
 interface PlaySettings {
   item: BaseItemDto;
   bitrate: (typeof BITRATES)[0];
-  mediaSource: MediaSourceInfo | undefined;
+  mediaSource?: MediaSourceInfo | null;
   audioIndex?: number | null;
   subtitleIndex?: number | null;
 }
@@ -29,9 +29,8 @@ export function getDefaultPlaySettings(
   }
 
   // 1. Get first media source
-  const mediaSource = item.MediaSources?.[0];
 
-  if (!mediaSource) throw new Error("No media source found");
+  const mediaSource = item.MediaSources?.[0];
 
   // 2. Get default or preferred audio
   const defaultAudioIndex = mediaSource?.DefaultAudioStreamIndex;

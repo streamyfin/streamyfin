@@ -26,7 +26,7 @@ import { useFocusEffect, useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
@@ -59,6 +59,11 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           audioIndex,
           subtitleIndex,
         });
+
+        if (!mediaSource) {
+          Alert.alert("Error", "No media source found for this item.");
+          navigation.goBack();
+        }
       }, [item, settings])
     );
 

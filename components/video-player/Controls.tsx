@@ -123,17 +123,6 @@ export const Controls: React.FC<Props> = ({
 
   const wasPlayingRef = useRef(false);
 
-  const updateTimes = useCallback(
-    (currentProgress: number, maxValue: number) => {
-      const current = ticksToSeconds(currentProgress);
-      const remaining = ticksToSeconds(maxValue - currentProgress);
-
-      setCurrentTime(current);
-      setRemainingTime(remaining);
-    },
-    []
-  );
-
   const { showSkipButton, skipIntro } = useIntroSkipper(
     item.Id,
     currentTime,
@@ -179,6 +168,23 @@ export const Controls: React.FC<Props> = ({
 
     router.replace("/play-video");
   }, [nextItem, settings]);
+
+  const updateTimes = useCallback(
+    (currentProgress: number, maxValue: number) => {
+      const current = ticksToSeconds(currentProgress);
+      const remaining = ticksToSeconds(maxValue - currentProgress);
+
+      setCurrentTime(current);
+      setRemainingTime(remaining);
+
+      if (currentProgress === maxValue) {
+        setShowControls(true);
+        // Automatically play the next item if it exists
+        goToNextItem();
+      }
+    },
+    [goToNextItem]
+  );
 
   useAnimatedReaction(
     () => ({
