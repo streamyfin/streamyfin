@@ -9,6 +9,8 @@ class VlcPlayerView: ExpoView {
     private var progressUpdateInterval: TimeInterval = 0.5
     private var isPaused: Bool = false
     private var currentGeometryCString: [CChar]?
+    private var stateUpdateTimer: Timer?
+    private var lastReportedState: VLCMediaPlayerState?
 
     // MARK: - Initialization
 
@@ -324,16 +326,34 @@ class VlcPlayerView: ExpoView {
     // MARK: - Deinitialization
 
     deinit {
+        stateUpdateTimer?.invalidate()
         release()
     }
 }
 
 extension VlcPlayerView: VLCMediaPlayerDelegate {
     func mediaPlayerStateChanged(_ aNotification: Notification) {
+        guard let player = self.mediaPlayer else { return }
+
+        let currentState = player.state
+
+        // If the state hasn't changed, don't do anything
+        guard currentState != lastReportedState else { return }
+
+        // Cancel any pending state update
+        stateUpdateTimer?.invalidate()
+
+        // Schedule a new state update
+        stateUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) {
+            [weak self] _ in
+            self?.reportStateChange(currentState)
+        }
+    }
+
+    private func reportStateChange(_ state: VLCMediaPlayerState) {
         DispatchQueue.main.async {
             guard let player = self.mediaPlayer else { return }
 
-            let state = player.state
             var stateInfo: [String: Any] = [
                 "target": self.reactTag ?? NSNull(),
                 "currentTime": player.time.intValue,
@@ -350,8 +370,6 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 stateInfo["type"] = "Stopped"
             case .buffering:
                 if player.isPlaying {
-                    // If the player is actually playing while in buffering state,
-                    // we'll report it as "Playing"
                     self.isPaused = false
                     stateInfo["type"] = "Playing"
                 } else {
@@ -373,6 +391,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 stateInfo["type"] = "Unknown"
             }
 
+            self.lastReportedState = state
             self.onVideoStateChange?(stateInfo)
         }
     }
@@ -408,6 +427,22 @@ extension VlcPlayerView: VLCMediaDelegate {
         DispatchQueue.main.async {
             let duration = aMedia.length.intValue
             self.onVideoStateChange?(["type": "MediaParsed", "duration": duration])
+        }
+    }
+}
+
+extension VLCMediaPlayerState {
+    var description: String {
+        switch self {
+        case .opening: return "Opening"
+        case .buffering: return "Buffering"
+        case .playing: return "Playing"
+        case .paused: return "Paused"
+        case .stopped: return "Stopped"
+        case .ended: return "Ended"
+        case .error: return "Error"
+        case .esAdded: return "ESAdded"
+        @unknown default: return "Unknown"
         }
     }
 }
