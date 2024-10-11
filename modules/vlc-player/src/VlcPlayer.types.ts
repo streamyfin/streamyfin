@@ -3,5 +3,5 @@ export type ChangeEventPayload = {
 };
 
 export type VlcPlayerViewProps = {
-  name: string;
+  source: string;
 };

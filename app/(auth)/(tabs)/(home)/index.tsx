@@ -6,7 +6,7 @@ import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import { TAB_HEIGHT } from "@/constants/Values";
-import { hello } from "@/modules/vlc-player";
+import { hello, VlcPlayerView } from "@/modules/vlc-player";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -383,9 +383,27 @@ export default function index() {
     );
 
   return (
-    <View>
-      <Text>{hello()}</Text>
-    </View>
+    <ScrollView
+      nestedScrollEnabled
+      contentInsetAdjustmentBehavior="automatic"
+      refreshControl={
+        <RefreshControl refreshing={loading} onRefresh={refetch} />
+      }
+      key={"home"}
+      contentContainerStyle={{
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+        paddingBottom: 16,
+      }}
+      style={{
+        marginBottom: TAB_HEIGHT,
+      }}
+    >
+      <View className="flex flex-col space-y-4">
+        <Text>{hello()}</Text>
+        <VlcPlayerView source="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" />
+      </View>
+    </ScrollView>
   );
 }
 
