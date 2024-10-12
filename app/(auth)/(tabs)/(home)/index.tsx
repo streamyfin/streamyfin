@@ -393,9 +393,6 @@ export default function index() {
         paddingRight: insets.right,
         paddingBottom: 16,
       }}
-      style={{
-        marginBottom: TAB_HEIGHT,
-      }}
     >
       <View className="flex flex-col space-y-4">
         <LargeMovieCarousel />
