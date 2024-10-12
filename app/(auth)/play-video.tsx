@@ -15,6 +15,7 @@ import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { secondsToTicks } from "@/utils/secondsToTicks";
 import { Api } from "@jellyfin/sdk";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -105,7 +106,36 @@ export default function page() {
     videoRef.current?.pause();
   }, [videoRef]);
 
+  const queryClient = useQueryClient();
+
   const stop = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ["item", playSettings?.item?.Id],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["resumeItems"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["continueWatching"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["nextUp-all"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["nextUp"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["episodes"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["seasons"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["nextUp-all"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["home"],
+    });
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     reportPlaybackStopped();
