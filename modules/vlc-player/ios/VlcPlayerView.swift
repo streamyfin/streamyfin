@@ -421,20 +421,20 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let player = self.mediaPlayer else { return }
             let currentState = player.state
-            print("VLC Player State Changed: \(currentState.description)")
 
             var stateInfo: [String: Any] = [
                 "target": self.reactTag ?? NSNull(),
                 "currentTime": player.time.intValue,
                 "duration": player.media?.length.intValue ?? 0,
-                "isPlaying": currentState == .playing,
-                "isBuffering": currentState == .buffering,
             ]
 
-            if player.state == .playing {
+            if player.isPlaying {
                 stateInfo["isPlaying"] = true
                 stateInfo["isBuffering"] = false
                 stateInfo["state"] = "Playing"
+            } else {
+                stateInfo["isPlaying"] = false
+                stateInfo["state"] = "Paused"
             }
 
             if player.state == .buffering {
@@ -442,10 +442,8 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 stateInfo["state"] = "Buffering"
             }
 
-            if player.state == .paused {
-                stateInfo["isPlaying"] = false
-                stateInfo["state"] = "Paused"
-            }
+            print("VLC Player State Changed: \(currentState.description)")
+            print("VLC Player State Changed: \(player.isPlaying)")
 
             // switch currentState {
             // case .opening:
@@ -475,7 +473,6 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
     func mediaPlayerTimeChanged(_ aNotification: Notification) {
         DispatchQueue.main.async { [weak self] in
             self?.updateVideoProgress()
-            self?.updatePlayerState()
         }
     }
 
@@ -487,20 +484,10 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             let durationMs = player.media?.length.intValue ?? 0
 
             if currentTimeMs >= 0 && currentTimeMs < durationMs {
-                let isPlaying = player.isPlaying
-                let isBuffering = player.state == .buffering
-
                 self.onVideoProgress?([
                     "currentTime": currentTimeMs,
                     "duration": durationMs,
-                    "isPlaying": isPlaying,
-                    "isBuffering": isBuffering,
                 ])
-
-                // Debug log
-                print(
-                    "VLC Player State: \(player.state.description), isPlaying: \(isPlaying), isBuffering: \(isBuffering)"
-                )
             }
         }
     }
