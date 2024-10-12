@@ -2,6 +2,7 @@ import { Controls } from "@/components/video-player/Controls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
+import useScreenDimensions from "@/hooks/useScreenDimensions";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
@@ -18,7 +19,7 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, Pressable, StatusBar, View } from "react-native";
+import { Pressable, StatusBar, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
@@ -34,8 +35,7 @@ export default function page() {
   const poster = usePoster(playSettings, api);
   const videoSource = useVideoSource(playSettings, api, poster, playUrl);
   const firstTime = useRef(true);
-
-  const screenDimensions = Dimensions.get("screen");
+  const screenDimensions = useScreenDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);

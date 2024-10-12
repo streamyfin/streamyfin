@@ -246,7 +246,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 </View>
               )}
 
-              <PlayButton item={item} url={playUrl} className="grow" />
+              <PlayButton className="grow" />
             </View>
 
             {item.Type === "Episode" && (

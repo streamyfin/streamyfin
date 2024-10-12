@@ -11,12 +11,9 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { TouchableOpacityProps, View } from "react-native";
-import { getColors } from "react-native-image-colors";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { useImageColors } from "@/hooks/useImageColors";
-import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 
 interface Props extends TouchableOpacityProps {
   library: BaseItemDto;
@@ -53,10 +50,6 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     [library]
   );
 
-  // If we want to use image colors for library cards
-  // const [color] = useAtom(itemThemeColorAtom)
-  // useImageColors({ url });
-
   const { data: itemsCount } = useQuery({
     queryKey: ["library-count", library.Id],
     queryFn: async () => {
@@ -68,6 +61,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
       });
       return response.data.TotalRecordCount;
     },
+    staleTime: 1000 * 60 * 60,
   });
 
   if (!url) return null;
