@@ -152,9 +152,16 @@ export default function page() {
       if (isSeeking.value === true) return;
       if (isPlaybackStopped === true) return;
 
-      const { currentTime, duration } = data.nativeEvent;
+      const { currentTime, duration, isBuffering, isPlaying } =
+        data.nativeEvent;
 
-      console.log("onProgress ~", currentTime);
+      console.log("onProgress ~", {
+        currentTime,
+        duration,
+        isBuffering,
+        isPlaying,
+      });
+
       progress.value = currentTime;
 
       // cacheProgress.value = secondsToTicks(data.playableDuration);
@@ -297,7 +304,7 @@ export default function page() {
         />
       </Pressable>
 
-      <VideoDebugInfo
+      {/* <VideoDebugInfo
         style={{
           position: "absolute",
           top: 0,
@@ -310,7 +317,7 @@ export default function page() {
           duration: 0,
         }}
         playerRef={videoRef}
-      />
+      /> */}
 
       <Controls
         item={playSettings.item}

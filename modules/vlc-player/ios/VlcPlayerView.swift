@@ -431,36 +431,51 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 "isBuffering": currentState == .buffering,
             ]
 
-            switch currentState {
-            case .opening:
-                stateInfo["state"] = "Opening"
-            case .buffering:
-                stateInfo["state"] = "Buffering"
-                stateInfo["isBuffering"] = true
-            case .playing:
+            if player.state == .playing {
+                stateInfo["isPlaying"] = true
+                stateInfo["isBuffering"] = false
                 stateInfo["state"] = "Playing"
-            case .paused:
-                stateInfo["state"] = "Paused"
-            case .stopped:
-                stateInfo["state"] = "Stopped"
-            case .ended:
-                stateInfo["state"] = "Ended"
-            case .error:
-                stateInfo["state"] = "Error"
-            default:
-                stateInfo["state"] = "Unknown"
             }
 
-            if currentState != self.lastReportedState {
-                self.lastReportedState = currentState
-                self.onVideoStateChange?(stateInfo)
+            if player.state == .buffering {
+                stateInfo["isBuffering"] = true
+                stateInfo["state"] = "Buffering"
             }
+
+            if player.state == .paused {
+                stateInfo["isPlaying"] = false
+                stateInfo["state"] = "Paused"
+            }
+
+            // switch currentState {
+            // case .opening:
+            //     stateInfo["state"] = "Opening"
+            // case .buffering:
+            //     stateInfo["state"] = "Buffering"
+            //     stateInfo["isBuffering"] = true
+            // case .playing:
+            //     stateInfo["state"] = "Playing"
+            // case .paused:
+            //     stateInfo["state"] = "Paused"
+            // case .stopped:
+            //     stateInfo["state"] = "Stopped"
+            // case .ended:
+            //     stateInfo["state"] = "Ended"
+            // case .error:
+            //     stateInfo["state"] = "Error"
+            // default:
+            //     stateInfo["state"] = "Unknown"
+            // }
+
+            self.lastReportedState = currentState
+            self.onVideoStateChange?(stateInfo)
         }
     }
 
     func mediaPlayerTimeChanged(_ aNotification: Notification) {
         DispatchQueue.main.async { [weak self] in
             self?.updateVideoProgress()
+            self?.updatePlayerState()
         }
     }
 
@@ -472,11 +487,20 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             let durationMs = player.media?.length.intValue ?? 0
 
             if currentTimeMs >= 0 && currentTimeMs < durationMs {
+                let isPlaying = player.isPlaying
+                let isBuffering = player.state == .buffering
+
                 self.onVideoProgress?([
-                    "target": self.reactTag ?? NSNull(),
                     "currentTime": currentTimeMs,
                     "duration": durationMs,
+                    "isPlaying": isPlaying,
+                    "isBuffering": isBuffering,
                 ])
+
+                // Debug log
+                print(
+                    "VLC Player State: \(player.state.description), isPlaying: \(isPlaying), isBuffering: \(isBuffering)"
+                )
             }
         }
     }

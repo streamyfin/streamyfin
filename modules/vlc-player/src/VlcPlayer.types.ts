@@ -21,6 +21,8 @@ export type ProgressUpdatePayload = {
   nativeEvent: {
     currentTime: number;
     duration: number;
+    isPlaying: boolean;
+    isBuffering: boolean;
   };
 };
 
