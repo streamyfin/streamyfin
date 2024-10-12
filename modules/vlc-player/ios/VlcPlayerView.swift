@@ -355,21 +355,22 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    @objc func stop() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+    private var isStopping: Bool = false
 
-            // Stop and release the media player
-            self.mediaPlayer?.stop()
-            self.mediaPlayer?.delegate = nil
-            self.mediaPlayer = nil
+    @objc func stop(completion: (() -> Void)? = nil) {
+        guard !isStopping else {
+            completion?()
+            return
+        }
+        isStopping = true
 
-            // Clear the video view
-            self.videoView?.removeFromSuperview()
-            self.videoView = nil
-
-            // Remove notifications
-            NotificationCenter.default.removeObserver(self)
+        // If we're not on the main thread, dispatch to main thread
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.performStop(completion: completion)
+            }
+        } else {
+            performStop(completion: completion)
         }
     }
 
@@ -387,12 +388,23 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    private func release() {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.stop()
-            self.mediaPlayer = nil
-            NotificationCenter.default.removeObserver(self)
-        }
+    private func performStop(completion: (() -> Void)? = nil) {
+        // Stop the media player
+        mediaPlayer?.stop()
+
+        // Remove observer
+        NotificationCenter.default.removeObserver(self)
+
+        // Clear the video view
+        videoView?.removeFromSuperview()
+        videoView = nil
+
+        // Release the media player
+        mediaPlayer?.delegate = nil
+        mediaPlayer = nil
+
+        isStopping = false
+        completion?()
     }
 
     // MARK: - Expo Events
@@ -405,7 +417,7 @@ class VlcPlayerView: ExpoView {
     // MARK: - Deinitialization
 
     deinit {
-        release()
+        performStop()
     }
 }
 
