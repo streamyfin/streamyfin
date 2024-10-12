@@ -449,7 +449,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 stateInfo["state"] = "Paused"
             }
 
-            if player.state == .buffering {
+            if player.state == .buffering && player.isPlaying {
                 stateInfo["isBuffering"] = true
                 stateInfo["state"] = "Buffering"
             }
