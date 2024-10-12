@@ -97,7 +97,6 @@ export const getStreamUrl = async ({
         breakOnNonKeyFrames: false,
         copyTimestamps: false,
         enableMpegtsM2TsMode: false,
-
       },
     }
   );
@@ -111,16 +110,16 @@ export const getStreamUrl = async ({
   console.log("getStreamUrl ~ ", item.MediaType);
 
   if (item.MediaType === "Video") {
-    if (mediaSource?.TranscodingUrl) {
+    if (mediaSource?.SupportsDirectPlay || forceDirectPlay === true) {
       return {
-        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
+        url: `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`,
         sessionId: sessionId,
       };
     }
 
-    if (mediaSource?.SupportsDirectPlay || forceDirectPlay === true) {
+    if (mediaSource?.TranscodingUrl) {
       return {
-        url: `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`,
+        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
         sessionId: sessionId,
       };
     }

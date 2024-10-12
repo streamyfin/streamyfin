@@ -6,7 +6,7 @@ import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { writeToLog } from "@/utils/log";
-import { formatTimeString, ticksToSeconds } from "@/utils/time";
+import { formatTimeString, secondsToMs, ticksToMs } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
@@ -32,10 +32,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
+import { VlcPlayerViewRef } from "@/modules/vlc-player/src/VlcPlayer.types";
+import { secondsToTicks } from "@/utils/secondsToTicks";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: React.MutableRefObject<VideoRef | null>;
+  videoRef: React.MutableRefObject<VlcPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
@@ -122,6 +124,7 @@ export const Controls: React.FC<Props> = ({
   const max = useSharedValue(item.RunTimeTicks || 0);
 
   const wasPlayingRef = useRef(false);
+  const lastProgressRef = useRef<number>(0);
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
     item.Id,
@@ -171,8 +174,8 @@ export const Controls: React.FC<Props> = ({
 
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
-      const current = ticksToSeconds(currentProgress);
-      const remaining = ticksToSeconds(maxValue - currentProgress);
+      const current = currentProgress;
+      const remaining = maxValue - currentProgress;
 
       setCurrentTime(current);
       setRemainingTime(remaining);
@@ -202,18 +205,19 @@ export const Controls: React.FC<Props> = ({
 
   useEffect(() => {
     if (item) {
-      progress.value = item?.UserData?.PlaybackPositionTicks || 0;
-      max.value = item.RunTimeTicks || 0;
+      progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
+      max.value = ticksToMs(item.RunTimeTicks || 0);
     }
   }, [item]);
 
   const toggleControls = () => setShowControls(!showControls);
 
-  const handleSliderComplete = useCallback((value: number) => {
-    progress.value = value;
+  const handleSliderComplete = useCallback(async (value: number) => {
     isSeeking.value = false;
-    videoRef.current?.seek(Math.max(0, Math.floor(value / 10000000)));
-    if (wasPlayingRef.current === true) videoRef.current?.resume();
+    progress.value = value;
+
+    await videoRef.current?.seekTo(Math.max(0, Math.floor(value)));
+    if (wasPlayingRef.current === true) videoRef.current?.play();
   }, []);
 
   const handleSliderChange = (value: number) => {
@@ -222,7 +226,10 @@ export const Controls: React.FC<Props> = ({
 
   const handleSliderStart = useCallback(() => {
     if (showControls === false) return;
+
     wasPlayingRef.current = isPlaying;
+    lastProgressRef.current = progress.value;
+
     videoRef.current?.pause();
     isSeeking.value = true;
   }, [showControls, isPlaying]);
@@ -232,12 +239,12 @@ export const Controls: React.FC<Props> = ({
     if (!settings?.rewindSkipTime) return;
     wasPlayingRef.current = isPlaying;
     try {
-      const curr = await videoRef.current?.getCurrentPosition();
+      const curr = progress.value;
       if (curr !== undefined) {
-        videoRef.current?.seek(Math.max(0, curr - settings.rewindSkipTime));
-        setTimeout(() => {
-          if (wasPlayingRef.current === true) videoRef.current?.resume();
-        }, 10);
+        await videoRef.current?.seekTo(
+          Math.max(0, curr - secondsToMs(settings.rewindSkipTime))
+        );
+        if (wasPlayingRef.current === true) videoRef.current?.play();
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video backwards", error);
@@ -245,16 +252,15 @@ export const Controls: React.FC<Props> = ({
   }, [settings, isPlaying]);
 
   const handleSkipForward = useCallback(async () => {
-    console.log("handleSkipForward");
     if (!settings?.forwardSkipTime) return;
     wasPlayingRef.current = isPlaying;
     try {
-      const curr = await videoRef.current?.getCurrentPosition();
+      const curr = progress.value;
       if (curr !== undefined) {
-        videoRef.current?.seek(Math.max(0, curr + settings.forwardSkipTime));
-        setTimeout(() => {
-          if (wasPlayingRef.current === true) videoRef.current?.resume();
-        }, 10);
+        const newTime = curr + secondsToMs(settings.forwardSkipTime);
+        console.log("handleSkipForward", newTime);
+        await videoRef.current?.seekTo(Math.max(0, newTime));
+        if (wasPlayingRef.current === true) videoRef.current?.play();
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
@@ -376,7 +382,8 @@ export const Controls: React.FC<Props> = ({
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => {
+          onPress={async () => {
+            await videoRef.current?.stop();
             router.back();
           }}
           className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"

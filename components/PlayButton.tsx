@@ -79,7 +79,7 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
         return;
       }
 
-      router.push("/play-video");
+      router.push("/vlc-player");
       return;
     }
 

@@ -1,19 +1,19 @@
 export type PlaybackStatePayload = {
   nativeEvent: {
     target: number;
-    type:
+    state:
       | "Opening"
-      | "Paused"
-      | "Stopped"
       | "Buffering"
       | "Playing"
-      | "ESAdded"
+      | "Paused"
+      | "Stopped"
       | "Ended"
       | "Error"
       | "Unknown";
     currentTime: number;
     duration: number;
-    isBuffering?: boolean;
+    isBuffering: boolean;
+    isPlaying: boolean;
   };
 };
 
@@ -70,9 +70,8 @@ export type VlcPlayerViewProps = {
 export interface VlcPlayerViewRef {
   play: () => Promise<void>;
   pause: () => Promise<void>;
+  stop: () => Promise<void>;
   seekTo: (time: number) => Promise<void>;
-  jumpBackward: (interval: number) => Promise<void>;
-  jumpForward: (interval: number) => Promise<void>;
   setAudioTrack: (trackIndex: number) => Promise<void>;
   getAudioTracks: () => Promise<TrackInfo[] | null>;
   setSubtitleTrack: (trackIndex: number) => Promise<void>;

@@ -8,10 +8,6 @@ public class VlcPlayerModule: Module {
                 view.setSource(source)
             }
 
-            Prop("progressUpdateInterval") { (view: VlcPlayerView, interval: Double) in
-                view.setProgressUpdateInterval(interval)
-            }
-
             Prop("paused") { (view: VlcPlayerView, paused: Bool) in
                 if paused {
                     view.pause()
@@ -33,7 +29,6 @@ public class VlcPlayerModule: Module {
             }
 
             Events(
-                "onProgress",
                 "onPlaybackStateChanged",
                 "onVideoLoadStart",
                 "onVideoStateChange",
@@ -48,16 +43,12 @@ public class VlcPlayerModule: Module {
                 view.pause()
             }
 
-            AsyncFunction("seekTo") { (view: VlcPlayerView, time: Double) in
+            AsyncFunction("stop") { (view: VlcPlayerView) in
+                view.stop()
+            }
+
+            AsyncFunction("seekTo") { (view: VlcPlayerView, time: Int32) in
                 view.seekTo(time)
-            }
-
-            AsyncFunction("jumpBackward") { (view: VlcPlayerView, interval: Int) in
-                view.jumpBackward(interval)
-            }
-
-            AsyncFunction("jumpForward") { (view: VlcPlayerView, interval: Int) in
-                view.jumpForward(interval)
             }
 
             AsyncFunction("setAudioTrack") { (view: VlcPlayerView, trackIndex: Int) in

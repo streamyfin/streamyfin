@@ -5,11 +5,9 @@ import UIKit
 class VlcPlayerView: ExpoView {
     private var mediaPlayer: VLCMediaPlayer?
     private var videoView: UIView?
-    private var progressUpdateTimer: Timer?
     private var progressUpdateInterval: TimeInterval = 0.5
     private var isPaused: Bool = false
     private var currentGeometryCString: [CChar]?
-    private var stateUpdateTimer: Timer?
     private var lastReportedState: VLCMediaPlayerState?
 
     // MARK: - Initialization
@@ -43,7 +41,8 @@ class VlcPlayerView: ExpoView {
     }
 
     private func setupMediaPlayer() {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             self.mediaPlayer = VLCMediaPlayer()
             self.mediaPlayer?.delegate = self
             self.mediaPlayer?.drawable = self.videoView
@@ -62,21 +61,31 @@ class VlcPlayerView: ExpoView {
     // MARK: - Public Methods
 
     @objc func play() {
-        self.mediaPlayer?.play()
-        self.isPaused = false
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.mediaPlayer?.play()
+            self.isPaused = false
+        }
     }
 
     @objc func pause() {
-        self.mediaPlayer?.pause()
-        self.isPaused = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.mediaPlayer?.pause()
+            self.isPaused = true
+        }
     }
 
-    @objc func seekTo(_ time: Double) {
-        self.mediaPlayer?.time = VLCTime(int: Int32(time * 1000))
+    @objc func seekTo(_ time: Int32) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.mediaPlayer?.time = VLCTime(int: time)
+        }
     }
 
     @objc func setSource(_ source: [String: Any]) {
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             self.mediaPlayer?.stop()
             self.mediaPlayer = nil
 
@@ -111,8 +120,7 @@ class VlcPlayerView: ExpoView {
                 media.addOptions(mediaOptions)
             }
 
-            // Parse the media asynchronously
-            media.parse()
+            // Set the media without parsing
             self.mediaPlayer?.media = media
 
             if autoplay {
@@ -123,25 +131,16 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    @objc func setProgressUpdateInterval(_ interval: Double) {
-        progressUpdateInterval = TimeInterval(interval / 1000.0)
-        updateProgressTimer()
-    }
-
-    @objc func jumpBackward(_ interval: Int) {
-        mediaPlayer?.jumpBackward(Int32(interval))
-    }
-
-    @objc func jumpForward(_ interval: Int) {
-        mediaPlayer?.jumpForward(Int32(interval))
-    }
-
     @objc func setMuted(_ muted: Bool) {
-        mediaPlayer?.audio?.isMuted = muted
+        DispatchQueue.main.async {
+            self.mediaPlayer?.audio?.isMuted = muted
+        }
     }
 
     @objc func setVolume(_ volume: Int) {
-        mediaPlayer?.audio?.volume = Int32(volume)
+        DispatchQueue.main.async {
+            self.mediaPlayer?.audio?.volume = Int32(volume)
+        }
     }
 
     @objc func setVideoAspectRatio(_ ratio: String) {
@@ -170,23 +169,108 @@ class VlcPlayerView: ExpoView {
         }
     }
 
+    // @objc func getAudioTracks(
+    //     _ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock
+    // ) {
+    //     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+    //         guard let self = self, let mediaPlayer = self.mediaPlayer else {
+    //             DispatchQueue.main.async {
+    //                 reject("ERROR", "Media player not available", nil)
+    //             }
+    //             return
+    //         }
+
+    //         guard let trackNames = mediaPlayer.audioTrackNames,
+    //             let trackIndexes = mediaPlayer.audioTrackIndexes
+    //         else {
+    //             DispatchQueue.main.async {
+    //                 reject("ERROR", "No audio tracks available", nil)
+    //             }
+    //             return
+    //         }
+
+    //         let tracks = zip(trackNames, trackIndexes).map { name, index in
+    //             return ["name": name, "index": index]
+    //         }
+
+    //         DispatchQueue.main.async {
+    //             resolve(tracks)
+    //         }
+    //     }
+    // }
+
     @objc func setSubtitleTrack(_ trackIndex: Int) {
         DispatchQueue.main.async {
-            self.mediaPlayer?.currentVideoSubTitleIndex = Int32(trackIndex)
+            if trackIndex == -1 {
+                // Disable subtitles
+                self.mediaPlayer?.currentVideoSubTitleIndex = -1
+            } else {
+                // Set the subtitle track
+                self.mediaPlayer?.currentVideoSubTitleIndex = Int32(trackIndex)
+            }
         }
     }
 
     @objc func getSubtitleTracks() -> [[String: Any]]? {
-        guard let trackNames = mediaPlayer?.videoSubTitlesNames,
-            let trackIndexes = mediaPlayer?.videoSubTitlesIndexes
-        else {
+        guard let mediaPlayer = self.mediaPlayer else {
             return nil
         }
 
-        return zip(trackNames, trackIndexes).map { name, index in
-            return ["name": name, "index": index]
+        let count = mediaPlayer.numberOfSubtitlesTracks
+        guard count > 0 else {
+            return nil
         }
+
+        var tracks: [[String: Any]] = []
+
+        // Add the "Disabled" track
+        tracks.append(["name": "Disabled", "index": -1])
+
+        if let names = mediaPlayer.videoSubTitlesNames as? [String],
+            let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
+        {
+            for (index, name) in zip(indexes, names) {
+                tracks.append(["name": name, "index": index.intValue])
+            }
+        }
+
+        return tracks
     }
+
+    // @objc func getSubtitleTracks(
+    //     _ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock
+    // ) {
+    //     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+    //         guard let self = self, let mediaPlayer = self.mediaPlayer else {
+    //             DispatchQueue.main.async {
+    //                 reject("ERROR", "Media player not available", nil)
+    //             }
+    //             return
+    //         }
+
+    //         let count = mediaPlayer.numberOfSubtitlesTracks
+    //         guard count > 0 else {
+    //             DispatchQueue.main.async {
+    //                 reject("ERROR", "No subtitle tracks available", nil)
+    //             }
+    //             return
+    //         }
+
+    //         var tracks: [[String: Any]] = [["name": "Disabled", "index": -1]]
+
+    //         if let names = mediaPlayer.videoSubTitlesNames as? [String],
+    //             let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
+    //         {
+    //             for (index, name) in zip(indexes, names) {
+    //                 tracks.append(["name": name, "index": index.intValue])
+    //             }
+    //         }
+
+    //         DispatchQueue.main.async {
+    //             resolve(tracks)
+    //         }
+    //     }
+    // }
 
     @objc func setSubtitleDelay(_ delay: Int) {
         DispatchQueue.main.async {
@@ -271,29 +355,25 @@ class VlcPlayerView: ExpoView {
         }
     }
 
+    @objc func stop() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            // Stop and release the media player
+            self.mediaPlayer?.stop()
+            self.mediaPlayer?.delegate = nil
+            self.mediaPlayer = nil
+
+            // Clear the video view
+            self.videoView?.removeFromSuperview()
+            self.videoView = nil
+
+            // Remove notifications
+            NotificationCenter.default.removeObserver(self)
+        }
+    }
+
     // MARK: - Private Methods
-
-    private func updateProgressTimer() {
-        progressUpdateTimer?.invalidate()
-        progressUpdateTimer = Timer.scheduledTimer(
-            withTimeInterval: progressUpdateInterval, repeats: true
-        ) { [weak self] _ in
-            self?.sendProgressUpdate()
-        }
-    }
-
-    private func sendProgressUpdate() {
-        DispatchQueue.main.async {
-            guard let player = self.mediaPlayer else { return }
-            let currentTime = player.time.intValue
-            let duration = player.media?.length.intValue ?? 0
-            let progress: [String: Any] = [
-                "currentTime": currentTime,
-                "duration": duration,
-            ]
-            self.onVideoProgress?(progress)
-        }
-    }
 
     @objc private func applicationWillResignActive() {
         if !isPaused {
@@ -317,7 +397,6 @@ class VlcPlayerView: ExpoView {
 
     // MARK: - Expo Events
 
-    @objc var onProgress: RCTDirectEventBlock?
     @objc var onPlaybackStateChanged: RCTDirectEventBlock?
     @objc var onVideoLoadStart: RCTDirectEventBlock?
     @objc var onVideoStateChange: RCTDirectEventBlock?
@@ -326,92 +405,77 @@ class VlcPlayerView: ExpoView {
     // MARK: - Deinitialization
 
     deinit {
-        stateUpdateTimer?.invalidate()
         release()
     }
 }
 
 extension VlcPlayerView: VLCMediaPlayerDelegate {
     func mediaPlayerStateChanged(_ aNotification: Notification) {
-        guard let player = self.mediaPlayer else { return }
-
-        let currentState = player.state
-
-        // If the state hasn't changed, don't do anything
-        guard currentState != lastReportedState else { return }
-
-        // Cancel any pending state update
-        stateUpdateTimer?.invalidate()
-
-        // Schedule a new state update
-        stateUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) {
-            [weak self] _ in
-            self?.reportStateChange(currentState)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.updatePlayerState()
         }
     }
 
-    private func reportStateChange(_ state: VLCMediaPlayerState) {
-        DispatchQueue.main.async {
-            guard let player = self.mediaPlayer else { return }
+    private func updatePlayerState() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let player = self.mediaPlayer else { return }
+            let currentState = player.state
+            print("VLC Player State Changed: \(currentState.description)")
 
             var stateInfo: [String: Any] = [
                 "target": self.reactTag ?? NSNull(),
                 "currentTime": player.time.intValue,
                 "duration": player.media?.length.intValue ?? 0,
+                "isPlaying": currentState == .playing,
+                "isBuffering": currentState == .buffering,
             ]
 
-            switch state {
+            switch currentState {
             case .opening:
-                stateInfo["type"] = "Opening"
-            case .paused:
-                self.isPaused = true
-                stateInfo["type"] = "Paused"
-            case .stopped:
-                stateInfo["type"] = "Stopped"
+                stateInfo["state"] = "Opening"
             case .buffering:
-                if player.isPlaying {
-                    self.isPaused = false
-                    stateInfo["type"] = "Playing"
-                } else {
-                    stateInfo["type"] = "Buffering"
-                    stateInfo["isBuffering"] = true
-                }
+                stateInfo["state"] = "Buffering"
+                stateInfo["isBuffering"] = true
             case .playing:
-                self.isPaused = false
-                stateInfo["type"] = "Playing"
-            case .esAdded:
-                stateInfo["type"] = "ESAdded"
+                stateInfo["state"] = "Playing"
+            case .paused:
+                stateInfo["state"] = "Paused"
+            case .stopped:
+                stateInfo["state"] = "Stopped"
             case .ended:
-                print("VLCMediaPlayerStateEnded")
-                stateInfo["type"] = "Ended"
+                stateInfo["state"] = "Ended"
             case .error:
-                stateInfo["type"] = "Error"
-                self.release()
-            @unknown default:
-                stateInfo["type"] = "Unknown"
+                stateInfo["state"] = "Error"
+            default:
+                stateInfo["state"] = "Unknown"
             }
 
-            self.lastReportedState = state
-            self.onVideoStateChange?(stateInfo)
+            if currentState != self.lastReportedState {
+                self.lastReportedState = currentState
+                self.onVideoStateChange?(stateInfo)
+            }
         }
     }
 
     func mediaPlayerTimeChanged(_ aNotification: Notification) {
-        updateVideoProgress()
+        DispatchQueue.main.async { [weak self] in
+            self?.updateVideoProgress()
+        }
     }
 
     private func updateVideoProgress() {
         DispatchQueue.main.async {
             guard let player = self.mediaPlayer else { return }
 
-            let currentTime = player.time.intValue
-            let duration = player.media?.length.intValue ?? 0
+            let currentTimeMs = player.time.intValue
+            let durationMs = player.media?.length.intValue ?? 0
 
-            if currentTime >= 0 && currentTime < duration {
+            if currentTimeMs >= 0 && currentTimeMs < durationMs {
                 self.onVideoProgress?([
                     "target": self.reactTag ?? NSNull(),
-                    "currentTime": currentTime,
-                    "duration": duration,
+                    "currentTime": currentTimeMs,
+                    "duration": durationMs,
                 ])
             }
         }

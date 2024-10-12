@@ -31,14 +31,11 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
       pause: async () => {
         await nativeRef.current?.pause();
       },
+      stop: async () => {
+        await nativeRef.current?.stop();
+      },
       seekTo: async (time: number) => {
         await nativeRef.current?.seekTo(time);
-      },
-      jumpBackward: async (interval: number) => {
-        await nativeRef.current?.jumpBackward(interval);
-      },
-      jumpForward: async (interval: number) => {
-        await nativeRef.current?.jumpForward(interval);
       },
       setAudioTrack: async (trackIndex: number) => {
         await nativeRef.current?.setAudioTrack(trackIndex);

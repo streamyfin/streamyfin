@@ -35,13 +35,14 @@ export const runtimeTicksToSeconds = (
   else return `${minutes}m ${seconds}s`;
 };
 
+// t: ms
 export const formatTimeString = (
   t: number | null | undefined,
   tick = false
 ): string => {
   if (t === null || t === undefined) return "0:00";
 
-  let seconds = t;
+  let seconds = t / 1000;
   if (tick) {
     seconds = Math.floor(t / 10000000); // Convert ticks to seconds
   }
@@ -66,5 +67,20 @@ export const secondsToTicks = (seconds?: number | undefined) => {
 
 export const ticksToSeconds = (ticks?: number | undefined) => {
   if (!ticks) return 0;
-  return ticks / 10000000;
+  return Math.floor(ticks / 10000000);
+};
+
+export const msToTicks = (ms?: number | undefined) => {
+  if (!ms) return 0;
+  return ms * 10000;
+};
+
+export const ticksToMs = (ticks?: number | undefined) => {
+  if (!ticks) return 0;
+  return Math.floor(ticks / 10000);
+};
+
+export const secondsToMs = (seconds?: number | undefined) => {
+  if (!seconds) return 0;
+  return seconds * 1000;
 };

@@ -346,6 +346,15 @@ function Layout() {
                           }}
                         />
                         <Stack.Screen
+                          name="(auth)/vlc-player"
+                          options={{
+                            headerShown: false,
+                            autoHideHomeIndicator: true,
+                            title: "",
+                            animation: "fade",
+                          }}
+                        />
+                        <Stack.Screen
                           name="(auth)/play-offline-video"
                           options={{
                             headerShown: false,
