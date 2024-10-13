@@ -155,6 +155,8 @@ export default function page() {
       const { currentTime, duration, isBuffering, isPlaying } =
         data.nativeEvent;
 
+      setIsBuffering(isBuffering);
+
       // console.log("onProgress ~", {
       //   currentTime,
       //   duration,
