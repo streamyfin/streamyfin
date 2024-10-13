@@ -49,6 +49,7 @@ interface Props {
   enableTrickplay?: boolean;
   togglePlay: (ticks: number) => void;
   setShowControls: (shown: boolean) => void;
+  offline?: boolean;
 }
 
 export const Controls: React.FC<Props> = ({
@@ -64,7 +65,7 @@ export const Controls: React.FC<Props> = ({
   setShowControls,
   ignoreSafeAreas,
   setIgnoreSafeAreas,
-  enableTrickplay = true,
+  offline = false,
 }) => {
   const [settings] = useSettings();
   const router = useRouter();
@@ -111,10 +112,12 @@ export const Controls: React.FC<Props> = ({
     }
   }, [showControls, isBuffering]);
 
-  const { previousItem, nextItem } = useAdjacentItems({ item });
+  const { previousItem, nextItem } = useAdjacentItems({
+    item: offline ? undefined : item,
+  });
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
     item,
-    enableTrickplay
+    !offline
   );
 
   const [currentTime, setCurrentTime] = useState(0); // Seconds
@@ -127,13 +130,13 @@ export const Controls: React.FC<Props> = ({
   const lastProgressRef = useRef<number>(0);
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
-    item.Id,
+    offline ? undefined : item.Id,
     currentTime,
     videoRef
   );
 
   const { showSkipCreditButton, skipCredit } = useCreditSkipper(
-    item.Id,
+    offline ? undefined : item.Id,
     currentTime,
     videoRef
   );

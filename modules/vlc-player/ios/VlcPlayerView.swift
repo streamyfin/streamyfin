@@ -110,9 +110,20 @@ class VlcPlayerView: ExpoView {
 
             let media: VLCMedia
             if isNetwork {
+                print("Loading network file: \(uri)")
                 media = VLCMedia(url: URL(string: uri)!)
             } else {
-                media = VLCMedia(path: uri)
+                print("Loading local file: \(uri)")
+                if uri.starts(with: "file://") {
+                    if let url = URL(string: uri) {
+                        media = VLCMedia(url: url)
+                    } else {
+                        print("Error: Invalid local file URL")
+                        return
+                    }
+                } else {
+                    media = VLCMedia(path: uri)
+                }
             }
 
             media.delegate = self
@@ -454,9 +465,6 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 stateInfo["state"] = "Buffering"
             }
 
-            print("VLC Player State Changed: \(currentState.description)")
-            print("VLC Player State Changed: \(player.isPlaying)")
-
             // switch currentState {
             // case .opening:
             //     stateInfo["state"] = "Opening"
@@ -476,6 +484,8 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             // default:
             //     stateInfo["state"] = "Unknown"
             // }
+
+            print("State changed: \(stateInfo)")
 
             self.lastReportedState = currentState
             self.onVideoStateChange?(stateInfo)
