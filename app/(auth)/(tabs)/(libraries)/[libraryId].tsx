@@ -1,12 +1,8 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import {
-  useFocusEffect,
-  useLocalSearchParams,
-  useNavigation,
-} from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useLayoutEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { FlatList, useWindowDimensions, View } from "react-native";
 
 import { Text } from "@/components/common/Text";
@@ -16,6 +12,7 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
+import { useOrientation } from "@/hooks/useOrientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   genreFilterAtom,
@@ -32,7 +29,6 @@ import {
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
-import { orientationAtom } from "@/utils/atoms/orientation";
 import {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -60,11 +56,12 @@ const Page = () => {
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
-  const [orientation] = useAtom(orientationAtom);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [sortOrderPreference, setOderByPreference] = useAtom(
     sortOrderPreferenceAtom
   );
+
+  const { orientation } = useOrientation();
 
   useEffect(() => {
     const sop = getSortOrderPreference(libraryId, sortOrderPreference);
@@ -106,11 +103,12 @@ const Page = () => {
     [libraryId, sortOrderPreference]
   );
 
-  const getNumberOfColumns = useCallback(() => {
-    if (orientation === ScreenOrientation.Orientation.PORTRAIT_UP) return 3;
-    if (screenWidth < 600) return 5;
-    if (screenWidth < 960) return 6;
-    if (screenWidth < 1280) return 7;
+  const nrOfCols = useMemo(() => {
+    if (screenWidth < 300) return 2;
+    if (screenWidth < 500) return 3;
+    if (screenWidth < 800) return 5;
+    if (screenWidth < 1000) return 6;
+    if (screenWidth < 1500) return 7;
     return 6;
   }, [screenWidth, orientation]);
 
@@ -219,7 +217,7 @@ const Page = () => {
 
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => (
-      <MemoizedTouchableItemRouter
+      <TouchableItemRouter
         key={item.Id}
         style={{
           width: "100%",
@@ -230,10 +228,10 @@ const Page = () => {
         <View
           style={{
             alignSelf:
-              orientation === ScreenOrientation.Orientation.PORTRAIT_UP
-                ? index % 3 === 0
+              orientation === ScreenOrientation.OrientationLock.PORTRAIT_UP
+                ? index % nrOfCols === 0
                   ? "flex-end"
-                  : (index + 1) % 3 === 0
+                  : (index + 1) % nrOfCols === 0
                   ? "flex-start"
                   : "center"
                 : "center",
@@ -244,7 +242,7 @@ const Page = () => {
           <ItemPoster item={item} />
           <ItemCardText item={item} />
         </View>
-      </MemoizedTouchableItemRouter>
+      </TouchableItemRouter>
     ),
     [orientation]
   );
@@ -429,6 +427,7 @@ const Page = () => {
 
   return (
     <FlashList
+      key={orientation}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
           <Text className="font-bold text-xl text-neutral-500">No results</Text>
@@ -437,10 +436,10 @@ const Page = () => {
       contentInsetAdjustmentBehavior="automatic"
       data={flatData}
       renderItem={renderItem}
-      extraData={orientation}
+      extraData={[orientation, nrOfCols]}
       keyExtractor={keyExtractor}
       estimatedItemSize={244}
-      numColumns={getNumberOfColumns()}
+      numColumns={nrOfCols}
       onEndReached={() => {
         if (hasNextPage) {
           fetchNextPage();

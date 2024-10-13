@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { Platform, TouchableOpacity, ViewProps } from "react-native";
 import GoogleCast, {
+  CastButton,
   CastContext,
   useCastDevice,
   useDevices,
@@ -39,18 +40,32 @@ export const Chromecast: React.FC<Props> = ({
     })();
   }, [client, devices, castDevice, sessionManager, discoveryManager]);
 
+  // Android requires the cast button to be present for startDiscovery to work
+  const AndroidCastButton = useCallback(
+    () =>
+      Platform.OS === "android" ? (
+        <CastButton tintColor="transparent" />
+      ) : (
+        <></>
+      ),
+    [Platform.OS]
+  );
+
   if (background === "transparent")
     return (
-      <TouchableOpacity
-        onPress={() => {
-          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
-          else CastContext.showCastDialog();
-        }}
-        className="rounded-full h-10 w-10 flex items-center justify-center b"
-        {...props}
-      >
-        <Feather name="cast" size={22} color={"white"} />
-      </TouchableOpacity>
+      <>
+        <TouchableOpacity
+          onPress={() => {
+            if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+            else CastContext.showCastDialog();
+          }}
+          className="rounded-full h-10 w-10 flex items-center justify-center b"
+          {...props}
+        >
+          <Feather name="cast" size={22} color={"white"} />
+        </TouchableOpacity>
+        <AndroidCastButton />
+      </>
     );
 
   if (Platform.OS === "android")
@@ -82,6 +97,7 @@ export const Chromecast: React.FC<Props> = ({
       >
         <Feather name="cast" size={22} color={"white"} />
       </BlurView>
+      <AndroidCastButton />
     </TouchableOpacity>
   );
 };

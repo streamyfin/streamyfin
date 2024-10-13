@@ -85,47 +85,7 @@ export const Controls: React.FC<Props> = ({
 
   const windowDimensions = Dimensions.get("window");
 
-  const op = useSharedValue<number>(1);
-  const tr = useSharedValue<number>(10);
-  const animatedStyles = useAnimatedStyle(() => {
-    return {
-      opacity: op.value,
-    };
-  });
-  const animatedTopStyles = useAnimatedStyle(() => {
-    return {
-      opacity: op.value,
-      transform: [
-        {
-          translateY: -tr.value,
-        },
-      ],
-    };
-  });
-  const animatedBottomStyles = useAnimatedStyle(() => {
-    return {
-      opacity: op.value,
-      transform: [
-        {
-          translateY: tr.value,
-        },
-      ],
-    };
-  });
-
-  useEffect(() => {
-    if (showControls || isBuffering) {
-      op.value = withTiming(1, { duration: 200 });
-      tr.value = withTiming(0, { duration: 200 });
-    } else {
-      op.value = withTiming(0, { duration: 200 });
-      tr.value = withTiming(10, { duration: 200 });
-    }
-  }, [showControls, isBuffering]);
-
-  const { previousItem, nextItem } = useAdjacentItems({
-    item: offline ? undefined : item,
-  });
+  const { previousItem, nextItem } = useAdjacentItems({ item });
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
     item,
     !offline
@@ -398,7 +358,7 @@ export const Controls: React.FC<Props> = ({
           toggleControls();
         }}
       >
-        <Animated.View
+        <View
           style={[
             {
               position: "absolute",
@@ -406,11 +366,11 @@ export const Controls: React.FC<Props> = ({
               left: 0,
               width: windowDimensions.width + 100,
               height: windowDimensions.height + 100,
+              opacity: showControls ? 1 : 0,
             },
-            animatedStyles,
           ]}
           className={`bg-black/50 z-0`}
-        ></Animated.View>
+        ></View>
       </Pressable>
 
       <View
@@ -429,14 +389,14 @@ export const Controls: React.FC<Props> = ({
         <Loader />
       </View>
 
-      <Animated.View
+      <View
         style={[
           {
             position: "absolute",
             top: insets.top,
             right: insets.right,
+            opacity: showControls ? 1 : 0,
           },
-          animatedTopStyles,
         ]}
         pointerEvents={showControls ? "auto" : "none"}
         className={`flex flex-row items-center space-x-2 z-10 p-4 `}
@@ -460,9 +420,9 @@ export const Controls: React.FC<Props> = ({
         >
           <Ionicons name="close" size={24} color="white" />
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
-      <Animated.View
+      <View
         style={[
           {
             position: "absolute",
@@ -470,8 +430,8 @@ export const Controls: React.FC<Props> = ({
             maxHeight: windowDimensions.height,
             left: insets.left,
             bottom: Platform.OS === "ios" ? insets.bottom : insets.bottom,
+            opacity: showControls ? 1 : 0,
           },
-          animatedBottomStyles,
         ]}
         pointerEvents={showControls ? "auto" : "none"}
         className={`flex flex-col p-4 `}
@@ -606,7 +566,7 @@ export const Controls: React.FC<Props> = ({
             </View>
           </View>
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 };

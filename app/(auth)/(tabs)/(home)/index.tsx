@@ -25,11 +25,10 @@ import {
 import NetInfo from "@react-native-community/netinfo";
 import { QueryFunction, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigation, useRouter } from "expo-router";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
   RefreshControl,
   ScrollView,
   TouchableOpacity,

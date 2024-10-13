@@ -9,14 +9,8 @@ import {
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import {
-  PlaybackType,
-  usePlaySettings,
-} from "@/providers/PlaySettingsProvider";
+import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
-import { ticksToSeconds } from "@/utils/time";
-import { Api } from "@jellyfin/sdk";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -27,7 +21,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Dimensions, Pressable, StatusBar, View } from "react-native";
+import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { SelectedTrackType } from "react-native-video";
 
@@ -37,7 +31,10 @@ export default function page() {
   const [settings] = useSettings();
   const videoRef = useRef<VlcPlayerViewRef>(null);
 
-  const screenDimensions = Dimensions.get("screen");
+  const dimensions = useWindowDimensions();
+  useOrientation();
+  useOrientationSettings();
+  useAndroidNavigationBar();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -176,8 +173,8 @@ export default function page() {
   return (
     <View
       style={{
-        width: screenDimensions.width,
-        height: screenDimensions.height,
+        width: dimensions.width,
+        height: dimensions.height,
         position: "relative",
       }}
       className="flex flex-col items-center justify-center"

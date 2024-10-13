@@ -1,4 +1,4 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -6,10 +6,11 @@ import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useAtom } from "jotai";
-import { useEffect, useMemo } from "react";
-import { Linking, TouchableOpacity, View } from "react-native";
+import { useAtom, useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo } from "react";
+import { Alert, Linking, TouchableOpacity, View } from "react-native";
 import CastContext, {
+  CastButton,
   PlayServicesState,
   useMediaStatus,
   useRemoteMediaClient,
@@ -28,32 +29,31 @@ import { Button } from "./Button";
 import { Text } from "./common/Text";
 import { useRouter } from "expo-router";
 import { useSettings } from "@/utils/atoms/settings";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { chromecastProfile } from "@/utils/profiles/chromecast";
+import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 
-interface Props extends React.ComponentProps<typeof Button> {
-  item?: BaseItemDto | null;
-  url?: string | null;
-}
+interface Props extends React.ComponentProps<typeof Button> {}
 
 const ANIMATION_DURATION = 500;
 const MIN_PLAYBACK_WIDTH = 15;
 
-export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
+export const PlayButton: React.FC<Props> = ({ ...props }) => {
+  const { playSettings, playUrl: url } = usePlaySettings();
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
   const mediaStatus = useMediaStatus();
 
   const [colorAtom] = useAtom(itemThemeColorAtom);
-  const [api] = useAtom(apiAtom);
+  const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
 
   const router = useRouter();
 
-  const memoizedItem = useMemo(() => item, [item?.Id]); // Memoize the item
-  const memoizedColor = useMemo(() => colorAtom, [colorAtom]); // Memoize the color
-
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
-  const endColor = useSharedValue(memoizedColor);
-  const startColor = useSharedValue(memoizedColor);
+  const endColor = useSharedValue(colorAtom);
+  const startColor = useSharedValue(colorAtom);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
   const [settings] = useSettings();
@@ -62,7 +62,11 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
     return !url?.includes("m3u8");
   }, [url]);
 
-  const onPress = async () => {
+  const item = useMemo(() => {
+    return playSettings?.item;
+  }, [playSettings?.item]);
+
+  const onPress = useCallback(async () => {
     if (!url || !item) {
       console.warn(
         "No URL or item provided to PlayButton",
@@ -98,7 +102,7 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
 
         switch (selectedIndex) {
           case 0:
-            await CastContext.getPlayServicesState().then((state) => {
+            await CastContext.getPlayServicesState().then(async (state) => {
               if (state && state !== PlayServicesState.SUCCESS)
                 CastContext.showPlayServicesErrorDialog(state);
               else {
@@ -108,10 +112,34 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
                   CastContext.showExpandedControls();
                   return;
                 }
+
+                // Get a new URL with the Chromecast device profile:
+                const data = await getStreamUrl({
+                  api,
+                  deviceProfile: chromecastProfile,
+                  item,
+                  mediaSourceId: playSettings?.mediaSource?.Id,
+                  startTimeTicks: 0,
+                  maxStreamingBitrate: playSettings?.bitrate?.value,
+                  audioStreamIndex: playSettings?.audioIndex ?? 0,
+                  subtitleStreamIndex: playSettings?.subtitleIndex ?? -1,
+                  userId: user?.Id,
+                  forceDirectPlay: settings?.forceDirectPlay,
+                });
+
+                if (!data?.url) {
+                  console.warn("No URL returned from getStreamUrl", data);
+                  Alert.alert(
+                    "Client error",
+                    "Could not create stream for Chromecast"
+                  );
+                  return;
+                }
+
                 client
                   .loadMedia({
                     mediaInfo: {
-                      contentUrl: url,
+                      contentUrl: data?.url,
                       contentType: "video/mp4",
                       metadata:
                         item.Type === "Episode"
@@ -184,21 +212,32 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
         }
       }
     );
-  };
+  }, [
+    url,
+    item,
+    client,
+    settings,
+    api,
+    user,
+    playSettings,
+    router,
+    showActionSheetWithOptions,
+    mediaStatus,
+  ]);
 
   const derivedTargetWidth = useDerivedValue(() => {
-    if (!memoizedItem || !memoizedItem.RunTimeTicks) return 0;
-    const userData = memoizedItem.UserData;
+    if (!item || !item.RunTimeTicks) return 0;
+    const userData = item.UserData;
     if (userData && userData.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0
         ? Math.max(
-            (userData.PlaybackPositionTicks / memoizedItem.RunTimeTicks) * 100,
+            (userData.PlaybackPositionTicks / item.RunTimeTicks) * 100,
             MIN_PLAYBACK_WIDTH
           )
         : 0;
     }
     return 0;
-  }, [memoizedItem]);
+  }, [item]);
 
   useAnimatedReaction(
     () => derivedTargetWidth.value,
@@ -214,7 +253,7 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
   );
 
   useAnimatedReaction(
-    () => memoizedColor,
+    () => colorAtom,
     (newColor) => {
       endColor.value = newColor;
       colorChangeProgress.value = 0;
@@ -223,19 +262,19 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
         easing: Easing.bezier(0.9, 0, 0.31, 0.99),
       });
     },
-    [memoizedColor]
+    [colorAtom]
   );
 
   useEffect(() => {
     const timeout_2 = setTimeout(() => {
-      startColor.value = memoizedColor;
+      startColor.value = colorAtom;
       startWidth.value = targetWidth.value;
     }, ANIMATION_DURATION);
 
     return () => {
       clearTimeout(timeout_2);
     };
-  }, [memoizedColor, memoizedItem]);
+  }, [colorAtom, item]);
 
   /**
    * ANIMATED STYLES
@@ -318,6 +357,7 @@ export const PlayButton: React.FC<Props> = ({ item, url, ...props }) => {
             {client && (
               <Animated.Text style={animatedTextStyle}>
                 <Feather name="cast" size={22} />
+                <CastButton tintColor="transparent" />
               </Animated.Text>
             )}
             {!client && settings?.openInVLC && (

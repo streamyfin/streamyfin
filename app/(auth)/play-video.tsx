@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, Pressable, StatusBar, View } from "react-native";
+import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
@@ -34,8 +34,7 @@ export default function page() {
   const poster = usePoster(playSettings, api);
   const videoSource = useVideoSource(playSettings, api, poster, playUrl);
   const firstTime = useRef(true);
-
-  const screenDimensions = Dimensions.get("screen");
+  const dimensions = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -170,7 +169,7 @@ export default function page() {
     }, [play, stop])
   );
 
-  const { orientation } = useOrientation();
+  useOrientation();
   useOrientationSettings();
   useAndroidNavigationBar();
 
@@ -214,23 +213,36 @@ export default function page() {
   return (
     <View
       style={{
-        width: screenDimensions.width,
-        height: screenDimensions.height,
+        flex: 1,
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        width: dimensions.width,
+        height: dimensions.height,
         position: "relative",
       }}
-      className="flex flex-col items-center justify-center"
     >
       <StatusBar hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
         }}
-        className="absolute z-0 h-full w-full"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: dimensions.width,
+          height: dimensions.height,
+          zIndex: 0,
+        }}
       >
         <Video
           ref={videoRef}
           source={videoSource}
-          style={{ width: "100%", height: "100%" }}
+          style={{
+            width: dimensions.width,
+            height: dimensions.height,
+          }}
           resizeMode={ignoreSafeAreas ? "cover" : "contain"}
           onProgress={onProgress}
           onError={() => {}}
