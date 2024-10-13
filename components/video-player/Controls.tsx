@@ -8,10 +8,19 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { writeToLog } from "@/utils/log";
 import { formatTimeString, secondsToMs, ticksToMs } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  BaseItemDto,
+  type MediaStream,
+} from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Dimensions,
   Platform,
@@ -34,6 +43,8 @@ import { Text } from "../common/Text";
 import { Loader } from "../Loader";
 import { VlcPlayerViewRef } from "@/modules/vlc-player/src/VlcPlayer.types";
 import { secondsToTicks } from "@/utils/secondsToTicks";
+import { VideoDebugInfo } from "../vlc/VideoDebugInfo";
+import * as DropdownMenu from "zeego/dropdown-menu";
 
 interface Props {
   item: BaseItemDto;
@@ -274,6 +285,14 @@ export const Controls: React.FC<Props> = ({
     setIgnoreSafeAreas((prev) => !prev);
   }, []);
 
+  const [selectedSubtitleTrack, setSelectedSubtitleTrack] = useState<
+    MediaStream | undefined
+  >(undefined);
+
+  const subtitleTracks = useMemo(() => {
+    return item.MediaStreams?.filter((stream) => stream.Type === "Subtitle");
+  }, [item]);
+
   return (
     <View
       style={[
@@ -286,6 +305,54 @@ export const Controls: React.FC<Props> = ({
         },
       ]}
     >
+      {/* <VideoDebugInfo playerRef={videoRef} /> */}
+
+      <View
+        style={{
+          position: "absolute",
+          top: insets.top,
+          left: insets.left,
+          zIndex: 1000,
+        }}
+        className="p-4"
+      >
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            <View className="aspect-square flex flex-col  rounded-xl items-center justify-center p-2">
+              <Ionicons
+                name="ellipsis-horizontal-circle-outline"
+                size={32}
+                color={"white"}
+              />
+            </View>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content
+            loop={true}
+            side="bottom"
+            align="start"
+            alignOffset={0}
+            avoidCollisions={true}
+            collisionPadding={8}
+            sideOffset={8}
+          >
+            <DropdownMenu.Label>Subtitle tracks</DropdownMenu.Label>
+            {subtitleTracks?.map((sub, idx: number) => (
+              <DropdownMenu.Item
+                key={idx.toString()}
+                onSelect={() => {
+                  if (!sub.Index !== undefined && sub.Index !== null)
+                    videoRef.current?.setSubtitleTrack(sub.Index!);
+                }}
+              >
+                <DropdownMenu.ItemTitle>
+                  {sub.DisplayTitle}
+                </DropdownMenu.ItemTitle>
+              </DropdownMenu.Item>
+            ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </View>
+
       <View
         style={[
           {
@@ -372,7 +439,7 @@ export const Controls: React.FC<Props> = ({
           animatedTopStyles,
         ]}
         pointerEvents={showControls ? "auto" : "none"}
-        className={`flex flex-row items-center space-x-2 z-10 p-4`}
+        className={`flex flex-row items-center space-x-2 z-10 p-4 `}
       >
         <TouchableOpacity
           onPress={toggleIgnoreSafeAreas}

@@ -8,19 +8,13 @@ import { useState, useEffect } from "react";
 import { View, TouchableOpacity, ViewProps } from "react-native";
 import { Text } from "../common/Text";
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props extends ViewProps {
-  playbackState: PlaybackStatePayload["nativeEvent"] | null;
-  progress: ProgressUpdatePayload["nativeEvent"] | null;
   playerRef: React.RefObject<VlcPlayerViewRef>;
 }
 
-export const VideoDebugInfo: React.FC<Props> = ({
-  playbackState,
-  progress,
-  playerRef,
-  ...props
-}) => {
+export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
   const [audioTracks, setAudioTracks] = useState<TrackInfo[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[] | null>(
     null
@@ -39,36 +33,30 @@ export const VideoDebugInfo: React.FC<Props> = ({
     fetchTracks();
   }, [playerRef]);
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <View className="p-2.5 bg-black mt-2.5" {...props}>
+    <View
+      style={{
+        position: "absolute",
+        top: insets.top,
+        left: insets.left + 8,
+        zIndex: 100,
+      }}
+      {...props}
+    >
       <Text className="font-bold">Playback State:</Text>
-      {playbackState && (
-        <>
-          <Text>Type: {playbackState.type}</Text>
-          <Text>Current Time: {playbackState.currentTime}</Text>
-          <Text>Duration: {playbackState.duration}</Text>
-          <Text>Is Buffering: {playbackState.isBuffering ? "Yes" : "No"}</Text>
-          <Text>Target: {playbackState.target}</Text>
-        </>
-      )}
-      <Text className="font-bold mt-2.5">Progress:</Text>
-      {progress && (
-        <>
-          <Text>Current Time: {progress.currentTime}</Text>
-          <Text>Duration: {progress.duration.toFixed(2)}</Text>
-        </>
-      )}
       <Text className="font-bold mt-2.5">Audio Tracks:</Text>
       {audioTracks &&
-        audioTracks.map((track) => (
-          <Text key={track.index}>
+        audioTracks.map((track, index) => (
+          <Text key={index}>
             {track.name} (Index: {track.index})
           </Text>
         ))}
       <Text className="font-bold mt-2.5">Subtitle Tracks:</Text>
       {subtitleTracks &&
-        subtitleTracks.map((track) => (
-          <Text key={track.index}>
+        subtitleTracks.map((track, index) => (
+          <Text key={index}>
             {track.name} (Index: {track.index})
           </Text>
         ))}

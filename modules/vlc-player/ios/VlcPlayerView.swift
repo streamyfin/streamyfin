@@ -125,13 +125,29 @@ class VlcPlayerView: ExpoView {
                     media = VLCMedia(path: uri)
                 }
             }
+            // Apply subtitle options
+            let subtitleOptions = self.getSubtitleOptions()
+            media.addOptions(subtitleOptions)
+            print("Debug: Applied subtitle options: \(subtitleOptions)")
 
-            media.delegate = self
+            // Apply any additional media options
             if let mediaOptions = mediaOptions {
                 media.addOptions(mediaOptions)
+                print("Debug: Applied additional media options: \(mediaOptions)")
+            } else {
+                print("Debug: No additional media options provided")
             }
 
-            // Set the media without parsing
+            let subtitleTrackIndex = source["subtitleTrackIndex"] as? Int ?? -1
+            print("Debug: Subtitle track index from source: \(subtitleTrackIndex)")
+
+            if subtitleTrackIndex >= -1 {
+                self.setSubtitleTrack(subtitleTrackIndex)
+                print("Debug: Set subtitle track to index: \(subtitleTrackIndex)")
+            } else {
+                print("Debug: Subtitle track index is less than -1, not setting")
+            }
+
             self.mediaPlayer?.media = media
 
             if autoplay {
@@ -139,6 +155,14 @@ class VlcPlayerView: ExpoView {
             }
 
             self.onVideoLoadStart?(["target": self.reactTag ?? NSNull()])
+        }
+    }
+
+    @objc func loadExternalSubtitle(_ subtitlePath: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.mediaPlayer?.addPlaybackSlave(
+                URL(fileURLWithPath: subtitlePath), type: .subtitle, enforce: true)
         }
     }
 
@@ -209,15 +233,24 @@ class VlcPlayerView: ExpoView {
     //         }
     //     }
     // }
-
     @objc func setSubtitleTrack(_ trackIndex: Int) {
+        print("Debug: Attempting to set subtitle track to index: \(trackIndex)")
         DispatchQueue.main.async {
             if trackIndex == -1 {
+                print("Debug: Disabling subtitles")
                 // Disable subtitles
                 self.mediaPlayer?.currentVideoSubTitleIndex = -1
             } else {
+                print("Debug: Setting subtitle track to index: \(trackIndex)")
                 // Set the subtitle track
                 self.mediaPlayer?.currentVideoSubTitleIndex = Int32(trackIndex)
+            }
+
+            // Print the result
+            if let currentIndex = self.mediaPlayer?.currentVideoSubTitleIndex {
+                print("Debug: Current subtitle track index after setting: \(currentIndex)")
+            } else {
+                print("Debug: Unable to retrieve current subtitle track index")
             }
         }
     }
@@ -418,6 +451,42 @@ class VlcPlayerView: ExpoView {
         completion?()
     }
 
+    private func getSubtitleOptions() -> [String: Any] {
+        return [
+            // Text scaling (100 is default, increase for larger text)
+            "sub-text-scale": "105",
+
+            // Text color (RRGGBB format, 16777215 is white)
+            "freetype-color": "16777215",
+
+            // Outline thickness (reduced from 2 to 1 for less border)
+            "freetype-outline-thickness": "1",
+
+            // Outline color (RRGGBB format, 0 is black)
+            "freetype-outline-color": "0",
+
+            // Text opacity (0-255, 255 is fully opaque)
+            "freetype-opacity": "255",
+
+            // Shadow opacity (increased from 128 to 180 for more shadow)
+            "freetype-shadow-opacity": "180",
+
+            // Shadow offset (increased from 2 to 3 for more pronounced shadow)
+            "freetype-shadow-offset": "3",
+
+            // Text alignment (0: center, 1: left, 2: right)
+            "sub-text-alignment": "0",
+
+            // Vertical margin (from bottom of the screen, in pixels)
+            "sub-margin-bottom": "50",
+
+            // Background opacity (0-255, 0 for no background)
+            "freetype-background-opacity": "64",
+
+            // Background color (RRGGBB format)
+            "freetype-background-color": "0",
+        ]
+    }
     // MARK: - Expo Events
 
     @objc var onPlaybackStateChanged: RCTDirectEventBlock?
