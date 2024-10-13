@@ -2,7 +2,6 @@ import { Controls } from "@/components/video-player/Controls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
-import useScreenDimensions from "@/hooks/useScreenDimensions";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
@@ -19,7 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, StatusBar, View } from "react-native";
+import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
@@ -35,7 +34,7 @@ export default function page() {
   const poster = usePoster(playSettings, api);
   const videoSource = useVideoSource(playSettings, api, poster, playUrl);
   const firstTime = useRef(true);
-  const screenDimensions = useScreenDimensions();
+  const dimensions = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -170,7 +169,7 @@ export default function page() {
     }, [play, stop])
   );
 
-  const { orientation } = useOrientation();
+  useOrientation();
   useOrientationSettings();
   useAndroidNavigationBar();
 
@@ -218,8 +217,8 @@ export default function page() {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        width: screenDimensions.width,
-        height: screenDimensions.height,
+        width: dimensions.width,
+        height: dimensions.height,
         position: "relative",
       }}
     >
@@ -232,15 +231,18 @@ export default function page() {
           position: "absolute",
           top: 0,
           left: 0,
-          width: screenDimensions.width,
-          height: screenDimensions.height,
+          width: dimensions.width,
+          height: dimensions.height,
           zIndex: 0,
         }}
       >
         <Video
           ref={videoRef}
           source={videoSource}
-          style={{ width: "100%", height: "100%" }}
+          style={{
+            width: dimensions.width,
+            height: dimensions.height,
+          }}
           resizeMode={ignoreSafeAreas ? "cover" : "contain"}
           onProgress={onProgress}
           onError={() => {}}

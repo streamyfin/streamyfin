@@ -16,7 +16,8 @@ export const runtimeTicksToMinutes = (
   const hours = Math.floor(ticks / ticksPerHour);
   const minutes = Math.floor((ticks % ticksPerHour) / ticksPerMinute);
 
-  return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  else return `${minutes}m`;
 };
 
 export const runtimeTicksToSeconds = (

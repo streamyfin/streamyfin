@@ -2,7 +2,6 @@ import { Controls } from "@/components/video-player/Controls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
-import useScreenDimensions from "@/hooks/useScreenDimensions";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   PlaybackType,
@@ -14,7 +13,7 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, StatusBar, View } from "react-native";
+import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
 
@@ -26,7 +25,7 @@ export default function page() {
   const videoSource = useVideoSource(playSettings, api, playUrl);
   const firstTime = useRef(true);
 
-  const screenDimensions = useScreenDimensions();
+  const dimensions = useWindowDimensions();
   useOrientation();
   useOrientationSettings();
   useAndroidNavigationBar();
@@ -82,8 +81,8 @@ export default function page() {
   return (
     <View
       style={{
-        width: screenDimensions.width,
-        height: screenDimensions.height,
+        width: dimensions.width,
+        height: dimensions.height,
         position: "relative",
       }}
       className="flex flex-col items-center justify-center"
