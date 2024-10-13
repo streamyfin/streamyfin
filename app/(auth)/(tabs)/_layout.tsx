@@ -1,6 +1,6 @@
 import * as NavigationBar from "expo-navigation-bar";
 import React, { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 
 import { withLayoutContext } from "expo-router";
 
@@ -17,6 +17,7 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
+import {} from "@expo/vector-icons/Ionicons";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -40,21 +41,24 @@ export default function TabLayout() {
         name="(home)"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, focused, size }) => ({ sfSymbol: "house" }),
+          tabBarIcon: ({ color, focused, size }) =>
+            require("@/assets/icons/house.fill.png"),
         }}
       />
       <NativeTabs.Screen
         name="(search)"
         options={{
           title: "Search",
-          tabBarIcon: () => ({ sfSymbol: "magnifyingglass" }),
+          tabBarIcon: ({ color, focused, size }) =>
+            require("@/assets/icons/magnifyingglass.png"),
         }}
       />
       <NativeTabs.Screen
         name="(libraries)"
         options={{
           title: "Library",
-          tabBarIcon: () => ({ sfSymbol: "server.rack" }),
+          tabBarIcon: ({ color, focused, size }) =>
+            require("@/assets/icons/server.rack.png"),
         }}
       />
     </NativeTabs>
