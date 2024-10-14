@@ -303,6 +303,12 @@ export default function page() {
           onVideoProgress={onProgress}
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}
+          onVideoLoadStart={() => {
+            console.log("onVideoLoadStart");
+          }}
+          onVideoLoadEnd={() => {
+            console.log("onVideoLoadEnd");
+          }}
         />
       </Pressable>
 

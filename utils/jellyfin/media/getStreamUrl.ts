@@ -7,6 +7,7 @@ import {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
 import { getAuthHeaders } from "../jellyfin";
+import native from "@/utils/profiles/native";
 
 export const getStreamUrl = async ({
   api,
@@ -83,7 +84,7 @@ export const getStreamUrl = async ({
     {
       method: "POST",
       data: {
-        deviceProfile,
+        deviceProfile: forceDirectPlay ? native : deviceProfile,
         userId,
         maxStreamingBitrate,
         startTimeTicks,

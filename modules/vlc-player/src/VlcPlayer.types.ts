@@ -67,6 +67,7 @@ export type VlcPlayerViewProps = {
   onVideoProgress?: (event: ProgressUpdatePayload) => void;
   onVideoStateChange?: (event: PlaybackStatePayload) => void;
   onVideoLoadStart?: (event: VideoLoadStartPayload) => void;
+  onVideoLoadEnd?: (event: VideoLoadStartPayload) => void;
 };
 
 export interface VlcPlayerViewRef {
@@ -87,4 +88,5 @@ export interface VlcPlayerViewRef {
   getChapters: () => Promise<ChapterInfo[] | null>;
   setVideoCropGeometry: (geometry: string | null) => Promise<void>;
   getVideoCropGeometry: () => Promise<string | null>;
+  setSubtitleURL: (url: string) => Promise<void>;
 }

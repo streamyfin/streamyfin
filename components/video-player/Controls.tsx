@@ -2,6 +2,10 @@ import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
+import {
+  TrackInfo,
+  VlcPlayerViewRef,
+} from "@/modules/vlc-player/src/VlcPlayer.types";
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -29,22 +33,16 @@ import {
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import Animated, {
+import {
   runOnJS,
   SharedValue,
   useAnimatedReaction,
-  useAnimatedStyle,
   useSharedValue,
-  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { VideoRef } from "react-native-video";
+import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
-import { VlcPlayerViewRef } from "@/modules/vlc-player/src/VlcPlayer.types";
-import { secondsToTicks } from "@/utils/secondsToTicks";
-import { VideoDebugInfo } from "../vlc/VideoDebugInfo";
-import * as DropdownMenu from "zeego/dropdown-menu";
 
 interface Props {
   item: BaseItemDto;
@@ -249,9 +247,33 @@ export const Controls: React.FC<Props> = ({
     MediaStream | undefined
   >(undefined);
 
-  const subtitleTracks = useMemo(() => {
-    return item.MediaStreams?.filter((stream) => stream.Type === "Subtitle");
+  const allSubtitleTracks = useMemo(() => {
+    const subs = item.MediaStreams?.filter(
+      (stream) => stream.Type === "Subtitle"
+    );
+    console.log("allSubtitleTracks", subs);
+    return subs;
   }, [item]);
+
+  const [audioTracks, setAudioTracks] = useState<TrackInfo[] | null>(null);
+  const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[] | null>(
+    null
+  );
+
+  useEffect(() => {
+    const fetchTracks = async () => {
+      if (videoRef.current) {
+        const audio = await videoRef.current.getAudioTracks();
+        const subtitles = await videoRef.current.getSubtitleTracks();
+        setAudioTracks(audio);
+        setSubtitleTracks(subtitles);
+        console.log("embedded audio", audio);
+        console.log("embedded sutitles", subtitles);
+      }
+    };
+
+    fetchTracks();
+  }, [videoRef]);
 
   return (
     <View
@@ -278,12 +300,8 @@ export const Controls: React.FC<Props> = ({
       >
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
-            <View className="aspect-square flex flex-col  rounded-xl items-center justify-center p-2">
-              <Ionicons
-                name="ellipsis-horizontal-circle-outline"
-                size={32}
-                color={"white"}
-              />
+            <View className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
+              <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
             </View>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content
@@ -296,19 +314,52 @@ export const Controls: React.FC<Props> = ({
             sideOffset={8}
           >
             <DropdownMenu.Label>Subtitle tracks</DropdownMenu.Label>
-            {subtitleTracks?.map((sub, idx: number) => (
-              <DropdownMenu.Item
-                key={idx.toString()}
-                onSelect={() => {
-                  if (!sub.Index !== undefined && sub.Index !== null)
-                    videoRef.current?.setSubtitleTrack(sub.Index!);
-                }}
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger key="image-style-trigger">
+                Subtitle
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.SubContent
+                alignOffset={-10}
+                avoidCollisions={true}
+                collisionPadding={0}
+                loop={true}
+                sideOffset={10}
               >
-                <DropdownMenu.ItemTitle>
-                  {sub.DisplayTitle}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            ))}
+                <DropdownMenu.CheckboxItem
+                  key="subtitle--1"
+                  value="off"
+                  onValueChange={() => {
+                    videoRef.current?.setSubtitleTrack(-1);
+                  }}
+                >
+                  <DropdownMenu.ItemIndicator />
+                  <DropdownMenu.ItemTitle key={`subtitle-item--1`}>
+                    None
+                  </DropdownMenu.ItemTitle>
+                </DropdownMenu.CheckboxItem>
+                {subtitleTracks?.map((sub, idx: number) => (
+                  <DropdownMenu.CheckboxItem
+                    key={`subtitle-${idx}`}
+                    value="off"
+                    onValueChange={() => {
+                      // if(sub. === 'External') {
+                      //   videoRef.current?.setSubtitleURL(
+                      //     `https://fredflix.se/Providers/Subtitles/Subtitles/`
+                      //   );
+                      // }
+
+                      videoRef.current?.setSubtitleTrack(-1);
+                      console.log(sub);
+                    }}
+                  >
+                    <DropdownMenu.ItemIndicator />
+                    <DropdownMenu.ItemTitle key={`subtitle-item-${idx}`}>
+                      {sub.name}
+                    </DropdownMenu.ItemTitle>
+                  </DropdownMenu.CheckboxItem>
+                ))}
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Sub>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </View>

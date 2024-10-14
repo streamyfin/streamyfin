@@ -5,8 +5,6 @@ import {
   VlcPlayerViewProps,
   VlcPlayerViewRef,
   VlcPlayerSource,
-  TrackInfo,
-  ChapterInfo,
 } from "./VlcPlayer.types";
 
 interface NativeViewRef extends VlcPlayerViewRef {
@@ -80,6 +78,9 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
         const geometry = await nativeRef.current?.getVideoCropGeometry();
         return geometry ?? null;
       },
+      setSubtitleURL: async (url: string) => {
+        await nativeRef.current?.setSubtitleURL(url);
+      },
     }));
 
     const {
@@ -93,6 +94,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
       onVideoLoadStart,
       onVideoStateChange,
       onVideoProgress,
+      onVideoLoadEnd,
       ...otherProps
     } = props;
 
@@ -111,6 +113,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
         volume={volume}
         videoAspectRatio={videoAspectRatio}
         onVideoLoadStart={onVideoLoadStart}
+        onVideoLoadEnd={onVideoLoadEnd}
         onVideoStateChange={onVideoStateChange}
         onVideoProgress={onVideoProgress}
       />

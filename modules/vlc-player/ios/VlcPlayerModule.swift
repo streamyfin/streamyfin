@@ -30,8 +30,9 @@ public class VlcPlayerModule: Module {
 
             Events(
                 "onPlaybackStateChanged",
-                "onVideoLoadStart",
                 "onVideoStateChange",
+                "onVideoLoadStart",
+                "onVideoLoadEnd",
                 "onVideoProgress"
             )
 
@@ -74,6 +75,11 @@ public class VlcPlayerModule: Module {
             AsyncFunction("getVideoCropGeometry") { (view: VlcPlayerView) -> String? in
                 return view.getVideoCropGeometry()
             }
+
+            AsyncFunction("setSubtitleURL") { (view: VlcPlayerView, url: String) in
+                view.setSubtitleURL(url)
+            }
+
         }
     }
 }

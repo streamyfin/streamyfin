@@ -9,6 +9,8 @@ class VlcPlayerView: ExpoView {
     private var isPaused: Bool = false
     private var currentGeometryCString: [CChar]?
     private var lastReportedState: VLCMediaPlayerState?
+    private var lastReportedIsPlaying: Bool?
+    private var isMediaReady: Bool = false
 
     // MARK: - Initialization
 
@@ -233,6 +235,7 @@ class VlcPlayerView: ExpoView {
     //         }
     //     }
     // }
+
     @objc func setSubtitleTrack(_ trackIndex: Int) {
         print("Debug: Attempting to set subtitle track to index: \(trackIndex)")
         DispatchQueue.main.async {
@@ -255,20 +258,38 @@ class VlcPlayerView: ExpoView {
         }
     }
 
+    @objc func setSubtitleURL(_ subtitleURL: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let url = URL(string: subtitleURL) else {
+                print("Error: Invalid subtitle URL")
+                return
+            }
+
+            let result = self.mediaPlayer?.addPlaybackSlave(url, type: .subtitle, enforce: true)
+            if let result = result {
+                print("Subtitle added with result: \(result)")
+            } else {
+                print("Failed to add subtitle")
+            }
+        }
+    }
+
     @objc func getSubtitleTracks() -> [[String: Any]]? {
         guard let mediaPlayer = self.mediaPlayer else {
             return nil
         }
 
         let count = mediaPlayer.numberOfSubtitlesTracks
+
+        print(
+            "Debug: Number of subtitle tracks: \(count)"
+        )
+
         guard count > 0 else {
             return nil
         }
 
         var tracks: [[String: Any]] = []
-
-        // Add the "Disabled" track
-        tracks.append(["name": "Disabled", "index": -1])
 
         if let names = mediaPlayer.videoSubTitlesNames as? [String],
             let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
@@ -493,6 +514,7 @@ class VlcPlayerView: ExpoView {
     @objc var onVideoLoadStart: RCTDirectEventBlock?
     @objc var onVideoStateChange: RCTDirectEventBlock?
     @objc var onVideoProgress: RCTDirectEventBlock?
+    @objc var onVideoLoadEnd: RCTDirectEventBlock?
 
     // MARK: - Deinitialization
 
@@ -534,30 +556,19 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 stateInfo["state"] = "Buffering"
             }
 
-            // switch currentState {
-            // case .opening:
-            //     stateInfo["state"] = "Opening"
-            // case .buffering:
-            //     stateInfo["state"] = "Buffering"
-            //     stateInfo["isBuffering"] = true
-            // case .playing:
-            //     stateInfo["state"] = "Playing"
-            // case .paused:
-            //     stateInfo["state"] = "Paused"
-            // case .stopped:
-            //     stateInfo["state"] = "Stopped"
-            // case .ended:
-            //     stateInfo["state"] = "Ended"
-            // case .error:
-            //     stateInfo["state"] = "Error"
-            // default:
-            //     stateInfo["state"] = "Unknown"
-            // }
+            // Dermine if the media has finished loading
+            if currentState == .buffering && !self.isMediaReady {
+                self.isMediaReady = true
+                self.onVideoLoadEnd?(stateInfo)
+            }
 
-            print("State changed: \(stateInfo)")
-
-            self.lastReportedState = currentState
-            self.onVideoStateChange?(stateInfo)
+            if self.lastReportedState != currentState
+                || self.lastReportedIsPlaying != player.isPlaying
+            {
+                self.lastReportedState = currentState
+                self.lastReportedIsPlaying = player.isPlaying
+                self.onVideoStateChange?(stateInfo)
+            }
         }
     }
 
