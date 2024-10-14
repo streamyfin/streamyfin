@@ -131,15 +131,12 @@ export default function page() {
       queryKey: ["seasons"],
     });
     queryClient.invalidateQueries({
-      queryKey: ["nextUp-all"],
-    });
-    queryClient.invalidateQueries({
       queryKey: ["home"],
     });
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     reportPlaybackStopped();
-  }, [videoRef]);
+  }, [queryClient, videoRef]);
 
   const reportPlaybackStopped = async () => {
     await getPlaystateApi(api).onPlaybackStopped({
