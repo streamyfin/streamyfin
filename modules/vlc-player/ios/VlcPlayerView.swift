@@ -557,7 +557,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             }
 
             // Dermine if the media has finished loading
-            if currentState == .buffering && !self.isMediaReady {
+            if player.isPlaying && !self.isMediaReady {
                 self.isMediaReady = true
                 self.onVideoLoadEnd?(stateInfo)
             }

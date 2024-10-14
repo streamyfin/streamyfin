@@ -260,23 +260,27 @@ export default {
   SubtitleProfiles: [
     {
       Format: "pgssub",
-      Method: "encode",
+      Method: "embed",
+    },
+    {
+      Format: "subrip",
+      Method: "embed",
     },
     {
       Format: "dvdsub",
-      Method: "encode",
+      Method: "embed",
     },
     {
       Format: "dvbsub",
-      Method: "encode",
+      Method: "embed",
     },
     {
       Format: "xsub",
-      Method: "encode",
+      Method: "embed",
     },
     {
       Format: "vtt",
-      Method: "hls",
+      Method: "embed",
     },
     {
       Format: "ttml",

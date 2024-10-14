@@ -1,5 +1,4 @@
 import { Controls } from "@/components/video-player/Controls";
-import { VideoDebugInfo } from "@/components/vlc/VideoDebugInfo";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
@@ -24,7 +23,6 @@ import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
-import { set } from "lodash";
 import React, {
   useCallback,
   useEffect,
@@ -32,13 +30,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Alert, Dimensions, Pressable, StatusBar, View } from "react-native";
+import { Dimensions, Pressable, StatusBar, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import Video, {
-  OnProgressData,
-  SelectedTrackType,
-  VideoRef,
-} from "react-native-video";
+import { SelectedTrackType } from "react-native-video";
 
 export default function page() {
   const { playSettings, playUrl, playSessionId } = usePlaySettings();
@@ -276,6 +270,8 @@ export default function page() {
     };
   }, []);
 
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+
   return (
     <View
       style={{
@@ -307,6 +303,7 @@ export default function page() {
             console.log("onVideoLoadStart");
           }}
           onVideoLoadEnd={() => {
+            setIsVideoLoaded(true);
             console.log("onVideoLoadEnd");
           }}
         />
@@ -340,6 +337,7 @@ export default function page() {
         setShowControls={setShowControls}
         setIgnoreSafeAreas={setIgnoreSafeAreas}
         ignoreSafeAreas={ignoreSafeAreas}
+        isVideoLoaded={isVideoLoaded}
       />
     </View>
   );

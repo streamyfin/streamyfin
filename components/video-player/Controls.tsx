@@ -59,6 +59,7 @@ interface Props {
   togglePlay: (ticks: number) => void;
   setShowControls: (shown: boolean) => void;
   offline?: boolean;
+  isVideoLoaded?: boolean;
 }
 
 export const Controls: React.FC<Props> = ({
@@ -74,6 +75,7 @@ export const Controls: React.FC<Props> = ({
   setShowControls,
   ignoreSafeAreas,
   setIgnoreSafeAreas,
+  isVideoLoaded,
   offline = false,
 }) => {
   const [settings] = useSettings();
@@ -247,14 +249,6 @@ export const Controls: React.FC<Props> = ({
     MediaStream | undefined
   >(undefined);
 
-  const allSubtitleTracks = useMemo(() => {
-    const subs = item.MediaStreams?.filter(
-      (stream) => stream.Type === "Subtitle"
-    );
-    console.log("allSubtitleTracks", subs);
-    return subs;
-  }, [item]);
-
   const [audioTracks, setAudioTracks] = useState<TrackInfo[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[] | null>(
     null
@@ -273,7 +267,55 @@ export const Controls: React.FC<Props> = ({
     };
 
     fetchTracks();
-  }, [videoRef]);
+  }, [videoRef, isVideoLoaded]);
+
+  type EmbeddedSubtitle = {
+    name: string;
+    index: number;
+    isExternal: false;
+  };
+
+  type ExternalSubtitle = {
+    name: string;
+    index: number;
+    isExternal: true;
+    deliveryUrl: string;
+  };
+
+  const allSubtitleTracks = useMemo(() => {
+    const embeddedSubs =
+      subtitleTracks?.map((s) => ({
+        name: s.name,
+        index: s.index,
+        isExternal: false,
+        deliveryUrl: undefined,
+      })) || [];
+
+    const externalSubs =
+      item.MediaStreams?.filter(
+        (stream) => stream.Type === "Subtitle" && stream.IsExternal
+      ).map((s) => ({
+        name: s.DisplayTitle!,
+        index: s.Index!,
+        isExternal: s.DeliveryMethod === "External",
+        deliveryUrl: s.DeliveryUrl,
+      })) || [];
+
+    // Create a Set of embedded subtitle names for quick lookup
+    const embeddedSubNames = new Set(embeddedSubs.map((sub) => sub.name));
+
+    // Filter out external subs that have the same name as embedded subs
+    const uniqueExternalSubs = externalSubs.filter(
+      (sub) => !embeddedSubNames.has(sub.name)
+    );
+
+    console.log([...embeddedSubs, ...uniqueExternalSubs]);
+    // Combine embedded and unique external subs
+    return [...embeddedSubs, ...uniqueExternalSubs] as (
+      | EmbeddedSubtitle
+      | ExternalSubtitle
+    )[];
+  }, [item, isVideoLoaded, subtitleTracks]);
 
   return (
     <View
@@ -325,39 +367,47 @@ export const Controls: React.FC<Props> = ({
                 loop={true}
                 sideOffset={10}
               >
-                <DropdownMenu.CheckboxItem
-                  key="subtitle--1"
+                {/* <DropdownMenu.CheckboxItem
+                  key="none-item"
                   value="off"
                   onValueChange={() => {
                     videoRef.current?.setSubtitleTrack(-1);
                   }}
                 >
                   <DropdownMenu.ItemIndicator />
-                  <DropdownMenu.ItemTitle key={`subtitle-item--1`}>
+                  <DropdownMenu.ItemTitle key={`none-item-title`}>
                     None
                   </DropdownMenu.ItemTitle>
-                </DropdownMenu.CheckboxItem>
-                {subtitleTracks?.map((sub, idx: number) => (
-                  <DropdownMenu.CheckboxItem
-                    key={`subtitle-${idx}`}
-                    value="off"
-                    onValueChange={() => {
-                      // if(sub. === 'External') {
-                      //   videoRef.current?.setSubtitleURL(
-                      //     `https://fredflix.se/Providers/Subtitles/Subtitles/`
-                      //   );
-                      // }
+                </DropdownMenu.CheckboxItem> */}
+                {allSubtitleTracks.length > 0
+                  ? allSubtitleTracks?.map((sub, idx: number) => (
+                      <DropdownMenu.CheckboxItem
+                        key={`subtitle-item-${idx}`}
+                        value="off"
+                        onValueChange={() => {
+                          if (sub.isExternal) {
+                            videoRef.current?.setSubtitleURL(sub.deliveryUrl);
+                            console.log(
+                              "Setting external subtitle:",
+                              sub.deliveryUrl
+                            );
+                            return;
+                          }
 
-                      videoRef.current?.setSubtitleTrack(-1);
-                      console.log(sub);
-                    }}
-                  >
-                    <DropdownMenu.ItemIndicator />
-                    <DropdownMenu.ItemTitle key={`subtitle-item-${idx}`}>
-                      {sub.name}
-                    </DropdownMenu.ItemTitle>
-                  </DropdownMenu.CheckboxItem>
-                ))}
+                          console.log("Settings embedded subtitle", sub.name);
+                          videoRef.current?.setSubtitleTrack(sub.index);
+                          console.log(sub);
+                        }}
+                      >
+                        <DropdownMenu.ItemIndicator />
+                        <DropdownMenu.ItemTitle
+                          key={`subtitle-item-title-${idx}`}
+                        >
+                          {sub.name}
+                        </DropdownMenu.ItemTitle>
+                      </DropdownMenu.CheckboxItem>
+                    ))
+                  : null}
               </DropdownMenu.SubContent>
             </DropdownMenu.Sub>
           </DropdownMenu.Content>
