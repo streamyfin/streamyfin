@@ -27,7 +27,8 @@ import Video, {
 } from "react-native-video";
 
 export default function page() {
-  const { playSettings, playUrl, playSessionId } = usePlaySettings();
+  const { playSettings, playUrl, playSessionId, mediaSource } =
+    usePlaySettings();
   const api = useAtomValue(apiAtom);
   const [settings] = useSettings();
   const videoRef = useRef<VideoRef | null>(null);
@@ -46,7 +47,14 @@ export default function page() {
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
 
-  if (!playSettings || !playUrl || !api || !videoSource || !playSettings.item)
+  if (
+    !playSettings ||
+    !playUrl ||
+    !api ||
+    !videoSource ||
+    !playSettings.item ||
+    !mediaSource
+  )
     return null;
 
   const togglePlay = useCallback(
@@ -272,8 +280,9 @@ export default function page() {
       </Pressable>
 
       <Controls
-        item={playSettings.item}
         videoRef={videoRef}
+        enableTrickplay={true}
+        item={playSettings.item}
         togglePlay={togglePlay}
         isPlaying={isPlaying}
         isSeeking={isSeeking}

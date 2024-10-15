@@ -1,4 +1,4 @@
-import { Controls } from "@/components/video-player/Controls";
+import { VlcControls } from "@/components/video-player/VlcControls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
@@ -14,14 +14,11 @@ import {
   PlaybackType,
   usePlaySettings,
 } from "@/providers/PlaySettingsProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
-import native from "@/utils/profiles/native";
 import { ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
-import { getMediaInfoApi, getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
+import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -34,13 +31,11 @@ import React, {
 } from "react";
 import { Dimensions, Pressable, StatusBar, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import { SelectedTrackType } from "react-native-video";
 
 export default function page() {
   const { playSettings, playUrl, playSessionId, mediaSource } =
     usePlaySettings();
   const api = useAtomValue(apiAtom);
-  const [settings] = useSettings();
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const poster = usePoster(playSettings, api);
   const videoSource = useVideoSource(playSettings, api, poster, playUrl);
@@ -287,22 +282,34 @@ export default function page() {
         playerRef={videoRef}
       /> */}
 
-      <Controls
-        mediaSource={mediaSource}
-        item={playSettings.item}
-        videoRef={videoRef}
-        togglePlay={togglePlay}
-        isPlaying={isPlaying}
-        isSeeking={isSeeking}
-        progress={progress}
-        cacheProgress={cacheProgress}
-        isBuffering={isBuffering}
-        showControls={showControls}
-        setShowControls={setShowControls}
-        setIgnoreSafeAreas={setIgnoreSafeAreas}
-        ignoreSafeAreas={ignoreSafeAreas}
-        isVideoLoaded={isVideoLoaded}
-      />
+      {videoRef.current && (
+        <VlcControls
+          mediaSource={mediaSource}
+          item={playSettings.item}
+          videoRef={videoRef}
+          togglePlay={togglePlay}
+          isPlaying={isPlaying}
+          isSeeking={isSeeking}
+          progress={progress}
+          cacheProgress={cacheProgress}
+          isBuffering={isBuffering}
+          showControls={showControls}
+          setShowControls={setShowControls}
+          setIgnoreSafeAreas={setIgnoreSafeAreas}
+          ignoreSafeAreas={ignoreSafeAreas}
+          isVideoLoaded={isVideoLoaded}
+          play={videoRef.current?.play}
+          pause={videoRef.current?.pause}
+          seek={videoRef.current?.seekTo}
+          enableTrickplay={true}
+          getAudioTracks={videoRef.current?.getAudioTracks}
+          getSubtitleTracks={videoRef.current?.getSubtitleTracks}
+          offline={false}
+          setSubtitleTrack={videoRef.current.setSubtitleTrack}
+          setSubtitleURL={videoRef.current.setSubtitleURL}
+          stop={videoRef.current.stop}
+        />
+      )}
     </View>
   );
 }

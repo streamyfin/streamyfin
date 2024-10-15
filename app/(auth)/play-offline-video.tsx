@@ -1,4 +1,4 @@
-import { Controls } from "@/components/video-player/Controls";
+import { Controls } from "@/components/video-player/VlcControls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
