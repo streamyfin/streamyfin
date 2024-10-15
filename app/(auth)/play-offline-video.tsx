@@ -1,4 +1,5 @@
-import { Controls } from "@/components/video-player/VlcControls";
+import { Controls } from "@/components/video-player/Controls";
+import { VlcControls } from "@/components/video-player/VlcControls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
@@ -199,23 +200,34 @@ export default function page() {
           onVideoStateChange={onPlaybackStateChanged}
         />
       </Pressable>
-
-      <Controls
-        item={playSettings.item}
-        videoRef={videoRef}
-        togglePlay={togglePlay}
-        isPlaying={isPlaying}
-        isSeeking={isSeeking}
-        progress={progress}
-        cacheProgress={cacheProgress}
-        isBuffering={isBuffering}
-        showControls={showControls}
-        setShowControls={setShowControls}
-        setIgnoreSafeAreas={setIgnoreSafeAreas}
-        ignoreSafeAreas={ignoreSafeAreas}
-        enableTrickplay={false}
-        offline={true}
-      />
+      {videoRef.current && (
+        <VlcControls
+          item={playSettings.item}
+          videoRef={videoRef}
+          togglePlay={togglePlay}
+          isPlaying={isPlaying}
+          isSeeking={isSeeking}
+          progress={progress}
+          cacheProgress={cacheProgress}
+          isBuffering={isBuffering}
+          showControls={showControls}
+          setShowControls={setShowControls}
+          setIgnoreSafeAreas={setIgnoreSafeAreas}
+          ignoreSafeAreas={ignoreSafeAreas}
+          enableTrickplay={false}
+          offline={true}
+          play={play}
+          pause={pause}
+          stop={stop}
+          seek={videoRef.current?.seekTo}
+          getAudioTracks={videoRef.current?.getAudioTracks}
+          getSubtitleTracks={videoRef.current?.getSubtitleTracks}
+          setAudioTrack={videoRef.current?.setAudioTrack}
+          setSubtitleTrack={videoRef.current?.setSubtitleTrack}
+          setSubtitleURL={videoRef.current?.setSubtitleURL}
+          mediaSource={undefined}
+        />
+      )}
     </View>
   );
 }
