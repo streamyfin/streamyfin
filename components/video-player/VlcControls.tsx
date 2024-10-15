@@ -64,7 +64,7 @@ interface Props {
   setShowControls: (shown: boolean) => void;
   offline?: boolean;
   isVideoLoaded?: boolean;
-  mediaSource: MediaSourceInfo;
+  mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
   play: (() => Promise<void>) | (() => void);
   pause: () => void;
@@ -73,7 +73,7 @@ interface Props {
   setSubtitleURL?: (url: string) => void;
   setSubtitleTrack?: (index: number) => void;
   setAudioTrack?: (index: number) => void;
-  stop?: () => Promise<void>;
+  stop?: (() => Promise<void>) | (() => void);
 }
 
 export const VlcControls: React.FC<Props> = ({
