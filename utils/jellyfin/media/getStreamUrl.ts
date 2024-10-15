@@ -16,7 +16,7 @@ export const getStreamUrl = async ({
   startTimeTicks = 0,
   maxStreamingBitrate,
   sessionData,
-  deviceProfile = iosFmp4,
+  deviceProfile = native,
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   forceDirectPlay = false,
@@ -89,7 +89,7 @@ export const getStreamUrl = async ({
     {
       method: "POST",
       data: {
-        deviceProfile: forceDirectPlay ? native : deviceProfile,
+        deviceProfile: native,
         userId,
         maxStreamingBitrate,
         startTimeTicks,

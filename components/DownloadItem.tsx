@@ -98,18 +98,10 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       );
     }
 
-    let deviceProfile: any = iosFmp4;
-
-    if (settings?.deviceProfile === "Native") {
-      deviceProfile = native;
-    } else if (settings?.deviceProfile === "Old") {
-      deviceProfile = old;
-    }
-
     const response = await api.axiosInstance.post(
       `${api.basePath}/Items/${item.Id}/PlaybackInfo`,
       {
-        DeviceProfile: deviceProfile,
+        DeviceProfile: native,
         UserId: user.Id,
         MaxStreamingBitrate: maxBitrate.value,
         StartTimeTicks: 0,

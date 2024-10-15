@@ -94,14 +94,10 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         return null;
       }
 
-      let deviceProfile: any = iosFmp4;
-      if (settings?.deviceProfile === "Native") deviceProfile = native;
-      if (settings?.deviceProfile === "Old") deviceProfile = old;
-
       try {
         const data = await getStreamUrl({
           api,
-          deviceProfile,
+          deviceProfile: native,
           item: newSettings?.item,
           mediaSourceId: newSettings?.mediaSource?.Id,
           startTimeTicks: 0,
@@ -127,16 +123,12 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   useEffect(() => {
-    let deviceProfile: any = ios;
-    if (settings?.deviceProfile === "Native") deviceProfile = native;
-    if (settings?.deviceProfile === "Old") deviceProfile = old;
-
     const postCaps = async () => {
       if (!api) return;
       await getSessionApi(api).postFullCapabilities({
         clientCapabilitiesDto: {
           AppStoreUrl: "https://apps.apple.com/us/app/streamyfin/id6593660679",
-          DeviceProfile: deviceProfile,
+          DeviceProfile: native as any,
           IconUrl:
             "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/redesign/public/assets/images/icon_new_withoutBackground.png",
           PlayableMediaTypes: ["Audio", "Video"],
