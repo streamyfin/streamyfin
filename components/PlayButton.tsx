@@ -8,7 +8,7 @@ import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
-import { Alert, Linking, TouchableOpacity, View } from "react-native";
+import { Alert, Linking, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
   PlayServicesState,
@@ -83,7 +83,8 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
         return;
       }
 
-      router.push("/vlc-player");
+      if (Platform.OS === "ios") router.push("/vlc-player");
+      else router.push("/play-video");
       return;
     }
 

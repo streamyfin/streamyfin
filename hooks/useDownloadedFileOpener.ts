@@ -6,6 +6,7 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useCallback } from "react";
+import { Platform } from "react-native";
 
 export const useFileOpener = () => {
   const router = useRouter();
@@ -38,7 +39,8 @@ export const useFileOpener = () => {
       });
       setPlayUrl(url);
 
-      router.push("/play-offline-video");
+      if (Platform.OS === "ios") router.push("/offline-vlc-player");
+      else router.push("/offline-player");
     } catch (error) {
       writeToLog("ERROR", "Error opening file", error);
       console.error("Error opening file:", error);
