@@ -307,6 +307,7 @@ export default function page() {
           offline={false}
           setSubtitleTrack={videoRef.current.setSubtitleTrack}
           setSubtitleURL={videoRef.current.setSubtitleURL}
+          setAudioTrack={videoRef.current.setAudioTrack}
           stop={videoRef.current.stop}
         />
       )}

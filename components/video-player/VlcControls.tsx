@@ -72,6 +72,7 @@ interface Props {
   getSubtitleTracks?: () => Promise<TrackInfo[] | null>;
   setSubtitleURL?: (url: string) => void;
   setSubtitleTrack?: (index: number) => void;
+  setAudioTrack?: (index: number) => void;
   stop?: () => Promise<void>;
 }
 
@@ -96,6 +97,7 @@ export const VlcControls: React.FC<Props> = ({
   getSubtitleTracks,
   setSubtitleURL,
   setSubtitleTrack,
+  setAudioTrack,
   stop,
   offline = false,
 }) => {
@@ -347,7 +349,7 @@ export const VlcControls: React.FC<Props> = ({
     >
       {/* <VideoDebugInfo playerRef={videoRef} /> */}
 
-      {setSubtitleURL && setSubtitleTrack && (
+      {setSubtitleURL && setSubtitleTrack && setAudioTrack && (
         <View
           style={{
             position: "absolute",
@@ -378,7 +380,6 @@ export const VlcControls: React.FC<Props> = ({
               collisionPadding={8}
               sideOffset={8}
             >
-              <DropdownMenu.Label>Subtitle tracks</DropdownMenu.Label>
               <DropdownMenu.Sub>
                 <DropdownMenu.SubTrigger key="image-style-trigger">
                   Subtitle
@@ -421,6 +422,49 @@ export const VlcControls: React.FC<Props> = ({
                             key={`subtitle-item-title-${idx}`}
                           >
                             {sub.name}
+                          </DropdownMenu.ItemTitle>
+                        </DropdownMenu.CheckboxItem>
+                      ))
+                    : null}
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Sub>
+              <DropdownMenu.Sub>
+                <DropdownMenu.SubTrigger key="image-style-trigger">
+                  Audio
+                </DropdownMenu.SubTrigger>
+                <DropdownMenu.SubContent
+                  alignOffset={-10}
+                  avoidCollisions={true}
+                  collisionPadding={0}
+                  loop={true}
+                  sideOffset={10}
+                >
+                  {/* <DropdownMenu.CheckboxItem
+                  key="none-item"
+                  value="off"
+                  onValueChange={() => {
+                    videoRef.current?.setSubtitleTrack(-1);
+                  }}
+                >
+                  <DropdownMenu.ItemIndicator />
+                  <DropdownMenu.ItemTitle key={`none-item-title`}>
+                    None
+                  </DropdownMenu.ItemTitle>
+                </DropdownMenu.CheckboxItem> */}
+                  {audioTracks?.length
+                    ? audioTracks?.map((a, idx: number) => (
+                        <DropdownMenu.CheckboxItem
+                          key={`subtitle-item-${idx}`}
+                          value="off"
+                          onValueChange={() => {
+                            setAudioTrack(a.index);
+                          }}
+                        >
+                          <DropdownMenu.ItemIndicator />
+                          <DropdownMenu.ItemTitle
+                            key={`subtitle-item-title-${idx}`}
+                          >
+                            {a.name}
                           </DropdownMenu.ItemTitle>
                         </DropdownMenu.CheckboxItem>
                       ))
