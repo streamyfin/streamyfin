@@ -8,7 +8,6 @@ const useImageStorage = () => {
     try {
       // Save the base64 string to AsyncStorage
       storage.set(key, base64);
-      console.log("Image saved successfully");
     } catch (error) {
       console.error("Error saving image:", error);
       throw error;

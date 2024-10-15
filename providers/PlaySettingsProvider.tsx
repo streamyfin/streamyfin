@@ -7,6 +7,7 @@ import old from "@/utils/profiles/old";
 import {
   BaseItemDto,
   MediaSourceInfo,
+  PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
@@ -30,6 +31,7 @@ export type PlaybackType = {
 
 type PlaySettingsContextType = {
   playSettings: PlaybackType | null;
+  mediaSource: MediaSourceInfo | null;
   setPlaySettings: (
     dataOrUpdater:
       | PlaybackType
@@ -51,6 +53,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [playSettings, _setPlaySettings] = useState<PlaybackType | null>(null);
+  const [mediaSource, setMediaSource] = useState<MediaSourceInfo | null>(null);
   const [playUrl, setPlayUrl] = useState<string | null>(null);
   const [playSessionId, setPlaySessionId] = useState<string | null>(null);
 
@@ -109,11 +112,10 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           forceDirectPlay: settings.forceDirectPlay,
         });
 
-        console.log("getStreamUrl ~ ", data?.url);
-
         _setPlaySettings(newSettings);
         setPlayUrl(data?.url!);
         setPlaySessionId(data?.sessionId!);
+        setMediaSource(data?.mediaSource!);
 
         return data;
       } catch (error) {
@@ -158,6 +160,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         setMusicPlaySettings,
         setOfflineSettings,
         playSessionId,
+        mediaSource,
       }}
     >
       {children}

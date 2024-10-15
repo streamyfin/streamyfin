@@ -14,6 +14,7 @@ import { formatTimeString, secondsToMs, ticksToMs } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BaseItemDto,
+  MediaSourceInfo,
   type MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
@@ -26,6 +27,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Alert,
   Dimensions,
   Platform,
   Pressable,
@@ -43,6 +45,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
+import { useAtomValue } from "jotai";
+import { apiAtom } from "@/providers/JellyfinProvider";
 
 interface Props {
   item: BaseItemDto;
@@ -60,6 +64,7 @@ interface Props {
   setShowControls: (shown: boolean) => void;
   offline?: boolean;
   isVideoLoaded?: boolean;
+  mediaSource: MediaSourceInfo;
 }
 
 export const Controls: React.FC<Props> = ({
@@ -75,14 +80,15 @@ export const Controls: React.FC<Props> = ({
   setShowControls,
   ignoreSafeAreas,
   setIgnoreSafeAreas,
+  mediaSource,
   isVideoLoaded,
   offline = false,
 }) => {
   const [settings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setPlaySettings } = usePlaySettings();
-
+  const { setPlaySettings, playSettings } = usePlaySettings();
+  const api = useAtomValue(apiAtom);
   const windowDimensions = Dimensions.get("window");
 
   const { previousItem, nextItem } = useAdjacentItems({ item });
@@ -209,7 +215,6 @@ export const Controls: React.FC<Props> = ({
   }, [showControls, isPlaying]);
 
   const handleSkipBackward = useCallback(async () => {
-    console.log("handleSkipBackward");
     if (!settings?.rewindSkipTime) return;
     wasPlayingRef.current = isPlaying;
     try {
@@ -232,7 +237,6 @@ export const Controls: React.FC<Props> = ({
       const curr = progress.value;
       if (curr !== undefined) {
         const newTime = curr + secondsToMs(settings.forwardSkipTime);
-        console.log("handleSkipForward", newTime);
         await videoRef.current?.seekTo(Math.max(0, newTime));
         if (wasPlayingRef.current === true) videoRef.current?.play();
       }
@@ -261,8 +265,6 @@ export const Controls: React.FC<Props> = ({
         const subtitles = await videoRef.current.getSubtitleTracks();
         setAudioTracks(audio);
         setSubtitleTracks(subtitles);
-        console.log("embedded audio", audio);
-        console.log("embedded sutitles", subtitles);
       }
     };
 
@@ -292,12 +294,12 @@ export const Controls: React.FC<Props> = ({
       })) || [];
 
     const externalSubs =
-      item.MediaStreams?.filter(
+      mediaSource?.MediaStreams?.filter(
         (stream) => stream.Type === "Subtitle" && stream.IsExternal
       ).map((s) => ({
         name: s.DisplayTitle!,
         index: s.Index!,
-        isExternal: s.DeliveryMethod === "External",
+        isExternal: true,
         deliveryUrl: s.DeliveryUrl,
       })) || [];
 
@@ -309,13 +311,12 @@ export const Controls: React.FC<Props> = ({
       (sub) => !embeddedSubNames.has(sub.name)
     );
 
-    console.log([...embeddedSubs, ...uniqueExternalSubs]);
     // Combine embedded and unique external subs
     return [...embeddedSubs, ...uniqueExternalSubs] as (
       | EmbeddedSubtitle
       | ExternalSubtitle
     )[];
-  }, [item, isVideoLoaded, subtitleTracks]);
+  }, [item, isVideoLoaded, subtitleTracks, mediaSource]);
 
   return (
     <View
@@ -386,17 +387,13 @@ export const Controls: React.FC<Props> = ({
                         value="off"
                         onValueChange={() => {
                           if (sub.isExternal) {
-                            videoRef.current?.setSubtitleURL(sub.deliveryUrl);
-                            console.log(
-                              "Setting external subtitle:",
-                              sub.deliveryUrl
+                            videoRef.current?.setSubtitleURL(
+                              api?.basePath + sub.deliveryUrl
                             );
                             return;
                           }
 
-                          console.log("Settings embedded subtitle", sub.name);
                           videoRef.current?.setSubtitleTrack(sub.index);
-                          console.log(sub);
                         }}
                       >
                         <DropdownMenu.ItemIndicator />

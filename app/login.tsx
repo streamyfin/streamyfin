@@ -128,9 +128,9 @@ const Login: React.FC = () => {
         } catch (e) {
           const error = e as Error;
           if (error.name === "AbortError") {
-            console.log(`Request to ${protocol}${url} timed out`);
+            console.error(`Request to ${protocol}${url} timed out`);
           } else {
-            console.log(`Error checking ${protocol}${url}:`, error);
+            console.error(`Error checking ${protocol}${url}:`, error);
           }
         }
       }

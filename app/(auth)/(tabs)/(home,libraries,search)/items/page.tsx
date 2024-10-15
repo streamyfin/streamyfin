@@ -2,6 +2,10 @@ import { Text } from "@/components/common/Text";
 import { ItemContent } from "@/components/ItemContent";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+import {
+  getMediaInfoApi,
+  getUserLibraryApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
@@ -22,16 +26,16 @@ const Page: React.FC = () => {
   const { data: item, isError } = useQuery({
     queryKey: ["item", id],
     queryFn: async () => {
-      const res = await getUserItemData({
-        api,
-        userId: user?.Id,
+      if (!api) return;
+      const res = await getUserLibraryApi(api).getItem({
         itemId: id,
+        userId: user?.Id,
       });
 
-      return res;
+      return res.data;
     },
     enabled: !!id && !!api,
-    staleTime: 60 * 1000 * 5, // 5 minutes
+    staleTime: 0,
   });
 
   const opacity = useSharedValue(1);

@@ -26,7 +26,6 @@ export const useIntroSkipper = (
     queryKey: ["introTimestamps", itemId],
     queryFn: async () => {
       if (!itemId) {
-        console.log("No item id");
         return null;
       }
 

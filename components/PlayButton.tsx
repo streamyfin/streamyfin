@@ -205,7 +205,7 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
             });
             break;
           case 1:
-            router.push("/play-video");
+            router.push("/vlc-player");
             break;
           case cancelButtonIndex:
             break;

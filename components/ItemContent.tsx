@@ -105,7 +105,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     }, [playSettings?.bitrate]);
 
     const setMaxBitrate = (bitrate: Bitrate | undefined) => {
-      console.log("setMaxBitrate", bitrate);
       setPlaySettings((prev) => ({
         ...prev,
         bitrate,

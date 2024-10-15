@@ -26,8 +26,7 @@ export const useRemuxHlsToMp4 = (item: BaseItemDto) => {
   const queryClient = useQueryClient();
   const { saveDownloadedItemInfo, setProcesses } = useDownload();
   const router = useRouter();
-  const { loadImage, saveImage, image2Base64, saveBase64Image } =
-    useImageStorage();
+  const { saveImage } = useImageStorage();
 
   if (!item.Id || !item.Name) {
     writeToLog("ERROR", "useRemuxHlsToMp4 ~ missing arguments");

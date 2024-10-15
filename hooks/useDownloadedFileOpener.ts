@@ -24,9 +24,6 @@ export const useFileOpener = () => {
 
     try {
       const files = await FileSystem.readDirectoryAsync(directory);
-      for (let f of files) {
-        console.log(f);
-      }
       const path = item.Id!;
       const matchingFile = files.find((file) => file.startsWith(path));
 

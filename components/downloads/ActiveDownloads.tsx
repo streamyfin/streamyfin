@@ -85,7 +85,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       toast.success("Download canceled");
     },
     onError: (e) => {
-      console.log(e);
+      console.error(e);
       toast.error("Could not cancel download");
     },
   });

@@ -3,7 +3,8 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
-import ios from "@/utils/profiles/ios";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import iosFmp4 from "@/utils/profiles/iosFmp4";
 import native from "@/utils/profiles/native";
 import old from "@/utils/profiles/old";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -20,18 +21,16 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, TouchableOpacity, View, ViewProps } from "react-native";
+import { TouchableOpacity, View, ViewProps } from "react-native";
+import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
-import { Bitrate, BITRATES, BitrateSelector } from "./BitrateSelector";
+import { Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { toast } from "sonner-native";
-import iosFmp4 from "@/utils/profiles/iosFmp4";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 
 interface DownloadProps extends ViewProps {
   item: BaseItemDto;
@@ -46,7 +45,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
   const { startRemuxing } = useRemuxHlsToMp4(item);
 
   const [selectedMediaSource, setSelectedMediaSource] = useState<
-    MediaSourceInfo | undefined
+    MediaSourceInfo | undefined | null
   >(undefined);
   const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
   const [selectedSubtitleStream, setSelectedSubtitleStream] =

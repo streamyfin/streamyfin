@@ -174,7 +174,7 @@ function useDownloadProvider() {
           url: settings?.optimizedVersionsServerUrl,
         });
       } catch (error) {
-        console.log(error);
+        console.error(error);
       }
     },
     [settings?.optimizedVersionsServerUrl, authHeader]
@@ -184,7 +184,6 @@ function useDownloadProvider() {
     async (process: JobStatus) => {
       if (!process?.item.Id || !authHeader) throw new Error("No item id");
 
-      console.log("[0] Setting process to downloading");
       setProcesses((prev) =>
         prev.map((p) =>
           p.id === process.id
@@ -239,7 +238,6 @@ function useDownloadProvider() {
         })
         .progress((data) => {
           const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
-          console.log("Download progress:", percent);
           setProcesses((prev) =>
             prev.map((p) =>
               p.id === process.id
@@ -467,7 +465,6 @@ function useDownloadProvider() {
         if (itemNameWithoutExtension === id) {
           const filePath = `${directory}${item}`;
           await FileSystem.deleteAsync(filePath, { idempotent: true });
-          console.log(`Successfully deleted file: ${item}`);
           break;
         }
       }
@@ -480,10 +477,6 @@ function useDownloadProvider() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
-
-      console.log(
-        `Successfully deleted file and AsyncStorage entry for ID ${id}`
-      );
     } catch (error) {
       console.error(
         `Failed to delete file and AsyncStorage entry for ID ${id}:`,

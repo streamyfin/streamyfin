@@ -9,7 +9,7 @@ import {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   PlaybackType,
   usePlaySettings,
@@ -17,9 +17,11 @@ import {
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
+import native from "@/utils/profiles/native";
 import { ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
-import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { getMediaInfoApi, getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -35,13 +37,13 @@ import { useSharedValue } from "react-native-reanimated";
 import { SelectedTrackType } from "react-native-video";
 
 export default function page() {
-  const { playSettings, playUrl, playSessionId } = usePlaySettings();
+  const { playSettings, playUrl, playSessionId, mediaSource } =
+    usePlaySettings();
   const api = useAtomValue(apiAtom);
   const [settings] = useSettings();
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const poster = usePoster(playSettings, api);
   const videoSource = useVideoSource(playSettings, api, poster, playUrl);
-  const firstTime = useRef(true);
 
   const screenDimensions = Dimensions.get("screen");
 
@@ -54,12 +56,20 @@ export default function page() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
+  const user = useAtomValue(userAtom);
 
   const [playbackState, setPlaybackState] = useState<
     PlaybackStatePayload["nativeEvent"] | null
   >(null);
 
-  if (!playSettings || !playUrl || !api || !videoSource || !playSettings.item)
+  if (
+    !playSettings ||
+    !playUrl ||
+    !api ||
+    !videoSource ||
+    !playSettings.item ||
+    !mediaSource
+  )
     return null;
 
   const togglePlay = useCallback(
@@ -99,7 +109,7 @@ export default function page() {
         });
       }
     },
-    [isPlaying, api, playSettings?.item?.Id, videoRef, settings]
+    [isPlaying, api, playSettings?.item?.Id, videoRef]
   );
 
   const play = useCallback(() => {
@@ -151,13 +161,6 @@ export default function page() {
 
       setIsBuffering(isBuffering);
 
-      // console.log("onProgress ~", {
-      //   currentTime,
-      //   duration,
-      //   isBuffering,
-      //   isPlaying,
-      // });
-
       progress.value = currentTime;
 
       // cacheProgress.value = secondsToTicks(data.playableDuration);
@@ -204,45 +207,8 @@ export default function page() {
     stopPlayback: stop,
   });
 
-  const selectedSubtitleTrack = useMemo(() => {
-    const a = playSettings?.mediaSource?.MediaStreams?.find(
-      (s) => s.Index === playSettings.subtitleIndex
-    );
-    console.log(a);
-    return a;
-  }, [playSettings]);
-
-  const [hlsSubTracks, setHlsSubTracks] = useState<
-    {
-      index: number;
-      language?: string | undefined;
-      selected?: boolean | undefined;
-      title?: string | undefined;
-      type: any;
-    }[]
-  >([]);
-
-  const selectedTextTrack = useMemo(() => {
-    for (let st of hlsSubTracks) {
-      if (st.title === selectedSubtitleTrack?.DisplayTitle) {
-        return {
-          type: SelectedTrackType.TITLE,
-          value: selectedSubtitleTrack?.DisplayTitle ?? "",
-        };
-      }
-    }
-    return undefined;
-  }, [hlsSubTracks]);
-
   const onPlaybackStateChanged = (e: PlaybackStatePayload) => {
     const { target, state, isBuffering, isPlaying } = e.nativeEvent;
-
-    console.log("onPlaybackStateChanged", {
-      target,
-      state,
-      isBuffering,
-      isPlaying,
-    });
 
     if (state === "Playing") {
       setIsPlaying(true);
@@ -299,12 +265,9 @@ export default function page() {
           onVideoProgress={onProgress}
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}
-          onVideoLoadStart={() => {
-            console.log("onVideoLoadStart");
-          }}
+          onVideoLoadStart={() => {}}
           onVideoLoadEnd={() => {
             setIsVideoLoaded(true);
-            console.log("onVideoLoadEnd");
           }}
         />
       </Pressable>
@@ -325,6 +288,7 @@ export default function page() {
       /> */}
 
       <Controls
+        mediaSource={mediaSource}
         item={playSettings.item}
         videoRef={videoRef}
         togglePlay={togglePlay}

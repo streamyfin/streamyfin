@@ -30,7 +30,6 @@ export const useCreditSkipper = (
     queryKey: ["creditTimestamps", itemId],
     queryFn: async () => {
       if (!itemId) {
-        console.log("No item id");
         return null;
       }
 
@@ -61,7 +60,6 @@ export const useCreditSkipper = (
   }, [creditTimestamps, currentTime]);
 
   const skipCredit = useCallback(() => {
-    console.log("skipCredits");
     if (!creditTimestamps || !videoRef.current) return;
     try {
       videoRef.current.seek(creditTimestamps.Credits.End);

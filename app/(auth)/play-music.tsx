@@ -52,7 +52,6 @@ export default function page() {
 
   const togglePlay = useCallback(
     async (ticks: number) => {
-      console.log("togglePlay");
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (isPlaying) {
         videoRef.current?.pause();

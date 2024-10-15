@@ -28,8 +28,6 @@ export const useAdjacentItems = ({ item }: AdjacentEpisodesProps) => {
         return null;
       }
 
-      console.log("Getting previous item for " + indexNumber);
-
       const newIndexNumber = indexNumber - 2;
 
       const res = await getItemsApi(api).getItems({

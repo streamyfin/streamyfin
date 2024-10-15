@@ -259,11 +259,11 @@ export default {
   ],
   SubtitleProfiles: [
     {
-      Format: "pgssub",
-      Method: "embed",
+      Format: "srt",
+      Method: "external",
     },
     {
-      Format: "subrip",
+      Format: "pgssub",
       Method: "embed",
     },
     {

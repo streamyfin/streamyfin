@@ -37,6 +37,7 @@ export const getStreamUrl = async ({
 }): Promise<{
   url: string | null;
   sessionId: string | null;
+  mediaSource: MediaSourceInfo | undefined;
 } | null> => {
   if (!api || !userId || !item?.Id) {
     return null;
@@ -70,7 +71,11 @@ export const getStreamUrl = async ({
     sessionId = res0.data.PlaySessionId || null;
 
     if (transcodeUrl) {
-      return { url: `${api.basePath}${transcodeUrl}`, sessionId };
+      return {
+        url: `${api.basePath}${transcodeUrl}`,
+        sessionId,
+        mediaSource: res0.data.MediaSources?.[0],
+      };
     }
   }
 
@@ -108,13 +113,12 @@ export const getStreamUrl = async ({
     (source: MediaSourceInfo) => source.Id === mediaSourceId
   );
 
-  console.log("getStreamUrl ~ ", item.MediaType);
-
   if (item.MediaType === "Video") {
     if (mediaSource?.SupportsDirectPlay || forceDirectPlay === true) {
       return {
         url: `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`,
         sessionId: sessionId,
+        mediaSource,
       };
     }
 
@@ -122,15 +126,18 @@ export const getStreamUrl = async ({
       return {
         url: `${api.basePath}${mediaSource.TranscodingUrl}`,
         sessionId: sessionId,
+        mediaSource,
       };
     }
   }
 
   if (item.MediaType === "Audio") {
-    console.log("getStreamUrl ~ Audio");
-
     if (mediaSource?.TranscodingUrl) {
-      return { url: `${api.basePath}${mediaSource.TranscodingUrl}`, sessionId };
+      return {
+        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
+        sessionId,
+        mediaSource,
+      };
     }
 
     const searchParams = new URLSearchParams({
@@ -153,6 +160,7 @@ export const getStreamUrl = async ({
         api.basePath
       }/Audio/${itemId}/universal?${searchParams.toString()}`,
       sessionId,
+      mediaSource,
     };
   }
 
