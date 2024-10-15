@@ -225,7 +225,6 @@ export default function page() {
           setAudioTrack={videoRef.current?.setAudioTrack}
           setSubtitleTrack={videoRef.current?.setSubtitleTrack}
           setSubtitleURL={videoRef.current?.setSubtitleURL}
-          mediaSource={undefined}
         />
       )}
     </View>
