@@ -31,3 +31,6 @@ credentials.json
 *.apk
 *.ipa
 .continuerc.json
+
+# Ignore VLC player android folder
+modules/vlc-player/android
