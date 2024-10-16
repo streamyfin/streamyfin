@@ -16,7 +16,7 @@ import {
 } from "@/providers/PlaySettingsProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
-import { ticksToSeconds } from "@/utils/time";
+import { ticksToMs, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import * as Haptics from "expo-haptics";
@@ -255,6 +255,9 @@ export default function page() {
             uri: playUrl,
             autoplay: true,
             isNetwork: true,
+            startPosition: ticksToMs(
+              playSettings.item.UserData?.PlaybackPositionTicks
+            ),
           }}
           style={{ width: "100%", height: "100%" }}
           onVideoProgress={onProgress}
@@ -266,21 +269,6 @@ export default function page() {
           }}
         />
       </Pressable>
-
-      {/* <VideoDebugInfo
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          zIndex: 10,
-        }}
-        playbackState={playbackState}
-        progress={{
-          currentTime: progress.value,
-          duration: 0,
-        }}
-        playerRef={videoRef}
-      /> */}
 
       {videoRef.current && (
         <VlcControls

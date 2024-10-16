@@ -323,7 +323,7 @@ function Layout() {
                           }}
                         />
                         <Stack.Screen
-                          name="(auth)/play-video"
+                          name="(auth)/player"
                           options={{
                             headerShown: false,
                             autoHideHomeIndicator: true,
@@ -359,7 +359,7 @@ function Layout() {
                           }}
                         />
                         <Stack.Screen
-                          name="(auth)/play-music"
+                          name="(auth)/music-player"
                           options={{
                             headerShown: false,
                             autoHideHomeIndicator: true,
