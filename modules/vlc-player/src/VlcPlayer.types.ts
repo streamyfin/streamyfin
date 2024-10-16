@@ -43,6 +43,7 @@ export type VlcPlayerSource = {
   autoplay?: boolean;
   initOptions?: any[];
   mediaOptions?: { [key: string]: any };
+  startPosition?: number;
 };
 
 export type TrackInfo = {

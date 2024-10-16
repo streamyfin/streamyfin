@@ -101,6 +101,10 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
     const processedSource: VlcPlayerSource =
       typeof source === "string" ? { uri: source } : source;
 
+    if (processedSource.startPosition !== undefined) {
+      processedSource.startPosition = Math.floor(processedSource.startPosition);
+    }
+
     return (
       <NativeView
         {...otherProps}

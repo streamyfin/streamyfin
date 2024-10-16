@@ -97,6 +97,7 @@ class VlcPlayerView: ExpoView {
             let initType = source["initType"] as? Int ?? 0
             let autoplay = source["autoplay"] as? Bool ?? false
             let isNetwork = source["isNetwork"] as? Bool ?? false
+            let startPosition = source["startPosition"] as? Int32 ?? 0
 
             guard let uri = uri, !uri.isEmpty else { return }
 
@@ -151,6 +152,10 @@ class VlcPlayerView: ExpoView {
             }
 
             self.mediaPlayer?.media = media
+
+            if startPosition > 0 {
+                self.mediaPlayer?.time = VLCTime(int: startPosition)
+            }
 
             if autoplay {
                 self.play()
