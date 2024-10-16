@@ -1,15 +1,7 @@
 export type PlaybackStatePayload = {
   nativeEvent: {
     target: number;
-    state:
-      | "Opening"
-      | "Buffering"
-      | "Playing"
-      | "Paused"
-      | "Stopped"
-      | "Ended"
-      | "Error"
-      | "Unknown";
+    state: "Opening" | "Buffering" | "Playing" | "Paused" | "Error";
     currentTime: number;
     duration: number;
     isBuffering: boolean;
@@ -69,6 +61,7 @@ export type VlcPlayerViewProps = {
   onVideoStateChange?: (event: PlaybackStatePayload) => void;
   onVideoLoadStart?: (event: VideoLoadStartPayload) => void;
   onVideoLoadEnd?: (event: VideoLoadStartPayload) => void;
+  onVideoError?: (event: PlaybackStatePayload) => void;
 };
 
 export interface VlcPlayerViewRef {

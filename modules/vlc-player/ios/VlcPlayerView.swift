@@ -99,7 +99,13 @@ class VlcPlayerView: ExpoView {
             let isNetwork = source["isNetwork"] as? Bool ?? false
             let startPosition = source["startPosition"] as? Int32 ?? 0
 
-            guard let uri = uri, !uri.isEmpty else { return }
+            guard let uri = uri, !uri.isEmpty else {
+                print("Error: Invalid or empty URI")
+                self.onVideoError?(["error": "Invalid or empty URI"])
+                return
+            }
+
+            self.onVideoLoadStart?(["target": self.reactTag ?? NSNull()])
 
             if initType == 2, let options = initOptions {
                 self.mediaPlayer = VLCMediaPlayer(options: options)
@@ -128,6 +134,7 @@ class VlcPlayerView: ExpoView {
                     media = VLCMedia(path: uri)
                 }
             }
+
             // Apply subtitle options
             let subtitleOptions = self.getSubtitleOptions()
             media.addOptions(subtitleOptions)
@@ -141,6 +148,7 @@ class VlcPlayerView: ExpoView {
                 print("Debug: No additional media options provided")
             }
 
+            // Apply subtitle options
             let subtitleTrackIndex = source["subtitleTrackIndex"] as? Int ?? -1
             print("Debug: Subtitle track index from source: \(subtitleTrackIndex)")
 
@@ -154,14 +162,25 @@ class VlcPlayerView: ExpoView {
             self.mediaPlayer?.media = media
 
             if startPosition > 0 {
-                self.mediaPlayer?.time = VLCTime(int: startPosition)
+                // Wait for the media to be ready before setting the start position
+                NotificationCenter.default.addObserver(
+                    forName: NSNotification.Name(rawValue: VLCMediaPlayerStateChanged), object: nil,
+                    queue: nil
+                ) { [weak self] notification in
+                    guard let self = self, let player = self.mediaPlayer,
+                        player.isPlaying == false
+                    else { return }
+
+                    self.mediaPlayer?.time = VLCTime(int: startPosition)
+                    NotificationCenter.default.removeObserver(
+                        self, name: NSNotification.Name(rawValue: VLCMediaPlayerStateChanged),
+                        object: nil)
+                }
             }
 
             if autoplay {
                 self.play()
             }
-
-            self.onVideoLoadStart?(["target": self.reactTag ?? NSNull()])
         }
     }
 
@@ -520,6 +539,7 @@ class VlcPlayerView: ExpoView {
     @objc var onVideoStateChange: RCTDirectEventBlock?
     @objc var onVideoProgress: RCTDirectEventBlock?
     @objc var onVideoLoadEnd: RCTDirectEventBlock?
+    @objc var onVideoError: RCTDirectEventBlock?
 
     // MARK: - Deinitialization
 
@@ -545,6 +565,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 "target": self.reactTag ?? NSNull(),
                 "currentTime": player.time.intValue,
                 "duration": player.media?.length.intValue ?? 0,
+                "error": false,
             ]
 
             if player.isPlaying {
@@ -556,9 +577,16 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 stateInfo["state"] = "Paused"
             }
 
-            if player.state == .buffering {
+            if player.state == VLCMediaPlayerState.buffering {
                 stateInfo["isBuffering"] = true
                 stateInfo["state"] = "Buffering"
+            } else if player.state == VLCMediaPlayerState.error {
+                print("player.state ~ error")
+                stateInfo["state"] = "Error"
+                self.onVideoLoadEnd?(stateInfo)
+            } else if player.state == VLCMediaPlayerState.opening {
+                print("player.state ~ opening")
+                stateInfo["state"] = "Opening"
             }
 
             // Dermine if the media has finished loading

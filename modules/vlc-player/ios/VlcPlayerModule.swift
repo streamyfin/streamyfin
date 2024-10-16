@@ -33,7 +33,8 @@ public class VlcPlayerModule: Module {
                 "onVideoStateChange",
                 "onVideoLoadStart",
                 "onVideoLoadEnd",
-                "onVideoProgress"
+                "onVideoProgress",
+                "onVideoError"
             )
 
             AsyncFunction("play") { (view: VlcPlayerView) in

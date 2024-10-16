@@ -15,14 +15,21 @@ import {
   usePlaySettings,
 } from "@/providers/PlaySettingsProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { writeToLog } from "@/utils/log";
 import { msToTicks, ticksToMs } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, Pressable, StatusBar, View } from "react-native";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Alert, Dimensions, Pressable, StatusBar, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
 export default function page() {
@@ -32,6 +39,8 @@ export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   // const poster = usePoster(playSettings, api);
   // const user = useAtomValue(userAtom);
+
+  const router = useRouter();
 
   const screenDimensions = Dimensions.get("screen");
 
@@ -46,8 +55,11 @@ export default function page() {
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
 
-  if (!playSettings || !playUrl || !api || !playSettings.item || !mediaSource)
+  if (!playSettings || !playUrl || !api || !playSettings.item || !mediaSource) {
+    Alert.alert("Error", "Invalid play settings");
+    router.back();
     return null;
+  }
 
   const togglePlay = useCallback(
     async (ticks: number) => {
@@ -136,6 +148,7 @@ export default function page() {
 
       const { currentTime, isPlaying } = data.nativeEvent;
 
+      progress.value = currentTime;
       const currentTimeInTicks = msToTicks(currentTime);
 
       await getPlaystateApi(api).onPlaybackProgress({
@@ -198,6 +211,13 @@ export default function page() {
     }
   };
 
+  useEffect(() => {
+    console.log(
+      "PlaybackPositionTicks",
+      playSettings.item?.UserData?.PlaybackPositionTicks
+    );
+  }, [playSettings.item]);
+
   return (
     <View
       style={{
@@ -231,6 +251,14 @@ export default function page() {
           onVideoLoadStart={() => {}}
           onVideoLoadEnd={() => {
             setIsVideoLoaded(true);
+          }}
+          onVideoError={(e) => {
+            console.error("Video Error:", e.nativeEvent);
+            Alert.alert(
+              "Error",
+              "An error occurred while playing the video. Check logs in settings."
+            );
+            writeToLog("ERROR", "Video Error", e.nativeEvent);
           }}
         />
       </Pressable>
