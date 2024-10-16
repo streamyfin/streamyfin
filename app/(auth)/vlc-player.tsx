@@ -9,26 +9,19 @@ import {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   PlaybackType,
   usePlaySettings,
 } from "@/providers/PlaySettingsProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
-import { ticksToMs, ticksToSeconds } from "@/utils/time";
+import { msToTicks, ticksToMs } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Dimensions, Pressable, StatusBar, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
@@ -37,8 +30,8 @@ export default function page() {
     usePlaySettings();
   const api = useAtomValue(apiAtom);
   const videoRef = useRef<VlcPlayerViewRef>(null);
-  const poster = usePoster(playSettings, api);
-  const videoSource = useVideoSource(playSettings, api, poster, playUrl);
+  // const poster = usePoster(playSettings, api);
+  // const user = useAtomValue(userAtom);
 
   const screenDimensions = Dimensions.get("screen");
 
@@ -47,24 +40,13 @@ export default function page() {
   const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
-  const user = useAtomValue(userAtom);
 
-  const [playbackState, setPlaybackState] = useState<
-    PlaybackStatePayload["nativeEvent"] | null
-  >(null);
-
-  if (
-    !playSettings ||
-    !playUrl ||
-    !api ||
-    !videoSource ||
-    !playSettings.item ||
-    !mediaSource
-  )
+  if (!playSettings || !playUrl || !api || !playSettings.item || !mediaSource)
     return null;
 
   const togglePlay = useCallback(
@@ -150,33 +132,26 @@ export default function page() {
     async (data: ProgressUpdatePayload) => {
       if (isSeeking.value === true) return;
       if (isPlaybackStopped === true) return;
+      if (!playSettings.item?.Id) return;
 
-      const { currentTime, duration, isBuffering, isPlaying } =
-        data.nativeEvent;
+      const { currentTime, isPlaying } = data.nativeEvent;
 
-      setIsBuffering(isBuffering);
+      const currentTimeInTicks = msToTicks(currentTime);
 
-      progress.value = currentTime;
-
-      // cacheProgress.value = secondsToTicks(data.playableDuration);
-      // setIsBuffering(data.playableDuration === 0);
-
-      // if (!playSettings?.item?.Id || data.currentTime === 0) return;
-
-      // await getPlaystateApi(api).onPlaybackProgress({
-      //   itemId: playSettings.item.Id,
-      //   audioStreamIndex: playSettings.audioIndex
-      //     ? playSettings.audioIndex
-      //     : undefined,
-      //   subtitleStreamIndex: playSettings.subtitleIndex
-      //     ? playSettings.subtitleIndex
-      //     : undefined,
-      //   mediaSourceId: playSettings.mediaSource?.Id!,
-      //   positionTicks: Math.round(ticks),
-      //   isPaused: !isPlaying,
-      //   playMethod: playUrl.includes("m3u8") ? "Transcode" : "DirectStream",
-      //   playSessionId: playSessionId ? playSessionId : undefined,
-      // });
+      await getPlaystateApi(api).onPlaybackProgress({
+        itemId: playSettings.item.Id,
+        audioStreamIndex: playSettings.audioIndex
+          ? playSettings.audioIndex
+          : undefined,
+        subtitleStreamIndex: playSettings.subtitleIndex
+          ? playSettings.subtitleIndex
+          : undefined,
+        mediaSourceId: playSettings.mediaSource?.Id!,
+        positionTicks: Math.floor(currentTimeInTicks),
+        isPaused: !isPlaying,
+        playMethod: playUrl.includes("m3u8") ? "Transcode" : "DirectStream",
+        playSessionId: playSessionId ? playSessionId : undefined,
+      });
     },
     [playSettings?.item.Id, isPlaying, api, isPlaybackStopped]
   );
@@ -191,7 +166,7 @@ export default function page() {
     }, [play, stop])
   );
 
-  const { orientation } = useOrientation();
+  useOrientation();
   useOrientationSettings();
   useAndroidNavigationBar();
 
@@ -203,7 +178,7 @@ export default function page() {
   });
 
   const onPlaybackStateChanged = (e: PlaybackStatePayload) => {
-    const { target, state, isBuffering, isPlaying } = e.nativeEvent;
+    const { state, isBuffering, isPlaying } = e.nativeEvent;
 
     if (state === "Playing") {
       setIsPlaying(true);
@@ -221,17 +196,7 @@ export default function page() {
     } else if (isBuffering) {
       setIsBuffering(true);
     }
-
-    setPlaybackState(e.nativeEvent);
   };
-
-  useEffect(() => {
-    return () => {
-      stop();
-    };
-  }, []);
-
-  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   return (
     <View
@@ -320,39 +285,4 @@ export function usePoster(
   }, [playSettings?.item, api]);
 
   return poster ?? undefined;
-}
-
-export function useVideoSource(
-  playSettings: PlaybackType | null,
-  api: Api | null,
-  poster: string | undefined,
-  playUrl?: string | null
-) {
-  const videoSource = useMemo(() => {
-    if (!playSettings || !api || !playUrl) {
-      return null;
-    }
-
-    const startPosition = playSettings.item?.UserData?.PlaybackPositionTicks
-      ? Math.round(
-          ticksToSeconds(playSettings.item.UserData.PlaybackPositionTicks)
-        )
-      : 0;
-
-    return {
-      uri: playUrl,
-      isNetwork: true,
-      startPosition,
-      headers: getAuthHeaders(api),
-      metadata: {
-        artist: playSettings.item?.AlbumArtist ?? undefined,
-        title: playSettings.item?.Name || "Unknown",
-        description: playSettings.item?.Overview ?? undefined,
-        imageUri: poster,
-        subtitle: playSettings.item?.Album ?? undefined,
-      },
-    };
-  }, [playSettings, api, poster]);
-
-  return videoSource;
 }
