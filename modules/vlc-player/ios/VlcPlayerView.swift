@@ -80,8 +80,22 @@ class VlcPlayerView: ExpoView {
 
     @objc func seekTo(_ time: Int32) {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.mediaPlayer?.time = VLCTime(int: time)
+            guard let self = self, let player = self.mediaPlayer else { return }
+
+            let wasPlaying = player.isPlaying
+            if wasPlaying {
+                player.pause()
+            }
+
+            player.time = VLCTime(int: time)
+
+            // Wait for a short moment to ensure the seek has been processed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if wasPlaying {
+                    player.play()
+                }
+                self.updatePlayerState()
+            }
         }
     }
 
