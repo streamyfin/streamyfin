@@ -32,19 +32,19 @@ import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
+import { useOrientation } from "@/hooks/useOrientation";
 
 export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
   ({ item }) => {
     const [api] = useAtom(apiAtom);
-    const { setPlaySettings, playUrl, playSettings } = usePlaySettings();
-    const [settings] = useSettings();
+
+    const { setPlaySettings, playSettings } = usePlaySettings();
+    const { orientation } = useOrientation();
     const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
+    const [settings] = useSettings();
 
     const [loadingLogo, setLoadingLogo] = useState(true);
-
-    const [orientation, setOrientation] = useState(
-      ScreenOrientation.Orientation.PORTRAIT_UP
-    );
 
     useFocusEffect(
       useCallback(() => {
@@ -111,22 +111,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       }));
     };
 
-    useEffect(() => {
-      const subscription = ScreenOrientation.addOrientationChangeListener(
-        (event) => {
-          setOrientation(event.orientationInfo.orientation);
-        }
-      );
-
-      ScreenOrientation.getOrientationAsync().then((initialOrientation) => {
-        setOrientation(initialOrientation);
-      });
-
-      return () => {
-        ScreenOrientation.removeOrientationChangeListener(subscription);
-      };
-    }, []);
-
     const [headerHeight, setHeaderHeight] = useState(350);
 
     useImageColors({ item });
@@ -149,13 +133,9 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     }, [item]);
 
     useEffect(() => {
-      // If landscape
-      if (orientation !== ScreenOrientation.Orientation.PORTRAIT_UP) {
+      if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
         setHeaderHeight(230);
-        return;
-      }
-
-      if (item.Type === "Movie") setHeaderHeight(500);
+      else if (item.Type === "Movie") setHeaderHeight(500);
       else setHeaderHeight(350);
     }, [item.Type, orientation]);
 
@@ -164,8 +144,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
-
-    const insets = useSafeAreaInsets();
 
     return (
       <View

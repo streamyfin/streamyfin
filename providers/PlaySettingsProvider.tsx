@@ -105,8 +105,10 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           audioStreamIndex: newSettings?.audioIndex ?? 0,
           subtitleStreamIndex: newSettings?.subtitleIndex ?? -1,
           userId: user.Id,
-          forceDirectPlay: settings.forceDirectPlay,
         });
+
+        console.log("getStreamUrl ~");
+        console.log(`${data?.url?.slice(0, 100)}...${data?.url?.slice(-50)}`);
 
         _setPlaySettings(newSettings);
         setPlayUrl(data?.url!);

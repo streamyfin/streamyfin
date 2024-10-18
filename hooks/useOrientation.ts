@@ -24,5 +24,5 @@ export const useOrientation = () => {
     };
   }, []);
 
-  return { orientation };
+  return { orientation, setOrientation };
 };

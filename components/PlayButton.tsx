@@ -1,11 +1,15 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
+import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { chromecastProfile } from "@/utils/profiles/chromecast";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { Alert, Linking, Platform, TouchableOpacity, View } from "react-native";
@@ -27,11 +31,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
-import { useRouter } from "expo-router";
-import { useSettings } from "@/utils/atoms/settings";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecastProfile } from "@/utils/profiles/chromecast";
-import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 
 interface Props extends React.ComponentProps<typeof Button> {}
 
@@ -59,7 +58,9 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
   const [settings] = useSettings();
 
   const directStream = useMemo(() => {
-    return !url?.includes("m3u8");
+    if (!url || url.length === 0) return "Loading...";
+    if (url.includes("m3u8")) return "Transcoded stream";
+    return "Direct stream";
   }, [url]);
 
   const item = useMemo(() => {
@@ -318,10 +319,11 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
   return (
     <View>
       <TouchableOpacity
+        disabled={!item || !url}
         accessibilityLabel="Play button"
         accessibilityHint="Tap to play the media"
         onPress={onPress}
-        className="relative"
+        className={`relative`}
         {...props}
       >
         <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
