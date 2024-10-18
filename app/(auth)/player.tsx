@@ -116,8 +116,8 @@ export default function page() {
   }, [videoRef]);
 
   const seek = useCallback(
-    (ticks: number) => {
-      videoRef.current?.seek(ticksToSeconds(ticks));
+    (seconds: number) => {
+      videoRef.current?.seek(seconds);
     },
     [videoRef]
   );
@@ -151,19 +151,11 @@ export default function page() {
       if (isSeeking.value === true) return;
       if (isPlaybackStopped === true) return;
 
-      console.log({
-        data,
-        isSeeking: isSeeking.value,
-        isPlaybackStopped,
-      });
-
       const ticks = secondsToTicks(data.currentTime);
 
       progress.value = ticks;
       cacheProgress.value = secondsToTicks(data.playableDuration);
       setIsBuffering(data.playableDuration === 0);
-
-      console.log("progress.value", progress.value);
 
       if (!playSettings?.item?.Id || data.currentTime === 0) return;
 
@@ -353,9 +345,6 @@ export function useVideoSource(
 
     return {
       uri: playUrl,
-      textTracks: {
-        
-      },
       isNetwork: true,
       startPosition,
       headers: getAuthHeaders(api),

@@ -116,8 +116,8 @@ export const Controls: React.FC<Props> = ({
     !offline && enableTrickplay
   );
 
-  const [currentTime, setCurrentTime] = useState(0); // Seconds
-  const [remainingTime, setRemainingTime] = useState(0); // Seconds
+  const [currentTime, setCurrentTime] = useState(0);
+  const [remainingTime, setRemainingTime] = useState(0);
 
   const min = useSharedValue(0);
   const max = useSharedValue(item.RunTimeTicks || 0);
@@ -254,7 +254,7 @@ export const Controls: React.FC<Props> = ({
       if (curr !== undefined) {
         const newTime = isVlc
           ? Math.max(0, curr - secondsToMs(settings.rewindSkipTime))
-          : Math.max(0, curr - settings.rewindSkipTime * 10000000);
+          : Math.max(0, ticksToSeconds(curr) - settings.rewindSkipTime);
         await seek(newTime);
         if (wasPlayingRef.current === true) play();
       }
@@ -268,10 +268,11 @@ export const Controls: React.FC<Props> = ({
     wasPlayingRef.current = isPlaying;
     try {
       const curr = progress.value;
+      console.log(curr);
       if (curr !== undefined) {
         const newTime = isVlc
           ? curr + secondsToMs(settings.forwardSkipTime)
-          : curr + settings.forwardSkipTime * 10000000;
+          : ticksToSeconds(curr) + settings.forwardSkipTime;
         await seek(Math.max(0, newTime));
         if (wasPlayingRef.current === true) play();
       }

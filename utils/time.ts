@@ -95,3 +95,8 @@ export const secondsToMs = (seconds?: number | undefined) => {
   if (!seconds) return 0;
   return seconds * 1000;
 };
+
+export const msToSeconds = (ms?: number | undefined) => {
+  if (!ms) return 0;
+  return Math.floor(ms / 1000);
+};
