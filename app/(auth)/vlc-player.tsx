@@ -1,3 +1,4 @@
+import { Controls } from "@/components/video-player/Controls";
 import { VlcControls } from "@/components/video-player/VlcControls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -264,7 +265,7 @@ export default function page() {
       </Pressable>
 
       {videoRef.current && (
-        <VlcControls
+        <Controls
           mediaSource={mediaSource}
           item={playSettings.item}
           videoRef={videoRef}
@@ -290,6 +291,7 @@ export default function page() {
           setSubtitleURL={videoRef.current.setSubtitleURL}
           setAudioTrack={videoRef.current.setAudioTrack}
           stop={videoRef.current.stop}
+          isVlc
         />
       )}
     </View>

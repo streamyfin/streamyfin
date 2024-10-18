@@ -78,8 +78,8 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
         const geometry = await nativeRef.current?.getVideoCropGeometry();
         return geometry ?? null;
       },
-      setSubtitleURL: async (url: string) => {
-        await nativeRef.current?.setSubtitleURL(url);
+      setSubtitleURL: async (url: string, name: string) => {
+        await nativeRef.current?.setSubtitleURL(url, name);
       },
     }));
 

@@ -1,14 +1,11 @@
 import {
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  VlcPlayerViewRef,
   TrackInfo,
+  VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
-import { useState, useEffect } from "react";
-import { View, TouchableOpacity, ViewProps } from "react-native";
-import { Text } from "../common/Text";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { TouchableOpacity, View, ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "../common/Text";
 
 interface Props extends ViewProps {
   playerRef: React.RefObject<VlcPlayerViewRef>;

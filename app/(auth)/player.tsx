@@ -3,6 +3,7 @@ import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
+import { TrackInfo } from "@/modules/vlc-player";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   PlaybackType,
@@ -12,6 +13,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { secondsToTicks } from "@/utils/secondsToTicks";
+import { ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import * as Haptics from "expo-haptics";
@@ -22,6 +24,7 @@ import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
+  SelectedTrack,
   SelectedTrackType,
   VideoRef,
 } from "react-native-video";
@@ -112,6 +115,13 @@ export default function page() {
     reportPlaybackStopped();
   }, [videoRef]);
 
+  const seek = useCallback(
+    (ticks: number) => {
+      videoRef.current?.seek(ticksToSeconds(ticks));
+    },
+    [videoRef]
+  );
+
   const reportPlaybackStopped = async () => {
     await getPlaystateApi(api).onPlaybackStopped({
       itemId: playSettings?.item?.Id!,
@@ -141,11 +151,19 @@ export default function page() {
       if (isSeeking.value === true) return;
       if (isPlaybackStopped === true) return;
 
-      const ticks = data.currentTime * 10000000;
+      console.log({
+        data,
+        isSeeking: isSeeking.value,
+        isPlaybackStopped,
+      });
 
-      progress.value = secondsToTicks(data.currentTime);
+      const ticks = secondsToTicks(data.currentTime);
+
+      progress.value = ticks;
       cacheProgress.value = secondsToTicks(data.playableDuration);
       setIsBuffering(data.playableDuration === 0);
+
+      console.log("progress.value", progress.value);
 
       if (!playSettings?.item?.Id || data.currentTime === 0) return;
 
@@ -188,15 +206,11 @@ export default function page() {
     stopPlayback: stop,
   });
 
-  const selectedSubtitleTrack = useMemo(() => {
-    const a = playSettings?.mediaSource?.MediaStreams?.find(
-      (s) => s.Index === playSettings.subtitleIndex
-    );
-    console.log(a);
-    return a;
-  }, [playSettings]);
+  const [selectedTextTrack, setSelectedTextTrack] = useState<
+    SelectedTrack | undefined
+  >();
 
-  const [hlsSubTracks, setHlsSubTracks] = useState<
+  const [embededTextTracks, setEmbededTextTracks] = useState<
     {
       index: number;
       language?: string | undefined;
@@ -206,17 +220,12 @@ export default function page() {
     }[]
   >([]);
 
-  const selectedTextTrack = useMemo(() => {
-    for (let st of hlsSubTracks) {
-      if (st.title === selectedSubtitleTrack?.DisplayTitle) {
-        return {
-          type: SelectedTrackType.TITLE,
-          value: selectedSubtitleTrack?.DisplayTitle ?? "",
-        };
-      }
-    }
-    return undefined;
-  }, [hlsSubTracks]);
+  const getSubtitleTracks = (): TrackInfo[] => {
+    return embededTextTracks.map((t) => ({
+      name: t.title ?? "",
+      index: t.index,
+    }));
+  };
 
   return (
     <View
@@ -273,7 +282,7 @@ export default function page() {
           }}
           onTextTracks={(data) => {
             console.log("onTextTracks ~", data);
-            setHlsSubTracks(data.textTracks as any);
+            setEmbededTextTracks(data.textTracks as any);
           }}
           selectedTextTrack={selectedTextTrack}
         />
@@ -293,6 +302,16 @@ export default function page() {
         setShowControls={setShowControls}
         setIgnoreSafeAreas={setIgnoreSafeAreas}
         ignoreSafeAreas={ignoreSafeAreas}
+        seek={seek}
+        play={play}
+        pause={pause}
+        getSubtitleTracks={getSubtitleTracks}
+        setSubtitleTrack={(i) =>
+          setSelectedTextTrack({
+            type: SelectedTrackType.INDEX,
+            value: i,
+          })
+        }
       />
     </View>
   );
@@ -334,6 +353,9 @@ export function useVideoSource(
 
     return {
       uri: playUrl,
+      textTracks: {
+        
+      },
       isNetwork: true,
       startPosition,
       headers: getAuthHeaders(api),

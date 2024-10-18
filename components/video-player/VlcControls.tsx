@@ -151,7 +151,8 @@ export const VlcControls: React.FC<Props> = ({
       subtitleIndex,
     });
 
-    router.replace("/play-video");
+    if (Platform.OS === "ios") router.replace("/vlc-player");
+    else router.replace("/player");
   }, [previousItem, settings]);
 
   const goToNextItem = useCallback(() => {
@@ -168,7 +169,8 @@ export const VlcControls: React.FC<Props> = ({
       subtitleIndex,
     });
 
-    router.replace("/play-video");
+    if (Platform.OS === "ios") router.replace("/vlc-player");
+    else router.replace("/player");
   }, [nextItem, settings]);
 
   const updateTimes = useCallback(
@@ -265,10 +267,6 @@ export const VlcControls: React.FC<Props> = ({
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
   }, []);
-
-  const [selectedSubtitleTrack, setSelectedSubtitleTrack] = useState<
-    MediaStream | undefined
-  >(undefined);
 
   const [audioTracks, setAudioTracks] = useState<TrackInfo[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[] | null>(

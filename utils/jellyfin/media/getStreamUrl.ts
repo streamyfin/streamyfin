@@ -19,7 +19,6 @@ export const getStreamUrl = async ({
   deviceProfile = native,
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
-  forceDirectPlay = false,
   mediaSourceId,
 }: {
   api: Api | null | undefined;
@@ -31,7 +30,6 @@ export const getStreamUrl = async ({
   deviceProfile: any;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
-  forceDirectPlay?: boolean;
   height?: number;
   mediaSourceId?: string | null;
 }): Promise<{
@@ -114,17 +112,17 @@ export const getStreamUrl = async ({
   );
 
   if (item.MediaType === "Video") {
-    if (mediaSource?.SupportsDirectPlay || forceDirectPlay === true) {
+    if (mediaSource?.TranscodingUrl) {
       return {
-        url: `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`,
+        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
         sessionId: sessionId,
         mediaSource,
       };
     }
 
-    if (mediaSource?.TranscodingUrl) {
+    if (mediaSource?.SupportsDirectPlay) {
       return {
-        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
+        url: `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`,
         sessionId: sessionId,
         mediaSource,
       };

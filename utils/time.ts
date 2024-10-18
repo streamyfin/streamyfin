@@ -39,13 +39,23 @@ export const runtimeTicksToSeconds = (
 // t: ms
 export const formatTimeString = (
   t: number | null | undefined,
-  tick = false
+  unit: "s" | "ms" | "tick" = "ms"
 ): string => {
   if (t === null || t === undefined) return "0:00";
 
-  let seconds = t / 1000;
-  if (tick) {
-    seconds = Math.floor(t / 10000000); // Convert ticks to seconds
+  let seconds: number;
+  switch (unit) {
+    case "s":
+      seconds = Math.floor(t);
+      break;
+    case "ms":
+      seconds = Math.floor(t / 1000);
+      break;
+    case "tick":
+      seconds = Math.floor(t / 10000000);
+      break;
+    default:
+      seconds = Math.floor(t / 1000); // Default to ms if an invalid type is provided
   }
 
   if (seconds < 0) return "0:00";

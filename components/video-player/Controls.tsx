@@ -2,16 +2,28 @@ import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
+import {
+  TrackInfo,
+  VlcPlayerViewRef,
+} from "@/modules/vlc-player/src/VlcPlayer.types";
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { writeToLog } from "@/utils/log";
-import { formatTimeString, ticksToSeconds } from "@/utils/time";
+import {
+  formatTimeString,
+  secondsToMs,
+  ticksToMs,
+  ticksToSeconds,
+} from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   Platform,
@@ -20,22 +32,23 @@ import {
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import Animated, {
+import {
   runOnJS,
   SharedValue,
   useAnimatedReaction,
-  useAnimatedStyle,
   useSharedValue,
-  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
+import { useAtomValue } from "jotai";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import * as DropdownMenu from "zeego/dropdown-menu";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: React.MutableRefObject<VideoRef | null>;
+  videoRef: React.MutableRefObject<VlcPlayerViewRef | VideoRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
@@ -47,11 +60,27 @@ interface Props {
   enableTrickplay?: boolean;
   togglePlay: (ticks: number) => void;
   setShowControls: (shown: boolean) => void;
+  offline?: boolean;
+  isVideoLoaded?: boolean;
+  mediaSource?: MediaSourceInfo | null;
+  seek: (ticks: number) => void;
+  play: (() => Promise<void>) | (() => void);
+  pause: () => void;
+  getAudioTracks?: () => Promise<TrackInfo[] | null>;
+  getSubtitleTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
+  setSubtitleURL?: (url: string, customName: string) => void;
+  setSubtitleTrack?: (index: number) => void;
+  setAudioTrack?: (index: number) => void;
+  stop?: (() => Promise<void>) | (() => void);
+  isVlc?: boolean;
 }
 
 export const Controls: React.FC<Props> = ({
   item,
   videoRef,
+  seek,
+  play,
+  pause,
   togglePlay,
   isPlaying,
   isSeeking,
@@ -62,19 +91,29 @@ export const Controls: React.FC<Props> = ({
   setShowControls,
   ignoreSafeAreas,
   setIgnoreSafeAreas,
+  mediaSource,
+  isVideoLoaded,
+  getAudioTracks,
+  getSubtitleTracks,
+  setSubtitleURL,
+  setSubtitleTrack,
+  setAudioTrack,
+  stop,
+  offline = false,
   enableTrickplay = true,
+  isVlc = false,
 }) => {
   const [settings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setPlaySettings } = usePlaySettings();
-
+  const { setPlaySettings, playSettings } = usePlaySettings();
+  const api = useAtomValue(apiAtom);
   const windowDimensions = Dimensions.get("window");
 
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
     item,
-    enableTrickplay
+    !offline && enableTrickplay
   );
 
   const [currentTime, setCurrentTime] = useState(0); // Seconds
@@ -84,23 +123,20 @@ export const Controls: React.FC<Props> = ({
   const max = useSharedValue(item.RunTimeTicks || 0);
 
   const wasPlayingRef = useRef(false);
-
-  const seek = (ticks: number) => {
-    videoRef.current?.seek(ticks);
-  };
+  const lastProgressRef = useRef<number>(0);
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
-    item.Id,
+    offline ? undefined : item.Id,
     currentTime,
     seek,
-    () => videoRef.current?.resume()
+    play
   );
 
   const { showSkipCreditButton, skipCredit } = useCreditSkipper(
-    item.Id,
+    offline ? undefined : item.Id,
     currentTime,
     seek,
-    () => videoRef.current?.resume()
+    play
   );
 
   const goToPreviousItem = useCallback(() => {
@@ -117,7 +153,8 @@ export const Controls: React.FC<Props> = ({
       subtitleIndex,
     });
 
-    router.replace("/play-video");
+    if (Platform.OS === "ios") router.replace("/vlc-player");
+    else router.replace("/player");
   }, [previousItem, settings]);
 
   const goToNextItem = useCallback(() => {
@@ -134,13 +171,16 @@ export const Controls: React.FC<Props> = ({
       subtitleIndex,
     });
 
-    router.replace("/play-video");
+    if (Platform.OS === "ios") router.replace("/vlc-player");
+    else router.replace("/player");
   }, [nextItem, settings]);
 
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
-      const current = ticksToSeconds(currentProgress);
-      const remaining = ticksToSeconds(maxValue - currentProgress);
+      const current = isVlc ? currentProgress : ticksToSeconds(currentProgress);
+      const remaining = isVlc
+        ? maxValue - currentProgress
+        : ticksToSeconds(maxValue - currentProgress);
 
       setCurrentTime(current);
       setRemainingTime(remaining);
@@ -151,7 +191,7 @@ export const Controls: React.FC<Props> = ({
         goToNextItem();
       }
     },
-    [goToNextItem]
+    [goToNextItem, isVlc]
   );
 
   useAnimatedReaction(
@@ -170,19 +210,27 @@ export const Controls: React.FC<Props> = ({
 
   useEffect(() => {
     if (item) {
-      progress.value = item?.UserData?.PlaybackPositionTicks || 0;
-      max.value = item.RunTimeTicks || 0;
+      progress.value = isVlc
+        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
+        : item?.UserData?.PlaybackPositionTicks || 0;
+      max.value = isVlc
+        ? ticksToMs(item.RunTimeTicks || 0)
+        : item.RunTimeTicks || 0;
     }
-  }, [item]);
+  }, [item, isVlc]);
 
   const toggleControls = () => setShowControls(!showControls);
 
-  const handleSliderComplete = useCallback((value: number) => {
-    progress.value = value;
-    isSeeking.value = false;
-    videoRef.current?.seek(Math.max(0, Math.floor(value / 10000000)));
-    if (wasPlayingRef.current === true) videoRef.current?.resume();
-  }, []);
+  const handleSliderComplete = useCallback(
+    async (value: number) => {
+      isSeeking.value = false;
+      progress.value = value;
+
+      await seek(Math.max(0, Math.floor(isVlc ? value : value / 10000000)));
+      if (wasPlayingRef.current === true) play();
+    },
+    [isVlc]
+  );
 
   const handleSliderChange = (value: number) => {
     calculateTrickplayUrl(value);
@@ -190,48 +238,123 @@ export const Controls: React.FC<Props> = ({
 
   const handleSliderStart = useCallback(() => {
     if (showControls === false) return;
+
     wasPlayingRef.current = isPlaying;
-    videoRef.current?.pause();
+    lastProgressRef.current = progress.value;
+
+    pause();
     isSeeking.value = true;
   }, [showControls, isPlaying]);
 
   const handleSkipBackward = useCallback(async () => {
-    console.log("handleSkipBackward");
     if (!settings?.rewindSkipTime) return;
     wasPlayingRef.current = isPlaying;
     try {
-      const curr = await videoRef.current?.getCurrentPosition();
+      const curr = progress.value;
       if (curr !== undefined) {
-        videoRef.current?.seek(Math.max(0, curr - settings.rewindSkipTime));
-        setTimeout(() => {
-          if (wasPlayingRef.current === true) videoRef.current?.resume();
-        }, 10);
+        const newTime = isVlc
+          ? Math.max(0, curr - secondsToMs(settings.rewindSkipTime))
+          : Math.max(0, curr - settings.rewindSkipTime * 10000000);
+        await seek(newTime);
+        if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video backwards", error);
     }
-  }, [settings, isPlaying]);
+  }, [settings, isPlaying, isVlc]);
 
   const handleSkipForward = useCallback(async () => {
-    console.log("handleSkipForward");
     if (!settings?.forwardSkipTime) return;
     wasPlayingRef.current = isPlaying;
     try {
-      const curr = await videoRef.current?.getCurrentPosition();
+      const curr = progress.value;
       if (curr !== undefined) {
-        videoRef.current?.seek(Math.max(0, curr + settings.forwardSkipTime));
-        setTimeout(() => {
-          if (wasPlayingRef.current === true) videoRef.current?.resume();
-        }, 10);
+        const newTime = isVlc
+          ? curr + secondsToMs(settings.forwardSkipTime)
+          : curr + settings.forwardSkipTime * 10000000;
+        await seek(Math.max(0, newTime));
+        if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
     }
-  }, [settings, isPlaying]);
+  }, [settings, isPlaying, isVlc]);
 
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
   }, []);
+
+  const [selectedSubtitleTrack, setSelectedSubtitleTrack] = useState<
+    MediaStream | undefined
+  >(undefined);
+
+  const [audioTracks, setAudioTracks] = useState<TrackInfo[] | null>(null);
+  const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[] | null>(
+    null
+  );
+
+  useEffect(() => {
+    const fetchTracks = async () => {
+      if (getAudioTracks && getSubtitleTracks) {
+        const audio = await getAudioTracks();
+        const subtitles = await getSubtitleTracks();
+        setAudioTracks(audio);
+        setSubtitleTracks(subtitles);
+      }
+    };
+
+    fetchTracks();
+  }, [isVideoLoaded, getAudioTracks, getSubtitleTracks]);
+
+  type EmbeddedSubtitle = {
+    name: string;
+    index: number;
+    isExternal: false;
+  };
+
+  type ExternalSubtitle = {
+    name: string;
+    index: number;
+    isExternal: true;
+    deliveryUrl: string;
+  };
+
+  const allSubtitleTracks = useMemo(() => {
+    const embeddedSubs =
+      subtitleTracks?.map((s) => ({
+        name: s.name,
+        index: s.index,
+        isExternal: false,
+        deliveryUrl: undefined,
+      })) || [];
+
+    const externalSubs =
+      mediaSource?.MediaStreams?.filter(
+        (stream) =>
+          stream.Type === "Subtitle" &&
+          stream.IsExternal &&
+          !!stream.DeliveryUrl
+      ).map((s) => ({
+        name: s.DisplayTitle!,
+        index: s.Index!,
+        isExternal: true,
+        deliveryUrl: s.DeliveryUrl,
+      })) || [];
+
+    // Create a Set of embedded subtitle names for quick lookup
+    const embeddedSubNames = new Set(embeddedSubs.map((sub) => sub.name));
+
+    // Filter out external subs that have the same name as embedded subs
+    const uniqueExternalSubs = externalSubs.filter(
+      (sub) => !embeddedSubNames.has(sub.name)
+    );
+
+    // Combine embedded and unique external subs
+    return [...embeddedSubs, ...uniqueExternalSubs] as (
+      | EmbeddedSubtitle
+      | ExternalSubtitle
+    )[];
+  }, [item, isVideoLoaded, subtitleTracks, mediaSource]);
 
   return (
     <View
@@ -245,6 +368,116 @@ export const Controls: React.FC<Props> = ({
         },
       ]}
     >
+      {/* <VideoDebugInfo playerRef={videoRef} /> */}
+
+      {setSubtitleURL && setSubtitleTrack && setAudioTrack && (
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top,
+            left: insets.left,
+            zIndex: 1000,
+            opacity: showControls ? 1 : 0,
+          }}
+          className="p-4"
+          pointerEvents={showControls ? "auto" : "none"}
+        >
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <View className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={24}
+                  color={"white"}
+                />
+              </View>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content
+              loop={true}
+              side="bottom"
+              align="start"
+              alignOffset={0}
+              avoidCollisions={true}
+              collisionPadding={8}
+              sideOffset={8}
+            >
+              <DropdownMenu.Sub>
+                <DropdownMenu.SubTrigger key="subtitle-trigger">
+                  Subtitle
+                </DropdownMenu.SubTrigger>
+                <DropdownMenu.SubContent
+                  alignOffset={-10}
+                  avoidCollisions={true}
+                  collisionPadding={0}
+                  loop={true}
+                  sideOffset={10}
+                >
+                  {allSubtitleTracks.length > 0
+                    ? allSubtitleTracks?.map((sub, idx: number) => (
+                        <DropdownMenu.Item
+                          key={`subtitle-item-${idx}`}
+                          onSelect={() => {
+                            console.log("Trying to set subtitle...");
+                            if (sub.isExternal) {
+                              console.log("Setting external sub:", sub);
+                              setSubtitleURL(
+                                api?.basePath + sub.deliveryUrl,
+                                sub.name
+                              );
+                              return;
+                            }
+
+                            console.log("Setting sub with index:", sub.index);
+                            setSubtitleTrack(sub.index);
+                          }}
+                        >
+                          <DropdownMenu.ItemIndicator />
+                          <DropdownMenu.ItemTitle
+                            key={`subtitle-item-title-${idx}`}
+                          >
+                            {sub.name}
+                          </DropdownMenu.ItemTitle>
+                        </DropdownMenu.Item>
+                      ))
+                    : null}
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Sub>
+              <DropdownMenu.Sub>
+                <DropdownMenu.SubTrigger key="audio-trigger">
+                  Audio
+                </DropdownMenu.SubTrigger>
+                <DropdownMenu.SubContent
+                  alignOffset={-10}
+                  avoidCollisions={true}
+                  collisionPadding={0}
+                  loop={true}
+                  sideOffset={10}
+                >
+                  {audioTracks?.length
+                    ? audioTracks?.map((a, idx: number) => (
+                        <DropdownMenu.CheckboxItem
+                          key={`audio-item-${idx}`}
+                          value="off"
+                          onValueChange={() => {
+                            setAudioTrack(a.index);
+                          }}
+                        >
+                          <DropdownMenu.ItemIndicator />
+                          <DropdownMenu.ItemTitle
+                            key={`audio-item-title-${idx}`}
+                          >
+                            {a.name}
+                          </DropdownMenu.ItemTitle>
+                        </DropdownMenu.CheckboxItem>
+                      ))
+                    : null}
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Sub>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        </View>
+      )}
+
       <View
         style={[
           {
@@ -331,7 +564,7 @@ export const Controls: React.FC<Props> = ({
           },
         ]}
         pointerEvents={showControls ? "auto" : "none"}
-        className={`flex flex-row items-center space-x-2 z-10 p-4`}
+        className={`flex flex-row items-center space-x-2 z-10 p-4 `}
       >
         <TouchableOpacity
           onPress={toggleIgnoreSafeAreas}
@@ -344,7 +577,8 @@ export const Controls: React.FC<Props> = ({
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => {
+          onPress={async () => {
+            if (stop) await stop();
             router.back();
           }}
           className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
@@ -489,10 +723,10 @@ export const Controls: React.FC<Props> = ({
             />
             <View className="flex flex-row items-center justify-between mt-0.5">
               <Text className="text-[12px] text-neutral-400">
-                {formatTimeString(currentTime)}
+                {formatTimeString(currentTime, isVlc ? "ms" : "s")}
               </Text>
               <Text className="text-[12px] text-neutral-400">
-                -{formatTimeString(remainingTime)}
+                -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
               </Text>
             </View>
           </View>

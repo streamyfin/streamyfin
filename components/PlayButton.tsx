@@ -84,7 +84,7 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
       }
 
       if (Platform.OS === "ios") router.push("/vlc-player");
-      else router.push("/play-video");
+      else router.push("/player");
       return;
     }
 
@@ -125,7 +125,6 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
                   audioStreamIndex: playSettings?.audioIndex ?? 0,
                   subtitleStreamIndex: playSettings?.subtitleIndex ?? -1,
                   userId: user?.Id,
-                  forceDirectPlay: settings?.forceDirectPlay,
                 });
 
                 if (!data?.url) {
@@ -206,7 +205,8 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
             });
             break;
           case 1:
-            router.push("/vlc-player");
+            if (Platform.OS === "ios") router.push("/vlc-player");
+            else router.push("/player");
             break;
           case cancelButtonIndex:
             break;

@@ -77,10 +77,10 @@ public class VlcPlayerModule: Module {
                 return view.getVideoCropGeometry()
             }
 
-            AsyncFunction("setSubtitleURL") { (view: VlcPlayerView, url: String) in
-                view.setSubtitleURL(url)
+            AsyncFunction("setSubtitleURL") {
+                (view: VlcPlayerView, url: String, name: String) in
+                view.setSubtitleURL(url, name: name)
             }
-
         }
     }
 }

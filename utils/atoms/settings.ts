@@ -59,7 +59,6 @@ export type Settings = {
   forceLandscapeInVideoPlayer?: boolean;
   usePopularPlugin?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
-  forceDirectPlay?: boolean;
   mediaListCollectionIds?: string[];
   searchEngine: "Marlin" | "Jellyfin";
   marlinServerUrl?: string;
@@ -90,7 +89,6 @@ const loadSettings = async (): Promise<Settings> => {
     forceLandscapeInVideoPlayer: false,
     usePopularPlugin: false,
     deviceProfile: "Expo",
-    forceDirectPlay: false,
     mediaListCollectionIds: [],
     searchEngine: "Jellyfin",
     marlinServerUrl: "",

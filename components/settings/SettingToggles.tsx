@@ -10,6 +10,7 @@ import {
   registerBackgroundFetchAsync,
   unregisterBackgroundFetchAsync,
 } from "@/utils/background-tasks";
+import { getStatistics } from "@/utils/optimize-server";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as BackgroundFetch from "expo-background-fetch";
@@ -18,7 +19,6 @@ import * as TaskManager from "expo-task-manager";
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Linking,
   Switch,
   TouchableOpacity,
@@ -32,8 +32,6 @@ import { Input } from "../common/Input";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
 import { MediaToggles } from "./MediaToggles";
-import axios from "axios";
-import { getStatistics } from "@/utils/optimize-server";
 
 interface Props extends ViewProps {}
 
@@ -248,22 +246,6 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
             </DropdownMenu.Root>
           </View>
 
-          <View className="flex flex-row space-x-2 items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col shrink">
-              <Text className="font-semibold">Use external player (VLC)</Text>
-              <Text className="text-xs opacity-50 shrink">
-                Open all videos in VLC instead of the default player. This
-                requries VLC to be installed on the phone.
-              </Text>
-            </View>
-            <Switch
-              value={settings.openInVLC}
-              onValueChange={(value) => {
-                updateSettings({ openInVLC: value, forceDirectPlay: value });
-              }}
-            />
-          </View>
-
           <View className="flex flex-col">
             <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
               <View className="flex flex-col">
@@ -332,22 +314,6 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
                 )}
               </View>
             )}
-          </View>
-
-          <View className="flex flex-row space-x-2 items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col shrink">
-              <Text className="font-semibold">Force direct play</Text>
-              <Text className="text-xs opacity-50 shrink">
-                This will always request direct play. This is good if you want
-                to try to stream movies you think the device supports.
-              </Text>
-            </View>
-            <Switch
-              value={settings.forceDirectPlay}
-              onValueChange={(value) =>
-                updateSettings({ forceDirectPlay: value })
-              }
-            />
           </View>
 
           <View className="flex flex-col">

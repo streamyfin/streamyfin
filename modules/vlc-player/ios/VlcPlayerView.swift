@@ -11,6 +11,7 @@ class VlcPlayerView: ExpoView {
     private var lastReportedState: VLCMediaPlayerState?
     private var lastReportedIsPlaying: Bool?
     private var isMediaReady: Bool = false
+    private var customSubtitles: [(internalName: String, originalName: String)] = []
 
     // MARK: - Initialization
 
@@ -198,14 +199,6 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    @objc func loadExternalSubtitle(_ subtitlePath: String) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.mediaPlayer?.addPlaybackSlave(
-                URL(fileURLWithPath: subtitlePath), type: .subtitle, enforce: true)
-        }
-    }
-
     @objc func setMuted(_ muted: Bool) {
         DispatchQueue.main.async {
             self.mediaPlayer?.audio?.isMuted = muted
@@ -296,7 +289,7 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    @objc func setSubtitleURL(_ subtitleURL: String) {
+    @objc func setSubtitleURL(_ subtitleURL: String, name: String) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let url = URL(string: subtitleURL) else {
                 print("Error: Invalid subtitle URL")
@@ -305,7 +298,9 @@ class VlcPlayerView: ExpoView {
 
             let result = self.mediaPlayer?.addPlaybackSlave(url, type: .subtitle, enforce: true)
             if let result = result {
-                print("Subtitle added with result: \(result)")
+                let internalName = "Track \(self.customSubtitles.count + 1)"
+                print("Subtitle added with result: \(result) \(internalName)")
+                self.customSubtitles.append((internalName: internalName, originalName: name))
             } else {
                 print("Failed to add subtitle")
             }
@@ -318,10 +313,7 @@ class VlcPlayerView: ExpoView {
         }
 
         let count = mediaPlayer.numberOfSubtitlesTracks
-
-        print(
-            "Debug: Number of subtitle tracks: \(count)"
-        )
+        print("Debug: Number of subtitle tracks: \(count)")
 
         guard count > 0 else {
             return nil
@@ -333,10 +325,15 @@ class VlcPlayerView: ExpoView {
             let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
         {
             for (index, name) in zip(indexes, names) {
-                tracks.append(["name": name, "index": index.intValue])
+                if let customSubtitle = customSubtitles.first(where: { $0.internalName == name }) {
+                    tracks.append(["name": customSubtitle.originalName, "index": index.intValue])
+                } else {
+                    tracks.append(["name": name, "index": index.intValue])
+                }
             }
         }
 
+        print("Debug: Subtitle tracks: \(tracks)")
         return tracks
     }
 
