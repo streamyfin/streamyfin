@@ -52,6 +52,10 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     const [loadingLogo, setLoadingLogo] = useState(true);
     const [headerHeight, setHeaderHeight] = useState(350);
 
+    const [selectedOptions, setSelectedOptions] = useState<
+      SelectedOptions | undefined
+    >(undefined);
+
     const {
       defaultAudioIndex,
       defaultBitrate,
@@ -59,12 +63,19 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultSubtitleIndex,
     } = useDefaultPlaySettings(item, settings);
 
-    const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({
-      bitrate: defaultBitrate,
-      mediaSource: defaultMediaSource,
-      audioIndex: defaultAudioIndex,
-      subtitleIndex: defaultSubtitleIndex || -1,
-    });
+    useEffect(() => {
+      setSelectedOptions(() => ({
+        bitrate: defaultBitrate,
+        mediaSource: defaultMediaSource,
+        subtitleIndex: defaultSubtitleIndex ?? -1,
+        audioIndex: defaultAudioIndex,
+      }));
+    }, [
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultSubtitleIndex,
+      defaultMediaSource,
+    ]);
 
     useEffect(() => {
       navigation.setOptions({
@@ -95,6 +106,8 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
+
+    if (!selectedOptions) return null;
 
     return (
       <View
@@ -148,7 +161,9 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                   <BitrateSelector
                     className="mr-1"
                     onChange={(val) =>
-                      setSelectedOptions((prev) => ({ ...prev, bitrate: val }))
+                      setSelectedOptions(
+                        (prev) => prev && { ...prev, bitrate: val }
+                      )
                     }
                     selected={selectedOptions.bitrate}
                   />
@@ -156,10 +171,13 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     className="mr-1"
                     item={item}
                     onChange={(val) =>
-                      setSelectedOptions((prev) => ({
-                        ...prev,
-                        mediaSource: val,
-                      }))
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            mediaSource: val,
+                          }
+                      )
                     }
                     selected={selectedOptions.mediaSource}
                   />
@@ -167,20 +185,26 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     className="mr-1"
                     source={selectedOptions.mediaSource}
                     onChange={(val) =>
-                      setSelectedOptions((prev) => ({
-                        ...prev,
-                        audioIndex: val,
-                      }))
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            audioIndex: val,
+                          }
+                      )
                     }
                     selected={selectedOptions.audioIndex}
                   />
                   <SubtitleTrackSelector
                     source={selectedOptions.mediaSource}
                     onChange={(val) =>
-                      setSelectedOptions((prev) => ({
-                        ...prev,
-                        subtitleIndex: val,
-                      }))
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            subtitleIndex: val,
+                          }
+                      )
                     }
                     selected={selectedOptions.subtitleIndex}
                   />

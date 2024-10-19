@@ -26,7 +26,7 @@ export const MediaSourceSelector: React.FC<Props> = ({
       item.MediaSources?.find((x) => x.Id === selected?.Id)?.MediaStreams?.find(
         (x) => x.Type === "Video"
       )?.DisplayTitle || "",
-    [item.MediaSources, selected]
+    [item, selected]
   );
 
   return (

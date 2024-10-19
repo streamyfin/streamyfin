@@ -42,7 +42,11 @@ const useDefaultPlaySettings = (
       defaultMediaSource: mediaSource || undefined,
       defaultBitrate: bitrate || undefined,
     };
-  }, [item, settings]);
+  }, [
+    item.MediaSources,
+    settings?.defaultAudioLanguage,
+    settings?.defaultSubtitleLanguage,
+  ]);
 
   return playSettings;
 };

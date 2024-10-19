@@ -230,6 +230,8 @@ export default function page() {
 
       const { currentTime, isPlaying } = data.nativeEvent;
 
+      console.log("onProgress", currentTime);
+
       progress.value = currentTime;
       const currentTimeInTicks = msToTicks(currentTime);
 

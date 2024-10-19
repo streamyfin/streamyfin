@@ -16,17 +16,17 @@ public class VlcPlayerModule: Module {
                 }
             }
 
-            Prop("muted") { (view: VlcPlayerView, muted: Bool) in
-                view.setMuted(muted)
-            }
+//            Prop("muted") { (view: VlcPlayerView, muted: Bool) in
+//                view.setMuted(muted)
+//            }
 
-            Prop("volume") { (view: VlcPlayerView, volume: Int) in
-                view.setVolume(volume)
-            }
+//            Prop("volume") { (view: VlcPlayerView, volume: Int) in
+//                view.setVolume(volume)
+//            }
 
-            Prop("videoAspectRatio") { (view: VlcPlayerView, ratio: String) in
-                view.setVideoAspectRatio(ratio)
-            }
+//            Prop("videoAspectRatio") { (view: VlcPlayerView, ratio: String) in
+//                view.setVideoAspectRatio(ratio)
+//            }
 
             Events(
                 "onPlaybackStateChanged",
@@ -69,13 +69,13 @@ public class VlcPlayerModule: Module {
                 return view.getSubtitleTracks()
             }
 
-            AsyncFunction("setVideoCropGeometry") { (view: VlcPlayerView, geometry: String?) in
-                view.setVideoCropGeometry(geometry)
-            }
+//            AsyncFunction("setVideoCropGeometry") { (view: VlcPlayerView, geometry: String?) in
+//                view.setVideoCropGeometry(geometry)
+//            }
 
-            AsyncFunction("getVideoCropGeometry") { (view: VlcPlayerView) -> String? in
-                return view.getVideoCropGeometry()
-            }
+//            AsyncFunction("getVideoCropGeometry") { (view: VlcPlayerView) -> String? in
+//                return view.getVideoCropGeometry()
+//            }
 
             AsyncFunction("setSubtitleURL") {
                 (view: VlcPlayerView, url: String, name: String) in

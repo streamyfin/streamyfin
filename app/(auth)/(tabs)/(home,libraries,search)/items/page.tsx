@@ -34,7 +34,7 @@ const Page: React.FC = () => {
 
       return res.data;
     },
-    enabled: !!id && !!api,
+    enabled: !!id && !!api || !!user,
     staleTime: 0,
   });
 

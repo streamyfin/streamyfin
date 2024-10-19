@@ -18,7 +18,7 @@ class VlcPlayerView: ExpoView {
     required init(appContext: AppContext? = nil) {
         super.init(appContext: appContext)
         setupView()
-        setupNotifications()
+        // setupNotifications()
     }
 
     // MARK: - Setup
@@ -68,6 +68,7 @@ class VlcPlayerView: ExpoView {
             guard let self = self else { return }
             self.mediaPlayer?.play()
             self.isPaused = false
+            print("Play")
         }
     }
 
@@ -143,6 +144,7 @@ class VlcPlayerView: ExpoView {
                         media = VLCMedia(url: url)
                     } else {
                         print("Error: Invalid local file URL")
+                        self.onVideoError?(["error": "Invalid local file URL"])
                         return
                     }
                 } else {
@@ -155,13 +157,13 @@ class VlcPlayerView: ExpoView {
             media.addOptions(subtitleOptions)
             print("Debug: Applied subtitle options: \(subtitleOptions)")
 
-            // Apply any additional media options
-            if let mediaOptions = mediaOptions {
-                media.addOptions(mediaOptions)
-                print("Debug: Applied additional media options: \(mediaOptions)")
-            } else {
-                print("Debug: No additional media options provided")
-            }
+            // // Apply any additional media options
+            // if let mediaOptions = mediaOptions {
+            //     media.addOptions(mediaOptions)
+            //     print("Debug: Applied additional media options: \(mediaOptions)")
+            // } else {
+            //     print("Debug: No additional media options provided")
+            // }
 
             // Apply subtitle options
             let subtitleTrackIndex = source["subtitleTrackIndex"] as? Int ?? -1
@@ -177,19 +179,30 @@ class VlcPlayerView: ExpoView {
             self.mediaPlayer?.media = media
 
             if startPosition > 0 {
-                // Wait for the media to be ready before setting the start position
-                NotificationCenter.default.addObserver(
-                    forName: NSNotification.Name(rawValue: VLCMediaPlayerStateChanged), object: nil,
-                    queue: nil
-                ) { [weak self] notification in
-                    guard let self = self, let player = self.mediaPlayer,
-                        player.isPlaying == false
-                    else { return }
+                // Create a closure to set the start position
+                let setStartPosition = { [weak self] in
+                    self?.mediaPlayer?.time = VLCTime(int: startPosition)
+                }
 
-                    self.mediaPlayer?.time = VLCTime(int: startPosition)
-                    NotificationCenter.default.removeObserver(
-                        self, name: NSNotification.Name(rawValue: VLCMediaPlayerStateChanged),
-                        object: nil)
+                // Check if the media is already ready
+                if self.isMediaReady {
+                    setStartPosition()
+                } else {
+                    // If not ready, set up an observer to wait for the media to be ready
+                    NotificationCenter.default.addObserver(
+                        forName: .VLCMediaPlayerStateChanged, object: self.mediaPlayer, queue: .main
+                    ) { [weak self] notification in
+                        guard let self = self, let player = self.mediaPlayer else { return }
+
+                        if player.state == .playing || player.state == .paused {
+                            // Media is ready, set the start position
+                            setStartPosition()
+
+                            // Remove the observer
+                            NotificationCenter.default.removeObserver(
+                                self, name: .VLCMediaPlayerStateChanged, object: player)
+                        }
+                    }
                 }
             }
 
@@ -200,25 +213,28 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    @objc func setMuted(_ muted: Bool) {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.audio?.isMuted = muted
-        }
-    }
+    // TODO
+    // @objc func setMuted(_ muted: Bool) {
+    //     DispatchQueue.main.async {
+    //         self.mediaPlayer?.audio?.isMuted = muted
+    //     }
+    // }
 
-    @objc func setVolume(_ volume: Int) {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.audio?.volume = Int32(volume)
-        }
-    }
+    // TODO
+    // @objc func setVolume(_ volume: Int) {
+    //     DispatchQueue.main.async {
+    //         self.mediaPlayer?.audio?.volume = Int32(volume)
+    //     }
+    // }
 
-    @objc func setVideoAspectRatio(_ ratio: String) {
-        DispatchQueue.main.async {
-            ratio.withCString { cString in
-                self.mediaPlayer?.videoAspectRatio = UnsafeMutablePointer(mutating: cString)
-            }
-        }
-    }
+    // TODO
+    // @objc func setVideoAspectRatio(_ ratio: String) {
+    //     DispatchQueue.main.async {
+    //         ratio.withCString { cString in
+    //             self.mediaPlayer?.videoAspectRatio = UnsafeMutablePointer(mutating: cString)
+    //         }
+    //     }
+    // }
 
     @objc func setAudioTrack(_ trackIndex: Int) {
         DispatchQueue.main.async {
@@ -373,88 +389,97 @@ class VlcPlayerView: ExpoView {
     //     }
     // }
 
-    @objc func setSubtitleDelay(_ delay: Int) {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.currentVideoSubTitleDelay = NSInteger(delay)
-        }
-    }
+    // TODO
+    // @objc func setSubtitleDelay(_ delay: Int) {
+    //     DispatchQueue.main.async {
+    //         self.mediaPlayer?.currentVideoSubTitleDelay = NSInteger(delay)
+    //     }
+    // }
 
-    @objc func setAudioDelay(_ delay: Int) {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.currentAudioPlaybackDelay = NSInteger(delay)
-        }
-    }
+    // TODO
+    // @objc func setAudioDelay(_ delay: Int) {
+    //     DispatchQueue.main.async {
+    //         self.mediaPlayer?.currentAudioPlaybackDelay = NSInteger(delay)
+    //     }
+    // }
 
-    @objc func takeSnapshot(_ path: String, width: Int, height: Int) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.mediaPlayer?.saveVideoSnapshot(
-                at: path, withWidth: Int32(width), andHeight: Int32(height))
-        }
-    }
+    // TODO
+    // @objc func takeSnapshot(_ path: String, width: Int, height: Int) {
+    //     DispatchQueue.main.async { [weak self] in
+    //         guard let self = self else { return }
+    //         self.mediaPlayer?.saveVideoSnapshot(
+    //             at: path, withWidth: Int32(width), andHeight: Int32(height))
+    //     }
+    // }
 
-    @objc func setVideoCropGeometry(_ geometry: String?) {
-        DispatchQueue.main.async {
-            if let geometry = geometry, !geometry.isEmpty {
-                self.currentGeometryCString = geometry.cString(using: .utf8)
-                self.currentGeometryCString?.withUnsafeMutableBufferPointer { buffer in
-                    self.mediaPlayer?.videoCropGeometry = buffer.baseAddress
-                }
-            } else {
-                self.currentGeometryCString = nil
-                self.mediaPlayer?.videoCropGeometry = nil
-            }
-        }
-    }
+    // TODO
+    // @objc func setVideoCropGeometry(_ geometry: String?) {
+    //     DispatchQueue.main.async {
+    //         if let geometry = geometry, !geometry.isEmpty {
+    //             self.currentGeometryCString = geometry.cString(using: .utf8)
+    //             self.currentGeometryCString?.withUnsafeMutableBufferPointer { buffer in
+    //                 self.mediaPlayer?.videoCropGeometry = buffer.baseAddress
+    //             }
+    //         } else {
+    //             self.currentGeometryCString = nil
+    //             self.mediaPlayer?.videoCropGeometry = nil
+    //         }
+    //     }
+    // }
 
-    @objc func getVideoCropGeometry() -> String? {
-        guard let cString = mediaPlayer?.videoCropGeometry else {
-            return nil
-        }
-        return String(cString: cString)
-    }
+    // TODO
+    // @objc func getVideoCropGeometry() -> String? {
+    //     guard let cString = mediaPlayer?.videoCropGeometry else {
+    //         return nil
+    //     }
+    //     return String(cString: cString)
+    // }
 
-    @objc func setRate(_ rate: Float) {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.rate = rate
-        }
-    }
+    // TODO
+    // @objc func setRate(_ rate: Float) {
+    //     DispatchQueue.main.async {
+    //         self.mediaPlayer?.rate = rate
+    //     }
+    // }
 
-    @objc func nextChapter() {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.nextChapter()
-        }
-    }
+    // TODO
+    // @objc func nextChapter() {
+    //     DispatchQueue.main.async {
+    //         self.mediaPlayer?.nextChapter()
+    //     }
+    // }
 
-    @objc func previousChapter() {
-        DispatchQueue.main.async {
-            self.mediaPlayer?.previousChapter()
-        }
-    }
+    // TODO
+    // @objc func previousChapter() {
+    //     DispatchQueue.main.async {
+    //         self.mediaPlayer?.previousChapter()
+    //     }
+    // }
 
-    @objc func getChapters() -> [[String: Any]]? {
-        guard let currentTitleIndex = mediaPlayer?.currentTitleIndex,
-            let chapters = mediaPlayer?.chapterDescriptions(ofTitle: currentTitleIndex)
-                as? [[String: Any]]
-        else {
-            return nil
-        }
+    // TODO
+    // @objc func getChapters() -> [[String: Any]]? {
+    //     guard let currentTitleIndex = mediaPlayer?.currentTitleIndex,
+    //         let chapters = mediaPlayer?.chapterDescriptions(ofTitle: currentTitleIndex)
+    //             as? [[String: Any]]
+    //     else {
+    //         return nil
+    //     }
 
-        return chapters.compactMap { chapter in
-            guard let name = chapter[VLCChapterDescriptionName] as? String,
-                let timeOffset = chapter[VLCChapterDescriptionTimeOffset] as? NSNumber,
-                let duration = chapter[VLCChapterDescriptionDuration] as? NSNumber
-            else {
-                return nil
-            }
+    //     return chapters.compactMap { chapter in
+    //         guard let name = chapter[VLCChapterDescriptionName] as? String,
+    //             let timeOffset = chapter[VLCChapterDescriptionTimeOffset] as? NSNumber,
+    //             let duration = chapter[VLCChapterDescriptionDuration] as? NSNumber
+    //         else {
+    //             return nil
+    //         }
 
-            return [
-                "name": name,
-                "timeOffset": timeOffset.doubleValue,
-                "duration": duration.doubleValue,
-            ]
-        }
-    }
+    //         return [
+    //             "name": name,
+    //             "timeOffset": timeOffset.doubleValue,
+    //             "duration": duration.doubleValue,
+    //         ]
+    //     }
+    // }
 
     private var isStopping: Bool = false
 
@@ -641,16 +666,16 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
 }
 
 extension VlcPlayerView: VLCMediaDelegate {
-    func mediaMetaDataDidChange(_ aMedia: VLCMedia) {
-        // Implement if needed
-    }
+    // func mediaMetaDataDidChange(_ aMedia: VLCMedia) {
+    //     // Implement if needed
+    // }
 
-    func mediaDidFinishParsing(_ aMedia: VLCMedia) {
-        DispatchQueue.main.async {
-            let duration = aMedia.length.intValue
-            self.onVideoStateChange?(["type": "MediaParsed", "duration": duration])
-        }
-    }
+    // func mediaDidFinishParsing(_ aMedia: VLCMedia) {
+    //     DispatchQueue.main.async {
+    //         let duration = aMedia.length.intValue
+    //         self.onVideoStateChange?(["type": "MediaParsed", "duration": duration])
+    //     }
+    // }
 }
 
 extension VLCMediaPlayerState {
