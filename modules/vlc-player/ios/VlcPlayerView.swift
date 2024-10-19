@@ -179,31 +179,7 @@ class VlcPlayerView: ExpoView {
             self.mediaPlayer?.media = media
 
             if startPosition > 0 {
-                // Create a closure to set the start position
-                let setStartPosition = { [weak self] in
-                    self?.mediaPlayer?.time = VLCTime(int: startPosition)
-                }
-
-                // Check if the media is already ready
-                if self.isMediaReady {
-                    setStartPosition()
-                } else {
-                    // If not ready, set up an observer to wait for the media to be ready
-                    NotificationCenter.default.addObserver(
-                        forName: .VLCMediaPlayerStateChanged, object: self.mediaPlayer, queue: .main
-                    ) { [weak self] notification in
-                        guard let self = self, let player = self.mediaPlayer else { return }
-
-                        if player.state == .playing || player.state == .paused {
-                            // Media is ready, set the start position
-                            setStartPosition()
-
-                            // Remove the observer
-                            NotificationCenter.default.removeObserver(
-                                self, name: .VLCMediaPlayerStateChanged, object: player)
-                        }
-                    }
-                }
+                self.mediaPlayer?.time = VLCTime(int: startPosition)
             }
 
             if autoplay {
