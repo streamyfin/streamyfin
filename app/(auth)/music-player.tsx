@@ -1,11 +1,12 @@
 import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
 import AlbumCover from "@/components/posters/AlbumCover";
 import { Controls } from "@/components/video-player/Controls";
 import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   PlaybackType,
   usePlaySettings,
@@ -13,12 +14,18 @@ import {
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { secondsToTicks } from "@/utils/secondsToTicks";
 import { Api } from "@jellyfin/sdk";
-import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  getPlaystateApi,
+  getUserLibraryApi,
+} from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import { debounce } from "lodash";
 import React, { useCallback, useMemo, useRef, useState } from "react";
@@ -27,12 +34,11 @@ import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
 
 export default function page() {
-  const { playSettings, playUrl, playSessionId } = usePlaySettings();
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const [settings] = useSettings();
   const videoRef = useRef<VideoRef | null>(null);
-  const poster = usePoster(playSettings, api);
-  const videoSource = useVideoSource(playSettings, api, poster, playUrl);
+
   const firstTime = useRef(true);
 
   const screenDimensions = Dimensions.get("screen");
@@ -47,47 +53,127 @@ export default function page() {
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
 
-  if (!playSettings || !playUrl || !api || !videoSource || !playSettings.item)
-    return null;
+  const {
+    itemId,
+    audioIndex: audioIndexStr,
+    subtitleIndex: subtitleIndexStr,
+    mediaSourceId,
+    bitrateValue: bitrateValueStr,
+  } = useLocalSearchParams<{
+    itemId: string;
+    audioIndex: string;
+    subtitleIndex: string;
+    mediaSourceId: string;
+    bitrateValue: string;
+  }>();
+
+  const audioIndex = audioIndexStr ? parseInt(audioIndexStr, 10) : undefined;
+  const subtitleIndex = subtitleIndexStr
+    ? parseInt(subtitleIndexStr, 10)
+    : undefined;
+  const bitrateValue = bitrateValueStr
+    ? parseInt(bitrateValueStr, 10)
+    : undefined;
+
+  const {
+    data: item,
+    isLoading: isLoadingItem,
+    isError: isErrorItem,
+  } = useQuery({
+    queryKey: ["item", itemId],
+    queryFn: async () => {
+      if (!api) return;
+      const res = await getUserLibraryApi(api).getItem({
+        itemId,
+        userId: user?.Id,
+      });
+
+      return res.data;
+    },
+    enabled: !!itemId && !!api,
+    staleTime: 0,
+  });
+
+  const {
+    data: stream,
+    isLoading: isLoadingStreamUrl,
+    isError: isErrorStreamUrl,
+  } = useQuery({
+    queryKey: ["stream-url"],
+    queryFn: async () => {
+      if (!api) return;
+      const res = await getStreamUrl({
+        api,
+        item,
+        startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+        userId: user?.Id,
+        audioStreamIndex: audioIndex,
+        maxStreamingBitrate: bitrateValue,
+        mediaSourceId: mediaSourceId,
+        subtitleStreamIndex: subtitleIndex,
+      });
+
+      if (!res) return null;
+
+      const { mediaSource, sessionId, url } = res;
+
+      if (!sessionId || !mediaSource || !url) return null;
+
+      return {
+        mediaSource,
+        sessionId,
+        url,
+      };
+    },
+  });
+
+  const poster = usePoster(item, api);
+  const videoSource = useVideoSource(item, api, poster, stream?.url);
 
   const togglePlay = useCallback(
     async (ticks: number) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (isPlaying) {
         videoRef.current?.pause();
-        await getPlaystateApi(api).onPlaybackProgress({
-          itemId: playSettings.item?.Id!,
-          audioStreamIndex: playSettings.audioIndex
-            ? playSettings.audioIndex
-            : undefined,
-          subtitleStreamIndex: playSettings.subtitleIndex
-            ? playSettings.subtitleIndex
-            : undefined,
-          mediaSourceId: playSettings.mediaSource?.Id!,
+        await getPlaystateApi(api!).onPlaybackProgress({
+          itemId: item?.Id!,
+          audioStreamIndex: audioIndex ? audioIndex : undefined,
+          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+          mediaSourceId: mediaSourceId,
           positionTicks: Math.floor(ticks),
           isPaused: true,
-          playMethod: playUrl.includes("m3u8") ? "Transcode" : "DirectStream",
-          playSessionId: playSessionId ? playSessionId : undefined,
+          playMethod: stream?.url.includes("m3u8")
+            ? "Transcode"
+            : "DirectStream",
+          playSessionId: stream?.sessionId,
         });
       } else {
         videoRef.current?.resume();
-        await getPlaystateApi(api).onPlaybackProgress({
-          itemId: playSettings.item?.Id!,
-          audioStreamIndex: playSettings.audioIndex
-            ? playSettings.audioIndex
-            : undefined,
-          subtitleStreamIndex: playSettings.subtitleIndex
-            ? playSettings.subtitleIndex
-            : undefined,
-          mediaSourceId: playSettings.mediaSource?.Id!,
+        await getPlaystateApi(api!).onPlaybackProgress({
+          itemId: item?.Id!,
+          audioStreamIndex: audioIndex ? audioIndex : undefined,
+          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+          mediaSourceId: mediaSourceId,
           positionTicks: Math.floor(ticks),
           isPaused: false,
-          playMethod: playUrl.includes("m3u8") ? "Transcode" : "DirectStream",
-          playSessionId: playSessionId ? playSessionId : undefined,
+          playMethod: stream?.url.includes("m3u8")
+            ? "Transcode"
+            : "DirectStream",
+          playSessionId: stream?.sessionId,
         });
       }
     },
-    [isPlaying, api, playSettings?.item?.Id, videoRef, settings]
+    [
+      isPlaying,
+      api,
+      item,
+      videoRef,
+      settings,
+      audioIndex,
+      subtitleIndex,
+      mediaSourceId,
+      stream,
+    ]
   );
 
   const play = useCallback(() => {
@@ -108,27 +194,30 @@ export default function page() {
     reportPlaybackStopped();
   }, [videoRef]);
 
+  const seek = useCallback(
+    (seconds: number) => {
+      videoRef.current?.seek(seconds);
+    },
+    [videoRef]
+  );
+
   const reportPlaybackStopped = async () => {
-    await getPlaystateApi(api).onPlaybackStopped({
-      itemId: playSettings?.item?.Id!,
-      mediaSourceId: playSettings.mediaSource?.Id!,
+    await getPlaystateApi(api!).onPlaybackStopped({
+      itemId: item?.Id!,
+      mediaSourceId: mediaSourceId,
       positionTicks: Math.floor(progress.value),
-      playSessionId: playSessionId ? playSessionId : undefined,
+      playSessionId: stream?.sessionId,
     });
   };
 
   const reportPlaybackStart = async () => {
-    await getPlaystateApi(api).onPlaybackStart({
-      itemId: playSettings?.item?.Id!,
-      audioStreamIndex: playSettings.audioIndex
-        ? playSettings.audioIndex
-        : undefined,
-      subtitleStreamIndex: playSettings.subtitleIndex
-        ? playSettings.subtitleIndex
-        : undefined,
-      mediaSourceId: playSettings.mediaSource?.Id!,
-      playMethod: playUrl.includes("m3u8") ? "Transcode" : "DirectStream",
-      playSessionId: playSessionId ? playSessionId : undefined,
+    await getPlaystateApi(api!).onPlaybackStart({
+      itemId: item?.Id!,
+      audioStreamIndex: audioIndex ? audioIndex : undefined,
+      subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      mediaSourceId: mediaSourceId,
+      playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+      playSessionId: stream?.sessionId,
     });
   };
 
@@ -143,24 +232,29 @@ export default function page() {
       cacheProgress.value = secondsToTicks(data.playableDuration);
       setIsBuffering(data.playableDuration === 0);
 
-      if (!playSettings?.item?.Id || data.currentTime === 0) return;
+      if (!item?.Id || data.currentTime === 0) return;
 
-      await getPlaystateApi(api).onPlaybackProgress({
-        itemId: playSettings.item.Id,
-        audioStreamIndex: playSettings.audioIndex
-          ? playSettings.audioIndex
-          : undefined,
-        subtitleStreamIndex: playSettings.subtitleIndex
-          ? playSettings.subtitleIndex
-          : undefined,
-        mediaSourceId: playSettings.mediaSource?.Id!,
+      await getPlaystateApi(api!).onPlaybackProgress({
+        itemId: item.Id!,
+        audioStreamIndex: audioIndex ? audioIndex : undefined,
+        subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+        mediaSourceId: mediaSourceId,
         positionTicks: Math.round(ticks),
         isPaused: !isPlaying,
-        playMethod: playUrl.includes("m3u8") ? "Transcode" : "DirectStream",
-        playSessionId: playSessionId ? playSessionId : undefined,
+        playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+        playSessionId: stream?.sessionId,
       });
     },
-    [playSettings?.item.Id, isPlaying, api, isPlaybackStopped]
+    [
+      item,
+      isPlaying,
+      api,
+      isPlaybackStopped,
+      audioIndex,
+      subtitleIndex,
+      mediaSourceId,
+      stream,
+    ]
   );
 
   useFocusEffect(
@@ -183,6 +277,22 @@ export default function page() {
     playVideo: play,
     stopPlayback: stop,
   });
+
+  if (isLoadingItem || isLoadingStreamUrl)
+    return (
+      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+        <Loader />
+      </View>
+    );
+
+  if (isErrorItem || isErrorStreamUrl)
+    return (
+      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+        <Text className="text-white">Error</Text>
+      </View>
+    );
+
+  if (!stream || !item || !videoSource) return null;
 
   return (
     <View
@@ -236,7 +346,7 @@ export default function page() {
       </Pressable>
 
       <Controls
-        item={playSettings.item}
+        item={item}
         videoRef={videoRef}
         togglePlay={togglePlay}
         isPlaying={isPlaying}
@@ -249,59 +359,64 @@ export default function page() {
         setIgnoreSafeAreas={setIgnoreSafeAreas}
         ignoreSafeAreas={ignoreSafeAreas}
         enableTrickplay={false}
+        pause={pause}
+        play={play}
+        seek={seek}
+        isVlc={false}
+        stop={stop}
       />
     </View>
   );
 }
 
 export function usePoster(
-  playSettings: PlaybackType | null,
+  item: BaseItemDto | null | undefined,
   api: Api | null
 ): string | undefined {
   const poster = useMemo(() => {
-    if (!playSettings?.item || !api) return undefined;
-    return playSettings.item.Type === "Audio"
-      ? `${api.basePath}/Items/${playSettings.item.AlbumId}/Images/Primary?tag=${playSettings.item.AlbumPrimaryImageTag}&quality=90&maxHeight=200&maxWidth=200`
+    if (!item || !api) return undefined;
+    return item.Type === "Audio"
+      ? `${api.basePath}/Items/${item.AlbumId}/Images/Primary?tag=${item.AlbumPrimaryImageTag}&quality=90&maxHeight=200&maxWidth=200`
       : getBackdropUrl({
           api,
-          item: playSettings.item,
+          item: item,
           quality: 70,
           width: 200,
         });
-  }, [playSettings?.item, api]);
+  }, [item, api]);
 
   return poster ?? undefined;
 }
 
 export function useVideoSource(
-  playSettings: PlaybackType | null,
+  item: BaseItemDto | null | undefined,
   api: Api | null,
   poster: string | undefined,
-  playUrl?: string | null
+  url?: string | null
 ) {
   const videoSource = useMemo(() => {
-    if (!playSettings || !api || !playUrl) {
+    if (!item || !api || !url) {
       return null;
     }
 
-    const startPosition = playSettings.item?.UserData?.PlaybackPositionTicks
-      ? Math.round(playSettings.item.UserData.PlaybackPositionTicks / 10000)
+    const startPosition = item?.UserData?.PlaybackPositionTicks
+      ? Math.round(item.UserData.PlaybackPositionTicks / 10000)
       : 0;
 
     return {
-      uri: playUrl,
+      uri: url,
       isNetwork: true,
       startPosition,
       headers: getAuthHeaders(api),
       metadata: {
-        artist: playSettings.item?.AlbumArtist ?? undefined,
-        title: playSettings.item?.Name || "Unknown",
-        description: playSettings.item?.Overview ?? undefined,
+        artist: item?.AlbumArtist ?? undefined,
+        title: item?.Name || "Unknown",
+        description: item?.Overview ?? undefined,
         imageUri: poster,
-        subtitle: playSettings.item?.Album ?? undefined,
+        subtitle: item?.Album ?? undefined,
       },
     };
-  }, [playSettings, api, poster]);
+  }, [item, api, poster]);
 
   return videoSource;
 }

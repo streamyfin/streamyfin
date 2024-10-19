@@ -27,7 +27,7 @@ export const getStreamUrl = async ({
   startTimeTicks: number;
   maxStreamingBitrate?: number;
   sessionData?: PlaybackInfoResponse | null;
-  deviceProfile: any;
+  deviceProfile?: any;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   height?: number;
@@ -42,7 +42,6 @@ export const getStreamUrl = async ({
   }
 
   let mediaSource: MediaSourceInfo | undefined;
-  let url: string | null | undefined;
   let sessionId: string | null | undefined;
 
   if (item.Type === "Program") {

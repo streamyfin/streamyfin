@@ -5,9 +5,9 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
 
 interface Props extends React.ComponentProps<typeof View> {
-  source: MediaSourceInfo;
+  source?: MediaSourceInfo;
   onChange: (value: number) => void;
-  selected?: number | null;
+  selected?: number | undefined;
 }
 
 export const AudioTrackSelector: React.FC<Props> = ({
@@ -17,7 +17,7 @@ export const AudioTrackSelector: React.FC<Props> = ({
   ...props
 }) => {
   const audioStreams = useMemo(
-    () => source.MediaStreams?.filter((x) => x.Type === "Audio"),
+    () => source?.MediaStreams?.filter((x) => x.Type === "Audio"),
     [source]
   );
 

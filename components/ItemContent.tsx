@@ -11,117 +11,60 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
+import { useOrientation } from "@/hooks/useOrientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { useFocusEffect, useNavigation } from "expo-router";
+import { useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
-import { useOrientation } from "@/hooks/useOrientation";
+
+export type SelectedOptions = {
+  bitrate: Bitrate;
+  mediaSource: MediaSourceInfo | undefined;
+  audioIndex: number | undefined;
+  subtitleIndex: number;
+};
 
 export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
   ({ item }) => {
     const [api] = useAtom(apiAtom);
-
-    const { setPlaySettings, playSettings } = usePlaySettings();
+    const [settings] = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
-    const [settings] = useSettings();
+    useImageColors({ item });
 
     const [loadingLogo, setLoadingLogo] = useState(true);
-
-    useFocusEffect(
-      useCallback(() => {
-        if (!settings || item.Type === "Program") return;
-        const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-          getDefaultPlaySettings(item, settings);
-
-        setPlaySettings({
-          item,
-          bitrate,
-          mediaSource,
-          audioIndex,
-          subtitleIndex,
-        });
-
-        console.log({
-          1: item,
-          2: bitrate,
-          3: mediaSource,
-          4: audioIndex,
-          5: subtitleIndex,
-        });
-
-        if (!mediaSource) {
-          Alert.alert("Error", "No media source found for this item.");
-          navigation.goBack();
-        }
-      }, [item, settings])
-    );
-
-    const selectedMediaSource = useMemo(() => {
-      return playSettings?.mediaSource || undefined;
-    }, [playSettings?.mediaSource]);
-
-    const setSelectedMediaSource = (mediaSource: MediaSourceInfo) => {
-      setPlaySettings((prev) => ({
-        ...prev,
-        mediaSource,
-      }));
-    };
-
-    const selectedAudioStream = useMemo(() => {
-      return playSettings?.audioIndex;
-    }, [playSettings?.audioIndex]);
-
-    const setSelectedAudioStream = (audioIndex: number) => {
-      setPlaySettings((prev) => ({
-        ...prev,
-        audioIndex,
-      }));
-    };
-
-    const selectedSubtitleStream = useMemo(() => {
-      return playSettings?.subtitleIndex;
-    }, [playSettings?.subtitleIndex]);
-
-    const setSelectedSubtitleStream = (subtitleIndex: number) => {
-      setPlaySettings((prev) => ({
-        ...prev,
-        subtitleIndex,
-      }));
-    };
-
-    const maxBitrate = useMemo(() => {
-      return playSettings?.bitrate;
-    }, [playSettings?.bitrate]);
-
-    const setMaxBitrate = (bitrate: Bitrate | undefined) => {
-      setPlaySettings((prev) => ({
-        ...prev,
-        bitrate,
-      }));
-    };
-
     const [headerHeight, setHeaderHeight] = useState(350);
 
-    useImageColors({ item });
+    const {
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultMediaSource,
+      defaultSubtitleIndex,
+    } = useDefaultPlaySettings(item, settings);
+
+    const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({
+      bitrate: defaultBitrate,
+      mediaSource: defaultMediaSource,
+      audioIndex: defaultAudioIndex,
+      subtitleIndex: defaultSubtitleIndex || -1,
+    });
 
     useEffect(() => {
       navigation.setOptions({
@@ -204,34 +147,51 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 <View className="flex flex-row items-center justify-start w-full h-16">
                   <BitrateSelector
                     className="mr-1"
-                    onChange={(val) => setMaxBitrate(val)}
-                    selected={maxBitrate}
+                    onChange={(val) =>
+                      setSelectedOptions((prev) => ({ ...prev, bitrate: val }))
+                    }
+                    selected={selectedOptions.bitrate}
                   />
                   <MediaSourceSelector
                     className="mr-1"
                     item={item}
-                    onChange={setSelectedMediaSource}
-                    selected={selectedMediaSource}
+                    onChange={(val) =>
+                      setSelectedOptions((prev) => ({
+                        ...prev,
+                        mediaSource: val,
+                      }))
+                    }
+                    selected={selectedOptions.mediaSource}
                   />
-                  {selectedMediaSource && (
-                    <>
-                      <AudioTrackSelector
-                        className="mr-1"
-                        source={selectedMediaSource}
-                        onChange={setSelectedAudioStream}
-                        selected={selectedAudioStream}
-                      />
-                      <SubtitleTrackSelector
-                        source={selectedMediaSource}
-                        onChange={setSelectedSubtitleStream}
-                        selected={selectedSubtitleStream}
-                      />
-                    </>
-                  )}
+                  <AudioTrackSelector
+                    className="mr-1"
+                    source={selectedOptions.mediaSource}
+                    onChange={(val) =>
+                      setSelectedOptions((prev) => ({
+                        ...prev,
+                        audioIndex: val,
+                      }))
+                    }
+                    selected={selectedOptions.audioIndex}
+                  />
+                  <SubtitleTrackSelector
+                    source={selectedOptions.mediaSource}
+                    onChange={(val) =>
+                      setSelectedOptions((prev) => ({
+                        ...prev,
+                        subtitleIndex: val,
+                      }))
+                    }
+                    selected={selectedOptions.subtitleIndex}
+                  />
                 </View>
               )}
 
-              <PlayButton className="grow" />
+              <PlayButton
+                className="grow"
+                selectedOptions={selectedOptions}
+                item={item}
+              />
             </View>
 
             {item.Type === "Episode" && (

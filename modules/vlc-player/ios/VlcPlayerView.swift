@@ -194,6 +194,7 @@ class VlcPlayerView: ExpoView {
             }
 
             if autoplay {
+                print("Playing...")
                 self.play()
             }
         }
