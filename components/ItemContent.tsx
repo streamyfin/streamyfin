@@ -48,7 +48,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
 
     useFocusEffect(
       useCallback(() => {
-        if (!settings) return;
+        if (!settings || item.Type === "Program") return;
         const { bitrate, mediaSource, audioIndex, subtitleIndex } =
           getDefaultPlaySettings(item, settings);
 
@@ -58,6 +58,14 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           mediaSource,
           audioIndex,
           subtitleIndex,
+        });
+
+        console.log({
+          1: item,
+          2: bitrate,
+          3: mediaSource,
+          4: audioIndex,
+          5: subtitleIndex,
         });
 
         if (!mediaSource) {
