@@ -29,7 +29,13 @@ import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import { debounce } from "lodash";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, Pressable, StatusBar, View } from "react-native";
+import {
+  Dimensions,
+  Pressable,
+  StatusBar,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
 
@@ -38,10 +44,9 @@ export default function page() {
   const user = useAtomValue(userAtom);
   const [settings] = useSettings();
   const videoRef = useRef<VideoRef | null>(null);
+  const windowDimensions = useWindowDimensions();
 
   const firstTime = useRef(true);
-
-  const screenDimensions = Dimensions.get("screen");
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -267,7 +272,7 @@ export default function page() {
     }, [play, stop])
   );
 
-  const { orientation } = useOrientation();
+  useOrientation();
   useOrientationSettings();
   useAndroidNavigationBar();
 
@@ -292,13 +297,18 @@ export default function page() {
       </View>
     );
 
-  if (!stream || !item || !videoSource) return null;
+  if (!item || !stream)
+    return (
+      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+        <Text className="text-white">Error</Text>
+      </View>
+    );
 
   return (
     <View
       style={{
-        width: screenDimensions.width,
-        height: screenDimensions.height,
+        width: windowDimensions.width,
+        height: windowDimensions.height,
         position: "relative",
       }}
       className="flex flex-col items-center justify-center"
@@ -318,31 +328,33 @@ export default function page() {
         }}
         className="absolute z-0 h-full w-full opacity-0"
       >
-        <Video
-          ref={videoRef}
-          source={videoSource}
-          style={{ width: "100%", height: "100%" }}
-          resizeMode={ignoreSafeAreas ? "cover" : "contain"}
-          onProgress={onProgress}
-          onError={() => {}}
-          onLoad={() => {
-            if (firstTime.current === true) {
-              play();
-              firstTime.current = false;
-            }
-          }}
-          progressUpdateInterval={500}
-          playWhenInactive={true}
-          allowsExternalPlayback={true}
-          playInBackground={true}
-          pictureInPicture={true}
-          showNotificationControls={true}
-          ignoreSilentSwitch="ignore"
-          fullscreen={false}
-          onPlaybackStateChanged={(state) => {
-            setIsPlaying(state.isPlaying);
-          }}
-        />
+        {videoSource && (
+          <Video
+            ref={videoRef}
+            source={videoSource}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode={ignoreSafeAreas ? "cover" : "contain"}
+            onProgress={onProgress}
+            onError={() => {}}
+            onLoad={() => {
+              if (firstTime.current === true) {
+                play();
+                firstTime.current = false;
+              }
+            }}
+            progressUpdateInterval={500}
+            playWhenInactive={true}
+            allowsExternalPlayback={true}
+            playInBackground={true}
+            pictureInPicture={true}
+            showNotificationControls={true}
+            ignoreSilentSwitch="ignore"
+            fullscreen={false}
+            onPlaybackStateChanged={(state) => {
+              setIsPlaying(state.isPlaying);
+            }}
+          />
+        )}
       </Pressable>
 
       <Controls

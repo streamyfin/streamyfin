@@ -90,16 +90,10 @@ export const getStreamUrl = async ({
         userId,
         maxStreamingBitrate,
         startTimeTicks,
-        enableTranscoding: maxStreamingBitrate ? true : undefined,
         autoOpenLiveStream: true,
         mediaSourceId,
-        allowVideoStreamCopy: maxStreamingBitrate ? false : true,
         audioStreamIndex,
         subtitleStreamIndex,
-        deInterlace: true,
-        breakOnNonKeyFrames: false,
-        copyTimestamps: false,
-        enableMpegtsM2TsMode: false,
       },
     }
   );
@@ -112,6 +106,10 @@ export const getStreamUrl = async ({
 
   if (item.MediaType === "Video") {
     if (mediaSource?.TranscodingUrl) {
+      console.log(
+        "Video has transcoding URL:",
+        `${api.basePath}${mediaSource.TranscodingUrl}`
+      );
       return {
         url: `${api.basePath}${mediaSource.TranscodingUrl}`,
         sessionId: sessionId,
@@ -120,6 +118,10 @@ export const getStreamUrl = async ({
     }
 
     if (mediaSource?.SupportsDirectPlay) {
+      console.log(
+        "Video is being direct played:",
+        `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`
+      );
       return {
         url: `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`,
         sessionId: sessionId,

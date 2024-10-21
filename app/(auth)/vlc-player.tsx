@@ -16,7 +16,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
-import { msToTicks, ticksToMs } from "@/utils/time";
+import native from "@/utils/profiles/native";
+import { msToTicks } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -25,7 +26,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -118,6 +119,7 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
+        deviceProfile: native,
       });
 
       if (!res) return null;
@@ -230,8 +232,6 @@ export default function page() {
 
       const { currentTime, isPlaying } = data.nativeEvent;
 
-      console.log("onProgress", currentTime);
-
       progress.value = currentTime;
       const currentTimeInTicks = msToTicks(currentTime);
 
@@ -249,15 +249,15 @@ export default function page() {
     [item?.Id, isPlaying, api, isPlaybackStopped]
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      play();
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     play();
 
-      return () => {
-        stop();
-      };
-    }, [play, stop])
-  );
+  //     return () => {
+  //       stop();
+  //     };
+  //   }, [play, stop])
+  // );
 
   useOrientation();
   useOrientationSettings();
