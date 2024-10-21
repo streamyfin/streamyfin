@@ -31,3 +31,5 @@ credentials.json
 *.apk
 *.ipa
 .continuerc.json
+
+/modules/vlc-player/android
