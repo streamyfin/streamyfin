@@ -64,7 +64,7 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
 
       if (settings?.autoDownload === true && !registered) {
         registerBackgroundFetchAsync();
-        toast.success("Background downlodas enabled");
+        toast.success("Background downloads enabled");
       } else if (settings?.autoDownload === false && registered) {
         unregisterBackgroundFetchAsync();
         toast.info("Background downloads disabled");
