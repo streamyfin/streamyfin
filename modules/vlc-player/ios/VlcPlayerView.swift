@@ -38,17 +38,6 @@ class VlcPlayerView: ExpoView {
                     videoView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
                 ])
             }
-
-            self.setupMediaPlayer()
-        }
-    }
-
-    private func setupMediaPlayer() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.mediaPlayer = VLCMediaPlayer()
-            self.mediaPlayer?.delegate = self
-            self.mediaPlayer?.drawable = self.videoView
         }
     }
 
@@ -104,8 +93,6 @@ class VlcPlayerView: ExpoView {
     @objc func setSource(_ source: [String: Any]) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.mediaPlayer?.stop()
-            self.mediaPlayer = nil
 
             let mediaOptions = source["mediaOptions"] as? [String: Any]
             let initOptions = source["initOptions"] as? [Any]
