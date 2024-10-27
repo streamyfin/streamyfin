@@ -165,13 +165,13 @@ class VlcPlayerView: ExpoView {
 
             self.mediaPlayer?.media = media
 
-            if startPosition > 0 {
-                self.mediaPlayer?.time = VLCTime(int: startPosition)
-            }
-
             if autoplay {
                 print("Playing...")
                 self.play()
+                if startPosition > 0 {
+                    print("Debug: Starting at position: \(startPosition)")
+                    self.seekTo(startPosition)
+                }
             }
         }
     }

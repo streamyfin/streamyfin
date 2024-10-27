@@ -226,7 +226,9 @@ export const Controls: React.FC<Props> = ({
       isSeeking.value = false;
       progress.value = value;
 
-      await seek(Math.max(0, Math.floor(isVlc ? value : value / 10000000)));
+      await seek(
+        Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value)))
+      );
       if (wasPlayingRef.current === true) play();
     },
     [isVlc]
