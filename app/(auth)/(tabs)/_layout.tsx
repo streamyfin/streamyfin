@@ -18,6 +18,7 @@ import type {
   TabNavigationState,
 } from "@react-navigation/native";
 import {} from "@expo/vector-icons/Ionicons";
+import { Colors } from "@/constants/Colors";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -35,30 +36,45 @@ export default function TabLayout() {
   }, []);
 
   return (
-    <NativeTabs sidebarAdaptable ignoresTopSafeArea>
+    <NativeTabs
+      sidebarAdaptable
+      ignoresTopSafeArea
+      barTintColor={"#121212"}
+      tabBarActiveTintColor={Colors.primary}
+      scrollEdgeAppearance="default"
+    >
       <NativeTabs.Screen redirect name="index" />
       <NativeTabs.Screen
         name="(home)"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, focused, size }) =>
-            require("@/assets/icons/house.fill.png"),
+          tabBarIcon:
+            Platform.OS == "android"
+              ? ({ color, focused, size }) =>
+                  require("@/assets/icons/house.fill.png")
+              : () => ({ sfSymbol: "house" }),
         }}
       />
       <NativeTabs.Screen
         name="(search)"
         options={{
           title: "Search",
-          tabBarIcon: ({ color, focused, size }) =>
-            require("@/assets/icons/magnifyingglass.png"),
+          tabBarIcon:
+            Platform.OS == "android"
+              ? ({ color, focused, size }) =>
+                  require("@/assets/icons/magnifyingglass.png")
+              : () => ({ sfSymbol: "magnifyingglass" }),
         }}
       />
       <NativeTabs.Screen
         name="(libraries)"
         options={{
           title: "Library",
-          tabBarIcon: ({ color, focused, size }) =>
-            require("@/assets/icons/server.rack.png"),
+          tabBarIcon:
+            Platform.OS == "android"
+              ? ({ color, focused, size }) =>
+                  require("@/assets/icons/server.rack.png")
+              : () => ({ sfSymbol: "rectangle.stack" }),
         }}
       />
     </NativeTabs>
