@@ -141,7 +141,7 @@ export default function page() {
   });
 
   const togglePlay = useCallback(
-    async (ticks: number) => {
+    async (ms: number) => {
       if (!api || !stream) return;
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -152,7 +152,7 @@ export default function page() {
           audioStreamIndex: audioIndex ? audioIndex : undefined,
           subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
           mediaSourceId: mediaSourceId,
-          positionTicks: Math.floor(ticks),
+          positionTicks: msToTicks(ms),
           isPaused: true,
           playMethod: stream.url?.includes("m3u8")
             ? "Transcode"
@@ -166,7 +166,7 @@ export default function page() {
           audioStreamIndex: audioIndex ? audioIndex : undefined,
           subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
           mediaSourceId: mediaSourceId,
-          positionTicks: Math.floor(ticks),
+          positionTicks: msToTicks(ms),
           isPaused: false,
           playMethod: stream?.url.includes("m3u8")
             ? "Transcode"
@@ -234,6 +234,12 @@ export default function page() {
 
       progress.value = currentTime;
       const currentTimeInTicks = msToTicks(currentTime);
+
+      console.log("onProgress ~", {
+        currentTime,
+        currentTimeInTicks,
+        isPlaying,
+      });
 
       await getPlaystateApi(api).onPlaybackProgress({
         itemId: item.Id,
