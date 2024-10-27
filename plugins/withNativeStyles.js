@@ -57,7 +57,7 @@ function withNativeTabBarStyles(config) {
     // Add custom bottom navigation style
     styleContents.resources.style.push({
       $: {
-        name: "Widget.Material3.BottomNavigationView",
+        name: "CustomBottomNavigationView",
         parent: "@style/Widget.Material3.BottomNavigationView",
       },
       item: [
@@ -71,6 +71,18 @@ function withNativeTabBarStyles(config) {
         },
       ],
     });
+
+    const bottomNavigationStyleItem = appTheme.item.find(
+      (item) => item.$.name === "bottomNavigationStyle"
+    );
+    if (bottomNavigationStyleItem) {
+      bottomNavigationStyleItem._ = "@style/CustomBottomNavigationView";
+    } else {
+      appTheme.item.push({
+        $: { name: "bottomNavigationStyle" },
+        _: "@style/CustomBottomNavigationView",
+      });
+    }
 
     return {
       ...config,
