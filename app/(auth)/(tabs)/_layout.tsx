@@ -42,6 +42,9 @@ export default function TabLayout() {
       barTintColor={"#121212"}
       tabBarActiveTintColor={Colors.primary}
       scrollEdgeAppearance="default"
+      screenOptions={{
+        lazy: false,
+      }}
     >
       <NativeTabs.Screen redirect name="index" />
       <NativeTabs.Screen
