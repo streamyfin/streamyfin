@@ -17,7 +17,7 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
-import { msToTicks } from "@/utils/time";
+import { msToTicks, ticksToMs } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -28,7 +28,13 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Alert,
   Pressable,
@@ -146,19 +152,23 @@ export default function page() {
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (isPlaying) {
-        videoRef.current?.pause();
+        await videoRef.current?.pause();
+        console.log("Making it pause man");
+        console.log("ticks", Math.floor(ticks));
+
         await getPlaystateApi(api).onPlaybackProgress({
           itemId: item?.Id!,
           audioStreamIndex: audioIndex ? audioIndex : undefined,
           subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
           mediaSourceId: mediaSourceId,
-          positionTicks: Math.floor(ticks),
+          positionTicks: 10000,
           isPaused: true,
           playMethod: stream.url?.includes("m3u8")
             ? "Transcode"
             : "DirectStream",
           playSessionId: stream.sessionId,
         });
+        console.log("ACtually marked as paused");
       } else {
         videoRef.current?.play();
         await getPlaystateApi(api).onPlaybackProgress({
@@ -230,7 +240,7 @@ export default function page() {
       if (isPlaybackStopped === true) return;
       if (!item?.Id || !api || !stream) return;
 
-      const { currentTime, isPlaying } = data.nativeEvent;
+      const { currentTime } = data.nativeEvent;
 
       progress.value = currentTime;
       const currentTimeInTicks = msToTicks(currentTime);
@@ -245,6 +255,7 @@ export default function page() {
         playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
         playSessionId: stream.sessionId,
       });
+      console.log("Progress", currentTime);
     },
     [item?.Id, isPlaying, api, isPlaybackStopped]
   );
@@ -307,6 +318,10 @@ export default function page() {
 
   if (!stream || !item) return null;
 
+  const startPosition = item?.UserData?.PlaybackPositionTicks
+    ? ticksToMs(item.UserData.PlaybackPositionTicks)
+    : 0;
+
   return (
     <View
       style={{
@@ -329,7 +344,7 @@ export default function page() {
             uri: stream.url,
             autoplay: true,
             isNetwork: true,
-            startPosition: 0,
+            startPosition,
           }}
           style={{ width: "100%", height: "100%" }}
           onVideoProgress={onProgress}
@@ -376,7 +391,7 @@ export default function page() {
           setSubtitleTrack={videoRef.current.setSubtitleTrack}
           setSubtitleURL={videoRef.current.setSubtitleURL}
           setAudioTrack={videoRef.current.setAudioTrack}
-          stop={videoRef.current.stop}
+          stop={videoRef.current?.stop}
           isVlc
         />
       )}
