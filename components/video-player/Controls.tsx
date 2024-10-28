@@ -157,8 +157,19 @@ export const Controls: React.FC<Props> = ({
       subtitleIndex,
     });
 
-    if (Platform.OS === "ios") router.replace("/vlc-player");
-    else router.replace("/player");
+    const queryParams = new URLSearchParams({
+      itemId: previousItem.Id ?? "", // Ensure itemId is a string
+      audioIndex: audioIndex?.toString() ?? "",
+      subtitleIndex: subtitleIndex?.toString() ?? "",
+      mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+      bitrateValue: bitrate.toString(),
+    }).toString();
+
+    if (Platform.OS === "ios") {
+      router.replace(`/vlc-player?${queryParams}`);
+    } else {
+      router.replace(`/player?${queryParams}`);
+    }
   }, [previousItem, settings]);
 
   const goToNextItem = useCallback(() => {
@@ -175,8 +186,19 @@ export const Controls: React.FC<Props> = ({
       subtitleIndex,
     });
 
-    if (Platform.OS === "ios") router.replace("/vlc-player");
-    else router.replace("/player");
+    const queryParams = new URLSearchParams({
+      itemId: nextItem.Id ?? "", // Ensure itemId is a string
+      audioIndex: audioIndex?.toString() ?? "",
+      subtitleIndex: subtitleIndex?.toString() ?? "",
+      mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+      bitrateValue: bitrate.toString(),
+    }).toString();
+
+    if (Platform.OS === "ios") {
+      router.replace(`/vlc-player?${queryParams}`);
+    } else {
+      router.replace(`/player?${queryParams}`);
+    }
   }, [nextItem, settings]);
 
   const updateTimes = useCallback(
@@ -586,16 +608,18 @@ export const Controls: React.FC<Props> = ({
         pointerEvents={showControls ? "auto" : "none"}
         className={`flex flex-row items-center space-x-2 z-10 p-4 `}
       >
-        <TouchableOpacity
-          onPress={toggleIgnoreSafeAreas}
-          className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-        >
-          <Ionicons
-            name={ignoreSafeAreas ? "contract-outline" : "expand"}
-            size={24}
-            color="white"
-          />
-        </TouchableOpacity>
+        {Platform.OS !== "ios" && (
+          <TouchableOpacity
+            onPress={toggleIgnoreSafeAreas}
+            className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+          >
+            <Ionicons
+              name={ignoreSafeAreas ? "contract-outline" : "expand"}
+              size={24}
+              color="white"
+            />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={async () => {
             if (stop) await stop();
