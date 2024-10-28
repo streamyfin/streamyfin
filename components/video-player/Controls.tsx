@@ -238,16 +238,17 @@ export const Controls: React.FC<Props> = ({
     [isVlc]
   );
 
-  const [time, setTime] = useState({ minutes: 0, seconds: 0 });
+  const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   const handleSliderChange = (value: number) => {
     const progressInTicks = isVlc ? msToTicks(value) : value;
     calculateTrickplayUrl(progressInTicks);
 
-    const progressInSeconds = Math.floor(progressInTicks / 10000000);
-    const minutes = Math.floor(progressInSeconds / 60);
+    const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
+    const hours = Math.floor(progressInSeconds / 3600);
+    const minutes = Math.floor((progressInSeconds % 3600) / 60);
     const seconds = progressInSeconds % 60;
-    setTime({ minutes, seconds });
+    setTime({ hours, minutes, seconds });
   };
 
   const handleSliderStart = useCallback(() => {
@@ -742,7 +743,9 @@ export const Controls: React.FC<Props> = ({
                         borderRadius: 5,
                       }}
                     >
-                      {`${time.minutes}:${
+                      {`${time.hours > 0 ? `${time.hours}:` : ""}${
+                        time.minutes < 10 ? `0${time.minutes}` : time.minutes
+                      }:${
                         time.seconds < 10 ? `0${time.seconds}` : time.seconds
                       }`}
                     </Text>
