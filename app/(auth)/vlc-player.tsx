@@ -352,6 +352,7 @@ export default function page() {
             autoplay: true,
             isNetwork: true,
             startPosition,
+            initOptions: ["--sub-text-scale=60"],
           }}
           style={{ width: "100%", height: "100%" }}
           onVideoProgress={onProgress}

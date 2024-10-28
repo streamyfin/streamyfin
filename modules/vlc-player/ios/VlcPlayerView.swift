@@ -95,9 +95,8 @@ class VlcPlayerView: ExpoView {
             guard let self = self else { return }
 
             let mediaOptions = source["mediaOptions"] as? [String: Any]
-            let initOptions = source["initOptions"] as? [Any]
+            let initOptions = source["initOptions"] as? [Any] ?? []
             let uri = source["uri"] as? String
-            let initType = source["initType"] as? Int ?? 0
             let autoplay = source["autoplay"] as? Bool ?? false
             let isNetwork = source["isNetwork"] as? Bool ?? false
             let startPosition = source["startPosition"] as? Int32 ?? 0
@@ -109,12 +108,7 @@ class VlcPlayerView: ExpoView {
             }
 
             self.onVideoLoadStart?(["target": self.reactTag ?? NSNull()])
-
-            if initType == 2, let options = initOptions {
-                self.mediaPlayer = VLCMediaPlayer(options: options)
-            } else {
-                self.mediaPlayer = VLCMediaPlayer()
-            }
+            self.mediaPlayer = VLCMediaPlayer(options: initOptions)
 
             self.mediaPlayer?.delegate = self
             self.mediaPlayer?.drawable = self.videoView
