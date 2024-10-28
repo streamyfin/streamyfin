@@ -93,7 +93,7 @@ export const ticksToMs = (ticks?: number | undefined) => {
 
 export const secondsToMs = (seconds?: number | undefined) => {
   if (!seconds) return 0;
-  return seconds * 1000;
+  return Math.floor(seconds * 1000);
 };
 
 export const msToSeconds = (ms?: number | undefined) => {
