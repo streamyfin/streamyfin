@@ -12,6 +12,7 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { writeToLog } from "@/utils/log";
 import {
   formatTimeString,
+  msToTicks,
   secondsToMs,
   ticksToMs,
   ticksToSeconds,
@@ -234,8 +235,16 @@ export const Controls: React.FC<Props> = ({
     [isVlc]
   );
 
+  const [time, setTime] = useState({ minutes: 0, seconds: 0 });
+
   const handleSliderChange = (value: number) => {
-    calculateTrickplayUrl(value);
+    const progressInTicks = isVlc ? msToTicks(value) : value;
+    calculateTrickplayUrl(progressInTicks);
+
+    const progressInSeconds = Math.floor(progressInTicks / 10000000);
+    const minutes = Math.floor(progressInSeconds / 60);
+    const seconds = progressInSeconds % 60;
+    setTime({ minutes, seconds });
   };
 
   const handleSliderStart = useCallback(() => {
@@ -351,13 +360,17 @@ export const Controls: React.FC<Props> = ({
     const uniqueExternalSubs = externalSubs.filter(
       (sub) => !embeddedSubNames.has(sub.name)
     );
-
     // Combine embedded and unique external subs
     return [...embeddedSubs, ...uniqueExternalSubs] as (
       | EmbeddedSubtitle
       | ExternalSubtitle
     )[];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource]);
+
+  // useEffect(() => {
+
+  // }, [allSubtitleTracks, setSubtitleTrack]);
+  const [subtitleTrackSet, setSubtitleTrackSet] = useState(false);
 
   return (
     <View
@@ -715,6 +728,21 @@ export const Controls: React.FC<Props> = ({
                       source={{ uri: url }}
                       contentFit="cover"
                     />
+                    <Text
+                      style={{
+                        position: "absolute",
+                        bottom: 5,
+                        left: 5,
+                        color: "white",
+                        backgroundColor: "rgba(0, 0, 0, 0.5)",
+                        padding: 5,
+                        borderRadius: 5,
+                      }}
+                    >
+                      {`${time.minutes}:${
+                        time.seconds < 10 ? `0${time.seconds}` : time.seconds
+                      }`}
+                    </Text>
                   </View>
                 );
               }}

@@ -1,6 +1,7 @@
 // hooks/useTrickplay.ts
 
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { ticksToMs } from "@/utils/time";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -57,6 +58,7 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
       : null;
   }, [item, enabled]);
 
+  // Takes in ticks.
   const calculateTrickplayUrl = useCallback(
     (progress: number) => {
       if (!enabled) {
@@ -74,28 +76,33 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
       }
 
       const { data, resolution } = trickplayInfo;
-      const { Interval, TileWidth, TileHeight } = data;
+      const { Interval, TileWidth, TileHeight, Width, Height } = data;
 
-      if (!Interval || !TileWidth || !TileHeight || !resolution) {
+      if (
+        !Interval ||
+        !TileWidth ||
+        !TileHeight ||
+        !resolution ||
+        !Width ||
+        !Height
+      ) {
         throw new Error("Invalid trickplay data");
       }
 
-      const currentSecond = Math.max(0, Math.floor(progress / 10000000));
+      const currentTimeMs = Math.max(0, ticksToMs(progress));
+      const currentTile = Math.floor(currentTimeMs / Interval);
 
-      const cols = TileWidth;
-      const rows = TileHeight;
-      const imagesPerTile = cols * rows;
-      const imageIndex = Math.floor(currentSecond / (Interval / 1000));
-      const tileIndex = Math.floor(imageIndex / imagesPerTile);
+      const tileSize = TileWidth * TileHeight;
+      const tileOffset = currentTile % tileSize;
+      const index = Math.floor(currentTile / tileSize);
 
-      const positionInTile = imageIndex % imagesPerTile;
-      const rowInTile = Math.floor(positionInTile / cols);
-      const colInTile = positionInTile % cols;
+      const tileOffsetX = tileOffset % TileWidth;
+      const tileOffsetY = Math.floor(tileOffset / TileWidth);
 
       const newTrickPlayUrl = {
-        x: rowInTile,
-        y: colInTile,
-        url: `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${tileIndex}.jpg?api_key=${api.accessToken}`,
+        x: tileOffsetX,
+        y: tileOffsetY,
+        url: `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${index}.jpg?api_key=${api.accessToken}`,
       };
 
       setTrickPlayUrl(newTrickPlayUrl);

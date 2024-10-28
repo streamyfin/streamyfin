@@ -240,14 +240,18 @@ export default function page() {
 
       const { currentTime } = data.nativeEvent;
 
+      if (isBuffering) {
+        setIsBuffering(false);
+      }
+
       progress.value = currentTime;
       const currentTimeInTicks = msToTicks(currentTime);
 
-      console.log("onProgress ~", {
-        currentTime,
-        currentTimeInTicks,
-        isPlaying,
-      });
+      // console.log("onProgress ~", {
+      //   currentTime,
+      //   currentTimeInTicks,
+      //   isPlaying,
+      // });
 
       await getPlaystateApi(api).onPlaybackProgress({
         itemId: item.Id,
@@ -259,7 +263,6 @@ export default function page() {
         playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
         playSessionId: stream.sessionId,
       });
-      console.log("Progress", currentTime);
     },
     [item?.Id, isPlaying, api, isPlaybackStopped]
   );
