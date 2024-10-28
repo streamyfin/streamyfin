@@ -12,6 +12,7 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { writeToLog } from "@/utils/log";
 import {
   formatTimeString,
+  msToSeconds,
   msToTicks,
   secondsToMs,
   ticksToMs,
@@ -130,14 +131,16 @@ export const Controls: React.FC<Props> = ({
     offline ? undefined : item.Id,
     currentTime,
     seek,
-    play
+    play,
+    isVlc
   );
 
   const { showSkipCreditButton, skipCredit } = useCreditSkipper(
     offline ? undefined : item.Id,
     currentTime,
     seek,
-    play
+    play,
+    isVlc
   );
 
   const goToPreviousItem = useCallback(() => {
