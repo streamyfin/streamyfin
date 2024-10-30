@@ -136,7 +136,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           AppStoreUrl: "https://apps.apple.com/us/app/streamyfin/id6593660679",
           DeviceProfile: deviceProfile,
           IconUrl:
-            "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/redesign/public/assets/images/icon_new_withoutBackground.png",
+            "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
           PlayableMediaTypes: ["Audio", "Video"],
           SupportedCommands: ["Play"],
           SupportsMediaControl: true,
