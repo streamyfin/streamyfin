@@ -207,8 +207,9 @@ export default function page() {
   );
 
   const reportPlaybackStopped = async () => {
+    if (!item?.Id) return;
     await getPlaystateApi(api!).onPlaybackStopped({
-      itemId: item?.Id!,
+      itemId: item.Id,
       mediaSourceId: mediaSourceId,
       positionTicks: Math.floor(progress.value),
       playSessionId: stream?.sessionId,
@@ -216,8 +217,9 @@ export default function page() {
   };
 
   const reportPlaybackStart = async () => {
+    if (!item?.Id) return;
     await getPlaystateApi(api!).onPlaybackStart({
-      itemId: item?.Id!,
+      itemId: item?.Id,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
       subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
       mediaSourceId: mediaSourceId,

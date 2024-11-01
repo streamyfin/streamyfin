@@ -7,16 +7,12 @@ import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { TrackInfo } from "@/modules/vlc-player";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  PlaybackType,
-  usePlaySettings,
-} from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import native from "@/utils/profiles/native";
 import { secondsToTicks } from "@/utils/secondsToTicks";
-import { ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -85,7 +81,15 @@ export default function page() {
   } = useQuery({
     queryKey: ["item", itemId],
     queryFn: async () => {
-      if (!api) return;
+      if (!api) {
+        throw new Error("No api");
+      }
+
+      if (!itemId) {
+        console.warn("No itemId");
+        return null;
+      }
+
       const res = await getUserLibraryApi(api).getItem({
         itemId,
         userId: user?.Id,
@@ -93,7 +97,6 @@ export default function page() {
 
       return res.data;
     },
-    enabled: !!itemId && !!api,
     staleTime: 0,
   });
 
@@ -102,9 +105,25 @@ export default function page() {
     isLoading: isLoadingStreamUrl,
     isError: isErrorStreamUrl,
   } = useQuery({
-    queryKey: ["stream-url"],
+    queryKey: [
+      "stream-url",
+      itemId,
+      audioIndex,
+      subtitleIndex,
+      bitrateValue,
+      user,
+      mediaSourceId,
+    ],
     queryFn: async () => {
-      if (!api) return;
+      if (!api) {
+        throw new Error("No api");
+      }
+
+      if (!item) {
+        console.warn("No item", itemId, item);
+        return null;
+      }
+
       const res = await getStreamUrl({
         api,
         item,
@@ -114,13 +133,17 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
+        deviceProfile: native,
       });
 
       if (!res) return null;
 
       const { mediaSource, sessionId, url } = res;
 
-      if (!sessionId || !mediaSource || !url) return null;
+      if (!sessionId || !mediaSource || !url) {
+        console.warn("No sessionId or mediaSource or url", url);
+        return null;
+      }
 
       return {
         mediaSource,
@@ -128,6 +151,8 @@ export default function page() {
         url,
       };
     },
+    enabled: !!item,
+    staleTime: 0,
   });
 
   const poster = usePoster(item, api);
@@ -202,8 +227,9 @@ export default function page() {
   );
 
   const reportPlaybackStopped = async () => {
+    if (!item?.Id) return;
     await getPlaystateApi(api!).onPlaybackStopped({
-      itemId: item?.Id!,
+      itemId: item.Id,
       mediaSourceId: mediaSourceId,
       positionTicks: Math.floor(progress.value),
       playSessionId: stream?.sessionId,
@@ -211,8 +237,9 @@ export default function page() {
   };
 
   const reportPlaybackStart = async () => {
+    if (!item?.Id) return;
     await getPlaystateApi(api!).onPlaybackStart({
-      itemId: item?.Id!,
+      itemId: item.Id,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
       subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
       mediaSourceId: mediaSourceId,
@@ -230,9 +257,14 @@ export default function page() {
 
       progress.value = ticks;
       cacheProgress.value = secondsToTicks(data.playableDuration);
-      setIsBuffering(data.playableDuration === 0);
 
-      if (!item?.Id || data.currentTime === 0) return;
+      // TODO: Use this when streaming with HLS url, but NOT when direct playing
+      // TODO: since playable duration is always 0 then.
+      // setIsBuffering(data.playableDuration === 0);
+
+      if (!item?.Id || data.currentTime === 0) {
+        return;
+      }
 
       await getPlaystateApi(api!).onPlaybackProgress({
         itemId: item.Id,
@@ -314,8 +346,6 @@ export default function page() {
       </View>
     );
 
-  if (!stream || !item || !videoSource) return null;
-
   return (
     <View
       style={{
@@ -342,65 +372,74 @@ export default function page() {
           zIndex: 0,
         }}
       >
-        <Video
-          ref={videoRef}
-          source={videoSource}
-          style={{
-            width: dimensions.width,
-            height: dimensions.height,
-          }}
-          resizeMode={ignoreSafeAreas ? "cover" : "contain"}
-          onProgress={onProgress}
-          onError={() => {}}
-          onLoad={() => {
-            if (firstTime.current === true) {
-              play();
-              firstTime.current = false;
-            }
-          }}
-          progressUpdateInterval={500}
-          playWhenInactive={true}
-          allowsExternalPlayback={true}
-          playInBackground={true}
-          pictureInPicture={true}
-          showNotificationControls={true}
-          ignoreSilentSwitch="ignore"
-          fullscreen={false}
-          onPlaybackStateChanged={(state) => {
-            if (isSeeking.value === false) setIsPlaying(state.isPlaying);
-          }}
-          onTextTracks={(data) => {
-            setEmbededTextTracks(data.textTracks as any);
-          }}
-          selectedTextTrack={selectedTextTrack}
-        />
+        {videoSource ? (
+          <Video
+            ref={videoRef}
+            source={videoSource}
+            style={{
+              width: dimensions.width,
+              height: dimensions.height,
+            }}
+            resizeMode={ignoreSafeAreas ? "cover" : "contain"}
+            onProgress={onProgress}
+            onError={() => {}}
+            onLoad={() => {
+              if (firstTime.current === true) {
+                play();
+                firstTime.current = false;
+              }
+            }}
+            progressUpdateInterval={500}
+            playWhenInactive={true}
+            allowsExternalPlayback={true}
+            playInBackground={true}
+            pictureInPicture={true}
+            showNotificationControls={true}
+            ignoreSilentSwitch="ignore"
+            fullscreen={false}
+            onPlaybackStateChanged={(state) => {
+              if (isSeeking.value === false) setIsPlaying(state.isPlaying);
+            }}
+            onTextTracks={(data) => {
+              setEmbededTextTracks(data.textTracks as any);
+            }}
+            onBuffer={(e) => {
+              setIsBuffering(e.isBuffering);
+            }}
+            selectedTextTrack={selectedTextTrack}
+          />
+        ) : (
+          <Text>No video source...</Text>
+        )}
       </Pressable>
 
-      <Controls
-        videoRef={videoRef}
-        enableTrickplay={true}
-        item={item}
-        togglePlay={togglePlay}
-        isPlaying={isPlaying}
-        isSeeking={isSeeking}
-        progress={progress}
-        cacheProgress={cacheProgress}
-        isBuffering={isBuffering}
-        showControls={showControls}
-        setShowControls={setShowControls}
-        setIgnoreSafeAreas={setIgnoreSafeAreas}
-        ignoreSafeAreas={ignoreSafeAreas}
-        seek={seek}
-        play={play}
-        pause={pause}
-        getSubtitleTracks={getSubtitleTracks}
-        setSubtitleTrack={(i) =>
-          setSelectedTextTrack({
-            type: SelectedTrackType.INDEX,
-            value: i,
-          })
-        }
-      />
+      {item && (
+        <Controls
+          videoRef={videoRef}
+          enableTrickplay={true}
+          item={item}
+          togglePlay={togglePlay}
+          isPlaying={isPlaying}
+          isSeeking={isSeeking}
+          progress={progress}
+          cacheProgress={cacheProgress}
+          isBuffering={isBuffering}
+          showControls={showControls}
+          setShowControls={setShowControls}
+          setIgnoreSafeAreas={setIgnoreSafeAreas}
+          ignoreSafeAreas={ignoreSafeAreas}
+          seek={seek}
+          play={play}
+          pause={pause}
+          getSubtitleTracks={getSubtitleTracks}
+          setSubtitleTrack={(i) =>
+            setSelectedTextTrack({
+              type: SelectedTrackType.INDEX,
+              value: i,
+            })
+          }
+        />
+      )}
     </View>
   );
 }
@@ -452,7 +491,7 @@ export function useVideoSource(
         subtitle: item?.Album ?? undefined,
       },
     };
-  }, [item, api, poster]);
+  }, [item, api, poster, url]);
 
   return videoSource;
 }
