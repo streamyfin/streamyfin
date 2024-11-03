@@ -95,7 +95,8 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
     const length = p?.item?.RunTimeTicks || 0;
     const timeLeft = (length - length * (p.progress / 100)) / p.speed;
-    return formatTimeString(timeLeft, true);
+    console.log("TIME LEFT:", timeLeft);
+    return formatTimeString(timeLeft, "tick");
   };
 
   const base64Image = useMemo(() => {
