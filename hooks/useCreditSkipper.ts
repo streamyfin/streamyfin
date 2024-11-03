@@ -76,6 +76,7 @@ export const useCreditSkipper = (
 
   const skipCredit = useCallback(() => {
     if (!creditTimestamps) return;
+    console.log(`Skipping credits to ${creditTimestamps.Credits.End}`);
     try {
       wrappedSeek(creditTimestamps.Credits.End);
       setTimeout(() => {

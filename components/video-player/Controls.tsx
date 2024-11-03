@@ -208,9 +208,12 @@ export const Controls: React.FC<Props> = ({
         ? maxValue - currentProgress
         : ticksToSeconds(maxValue - currentProgress);
 
+      // console.log("Remaning time is: ", remaining);
+
       setCurrentTime(current);
       setRemainingTime(remaining);
 
+      // Currently doesm't work in VLC because of some corrupted timestamps, will need to find a workaround.
       if (currentProgress === maxValue) {
         setShowControls(true);
         // Automatically play the next item if it exists
@@ -227,6 +230,7 @@ export const Controls: React.FC<Props> = ({
       isSeeking: isSeeking.value,
     }),
     (result) => {
+      // console.log("Progress changed", result);
       if (result.isSeeking === false) {
         runOnJS(updateTimes)(result.progress, result.max);
       }

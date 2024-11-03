@@ -78,14 +78,22 @@ class VlcPlayerView: ExpoView {
                 player.pause()
             }
 
-            player.time = VLCTime(int: time)
+            if let duration = player.media?.length.intValue {
+                print("Seeking to time: \(time) Video Duration \(duration)")
 
-            // Wait for a short moment to ensure the seek has been processed
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if wasPlaying {
-                    player.play()
+                // If the specified time is greater than the duration, seek to the end
+                let seekTime = time > duration ? duration - 1000 : time
+                player.time = VLCTime(int: seekTime)
+
+                // Wait for a short moment to ensure the seek has been processed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    if wasPlaying {
+                        player.play()
+                    }
+                    self.updatePlayerState()
                 }
-                self.updatePlayerState()
+            } else {
+                print("Error: Unable to retrieve video duration")
             }
         }
     }
@@ -94,7 +102,7 @@ class VlcPlayerView: ExpoView {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
-            let mediaOptions = source["mediaOptions"] as? [String: Any]
+            let mediaOptions = source["mediaOptions"] as? [String: Any] ?? [:]
             let initOptions = source["initOptions"] as? [Any] ?? []
             let uri = source["uri"] as? String
             let autoplay = source["autoplay"] as? Bool ?? false
@@ -133,18 +141,8 @@ class VlcPlayerView: ExpoView {
                 }
             }
 
-            // Apply subtitle options
-            let subtitleOptions = self.getSubtitleOptions()
-            media.addOptions(subtitleOptions)
-            print("Debug: Applied subtitle options: \(subtitleOptions)")
-
-            // // Apply any additional media options
-            // if let mediaOptions = mediaOptions {
-            //     media.addOptions(mediaOptions)
-            //     print("Debug: Applied additional media options: \(mediaOptions)")
-            // } else {
-            //     print("Debug: No additional media options provided")
-            // }
+            print("Debug: Media options: \(mediaOptions)")
+            media.addOptions(mediaOptions)
 
             // Apply subtitle options
             let subtitleTrackIndex = source["subtitleTrackIndex"] as? Int ?? -1
@@ -610,9 +608,12 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             guard let player = self.mediaPlayer else { return }
 
             let currentTimeMs = player.time.intValue
+            let remainingTimeMs = player.remainingTime
             let durationMs = player.media?.length.intValue ?? 0
 
+            // print("currentTimeMs: \(currentTimeMs) RemainingTimeMs: \(remainingTimeMs)")
             if currentTimeMs >= 0 && currentTimeMs < durationMs {
+
                 self.onVideoProgress?([
                     "currentTime": currentTimeMs,
                     "duration": durationMs,
