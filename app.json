@@ -101,7 +101,7 @@
         }
       ],
       ["react-native-edge-to-edge"],
-      ["react-native-bottom-tabs", { "theme": "material2" }]
+      ["react-native-bottom-tabs"]
     ],
     "experiments": {
       "typedRoutes": true

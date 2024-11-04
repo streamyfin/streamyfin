@@ -1,4 +1,3 @@
-import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
@@ -8,7 +7,6 @@ import { Loader } from "@/components/Loader";
 import AlbumCover from "@/components/posters/AlbumCover";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
-import { TAB_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
@@ -226,10 +224,6 @@ export default function search() {
         contentContainerStyle={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
-          paddingBottom: 16,
-        }}
-        style={{
-          marginBottom: TAB_HEIGHT,
         }}
       >
         <View className="flex flex-col pt-2">

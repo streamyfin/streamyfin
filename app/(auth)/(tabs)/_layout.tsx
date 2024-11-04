@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { Platform, View } from "react-native";
+import React from "react";
+import { Platform } from "react-native";
 
 import { withLayoutContext } from "expo-router";
 
@@ -12,12 +12,11 @@ const { Navigator } = createNativeBottomTabNavigator();
 
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 
+import { Colors } from "@/constants/Colors";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
-import {} from "@expo/vector-icons/Ionicons";
-import { Colors } from "@/constants/Colors";
 import { SystemBars } from "react-native-edge-to-edge";
 
 export const NativeTabs = withLayoutContext<
@@ -34,12 +33,9 @@ export default function TabLayout() {
       <NativeTabs
         sidebarAdaptable
         ignoresTopSafeArea
-        barTintColor={"#121212"}
+        barTintColor={Platform.OS === "android" ? "#121212" : undefined}
         tabBarActiveTintColor={Colors.primary}
         scrollEdgeAppearance="default"
-        screenOptions={{
-          lazy: false,
-        }}
       >
         <NativeTabs.Screen redirect name="index" />
         <NativeTabs.Screen
