@@ -1,5 +1,4 @@
 import { Controls } from "@/components/video-player/Controls";
-import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -18,7 +17,8 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
@@ -171,7 +171,6 @@ export default function page() {
 
   useOrientation();
   useOrientationSettings();
-  useAndroidNavigationBar();
 
   useWebSocket({
     isPlaying: isPlaying,
@@ -222,7 +221,7 @@ export default function page() {
         position: "relative",
       }}
     >
-      <StatusBar hidden />
+      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);

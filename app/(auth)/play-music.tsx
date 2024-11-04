@@ -1,7 +1,4 @@
-import { Text } from "@/components/common/Text";
-import AlbumCover from "@/components/posters/AlbumCover";
 import { Controls } from "@/components/video-player/Controls";
-import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -20,9 +17,9 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
-import { debounce } from "lodash";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, Pressable, StatusBar, View } from "react-native";
+import { Dimensions, Pressable, View } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
 
@@ -176,7 +173,6 @@ export default function page() {
 
   const { orientation } = useOrientation();
   useOrientationSettings();
-  useAndroidNavigationBar();
 
   useWebSocket({
     isPlaying: isPlaying,
@@ -194,7 +190,7 @@ export default function page() {
       }}
       className="flex flex-col items-center justify-center"
     >
-      <StatusBar hidden />
+      <SystemBars hidden />
 
       <View className="h-screen w-screen top-0 left-0 flex flex-col items-center justify-center p-4 absolute z-0">
         <Image

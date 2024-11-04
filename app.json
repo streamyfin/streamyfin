@@ -100,7 +100,8 @@
           "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."
         }
       ],
-      "./plugins/withNativeStyles.js"
+      ["react-native-edge-to-edge"],
+      ["react-native-bottom-tabs", { "theme": "material2" }]
     ],
     "experiments": {
       "typedRoutes": true

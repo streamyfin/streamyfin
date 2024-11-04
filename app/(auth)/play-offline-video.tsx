@@ -1,5 +1,4 @@
 import { Controls } from "@/components/video-player/Controls";
-import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -13,7 +12,8 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
 
@@ -28,7 +28,6 @@ export default function page() {
   const dimensions = useWindowDimensions();
   useOrientation();
   useOrientationSettings();
-  useAndroidNavigationBar();
 
   const [showControls, setShowControls] = useState(true);
   const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
@@ -87,7 +86,7 @@ export default function page() {
       }}
       className="flex flex-col items-center justify-center"
     >
-      <StatusBar hidden />
+      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
@@ -119,7 +118,6 @@ export default function page() {
           }}
         />
       </Pressable>
-
       <Controls
         item={playSettings.item}
         videoRef={videoRef}
