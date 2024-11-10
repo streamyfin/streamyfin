@@ -62,7 +62,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
         getDefaultPlaySettings(item, settings);
 
       // 4. Set states
-      setSelectedMediaSource(mediaSource);
+      setSelectedMediaSource(mediaSource ?? undefined);
       setSelectedAudioStream(audioIndex ?? 0);
       setSelectedSubtitleStream(subtitleIndex ?? -1);
       setMaxBitrate(bitrate);

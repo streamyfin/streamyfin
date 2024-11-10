@@ -31,7 +31,6 @@ import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useEffect, useRef } from "react";
@@ -39,6 +38,7 @@ import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
+import { SystemBars } from "react-native-edge-to-edge";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -312,7 +312,7 @@ function Layout() {
               <PlaySettingsProvider>
                 <DownloadProvider>
                   <BottomSheetModalProvider>
-                    <StatusBar style="light" backgroundColor="#000" />
+                    <SystemBars style="light" hidden={false} />
                     <ThemeProvider value={DarkTheme}>
                       <Stack initialRouteName="/home">
                         <Stack.Screen
@@ -320,6 +320,7 @@ function Layout() {
                           options={{
                             headerShown: false,
                             title: "",
+                            header: () => null,
                           }}
                         />
                         <Stack.Screen
