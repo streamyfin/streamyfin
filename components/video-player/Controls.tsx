@@ -208,8 +208,6 @@ export const Controls: React.FC<Props> = ({
         ? maxValue - currentProgress
         : ticksToSeconds(maxValue - currentProgress);
 
-      // console.log("Remaning time is: ", remaining);
-
       setCurrentTime(current);
       setRemainingTime(remaining);
 

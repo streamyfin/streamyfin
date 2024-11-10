@@ -248,12 +248,6 @@ export default function page() {
       progress.value = currentTime;
       const currentTimeInTicks = msToTicks(currentTime);
 
-      // console.log("onProgress ~", {
-      //   currentTime,
-      //   currentTimeInTicks,
-      //   isPlaying,
-      // });
-
       await getPlaystateApi(api).onPlaybackProgress({
         itemId: item.Id,
         audioStreamIndex: audioIndex ? audioIndex : undefined,

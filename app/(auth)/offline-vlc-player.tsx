@@ -219,6 +219,7 @@ export default function page() {
           pause={pause}
           stop={stop}
           seek={videoRef.current?.seekTo}
+          isVlc
           getAudioTracks={videoRef.current?.getAudioTracks}
           getSubtitleTracks={videoRef.current?.getSubtitleTracks}
           setAudioTrack={videoRef.current?.setAudioTrack}
