@@ -1,5 +1,5 @@
 {
-  "platforms": ["ios", "tvos", "android", "web"],
+  "platforms": ["ios"],
   "ios": {
     "modules": ["VlcPlayerModule"]
   },
