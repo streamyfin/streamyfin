@@ -34,7 +34,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useEffect, useRef } from "react";
-import { AppState } from "react-native";
+import { Appearance, AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
@@ -216,6 +216,8 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  Appearance.setColorScheme("dark");
 
   if (!loaded) {
     return null;

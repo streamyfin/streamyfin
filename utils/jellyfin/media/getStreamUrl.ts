@@ -126,12 +126,27 @@ export const getStreamUrl = async ({
     }
 
     if (mediaSource?.SupportsDirectPlay) {
-      console.log(
-        "Video is being direct played:",
-        `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`
-      );
+      const searchParams = new URLSearchParams({
+        playSessionId: sessionData?.PlaySessionId || "",
+        mediaSourceId: mediaSource?.Id || "",
+        static: "true",
+        subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
+        audioStreamIndex: audioStreamIndex?.toString() || "",
+        deviceId: api.deviceInfo.id,
+        api_key: api.accessToken,
+        startTimeTicks: startTimeTicks.toString(),
+        maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
+        userId: userId || "",
+      });
+
+      const directPlayUrl = `${
+        api.basePath
+      }/Videos/${itemId}/stream.mp4?${searchParams.toString()}`;
+
+      console.log("Video is being direct played:", directPlayUrl);
+
       return {
-        url: `${api.basePath}/Videos/${itemId}/stream.mp4?playSessionId=${sessionData?.PlaySessionId}&mediaSourceId=${mediaSource?.Id}&static=true&subtitleStreamIndex=${subtitleStreamIndex}&audioStreamIndex=${audioStreamIndex}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`,
+        url: directPlayUrl,
         sessionId: sessionId,
         mediaSource,
       };

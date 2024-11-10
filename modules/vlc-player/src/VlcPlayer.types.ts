@@ -41,6 +41,7 @@ export type VlcPlayerSource = {
 export type TrackInfo = {
   name: string;
   index: number;
+  language?: string;
 };
 
 export type ChapterInfo = {

@@ -22,7 +22,13 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
@@ -33,7 +39,7 @@ import Video, {
   VideoRef,
 } from "react-native-video";
 
-export default function page() {
+export const player = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const [settings] = useSettings();
@@ -473,7 +479,7 @@ export default function page() {
       )}
     </View>
   );
-}
+};
 
 export function usePoster(
   item: BaseItemDto | null | undefined,

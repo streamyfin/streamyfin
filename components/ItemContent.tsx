@@ -64,6 +64,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     } = useDefaultPlaySettings(item, settings);
 
     useEffect(() => {
+      console.log(defaultAudioIndex, defaultSubtitleIndex);
       setSelectedOptions(() => ({
         bitrate: defaultBitrate,
         mediaSource: defaultMediaSource,
@@ -184,15 +185,16 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                   <AudioTrackSelector
                     className="mr-1"
                     source={selectedOptions.mediaSource}
-                    onChange={(val) =>
+                    onChange={(val) => {
+                      console.log(val);
                       setSelectedOptions(
                         (prev) =>
                           prev && {
                             ...prev,
                             audioIndex: val,
                           }
-                      )
-                    }
+                      );
+                    }}
                     selected={selectedOptions.audioIndex}
                   />
                   <SubtitleTrackSelector

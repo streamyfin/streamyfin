@@ -6,13 +6,13 @@ import {
   TrackInfo,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { writeToLog } from "@/utils/log";
 import {
   formatTimeString,
-  msToSeconds,
   msToTicks,
   secondsToMs,
   ticksToMs,
@@ -25,6 +25,7 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
@@ -42,11 +43,9 @@ import {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
+import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
-import { useAtomValue } from "jotai";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import * as DropdownMenu from "zeego/dropdown-menu";
 
 interface Props {
   item: BaseItemDto;
@@ -68,7 +67,7 @@ interface Props {
   seek: (ticks: number) => void;
   play: (() => Promise<void>) | (() => void);
   pause: () => void;
-  getAudioTracks?: () => Promise<TrackInfo[] | null>;
+  getAudioTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
   getSubtitleTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
   setSubtitleURL?: (url: string, customName: string) => void;
   setSubtitleTrack?: (index: number) => void;
@@ -335,11 +334,13 @@ export const Controls: React.FC<Props> = ({
 
   useEffect(() => {
     const fetchTracks = async () => {
-      if (getAudioTracks && getSubtitleTracks) {
-        const audio = await getAudioTracks();
+      if (getSubtitleTracks) {
         const subtitles = await getSubtitleTracks();
-        setAudioTracks(audio);
         setSubtitleTracks(subtitles);
+      }
+      if (getAudioTracks) {
+        const audio = await getAudioTracks();
+        setAudioTracks(audio);
       }
     };
 
@@ -395,11 +396,6 @@ export const Controls: React.FC<Props> = ({
     )[];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource]);
 
-  // useEffect(() => {
-
-  // }, [allSubtitleTracks, setSubtitleTrack]);
-  const [subtitleTrackSet, setSubtitleTrackSet] = useState(false);
-
   return (
     <View
       style={[
@@ -413,114 +409,102 @@ export const Controls: React.FC<Props> = ({
       ]}
     >
       {/* <VideoDebugInfo playerRef={videoRef} /> */}
-
-      {setSubtitleURL && setSubtitleTrack && setAudioTrack && (
-        <View
-          style={{
-            position: "absolute",
-            top: insets.top,
-            left: insets.left,
-            zIndex: 1000,
-            opacity: showControls ? 1 : 0,
-          }}
-          className="p-4"
-          pointerEvents={showControls ? "auto" : "none"}
-        >
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <View className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={24}
-                  color={"white"}
-                />
-              </View>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content
-              loop={true}
-              side="bottom"
-              align="start"
-              alignOffset={0}
-              avoidCollisions={true}
-              collisionPadding={8}
-              sideOffset={8}
+      <View
+        style={{
+          position: "absolute",
+          top: insets.top,
+          left: insets.left,
+          zIndex: 1000,
+          opacity: showControls ? 1 : 0,
+        }}
+        className="p-4"
+      >
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            <TouchableOpacity
+              onPress={() => console.log("open settings")}
+              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
             >
-              <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger key="subtitle-trigger">
-                  Subtitle
-                </DropdownMenu.SubTrigger>
-                <DropdownMenu.SubContent
-                  alignOffset={-10}
-                  avoidCollisions={true}
-                  collisionPadding={0}
-                  loop={true}
-                  sideOffset={10}
-                >
-                  {allSubtitleTracks.length > 0
-                    ? allSubtitleTracks?.map((sub, idx: number) => (
-                        <DropdownMenu.Item
-                          key={`subtitle-item-${idx}`}
-                          onSelect={() => {
-                            console.log("Trying to set subtitle...");
-                            if (sub.isExternal) {
-                              console.log("Setting external sub:", sub);
-                              setSubtitleURL(
-                                api?.basePath + sub.deliveryUrl,
-                                sub.name
-                              );
-                              return;
-                            }
+              <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
+            </TouchableOpacity>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content
+            loop={true}
+            side="bottom"
+            align="start"
+            alignOffset={0}
+            avoidCollisions={true}
+            collisionPadding={8}
+            sideOffset={8}
+          >
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger key="subtitle-trigger">
+                Subtitle
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.SubContent
+                alignOffset={-10}
+                avoidCollisions={true}
+                collisionPadding={0}
+                loop={true}
+                sideOffset={10}
+              >
+                {allSubtitleTracks?.map((sub, idx: number) => (
+                  <DropdownMenu.Item
+                    key={`subtitle-item-${idx}`}
+                    onSelect={() => {
+                      console.log("Trying to set subtitle...");
+                      if (sub.isExternal) {
+                        console.log("Setting external sub:", sub);
+                        setSubtitleURL &&
+                          setSubtitleURL(
+                            api?.basePath + sub.deliveryUrl,
+                            sub.name
+                          );
+                        return;
+                      }
 
-                            console.log("Setting sub with index:", sub.index);
-                            setSubtitleTrack(sub.index);
-                          }}
-                        >
-                          <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle
-                            key={`subtitle-item-title-${idx}`}
-                          >
-                            {sub.name}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.Item>
-                      ))
-                    : null}
-                </DropdownMenu.SubContent>
-              </DropdownMenu.Sub>
-              <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger key="audio-trigger">
-                  Audio
-                </DropdownMenu.SubTrigger>
-                <DropdownMenu.SubContent
-                  alignOffset={-10}
-                  avoidCollisions={true}
-                  collisionPadding={0}
-                  loop={true}
-                  sideOffset={10}
-                >
-                  {audioTracks?.length
-                    ? audioTracks?.map((a, idx: number) => (
-                        <DropdownMenu.CheckboxItem
-                          key={`audio-item-${idx}`}
-                          value="off"
-                          onValueChange={() => {
-                            setAudioTrack(a.index);
-                          }}
-                        >
-                          <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle
-                            key={`audio-item-title-${idx}`}
-                          >
-                            {a.name}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.CheckboxItem>
-                      ))
-                    : null}
-                </DropdownMenu.SubContent>
-              </DropdownMenu.Sub>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-        </View>
-      )}
+                      console.log("Setting sub with index:", sub.index);
+                      setSubtitleTrack && setSubtitleTrack(sub.index);
+                    }}
+                  >
+                    <DropdownMenu.ItemIndicator />
+                    <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
+                      {sub.name}
+                    </DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Sub>
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger key="audio-trigger">
+                Audio
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.SubContent
+                alignOffset={-10}
+                avoidCollisions={true}
+                collisionPadding={0}
+                loop={true}
+                sideOffset={10}
+              >
+                {audioTracks?.map((a, idx: number) => (
+                  <DropdownMenu.CheckboxItem
+                    key={`audio-item-${idx}`}
+                    value="off"
+                    onValueChange={() => {
+                      setAudioTrack && setAudioTrack(a.index);
+                    }}
+                  >
+                    <DropdownMenu.ItemIndicator />
+                    <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                      {a.name}
+                    </DropdownMenu.ItemTitle>
+                  </DropdownMenu.CheckboxItem>
+                ))}
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Sub>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </View>
 
       <View
         style={[
