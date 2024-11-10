@@ -32,6 +32,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Button } from "./Button";
 import { SelectedOptions } from "./ItemContent";
+import ios from "@/utils/profiles/ios";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -149,7 +150,7 @@ export const PlayButton: React.FC<Props> = ({
                 const data = await getStreamUrl({
                   api,
                   item,
-                  deviceProfile: chromecastProfile,
+                  deviceProfile: ios,
                   startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
                   userId: user?.Id,
                   audioStreamIndex: selectedOptions.audioIndex,

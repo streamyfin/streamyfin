@@ -1,14 +1,6 @@
 import {
-  DeviceProfile,
-  DlnaProfileType,
+  DeviceProfile
 } from "@jellyfin/sdk/lib/generated-client/models";
-
-const MediaTypes = {
-  Audio: "Audio",
-  Video: "Video",
-  Photo: "Photo",
-  Book: "Book",
-};
 
 export const chromecastProfile: DeviceProfile = {
   Name: "Chromecast Video Profile",

@@ -1,4 +1,4 @@
-import iosFmp4 from "@/utils/profiles/iosFmp4";
+import native from "@/utils/profiles/native";
 import { Api } from "@jellyfin/sdk";
 import {
   BaseItemDto,
@@ -6,8 +6,6 @@ import {
   PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import { getAuthHeaders } from "../jellyfin";
-import native from "@/utils/profiles/native";
 
 export const getStreamUrl = async ({
   api,
