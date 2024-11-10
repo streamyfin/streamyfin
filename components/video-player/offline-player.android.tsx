@@ -11,13 +11,19 @@ import { Api } from "@jellyfin/sdk";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
 
-export default function page() {
+const OfflinePlayer = () => {
   const { playSettings, playUrl } = usePlaySettings();
 
   const api = useAtomValue(apiAtom);
@@ -33,6 +39,15 @@ export default function page() {
   const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -95,19 +110,18 @@ export default function page() {
     setIsBuffering(data.playableDuration === 0);
   }, []);
 
+  if (!isReady) return null;
+
   if (!playSettings || !playUrl || !api || !videoSource || !playSettings.item)
     return null;
 
   return (
     <View
       style={{
-        width: dimensions.width,
-        height: dimensions.height,
         position: "relative",
       }}
       className="flex flex-col items-center justify-center"
     >
-      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
@@ -160,7 +174,7 @@ export default function page() {
       />
     </View>
   );
-}
+};
 
 export function useVideoSource(
   playSettings: PlaybackType | null,
@@ -189,3 +203,5 @@ export function useVideoSource(
 
   return videoSource;
 }
+
+export default OfflinePlayer;

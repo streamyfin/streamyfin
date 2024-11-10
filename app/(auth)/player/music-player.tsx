@@ -1,16 +1,19 @@
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import AlbumCover from "@/components/posters/AlbumCover";
 import { Controls } from "@/components/video-player/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import { TrackInfo } from "@/modules/vlc-player";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  PlaybackType,
+  usePlaySettings,
+} from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import native from "@/utils/profiles/native";
 import { secondsToTicks } from "@/utils/secondsToTicks";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -20,27 +23,29 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
-import { SystemBars } from "react-native-edge-to-edge";
+import { debounce } from "lodash";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Dimensions,
+  Pressable,
+  StatusBar,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import Video, {
-  OnProgressData,
-  SelectedTrack,
-  SelectedTrackType,
-  VideoRef,
-} from "react-native-video";
+import Video, { OnProgressData, VideoRef } from "react-native-video";
 
 export default function page() {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const [settings] = useSettings();
   const videoRef = useRef<VideoRef | null>(null);
+  const windowDimensions = useWindowDimensions();
 
   const firstTime = useRef(true);
-  const dimensions = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -81,15 +86,7 @@ export default function page() {
   } = useQuery({
     queryKey: ["item", itemId],
     queryFn: async () => {
-      if (!api) {
-        throw new Error("No api");
-      }
-
-      if (!itemId) {
-        console.warn("No itemId");
-        return null;
-      }
-
+      if (!api) return;
       const res = await getUserLibraryApi(api).getItem({
         itemId,
         userId: user?.Id,
@@ -97,6 +94,7 @@ export default function page() {
 
       return res.data;
     },
+    enabled: !!itemId && !!api,
     staleTime: 0,
   });
 
@@ -105,25 +103,9 @@ export default function page() {
     isLoading: isLoadingStreamUrl,
     isError: isErrorStreamUrl,
   } = useQuery({
-    queryKey: [
-      "stream-url",
-      itemId,
-      audioIndex,
-      subtitleIndex,
-      bitrateValue,
-      user,
-      mediaSourceId,
-    ],
+    queryKey: ["stream-url"],
     queryFn: async () => {
-      if (!api) {
-        throw new Error("No api");
-      }
-
-      if (!item) {
-        console.warn("No item", itemId, item);
-        return null;
-      }
-
+      if (!api) return;
       const res = await getStreamUrl({
         api,
         item,
@@ -133,17 +115,13 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
-        deviceProfile: native,
       });
 
       if (!res) return null;
 
       const { mediaSource, sessionId, url } = res;
 
-      if (!sessionId || !mediaSource || !url) {
-        console.warn("No sessionId or mediaSource or url", url);
-        return null;
-      }
+      if (!sessionId || !mediaSource || !url) return null;
 
       return {
         mediaSource,
@@ -151,8 +129,6 @@ export default function page() {
         url,
       };
     },
-    enabled: !!item,
-    staleTime: 0,
   });
 
   const poster = usePoster(item, api);
@@ -197,23 +173,26 @@ export default function page() {
       item,
       videoRef,
       settings,
-      stream,
       audioIndex,
       subtitleIndex,
       mediaSourceId,
+      stream,
     ]
   );
 
   const play = useCallback(() => {
+    console.log("play");
     videoRef.current?.resume();
     reportPlaybackStart();
   }, [videoRef]);
 
   const pause = useCallback(() => {
+    console.log("play");
     videoRef.current?.pause();
   }, [videoRef]);
 
   const stop = useCallback(() => {
+    console.log("stop");
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     reportPlaybackStopped();
@@ -239,7 +218,7 @@ export default function page() {
   const reportPlaybackStart = async () => {
     if (!item?.Id) return;
     await getPlaystateApi(api!).onPlaybackStart({
-      itemId: item.Id,
+      itemId: item?.Id,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
       subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
       mediaSourceId: mediaSourceId,
@@ -253,21 +232,16 @@ export default function page() {
       if (isSeeking.value === true) return;
       if (isPlaybackStopped === true) return;
 
-      const ticks = secondsToTicks(data.currentTime);
+      const ticks = data.currentTime * 10000000;
 
-      progress.value = ticks;
+      progress.value = secondsToTicks(data.currentTime);
       cacheProgress.value = secondsToTicks(data.playableDuration);
+      setIsBuffering(data.playableDuration === 0);
 
-      // TODO: Use this when streaming with HLS url, but NOT when direct playing
-      // TODO: since playable duration is always 0 then.
-      // setIsBuffering(data.playableDuration === 0);
-
-      if (!item?.Id || data.currentTime === 0) {
-        return;
-      }
+      if (!item?.Id || data.currentTime === 0) return;
 
       await getPlaystateApi(api!).onPlaybackProgress({
-        itemId: item.Id,
+        itemId: item.Id!,
         audioStreamIndex: audioIndex ? audioIndex : undefined,
         subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
         mediaSourceId: mediaSourceId,
@@ -282,11 +256,10 @@ export default function page() {
       isPlaying,
       api,
       isPlaybackStopped,
-      isSeeking,
-      stream,
-      mediaSourceId,
       audioIndex,
       subtitleIndex,
+      mediaSourceId,
+      stream,
     ]
   );
 
@@ -310,40 +283,6 @@ export default function page() {
     stopPlayback: stop,
   });
 
-  const [selectedTextTrack, setSelectedTextTrack] = useState<
-    SelectedTrack | undefined
-  >();
-
-  const [embededTextTracks, setEmbededTextTracks] = useState<
-    {
-      index: number;
-      language?: string | undefined;
-      selected?: boolean | undefined;
-      title?: string | undefined;
-      type: any;
-    }[]
-  >([]);
-
-  const [audioTracks, setAudioTracks] = useState<TrackInfo[]>([]);
-  const [selectedAudioTrack, setSelectedAudioTrack] = useState<
-    SelectedTrack | undefined
-  >(undefined);
-
-  const getAudioTracks = (): TrackInfo[] => {
-    return audioTracks.map((t) => ({
-      name: t.name,
-      index: t.index,
-    }));
-  };
-
-  const getSubtitleTracks = (): TrackInfo[] => {
-    return embededTextTracks.map((t) => ({
-      name: t.title ?? "",
-      index: t.index,
-      language: t.language,
-    }));
-  };
-
   if (isLoadingItem || isLoadingStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
@@ -358,40 +297,40 @@ export default function page() {
       </View>
     );
 
+  if (!item || !stream)
+    return (
+      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+        <Text className="text-white">Error</Text>
+      </View>
+    );
+
   return (
     <View
       style={{
-        flex: 1,
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        width: dimensions.width,
-        height: dimensions.height,
+        width: windowDimensions.width,
+        height: windowDimensions.height,
         position: "relative",
       }}
+      className="flex flex-col items-center justify-center"
     >
-      <SystemBars hidden />
+      <View className="h-screen w-screen top-0 left-0 flex flex-col items-center justify-center p-4 absolute z-0">
+        <Image
+          source={poster}
+          style={{ width: "100%", height: "100%", resizeMode: "contain" }}
+        />
+      </View>
+
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
         }}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: dimensions.width,
-          height: dimensions.height,
-          zIndex: 0,
-        }}
+        className="absolute z-0 h-full w-full opacity-0"
       >
-        {videoSource ? (
+        {videoSource && (
           <Video
             ref={videoRef}
             source={videoSource}
-            style={{
-              width: dimensions.width,
-              height: dimensions.height,
-            }}
+            style={{ width: "100%", height: "100%" }}
             resizeMode={ignoreSafeAreas ? "cover" : "contain"}
             onProgress={onProgress}
             onError={() => {}}
@@ -410,67 +349,32 @@ export default function page() {
             ignoreSilentSwitch="ignore"
             fullscreen={false}
             onPlaybackStateChanged={(state) => {
-              if (isSeeking.value === false) setIsPlaying(state.isPlaying);
+              setIsPlaying(state.isPlaying);
             }}
-            onTextTracks={(data) => {
-              setEmbededTextTracks(data.textTracks as any);
-            }}
-            onBuffer={(e) => {
-              setIsBuffering(e.isBuffering);
-            }}
-            onAudioTracks={(e) => {
-              console.log("onAudioTracks: ", e.audioTracks);
-              setAudioTracks(
-                e.audioTracks.map((t) => ({
-                  index: t.index,
-                  name: t.title ?? "",
-                  language: t.language,
-                }))
-              );
-            }}
-            selectedTextTrack={selectedTextTrack}
-            selectedAudioTrack={selectedAudioTrack}
           />
-        ) : (
-          <Text>No video source...</Text>
         )}
       </Pressable>
 
-      {item && (
-        <Controls
-          videoRef={videoRef}
-          enableTrickplay={true}
-          item={item}
-          togglePlay={togglePlay}
-          isPlaying={isPlaying}
-          isSeeking={isSeeking}
-          progress={progress}
-          cacheProgress={cacheProgress}
-          isBuffering={isBuffering}
-          showControls={showControls}
-          setShowControls={setShowControls}
-          setIgnoreSafeAreas={setIgnoreSafeAreas}
-          ignoreSafeAreas={ignoreSafeAreas}
-          seek={seek}
-          play={play}
-          pause={pause}
-          getSubtitleTracks={getSubtitleTracks}
-          setSubtitleTrack={(i) =>
-            setSelectedTextTrack({
-              type: SelectedTrackType.INDEX,
-              value: i,
-            })
-          }
-          getAudioTracks={getAudioTracks}
-          setAudioTrack={(i) => {
-            console.log("setAudioTrack ~", i);
-            setSelectedAudioTrack({
-              type: SelectedTrackType.INDEX,
-              value: 10,
-            });
-          }}
-        />
-      )}
+      <Controls
+        item={item}
+        videoRef={videoRef}
+        togglePlay={togglePlay}
+        isPlaying={isPlaying}
+        isSeeking={isSeeking}
+        progress={progress}
+        cacheProgress={cacheProgress}
+        isBuffering={isBuffering}
+        showControls={showControls}
+        setShowControls={setShowControls}
+        setIgnoreSafeAreas={setIgnoreSafeAreas}
+        ignoreSafeAreas={ignoreSafeAreas}
+        enableTrickplay={false}
+        pause={pause}
+        play={play}
+        seek={seek}
+        isVlc={false}
+        stop={stop}
+      />
     </View>
   );
 }
@@ -522,7 +426,7 @@ export function useVideoSource(
         subtitle: item?.Album ?? undefined,
       },
     };
-  }, [item, api, poster, url]);
+  }, [item, api, poster]);
 
   return videoSource;
 }

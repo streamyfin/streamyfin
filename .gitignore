@@ -26,7 +26,7 @@ package-lock.json
 /ios
 /android
 
-modules/vlc-player/android
+modules/player/android
 
 pc-api-7079014811501811218-719-3b9f15aeccf8.json
 credentials.json
@@ -35,4 +35,4 @@ credentials.json
 .continuerc.json
 
 # Ignore VLC player android folder
-modules/vlc-player/android
+modules/player/android

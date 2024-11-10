@@ -1,5 +1,4 @@
 import { Controls } from "@/components/video-player/Controls";
-import { VlcControls } from "@/components/video-player/VlcControls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { VlcPlayerView } from "@/modules/vlc-player";
@@ -21,12 +20,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 import { SelectedTrackType } from "react-native-video";
 
-export default function page() {
+const OfflinePlayer = () => {
   const { playSettings, playUrl } = usePlaySettings();
   const api = useAtomValue(apiAtom);
   const [settings] = useSettings();
@@ -178,7 +177,6 @@ export default function page() {
       }}
       className="flex flex-col items-center justify-center"
     >
-      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
@@ -229,4 +227,6 @@ export default function page() {
       )}
     </View>
   );
-}
+};
+
+export default OfflinePlayer;

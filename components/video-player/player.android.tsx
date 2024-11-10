@@ -32,6 +32,7 @@ import React, {
 import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Video, {
   OnProgressData,
   SelectedTrack,
@@ -39,7 +40,7 @@ import Video, {
   VideoRef,
 } from "react-native-video";
 
-export const player = () => {
+const Player = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const [settings] = useSettings();
@@ -368,25 +369,20 @@ export const player = () => {
     <View
       style={{
         flex: 1,
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        width: dimensions.width,
-        height: dimensions.height,
         position: "relative",
+        height: "100%",
+        width: "100%",
       }}
     >
-      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
         }}
         style={{
+          flex: 1,
+          height: "100%",
+          width: "100%",
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: dimensions.width,
-          height: dimensions.height,
           zIndex: 0,
         }}
       >
@@ -395,8 +391,8 @@ export const player = () => {
             ref={videoRef}
             source={videoSource}
             style={{
-              width: dimensions.width,
-              height: dimensions.height,
+              height: "100%",
+              width: "100%",
             }}
             resizeMode={ignoreSafeAreas ? "cover" : "contain"}
             onProgress={onProgress}
@@ -532,3 +528,5 @@ export function useVideoSource(
 
   return videoSource;
 }
+
+export default Player;

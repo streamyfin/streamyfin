@@ -27,24 +27,12 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  Alert,
-  Pressable,
-  StatusBar,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { Alert, Pressable, useWindowDimensions, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 
-export const player = () => {
+const Player = () => {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -322,7 +310,6 @@ export const player = () => {
       }}
       className="flex flex-col items-center justify-center"
     >
-      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
@@ -409,3 +396,5 @@ export function usePoster(
 
   return poster ?? undefined;
 }
+
+export default Player;

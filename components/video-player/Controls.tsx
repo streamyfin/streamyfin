@@ -41,7 +41,10 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
@@ -164,11 +167,7 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
-    if (Platform.OS === "ios") {
-      router.replace(`/vlc-player?${queryParams}`);
-    } else {
-      router.replace(`/player?${queryParams}`);
-    }
+    router.replace(`/player?${queryParams}`);
   }, [previousItem, settings]);
 
   const goToNextItem = useCallback(() => {
@@ -193,11 +192,7 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
-    if (Platform.OS === "ios") {
-      router.replace(`/vlc-player?${queryParams}`);
-    } else {
-      router.replace(`/player?${queryParams}`);
-    }
+    router.replace(`/player?${queryParams}`);
   }, [nextItem, settings]);
 
   const updateTimes = useCallback(
@@ -398,22 +393,19 @@ export const Controls: React.FC<Props> = ({
 
   return (
     <View
-      style={[
-        {
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: windowDimensions.width,
-          height: windowDimensions.height,
-        },
-      ]}
+      style={{
+        flex: 1,
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+      }}
     >
       {/* <VideoDebugInfo playerRef={videoRef} /> */}
       <View
         style={{
           position: "absolute",
-          top: insets.top,
-          left: insets.left,
           zIndex: 1000,
           opacity: showControls ? 1 : 0,
         }}
@@ -510,8 +502,7 @@ export const Controls: React.FC<Props> = ({
         style={[
           {
             position: "absolute",
-            bottom: insets.bottom + 97,
-            right: insets.right,
+            bottom: 97,
           },
         ]}
         className={`z-10 p-4
@@ -529,8 +520,7 @@ export const Controls: React.FC<Props> = ({
       <View
         style={{
           position: "absolute",
-          bottom: insets.bottom + 94,
-          right: insets.right,
+          bottom: 94,
           height: 70,
         }}
         pointerEvents={showSkipCreditButton ? "auto" : "none"}
@@ -557,8 +547,8 @@ export const Controls: React.FC<Props> = ({
               position: "absolute",
               top: 0,
               left: 0,
-              width: windowDimensions.width + 100,
-              height: windowDimensions.height + 100,
+              width: "100%",
+              height: "100%",
               opacity: showControls ? 1 : 0,
             },
           ]}
@@ -571,8 +561,8 @@ export const Controls: React.FC<Props> = ({
           position: "absolute",
           top: 0,
           left: 0,
-          width: windowDimensions.width,
-          height: windowDimensions.height,
+          width: "100%",
+          height: "100%",
         }}
         pointerEvents="none"
         className={`flex flex-col items-center justify-center
@@ -586,8 +576,8 @@ export const Controls: React.FC<Props> = ({
         style={[
           {
             position: "absolute",
-            top: insets.top,
-            right: insets.right,
+            top: 0,
+            right: 0,
             opacity: showControls ? 1 : 0,
           },
         ]}
@@ -621,9 +611,9 @@ export const Controls: React.FC<Props> = ({
         style={[
           {
             position: "absolute",
-            width: windowDimensions.width - insets.left - insets.right,
-            maxHeight: windowDimensions.height,
-            left: insets.left,
+            width: "100%",
+            maxHeight: "100%",
+            left: 0,
             bottom: Platform.OS === "ios" ? insets.bottom : insets.bottom,
             opacity: showControls ? 1 : 0,
           },

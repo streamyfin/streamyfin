@@ -88,15 +88,12 @@ export const PlayButton: React.FC<Props> = ({
     },
   });
 
-  // const directStream = useMemo(() => {
-  //   if (!url || url.length === 0) return "Loading...";
-  //   if (url.includes("m3u8")) return "Transcoded stream";
-  //   return "Direct stream";
-  // }, [url]);
-
-  // const item = useMemo(() => {
-  //   return playSettings?.item;
-  // }, [playSettings?.item]);
+  const goToPlayer = useCallback(
+    (q: string) => {
+      router.push(`/player/player?${q}`);
+    },
+    [router]
+  );
 
   const onPress = useCallback(async () => {
     if (!item) return;
@@ -112,11 +109,7 @@ export const PlayButton: React.FC<Props> = ({
     const queryString = queryParams.toString();
 
     if (!client) {
-      if (Platform.OS === "ios") {
-        router.push(`/vlc-player?${queryString}`);
-      } else {
-        router.push(`/player?${queryString}`);
-      }
+      goToPlayer(queryString);
       return;
     }
 
@@ -237,9 +230,7 @@ export const PlayButton: React.FC<Props> = ({
             });
             break;
           case 1:
-            if (Platform.OS === "ios")
-              router.push(`/vlc-player?${queryString}`);
-            else router.push(`/player?${queryString}`);
+            goToPlayer(queryString);
             break;
           case cancelButtonIndex:
             break;
