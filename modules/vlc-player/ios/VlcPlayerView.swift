@@ -12,6 +12,7 @@ class VlcPlayerView: ExpoView {
     private var lastReportedIsPlaying: Bool?
     private var isMediaReady: Bool = false
     private var customSubtitles: [(internalName: String, originalName: String)] = []
+    private var startPosition: Int32?
 
     // MARK: - Initialization
 
@@ -108,6 +109,7 @@ class VlcPlayerView: ExpoView {
             let autoplay = source["autoplay"] as? Bool ?? false
             let isNetwork = source["isNetwork"] as? Bool ?? false
             let startPosition = source["startPosition"] as? Int32 ?? 0
+            self.startPosition = startPosition
 
             guard let uri = uri, !uri.isEmpty else {
                 print("Error: Invalid or empty URI")
@@ -160,10 +162,10 @@ class VlcPlayerView: ExpoView {
             if autoplay {
                 print("Playing...")
                 self.play()
-                if startPosition > 0 {
-                    print("Debug: Starting at position: \(startPosition)")
-                    self.seekTo(startPosition)
-                }
+                // if startPosition > 0 {
+                //     print("Debug: Starting at position: \(startPosition)")
+                //     self.seekTo(startPosition)
+                // }
             }
         }
     }
@@ -585,6 +587,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             if player.isPlaying && !self.isMediaReady {
                 self.isMediaReady = true
                 self.onVideoLoadEnd?(stateInfo)
+                self.seekToStartTime()
             }
 
             if self.lastReportedState != currentState
@@ -593,6 +596,22 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 self.lastReportedState = currentState
                 self.lastReportedIsPlaying = player.isPlaying
                 self.onVideoStateChange?(stateInfo)
+            }
+        }
+    }
+
+    func seekToStartTime() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let player = self.mediaPlayer else { return }
+
+            if let startPosition = self.startPosition, startPosition > 0 {
+                print("Debug: Seeking to start position: \(startPosition)")
+                player.time = VLCTime(int: Int32(startPosition))
+
+                // Ensure the player continues playing after seeking
+                if !player.isPlaying {
+                    player.play()
+                }
             }
         }
     }
@@ -608,12 +627,10 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             guard let player = self.mediaPlayer else { return }
 
             let currentTimeMs = player.time.intValue
-            // let remainingTimeMs = player.remainingTime
+            let remainingTimeMs = player.remainingTime
             let durationMs = player.media?.length.intValue ?? 0
 
-            // print("currentTimeMs: \(currentTimeMs) RemainingTimeMs: \(remainingTimeMs)")
             if currentTimeMs >= 0 && currentTimeMs < durationMs {
-
                 self.onVideoProgress?([
                     "currentTime": currentTimeMs,
                     "duration": durationMs,
