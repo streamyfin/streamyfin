@@ -45,6 +45,7 @@ export const getStreamUrl = async ({
   let sessionId: string | null | undefined;
 
   if (item.Type === "Program") {
+    console.log("Item is of type program...");
     const res0 = await getMediaInfoApi(api).getPlaybackInfo(
       {
         userId,
@@ -97,6 +98,15 @@ export const getStreamUrl = async ({
       },
     }
   );
+
+  console.log(
+    "getStreamUrl ~ getMediaInfoApi ~ getPlaybackInfo ~",
+    res2.status
+  );
+
+  if (res2.status !== 200) {
+    console.error("Error getting playback info:", res2.status, res2.statusText);
+  }
 
   sessionId = res2.data.PlaySessionId || null;
 
