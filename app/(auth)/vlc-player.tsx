@@ -211,11 +211,12 @@ export default function page() {
   }, [videoRef]);
 
   const reportPlaybackStopped = async () => {
-    if (!api) return;
-    await getPlaystateApi(api).onPlaybackStopped({
+    const currentTimeInTicks = msToTicks(progress.value);
+
+    await getPlaystateApi(api!).onPlaybackStopped({
       itemId: item?.Id!,
       mediaSourceId: mediaSourceId,
-      positionTicks: Math.floor(progress.value),
+      positionTicks: currentTimeInTicks,
       playSessionId: stream?.sessionId!,
     });
   };
@@ -388,7 +389,7 @@ export default function page() {
           setSubtitleTrack={videoRef.current.setSubtitleTrack}
           setSubtitleURL={videoRef.current.setSubtitleURL}
           setAudioTrack={videoRef.current.setAudioTrack}
-          stop={videoRef.current?.stop}
+          stop={stop}
           isVlc
         />
       )}
