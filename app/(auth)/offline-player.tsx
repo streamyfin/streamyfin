@@ -38,6 +38,16 @@ export default function page() {
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
 
+  const [embededTextTracks, setEmbededTextTracks] = useState<
+    {
+      index: number;
+      language?: string | undefined;
+      selected?: boolean | undefined;
+      title?: string | undefined;
+      type: any;
+    }[]
+  >([]);
+
   const togglePlay = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPlaying) {
@@ -56,6 +66,17 @@ export default function page() {
     setIsPlaying(false);
     videoRef.current?.pause();
   }, [videoRef]);
+
+  const pause = useCallback(() => {
+    videoRef.current?.pause();
+  }, [videoRef]);
+
+  const seek = useCallback(
+    (seconds: number) => {
+      videoRef.current?.seek(seconds);
+    },
+    [videoRef]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -118,9 +139,11 @@ export default function page() {
           }}
         />
       </Pressable>
+
       <Controls
-        item={playSettings.item}
         videoRef={videoRef}
+        enableTrickplay={true}
+        item={playSettings.item}
         togglePlay={togglePlay}
         isPlaying={isPlaying}
         isSeeking={isSeeking}
@@ -131,6 +154,9 @@ export default function page() {
         setShowControls={setShowControls}
         setIgnoreSafeAreas={setIgnoreSafeAreas}
         ignoreSafeAreas={ignoreSafeAreas}
+        seek={seek}
+        play={play}
+        pause={pause}
       />
     </View>
   );

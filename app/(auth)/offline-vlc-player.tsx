@@ -1,6 +1,5 @@
 import { Controls } from "@/components/video-player/Controls";
 import { VlcControls } from "@/components/video-player/VlcControls";
-import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { VlcPlayerView } from "@/modules/vlc-player";
@@ -23,6 +22,7 @@ import React, {
   useState,
 } from "react";
 import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 import { SelectedTrackType } from "react-native-video";
 
@@ -35,7 +35,6 @@ export default function page() {
   const dimensions = useWindowDimensions();
   useOrientation();
   useOrientationSettings();
-  useAndroidNavigationBar();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -106,7 +105,6 @@ export default function page() {
 
   useOrientation();
   useOrientationSettings();
-  useAndroidNavigationBar();
 
   const selectedSubtitleTrack = useMemo(() => {
     const a = playSettings?.mediaSource?.MediaStreams?.find(
@@ -180,7 +178,7 @@ export default function page() {
       }}
       className="flex flex-col items-center justify-center"
     >
-      <StatusBar hidden />
+      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);
@@ -202,7 +200,7 @@ export default function page() {
         />
       </Pressable>
       {videoRef.current && (
-        <VlcControls
+        <Controls
           item={playSettings.item}
           videoRef={videoRef}
           togglePlay={togglePlay}

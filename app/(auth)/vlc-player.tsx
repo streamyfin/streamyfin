@@ -2,7 +2,6 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/Controls";
-import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -42,6 +41,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import { useSharedValue } from "react-native-reanimated";
 
 export default function page() {
@@ -267,19 +267,8 @@ export default function page() {
     [item?.Id, isPlaying, api, isPlaybackStopped]
   );
 
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     play();
-
-  //     return () => {
-  //       stop();
-  //     };
-  //   }, [play, stop])
-  // );
-
   useOrientation();
   useOrientationSettings();
-  useAndroidNavigationBar();
 
   useWebSocket({
     isPlaying: isPlaying,
@@ -338,7 +327,7 @@ export default function page() {
       }}
       className="flex flex-col items-center justify-center"
     >
-      <StatusBar hidden />
+      <SystemBars hidden />
       <Pressable
         onPress={() => {
           setShowControls(!showControls);

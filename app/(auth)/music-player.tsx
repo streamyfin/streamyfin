@@ -2,7 +2,6 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import AlbumCover from "@/components/posters/AlbumCover";
 import { Controls } from "@/components/video-player/Controls";
-import { useAndroidNavigationBar } from "@/hooks/useAndroidNavigationBar";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -276,7 +275,6 @@ export default function page() {
 
   useOrientation();
   useOrientationSettings();
-  useAndroidNavigationBar();
 
   useWebSocket({
     isPlaying: isPlaying,

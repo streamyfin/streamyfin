@@ -608,7 +608,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             guard let player = self.mediaPlayer else { return }
 
             let currentTimeMs = player.time.intValue
-            let remainingTimeMs = player.remainingTime
+            // let remainingTimeMs = player.remainingTime
             let durationMs = player.media?.length.intValue ?? 0
 
             // print("currentTimeMs: \(currentTimeMs) RemainingTimeMs: \(remainingTimeMs)")
