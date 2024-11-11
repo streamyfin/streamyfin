@@ -11,6 +11,7 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import native from "@/utils/profiles/native";
+import android from "@/utils/profiles/android";
 import { secondsToTicks } from "@/utils/secondsToTicks";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -22,17 +23,9 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Pressable, StatusBar, useWindowDimensions, View } from "react-native";
-import { SystemBars } from "react-native-edge-to-edge";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Video, {
   OnProgressData,
   SelectedTrack,
@@ -140,7 +133,7 @@ const Player = () => {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
-        deviceProfile: native,
+        deviceProfile: android,
       });
 
       if (!res) return null;
@@ -383,6 +376,8 @@ const Player = () => {
           height: "100%",
           width: "100%",
           position: "absolute",
+          top: 0,
+          left: 0,
           zIndex: 0,
         }}
       >
@@ -396,7 +391,9 @@ const Player = () => {
             }}
             resizeMode={ignoreSafeAreas ? "cover" : "contain"}
             onProgress={onProgress}
-            onError={() => {}}
+            onError={(e) => {
+              console.error("Error playing video", e);
+            }}
             onLoad={() => {
               if (firstTime.current === true) {
                 play();
@@ -468,7 +465,7 @@ const Player = () => {
             console.log("setAudioTrack ~", i);
             setSelectedAudioTrack({
               type: SelectedTrackType.INDEX,
-              value: 10,
+              value: i,
             });
           }}
         />

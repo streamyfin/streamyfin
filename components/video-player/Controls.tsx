@@ -49,6 +49,12 @@ import { VideoRef } from "react-native-video";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 
 interface Props {
   item: BaseItemDto;
@@ -391,6 +397,32 @@ export const Controls: React.FC<Props> = ({
     )[];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource]);
 
+  /**
+   * Bottom sheet
+   */
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  const handlePresentModalPress = useCallback(() => {
+    bottomSheetModalRef.current?.present();
+  }, []);
+
+  const handleSheetChanges = useCallback((index: number) => {}, []);
+
+  const closeModal = useCallback(() => {
+    bottomSheetModalRef.current?.dismiss();
+  }, []);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
+
   return (
     <View
       style={{
@@ -402,7 +434,58 @@ export const Controls: React.FC<Props> = ({
         height: "100%",
       }}
     >
-      {/* <VideoDebugInfo playerRef={videoRef} /> */}
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        index={0}
+        snapPoints={["50%"]}
+        handleIndicatorStyle={{
+          backgroundColor: "white",
+        }}
+        backgroundStyle={{
+          backgroundColor: "#171717",
+        }}
+        onChange={handleSheetChanges}
+        backdropComponent={renderBackdrop}
+      >
+        <BottomSheetView style={{ padding: 16 }}>
+          <Text className="font-bold text-white mb-2 text-lg">
+            Audio Tracks
+          </Text>
+          {audioTracks?.map((track, index) => (
+            <TouchableOpacity
+              key={`audio-${index}`}
+              onPress={() => {
+                setAudioTrack && setAudioTrack(track.index);
+                closeModal();
+              }}
+              className="border border-neutral-700 rounded-lg p-4 mb-2 bg-neutral-800"
+            >
+              <Text style={{ color: "white" }}>
+                {track.name} {track.language ? `(${track.language})` : null}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          <Text className="font-bold text-white mb-2 text-lg">Subtitles</Text>
+          {allSubtitleTracks?.map((sub, index) => (
+            <TouchableOpacity
+              key={`subtitle-${index}`}
+              onPress={() => {
+                if (sub.isExternal) {
+                  setSubtitleURL &&
+                    setSubtitleURL(api?.basePath + sub.deliveryUrl, sub.name);
+                } else {
+                  setSubtitleTrack && setSubtitleTrack(sub.index);
+                }
+                closeModal();
+              }}
+              className="border border-neutral-700 rounded-lg p-4 mb-2 bg-neutral-800"
+            >
+              <Text style={{ color: "white" }}>{sub.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </BottomSheetView>
+      </BottomSheetModal>
       <View
         style={{
           position: "absolute",
@@ -411,14 +494,16 @@ export const Controls: React.FC<Props> = ({
         }}
         className="p-4"
       >
-        <DropdownMenu.Root>
+        <TouchableOpacity
+          onPress={() => {
+            handlePresentModalPress();
+          }}
+          className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+        >
+          <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
+        </TouchableOpacity>
+        {/* <DropdownMenu.Root>
           <DropdownMenu.Trigger>
-            <TouchableOpacity
-              onPress={() => console.log("open settings")}
-              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-            >
-              <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
-            </TouchableOpacity>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content
             loop={true}
@@ -495,7 +580,7 @@ export const Controls: React.FC<Props> = ({
               </DropdownMenu.SubContent>
             </DropdownMenu.Sub>
           </DropdownMenu.Content>
-        </DropdownMenu.Root>
+        </DropdownMenu.Root> */}
       </View>
 
       <View
