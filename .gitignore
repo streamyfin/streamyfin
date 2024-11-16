@@ -9,6 +9,7 @@ npm-debug.*
 *.mobileprovision
 *.orig.*
 web-build/
+modules/vlc-player/android/build
 
 # macOS
 .DS_Store
