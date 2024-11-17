@@ -11,7 +11,7 @@ import expo.modules.kotlin.views.ExpoView
 import expo.modules.kotlin.viewevent.EventDispatcher
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
-
+import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 
@@ -143,9 +143,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun setSubtitleURL(subtitleURL: String, name: String) {
-        // val media = mediaPlayer?.media ?: return
-        // media.addSlave(Media.Slave(Media.Slave.Type.Subtitle, 0, Uri.parse(subtitleURL)))
-        mediaPlayer?.addSlave(1, Uri.parse(subtitleURL), false)
+       mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
     }
 
     override fun onDetachedFromWindow() {
