@@ -6,7 +6,7 @@ import {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
-import React from "react";
+import React, { useMemo } from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
 import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { Text } from "../common/Text";
@@ -20,19 +20,32 @@ interface Props extends ViewProps {
 export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
 
+  const destinctPeople = useMemo(() => {
+    const people: BaseItemPerson[] = [];
+    item?.People?.forEach((person) => {
+      const existingPerson = people.find((p) => p.Id === person.Id);
+      if (existingPerson) {
+        existingPerson.Role = `${existingPerson.Role}, ${person.Role}`;
+      } else {
+        people.push(person);
+      }
+    });
+    return people;
+  }, [item?.People]);
+
   return (
     <View {...props} className="flex flex-col">
       <Text className="text-lg font-bold mb-2 px-4">Cast & Crew</Text>
       <HorizontalScroll
         loading={loading}
         height={247}
-        data={item?.People || []}
+        data={destinctPeople}
         renderItem={(item, index) => (
           <TouchableOpacity
             onPress={() => {
               router.push(`/actors/${item.Id}`);
             }}
-            key={item.Id}
+            key={index}
             className="flex flex-col w-28"
           >
             <Poster item={item} url={getPrimaryImageUrl({ api, item })} />
