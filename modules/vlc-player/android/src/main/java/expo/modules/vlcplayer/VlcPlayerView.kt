@@ -30,11 +30,13 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     private fun setupView() {
+        Log.d("VlcPlayerView", "Setting up view")
         setBackgroundColor(android.graphics.Color.WHITE)
         videoLayout = VLCVideoLayout(context).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         }
         addView(videoLayout)
+        Log.d("VlcPlayerView", "View setup complete")
     }
 
     fun setSource(source: Map<String, Any>) {
