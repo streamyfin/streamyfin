@@ -37,7 +37,7 @@ if (useManagedAndroidSdkVersions) {
 }
 
 dependencies {
-  implementation 'org.videolan.android:libvlc-all:4.0.0-eap15'
+  implementation 'org.videolan.android:libvlc-all:3.6.0-eap12'
   implementation "org.jetbrains.kotlin:kotlin-stdlib:1.5.31"
 }
 
