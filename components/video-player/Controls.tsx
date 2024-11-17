@@ -434,7 +434,7 @@ export const Controls: React.FC<Props> = ({
         height: "100%",
       }}
     >
-      <BottomSheetModal
+      {/* <BottomSheetModal
         ref={bottomSheetModalRef}
         index={0}
         snapPoints={["50%"]}
@@ -485,7 +485,7 @@ export const Controls: React.FC<Props> = ({
             </TouchableOpacity>
           ))}
         </BottomSheetView>
-      </BottomSheetModal>
+      </BottomSheetModal> */}
       <View
         style={{
           position: "absolute",
@@ -494,16 +494,11 @@ export const Controls: React.FC<Props> = ({
         }}
         className="p-4"
       >
-        <TouchableOpacity
-          onPress={() => {
-            handlePresentModalPress();
-          }}
-          className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-        >
-          <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
-        </TouchableOpacity>
-        {/* <DropdownMenu.Root>
+        <DropdownMenu.Root>
           <DropdownMenu.Trigger>
+            <TouchableOpacity className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
+              <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
+            </TouchableOpacity>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content
             loop={true}
@@ -529,19 +524,15 @@ export const Controls: React.FC<Props> = ({
                   <DropdownMenu.Item
                     key={`subtitle-item-${idx}`}
                     onSelect={() => {
-                      console.log("Trying to set subtitle...");
                       if (sub.isExternal) {
-                        console.log("Setting external sub:", sub);
                         setSubtitleURL &&
                           setSubtitleURL(
                             api?.basePath + sub.deliveryUrl,
                             sub.name
                           );
-                        return;
+                      } else {
+                        setSubtitleTrack && setSubtitleTrack(sub.index);
                       }
-
-                      console.log("Setting sub with index:", sub.index);
-                      setSubtitleTrack && setSubtitleTrack(sub.index);
                     }}
                   >
                     <DropdownMenu.ItemIndicator />
@@ -563,24 +554,23 @@ export const Controls: React.FC<Props> = ({
                 loop={true}
                 sideOffset={10}
               >
-                {audioTracks?.map((a, idx: number) => (
-                  <DropdownMenu.CheckboxItem
+                {audioTracks?.map((track, idx: number) => (
+                  <DropdownMenu.Item
                     key={`audio-item-${idx}`}
-                    value="off"
-                    onValueChange={() => {
-                      setAudioTrack && setAudioTrack(a.index);
+                    onSelect={() => {
+                      setAudioTrack && setAudioTrack(track.index);
                     }}
                   >
                     <DropdownMenu.ItemIndicator />
                     <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                      {a.name}
+                      {track.name}
                     </DropdownMenu.ItemTitle>
-                  </DropdownMenu.CheckboxItem>
+                  </DropdownMenu.Item>
                 ))}
               </DropdownMenu.SubContent>
             </DropdownMenu.Sub>
           </DropdownMenu.Content>
-        </DropdownMenu.Root> */}
+        </DropdownMenu.Root>
       </View>
 
       <View
@@ -625,21 +615,16 @@ export const Controls: React.FC<Props> = ({
         onPress={() => {
           toggleControls();
         }}
-      >
-        <View
-          style={[
-            {
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              opacity: showControls ? 1 : 0,
-            },
-          ]}
-          className={`bg-black/50 z-0`}
-        ></View>
-      </Pressable>
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          opacity: showControls ? 0.5 : 0,
+          backgroundColor: "black",
+        }}
+      ></Pressable>
 
       <View
         style={{
