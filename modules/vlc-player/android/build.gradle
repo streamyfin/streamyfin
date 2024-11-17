@@ -39,7 +39,6 @@ if (useManagedAndroidSdkVersions) {
 dependencies {
   implementation 'org.videolan.android:libvlc-all:3.6.0-eap12'
   implementation "org.jetbrains.kotlin:kotlin-stdlib:1.5.31"
-  implementation 'com.facebook.react:react-native:+'
 }
 
 android {

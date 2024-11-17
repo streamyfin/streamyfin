@@ -6,14 +6,12 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.lifecycle.LifecycleObserver
 import android.net.Uri
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.ReactContext
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.views.ExpoView
+import expo.modules.kotlin.viewevent.EventDispatcher
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
+
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 
@@ -27,6 +25,10 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var lastReportedState: Int? = null
     private var lastReportedIsPlaying: Boolean? = null
     private var startPosition: Int? = null
+
+    private val onVideoProgress by EventDispatcher()
+    private val onVideoStateChange by EventDispatcher()
+    private val onVideoLoadEnd by EventDispatcher()
 
     init {
         setupView()
@@ -81,10 +83,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         if (autoplay) {
             Log.d("VlcPlayerView", "Playing...")
             play()
-            // if (startPosition > 0) {
-            //     Log.d("VlcPlayerView", "Debug: Starting at position: $startPosition")
-            //     seekTo(startPosition)
-            // }
         }
     }
 
@@ -119,36 +117,36 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
     }
 
-    // fun setAudioTrack(trackIndex: Int) {
-    //     mediaPlayer?.setAudioTrack(trackIndex)
-    // }
+    fun setAudioTrack(trackIndex: Int) {
+        mediaPlayer?.setAudioTrack(trackIndex)
+    }
 
-    // fun getAudioTracks(): List<Map<String, Any>>? {
-    //     val trackNames = mediaPlayer?.audioTrackNames ?: return null
-    //     val trackIndexes = mediaPlayer?.audioTracks ?: return null
+    fun getAudioTracks(): List<Map<String, Any>>? {
 
-    //     return trackNames.zip(trackIndexes).map { (name, index) ->
-    //         mapOf("name" to name, "index" to index)
-    //     }
-    // }
+        println("getAudioTracks")
+        println(mediaPlayer?.getAudioTracks())
+        val trackDescriptions = mediaPlayer?.audioTracks ?: return null
 
-    // fun setSubtitleTrack(trackIndex: Int) {
-    //     mediaPlayer?.setSpuTrack(trackIndex)
-    // }
+        return trackDescriptions.map { trackDescription ->
+            mapOf("name" to trackDescription.name, "index" to trackDescription.id)
+        }
+    }
 
-    // fun getSubtitleTracks(): List<Map<String, Any>>? {
-    //     val trackNames = mediaPlayer?.spuTrackNames ?: return null
-    //     val trackIndexes = mediaPlayer?.spuTracks ?: return null
+    fun setSubtitleTrack(trackIndex: Int) {
+        mediaPlayer?.setSpuTrack(trackIndex)
+    }
 
-    //     return trackNames.zip(trackIndexes).map { (name, index) ->
-    //         mapOf("name" to name, "index" to index)
-    //     }
-    // }
+    fun getSubtitleTracks(): List<Map<String, Any>>? {
+        return mediaPlayer?.getSpuTracks()?.map { trackDescription ->
+            mapOf("name" to trackDescription.name, "index" to trackDescription.id)
+        }
+    }
 
-    // fun setSubtitleURL(subtitleURL: String, name: String) {
-    //     val media = mediaPlayer?.media ?: return
-    //     media.addSlave(Media.Slave(Media.Slave.Type.Subtitle, subtitleURL, true))
-    // }
+    fun setSubtitleURL(subtitleURL: String, name: String) {
+        // val media = mediaPlayer?.media ?: return
+        // media.addSlave(Media.Slave(Media.Slave.Type.Subtitle, 0, Uri.parse(subtitleURL)))
+        mediaPlayer?.addSlave(1, Uri.parse(subtitleURL), false)
+    }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
@@ -196,7 +194,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             MediaPlayer.Event.EncounteredError -> {
                 Log.e("VlcPlayerView", "player.state ~ error")
                 stateInfo["state"] = "Error"
-                sendEvent("onVideoLoadEnd", stateInfo)
+                onVideoLoadEnd(stateInfo);
             }
             MediaPlayer.Event.Opening -> {
                 Log.d("VlcPlayerView", "player.state ~ opening")
@@ -207,14 +205,14 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // Determine if the media has finished loading
         if (player.isPlaying && !isMediaReady) {
             isMediaReady = true
-            sendEvent("onVideoLoadEnd", stateInfo)
+            onVideoLoadEnd(stateInfo)
             seekToStartTime()
         }
 
         if (lastReportedState != currentState || lastReportedIsPlaying != player.isPlaying) {
             lastReportedState = currentState
             lastReportedIsPlaying = player.isPlaying
-            sendEvent("onVideoStateChange", stateInfo)
+            onVideoStateChange(stateInfo)
         }
     }
 
@@ -239,31 +237,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val currentTimeMs = player.time.toInt()
         val durationMs = player.media?.duration?.toInt() ?: 0
 
-        println("currentTimeMs: $currentTimeMs, durationMs: $durationMs")
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
-            val progressInfo = mapOf(
+            onVideoProgress(mapOf(
                 "currentTime" to currentTimeMs,
                 "duration" to durationMs
-            )
-            sendEvent("onVideoProgress", progressInfo)
+            ));
         }
     }
-
-    private fun sendEvent(eventName: String, params: Map<String, Any>) {
-        val reactContext = appContext.reactContext as? ReactContext
-        Log.d("VlcPlayerView", "Sending event: $eventName with params: $params")
-        val eventMap = Arguments.createMap()
-        params.forEach { (key, value) ->
-            when (value) {
-                is Int -> eventMap.putInt(key, value)
-                is String -> eventMap.putString(key, value)
-                is Boolean -> eventMap.putBoolean(key, value)
-            }
-        }
-        reactContext?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit(eventName, eventMap)
-    }
-
-    var onVideoLoadEnd: ((Map<String, Any>) -> Unit)? = null
-    var onVideoStateChange: ((Map<String, Any>) -> Unit)? = null
 }

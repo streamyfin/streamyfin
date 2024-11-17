@@ -45,25 +45,25 @@ class VlcPlayerModule : Module() {
         view.seekTo(time)
       }
 
-      // AsyncFunction("setAudioTrack") { view: VlcPlayerView, trackIndex: Int ->
-      //   view.setAudioTrack(trackIndex)
-      // }
+      AsyncFunction("setAudioTrack") { view: VlcPlayerView, trackIndex: Int ->
+        view.setAudioTrack(trackIndex)
+      }
 
-      // AsyncFunction("getAudioTracks") { view: VlcPlayerView -> List<Map<String, Ansy>>? ->
-      //   view.getAudioTracks()
-      // }
+      AsyncFunction("getAudioTracks") { view: VlcPlayerView ->
+        view.getAudioTracks()
+      }
 
-      // AsyncFunction("setSubtitleTrack") { view: VlcPlayerView, trackIndex: Int ->
-      //   view.setSubtitleTrack(trackIndex)
-      // }
+      AsyncFunction("setSubtitleTrack") { view: VlcPlayerView, trackIndex: Int ->
+        view.setSubtitleTrack(trackIndex)
+      }
 
-      // AsyncFunction("getSubtitleTracks") { view: VlcPlayerView -> List<Map<String, Any>>? ->
-      //   view.getSubtitleTracks()
-      // }
+      AsyncFunction("getSubtitleTracks") { view: VlcPlayerView ->
+        view.getSubtitleTracks()
+      }
 
-      // AsyncFunction("setSubtitleURL") { view: VlcPlayerView, url: String, name: String ->
-      //   view.setSubtitleURL(url, name)
-      // }
+      AsyncFunction("setSubtitleURL") { view: VlcPlayerView, url: String, name: String ->
+        view.setSubtitleURL(url, name)
+      }
     }
   }
 }
