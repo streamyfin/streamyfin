@@ -50,7 +50,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val uri = source["uri"] as? String
         val autoplay = source["autoplay"] as? Boolean ?: false
         val isNetwork = source["isNetwork"] as? Boolean ?: false
-        startPosition = source["startPosition"] as? Int ?: 0
+        startPosition = (source["startPosition"] as? Double)?.toInt() ?: 0
 
         // Handle video load start event
         // onVideoLoadStart?.invoke(mapOf("target" to reactTag ?: "null"))
@@ -149,6 +149,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         mediaPlayer?.release()
+        mediaPlayer = null
         libVLC?.release()
     }
 
