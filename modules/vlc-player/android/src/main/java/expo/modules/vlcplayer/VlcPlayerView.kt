@@ -4,8 +4,12 @@ import android.content.Context
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.net.Uri
 import androidx.lifecycle.LifecycleObserver
+import android.net.Uri
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.ReactContext
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.views.ExpoView
 import org.videolan.libvlc.LibVLC
@@ -13,7 +17,6 @@ import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 
-// Needs to inhert from MediaPlayer.EventListener
 class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context, appContext), LifecycleObserver, MediaPlayer.EventListener {
 
     private var libVLC: LibVLC? = null
@@ -193,7 +196,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             MediaPlayer.Event.EncounteredError -> {
                 Log.e("VlcPlayerView", "player.state ~ error")
                 stateInfo["state"] = "Error"
-                onVideoLoadEnd?.invoke(stateInfo)
+                sendEvent("onVideoLoadEnd", stateInfo)
             }
             MediaPlayer.Event.Opening -> {
                 Log.d("VlcPlayerView", "player.state ~ opening")
@@ -204,14 +207,14 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // Determine if the media has finished loading
         if (player.isPlaying && !isMediaReady) {
             isMediaReady = true
-            onVideoLoadEnd?.invoke(stateInfo)
+            sendEvent("onVideoLoadEnd", stateInfo)
             seekToStartTime()
         }
 
         if (lastReportedState != currentState || lastReportedIsPlaying != player.isPlaying) {
             lastReportedState = currentState
             lastReportedIsPlaying = player.isPlaying
-            onVideoStateChange?.invoke(stateInfo)
+            sendEvent("onVideoStateChange", stateInfo)
         }
     }
 
@@ -236,18 +239,31 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val currentTimeMs = player.time.toInt()
         val durationMs = player.media?.duration?.toInt() ?: 0
 
-        println("currentTimeMs: $currentTimeMs")
+        println("currentTimeMs: $currentTimeMs, durationMs: $durationMs")
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
-            onVideoProgress?.invoke(
-                mapOf(
-                    "currentTime" to currentTimeMs,
-                    "duration" to durationMs
-                )
+            val progressInfo = mapOf(
+                "currentTime" to currentTimeMs,
+                "duration" to durationMs
             )
+            sendEvent("onVideoProgress", progressInfo)
         }
+    }
+
+    private fun sendEvent(eventName: String, params: Map<String, Any>) {
+        val reactContext = appContext.reactContext as? ReactContext
+        Log.d("VlcPlayerView", "Sending event: $eventName with params: $params")
+        val eventMap = Arguments.createMap()
+        params.forEach { (key, value) ->
+            when (value) {
+                is Int -> eventMap.putInt(key, value)
+                is String -> eventMap.putString(key, value)
+                is Boolean -> eventMap.putBoolean(key, value)
+            }
+        }
+        reactContext?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+            ?.emit(eventName, eventMap)
     }
 
     var onVideoLoadEnd: ((Map<String, Any>) -> Unit)? = null
     var onVideoStateChange: ((Map<String, Any>) -> Unit)? = null
-    var onVideoProgress: ((Map<String, Any>) -> Unit)? = null
 }
