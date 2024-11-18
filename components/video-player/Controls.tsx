@@ -397,32 +397,6 @@ export const Controls: React.FC<Props> = ({
     )[];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource]);
 
-  /**
-   * Bottom sheet
-   */
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-
-  const handlePresentModalPress = useCallback(() => {
-    bottomSheetModalRef.current?.present();
-  }, []);
-
-  const handleSheetChanges = useCallback((index: number) => {}, []);
-
-  const closeModal = useCallback(() => {
-    bottomSheetModalRef.current?.dismiss();
-  }, []);
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    []
-  );
-
   return (
     <View
       style={{
