@@ -173,7 +173,7 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
-    router.replace(`/player?${queryParams}`);
+    router.replace(`player/player?${queryParams}`);
   }, [previousItem, settings]);
 
   const goToNextItem = useCallback(() => {
@@ -198,7 +198,7 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
-    router.replace(`/player?${queryParams}`);
+    router.replace(`player/player?${queryParams}`);
   }, [nextItem, settings]);
 
   const updateTimes = useCallback(
