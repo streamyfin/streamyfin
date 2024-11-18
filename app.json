@@ -106,7 +106,7 @@
         { "android": { "parentTheme": "Material3" } }
       ],
       ["react-native-bottom-tabs"],
-      ["plugins/withChangeNativeAndroidTextToWhite.js"]
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"]
     ],
     "experiments": {
       "typedRoutes": true
