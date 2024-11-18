@@ -105,7 +105,8 @@
         "react-native-edge-to-edge",
         { "android": { "parentTheme": "Material3" } }
       ],
-      ["react-native-bottom-tabs"]
+      ["react-native-bottom-tabs"],
+      ["plugins/withChangeNativeAndroidTextToWhite.js"]
     ],
     "experiments": {
       "typedRoutes": true
