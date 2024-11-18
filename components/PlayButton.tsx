@@ -65,29 +65,6 @@ export const PlayButton: React.FC<Props> = ({
   const colorChangeProgress = useSharedValue(0);
   const [settings] = useSettings();
 
-  const {} = useQuery({
-    queryKey: ["stream-url"],
-    queryFn: async () => {
-      if (!api) return;
-      const res = await getStreamUrl({
-        api,
-        item,
-        startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-        userId: user?.Id,
-        audioStreamIndex: selectedOptions.audioIndex,
-        maxStreamingBitrate: selectedOptions.bitrate?.value,
-        mediaSourceId: selectedOptions.mediaSource?.Id,
-        subtitleStreamIndex: selectedOptions.subtitleIndex,
-      });
-
-      if (!res) return null;
-
-      const { mediaSource, sessionId, url } = res;
-
-      return res;
-    },
-  });
-
   const goToPlayer = useCallback(
     (q: string) => {
       router.push(`/player/player?${q}`);
@@ -103,7 +80,7 @@ export const PlayButton: React.FC<Props> = ({
       audioIndex: selectedOptions.audioIndex?.toString() ?? "",
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
-      bitrate: selectedOptions.bitrate?.value?.toString() ?? "",
+      bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
     });
 
     const queryString = queryParams.toString();

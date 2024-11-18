@@ -69,6 +69,8 @@ export default function page() {
     ? parseInt(bitrateValueStr, 10)
     : BITRATES[0].value;
 
+  console.log("bitrateValue ~", bitrateValue);
+
   const {
     data: item,
     isLoading: isLoadingItem,
