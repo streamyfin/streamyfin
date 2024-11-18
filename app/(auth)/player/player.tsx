@@ -16,6 +16,7 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
+import android from "@/utils/profiles/android";
 import { msToTicks, ticksToMs } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -28,7 +29,13 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, useWindowDimensions, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
 export default function page() {
@@ -112,7 +119,7 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
-        deviceProfile: native,
+        deviceProfile: Platform.OS === "android" ? android : native,
       });
 
       if (!res) return null;
@@ -120,8 +127,6 @@ export default function page() {
       const { mediaSource, sessionId, url } = res;
 
       if (!sessionId || !mediaSource || !url) return null;
-
-      console.log(url);
 
       return {
         mediaSource,
@@ -153,7 +158,7 @@ export default function page() {
             : "DirectStream",
           playSessionId: stream.sessionId,
         });
-        console.log("ACtually marked as paused");
+        console.log("Actually marked as paused");
       } else {
         videoRef.current?.play();
         await getPlaystateApi(api).onPlaybackProgress({
