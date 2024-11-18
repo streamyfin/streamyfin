@@ -25,6 +25,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var lastReportedState: Int? = null
     private var lastReportedIsPlaying: Boolean? = null
     private var startPosition: Int? = null
+    private var media : Media? = null
 
     private val onVideoProgress by EventDispatcher()
     private val onVideoStateChange by EventDispatcher()
@@ -52,6 +53,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val isNetwork = source["isNetwork"] as? Boolean ?: false
         startPosition = (source["startPosition"] as? Double)?.toInt() ?: 0
 
+        println("startPosition $startPosition")
         // Handle video load start event
         // onVideoLoadStart?.invoke(mapOf("target" to reactTag ?: "null"))
 
@@ -61,7 +63,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         mediaPlayer?.setEventListener(this)
 
         Log.d("VlcPlayerView", "Loading network file: $uri")
-        val media = Media(libVLC, Uri.parse(uri))
+        media = Media(libVLC, Uri.parse(uri))
         mediaPlayer?.media = media
 
 
@@ -146,11 +148,10 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
        mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
     }
 
+
+    // Kotlin has its own garbage collector.
     override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        mediaPlayer?.release()
-        mediaPlayer = null
-        libVLC?.release()
+        println("onDetachedFromWindow")
     }
 
     override fun onEvent(event: MediaPlayer.Event) {
@@ -219,6 +220,8 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val player = mediaPlayer ?: return
         val startPosition = startPosition ?: return
 
+        println("seekToStartTime $startPosition")
+
         if (startPosition > 0) {
             Log.d("VlcPlayerView", "Debug: Seeking to start position: $startPosition")
             player.time = startPosition.toLong()
@@ -235,6 +238,8 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val currentTimeMs = player.time.toInt()
         val durationMs = player.media?.duration?.toInt() ?: 0
+
+        println("currentTimeMs $currentTimeMs")
 
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
             onVideoProgress(mapOf(
