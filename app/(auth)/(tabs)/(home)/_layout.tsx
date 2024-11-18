@@ -21,13 +21,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
           headerRight: () => (
-            <View className="flex flex-row items-center space-x-2">
+            <View className="flex flex-row items-center">
               <Chromecast />
               <TouchableOpacity
                 onPress={() => {
                   router.push("/(auth)/settings");
                 }}
-                className="p-2 "
+                className="p-2"
               >
                 <Feather name="settings" color={"white"} size={22} />
               </TouchableOpacity>
