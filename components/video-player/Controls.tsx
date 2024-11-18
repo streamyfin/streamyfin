@@ -434,58 +434,6 @@ export const Controls: React.FC<Props> = ({
         height: "100%",
       }}
     >
-      {/* <BottomSheetModal
-        ref={bottomSheetModalRef}
-        index={0}
-        snapPoints={["50%"]}
-        handleIndicatorStyle={{
-          backgroundColor: "white",
-        }}
-        backgroundStyle={{
-          backgroundColor: "#171717",
-        }}
-        onChange={handleSheetChanges}
-        backdropComponent={renderBackdrop}
-      >
-        <BottomSheetView style={{ padding: 16 }}>
-          <Text className="font-bold text-white mb-2 text-lg">
-            Audio Tracks
-          </Text>
-          {audioTracks?.map((track, index) => (
-            <TouchableOpacity
-              key={`audio-${index}`}
-              onPress={() => {
-                setAudioTrack && setAudioTrack(track.index);
-                closeModal();
-              }}
-              className="border border-neutral-700 rounded-lg p-4 mb-2 bg-neutral-800"
-            >
-              <Text style={{ color: "white" }}>
-                {track.name} {track.language ? `(${track.language})` : null}
-              </Text>
-            </TouchableOpacity>
-          ))}
-
-          <Text className="font-bold text-white mb-2 text-lg">Subtitles</Text>
-          {allSubtitleTracks?.map((sub, index) => (
-            <TouchableOpacity
-              key={`subtitle-${index}`}
-              onPress={() => {
-                if (sub.isExternal) {
-                  setSubtitleURL &&
-                    setSubtitleURL(api?.basePath + sub.deliveryUrl, sub.name);
-                } else {
-                  setSubtitleTrack && setSubtitleTrack(sub.index);
-                }
-                closeModal();
-              }}
-              className="border border-neutral-700 rounded-lg p-4 mb-2 bg-neutral-800"
-            >
-              <Text style={{ color: "white" }}>{sub.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </BottomSheetView>
-      </BottomSheetModal> */}
       <View
         style={{
           position: "absolute",
