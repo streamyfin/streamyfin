@@ -97,11 +97,6 @@ export const getStreamUrl = async ({
     }
   );
 
-  console.log(
-    "getStreamUrl ~ getMediaInfoApi ~ getPlaybackInfo ~",
-    res2.status
-  );
-
   if (res2.status !== 200) {
     console.error("Error getting playback info:", res2.status, res2.statusText);
   }
