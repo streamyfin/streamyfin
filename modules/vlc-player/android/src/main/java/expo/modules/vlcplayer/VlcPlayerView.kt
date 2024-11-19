@@ -148,10 +148,17 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
        mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
     }
 
-
-    // Kotlin has its own garbage collector.
     override fun onDetachedFromWindow() {
         println("onDetachedFromWindow")
+        super.onDetachedFromWindow()
+        mediaPlayer?.stop()
+
+        media?.release()
+        mediaPlayer?.release()
+        libVLC?.release()
+        mediaPlayer = null
+        media = null
+        libVLC = null
     }
 
     override fun onEvent(event: MediaPlayer.Event) {

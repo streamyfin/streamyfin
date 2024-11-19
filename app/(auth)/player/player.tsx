@@ -119,7 +119,7 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
-        deviceProfile: Platform.OS === "android" ? android : native,
+        deviceProfile: native,
       });
 
       if (!res) return null;
