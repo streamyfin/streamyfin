@@ -173,6 +173,7 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
+    // @ts-expect-error
     router.replace(`player/player?${queryParams}`);
   }, [previousItem, settings]);
 
@@ -198,6 +199,7 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
+    // @ts-expect-error
     router.replace(`player/player?${queryParams}`);
   }, [nextItem, settings]);
 
@@ -351,13 +353,13 @@ export const Controls: React.FC<Props> = ({
   type EmbeddedSubtitle = {
     name: string;
     index: number;
-    isExternal: false;
+    isExternal: boolean;
   };
 
   type ExternalSubtitle = {
     name: string;
     index: number;
-    isExternal: true;
+    isExternal: boolean;
     deliveryUrl: string;
   };
 
@@ -372,10 +374,7 @@ export const Controls: React.FC<Props> = ({
 
     const externalSubs =
       mediaSource?.MediaStreams?.filter(
-        (stream) =>
-          stream.Type === "Subtitle" &&
-          stream.IsExternal &&
-          !!stream.DeliveryUrl
+        (stream) => stream.Type === "Subtitle" && !!stream.DeliveryUrl
       ).map((s) => ({
         name: s.DisplayTitle!,
         index: s.Index!,
@@ -446,7 +445,7 @@ export const Controls: React.FC<Props> = ({
                   <DropdownMenu.Item
                     key={`subtitle-item-${idx}`}
                     onSelect={() => {
-                      if (sub.isExternal) {
+                      if ("deliveryUrl" in sub && sub.deliveryUrl) {
                         setSubtitleURL &&
                           setSubtitleURL(
                             api?.basePath + sub.deliveryUrl,
