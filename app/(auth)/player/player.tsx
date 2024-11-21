@@ -17,7 +17,7 @@ import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import android from "@/utils/profiles/android";
-import { msToTicks, ticksToMs } from "@/utils/time";
+import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -301,8 +301,9 @@ export default function page() {
 
   if (!stream || !item) return null;
 
+  console.log("AudioIndex", audioIndex);
   const startPosition = item?.UserData?.PlaybackPositionTicks
-    ? ticksToMs(item.UserData.PlaybackPositionTicks)
+    ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
     : 0;
 
   return (
@@ -327,7 +328,11 @@ export default function page() {
             autoplay: true,
             isNetwork: true,
             startPosition,
-            initOptions: ["--sub-text-scale=60"],
+            initOptions: [
+              "--sub-text-scale=60",
+              `--sub-track=${subtitleIndex - 2}`, // This refers to the subtitle position index in the subtitles list.
+              // `--audio-track=${audioIndex - 1}`, // This refers to the audio position index in the audio list.
+            ],
           }}
           style={{ width: "100%", height: "100%" }}
           onVideoProgress={onProgress}

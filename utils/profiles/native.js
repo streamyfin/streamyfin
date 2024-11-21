@@ -9,7 +9,7 @@ import MediaTypes from "../../constants/MediaTypes";
  * Device profile for Native video player
  */
 export default {
-  Name: "1. Native iOS Video Profile",
+  Name: "1. Vlc Player",
   MaxStaticBitrate: 100000000,
   MaxStreamingBitrate: 120000000,
   MusicStreamingTranscodingBitrate: 384000,
@@ -47,6 +47,7 @@ export default {
       MaxAudioChannels: "8",
       MinSegments: "2",
       BreakOnNonKeyFrames: true,
+      EnableSubtitlesInManifest: true,
     },
     {
       Type: MediaTypes.Audio,
@@ -142,5 +143,10 @@ export default {
     { Format: "vplayer", Method: "Embed" },
     { Format: "vplayer", Method: "External" },
     { Format: "vplayer", Method: "Encode" },
+    { Format: "vtt", Method: "Embed" },
+    { Format: "vtt", Method: "External" },
+    { Format: "vtt", Method: "Encode" },
+    { Format: "webvtt", Method: "Embed" },
+    { Format: "webvtt", Method: "External" },
   ],
 };
