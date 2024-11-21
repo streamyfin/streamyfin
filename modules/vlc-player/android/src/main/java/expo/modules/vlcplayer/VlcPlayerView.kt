@@ -21,16 +21,17 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var videoLayout: VLCVideoLayout
     private var isPaused: Boolean = false
-    private var isMediaReady: Boolean = false
     private var lastReportedState: Int? = null
     private var lastReportedIsPlaying: Boolean? = null
-    private var startPosition: Int? = null
     private var media : Media? = null
 
     private val onVideoProgress by EventDispatcher()
     private val onVideoStateChange by EventDispatcher()
     private val onVideoLoadEnd by EventDispatcher()
 
+    private var startPosition: Int? = 0
+    private var isTranscodedStream: Boolean = false
+    private var isMediaReady: Boolean = false
     init {
         setupView()
     }
@@ -47,13 +48,19 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun setSource(source: Map<String, Any>) {
         val mediaOptions = source["mediaOptions"] as? Map<String, Any> ?: emptyMap()
-        val initOptions = source["initOptions"] as? List<String> ?: emptyList()
-        val uri = source["uri"] as? String
         val autoplay = source["autoplay"] as? Boolean ?: false
         val isNetwork = source["isNetwork"] as? Boolean ?: false
         startPosition = (source["startPosition"] as? Double)?.toInt() ?: 0
 
-        println("startPosition $startPosition")
+        val initOptions = source["initOptions"] as? MutableList<String> ?: mutableListOf()
+        initOptions.add("--start-time=$startPosition")
+
+
+        val uri = source["uri"] as? String
+        if (uri != null && uri.contains("m3u8")) {
+            isTranscodedStream = true
+        }
+
         // Handle video load start event
         // onVideoLoadStart?.invoke(mapOf("target" to reactTag ?: "null"))
 
@@ -209,12 +216,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             }
         }
 
-        // Determine if the media has finished loading
-        if (player.isPlaying && !isMediaReady) {
-            isMediaReady = true
-            onVideoLoadEnd(stateInfo)
-            seekToStartTime()
-        }
 
         if (lastReportedState != currentState || lastReportedIsPlaying != player.isPlaying) {
             lastReportedState = currentState
@@ -223,22 +224,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
     }
 
-    private fun seekToStartTime() {
-        val player = mediaPlayer ?: return
-        val startPosition = startPosition ?: return
-
-        println("seekToStartTime $startPosition")
-
-        if (startPosition > 0) {
-            Log.d("VlcPlayerView", "Debug: Seeking to start position: $startPosition")
-            player.time = startPosition.toLong()
-
-            // Ensure the player continues playing after seeking
-            if (!player.isPlaying) {
-                player.play()
-            }
-        }
-    }
 
     private fun updateVideoProgress() {
         val player = mediaPlayer ?: return
@@ -246,9 +231,14 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val currentTimeMs = player.time.toInt()
         val durationMs = player.media?.duration?.toInt() ?: 0
 
-        println("currentTimeMs $currentTimeMs")
-
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
+            // Determine if the media has finished loading
+            if (player.isPlaying && !isMediaReady) {
+                isMediaReady = true
+                if (isTranscodedStream) {
+                    seekTo((startPosition ?: 0) * 1000)
+                }
+            }
             onVideoProgress(mapOf(
                 "currentTime" to currentTimeMs,
                 "duration" to durationMs
