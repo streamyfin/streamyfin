@@ -10,9 +10,8 @@ import MediaTypes from "../../constants/MediaTypes";
  */
 export default {
   Name: "1. Vlc Player",
-  MaxStaticBitrate: 100000000,
-  MaxStreamingBitrate: 120000000,
-  MusicStreamingTranscodingBitrate: 384000,
+  MaxStaticBitrate: 20_000_000,
+  MaxStreamingBitrate: 12_000_000,
   CodecProfiles: [
     {
       Type: MediaTypes.Video,
@@ -26,14 +25,16 @@ export default {
   DirectPlayProfiles: [
     {
       Type: MediaTypes.Video,
-      Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp",
-      VideoCodec: "h264,h265,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1",
+      Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
+      VideoCodec:
+        "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
       AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma",
     },
     {
       Type: MediaTypes.Audio,
       Container: "mp3,aac,flac,alac,wav,ogg,wma",
-      AudioCodec: "mp3,aac,flac,alac,opus,vorbis,wma,pcm",
+      AudioCodec:
+        "mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape",
     },
   ],
   TranscodingProfiles: [
@@ -54,18 +55,6 @@ export default {
       Container: "mp3",
       AudioCodec: "mp3",
       MaxAudioChannels: "2",
-    },
-  ],
-  ResponseProfiles: [
-    {
-      Container: "mkv",
-      MimeType: "video/x-matroska",
-      Type: MediaTypes.Video,
-    },
-    {
-      Container: "mp4",
-      MimeType: "video/mp4",
-      Type: MediaTypes.Video,
     },
   ],
   SubtitleProfiles: [
