@@ -339,6 +339,7 @@ export const Controls: React.FC<Props> = ({
     const fetchTracks = async () => {
       if (getSubtitleTracks) {
         const subtitles = await getSubtitleTracks();
+        console.log("Getting embeded subtitles...", subtitles);
         setSubtitleTracks(subtitles);
       }
       if (getAudioTracks) {
@@ -365,36 +366,29 @@ export const Controls: React.FC<Props> = ({
 
   const allSubtitleTracks = useMemo(() => {
     const embeddedSubs =
-      subtitleTracks?.map((s) => ({
-        name: s.name,
-        index: s.index,
-        isExternal: false,
-        deliveryUrl: undefined,
-      })) || [];
+      subtitleTracks
+        ?.map((s) => ({
+          name: s.name,
+          index: s.index,
+          deliveryUrl: undefined,
+        }))
+        .filter((sub) => !sub.name.endsWith("[External]")) || [];
 
     const externalSubs =
       mediaSource?.MediaStreams?.filter(
         (stream) => stream.Type === "Subtitle" && !!stream.DeliveryUrl
       ).map((s) => ({
-        name: s.DisplayTitle!,
+        name: s.DisplayTitle! + " [External]",
         index: s.Index!,
-        isExternal: true,
         deliveryUrl: s.DeliveryUrl,
       })) || [];
 
-    // Create a Set of embedded subtitle names for quick lookup
-    const embeddedSubNames = new Set(embeddedSubs.map((sub) => sub.name));
-
-    // Filter out external subs that have the same name as embedded subs
-    const uniqueExternalSubs = externalSubs.filter(
-      (sub) => !embeddedSubNames.has(sub.name)
-    );
     // Combine embedded and unique external subs
-    return [...embeddedSubs, ...uniqueExternalSubs] as (
+    return [...embeddedSubs, ...externalSubs] as (
       | EmbeddedSubtitle
       | ExternalSubtitle
     )[];
-  }, [item, isVideoLoaded, subtitleTracks, mediaSource]);
+  }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
 
   return (
     <View
@@ -451,9 +445,17 @@ export const Controls: React.FC<Props> = ({
                             api?.basePath + sub.deliveryUrl,
                             sub.name
                           );
+
+                        console.log(
+                          "Set sub url: ",
+                          api?.basePath + sub.deliveryUrl
+                        );
                       } else {
+                        console.log("Set sub index: ", sub.index);
                         setSubtitleTrack && setSubtitleTrack(sub.index);
                       }
+
+                      console.log("Subtitle: ", sub);
                     }}
                   >
                     <DropdownMenu.ItemIndicator />
