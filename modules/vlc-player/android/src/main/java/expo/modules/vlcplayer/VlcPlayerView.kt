@@ -232,7 +232,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val durationMs = player.media?.duration?.toInt() ?: 0
 
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
-            // Determine if the media has finished loading
+            // Handle when VLC starts at cloest earliest segment skip to the start time, for transcoded streams.
             if (player.isPlaying && !isMediaReady) {
                 isMediaReady = true
                 if (isTranscodedStream) {

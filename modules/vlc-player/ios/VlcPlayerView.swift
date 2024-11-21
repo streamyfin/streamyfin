@@ -626,7 +626,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             let durationMs = player.media?.length.intValue ?? 0
 
             if currentTimeMs >= 0 && currentTimeMs < durationMs {
-                // Handle when VLC starts at cloest earliest segment skip to the start time.
+                // Handle when VLC starts at cloest earliest segment skip to the start time, for transcoded streams.
                 if player.isPlaying && !self.isMediaReady {
                     self.isMediaReady = true
                     if self.isTranscodedStream {
