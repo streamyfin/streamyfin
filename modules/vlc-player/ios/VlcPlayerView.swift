@@ -11,6 +11,9 @@ class VlcPlayerView: ExpoView {
     private var lastReportedState: VLCMediaPlayerState?
     private var lastReportedIsPlaying: Bool?
     private var customSubtitles: [(internalName: String, originalName: String)] = []
+    private var startPosition: Int32 = 0
+    private var isTranscodedStream: Bool = false
+    private var isMediaReady: Bool = false
 
     // MARK: - Initialization
 
@@ -103,10 +106,14 @@ class VlcPlayerView: ExpoView {
 
             let mediaOptions = source["mediaOptions"] as? [String: Any] ?? [:]
             var initOptions = source["initOptions"] as? [Any] ?? []
-            let startPosition = source["startPosition"] as? Int32 ?? 0
+            startPosition = source["startPosition"] as? Int32 ?? 0
             initOptions.append("--start-time=\(startPosition)")
 
             let uri = source["uri"] as? String
+            if let uri = uri, uri.contains("m3u8") {
+                self.isTranscodedStream = true
+            }
+
             let autoplay = source["autoplay"] as? Bool ?? false
             let isNetwork = source["isNetwork"] as? Bool ?? false
 
@@ -557,7 +564,8 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 "error": false,
             ]
 
-            if player.isPlaying {
+            // Fix HLS issue.
+            if player.isPlaying && (!self.isTranscodedStream || self.isMediaReady) {
                 stateInfo["isPlaying"] = true
                 stateInfo["isBuffering"] = false
                 stateInfo["state"] = "Playing"
@@ -577,12 +585,6 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 print("player.state ~ opening")
                 stateInfo["state"] = "Opening"
             }
-
-            // Dermine if the media has finished loading
-            // if player.isPlaying && !self.isMediaReady {
-            //     self.isMediaReady = true
-            //     self.onVideoLoadEnd?(stateInfo)
-            // }
 
             if self.lastReportedState != currentState
                 || self.lastReportedIsPlaying != player.isPlaying
@@ -621,10 +623,16 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             guard let player = self.mediaPlayer else { return }
 
             let currentTimeMs = player.time.intValue
-            let remainingTimeMs = player.remainingTime
             let durationMs = player.media?.length.intValue ?? 0
 
             if currentTimeMs >= 0 && currentTimeMs < durationMs {
+                // Handle when VLC starts at cloest earliest segment skip to the start time.
+                if player.isPlaying && !self.isMediaReady {
+                    self.isMediaReady = true
+                    if self.isTranscodedStream {
+                        self.seekTo(self.startPosition * 1000)
+                    }
+                }
                 self.onVideoProgress?([
                     "currentTime": currentTimeMs,
                     "duration": durationMs,
