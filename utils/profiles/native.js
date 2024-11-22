@@ -11,7 +11,7 @@ import MediaTypes from "../../constants/MediaTypes";
 export default {
   Name: "1. Vlc Player",
   MaxStaticBitrate: 20_000_000,
-  MaxStreamingBitrate: 12_000_000,
+  MaxStreamingBitrate: 20_000_000,
   CodecProfiles: [
     {
       Type: MediaTypes.Video,
@@ -83,6 +83,7 @@ export default {
     { Format: "pgs", Method: "External" },
     { Format: "pgs", Method: "Encode" },
     { Format: "pgssub", Method: "Embed" },
+    { Format: "pgssub", Method: "Hls" },
     { Format: "pgssub", Method: "External" },
     { Format: "pgssub", Method: "Encode" },
     { Format: "pjs", Method: "Embed" },

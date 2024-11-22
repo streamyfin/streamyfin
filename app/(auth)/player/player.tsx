@@ -16,7 +16,6 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
-import android from "@/utils/profiles/android";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -37,6 +36,7 @@ import {
   View,
 } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
+import transcoding from "@/utils/profiles/transcoding";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -119,7 +119,7 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
-        deviceProfile: native,
+        deviceProfile: !bitrateValue ? native : transcoding,
       });
 
       if (!res) return null;
@@ -330,7 +330,7 @@ export default function page() {
             startPosition,
             initOptions: [
               "--sub-text-scale=60",
-              `--sub-track=${subtitleIndex - 2}`, // This refers to the subtitle position index in the subtitles list.
+              // `--sub-track=${subtitleIndex - 2}`, // This refers to the subtitle position index in the subtitles list.
               // `--audio-track=${audioIndex - 1}`, // This refers to the audio position index in the audio list.
             ],
           }}

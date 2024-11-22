@@ -55,6 +55,8 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val initOptions = source["initOptions"] as? MutableList<String> ?: mutableListOf()
         initOptions.add("--start-time=$startPosition")
 
+        val externalSubs = source["externalSubs"] as? MutableList<String> ?: mutableListOf()
+
 
         val uri = source["uri"] as? String
         if (uri != null && uri.contains("m3u8")) {
@@ -145,14 +147,26 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         mediaPlayer?.setSpuTrack(trackIndex)
     }
 
+    // fun getSubtitleTracks(): List<Map<String, Any>>? {
+    //     return mediaPlayer?.getSpuTracks()?.map { trackDescription ->
+    //         mapOf("name" to trackDescription.name, "index" to trackDescription.id)
+    //     }
+    // }
+
     fun getSubtitleTracks(): List<Map<String, Any>>? {
-        return mediaPlayer?.getSpuTracks()?.map { trackDescription ->
+        val subtitleTracks = mediaPlayer?.spuTracks?.map { trackDescription ->
             mapOf("name" to trackDescription.name, "index" to trackDescription.id)
         }
+
+        // Debug statement to print the result
+        Log.d("VlcPlayerView", "Subtitle Tracks: $subtitleTracks")
+
+        return subtitleTracks
     }
 
     fun setSubtitleURL(subtitleURL: String, name: String) {
        mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
+
     }
 
     override fun onDetachedFromWindow() {
@@ -235,7 +249,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // Handle when VLC starts at cloest earliest segment skip to the start time, for transcoded streams.
             if (player.isPlaying && !isMediaReady) {
                 isMediaReady = true
-                if (isTranscodedStream) {
+                if (isTranscodedStream && startPosition != 0) {
                     seekTo((startPosition ?: 0) * 1000)
                 }
             }

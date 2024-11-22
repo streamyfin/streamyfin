@@ -24,7 +24,7 @@ import {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -55,6 +55,8 @@ import BottomSheet, {
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import index from "@/app/(auth)/(tabs)/(home)";
+import { all } from "axios";
 
 interface Props {
   item: BaseItemDto;
@@ -120,6 +122,18 @@ export const Controls: React.FC<Props> = ({
   const api = useAtomValue(apiAtom);
   const windowDimensions = Dimensions.get("window");
 
+  const {
+    audioIndex: audioIndexStr,
+    subtitleIndex: subtitleIndexStr,
+  } = useLocalSearchParams<{
+    itemId: string;
+    audioIndex: string;
+    subtitleIndex: string;
+    mediaSourceId: string;
+    bitrateValue: string;
+  }>();
+
+
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
     item,
@@ -128,6 +142,12 @@ export const Controls: React.FC<Props> = ({
 
   const [currentTime, setCurrentTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(0);
+
+  // Only needed for transcoding streams.
+  const [currentSubtitleIndex, setCurrentSubtitleIndex] = useState<string>(subtitleIndexStr);
+  const [onTextSubtitle, setOnTextSubtitle] = useState<boolean>(Boolean(mediaSource?.MediaStreams?.find((x) =>
+    x.Index === parseInt(subtitleIndexStr) && x.IsTextSubtitleStream  || currentSubtitleIndex === "-1"
+  )) ?? false);
 
   const min = useSharedValue(0);
   const max = useSharedValue(item.RunTimeTicks || 0);
@@ -335,6 +355,8 @@ export const Controls: React.FC<Props> = ({
     null
   );
 
+  // Only fetch tracks if the media source is not transcoded.
+
   useEffect(() => {
     const fetchTracks = async () => {
       if (getSubtitleTracks) {
@@ -347,7 +369,6 @@ export const Controls: React.FC<Props> = ({
         setAudioTracks(audio);
       }
     };
-
     fetchTracks();
   }, [isVideoLoaded, getAudioTracks, getSubtitleTracks]);
 
@@ -364,7 +385,14 @@ export const Controls: React.FC<Props> = ({
     deliveryUrl: string;
   };
 
-  const allSubtitleTracks = useMemo(() => {
+  type TranscodedSubtitle = {
+    name: string;
+    index: number;
+    IsTextSubtitleStream: boolean;
+  }
+
+  const allSubtitleTracksForDirectPlay = useMemo(() => {
+    if (mediaSource?.TranscodingUrl) return null;
     const embeddedSubs =
       subtitleTracks
         ?.map((s) => ({
@@ -389,6 +417,39 @@ export const Controls: React.FC<Props> = ({
       | ExternalSubtitle
     )[];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
+
+  const allSubtitleTracksForTranscodingStream = useMemo(() => {
+    const allSubs = mediaSource?.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [];
+    console.log('here')
+    if (onTextSubtitle) {
+      const textSubtitles =
+      subtitleTracks
+        ?.map((s) => ({
+          name: s.name,
+          index: s.index,
+          IsTextSubtitleStream: true,
+        })) || [];
+
+        console.log("Text subtitles: ", textSubtitles);
+      const imageSubtitles =
+      allSubs.filter((x) => !x.IsTextSubtitleStream).map((x) => (
+        { name: x.DisplayTitle!,
+          index: x.Index!,
+          IsTextSubtitleStream: x.IsTextSubtitleStream
+        } as TranscodedSubtitle));
+
+      return [...textSubtitles, ...imageSubtitles];
+    }
+
+    const transcodedSubtitle: TranscodedSubtitle[] = allSubs.map((x) => ({
+      name: x.DisplayTitle!,
+      index: x.Index!,
+      IsTextSubtitleStream: x.IsTextSubtitleStream!
+    }));
+
+    return transcodedSubtitle;
+
+  }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams, onTextSubtitle]);
 
   return (
     <View
@@ -435,7 +496,7 @@ export const Controls: React.FC<Props> = ({
                 loop={true}
                 sideOffset={10}
               >
-                {allSubtitleTracks?.map((sub, idx: number) => (
+                {!mediaSource?.TranscodingUrl && allSubtitleTracksForDirectPlay?.map((sub, idx: number) => (
                   <DropdownMenu.Item
                     key={`subtitle-item-${idx}`}
                     onSelect={() => {
@@ -446,16 +507,34 @@ export const Controls: React.FC<Props> = ({
                             sub.name
                           );
 
-                        console.log(
-                          "Set sub url: ",
-                          api?.basePath + sub.deliveryUrl
-                        );
+                          console.log("Set external subtitle: ", api?.basePath + sub.deliveryUrl);
                       } else {
                         console.log("Set sub index: ", sub.index);
                         setSubtitleTrack && setSubtitleTrack(sub.index);
                       }
 
                       console.log("Subtitle: ", sub);
+                    }}
+                  >
+                    <DropdownMenu.ItemIndicator />
+                    <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
+                      {sub.name}
+                    </DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                ))}
+                {mediaSource?.TranscodingUrl && allSubtitleTracksForTranscodingStream?.map((sub, idx: number) => (
+                  <DropdownMenu.Item
+                    key={`subtitle-item-${idx}`}
+                    onSelect={() => {
+                      if (currentSubtitleIndex === sub.index.toString()) return;
+
+                      if (sub.IsTextSubtitleStream && onTextSubtitle) {
+                        setSubtitleTrack && setSubtitleTrack(sub.index);
+                        return;
+                      }
+
+                      // Needs a full reload of the player.
+
                     }}
                   >
                     <DropdownMenu.ItemIndicator />
