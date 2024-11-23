@@ -1,3 +1,5 @@
+import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
@@ -24,9 +26,9 @@ import {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   Platform,
@@ -41,25 +43,11 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
-import * as DropdownMenu from "zeego/dropdown-menu";
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import index from "@/app/(auth)/(tabs)/(home)";
-import { all } from "axios";
-import { Text } from "@/components/common/Text";
-import { Loader } from "@/components/Loader";
+import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./DropdownView";
-import { ControlProvider } from "./contexts/ControlContext";
 
 interface Props {
   item: BaseItemDto;
@@ -124,7 +112,6 @@ export const Controls: React.FC<Props> = ({
   const { setPlaySettings, playSettings } = usePlaySettings();
   const api = useAtomValue(apiAtom);
   const windowDimensions = Dimensions.get("window");
-
 
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
@@ -332,7 +319,6 @@ export const Controls: React.FC<Props> = ({
     setIgnoreSafeAreas((prev) => !prev);
   }, []);
 
-
   return (
     <ControlProvider
       item={item}
@@ -356,9 +342,7 @@ export const Controls: React.FC<Props> = ({
           setSubtitleTrack={setSubtitleTrack}
           setSubtitleURL={setSubtitleURL}
         >
-          <DropdownView
-            showControls={showControls}
-          />
+          <DropdownView showControls={showControls} />
         </VideoProvider>
 
         <View
