@@ -70,6 +70,8 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
     && x.IsTextSubtitleStream)
   || subtitleIndexStr === "-1";
 
+
+  // TODO: Add support for text sorting subtitles renaming.
   const allSubtitleTracksForTranscodingStream = useMemo(() => {
     const allSubs = mediaSource?.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [];
     if (isOnTextSubtitle) {
