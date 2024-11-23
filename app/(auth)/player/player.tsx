@@ -1,7 +1,7 @@
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
-import { Controls } from "@/components/video-player/Controls";
+import { Controls } from "@/components/video-player/controls/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -18,7 +18,7 @@ import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { BaseItemDto, MediaSourceType } from "@jellyfin/sdk/lib/generated-client";
 import {
   getPlaystateApi,
   getUserLibraryApi,
@@ -301,10 +301,39 @@ export default function page() {
 
   if (!stream || !item) return null;
 
-  console.log("AudioIndex", audioIndex);
   const startPosition = item?.UserData?.PlaybackPositionTicks
     ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
     : 0;
+
+
+  // Preselection of audio and subtitle tracks.
+
+  let initOptions = ["--sub-text-scale=60"]
+  let externalTrack = { name: "", DeliveryUrl: "" };
+
+  const allSubs = stream.mediaSource.MediaStreams?.filter((sub) => sub.Type === "Subtitle") || [];
+  const chosenSubtitleTrack = allSubs.find((sub) => sub.Index === subtitleIndex);
+  // Direct playback CASE
+  if (!bitrateValue) {
+    // If Subtitle is embedded we can use the position to select it straight away.
+    if (chosenSubtitleTrack && !chosenSubtitleTrack.DeliveryUrl) {
+      initOptions.push(`--sub-track=${allSubs.indexOf(chosenSubtitleTrack)}`);
+    } else if (chosenSubtitleTrack && chosenSubtitleTrack.DeliveryUrl) {
+      // If Subtitle is external we need to pass the URL to the player.
+      externalTrack = {
+        name: chosenSubtitleTrack.DisplayTitle || "",
+        DeliveryUrl: `${api?.basePath || ""}${chosenSubtitleTrack.DeliveryUrl}`
+      };
+    }
+  } else {
+    // Transcoded playback CASE
+    if (chosenSubtitleTrack?.DeliveryMethod === "Hls") {
+      externalTrack = {
+        name: `subs ${chosenSubtitleTrack.DisplayTitle}` ,
+        DeliveryUrl: ""
+      };
+    }
+  }
 
   return (
     <View
@@ -328,11 +357,8 @@ export default function page() {
             autoplay: true,
             isNetwork: true,
             startPosition,
-            initOptions: [
-              "--sub-text-scale=60",
-              // `--sub-track=${subtitleIndex - 2}`, // This refers to the subtitle position index in the subtitles list.
-              // `--audio-track=${audioIndex - 1}`, // This refers to the audio position index in the audio list.
-            ],
+            externalTrack,
+            initOptions,
           }}
           style={{ width: "100%", height: "100%" }}
           onVideoProgress={onProgress}

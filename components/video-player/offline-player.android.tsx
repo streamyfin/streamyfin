@@ -1,4 +1,4 @@
-import { Controls } from "@/components/video-player/Controls";
+import { Controls } from "@/components/video-player/controls/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { apiAtom } from "@/providers/JellyfinProvider";

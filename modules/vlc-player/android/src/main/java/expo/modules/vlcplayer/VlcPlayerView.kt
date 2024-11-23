@@ -32,6 +32,8 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var startPosition: Int? = 0
     private var isTranscodedStream: Boolean = false
     private var isMediaReady: Boolean = false
+    private var externalTrack: Map<String, String>? = null
+
     init {
         setupView()
     }
@@ -50,12 +52,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val mediaOptions = source["mediaOptions"] as? Map<String, Any> ?: emptyMap()
         val autoplay = source["autoplay"] as? Boolean ?: false
         val isNetwork = source["isNetwork"] as? Boolean ?: false
+        externalTrack = source["externalTrack"] as? Map<String, String>
         startPosition = (source["startPosition"] as? Double)?.toInt() ?: 0
 
         val initOptions = source["initOptions"] as? MutableList<String> ?: mutableListOf()
         initOptions.add("--start-time=$startPosition")
-
-        val externalSubs = source["externalSubs"] as? MutableList<String> ?: mutableListOf()
 
 
         val uri = source["uri"] as? String
@@ -165,8 +166,8 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun setSubtitleURL(subtitleURL: String, name: String) {
-       mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
-
+        println("Setting subtitle URL: $subtitleURL, name: $name")
+        mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
     }
 
     override fun onDetachedFromWindow() {
@@ -238,6 +239,16 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
     }
 
+    // Only used for HLS transcoded streams
+    private fun setSubtitleTrackByName(trackName: String) {
+        val track = mediaPlayer?.getSpuTracks()?.firstOrNull { it.name.startsWith(trackName) }
+        val trackIndex = track?.id ?: -1
+        println("Track Index setting to: $trackIndex")
+        if (trackIndex != -1) {
+            setSubtitleTrack(trackIndex)
+        }
+    }
+
 
     private fun updateVideoProgress() {
         val player = mediaPlayer ?: return
@@ -249,6 +260,19 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // Handle when VLC starts at cloest earliest segment skip to the start time, for transcoded streams.
             if (player.isPlaying && !isMediaReady) {
                 isMediaReady = true
+                externalTrack?.let {
+                    val name = it["name"]
+                    val deliveryUrl = it["DeliveryUrl"] ?: ""
+                    if (!name.isNullOrEmpty()) {
+                        if (!isTranscodedStream) {
+                            setSubtitleURL(deliveryUrl, name)
+                        }
+                        else {
+                            setSubtitleTrackByName(name)
+                        }
+                    }
+                }
+
                 if (isTranscodedStream && startPosition != 0) {
                     seekTo((startPosition ?: 0) * 1000)
                 }
