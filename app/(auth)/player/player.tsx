@@ -18,7 +18,10 @@ import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
-import { BaseItemDto, MediaSourceType } from "@jellyfin/sdk/lib/generated-client";
+import {
+  BaseItemDto,
+  MediaSourceType,
+} from "@jellyfin/sdk/lib/generated-client";
 import {
   getPlaystateApi,
   getUserLibraryApi,
@@ -305,14 +308,23 @@ export default function page() {
     ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
     : 0;
 
-
   // Preselection of audio and subtitle tracks.
 
-  let initOptions = ["--sub-text-scale=60"]
+  let initOptions = ["--sub-text-scale=60"];
   let externalTrack = { name: "", DeliveryUrl: "" };
 
-  const allSubs = stream.mediaSource.MediaStreams?.filter((sub) => sub.Type === "Subtitle") || [];
-  const chosenSubtitleTrack = allSubs.find((sub) => sub.Index === subtitleIndex);
+  const allSubs =
+    stream.mediaSource.MediaStreams?.filter((sub) => sub.Type === "Subtitle") ||
+    [];
+  const chosenSubtitleTrack = allSubs.find(
+    (sub) => sub.Index === subtitleIndex
+  );
+  const allAudio =
+    stream.mediaSource.MediaStreams?.filter(
+      (audio) => audio.Type === "Audio"
+    ) || [];
+  const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
+
   // Direct playback CASE
   if (!bitrateValue) {
     // If Subtitle is embedded we can use the position to select it straight away.
@@ -322,15 +334,16 @@ export default function page() {
       // If Subtitle is external we need to pass the URL to the player.
       externalTrack = {
         name: chosenSubtitleTrack.DisplayTitle || "",
-        DeliveryUrl: `${api?.basePath || ""}${chosenSubtitleTrack.DeliveryUrl}`
+        DeliveryUrl: `${api?.basePath || ""}${chosenSubtitleTrack.DeliveryUrl}`,
       };
     }
+    initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   } else {
     // Transcoded playback CASE
     if (chosenSubtitleTrack?.DeliveryMethod === "Hls") {
       externalTrack = {
-        name: `subs ${chosenSubtitleTrack.DisplayTitle}` ,
-        DeliveryUrl: ""
+        name: `subs ${chosenSubtitleTrack.DisplayTitle}`,
+        DeliveryUrl: "",
       };
     }
   }
