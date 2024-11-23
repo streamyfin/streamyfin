@@ -109,7 +109,6 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
               IsTextSubtitleStream: x.IsTextSubtitleStream,
             } as TranscodedSubtitle)
         );
-
       return [...textSubtitles, ...imageSubtitles];
     }
 
@@ -119,7 +118,10 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       IsTextSubtitleStream: x.IsTextSubtitleStream!,
     }));
 
-    return transcodedSubtitle;
+    return [
+      { name: 'Disable', index: -1, IsTextSubtitleStream: true } as TranscodedSubtitle,
+      ...transcodedSubtitle
+    ];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
 
   const ChangeTranscodingSubtitle = useCallback(
