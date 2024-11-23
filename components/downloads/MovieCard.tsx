@@ -10,7 +10,7 @@ import {
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { Text } from "../common/Text";
 
-import { useFileOpener } from "@/hooks/useDownloadedFileOpener";
+import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { Image } from "expo-image";
@@ -28,7 +28,7 @@ interface MovieCardProps {
  */
 export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
-  const { openFile } = useFileOpener();
+  const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
 
   const handleOpenFile = useCallback(() => {

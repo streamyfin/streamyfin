@@ -15,6 +15,7 @@ interface UseWebSocketProps {
   pauseVideo: () => void;
   playVideo: () => void;
   stopPlayback: () => void;
+  offline?: boolean;
 }
 
 export const useWebSocket = ({
@@ -22,6 +23,7 @@ export const useWebSocket = ({
   pauseVideo,
   playVideo,
   stopPlayback,
+  offline = false,
 }: UseWebSocketProps) => {
   const router = useRouter();
   const user = useAtomValue(userAtom);
@@ -38,7 +40,7 @@ export const useWebSocket = ({
   });
 
   useEffect(() => {
-    if (!deviceId || !api?.accessToken) return;
+    if (offline || !deviceId || !api?.accessToken) return;
 
     const protocol = api?.basePath.includes("https") ? "wss" : "ws";
 
@@ -80,10 +82,10 @@ export const useWebSocket = ({
       }
       newWebSocket.close();
     };
-  }, [api, deviceId, user]);
+  }, [api, deviceId, user, offline]);
 
   useEffect(() => {
-    if (!ws) return;
+    if (offline || !ws) return;
 
     ws.onmessage = (e) => {
       const json = JSON.parse(e.data);
@@ -106,7 +108,7 @@ export const useWebSocket = ({
         Alert.alert("Message from server: " + title, body);
       }
     };
-  }, [ws, stopPlayback, playVideo, pauseVideo, isPlaying, router]);
+  }, [ws, stopPlayback, playVideo, pauseVideo, isPlaying, router, offline]);
 
   return { isConnected };
 };

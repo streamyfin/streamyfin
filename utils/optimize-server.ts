@@ -1,7 +1,11 @@
 import { itemRouter } from "@/components/common/TouchableItemRouter";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import axios from "axios";
 import { writeToLog } from "./log";
+import { DownloadedItem } from "@/providers/DownloadProvider";
 
 interface IJobInput {
   deviceId?: string | null;
@@ -23,7 +27,7 @@ export interface JobStatus {
   inputUrl: string;
   deviceId: string;
   itemId: string;
-  item: Partial<BaseItemDto>;
+  item: DownloadedItem;
   speed?: number;
   timestamp: Date;
   base64Image?: string;

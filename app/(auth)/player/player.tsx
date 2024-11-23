@@ -2,6 +2,7 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/Controls";
+import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -11,12 +12,12 @@ import {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
-import android from "@/utils/profiles/android";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -29,21 +30,13 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Platform,
-  Pressable,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Alert, Pressable, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
-
-  const windowDimensions = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -56,19 +49,25 @@ export default function page() {
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
 
+  const { getDownloadedItem } = useDownload();
+
   const {
     itemId,
     audioIndex: audioIndexStr,
     subtitleIndex: subtitleIndexStr,
     mediaSourceId,
     bitrateValue: bitrateValueStr,
+    offline: offlineStr,
   } = useLocalSearchParams<{
     itemId: string;
     audioIndex: string;
     subtitleIndex: string;
     mediaSourceId: string;
     bitrateValue: string;
+    offline: string;
   }>();
+
+  const offline = offlineStr === "true";
 
   const audioIndex = audioIndexStr ? parseInt(audioIndexStr, 10) : undefined;
   const subtitleIndex = subtitleIndexStr ? parseInt(subtitleIndexStr, 10) : -1;
@@ -84,6 +83,12 @@ export default function page() {
     queryKey: ["item", itemId],
     queryFn: async () => {
       if (!api) return;
+
+      if (offline) {
+        const item = await getDownloadedItem(itemId);
+        if (item) return item.item;
+      }
+
       const res = await getUserLibraryApi(api).getItem({
         itemId,
         userId: user?.Id,
@@ -110,6 +115,21 @@ export default function page() {
     ],
     queryFn: async () => {
       if (!api) return;
+
+      if (offline) {
+        const item = await getDownloadedItem(itemId);
+        if (!item?.mediaSource) return null;
+
+        const url = await getDownloadedFileUrl(item.item.Id!);
+
+        if (item)
+          return {
+            mediaSource: item.mediaSource,
+            url,
+            sessionId: undefined,
+          };
+      }
+
       const res = await getStreamUrl({
         api,
         item,
@@ -134,7 +154,7 @@ export default function page() {
         url,
       };
     },
-    enabled: !!itemId && !!api && !!item,
+    enabled: !!itemId && !!api && !!item && !offline,
     staleTime: 0,
   });
 
@@ -146,33 +166,38 @@ export default function page() {
       if (isPlaying) {
         await videoRef.current?.pause();
 
-        await getPlaystateApi(api).onPlaybackProgress({
-          itemId: item?.Id!,
-          audioStreamIndex: audioIndex ? audioIndex : undefined,
-          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-          mediaSourceId: mediaSourceId,
-          positionTicks: msToTicks(ms),
-          isPaused: true,
-          playMethod: stream.url?.includes("m3u8")
-            ? "Transcode"
-            : "DirectStream",
-          playSessionId: stream.sessionId,
-        });
+        if (!offline) {
+          await getPlaystateApi(api).onPlaybackProgress({
+            itemId: item?.Id!,
+            audioStreamIndex: audioIndex ? audioIndex : undefined,
+            subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+            mediaSourceId: mediaSourceId,
+            positionTicks: msToTicks(ms),
+            isPaused: true,
+            playMethod: stream.url?.includes("m3u8")
+              ? "Transcode"
+              : "DirectStream",
+            playSessionId: stream.sessionId,
+          });
+        }
+
         console.log("Actually marked as paused");
       } else {
         videoRef.current?.play();
-        await getPlaystateApi(api).onPlaybackProgress({
-          itemId: item?.Id!,
-          audioStreamIndex: audioIndex ? audioIndex : undefined,
-          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-          mediaSourceId: mediaSourceId,
-          positionTicks: msToTicks(ms),
-          isPaused: false,
-          playMethod: stream?.url.includes("m3u8")
-            ? "Transcode"
-            : "DirectStream",
-          playSessionId: stream.sessionId,
-        });
+        if (!offline) {
+          await getPlaystateApi(api).onPlaybackProgress({
+            itemId: item?.Id!,
+            audioStreamIndex: audioIndex ? audioIndex : undefined,
+            subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+            mediaSourceId: mediaSourceId,
+            positionTicks: msToTicks(ms),
+            isPaused: false,
+            playMethod: stream?.url.includes("m3u8")
+              ? "Transcode"
+              : "DirectStream",
+            playSessionId: stream.sessionId,
+          });
+        }
       }
     },
     [
@@ -184,6 +209,7 @@ export default function page() {
       audioIndex,
       subtitleIndex,
       mediaSourceId,
+      offline,
     ]
   );
 
@@ -202,19 +228,20 @@ export default function page() {
     reportPlaybackStopped();
   }, [videoRef]);
 
-  const reportPlaybackStopped = async () => {
+  const reportPlaybackStopped = useCallback(async () => {
+    if (offline) return;
     const currentTimeInTicks = msToTicks(progress.value);
-
     await getPlaystateApi(api!).onPlaybackStopped({
       itemId: item?.Id!,
       mediaSourceId: mediaSourceId,
       positionTicks: currentTimeInTicks,
       playSessionId: stream?.sessionId!,
     });
-  };
+  }, [api, item, mediaSourceId, stream]);
 
-  const reportPlaybackStart = async () => {
+  const reportPlaybackStart = useCallback(async () => {
     if (!api || !stream) return;
+    if (offline) return;
     await getPlaystateApi(api).onPlaybackStart({
       itemId: item?.Id!,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
@@ -223,7 +250,7 @@ export default function page() {
       playMethod: stream.url?.includes("m3u8") ? "Transcode" : "DirectStream",
       playSessionId: stream?.sessionId ? stream?.sessionId : undefined,
     });
-  };
+  }, [api, item, mediaSourceId, stream]);
 
   const onProgress = useCallback(
     async (data: ProgressUpdatePayload) => {
@@ -238,6 +265,9 @@ export default function page() {
       }
 
       progress.value = currentTime;
+
+      if (offline) return;
+
       const currentTimeInTicks = msToTicks(currentTime);
 
       await getPlaystateApi(api).onPlaybackProgress({
@@ -262,9 +292,10 @@ export default function page() {
     pauseVideo: pause,
     playVideo: play,
     stopPlayback: stop,
+    offline: offline,
   });
 
-  const onPlaybackStateChanged = (e: PlaybackStatePayload) => {
+  const onPlaybackStateChanged = useCallback((e: PlaybackStatePayload) => {
     const { state, isBuffering, isPlaying } = e.nativeEvent;
 
     if (state === "Playing") {
@@ -283,7 +314,15 @@ export default function page() {
     } else if (isBuffering) {
       setIsBuffering(true);
     }
-  };
+  }, []);
+
+  const startPosition = useMemo(() => {
+    if (offline) return 0;
+
+    return item?.UserData?.PlaybackPositionTicks
+      ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
+      : 0;
+  }, [item]);
 
   if (isLoadingItem || isLoadingStreamUrl)
     return (
@@ -300,11 +339,6 @@ export default function page() {
     );
 
   if (!stream || !item) return null;
-
-  console.log("AudioIndex", audioIndex);
-  const startPosition = item?.UserData?.PlaybackPositionTicks
-    ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
-    : 0;
 
   return (
     <View

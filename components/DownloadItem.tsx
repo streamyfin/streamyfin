@@ -31,6 +31,7 @@ import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 
 interface DownloadProps extends ViewProps {
   item: BaseItemDto;
@@ -42,7 +43,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
   const [queue, setQueue] = useAtom(queueAtom);
   const [settings] = useSettings();
   const { processes, startBackgroundDownload } = useDownload();
-  const { startRemuxing } = useRemuxHlsToMp4(item);
+  const { startRemuxing } = useRemuxHlsToMp4();
 
   const [selectedMediaSource, setSelectedMediaSource] = useState<
     MediaSourceInfo | undefined | null
@@ -98,73 +99,33 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       );
     }
 
-    const response = await api.axiosInstance.post(
-      `${api.basePath}/Items/${item.Id}/PlaybackInfo`,
-      {
-        DeviceProfile: native,
-        UserId: user.Id,
-        MaxStreamingBitrate: maxBitrate.value,
-        StartTimeTicks: 0,
-        EnableTranscoding: maxBitrate.value ? true : undefined,
-        AutoOpenLiveStream: true,
-        AllowVideoStreamCopy: maxBitrate.value ? false : true,
-        MediaSourceId: selectedMediaSource?.Id,
-        AudioStreamIndex: selectedAudioStream,
-        SubtitleStreamIndex: selectedSubtitleStream,
-      },
-      {
-        headers: {
-          Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
-        },
-      }
-    );
+    const res = await getStreamUrl({
+      api,
+      item,
+      startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+      userId: user?.Id,
+      audioStreamIndex: selectedAudioStream,
+      maxStreamingBitrate: maxBitrate.value,
+      mediaSourceId: selectedMediaSource.Id,
+      subtitleStreamIndex: selectedSubtitleStream,
+      deviceProfile: native,
+    });
 
-    let url: string | undefined = undefined;
-    let fileExtension: string | undefined | null = "mp4";
+    if (!res) return null;
 
-    const mediaSource: MediaSourceInfo = response.data.MediaSources.find(
-      (source: MediaSourceInfo) => source.Id === selectedMediaSource?.Id
-    );
+    const { mediaSource, url } = res;
 
-    if (!mediaSource) {
-      throw new Error("No media source");
-    }
-
-    if (mediaSource.SupportsDirectPlay) {
-      if (item.MediaType === "Video") {
-        url = `${api.basePath}/Videos/${item.Id}/stream.mp4?mediaSourceId=${item.Id}&static=true&mediaSourceId=${mediaSource.Id}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`;
-      } else if (item.MediaType === "Audio") {
-        console.log("Using direct stream for audio!");
-        const searchParams = new URLSearchParams({
-          UserId: user.Id,
-          DeviceId: api.deviceInfo.id,
-          MaxStreamingBitrate: "140000000",
-          Container:
-            "opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg",
-          TranscodingContainer: "mp4",
-          TranscodingProtocol: "hls",
-          AudioCodec: "aac",
-          api_key: api.accessToken,
-          StartTimeTicks: "0",
-          EnableRedirection: "true",
-          EnableRemoteMedia: "false",
-        });
-        url = `${api.basePath}/Audio/${
-          item.Id
-        }/universal?${searchParams.toString()}`;
-      }
-    } else if (mediaSource.TranscodingUrl) {
-      url = `${api.basePath}${mediaSource.TranscodingUrl}`;
-      fileExtension = mediaSource.TranscodingContainer;
-    }
-
-    if (!url) throw new Error("No url");
-    if (!fileExtension) throw new Error("No file extension");
+    if (!url || !mediaSource) throw new Error("No url");
+    if (!mediaSource.TranscodingContainer) throw new Error("No file extension");
 
     if (settings?.downloadMethod === "optimized") {
-      return await startBackgroundDownload(url, item, fileExtension);
+      return await startBackgroundDownload(
+        url,
+        item,
+        mediaSource.TranscodingContainer
+      );
     } else {
-      return await startRemuxing(url);
+      return await startRemuxing(item, url, mediaSource);
     }
   }, [
     api,
@@ -203,7 +164,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
   const process = useMemo(() => {
     if (!processes) return null;
 
-    return processes.find((process) => process?.item?.Id === item.Id);
+    return processes.find((process) => process?.item?.item.Id === item.Id);
   }, [processes, item.Id]);
 
   return (
@@ -211,7 +172,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       className="bg-neutral-800/80 rounded-full h-10 w-10 flex items-center justify-center"
       {...props}
     >
-      {process && process?.item.Id === item.Id ? (
+      {process && process?.item.item.Id === item.Id ? (
         <TouchableOpacity
           onPress={() => {
             router.push("/downloads");

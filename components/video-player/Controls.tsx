@@ -116,9 +116,7 @@ export const Controls: React.FC<Props> = ({
   const [settings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setPlaySettings, playSettings } = usePlaySettings();
   const api = useAtomValue(apiAtom);
-  const windowDimensions = Dimensions.get("window");
 
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
@@ -157,14 +155,6 @@ export const Controls: React.FC<Props> = ({
     const { bitrate, mediaSource, audioIndex, subtitleIndex } =
       getDefaultPlaySettings(previousItem, settings);
 
-    setPlaySettings({
-      item: previousItem,
-      bitrate,
-      mediaSource,
-      audioIndex,
-      subtitleIndex,
-    });
-
     const queryParams = new URLSearchParams({
       itemId: previousItem.Id ?? "", // Ensure itemId is a string
       audioIndex: audioIndex?.toString() ?? "",
@@ -182,14 +172,6 @@ export const Controls: React.FC<Props> = ({
 
     const { bitrate, mediaSource, audioIndex, subtitleIndex } =
       getDefaultPlaySettings(nextItem, settings);
-
-    setPlaySettings({
-      item: nextItem,
-      bitrate,
-      mediaSource,
-      audioIndex,
-      subtitleIndex,
-    });
 
     const queryParams = new URLSearchParams({
       itemId: nextItem.Id ?? "", // Ensure itemId is a string
@@ -373,6 +355,8 @@ export const Controls: React.FC<Props> = ({
           deliveryUrl: undefined,
         }))
         .filter((sub) => !sub.name.endsWith("[External]")) || [];
+
+    console.log("embeddedSubs ~", embeddedSubs);
 
     const externalSubs =
       mediaSource?.MediaStreams?.filter(

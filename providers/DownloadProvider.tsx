@@ -7,7 +7,10 @@ import {
   getAllJobsByDeviceId,
   JobStatus,
 } from "@/utils/optimize-server";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import {
   checkForExistingDownloads,
   completeHandler,
@@ -40,6 +43,11 @@ import { apiAtom } from "./JellyfinProvider";
 import * as Notifications from "expo-notifications";
 import { getItemImage } from "@/utils/getItemImage";
 import useImageStorage from "@/hooks/useImageStorage";
+
+export type DownloadedItem = {
+  item: Partial<BaseItemDto>;
+  mediaSource: MediaSourceInfo;
+};
 
 function onAppStateChange(status: AppStateStatus) {
   focusManager.setFocused(status === "active");
@@ -122,7 +130,7 @@ function useDownloadProvider() {
           if (settings.autoDownload) {
             startDownload(job);
           } else {
-            toast.info(`${job.item.Name} is ready to be downloaded`, {
+            toast.info(`${job.item.item.Name} is ready to be downloaded`, {
               action: {
                 label: "Go to downloads",
                 onClick: () => {
@@ -133,8 +141,8 @@ function useDownloadProvider() {
             });
             Notifications.scheduleNotificationAsync({
               content: {
-                title: job.item.Name,
-                body: `${job.item.Name} is ready to be downloaded`,
+                title: job.item.item.Name,
+                body: `${job.item.item.Name} is ready to be downloaded`,
                 data: {
                   url: `/downloads`,
                 },
@@ -182,7 +190,7 @@ function useDownloadProvider() {
 
   const startDownload = useCallback(
     async (process: JobStatus) => {
-      if (!process?.item.Id || !authHeader) throw new Error("No item id");
+      if (!process?.item.item.Id || !authHeader) throw new Error("No item id");
 
       setProcesses((prev) =>
         prev.map((p) =>
@@ -205,7 +213,7 @@ function useDownloadProvider() {
         },
       });
 
-      toast.info(`Download started for ${process.item.Name}`, {
+      toast.info(`Download started for ${process.item.item.Name}`, {
         action: {
           label: "Go to downloads",
           onClick: () => {
@@ -220,7 +228,7 @@ function useDownloadProvider() {
       download({
         id: process.id,
         url: settings?.optimizedVersionsServerUrl + "download/" + process.id,
-        destination: `${baseDirectory}/${process.item.Id}.mp4`,
+        destination: `${baseDirectory}/${process.item.item.Id}.mp4`,
       })
         .begin(() => {
           setProcesses((prev) =>
@@ -252,8 +260,11 @@ function useDownloadProvider() {
           );
         })
         .done(async () => {
-          await saveDownloadedItemInfo(process.item);
-          toast.success(`Download completed for ${process.item.Name}`, {
+          await saveDownloadedItemInfo(
+            process.item.item,
+            process.item.mediaSource
+          );
+          toast.success(`Download completed for ${process.item.item.Name}`, {
             duration: 3000,
             action: {
               label: "Go to downloads",
@@ -278,13 +289,15 @@ function useDownloadProvider() {
           if (error.errorCode === 404) {
             errorMsg = "File not found on server";
           }
-          toast.error(`Download failed for ${process.item.Name} - ${errorMsg}`);
-          writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
+          toast.error(
+            `Download failed for ${process.item.item.Name} - ${errorMsg}`
+          );
+          writeToLog("ERROR", `Download failed for ${process.item.item.Name}`, {
             error,
             processDetails: {
               id: process.id,
-              itemName: process.item.Name,
-              itemId: process.item.Id,
+              itemName: process.item.item.Name,
+              itemId: process.item.item.Id,
             },
           });
           console.error("Error details:", {
@@ -485,11 +498,28 @@ function useDownloadProvider() {
     }
   };
 
-  async function getAllDownloadedItems(): Promise<BaseItemDto[]> {
+  async function getDownloadedItem(
+    itemId: string
+  ): Promise<DownloadedItem | null> {
     try {
       const downloadedItems = await AsyncStorage.getItem("downloadedItems");
       if (downloadedItems) {
-        return JSON.parse(downloadedItems) as BaseItemDto[];
+        const items: DownloadedItem[] = JSON.parse(downloadedItems);
+        const item = items.find((i) => i.item.Id === itemId);
+        return item || null;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Failed to retrieve item with ID ${itemId}:`, error);
+      return null;
+    }
+  }
+
+  async function getAllDownloadedItems(): Promise<DownloadedItem[]> {
+    try {
+      const downloadedItems = await AsyncStorage.getItem("downloadedItems");
+      if (downloadedItems) {
+        return JSON.parse(downloadedItems) as DownloadedItem[];
       } else {
         return [];
       }
@@ -499,25 +529,32 @@ function useDownloadProvider() {
     }
   }
 
-  async function saveDownloadedItemInfo(item: BaseItemDto) {
+  async function saveDownloadedItemInfo(
+    item: BaseItemDto,
+    mediaSource: MediaSourceInfo
+  ) {
     try {
       const downloadedItems = await AsyncStorage.getItem("downloadedItems");
-      let items: BaseItemDto[] = downloadedItems
-        ? JSON.parse(downloadedItems)
-        : [];
+      let items: { item: BaseItemDto; mediaSource: MediaSourceInfo }[] =
+        downloadedItems ? JSON.parse(downloadedItems) : [];
 
-      const existingItemIndex = items.findIndex((i) => i.Id === item.Id);
+      const existingItemIndex = items.findIndex((i) => i.item.Id === item.Id);
+      const newItem = { item, mediaSource };
+
       if (existingItemIndex !== -1) {
-        items[existingItemIndex] = item;
+        items[existingItemIndex] = newItem;
       } else {
-        items.push(item);
+        items.push(newItem);
       }
 
       await AsyncStorage.setItem("downloadedItems", JSON.stringify(items));
       await queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
       refetch();
     } catch (error) {
-      console.error("Failed to save downloaded item information:", error);
+      console.error(
+        "Failed to save downloaded item information with media source:",
+        error
+      );
     }
   }
 
@@ -531,6 +568,7 @@ function useDownloadProvider() {
     removeProcess,
     setProcesses,
     startDownload,
+    getDownloadedItem,
   };
 }
 
