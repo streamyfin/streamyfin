@@ -8,8 +8,6 @@ import {
   TrackInfo,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { writeToLog } from "@/utils/log";
@@ -27,15 +25,8 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Dimensions,
-  Platform,
-  Pressable,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Platform, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -80,7 +71,6 @@ interface Props {
 
 export const Controls: React.FC<Props> = ({
   item,
-  videoRef,
   seek,
   play,
   pause,
@@ -109,9 +99,6 @@ export const Controls: React.FC<Props> = ({
   const [settings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setPlaySettings, playSettings } = usePlaySettings();
-  const api = useAtomValue(apiAtom);
-  const windowDimensions = Dimensions.get("window");
 
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
@@ -150,14 +137,6 @@ export const Controls: React.FC<Props> = ({
     const { bitrate, mediaSource, audioIndex, subtitleIndex } =
       getDefaultPlaySettings(previousItem, settings);
 
-    setPlaySettings({
-      item: previousItem,
-      bitrate,
-      mediaSource,
-      audioIndex,
-      subtitleIndex,
-    });
-
     const queryParams = new URLSearchParams({
       itemId: previousItem.Id ?? "", // Ensure itemId is a string
       audioIndex: audioIndex?.toString() ?? "",
@@ -175,14 +154,6 @@ export const Controls: React.FC<Props> = ({
 
     const { bitrate, mediaSource, audioIndex, subtitleIndex } =
       getDefaultPlaySettings(nextItem, settings);
-
-    setPlaySettings({
-      item: nextItem,
-      bitrate,
-      mediaSource,
-      audioIndex,
-      subtitleIndex,
-    });
 
     const queryParams = new URLSearchParams({
       itemId: nextItem.Id ?? "", // Ensure itemId is a string

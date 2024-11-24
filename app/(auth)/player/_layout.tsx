@@ -17,15 +17,6 @@ export default function Layout() {
           }}
         />
         <Stack.Screen
-          name="offline-player"
-          options={{
-            headerShown: false,
-            autoHideHomeIndicator: true,
-            title: "",
-            animation: "fade",
-          }}
-        />
-        <Stack.Screen
           name="music-player"
           options={{
             headerShown: false,
