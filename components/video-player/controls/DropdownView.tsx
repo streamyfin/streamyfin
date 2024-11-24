@@ -237,27 +237,25 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                   <DropdownMenu.CheckboxItem
                     key={`subtitle-item-${idx}`}
                     value={selectedSubtitleIndex === sub.index}
-                    onValueChange={(next) => {
-                      if (next) {
-                        if ("deliveryUrl" in sub && sub.deliveryUrl) {
-                          setSubtitleURL &&
-                            setSubtitleURL(
-                              api?.basePath + sub.deliveryUrl,
-                              sub.name
-                            );
-
-                          console.log(
-                            "Set external subtitle: ",
-                            api?.basePath + sub.deliveryUrl
+                    onValueChange={() => {
+                      if ("deliveryUrl" in sub && sub.deliveryUrl) {
+                        setSubtitleURL &&
+                          setSubtitleURL(
+                            api?.basePath + sub.deliveryUrl,
+                            sub.name
                           );
-                        } else {
-                          console.log("Set sub index: ", sub.index);
-                          setSubtitleTrack && setSubtitleTrack(sub.index);
-                        }
 
-                        setSelectedSubtitleIndex(sub.index);
-                        console.log("Subtitle: ", sub);
+                        console.log(
+                          "Set external subtitle: ",
+                          api?.basePath + sub.deliveryUrl
+                        );
+                      } else {
+                        console.log("Set sub index: ", sub.index);
+                        setSubtitleTrack && setSubtitleTrack(sub.index);
                       }
+
+                      setSelectedSubtitleIndex(sub.index);
+                      console.log("Subtitle: ", sub);
                     }}
                   >
                     <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
@@ -308,11 +306,9 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                   <DropdownMenu.CheckboxItem
                     key={`audio-item-${idx}`}
                     value={selectedAudioIndex === track.index}
-                    onValueChange={(next) => {
-                      if (next) {
-                        setSelectedAudioIndex(track.index);
-                        setAudioTrack && setAudioTrack(track.index);
-                      }
+                    onValueChange={() => {
+                      setSelectedAudioIndex(track.index);
+                      setAudioTrack && setAudioTrack(track.index);
                     }}
                   >
                     <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
@@ -325,12 +321,10 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                   <DropdownMenu.CheckboxItem
                     key={`audio-item-${idx}`}
                     value={selectedAudioIndex === track.index}
-                    onValueChange={(next) => {
-                      if (next) {
-                        if (audioIndex === track.index.toString()) return;
-                        setSelectedAudioIndex(track.index);
-                        ChangeTranscodingAudio(track.index);
-                      }
+                    onValueChange={() => {
+                      if (audioIndex === track.index.toString()) return;
+                      setSelectedAudioIndex(track.index);
+                      ChangeTranscodingAudio(track.index);
                     }}
                   >
                     <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
