@@ -61,16 +61,9 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
     )[];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
 
-  // const audioForTranscodingStream = mediaSource?.MediaStreams?.filter(
-  //   (x) => x.Type === "Audio"
-  // ).map((x) => ({
-  //   name: x.DisplayTitle!,
-  //   index: x.Index!,
-  // }));
-
   // Only used for transcoding streams.
   const {
-    subtitleIndex: subtitleIndexStr,
+    subtitleIndex,
     audioIndex,
     bitrateValue,
   } = useLocalSearchParams<{
@@ -84,11 +77,12 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
   // Either its on a text subtitle or its on not on any subtitle therefore it should show all the embedded HLS subtitles.
   const isOnTextSubtitle =
     mediaSource?.MediaStreams?.find(
-      (x) => x.Index === parseInt(subtitleIndexStr) && x.IsTextSubtitleStream
-    ) || subtitleIndexStr === "-1";
+      (x) => x.Index === parseInt(subtitleIndex) && x.IsTextSubtitleStream
+    ) || subtitleIndex === "-1";
 
-  // TODO: Add support for text sorting subtitles renaming.
+  // Need to sort in the right order when on text mode. So its seamless.
   const allSubtitleTracksForTranscodingStream = useMemo(() => {
+    const disableSubtitle = { name: 'Disable', index: -1, IsTextSubtitleStream: true } as TranscodedSubtitle;
     const allSubs =
       mediaSource?.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [];
     if (isOnTextSubtitle) {
@@ -109,7 +103,11 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
               IsTextSubtitleStream: x.IsTextSubtitleStream,
             } as TranscodedSubtitle)
         );
-      return [...textSubtitles, ...imageSubtitles];
+      return [
+        disableSubtitle,
+        ...textSubtitles,
+        ...imageSubtitles
+      ];
     }
 
     const transcodedSubtitle: TranscodedSubtitle[] = allSubs.map((x) => ({
@@ -119,10 +117,11 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
     }));
 
     return [
-      { name: 'Disable', index: -1, IsTextSubtitleStream: true } as TranscodedSubtitle,
+      disableSubtitle,
       ...transcodedSubtitle
     ];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
+
 
   const ChangeTranscodingSubtitle = useCallback(
     (subtitleIndex: number) => {
@@ -135,7 +134,29 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       }).toString();
 
       // @ts-expect-error
-      router.replace(`player/player?${queryParams}`);
+      router.replace(`player/transcoding?${queryParams}`);
+    },
+    [mediaSource]
+  );
+
+  // Audio tracks for transcoding streams.
+  const allAudio =
+  mediaSource?.MediaStreams?.filter((x) => x.Type === "Audio").map((x) => ({
+    name: x.DisplayTitle!,
+    index: x.Index!,
+  })) || [];
+  const ChangeTranscodingAudio = useCallback(
+    (audioIndex: number) => {
+      const queryParams = new URLSearchParams({
+        itemId: item.Id ?? "", // Ensure itemId is a string
+        audioIndex: audioIndex?.toString() ?? "",
+        subtitleIndex: subtitleIndex,
+        mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+        bitrateValue: bitrateValue,
+      }).toString();
+
+      // @ts-expect-error
+      router.replace(`player/transcoding?${queryParams}`);
     },
     [mediaSource]
   );
@@ -211,7 +232,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                     <DropdownMenu.Item
                       key={`subtitle-item-${idx}`}
                       onSelect={() => {
-                        if (subtitleIndexStr === sub.index.toString()) return;
+                        if (subtitleIndex === sub.index.toString()) return;
 
                         if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
                           setSubtitleTrack && setSubtitleTrack(sub.index);
@@ -242,11 +263,26 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
               loop={true}
               sideOffset={10}
             >
-              {audioTracks?.map((track, idx: number) => (
+              {!mediaSource?.TranscodingUrl && audioTracks?.map((track, idx: number) => (
                 <DropdownMenu.Item
                   key={`audio-item-${idx}`}
                   onSelect={() => {
                     setAudioTrack && setAudioTrack(track.index);
+                  }}
+                >
+                  <DropdownMenu.ItemIndicator />
+                  <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                    {track.name}
+                  </DropdownMenu.ItemTitle>
+                </DropdownMenu.Item>
+              ))}
+
+              {mediaSource?.TranscodingUrl && allAudio?.map((track, idx: number) => (
+                <DropdownMenu.Item
+                  key={`audio-item-${idx}`}
+                  onSelect={() => {
+                    if (audioIndex === track.index.toString()) return;
+                    ChangeTranscodingAudio(track.index);
                   }}
                 >
                   <DropdownMenu.ItemIndicator />
