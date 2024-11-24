@@ -288,6 +288,12 @@ export default function page() {
     }
   };
 
+  const startPosition = useMemo(() => {
+    return item?.UserData?.PlaybackPositionTicks
+      ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
+      : 0;
+  }, [item?.UserData?.PlaybackPositionTicks]);
+
   if (isLoadingItem || isLoadingStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
@@ -303,10 +309,6 @@ export default function page() {
     );
 
   if (!stream || !item) return null;
-
-  const startPosition = item?.UserData?.PlaybackPositionTicks
-    ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
-    : 0;
 
   // Preselection of audio and subtitle tracks.
 
@@ -337,6 +339,9 @@ export default function page() {
         DeliveryUrl: `${api?.basePath || ""}${chosenSubtitleTrack.DeliveryUrl}`,
       };
     }
+
+    if (!chosenAudioTrack) throw new Error("No audio track found");
+
     initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   } else {
     // Transcoded playback CASE
