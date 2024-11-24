@@ -80,7 +80,10 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       (x) => x.Index === parseInt(subtitleIndex) && x.IsTextSubtitleStream
     ) || subtitleIndex === "-1";
 
-  // Need to sort in the right order when on text mode. So its seamless.
+  // TODO: Need to account for the fact when user is on text-based subtitle at start.
+  // Then the user swaps to another text based subtitle.
+  // Then changes audio track.
+  // The user will have the first text based subtitle selected still but it should be the second text based subtitle.
   const allSubtitleTracksForTranscodingStream = useMemo(() => {
     const disableSubtitle = { name: 'Disable', index: -1, IsTextSubtitleStream: true } as TranscodedSubtitle;
     const allSubs =
@@ -103,11 +106,27 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
               IsTextSubtitleStream: x.IsTextSubtitleStream,
             } as TranscodedSubtitle)
         );
-      return [
-        disableSubtitle,
-        ...textSubtitles,
-        ...imageSubtitles
-      ];
+
+      const textSubtitlesMap = new Map(
+        textSubtitles.map((s) => [s.name, s])
+      );
+
+      const imageSubtitlesMap = new Map(
+        imageSubtitles.map((s) => [s.name, s])
+      );
+
+      const sortedSubtitles = allSubs.map((sub) => {
+        const displayTitle = sub.DisplayTitle ?? '';
+        if (textSubtitlesMap.has(displayTitle)) {
+          return textSubtitlesMap.get(displayTitle);
+        }
+        if (imageSubtitlesMap.has(displayTitle)) {
+          return imageSubtitlesMap.get(displayTitle);
+        }
+        return null;
+      }).filter((subtitle): subtitle is TranscodedSubtitle => subtitle !== null);
+
+      return [disableSubtitle, ...sortedSubtitles];
     }
 
     const transcodedSubtitle: TranscodedSubtitle[] = allSubs.map((x) => ({
@@ -134,7 +153,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       }).toString();
 
       // @ts-expect-error
-      router.replace(`player/transcoding?${queryParams}`);
+      router.replace(`player/transcoding-player?${queryParams}`);
     },
     [mediaSource]
   );
@@ -156,7 +175,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       }).toString();
 
       // @ts-expect-error
-      router.replace(`player/transcoding?${queryParams}`);
+      router.replace(`player/transcoding-player?${queryParams}`);
     },
     [mediaSource]
   );
@@ -232,7 +251,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                     <DropdownMenu.Item
                       key={`subtitle-item-${idx}`}
                       onSelect={() => {
-                        if (subtitleIndex === sub.index.toString()) return;
+                        if (subtitleIndex === sub?.index.toString()) return;
 
                         if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
                           setSubtitleTrack && setSubtitleTrack(sub.index);
