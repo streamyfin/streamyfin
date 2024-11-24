@@ -27,7 +27,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { useLocalSearchParams } from "expo-router";
+import { useGlobalSearchParams, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
@@ -58,7 +58,7 @@ export default function page() {
     mediaSourceId,
     bitrateValue: bitrateValueStr,
     offline: offlineStr,
-  } = useLocalSearchParams<{
+  } = useGlobalSearchParams<{
     itemId: string;
     audioIndex: string;
     subtitleIndex: string;
@@ -82,21 +82,20 @@ export default function page() {
   } = useQuery({
     queryKey: ["item", itemId],
     queryFn: async () => {
-      if (!api) return;
-
+      console.log("Offline:", offline);
       if (offline) {
         const item = await getDownloadedItem(itemId);
         if (item) return item.item;
       }
 
-      const res = await getUserLibraryApi(api).getItem({
+      const res = await getUserLibraryApi(api!).getItem({
         itemId,
         userId: user?.Id,
       });
 
       return res.data;
     },
-    enabled: !!itemId && !!api,
+    enabled: !!itemId,
     staleTime: 0,
   });
 
@@ -114,8 +113,7 @@ export default function page() {
       bitrateValue,
     ],
     queryFn: async () => {
-      if (!api) return;
-
+      console.log("Offline:", offline);
       if (offline) {
         const item = await getDownloadedItem(itemId);
         if (!item?.mediaSource) return null;
@@ -146,7 +144,10 @@ export default function page() {
 
       const { mediaSource, sessionId, url } = res;
 
-      if (!sessionId || !mediaSource || !url) return null;
+      if (!sessionId || !mediaSource || !url) {
+        Alert.alert("Error", "Failed to get stream url");
+        return null;
+      }
 
       return {
         mediaSource,
@@ -154,7 +155,7 @@ export default function page() {
         url,
       };
     },
-    enabled: !!itemId && !!api && !!item && !offline,
+    enabled: !!itemId && !!item,
     staleTime: 0,
   });
 
@@ -292,7 +293,7 @@ export default function page() {
     pauseVideo: pause,
     playVideo: play,
     stopPlayback: stop,
-    offline: offline,
+    offline,
   });
 
   const onPlaybackStateChanged = useCallback((e: PlaybackStatePayload) => {
@@ -338,7 +339,13 @@ export default function page() {
       </View>
     );
 
-  if (!stream || !item) return null;
+  if (!stream || !item)
+    return (
+      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+        <Text className="text-white">No stream or item</Text>
+        <Text className="text-white">Offline: {offline}</Text>
+      </View>
+    );
 
   return (
     <View

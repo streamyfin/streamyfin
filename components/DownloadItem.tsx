@@ -4,9 +4,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import iosFmp4 from "@/utils/profiles/iosFmp4";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import native from "@/utils/profiles/native";
-import old from "@/utils/profiles/old";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
@@ -21,7 +20,8 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { TouchableOpacity, View, ViewProps } from "react-native";
+import { Alert, TouchableOpacity, View, ViewProps } from "react-native";
+import { MMKV } from "react-native-mmkv";
 import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "./BitrateSelector";
@@ -31,7 +31,7 @@ import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
 
 interface DownloadProps extends ViewProps {
   item: BaseItemDto;
@@ -111,19 +111,22 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       deviceProfile: native,
     });
 
-    if (!res) return null;
+    if (!res) {
+      Alert.alert(
+        "Something went wrong",
+        "Could not get stream url from Jellyfin"
+      );
+      return;
+    }
 
     const { mediaSource, url } = res;
 
     if (!url || !mediaSource) throw new Error("No url");
-    if (!mediaSource.TranscodingContainer) throw new Error("No file extension");
+
+    saveDownloadItemInfoToDiskTmp(item, mediaSource, url);
 
     if (settings?.downloadMethod === "optimized") {
-      return await startBackgroundDownload(
-        url,
-        item,
-        mediaSource.TranscodingContainer
-      );
+      return await startBackgroundDownload(url, item, mediaSource);
     } else {
       return await startRemuxing(item, url, mediaSource);
     }
@@ -147,7 +150,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
   const isDownloaded = useMemo(() => {
     if (!downloadedFiles) return false;
 
-    return downloadedFiles.some((file) => file.Id === item.Id);
+    return downloadedFiles.some((file) => file.item.Id === item.Id);
   }, [downloadedFiles, item.Id]);
 
   const renderBackdrop = useCallback(
@@ -164,7 +167,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
   const process = useMemo(() => {
     if (!processes) return null;
 
-    return processes.find((process) => process?.item?.item.Id === item.Id);
+    return processes.find((process) => process?.item?.Id === item.Id);
   }, [processes, item.Id]);
 
   return (
@@ -172,7 +175,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       className="bg-neutral-800/80 rounded-full h-10 w-10 flex items-center justify-center"
       {...props}
     >
-      {process && process?.item.item.Id === item.Id ? (
+      {process && process?.item.Id === item.Id ? (
         <TouchableOpacity
           onPress={() => {
             router.push("/downloads");

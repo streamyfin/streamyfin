@@ -4,7 +4,9 @@ import { writeToLog } from "@/utils/log";
 import {
   cancelAllJobs,
   cancelJobById,
+  deleteDownloadItemInfoFromDiskTmp,
   getAllJobsByDeviceId,
+  getDownloadItemInfoFromDiskTmp,
   JobStatus,
 } from "@/utils/optimize-server";
 import {
@@ -130,7 +132,7 @@ function useDownloadProvider() {
           if (settings.autoDownload) {
             startDownload(job);
           } else {
-            toast.info(`${job.item.item.Name} is ready to be downloaded`, {
+            toast.info(`${job.item.Name} is ready to be downloaded`, {
               action: {
                 label: "Go to downloads",
                 onClick: () => {
@@ -141,8 +143,8 @@ function useDownloadProvider() {
             });
             Notifications.scheduleNotificationAsync({
               content: {
-                title: job.item.item.Name,
-                body: `${job.item.item.Name} is ready to be downloaded`,
+                title: job.item.Name,
+                body: `${job.item.Name} is ready to be downloaded`,
                 data: {
                   url: `/downloads`,
                 },
@@ -190,7 +192,7 @@ function useDownloadProvider() {
 
   const startDownload = useCallback(
     async (process: JobStatus) => {
-      if (!process?.item.item.Id || !authHeader) throw new Error("No item id");
+      if (!process?.item.Id || !authHeader) throw new Error("No item id");
 
       setProcesses((prev) =>
         prev.map((p) =>
@@ -213,7 +215,7 @@ function useDownloadProvider() {
         },
       });
 
-      toast.info(`Download started for ${process.item.item.Name}`, {
+      toast.info(`Download started for ${process.item.Name}`, {
         action: {
           label: "Go to downloads",
           onClick: () => {
@@ -228,7 +230,7 @@ function useDownloadProvider() {
       download({
         id: process.id,
         url: settings?.optimizedVersionsServerUrl + "download/" + process.id,
-        destination: `${baseDirectory}/${process.item.item.Id}.mp4`,
+        destination: `${baseDirectory}/${process.item.Id}.mp4`,
       })
         .begin(() => {
           setProcesses((prev) =>
@@ -260,11 +262,8 @@ function useDownloadProvider() {
           );
         })
         .done(async () => {
-          await saveDownloadedItemInfo(
-            process.item.item,
-            process.item.mediaSource
-          );
-          toast.success(`Download completed for ${process.item.item.Name}`, {
+          await saveDownloadedItemInfo(process.item);
+          toast.success(`Download completed for ${process.item.Name}`, {
             duration: 3000,
             action: {
               label: "Go to downloads",
@@ -289,15 +288,13 @@ function useDownloadProvider() {
           if (error.errorCode === 404) {
             errorMsg = "File not found on server";
           }
-          toast.error(
-            `Download failed for ${process.item.item.Name} - ${errorMsg}`
-          );
-          writeToLog("ERROR", `Download failed for ${process.item.item.Name}`, {
+          toast.error(`Download failed for ${process.item.Name} - ${errorMsg}`);
+          writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
             error,
             processDetails: {
               id: process.id,
-              itemName: process.item.item.Name,
-              itemId: process.item.item.Id,
+              itemName: process.item.Name,
+              itemId: process.item.Id,
             },
           });
           console.error("Error details:", {
@@ -309,12 +306,15 @@ function useDownloadProvider() {
   );
 
   const startBackgroundDownload = useCallback(
-    async (url: string, item: BaseItemDto, fileExtension: string) => {
+    async (url: string, item: BaseItemDto, mediaSource: MediaSourceInfo) => {
       if (!api || !item.Id || !authHeader)
         throw new Error("startBackgroundDownload ~ Missing required params");
 
       try {
+        const fileExtension = mediaSource.TranscodingContainer;
         const deviceId = await getOrSetDeviceId();
+
+        // Save poster to disk
         const itemImage = getItemImage({
           item,
           api,
@@ -322,9 +322,9 @@ function useDownloadProvider() {
           quality: 90,
           width: 500,
         });
-
         await saveImage(item.Id, itemImage?.uri);
 
+        // POST to start optimization job on the server
         const response = await axios.post(
           settings?.optimizedVersionsServerUrl + "optimize-version",
           {
@@ -529,23 +529,31 @@ function useDownloadProvider() {
     }
   }
 
-  async function saveDownloadedItemInfo(
-    item: BaseItemDto,
-    mediaSource: MediaSourceInfo
-  ) {
+  async function saveDownloadedItemInfo(item: BaseItemDto) {
     try {
       const downloadedItems = await AsyncStorage.getItem("downloadedItems");
-      let items: { item: BaseItemDto; mediaSource: MediaSourceInfo }[] =
-        downloadedItems ? JSON.parse(downloadedItems) : [];
+      let items: DownloadedItem[] = downloadedItems
+        ? JSON.parse(downloadedItems)
+        : [];
 
       const existingItemIndex = items.findIndex((i) => i.item.Id === item.Id);
-      const newItem = { item, mediaSource };
+
+      const data = getDownloadItemInfoFromDiskTmp(item.Id!);
+
+      if (!data?.mediaSource)
+        throw new Error(
+          "Media source not found in tmp storage. Did you forget to save it before starting download?"
+        );
+
+      const newItem = { item, mediaSource: data.mediaSource };
 
       if (existingItemIndex !== -1) {
         items[existingItemIndex] = newItem;
       } else {
         items.push(newItem);
       }
+
+      deleteDownloadItemInfoFromDiskTmp(item.Id!);
 
       await AsyncStorage.setItem("downloadedItems", JSON.stringify(items));
       await queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });

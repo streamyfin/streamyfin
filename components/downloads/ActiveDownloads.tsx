@@ -26,7 +26,7 @@ import { storage } from "@/utils/mmkv";
 interface Props extends ViewProps {}
 
 export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
-  const { processes, startDownload } = useDownload();
+  const { processes } = useDownload();
   if (processes?.length === 0)
     return (
       <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
@@ -93,20 +93,18 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const eta = (p: JobStatus) => {
     if (!p.speed || !p.progress) return null;
 
-    const length = p?.item?.item.RunTimeTicks || 0;
+    const length = p?.item?.RunTimeTicks || 0;
     const timeLeft = (length - length * (p.progress / 100)) / p.speed;
     return formatTimeString(timeLeft, "tick");
   };
 
   const base64Image = useMemo(() => {
-    return storage.getString(process.item.item.Id!);
+    return storage.getString(process.item.Id!);
   }, []);
 
   return (
     <TouchableOpacity
-      onPress={() =>
-        router.push(`/(auth)/items/page?id=${process.item.item.Id}`)
-      }
+      onPress={() => router.push(`/(auth)/items/page?id=${process.item.Id}`)}
       className="relative bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden"
       {...props}
     >
@@ -140,12 +138,10 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
             </View>
           )}
           <View className="shrink mb-1">
-            <Text className="text-xs opacity-50">{process.item.item.Type}</Text>
-            <Text className="font-semibold shrink">
-              {process.item.item.Name}
-            </Text>
+            <Text className="text-xs opacity-50">{process.item.Type}</Text>
+            <Text className="font-semibold shrink">{process.item.Name}</Text>
             <Text className="text-xs opacity-50">
-              {process.item.item.ProductionYear}
+              {process.item.ProductionYear}
             </Text>
             <View className="flex flex-row items-center space-x-2 mt-1 text-purple-600">
               {process.progress === 0 ? (

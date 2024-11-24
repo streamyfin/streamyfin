@@ -6,6 +6,7 @@ import {
 import axios from "axios";
 import { writeToLog } from "./log";
 import { DownloadedItem } from "@/providers/DownloadProvider";
+import { MMKV } from "react-native-mmkv";
 
 interface IJobInput {
   deviceId?: string | null;
@@ -27,7 +28,7 @@ export interface JobStatus {
   inputUrl: string;
   deviceId: string;
   itemId: string;
-  item: DownloadedItem;
+  item: BaseItemDto;
   speed?: number;
   timestamp: Date;
   base64Image?: string;
@@ -156,5 +157,83 @@ export async function getStatistics({
   } catch (error) {
     console.error("Failed to fetch statistics:", error);
     return null;
+  }
+}
+
+/**
+ * Saves the download item info to disk - this data is used temporarily to fetch additional download information
+ * in combination with the optimize server. This is used to not have to send all item info to the optimize server.
+ *
+ * @param {BaseItemDto} item - The item to save.
+ * @param {MediaSourceInfo} mediaSource - The media source of the item.
+ * @param {string} url - The URL of the item.
+ * @return {boolean} A promise that resolves when the item info is saved.
+ */
+export function saveDownloadItemInfoToDiskTmp(
+  item: BaseItemDto,
+  mediaSource: MediaSourceInfo,
+  url: string
+): boolean {
+  try {
+    const storage = new MMKV();
+
+    const downloadInfo = JSON.stringify({
+      item,
+      mediaSource,
+      url,
+    });
+
+    storage.set(`tmp_download_info_${item.Id}`, downloadInfo);
+
+    return true;
+  } catch (error) {
+    console.error("Failed to save download item info to disk:", error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieves the download item info from disk.
+ *
+ * @param {string} itemId - The ID of the item to retrieve.
+ * @return {{
+ *  item: BaseItemDto;
+ *  mediaSource: MediaSourceInfo;
+ *  url: string;
+ * } | null} The retrieved download item info or null if not found.
+ */
+export function getDownloadItemInfoFromDiskTmp(itemId: string): {
+  item: BaseItemDto;
+  mediaSource: MediaSourceInfo;
+  url: string;
+} | null {
+  try {
+    const storage = new MMKV();
+    const rawInfo = storage.getString(`tmp_download_info_${itemId}`);
+
+    if (rawInfo) {
+      return JSON.parse(rawInfo);
+    }
+    return null;
+  } catch (error) {
+    console.error("Failed to retrieve download item info from disk:", error);
+    return null;
+  }
+}
+
+/**
+ * Deletes the download item info from disk.
+ *
+ * @param {string} itemId - The ID of the item to delete.
+ * @return {boolean} True if the item info was successfully deleted, false otherwise.
+ */
+export function deleteDownloadItemInfoFromDiskTmp(itemId: string): boolean {
+  try {
+    const storage = new MMKV();
+    storage.delete(`tmp_download_info_${itemId}`);
+    return true;
+  } catch (error) {
+    console.error("Failed to delete download item info from disk:", error);
+    return false;
   }
 }

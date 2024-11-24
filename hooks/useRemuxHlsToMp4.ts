@@ -71,10 +71,7 @@ export const useRemuxHlsToMp4 = () => {
             id: "",
             deviceId: "",
             inputUrl: "",
-            item: {
-              item,
-              mediaSource,
-            },
+            item: item,
             itemId: item.Id!,
             outputPath: "",
             progress: 0,
@@ -119,7 +116,7 @@ export const useRemuxHlsToMp4 = () => {
 
               if (returnCode.isValueSuccess()) {
                 if (!item) throw new Error("Item is undefined");
-                await saveDownloadedItemInfo(item, mediaSource);
+                await saveDownloadedItemInfo(item);
                 toast.success("Download completed");
                 writeToLog(
                   "INFO",

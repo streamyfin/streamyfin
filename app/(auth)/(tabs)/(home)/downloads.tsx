@@ -2,7 +2,7 @@ import { Text } from "@/components/common/Text";
 import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
 import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
-import { useDownload } from "@/providers/DownloadProvider";
+import { DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,16 +20,16 @@ const downloads: React.FC = () => {
   const [settings] = useSettings();
 
   const movies = useMemo(
-    () => downloadedFiles?.filter((f) => f.Type === "Movie") || [],
+    () => downloadedFiles?.filter((f) => f.item.Type === "Movie") || [],
     [downloadedFiles]
   );
 
   const groupedBySeries = useMemo(() => {
-    const episodes = downloadedFiles?.filter((f) => f.Type === "Episode");
-    const series: { [key: string]: BaseItemDto[] } = {};
+    const episodes = downloadedFiles?.filter((f) => f.item.Type === "Episode");
+    const series: { [key: string]: DownloadedItem[] } = {};
     episodes?.forEach((e) => {
-      if (!series[e.SeriesName!]) series[e.SeriesName!] = [];
-      series[e.SeriesName!].push(e);
+      if (!series[e.item.SeriesName!]) series[e.item.SeriesName!] = [];
+      series[e.item.SeriesName!].push(e);
     });
     return Object.values(series);
   }, [downloadedFiles]);
@@ -98,17 +98,20 @@ const downloads: React.FC = () => {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="px-4 flex flex-row">
-                {movies?.map((item: BaseItemDto) => (
-                  <View className="mb-2 last:mb-0" key={item.Id}>
-                    <MovieCard item={item} />
+                {movies?.map((item) => (
+                  <View className="mb-2 last:mb-0" key={item.item.Id}>
+                    <MovieCard item={item.item} />
                   </View>
                 ))}
               </View>
             </ScrollView>
           </View>
         )}
-        {groupedBySeries?.map((items: BaseItemDto[], index: number) => (
-          <SeriesCard items={items} key={items[0].SeriesId} />
+        {groupedBySeries?.map((items, index) => (
+          <SeriesCard
+            items={items.map((i) => i.item)}
+            key={items[0].item.SeriesId}
+          />
         ))}
         {downloadedFiles?.length === 0 && (
           <View className="flex px-4">
