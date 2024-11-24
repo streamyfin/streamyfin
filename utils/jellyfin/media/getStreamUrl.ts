@@ -109,12 +109,27 @@ export const getStreamUrl = async ({
 
   if (item.MediaType === "Video") {
     if (mediaSource?.TranscodingUrl) {
+
+      const urlObj = new URL(api.basePath + mediaSource?.TranscodingUrl); // Create a URL object
+
+      // If there is no subtitle stream index, add it to the URL.
+      if (subtitleStreamIndex == -1) {
+        urlObj.searchParams.set("SubtitleMethod", "Hls");
+      }
+
+      // Add 'SubtitleMethod=Hls' if it doesn't exist
+      if (!urlObj.searchParams.has("SubtitleMethod")) {
+        urlObj.searchParams.append("SubtitleMethod", "Hls");
+      }
+      // Get the updated URL
+      const transcodeUrl = urlObj.toString();
+
       console.log(
         "Video has transcoding URL:",
-        `${api.basePath}${mediaSource.TranscodingUrl}`
+        `${transcodeUrl}`
       );
       return {
-        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
+        url: transcodeUrl,
         sessionId: sessionId,
         mediaSource,
       };

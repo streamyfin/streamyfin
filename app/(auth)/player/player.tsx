@@ -1,8 +1,8 @@
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
-import { Controls } from "@/components/video-player/Controls";
 import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
+import { Controls } from "@/components/video-player/controls/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -20,7 +20,10 @@ import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  BaseItemDto,
+  MediaSourceType,
+} from "@jellyfin/sdk/lib/generated-client";
 import {
   getPlaystateApi,
   getUserLibraryApi,
@@ -32,6 +35,7 @@ import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
+import transcoding from "@/utils/profiles/transcoding";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -137,7 +141,7 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
-        deviceProfile: native,
+        deviceProfile: !bitrateValue ? native : transcoding,
       });
 
       if (!res) return null;
@@ -339,13 +343,50 @@ export default function page() {
       </View>
     );
 
-  if (!stream || !item)
-    return (
-      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">No stream or item</Text>
-        <Text className="text-white">Offline: {offline}</Text>
-      </View>
-    );
+  if (!stream || !item) return null;
+
+  // Preselection of audio and subtitle tracks.
+
+  let initOptions = ["--sub-text-scale=60"];
+  let externalTrack = { name: "", DeliveryUrl: "" };
+
+  const allSubs =
+    stream.mediaSource.MediaStreams?.filter((sub) => sub.Type === "Subtitle") ||
+    [];
+  const chosenSubtitleTrack = allSubs.find(
+    (sub) => sub.Index === subtitleIndex
+  );
+  const allAudio =
+    stream.mediaSource.MediaStreams?.filter(
+      (audio) => audio.Type === "Audio"
+    ) || [];
+  const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
+
+  // Direct playback CASE
+  if (!bitrateValue) {
+    // If Subtitle is embedded we can use the position to select it straight away.
+    if (chosenSubtitleTrack && !chosenSubtitleTrack.DeliveryUrl) {
+      initOptions.push(`--sub-track=${allSubs.indexOf(chosenSubtitleTrack)}`);
+    } else if (chosenSubtitleTrack && chosenSubtitleTrack.DeliveryUrl) {
+      // If Subtitle is external we need to pass the URL to the player.
+      externalTrack = {
+        name: chosenSubtitleTrack.DisplayTitle || "",
+        DeliveryUrl: `${api?.basePath || ""}${chosenSubtitleTrack.DeliveryUrl}`,
+      };
+    }
+
+    if (!chosenAudioTrack) throw new Error("No audio track found");
+
+    initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
+  } else {
+    // Transcoded playback CASE
+    if (chosenSubtitleTrack?.DeliveryMethod === "Hls") {
+      externalTrack = {
+        name: `subs ${chosenSubtitleTrack.DisplayTitle}`,
+        DeliveryUrl: "",
+      };
+    }
+  }
 
   return (
     <View
@@ -369,11 +410,8 @@ export default function page() {
             autoplay: true,
             isNetwork: true,
             startPosition,
-            initOptions: [
-              "--sub-text-scale=60",
-              `--sub-track=${subtitleIndex - 2}`, // This refers to the subtitle position index in the subtitles list.
-              // `--audio-track=${audioIndex - 1}`, // This refers to the audio position index in the audio list.
-            ],
+            externalTrack,
+            initOptions,
           }}
           style={{ width: "100%", height: "100%" }}
           onVideoProgress={onProgress}

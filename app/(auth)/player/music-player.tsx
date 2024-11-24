@@ -1,7 +1,7 @@
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import AlbumCover from "@/components/posters/AlbumCover";
-import { Controls } from "@/components/video-player/Controls";
+import { Controls } from "@/components/video-player/controls/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";

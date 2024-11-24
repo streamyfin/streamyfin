@@ -63,6 +63,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultSubtitleIndex,
     } = useDefaultPlaySettings(item, settings);
 
+    // Needs to automatically change the selected to the default values for default indexes.
     useEffect(() => {
       console.log(defaultAudioIndex, defaultSubtitleIndex);
       setSelectedOptions(() => ({

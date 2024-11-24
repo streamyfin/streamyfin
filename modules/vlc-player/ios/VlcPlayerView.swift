@@ -14,6 +14,7 @@ class VlcPlayerView: ExpoView {
     private var startPosition: Int32 = 0
     private var isTranscodedStream: Bool = false
     private var isMediaReady: Bool = false
+    private var externalTrack: [String: String]?
 
     // MARK: - Initialization
 
@@ -105,6 +106,7 @@ class VlcPlayerView: ExpoView {
             guard let self = self else { return }
 
             let mediaOptions = source["mediaOptions"] as? [String: Any] ?? [:]
+            self.externalTrack = source["externalTrack"] as? [String: String]
             var initOptions = source["initOptions"] as? [Any] ?? []
             startPosition = source["startPosition"] as? Int32 ?? 0
             initOptions.append("--start-time=\(startPosition)")
@@ -311,6 +313,25 @@ class VlcPlayerView: ExpoView {
 
         print("Debug: Subtitle tracks: \(tracks)")
         return tracks
+    }
+
+    private func setSubtitleTrackByName(_ trackName: String) {
+        guard let mediaPlayer = self.mediaPlayer else { return }
+
+        // Get the subtitle tracks and their indexes
+        if let names = mediaPlayer.videoSubTitlesNames as? [String],
+            let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
+        {
+            for (index, name) in zip(indexes, names) {
+                if name.starts(with: trackName) {
+                    let trackIndex = index.intValue
+                    print("Track Index setting to: \(trackIndex)")
+                    setSubtitleTrack(trackIndex)
+                    return
+                }
+            }
+        }
+        print("Track not found for name: \(trackName)")
     }
 
     // @objc func getSubtitleTracks(
@@ -563,7 +584,8 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 "duration": player.media?.length.intValue ?? 0,
                 "error": false,
             ]
-
+            // Playing and not transcoding, we can let it in no HLS issue.
+            // We should also mark it as playing when the media is ready.
             // Fix HLS issue.
             if player.isPlaying && (!self.isTranscodedStream || self.isMediaReady) {
                 stateInfo["isPlaying"] = true
@@ -629,9 +651,36 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 // Handle when VLC starts at cloest earliest segment skip to the start time, for transcoded streams.
                 if player.isPlaying && !self.isMediaReady {
                     self.isMediaReady = true
-                    if self.isTranscodedStream {
-                        self.seekTo(self.startPosition * 1000)
+                    if let externalTrack = self.externalTrack {
+                        if let name = externalTrack["name"] as? String, !name.isEmpty {
+                            let deliveryUrl = externalTrack["DeliveryUrl"] as? String ?? ""
+                            if !self.isTranscodedStream {
+                                self.setSubtitleURL(deliveryUrl, name: name)
+                            } else {
+                                self.setSubtitleTrackByName(name)
+                            }
+                        }
                     }
+
+                    // HLS bug.
+                    if self.isTranscodedStream {
+                        if self.startPosition > 0 {
+                            print("Seeking to start position: \(self.startPosition)")
+                            self.seekTo(self.startPosition * 1000)
+                        } else {
+                            var stateInfo: [String: Any] = [
+                                "target": self.reactTag ?? NSNull(),
+                                "currentTime": player.time.intValue,
+                                "duration": player.media?.length.intValue ?? 0,
+                                "error": false,
+                                "isPlaying": true,
+                                "isBuffering": false,
+                                "state": "Playing",
+                            ]
+                            self.onVideoStateChange?(stateInfo)
+                        }
+                    }
+
                 }
                 self.onVideoProgress?([
                     "currentTime": currentTimeMs,
