@@ -119,14 +119,14 @@ export default function page() {
     queryFn: async () => {
       console.log("Offline:", offline);
       if (offline) {
-        const item = await getDownloadedItem(itemId);
-        if (!item?.mediaSource) return null;
+        const data = await getDownloadedItem(itemId);
+        if (!data?.mediaSource) return null;
 
-        const url = await getDownloadedFileUrl(item.item.Id!);
+        const url = await getDownloadedFileUrl(data.item.Id!);
 
         if (item)
           return {
-            mediaSource: item.mediaSource,
+            mediaSource: data.mediaSource,
             url,
             sessionId: undefined,
           };
@@ -165,13 +165,13 @@ export default function page() {
 
   const togglePlay = useCallback(
     async (ms: number) => {
-      if (!api || !stream) return;
+      if (!api) return;
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (isPlaying) {
         await videoRef.current?.pause();
 
-        if (!offline) {
+        if (!offline && stream) {
           await getPlaystateApi(api).onPlaybackProgress({
             itemId: item?.Id!,
             audioStreamIndex: audioIndex ? audioIndex : undefined,
@@ -189,7 +189,7 @@ export default function page() {
         console.log("Actually marked as paused");
       } else {
         videoRef.current?.play();
-        if (!offline) {
+        if (!offline && stream) {
           await getPlaystateApi(api).onPlaybackProgress({
             itemId: item?.Id!,
             audioStreamIndex: audioIndex ? audioIndex : undefined,
@@ -235,6 +235,7 @@ export default function page() {
 
   const reportPlaybackStopped = useCallback(async () => {
     if (offline) return;
+
     const currentTimeInTicks = msToTicks(progress.value);
     await getPlaystateApi(api!).onPlaybackStopped({
       itemId: item?.Id!,
@@ -245,9 +246,10 @@ export default function page() {
   }, [api, item, mediaSourceId, stream]);
 
   const reportPlaybackStart = useCallback(async () => {
-    if (!api || !stream) return;
     if (offline) return;
-    await getPlaystateApi(api).onPlaybackStart({
+
+    if (!stream) return;
+    await getPlaystateApi(api!).onPlaybackStart({
       itemId: item?.Id!,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
       subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
@@ -261,7 +263,6 @@ export default function page() {
     async (data: ProgressUpdatePayload) => {
       if (isSeeking.value === true) return;
       if (isPlaybackStopped === true) return;
-      if (!item?.Id || !api || !stream) return;
 
       const { currentTime } = data.nativeEvent;
 
@@ -275,7 +276,9 @@ export default function page() {
 
       const currentTimeInTicks = msToTicks(currentTime);
 
-      await getPlaystateApi(api).onPlaybackProgress({
+      if (!item?.Id || !stream) return;
+
+      await getPlaystateApi(api!).onPlaybackProgress({
         itemId: item.Id,
         audioStreamIndex: audioIndex ? audioIndex : undefined,
         subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
@@ -343,21 +346,20 @@ export default function page() {
       </View>
     );
 
-  if (!stream || !item) return null;
-
   // Preselection of audio and subtitle tracks.
 
   let initOptions = ["--sub-text-scale=60"];
   let externalTrack = { name: "", DeliveryUrl: "" };
 
   const allSubs =
-    stream.mediaSource.MediaStreams?.filter((sub) => sub.Type === "Subtitle") ||
-    [];
+    stream?.mediaSource.MediaStreams?.filter(
+      (sub) => sub.Type === "Subtitle"
+    ) || [];
   const chosenSubtitleTrack = allSubs.find(
     (sub) => sub.Index === subtitleIndex
   );
   const allAudio =
-    stream.mediaSource.MediaStreams?.filter(
+    stream?.mediaSource.MediaStreams?.filter(
       (audio) => audio.Type === "Audio"
     ) || [];
   const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
@@ -375,9 +377,8 @@ export default function page() {
       };
     }
 
-    if (!chosenAudioTrack) throw new Error("No audio track found");
-
-    initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
+    if (chosenAudioTrack)
+      initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   } else {
     // Transcoded playback CASE
     if (chosenSubtitleTrack?.DeliveryMethod === "Hls") {
@@ -387,6 +388,15 @@ export default function page() {
       };
     }
   }
+
+  if (!item || !stream)
+    return (
+      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+        <Text className="text-white">
+          <Loader />
+        </Text>
+      </View>
+    );
 
   return (
     <View
@@ -434,7 +444,7 @@ export default function page() {
 
       {videoRef.current && (
         <Controls
-          mediaSource={stream.mediaSource}
+          mediaSource={stream?.mediaSource}
           item={item}
           videoRef={videoRef}
           togglePlay={togglePlay}

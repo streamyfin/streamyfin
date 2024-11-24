@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { atom } from "jotai";
-import { atomWithStorage, createJSONStorage } from "jotai/utils";
+import { atomWithStorage } from "jotai/utils";
+import { storage } from "../mmkv";
 
 export enum SortByOption {
   Default = "Default",
@@ -68,9 +68,6 @@ export const sortOrderAtom = atom<SortOrderOption[]>([
   SortOrderOption.Ascending,
 ]);
 
-/**
- * Sort preferences with persistence
- */
 export interface SortPreference {
   [libraryId: string]: SortByOption;
 }
@@ -86,15 +83,15 @@ export const sortByPreferenceAtom = atomWithStorage<SortPreference>(
   "sortByPreference",
   defaultSortPreference,
   {
-    getItem: async (key) => {
-      const value = await AsyncStorage.getItem(key);
+    getItem: (key) => {
+      const value = storage.getString(key);
       return value ? JSON.parse(value) : null;
     },
-    setItem: async (key, value) => {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+    setItem: (key, value) => {
+      storage.set(key, JSON.stringify(value));
     },
-    removeItem: async (key) => {
-      await AsyncStorage.removeItem(key);
+    removeItem: (key) => {
+      storage.delete(key);
     },
   }
 );
@@ -103,20 +100,19 @@ export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
   "sortOrderPreference",
   defaultSortOrderPreference,
   {
-    getItem: async (key) => {
-      const value = await AsyncStorage.getItem(key);
+    getItem: (key) => {
+      const value = storage.getString(key);
       return value ? JSON.parse(value) : null;
     },
-    setItem: async (key, value) => {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+    setItem: (key, value) => {
+      storage.set(key, JSON.stringify(value));
     },
-    removeItem: async (key) => {
-      await AsyncStorage.removeItem(key);
+    removeItem: (key) => {
+      storage.delete(key);
     },
   }
 );
 
-// Helper functions to get and set sort preferences
 export const getSortByPreference = (
   libraryId: string,
   preferences: SortPreference
@@ -130,4 +126,3 @@ export const getSortOrderPreference = (
 ) => {
   return preferences?.[libraryId] || null;
 };
-

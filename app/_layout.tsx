@@ -1,7 +1,7 @@
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
   getOrSetDeviceId,
-  getTokenFromStoraage,
+  getTokenFromStorage,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
@@ -10,6 +10,7 @@ import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
 import { writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -19,7 +20,6 @@ import {
   completeHandler,
   download,
 } from "@kesha-antonov/react-native-background-downloader";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as BackgroundFetch from "expo-background-fetch";
@@ -35,10 +35,10 @@ import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useEffect, useRef } from "react";
 import { Appearance, AppState } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-import { SystemBars } from "react-native-edge-to-edge";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -86,7 +86,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
 
   const now = Date.now();
 
-  const settingsData = await AsyncStorage.getItem("settings");
+  const settingsData = storage.getString("settings");
 
   if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
 
@@ -96,8 +96,8 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   if (!settings?.autoDownload || !url)
     return BackgroundFetch.BackgroundFetchResult.NoData;
 
-  const token = await getTokenFromStoraage();
-  const deviceId = await getOrSetDeviceId();
+  const token = getTokenFromStorage();
+  const deviceId = getOrSetDeviceId();
   const baseDirectory = FileSystem.documentDirectory;
 
   if (!token || !deviceId || !baseDirectory)
@@ -177,7 +177,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
 
 const checkAndRequestPermissions = async () => {
   try {
-    const hasAskedBefore = await AsyncStorage.getItem(
+    const hasAskedBefore = storage.getString(
       "hasAskedForNotificationPermission"
     );
 
@@ -192,7 +192,7 @@ const checkAndRequestPermissions = async () => {
         console.log("Notification permissions denied.");
       }
 
-      await AsyncStorage.setItem("hasAskedForNotificationPermission", "true");
+      storage.set("hasAskedForNotificationPermission", "true");
     } else {
       console.log("Already asked for notification permissions before.");
     }
@@ -365,9 +365,9 @@ function Layout() {
   );
 }
 
-async function saveDownloadedItemInfo(item: BaseItemDto) {
+function saveDownloadedItemInfo(item: BaseItemDto) {
   try {
-    const downloadedItems = await AsyncStorage.getItem("downloadedItems");
+    const downloadedItems = storage.getString("downloadedItems");
     let items: BaseItemDto[] = downloadedItems
       ? JSON.parse(downloadedItems)
       : [];
@@ -379,7 +379,7 @@ async function saveDownloadedItemInfo(item: BaseItemDto) {
       items.push(item);
     }
 
-    await AsyncStorage.setItem("downloadedItems", JSON.stringify(items));
+    storage.set("downloadedItems", JSON.stringify(items));
   } catch (error) {
     writeToLog("ERROR", "Failed to save downloaded item information:", error);
     console.error("Failed to save downloaded item information:", error);

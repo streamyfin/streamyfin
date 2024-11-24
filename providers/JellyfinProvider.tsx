@@ -2,7 +2,6 @@ import { useInterval } from "@/hooks/useInterval";
 import { Api, Jellyfin } from "@jellyfin/sdk";
 import { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { router, useSegments } from "expo-router";
@@ -18,6 +17,8 @@ import React, {
 } from "react";
 import { Platform } from "react-native";
 import uuid from "react-native-uuid";
+import MMKV from "react-native-mmkv";
+import { storage } from "@/utils/mmkv";
 
 interface Server {
   address: string;
@@ -48,7 +49,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   useEffect(() => {
     (async () => {
-      const id = await getOrSetDeviceId();
+      const id = getOrSetDeviceId();
       setJellyfin(
         () =>
           new Jellyfin({
@@ -138,8 +139,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           const { AccessToken, User } = authResponse.data;
           api.accessToken = AccessToken;
           setUser(User);
-          await AsyncStorage.setItem("token", AccessToken);
-          await AsyncStorage.setItem("user", JSON.stringify(User));
+          storage.set("token", AccessToken);
+          storage.set("user", JSON.stringify(User));
           return true;
         }
       }
@@ -172,7 +173,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!apiInstance?.basePath) throw new Error("Failed to connect");
 
       setApi(apiInstance);
-      await AsyncStorage.setItem("serverUrl", server.address);
+      storage.set("serverUrl", server.address);
     },
     onError: (error) => {
       console.error("Failed to set server:", error);
@@ -181,7 +182,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeServerMutation = useMutation({
     mutationFn: async () => {
-      await AsyncStorage.removeItem("serverUrl");
+      storage.delete("serverUrl");
       setApi(null);
     },
     onError: (error) => {
@@ -204,9 +205,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
         if (auth.data.AccessToken && auth.data.User) {
           setUser(auth.data.User);
-          await AsyncStorage.setItem("user", JSON.stringify(auth.data.User));
+          storage.set("user", JSON.stringify(auth.data.User));
           setApi(jellyfin.createApi(api?.basePath, auth.data?.AccessToken));
-          await AsyncStorage.setItem("token", auth.data?.AccessToken);
+          storage.set("token", auth.data?.AccessToken);
         }
       } catch (error) {
         if (axios.isAxiosError(error)) {
@@ -241,7 +242,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await AsyncStorage.removeItem("token");
+      storage.delete("token");
       setUser(null);
     },
     onError: (error) => {
@@ -258,13 +259,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     ],
     queryFn: async () => {
       try {
-        const token = await getTokenFromStoraage();
-        const serverUrl = await getServerUrlFromStorage();
-        const user = JSON.parse(
-          (await getUserFromStorage()) as string
-        ) as UserDto;
-
-        if (serverUrl && token && user.Id && jellyfin) {
+        const token = getTokenFromStorage();
+        const serverUrl = getServerUrlFromStorage();
+        const user = getUserFromStorage();
+        if (serverUrl && token && user?.Id && jellyfin) {
           const apiInstance = jellyfin.createApi(serverUrl, token);
           setApi(apiInstance);
           setUser(user);
@@ -273,6 +271,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         return true;
       } catch (e) {
         console.error(e);
+        return false;
       }
     },
     staleTime: 0,
@@ -321,24 +320,32 @@ function useProtectedRoute(user: UserDto | null, loading = false) {
   }, [user, segments, loading]);
 }
 
-export async function getTokenFromStoraage() {
-  return await AsyncStorage.getItem("token");
+export function getTokenFromStorage(): string | null {
+  return storage.getString("token") || null;
 }
 
-export async function getUserFromStorage() {
-  return await AsyncStorage.getItem("user");
+export function getUserFromStorage(): UserDto | null {
+  const userStr = storage.getString("user");
+  if (userStr) {
+    try {
+      return JSON.parse(userStr) as UserDto;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  return null;
 }
 
-export async function getServerUrlFromStorage() {
-  return await AsyncStorage.getItem("serverUrl");
+export function getServerUrlFromStorage(): string | null {
+  return storage.getString("serverUrl") || null;
 }
 
-export async function getOrSetDeviceId() {
-  let deviceId = await AsyncStorage.getItem("deviceId");
+export function getOrSetDeviceId(): string {
+  let deviceId = storage.getString("deviceId");
 
   if (!deviceId) {
     deviceId = uuid.v4() as string;
-    await AsyncStorage.setItem("deviceId", deviceId);
+    storage.set("deviceId", deviceId);
   }
 
   return deviceId;

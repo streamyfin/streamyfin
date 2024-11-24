@@ -1,21 +1,19 @@
-import { useCallback } from "react";
-import { useAtom, useAtomValue } from "jotai";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
-import { FFmpegKit, FFmpegKitConfig } from "ffmpeg-kit-react-native";
+import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getItemImage } from "@/utils/getItemImage";
+import { writeToLog } from "@/utils/log";
 import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { writeToLog } from "@/utils/log";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner-native";
-import { useDownload } from "@/providers/DownloadProvider";
+import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
-import { JobStatus } from "@/utils/optimize-server";
+import { FFmpegKit, FFmpegKitConfig } from "ffmpeg-kit-react-native";
+import { useAtomValue } from "jotai";
+import { useCallback } from "react";
+import { toast } from "sonner-native";
 import useImageStorage from "./useImageStorage";
-import { getItemImage } from "@/utils/getItemImage";
-import { apiAtom } from "@/providers/JellyfinProvider";
 
 /**
  * Custom hook for remuxing HLS to MP4 using FFmpeg.

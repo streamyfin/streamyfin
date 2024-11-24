@@ -6,32 +6,42 @@ import { DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const downloads: React.FC = () => {
+export default function page() {
   const [queue, setQueue] = useAtom(queueAtom);
   const { removeProcess, downloadedFiles } = useDownload();
-
+  const router = useRouter();
   const [settings] = useSettings();
 
-  const movies = useMemo(
-    () => downloadedFiles?.filter((f) => f.item.Type === "Movie") || [],
-    [downloadedFiles]
-  );
+  const movies = useMemo(() => {
+    try {
+      return downloadedFiles?.filter((f) => f.item.Type === "Movie") || [];
+    } catch {
+      migration_20241124();
+      return [];
+    }
+  }, [downloadedFiles]);
 
   const groupedBySeries = useMemo(() => {
-    const episodes = downloadedFiles?.filter((f) => f.item.Type === "Episode");
-    const series: { [key: string]: DownloadedItem[] } = {};
-    episodes?.forEach((e) => {
-      if (!series[e.item.SeriesName!]) series[e.item.SeriesName!] = [];
-      series[e.item.SeriesName!].push(e);
-    });
-    return Object.values(series);
+    try {
+      const episodes = downloadedFiles?.filter(
+        (f) => f.item.Type === "Episode"
+      );
+      const series: { [key: string]: DownloadedItem[] } = {};
+      episodes?.forEach((e) => {
+        if (!series[e.item.SeriesName!]) series[e.item.SeriesName!] = [];
+        series[e.item.SeriesName!].push(e);
+      });
+      return Object.values(series);
+    } catch {
+      migration_20241124();
+      return [];
+    }
   }, [downloadedFiles]);
 
   const insets = useSafeAreaInsets();
@@ -121,6 +131,24 @@ const downloads: React.FC = () => {
       </View>
     </ScrollView>
   );
-};
+}
 
-export default downloads;
+function migration_20241124() {
+  const router = useRouter();
+  const { deleteAllFiles } = useDownload();
+  Alert.alert(
+    "New app version requires re-download",
+    "The new update reqires content to be downloaded again. Please remove all downloaded content and try again.",
+    [
+      {
+        text: "Back",
+        onPress: () => router.back(),
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => await deleteAllFiles(),
+      },
+    ]
+  );
+}

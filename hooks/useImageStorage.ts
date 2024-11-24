@@ -1,12 +1,10 @@
-import { useState, useCallback } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
 import { storage } from "@/utils/mmkv";
+import { useCallback } from "react";
 
 const useImageStorage = () => {
   const saveBase64Image = useCallback(async (base64: string, key: string) => {
     try {
-      // Save the base64 string to AsyncStorage
+      // Save the base64 string to storage
       storage.set(key, base64);
     } catch (error) {
       console.error("Error saving image:", error);
@@ -69,7 +67,7 @@ const useImageStorage = () => {
 
   const loadImage = useCallback(async (key: string) => {
     try {
-      // Retrieve the base64 string from AsyncStorage
+      // Retrieve the base64 string from storage
       const base64Image = storage.getString(key);
       if (base64Image !== null) {
         // Set the loaded image state
