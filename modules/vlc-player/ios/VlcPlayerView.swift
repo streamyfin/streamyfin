@@ -12,7 +12,6 @@ class VlcPlayerView: ExpoView {
     private var lastReportedIsPlaying: Bool?
     private var customSubtitles: [(internalName: String, originalName: String)] = []
     private var startPosition: Int32 = 0
-    private var isTranscodedStream: Bool = false
     private var isMediaReady: Bool = false
     private var externalTrack: [String: String]?
 
@@ -112,9 +111,6 @@ class VlcPlayerView: ExpoView {
             initOptions.append("--start-time=\(startPosition)")
 
             let uri = source["uri"] as? String
-            if let uri = uri, uri.contains("m3u8") {
-                self.isTranscodedStream = true
-            }
 
             let autoplay = source["autoplay"] as? Bool ?? false
             let isNetwork = source["isNetwork"] as? Bool ?? false
@@ -587,7 +583,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             // Playing and not transcoding, we can let it in no HLS issue.
             // We should also mark it as playing when the media is ready.
             // Fix HLS issue.
-            if player.isPlaying && (!self.isTranscodedStream || self.isMediaReady) {
+            if player.isPlaying && self.isMediaReady {
                 stateInfo["isPlaying"] = true
                 stateInfo["isBuffering"] = false
                 stateInfo["state"] = "Playing"
@@ -648,39 +644,15 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             let durationMs = player.media?.length.intValue ?? 0
 
             if currentTimeMs >= 0 && currentTimeMs < durationMs {
-                // Handle when VLC starts at cloest earliest segment skip to the start time, for transcoded streams.
                 if player.isPlaying && !self.isMediaReady {
                     self.isMediaReady = true
+                    // Set external track subtitle when starting.
                     if let externalTrack = self.externalTrack {
                         if let name = externalTrack["name"] as? String, !name.isEmpty {
                             let deliveryUrl = externalTrack["DeliveryUrl"] as? String ?? ""
-                            if !self.isTranscodedStream {
-                                self.setSubtitleURL(deliveryUrl, name: name)
-                            } else {
-                                self.setSubtitleTrackByName(name)
-                            }
+                            self.setSubtitleURL(deliveryUrl, name: name)
                         }
                     }
-
-                    // HLS bug.
-                    if self.isTranscodedStream {
-                        if self.startPosition > 0 {
-                            print("Seeking to start position: \(self.startPosition)")
-                            self.seekTo(self.startPosition * 1000)
-                        } else {
-                            var stateInfo: [String: Any] = [
-                                "target": self.reactTag ?? NSNull(),
-                                "currentTime": player.time.intValue,
-                                "duration": player.media?.length.intValue ?? 0,
-                                "error": false,
-                                "isPlaying": true,
-                                "isBuffering": false,
-                                "state": "Playing",
-                            ]
-                            self.onVideoStateChange?(stateInfo)
-                        }
-                    }
-
                 }
                 self.onVideoProgress?([
                     "currentTime": currentTimeMs,
