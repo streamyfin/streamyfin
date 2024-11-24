@@ -30,7 +30,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val onVideoLoadEnd by EventDispatcher()
 
     private var startPosition: Int? = 0
-    private var isTranscodedStream: Boolean = false
     private var isMediaReady: Boolean = false
     private var externalTrack: Map<String, String>? = null
 
@@ -60,9 +59,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
 
         val uri = source["uri"] as? String
-        if (uri != null && uri.contains("m3u8")) {
-            isTranscodedStream = true
-        }
 
         // Handle video load start event
         // onVideoLoadStart?.invoke(mapOf("target" to reactTag ?: "null"))
@@ -239,16 +235,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
     }
 
-    // Only used for HLS transcoded streams
-    private fun setSubtitleTrackByName(trackName: String) {
-        val track = mediaPlayer?.getSpuTracks()?.firstOrNull { it.name.startsWith(trackName) }
-        val trackIndex = track?.id ?: -1
-        println("Track Index setting to: $trackIndex")
-        if (trackIndex != -1) {
-            setSubtitleTrack(trackIndex)
-        }
-    }
-
 
     private fun updateVideoProgress() {
         val player = mediaPlayer ?: return
@@ -257,24 +243,15 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val durationMs = player.media?.duration?.toInt() ?: 0
 
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
-            // Handle when VLC starts at cloest earliest segment skip to the start time, for transcoded streams.
+            // Set subtitle URL if available
             if (player.isPlaying && !isMediaReady) {
                 isMediaReady = true
                 externalTrack?.let {
                     val name = it["name"]
                     val deliveryUrl = it["DeliveryUrl"] ?: ""
-                    if (!name.isNullOrEmpty()) {
-                        if (!isTranscodedStream) {
-                            setSubtitleURL(deliveryUrl, name)
-                        }
-                        else {
-                            setSubtitleTrackByName(name)
-                        }
+                    if (!name.isNullOrEmpty() && !deliveryUrl.isNullOrEmpty()) {
+                        setSubtitleURL(deliveryUrl, name)
                     }
-                }
-
-                if (isTranscodedStream && startPosition != 0) {
-                    seekTo((startPosition ?: 0) * 1000)
                 }
             }
             onVideoProgress(mapOf(

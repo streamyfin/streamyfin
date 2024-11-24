@@ -65,9 +65,18 @@ export const PlayButton: React.FC<Props> = ({
   const colorChangeProgress = useSharedValue(0);
   const [settings] = useSettings();
 
+
+
+  // console.log(bitrateValue);
   const goToPlayer = useCallback(
-    (q: string) => {
-      router.push(`/player/player?${q}`);
+    (q: string, bitrateValue: number | undefined) => {
+      if (!bitrateValue) {
+        // @ts-expect-error
+        router.push(`/player/direct-player?${q}`);
+        return;
+      }
+      // @ts-expect-error
+      router.push(`/player/transcoding-player?${q}`);
     },
     [router]
   );
@@ -86,7 +95,7 @@ export const PlayButton: React.FC<Props> = ({
     const queryString = queryParams.toString();
 
     if (!client) {
-      goToPlayer(queryString);
+      goToPlayer(queryString, selectedOptions.bitrate?.value);
       return;
     }
 
@@ -207,7 +216,7 @@ export const PlayButton: React.FC<Props> = ({
             });
             break;
           case 1:
-            goToPlayer(queryString);
+            goToPlayer(queryString, selectedOptions.bitrate?.value);
             break;
           case cancelButtonIndex:
             break;

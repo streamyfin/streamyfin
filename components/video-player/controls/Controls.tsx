@@ -145,8 +145,13 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
+    if (!bitrate.value) {
+      // @ts-expect-error
+      router.replace(`player/direct-player?${queryParams}`);
+      return;
+    }
     // @ts-expect-error
-    router.replace(`player/player?${queryParams}`);
+    router.replace(`player/transcoding-player?${queryParams}`);
   }, [previousItem, settings]);
 
   const goToNextItem = useCallback(() => {
@@ -163,8 +168,13 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrate.toString(),
     }).toString();
 
+    if (!bitrate.value) {
+      // @ts-expect-error
+      router.replace(`player/direct-player?${queryParams}`);
+      return;
+    }
     // @ts-expect-error
-    router.replace(`player/player?${queryParams}`);
+    router.replace(`player/transcoding-player?${queryParams}`);
   }, [nextItem, settings]);
 
   const updateTimes = useCallback(

@@ -35,7 +35,6 @@ import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import transcoding from "@/utils/profiles/transcoding";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -141,7 +140,7 @@ export default function page() {
         maxStreamingBitrate: bitrateValue,
         mediaSourceId: mediaSourceId,
         subtitleStreamIndex: subtitleIndex,
-        deviceProfile: !bitrateValue ? native : transcoding,
+        deviceProfile: native,
       });
 
       if (!res) return null;

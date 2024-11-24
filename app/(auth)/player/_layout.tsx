@@ -8,7 +8,16 @@ export default function Layout() {
       <SystemBars hidden />
       <Stack>
         <Stack.Screen
-          name="player"
+          name="direct-player"
+          options={{
+            headerShown: false,
+            autoHideHomeIndicator: true,
+            title: "",
+            animation: "fade",
+          }}
+        />
+        <Stack.Screen
+          name="transcoding-player"
           options={{
             headerShown: false,
             autoHideHomeIndicator: true,
