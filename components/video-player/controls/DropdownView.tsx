@@ -12,8 +12,6 @@ import {
 import { useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { parse } from "@babel/core";
-import { set } from "lodash";
 
 interface DropdownViewProps {
   showControls: boolean;
@@ -129,23 +127,26 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
         );
 
       const textSubtitlesMap = new Map(textSubtitles.map((s) => [s.name, s]));
-
       const imageSubtitlesMap = new Map(imageSubtitles.map((s) => [s.name, s]));
 
-      const sortedSubtitles = allSubs
-        .map((sub) => {
-          const displayTitle = sub.DisplayTitle ?? "";
-          if (textSubtitlesMap.has(displayTitle)) {
-            return textSubtitlesMap.get(displayTitle);
-          }
-          if (imageSubtitlesMap.has(displayTitle)) {
-            return imageSubtitlesMap.get(displayTitle);
-          }
-          return null;
-        })
-        .filter(
-          (subtitle): subtitle is TranscodedSubtitle => subtitle !== null
-        );
+      const sortedSubtitles = Array.from(
+        new Set(
+          allSubs
+            .map((sub) => {
+              const displayTitle = sub.DisplayTitle ?? "";
+              if (textSubtitlesMap.has(displayTitle)) {
+                return textSubtitlesMap.get(displayTitle);
+              }
+              if (imageSubtitlesMap.has(displayTitle)) {
+                return imageSubtitlesMap.get(displayTitle);
+              }
+              return null;
+            })
+            .filter(
+              (subtitle): subtitle is TranscodedSubtitle => subtitle !== null
+            )
+        )
+      );
 
       return [disableSubtitle, ...sortedSubtitles];
     }
@@ -270,7 +271,9 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                       value={selectedSubtitleIndex === sub.index}
                       key={`subtitle-item-${idx}`}
                       onValueChange={() => {
-                        if (subtitleIndex === sub?.index.toString()) return;
+                        console.log("Set sub index: ", sub.index);
+                        if (selectedSubtitleIndex === sub?.index.toString())
+                          return;
                         setSelectedSubtitleIndex(sub.index);
                         if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
                           setSubtitleTrack && setSubtitleTrack(sub.index);
@@ -322,7 +325,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                     key={`audio-item-${idx}`}
                     value={selectedAudioIndex === track.index}
                     onValueChange={() => {
-                      if (audioIndex === track.index.toString()) return;
+                      if (selectedAudioIndex === track.index.toString()) return;
                       setSelectedAudioIndex(track.index);
                       ChangeTranscodingAudio(track.index);
                     }}

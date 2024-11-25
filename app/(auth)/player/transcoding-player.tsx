@@ -20,7 +20,13 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
@@ -123,6 +129,7 @@ const Player = () => {
         return null;
       }
 
+      console.log("getting med");
       const res = await getStreamUrl({
         api,
         item,
@@ -259,7 +266,7 @@ const Player = () => {
 
       // TODO: Use this when streaming with HLS url, but NOT when direct playing
       // TODO: since playable duration is always 0 then.
-      // setIsBuffering(data.playableDuration === 0);
+      setIsBuffering(data.playableDuration === 0);
 
       if (!item?.Id || data.currentTime === 0) {
         return;
@@ -328,19 +335,25 @@ const Player = () => {
     SelectedTrack | undefined
   >(undefined);
 
-
   // Set intial Subtitle Track.
   // We will only select external tracks if they are are text based. Else it should be burned in already.
   const textSubs =
-  stream?.mediaSource.MediaStreams?.filter((sub) => sub.Type === "Subtitle" && sub.IsTextSubtitleStream) || [];
+    stream?.mediaSource.MediaStreams?.filter(
+      (sub) => sub.Type === "Subtitle" && sub.IsTextSubtitleStream
+    ) || [];
+
+  const uniqueTextSubs = Array.from(
+    new Set(textSubs.map((sub) => sub.DisplayTitle))
+  ).map((title) => textSubs.find((sub) => sub.DisplayTitle === title));
   const chosenSubtitleTrack = textSubs.find(
     (sub) => sub.Index === subtitleIndex
   );
   useEffect(() => {
     if (chosenSubtitleTrack && selectedTextTrack === undefined) {
+      console.log("Setting selected text track", chosenSubtitleTrack);
       setSelectedTextTrack({
         type: SelectedTrackType.INDEX,
-        value: textSubs.indexOf(chosenSubtitleTrack),
+        value: uniqueTextSubs.indexOf(chosenSubtitleTrack),
       });
     }
   }, [embededTextTracks]);

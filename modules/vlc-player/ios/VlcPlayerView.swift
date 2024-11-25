@@ -580,10 +580,8 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
                 "duration": player.media?.length.intValue ?? 0,
                 "error": false,
             ]
-            // Playing and not transcoding, we can let it in no HLS issue.
-            // We should also mark it as playing when the media is ready.
-            // Fix HLS issue.
-            if player.isPlaying && self.isMediaReady {
+
+            if player.isPlaying {
                 stateInfo["isPlaying"] = true
                 stateInfo["isBuffering"] = false
                 stateInfo["state"] = "Playing"

@@ -65,9 +65,6 @@ export const PlayButton: React.FC<Props> = ({
   const colorChangeProgress = useSharedValue(0);
   const [settings] = useSettings();
 
-
-
-  // console.log(bitrateValue);
   const goToPlayer = useCallback(
     (q: string, bitrateValue: number | undefined) => {
       if (!bitrateValue) {
