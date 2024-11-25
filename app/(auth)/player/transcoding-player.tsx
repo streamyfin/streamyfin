@@ -37,6 +37,7 @@ import Video, {
 } from "react-native-video";
 import { Controls } from "@/components/video-player/controls/Controls";
 import transcoding from "@/utils/profiles/transcoding";
+import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 
 const Player = () => {
   const api = useAtomValue(apiAtom);
@@ -45,7 +46,7 @@ const Player = () => {
   const videoRef = useRef<VideoRef | null>(null);
 
   const firstTime = useRef(true);
-  const dimensions = useWindowDimensions();
+  const revalidateProgressCache = useRevalidatePlaybackProgressCache();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -239,6 +240,7 @@ const Player = () => {
       positionTicks: Math.floor(progress.value),
       playSessionId: stream?.sessionId,
     });
+    revalidateProgressCache();
   };
 
   const reportPlaybackStart = async () => {

@@ -1,10 +1,11 @@
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
-import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { Controls } from "@/components/video-player/controls/Controls";
+import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
+import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules/vlc-player";
 import {
@@ -20,32 +21,18 @@ import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
-import {
-  BaseItemDto,
-  MediaSourceType,
-} from "@jellyfin/sdk/lib/generated-client";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
   getPlaystateApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import {
-  useFocusEffect,
-  useGlobalSearchParams,
-  useLocalSearchParams,
-} from "expo-router";
+import { useFocusEffect, useGlobalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -64,6 +51,7 @@ export default function page() {
   const cacheProgress = useSharedValue(0);
 
   const { getDownloadedItem } = useDownload();
+  const revalidateProgressCache = useRevalidatePlaybackProgressCache();
 
   const {
     itemId,
@@ -253,6 +241,8 @@ export default function page() {
       positionTicks: currentTimeInTicks,
       playSessionId: stream?.sessionId!,
     });
+
+    revalidateProgressCache();
   }, [api, item, mediaSourceId, stream]);
 
   const reportPlaybackStart = useCallback(async () => {
