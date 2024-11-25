@@ -167,19 +167,11 @@ export default function index() {
     setLoading(true);
     await queryClient.invalidateQueries({
       queryKey: ["home"],
-      refetchType: "all",
-      type: "all",
-      exact: false,
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["home"],
-      refetchType: "all",
       type: "all",
       exact: false,
     });
     await queryClient.invalidateQueries({
       queryKey: ["item"],
-      refetchType: "all",
       type: "all",
       exact: false,
     });
@@ -240,7 +232,7 @@ export default function index() {
     const ss: Section[] = [
       {
         title: "Continue Watching",
-        queryKey: ["home", "resumeItems", user.Id],
+        queryKey: ["home", "resumeItems"],
         queryFn: async () =>
           (
             await getItemsApi(api).getResumeItems({
@@ -254,7 +246,7 @@ export default function index() {
       },
       {
         title: "Next Up",
-        queryKey: ["home", "nextUp-all", user?.Id],
+        queryKey: ["home", "nextUp-all"],
         queryFn: async () =>
           (
             await getTvShowsApi(api).getNextUp({
