@@ -66,8 +66,7 @@ function useDownloadProvider() {
   const router = useRouter();
   const [api] = useAtom(apiAtom);
 
-  const { loadImage, saveImage, image2Base64, saveBase64Image } =
-    useImageStorage();
+  const { saveImage } = useImageStorage();
 
   const [processes, setProcesses] = useState<JobStatus[]>([]);
 
@@ -421,10 +420,7 @@ function useDownloadProvider() {
     try {
       storage.delete("downloadedItems");
     } catch (error) {
-      console.error(
-        "Failed to remove downloadedItems from storage:",
-        error
-      );
+      console.error("Failed to remove downloadedItems from storage:", error);
       throw error;
     }
   };
@@ -480,8 +476,8 @@ function useDownloadProvider() {
 
       const downloadedItems = storage.getString("downloadedItems");
       if (downloadedItems) {
-        let items = JSON.parse(downloadedItems);
-        items = items.filter((item: any) => item.Id !== id);
+        let items = JSON.parse(downloadedItems) as DownloadedItem[];
+        items = items.filter((item) => item.item.Id !== id);
         storage.set("downloadedItems", JSON.stringify(items));
       }
 
