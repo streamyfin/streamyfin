@@ -387,26 +387,18 @@ const Player = () => {
     );
 
   return (
-    <View
-      style={{
-        flex: 1,
-        position: "relative",
-        height: "100%",
-        width: "100%",
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: "black" }}>
       <Pressable
         onPress={() => {
-          setShowControls(!showControls);
+          // setShowControls(!showControls);
         }}
         style={{
-          flex: 1,
-          height: "100%",
+          display: "flex",
           width: "100%",
-          position: "absolute",
-          top: 0,
-          left: 0,
-          zIndex: 0,
+          height: "100%",
+          position: "relative",
+          flexDirection: "column",
+          justifyContent: "center",
         }}
       >
         {videoSource ? (

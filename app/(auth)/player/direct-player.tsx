@@ -35,6 +35,7 @@ import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -398,19 +399,19 @@ export default function page() {
     );
 
   return (
-    <View
-      style={{
-        width: "100%",
-        height: "100%",
-        position: "relative",
-      }}
-      className="flex flex-col items-center justify-center"
-    >
+    <View style={{ flex: 1, backgroundColor: "black" }}>
       <Pressable
         onPress={() => {
           // setShowControls(!showControls);
         }}
-        className="absolute z-0 h-full w-full"
+        style={{
+          display: "flex",
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          flexDirection: "column",
+          justifyContent: "center",
+        }}
       >
         <VlcPlayerView
           ref={videoRef}
@@ -440,7 +441,6 @@ export default function page() {
           }}
         />
       </Pressable>
-
       {videoRef.current && (
         <Controls
           mediaSource={stream?.mediaSource}

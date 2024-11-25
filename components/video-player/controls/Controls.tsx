@@ -26,7 +26,13 @@ import {
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, Pressable, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  Platform,
+  Pressable,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -34,7 +40,10 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
@@ -306,14 +315,14 @@ export const Controls: React.FC<Props> = ({
       mediaSource={mediaSource}
       isVideoLoaded={isVideoLoaded}
     >
-      <View
+      <SafeAreaView
         style={{
           flex: 1,
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
+          top: insets.top,
+          left: insets.left,
+          right: insets.right,
+          bottom: insets.bottom,
         }}
       >
         <VideoProvider
@@ -370,10 +379,8 @@ export const Controls: React.FC<Props> = ({
           }}
           style={{
             position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
+            width: Dimensions.get("window").width,
+            height: Dimensions.get("window").height,
             opacity: showControls ? 0.5 : 0,
             backgroundColor: "black",
           }}
@@ -434,10 +441,9 @@ export const Controls: React.FC<Props> = ({
           style={[
             {
               position: "absolute",
-              width: "100%",
-              maxHeight: "100%",
+              right: 0,
               left: 0,
-              bottom: Platform.OS === "ios" ? insets.bottom : insets.bottom,
+              bottom: 0,
               opacity: showControls ? 1 : 0,
             },
           ]}
@@ -592,7 +598,7 @@ export const Controls: React.FC<Props> = ({
             </View>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
     </ControlProvider>
   );
 };
