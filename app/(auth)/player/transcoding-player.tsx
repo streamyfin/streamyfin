@@ -116,9 +116,9 @@ const Player = () => {
       audioIndex,
       subtitleIndex,
       bitrateValue,
-      user,
       mediaSourceId,
     ],
+
     queryFn: async () => {
       if (!api) {
         throw new Error("No api");
@@ -129,7 +129,6 @@ const Player = () => {
         return null;
       }
 
-      console.log("getting med");
       const res = await getStreamUrl({
         api,
         item,
