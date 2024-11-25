@@ -30,9 +30,19 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { useGlobalSearchParams, useLocalSearchParams } from "expo-router";
+import {
+  useFocusEffect,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+} from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -332,19 +342,13 @@ export default function page() {
       : 0;
   }, [item]);
 
-  if (isLoadingItem || isLoadingStreamUrl)
-    return (
-      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Loader />
-      </View>
-    );
-
-  if (isErrorItem || isErrorStreamUrl)
-    return (
-      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">Error</Text>
-      </View>
-    );
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        videoRef.current?.stop();
+      };
+    }, [])
+  );
 
   // Preselection of audio and subtitle tracks.
 
@@ -389,12 +393,17 @@ export default function page() {
     }
   }
 
-  if (!item || !stream)
+  if (!item || isLoadingItem || isLoadingStreamUrl || !stream)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">
-          <Loader />
-        </Text>
+        <Loader />
+      </View>
+    );
+
+  if (isErrorItem || isErrorStreamUrl)
+    return (
+      <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+        <Text className="text-white">Error</Text>
       </View>
     );
 
