@@ -1,15 +1,10 @@
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
-import AlbumCover from "@/components/posters/AlbumCover";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  PlaybackType,
-  usePlaySettings,
-} from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
@@ -26,15 +21,8 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import { debounce } from "lodash";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import {
-  Dimensions,
-  Pressable,
-  StatusBar,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
 
