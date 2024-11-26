@@ -12,11 +12,8 @@ export const GenreTags: React.FC<GenreTagsProps> = ({ genres }) => {
 
   return (
     <View className="flex flex-row flex-wrap mt-2">
-      {genres.map((genre) => (
-        <View
-          key={genre}
-          className="bg-neutral-800 rounded-full px-2 py-1 mr-1"
-        >
+      {genres.map((genre, idx) => (
+        <View key={idx} className="bg-neutral-800 rounded-full px-2 py-1 mr-1">
           <Text className="text-xs">{genre}</Text>
         </View>
       ))}
