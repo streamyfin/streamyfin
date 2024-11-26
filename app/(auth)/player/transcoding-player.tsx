@@ -49,10 +49,15 @@ const Player = () => {
   const revalidateProgressCache = useRevalidatePlaybackProgressCache();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, _setShowControls] = useState(true);
   const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
+
+  const setShowControls = useCallback((show: boolean) => {
+    _setShowControls(show);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -401,6 +406,7 @@ const Player = () => {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
+          opacity: showControls ? 0.5 : 1,
         }}
       >
         {videoSource ? (

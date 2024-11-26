@@ -48,6 +48,7 @@ import { VideoRef } from "react-native-video";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./DropdownView";
+import * as Haptics from "expo-haptics";
 
 interface Props {
   item: BaseItemDto;
@@ -143,6 +144,8 @@ export const Controls: React.FC<Props> = ({
   const goToPreviousItem = useCallback(() => {
     if (!previousItem || !settings) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     const { bitrate, mediaSource, audioIndex, subtitleIndex } =
       getDefaultPlaySettings(previousItem, settings);
 
@@ -165,6 +168,8 @@ export const Controls: React.FC<Props> = ({
 
   const goToNextItem = useCallback(() => {
     if (!nextItem || !settings) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const { bitrate, mediaSource, audioIndex, subtitleIndex } =
       getDefaultPlaySettings(nextItem, settings);
@@ -273,6 +278,7 @@ export const Controls: React.FC<Props> = ({
   const handleSkipBackward = useCallback(async () => {
     if (!settings?.rewindSkipTime) return;
     wasPlayingRef.current = isPlaying;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const curr = progress.value;
       if (curr !== undefined) {
@@ -290,6 +296,7 @@ export const Controls: React.FC<Props> = ({
   const handleSkipForward = useCallback(async () => {
     if (!settings?.forwardSkipTime) return;
     wasPlayingRef.current = isPlaying;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const curr = progress.value;
       console.log(curr);
@@ -307,6 +314,7 @@ export const Controls: React.FC<Props> = ({
 
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   return (
@@ -381,8 +389,6 @@ export const Controls: React.FC<Props> = ({
             position: "absolute",
             width: Dimensions.get("window").width,
             height: Dimensions.get("window").height,
-            opacity: showControls ? 0.5 : 0,
-            backgroundColor: "black",
           }}
         ></Pressable>
 
@@ -448,7 +454,7 @@ export const Controls: React.FC<Props> = ({
             },
           ]}
           pointerEvents={showControls ? "auto" : "none"}
-          className={`flex flex-col p-4 `}
+          className={`flex flex-col p-4`}
         >
           <View className="shrink flex flex-col justify-center h-full mb-2">
             <Text className="font-bold">{item?.Name}</Text>
@@ -463,7 +469,7 @@ export const Controls: React.FC<Props> = ({
             )}
           </View>
           <View
-            className={`flex flex-col-reverse py-4 px-4 rounded-2xl items-center  bg-neutral-800/90`}
+            className={`flex flex-col-reverse py-4 px-4 rounded-2xl items-center  bg-neutral-800`}
           >
             <View className="flex flex-row items-center space-x-4">
               <TouchableOpacity

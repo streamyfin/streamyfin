@@ -40,7 +40,7 @@ export default function page() {
   const api = useAtomValue(apiAtom);
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, _setShowControls] = useState(true);
   const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -52,6 +52,11 @@ export default function page() {
 
   const { getDownloadedItem } = useDownload();
   const revalidateProgressCache = useRevalidatePlaybackProgressCache();
+
+  const setShowControls = useCallback((show: boolean) => {
+    _setShowControls(show);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   const {
     itemId,
@@ -410,6 +415,7 @@ export default function page() {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
+          opacity: showControls ? 0.5 : 1,
         }}
       >
         <VlcPlayerView
