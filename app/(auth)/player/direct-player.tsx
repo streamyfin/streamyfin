@@ -404,10 +404,7 @@ export default function page() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "black" }}>
-      <Pressable
-        onPress={() => {
-          // setShowControls(!showControls);
-        }}
+      <View
         style={{
           display: "flex",
           width: "100%",
@@ -445,7 +442,7 @@ export default function page() {
             writeToLog("ERROR", "Video Error", e.nativeEvent);
           }}
         />
-      </Pressable>
+      </View>
       {videoRef.current && (
         <Controls
           mediaSource={stream?.mediaSource}

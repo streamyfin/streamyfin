@@ -382,7 +382,7 @@ export const Controls: React.FC<Props> = ({
         </View>
 
         <Pressable
-          onPress={() => {
+          onPressIn={() => {
             toggleControls();
           }}
           style={{

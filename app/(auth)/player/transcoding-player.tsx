@@ -395,10 +395,7 @@ const Player = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: "black" }}>
-      <Pressable
-        onPress={() => {
-          // setShowControls(!showControls);
-        }}
+      <View
         style={{
           display: "flex",
           width: "100%",
@@ -461,7 +458,7 @@ const Player = () => {
         ) : (
           <Text>No video source...</Text>
         )}
-      </Pressable>
+      </View>
 
       {item && (
         <Controls
