@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 export function useRevalidatePlaybackProgressCache() {
   const queryClient = useQueryClient();
 
-  const revalidate = () => {
+  const revalidate = async () => {
     // List of all the queries to invalidate
     const queriesToInvalidate = [
       ["item"],
@@ -20,9 +20,9 @@ export function useRevalidatePlaybackProgressCache() {
     ];
 
     // Invalidate each query
-    queriesToInvalidate.forEach((queryKey) => {
-      queryClient.invalidateQueries({ queryKey });
-    });
+    for (const queryKey of queriesToInvalidate) {
+      await queryClient.invalidateQueries({ queryKey });
+    }
   };
 
   return revalidate;

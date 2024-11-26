@@ -5,6 +5,7 @@ import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionLi
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
+import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -163,20 +164,13 @@ export default function index() {
     );
   }, [userViews]);
 
+  const invalidateCache = useRevalidatePlaybackProgressCache();
+
   const refetch = useCallback(async () => {
     setLoading(true);
-    await queryClient.invalidateQueries({
-      queryKey: ["home"],
-      type: "all",
-      exact: false,
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["item"],
-      type: "all",
-      exact: false,
-    });
+    await invalidateCache();
     setLoading(false);
-  }, [queryClient]);
+  }, []);
 
   const createCollectionConfig = useCallback(
     (
