@@ -407,54 +407,70 @@ const Player = () => {
         }}
       >
         {videoSource ? (
-          <Video
-            ref={videoRef}
-            source={videoSource}
-            style={{
-              height: "100%",
-              width: "100%",
-            }}
-            resizeMode={ignoreSafeAreas ? "cover" : "contain"}
-            onProgress={onProgress}
-            onError={(e) => {
-              console.error("Error playing video", e);
-            }}
-            onLoad={() => {
-              if (firstTime.current === true) {
-                play();
-                firstTime.current = false;
-              }
-            }}
-            progressUpdateInterval={500}
-            playWhenInactive={true}
-            allowsExternalPlayback={true}
-            playInBackground={true}
-            pictureInPicture={true}
-            showNotificationControls={true}
-            ignoreSilentSwitch="ignore"
-            fullscreen={false}
-            onPlaybackStateChanged={(state) => {
-              if (isSeeking.value === false) setIsPlaying(state.isPlaying);
-            }}
-            onTextTracks={(data) => {
-              setEmbededTextTracks(data.textTracks as any);
-            }}
-            onBuffer={(e) => {
-              setIsBuffering(e.isBuffering);
-            }}
-            onAudioTracks={(e) => {
-              console.log("onAudioTracks: ", e.audioTracks);
-              setAudioTracks(
-                e.audioTracks.map((t) => ({
-                  index: t.index,
-                  name: t.title ?? "",
-                  language: t.language,
-                }))
-              );
-            }}
-            selectedTextTrack={selectedTextTrack}
-            selectedAudioTrack={selectedAudioTrack}
-          />
+          <>
+            <Video
+              ref={videoRef}
+              source={videoSource}
+              style={{
+                height: "100%",
+                width: "100%",
+              }}
+              resizeMode={ignoreSafeAreas ? "cover" : "contain"}
+              onProgress={onProgress}
+              onError={(e) => {
+                console.error("Error playing video", e);
+              }}
+              onLoad={() => {
+                if (firstTime.current === true) {
+                  play();
+                  firstTime.current = false;
+                }
+              }}
+              progressUpdateInterval={500}
+              playWhenInactive={true}
+              allowsExternalPlayback={true}
+              playInBackground={true}
+              pictureInPicture={true}
+              showNotificationControls={true}
+              ignoreSilentSwitch="ignore"
+              fullscreen={false}
+              onPlaybackStateChanged={(state) => {
+                if (isSeeking.value === false) setIsPlaying(state.isPlaying);
+              }}
+              onTextTracks={(data) => {
+                setEmbededTextTracks(data.textTracks as any);
+              }}
+              onBuffer={(e) => {
+                setIsBuffering(e.isBuffering);
+              }}
+              onAudioTracks={(e) => {
+                console.log("onAudioTracks: ", e.audioTracks);
+                setAudioTracks(
+                  e.audioTracks.map((t) => ({
+                    index: t.index,
+                    name: t.title ?? "",
+                    language: t.language,
+                  }))
+                );
+              }}
+              selectedTextTrack={selectedTextTrack}
+              selectedAudioTrack={selectedAudioTrack}
+            />
+            <View
+              style={{
+                position: "absolute",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                opacity: isBuffering ? 1 : 0,
+                width: "100%",
+                height: "100%",
+              }}
+              pointerEvents="none"
+            >
+              <Loader />
+            </View>
+          </>
         ) : (
           <Text>No video source...</Text>
         )}

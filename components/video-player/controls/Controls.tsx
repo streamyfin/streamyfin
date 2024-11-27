@@ -393,22 +393,6 @@ export const Controls: React.FC<Props> = ({
         ></Pressable>
 
         <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-          }}
-          pointerEvents="none"
-          className={`flex flex-col items-center justify-center
-              ${isBuffering ? "opacity-100" : "opacity-0"}
-            `}
-        >
-          <Loader />
-        </View>
-
-        <View
           style={[
             {
               position: "absolute",
