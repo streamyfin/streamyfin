@@ -32,6 +32,9 @@ export const ScrollingCollectionList: React.FC<Props> = ({
     queryKey,
     queryFn,
     staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   if (disabled || !title) return null;

@@ -26,7 +26,7 @@ const Page: React.FC = () => {
   const { data: item, isError } = useQuery({
     queryKey: ["item", id],
     queryFn: async () => {
-      if (!api) return;
+      if (!api || !user || !id) return;
       const res = await getUserLibraryApi(api).getItem({
         itemId: id,
         userId: user?.Id,
@@ -34,8 +34,10 @@ const Page: React.FC = () => {
 
       return res.data;
     },
-    enabled: !!id && !!api || !!user,
     staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const opacity = useSharedValue(1);
