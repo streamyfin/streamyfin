@@ -54,7 +54,6 @@ export const useImageColors = ({
 
       // If colors are cached, use them and exit
       if (_primary && _text) {
-        console.info("useImageColors ~ Using cached colors for performance.");
         setPrimaryColor({
           primary: _primary,
           text: _text,

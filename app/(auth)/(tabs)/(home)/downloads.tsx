@@ -2,36 +2,46 @@ import { Text } from "@/components/common/Text";
 import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
 import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
-import { useDownload } from "@/providers/DownloadProvider";
+import { DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const downloads: React.FC = () => {
+export default function page() {
   const [queue, setQueue] = useAtom(queueAtom);
   const { removeProcess, downloadedFiles } = useDownload();
-
+  const router = useRouter();
   const [settings] = useSettings();
 
-  const movies = useMemo(
-    () => downloadedFiles?.filter((f) => f.Type === "Movie") || [],
-    [downloadedFiles]
-  );
+  const movies = useMemo(() => {
+    try {
+      return downloadedFiles?.filter((f) => f.item.Type === "Movie") || [];
+    } catch {
+      migration_20241124();
+      return [];
+    }
+  }, [downloadedFiles]);
 
   const groupedBySeries = useMemo(() => {
-    const episodes = downloadedFiles?.filter((f) => f.Type === "Episode");
-    const series: { [key: string]: BaseItemDto[] } = {};
-    episodes?.forEach((e) => {
-      if (!series[e.SeriesName!]) series[e.SeriesName!] = [];
-      series[e.SeriesName!].push(e);
-    });
-    return Object.values(series);
+    try {
+      const episodes = downloadedFiles?.filter(
+        (f) => f.item.Type === "Episode"
+      );
+      const series: { [key: string]: DownloadedItem[] } = {};
+      episodes?.forEach((e) => {
+        if (!series[e.item.SeriesName!]) series[e.item.SeriesName!] = [];
+        series[e.item.SeriesName!].push(e);
+      });
+      return Object.values(series);
+    } catch {
+      migration_20241124();
+      return [];
+    }
   }, [downloadedFiles]);
 
   const insets = useSafeAreaInsets();
@@ -98,17 +108,20 @@ const downloads: React.FC = () => {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="px-4 flex flex-row">
-                {movies?.map((item: BaseItemDto) => (
-                  <View className="mb-2 last:mb-0" key={item.Id}>
-                    <MovieCard item={item} />
+                {movies?.map((item) => (
+                  <View className="mb-2 last:mb-0" key={item.item.Id}>
+                    <MovieCard item={item.item} />
                   </View>
                 ))}
               </View>
             </ScrollView>
           </View>
         )}
-        {groupedBySeries?.map((items: BaseItemDto[], index: number) => (
-          <SeriesCard items={items} key={items[0].SeriesId} />
+        {groupedBySeries?.map((items, index) => (
+          <SeriesCard
+            items={items.map((i) => i.item)}
+            key={items[0].item.SeriesId}
+          />
         ))}
         {downloadedFiles?.length === 0 && (
           <View className="flex px-4">
@@ -118,6 +131,24 @@ const downloads: React.FC = () => {
       </View>
     </ScrollView>
   );
-};
+}
 
-export default downloads;
+function migration_20241124() {
+  const router = useRouter();
+  const { deleteAllFiles } = useDownload();
+  Alert.alert(
+    "New app version requires re-download",
+    "The new update reqires content to be downloaded again. Please remove all downloaded content and try again.",
+    [
+      {
+        text: "Back",
+        onPress: () => router.back(),
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => await deleteAllFiles(),
+      },
+    ]
+  );
+}

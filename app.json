@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.18.0",
+    "version": "0.21.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -99,7 +99,14 @@
         {
           "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."
         }
-      ]
+      ],
+      "expo-asset",
+      [
+        "react-native-edge-to-edge",
+        { "android": { "parentTheme": "Material3" } }
+      ],
+      ["react-native-bottom-tabs"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"]
     ],
     "experiments": {
       "typedRoutes": true

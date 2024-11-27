@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
+import { msToSeconds, secondsToMs } from "@/utils/time";
 
 interface IntroTimestamps {
   EpisodeId: string;
@@ -14,19 +15,36 @@ interface IntroTimestamps {
   Valid: boolean;
 }
 
+/**
+ * Custom hook to handle skipping intros in a media player.
+ *
+ * @param {number} currentTime - The current playback time in seconds.
+ */
 export const useIntroSkipper = (
   itemId: string | undefined,
   currentTime: number,
-  videoRef: React.RefObject<any>
+  seek: (ticks: number) => void,
+  play: () => void,
+  isVlc: boolean = false
 ) => {
   const [api] = useAtom(apiAtom);
   const [showSkipButton, setShowSkipButton] = useState(false);
+  if (isVlc) {
+    currentTime = msToSeconds(currentTime);
+  }
+
+  const wrappedSeek = (seconds: number) => {
+    if (isVlc) {
+      seek(secondsToMs(seconds));
+      return;
+    }
+    seek(seconds);
+  };
 
   const { data: introTimestamps } = useQuery<IntroTimestamps | null>({
     queryKey: ["introTimestamps", itemId],
     queryFn: async () => {
       if (!itemId) {
-        console.log("No item id");
         return null;
       }
 
@@ -58,16 +76,16 @@ export const useIntroSkipper = (
 
   const skipIntro = useCallback(() => {
     console.log("skipIntro");
-    if (!introTimestamps || !videoRef.current) return;
+    if (!introTimestamps) return;
     try {
-      videoRef.current.seek(introTimestamps.IntroEnd);
+      wrappedSeek(introTimestamps.IntroEnd);
       setTimeout(() => {
-        videoRef.current?.resume();
+        play();
       }, 200);
     } catch (error) {
       writeToLog("ERROR", "Error skipping intro", error);
     }
-  }, [introTimestamps, videoRef]);
+  }, [introTimestamps]);
 
   return { showSkipButton, skipIntro };
 };

@@ -36,15 +36,26 @@ export const runtimeTicksToSeconds = (
   else return `${minutes}m ${seconds}s`;
 };
 
+// t: ms
 export const formatTimeString = (
   t: number | null | undefined,
-  tick = false
+  unit: "s" | "ms" | "tick" = "ms"
 ): string => {
   if (t === null || t === undefined) return "0:00";
 
-  let seconds = t;
-  if (tick) {
-    seconds = Math.floor(t / 10000000); // Convert ticks to seconds
+  let seconds: number;
+  switch (unit) {
+    case "s":
+      seconds = Math.floor(t);
+      break;
+    case "ms":
+      seconds = Math.floor(t / 1000);
+      break;
+    case "tick":
+      seconds = Math.floor(t / 10000000);
+      break;
+    default:
+      seconds = Math.floor(t / 1000); // Default to ms if an invalid type is provided
   }
 
   if (seconds < 0) return "0:00";
@@ -67,5 +78,25 @@ export const secondsToTicks = (seconds?: number | undefined) => {
 
 export const ticksToSeconds = (ticks?: number | undefined) => {
   if (!ticks) return 0;
-  return ticks / 10000000;
+  return Math.floor(ticks / 10000000);
+};
+
+export const msToTicks = (ms?: number | undefined) => {
+  if (!ms) return 0;
+  return ms * 10000;
+};
+
+export const ticksToMs = (ticks?: number | undefined) => {
+  if (!ticks) return 0;
+  return Math.floor(ticks / 10000);
+};
+
+export const secondsToMs = (seconds?: number | undefined) => {
+  if (!seconds) return 0;
+  return Math.floor(seconds * 1000);
+};
+
+export const msToSeconds = (ms?: number | undefined) => {
+  if (!ms) return 0;
+  return Math.floor(ms / 1000);
 };

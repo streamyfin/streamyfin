@@ -7,6 +7,7 @@ import old from "@/utils/profiles/old";
 import {
   BaseItemDto,
   MediaSourceInfo,
+  PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
@@ -30,6 +31,7 @@ export type PlaybackType = {
 
 type PlaySettingsContextType = {
   playSettings: PlaybackType | null;
+  mediaSource: MediaSourceInfo | null;
   setPlaySettings: (
     dataOrUpdater:
       | PlaybackType
@@ -51,6 +53,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [playSettings, _setPlaySettings] = useState<PlaybackType | null>(null);
+  const [mediaSource, setMediaSource] = useState<MediaSourceInfo | null>(null);
   const [playUrl, setPlayUrl] = useState<string | null>(null);
   const [playSessionId, setPlaySessionId] = useState<string | null>(null);
 
@@ -91,14 +94,10 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         return null;
       }
 
-      let deviceProfile: any = iosFmp4;
-      if (settings?.deviceProfile === "Native") deviceProfile = native;
-      if (settings?.deviceProfile === "Old") deviceProfile = old;
-
       try {
         const data = await getStreamUrl({
           api,
-          deviceProfile,
+          deviceProfile: native,
           item: newSettings?.item,
           mediaSourceId: newSettings?.mediaSource?.Id,
           startTimeTicks: 0,
@@ -106,14 +105,15 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           audioStreamIndex: newSettings?.audioIndex ?? 0,
           subtitleStreamIndex: newSettings?.subtitleIndex ?? -1,
           userId: user.Id,
-          forceDirectPlay: settings.forceDirectPlay,
         });
 
-        console.log("getStreamUrl ~ ", data?.url);
+        console.log("getStreamUrl ~");
+        console.log(`${data?.url?.slice(0, 100)}...${data?.url?.slice(-50)}`);
 
         _setPlaySettings(newSettings);
         setPlayUrl(data?.url!);
         setPlaySessionId(data?.sessionId!);
+        setMediaSource(data?.mediaSource!);
 
         return data;
       } catch (error) {
@@ -125,16 +125,12 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   useEffect(() => {
-    let deviceProfile: any = ios;
-    if (settings?.deviceProfile === "Native") deviceProfile = native;
-    if (settings?.deviceProfile === "Old") deviceProfile = old;
-
     const postCaps = async () => {
       if (!api) return;
       await getSessionApi(api).postFullCapabilities({
         clientCapabilitiesDto: {
           AppStoreUrl: "https://apps.apple.com/us/app/streamyfin/id6593660679",
-          DeviceProfile: deviceProfile,
+          DeviceProfile: native as any,
           IconUrl:
             "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
           PlayableMediaTypes: ["Audio", "Video"],
@@ -158,6 +154,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         setMusicPlaySettings,
         setOfflineSettings,
         playSessionId,
+        mediaSource,
       }}
     >
       {children}

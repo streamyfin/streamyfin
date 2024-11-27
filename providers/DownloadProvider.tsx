@@ -4,17 +4,22 @@ import { writeToLog } from "@/utils/log";
 import {
   cancelAllJobs,
   cancelJobById,
+  deleteDownloadItemInfoFromDiskTmp,
   getAllJobsByDeviceId,
+  getDownloadItemInfoFromDiskTmp,
   JobStatus,
 } from "@/utils/optimize-server";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import {
   checkForExistingDownloads,
   completeHandler,
   download,
   setConfig,
 } from "@kesha-antonov/react-native-background-downloader";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import MMKV from "react-native-mmkv";
 import {
   focusManager,
   QueryClient,
@@ -40,6 +45,12 @@ import { apiAtom } from "./JellyfinProvider";
 import * as Notifications from "expo-notifications";
 import { getItemImage } from "@/utils/getItemImage";
 import useImageStorage from "@/hooks/useImageStorage";
+import { storage } from "@/utils/mmkv";
+
+export type DownloadedItem = {
+  item: Partial<BaseItemDto>;
+  mediaSource: MediaSourceInfo;
+};
 
 function onAppStateChange(status: AppStateStatus) {
   focusManager.setFocused(status === "active");
@@ -55,8 +66,7 @@ function useDownloadProvider() {
   const router = useRouter();
   const [api] = useAtom(apiAtom);
 
-  const { loadImage, saveImage, image2Base64, saveBase64Image } =
-    useImageStorage();
+  const { saveImage } = useImageStorage();
 
   const [processes, setProcesses] = useState<JobStatus[]>([]);
 
@@ -99,7 +109,6 @@ function useDownloadProvider() {
         url,
       });
 
-      // Local downloading processes that are still valid
       const downloadingProcesses = processes
         .filter((p) => p.status === "downloading")
         .filter((p) => jobs.some((j) => j.id === p.id));
@@ -110,8 +119,6 @@ function useDownloadProvider() {
 
       setProcesses([...updatedProcesses, ...downloadingProcesses]);
 
-      // Go though new jobs and compare them to old jobs
-      // if new job is now completed, start download.
       for (let job of jobs) {
         const process = processes.find((p) => p.id === job.id);
         if (
@@ -174,7 +181,7 @@ function useDownloadProvider() {
           url: settings?.optimizedVersionsServerUrl,
         });
       } catch (error) {
-        console.log(error);
+        console.error(error);
       }
     },
     [settings?.optimizedVersionsServerUrl, authHeader]
@@ -184,7 +191,6 @@ function useDownloadProvider() {
     async (process: JobStatus) => {
       if (!process?.item.Id || !authHeader) throw new Error("No item id");
 
-      console.log("[0] Setting process to downloading");
       setProcesses((prev) =>
         prev.map((p) =>
           p.id === process.id
@@ -239,7 +245,6 @@ function useDownloadProvider() {
         })
         .progress((data) => {
           const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
-          console.log("Download progress:", percent);
           setProcesses((prev) =>
             prev.map((p) =>
               p.id === process.id
@@ -298,12 +303,14 @@ function useDownloadProvider() {
   );
 
   const startBackgroundDownload = useCallback(
-    async (url: string, item: BaseItemDto, fileExtension: string) => {
+    async (url: string, item: BaseItemDto, mediaSource: MediaSourceInfo) => {
       if (!api || !item.Id || !authHeader)
         throw new Error("startBackgroundDownload ~ Missing required params");
 
       try {
+        const fileExtension = mediaSource.TranscodingContainer;
         const deviceId = await getOrSetDeviceId();
+
         const itemImage = getItemImage({
           item,
           api,
@@ -311,7 +318,6 @@ function useDownloadProvider() {
           quality: 90,
           width: 500,
         });
-
         await saveImage(item.Id, itemImage?.uri);
 
         const response = await axios.post(
@@ -380,7 +386,7 @@ function useDownloadProvider() {
   const deleteAllFiles = async (): Promise<void> => {
     try {
       await deleteLocalFiles();
-      await removeDownloadedItemsFromStorage();
+      removeDownloadedItemsFromStorage();
       await cancelAllServerJobs();
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
       toast.success("All files, folders, and jobs deleted successfully");
@@ -410,14 +416,11 @@ function useDownloadProvider() {
     }
   };
 
-  const removeDownloadedItemsFromStorage = async (): Promise<void> => {
+  const removeDownloadedItemsFromStorage = (): void => {
     try {
-      await AsyncStorage.removeItem("downloadedItems");
+      storage.delete("downloadedItems");
     } catch (error) {
-      console.error(
-        "Failed to remove downloadedItems from AsyncStorage:",
-        error
-      );
+      console.error("Failed to remove downloadedItems from storage:", error);
       throw error;
     }
   };
@@ -467,36 +470,46 @@ function useDownloadProvider() {
         if (itemNameWithoutExtension === id) {
           const filePath = `${directory}${item}`;
           await FileSystem.deleteAsync(filePath, { idempotent: true });
-          console.log(`Successfully deleted file: ${item}`);
           break;
         }
       }
 
-      const downloadedItems = await AsyncStorage.getItem("downloadedItems");
+      const downloadedItems = storage.getString("downloadedItems");
       if (downloadedItems) {
-        let items = JSON.parse(downloadedItems);
-        items = items.filter((item: any) => item.Id !== id);
-        await AsyncStorage.setItem("downloadedItems", JSON.stringify(items));
+        let items = JSON.parse(downloadedItems) as DownloadedItem[];
+        items = items.filter((item) => item.item.Id !== id);
+        storage.set("downloadedItems", JSON.stringify(items));
       }
 
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
-
-      console.log(
-        `Successfully deleted file and AsyncStorage entry for ID ${id}`
-      );
     } catch (error) {
       console.error(
-        `Failed to delete file and AsyncStorage entry for ID ${id}:`,
+        `Failed to delete file and storage entry for ID ${id}:`,
         error
       );
     }
   };
 
-  async function getAllDownloadedItems(): Promise<BaseItemDto[]> {
+  function getDownloadedItem(itemId: string): DownloadedItem | null {
     try {
-      const downloadedItems = await AsyncStorage.getItem("downloadedItems");
+      const downloadedItems = storage.getString("downloadedItems");
       if (downloadedItems) {
-        return JSON.parse(downloadedItems) as BaseItemDto[];
+        const items: DownloadedItem[] = JSON.parse(downloadedItems);
+        const item = items.find((i) => i.item.Id === itemId);
+        return item || null;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Failed to retrieve item with ID ${itemId}:`, error);
+      return null;
+    }
+  }
+
+  function getAllDownloadedItems(): DownloadedItem[] {
+    try {
+      const downloadedItems = storage.getString("downloadedItems");
+      if (downloadedItems) {
+        return JSON.parse(downloadedItems) as DownloadedItem[];
       } else {
         return [];
       }
@@ -506,25 +519,40 @@ function useDownloadProvider() {
     }
   }
 
-  async function saveDownloadedItemInfo(item: BaseItemDto) {
+  function saveDownloadedItemInfo(item: BaseItemDto) {
     try {
-      const downloadedItems = await AsyncStorage.getItem("downloadedItems");
-      let items: BaseItemDto[] = downloadedItems
+      const downloadedItems = storage.getString("downloadedItems");
+      let items: DownloadedItem[] = downloadedItems
         ? JSON.parse(downloadedItems)
         : [];
 
-      const existingItemIndex = items.findIndex((i) => i.Id === item.Id);
+      const existingItemIndex = items.findIndex((i) => i.item.Id === item.Id);
+
+      const data = getDownloadItemInfoFromDiskTmp(item.Id!);
+
+      if (!data?.mediaSource)
+        throw new Error(
+          "Media source not found in tmp storage. Did you forget to save it before starting download?"
+        );
+
+      const newItem = { item, mediaSource: data.mediaSource };
+
       if (existingItemIndex !== -1) {
-        items[existingItemIndex] = item;
+        items[existingItemIndex] = newItem;
       } else {
-        items.push(item);
+        items.push(newItem);
       }
 
-      await AsyncStorage.setItem("downloadedItems", JSON.stringify(items));
-      await queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
+      deleteDownloadItemInfoFromDiskTmp(item.Id!);
+
+      storage.set("downloadedItems", JSON.stringify(items));
+      queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
       refetch();
     } catch (error) {
-      console.error("Failed to save downloaded item information:", error);
+      console.error(
+        "Failed to save downloaded item information with media source:",
+        error
+      );
     }
   }
 
@@ -538,6 +566,7 @@ function useDownloadProvider() {
     removeProcess,
     setProcesses,
     startDownload,
+    getDownloadedItem,
   };
 }
 

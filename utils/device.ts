@@ -1,19 +1,19 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import uuid from "react-native-uuid";
+import { storage } from "./mmkv";
 
-export const getOrSetDeviceId = async () => {
-  let deviceId = await AsyncStorage.getItem("deviceId");
+export const getOrSetDeviceId = () => {
+  let deviceId = storage.getString("deviceId");
 
   if (!deviceId) {
     deviceId = uuid.v4() as string;
-    await AsyncStorage.setItem("deviceId", deviceId);
+    storage.set("deviceId", deviceId);
   }
 
   return deviceId;
 };
 
-export const getDeviceId = async () => {
-  let deviceId = await AsyncStorage.getItem("deviceId");
+export const getDeviceId = () => {
+  let deviceId = storage.getString("deviceId");
 
   return deviceId || null;
 };

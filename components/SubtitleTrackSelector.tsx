@@ -6,9 +6,9 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
 
 interface Props extends React.ComponentProps<typeof View> {
-  source: MediaSourceInfo;
+  source?: MediaSourceInfo;
   onChange: (value: number) => void;
-  selected?: number | null;
+  selected?: number | undefined;
 }
 
 export const SubtitleTrackSelector: React.FC<Props> = ({
@@ -18,7 +18,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   ...props
 }) => {
   const subtitleStreams = useMemo(
-    () => source.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [],
+    () => source?.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [],
     [source]
   );
 

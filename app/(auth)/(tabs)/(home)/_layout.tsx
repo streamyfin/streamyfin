@@ -27,7 +27,6 @@ export default function IndexLayout() {
                 onPress={() => {
                   router.push("/(auth)/settings");
                 }}
-                className="p-2 "
               >
                 <Feather name="settings" color={"white"} size={22} />
               </TouchableOpacity>

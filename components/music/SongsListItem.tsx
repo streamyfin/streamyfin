@@ -103,7 +103,7 @@ export const SongsListItem: React.FC<Props> = ({
       });
     } else {
       console.log("Playing on device", data.url, item.Id);
-      router.push("/play-music");
+      router.push("/music-player");
     }
   }, []);
 

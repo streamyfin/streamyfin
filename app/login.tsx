@@ -128,9 +128,9 @@ const Login: React.FC = () => {
         } catch (e) {
           const error = e as Error;
           if (error.name === "AbortError") {
-            console.log(`Request to ${protocol}${url} timed out`);
+            console.error(`Request to ${protocol}${url} timed out`);
           } else {
-            console.log(`Error checking ${protocol}${url}:`, error);
+            console.error(`Error checking ${protocol}${url}:`, error);
           }
         }
       }
@@ -286,7 +286,7 @@ const Login: React.FC = () => {
     <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        style={{ flex: 1, height: "100%" }}
       >
         <View className="flex flex-col h-full relative items-center justify-center w-full">
           <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">

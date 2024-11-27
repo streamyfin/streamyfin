@@ -1,7 +1,5 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { atom, useAtom } from "jotai";
-import { atomWithStorage } from "jotai/utils";
 import { useEffect } from "react";
 
 export interface Job {

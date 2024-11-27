@@ -1,18 +1,19 @@
-import { useCallback } from "react";
-import { useAtom, useAtomValue } from "jotai";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
-import { FFmpegKit, FFmpegKitConfig } from "ffmpeg-kit-react-native";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { writeToLog } from "@/utils/log";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner-native";
 import { useDownload } from "@/providers/DownloadProvider";
-import { useRouter } from "expo-router";
-import { JobStatus } from "@/utils/optimize-server";
-import useImageStorage from "./useImageStorage";
-import { getItemImage } from "@/utils/getItemImage";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { getItemImage } from "@/utils/getItemImage";
+import { writeToLog } from "@/utils/log";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { useQueryClient } from "@tanstack/react-query";
+import * as FileSystem from "expo-file-system";
+import { useRouter } from "expo-router";
+import { FFmpegKit, FFmpegKitConfig } from "ffmpeg-kit-react-native";
+import { useAtomValue } from "jotai";
+import { useCallback } from "react";
+import { toast } from "sonner-native";
+import useImageStorage from "./useImageStorage";
 
 /**
  * Custom hook for remuxing HLS to MP4 using FFmpeg.
@@ -21,23 +22,16 @@ import { apiAtom } from "@/providers/JellyfinProvider";
  * @param item - The BaseItemDto object representing the media item
  * @returns An object with remuxing-related functions
  */
-export const useRemuxHlsToMp4 = (item: BaseItemDto) => {
+export const useRemuxHlsToMp4 = () => {
   const api = useAtomValue(apiAtom);
   const queryClient = useQueryClient();
   const { saveDownloadedItemInfo, setProcesses } = useDownload();
   const router = useRouter();
-  const { loadImage, saveImage, image2Base64, saveBase64Image } =
-    useImageStorage();
-
-  if (!item.Id || !item.Name) {
-    writeToLog("ERROR", "useRemuxHlsToMp4 ~ missing arguments");
-    throw new Error("Item must have an Id and Name");
-  }
-
-  const output = `${FileSystem.documentDirectory}${item.Id}.mp4`;
+  const { saveImage } = useImageStorage();
 
   const startRemuxing = useCallback(
-    async (url: string) => {
+    async (item: BaseItemDto, url: string, mediaSource: MediaSourceInfo) => {
+      const output = `${FileSystem.documentDirectory}${item.Id}.mp4`;
       if (!api) throw new Error("API is not defined");
       if (!item.Id) throw new Error("Item must have an Id");
 
@@ -75,13 +69,13 @@ export const useRemuxHlsToMp4 = (item: BaseItemDto) => {
             id: "",
             deviceId: "",
             inputUrl: "",
-            item,
-            itemId: item.Id,
+            item: item,
+            itemId: item.Id!,
             outputPath: "",
             progress: 0,
             status: "downloading",
             timestamp: new Date(),
-          } as JobStatus,
+          },
         ]);
 
         FFmpegKitConfig.enableStatisticsCallback((statistics) => {
@@ -135,7 +129,7 @@ export const useRemuxHlsToMp4 = (item: BaseItemDto) => {
                   "ERROR",
                   `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}`
                 );
-                reject(new Error("Remuxing failed")); // Reject the promise on error
+                reject(new Error("Remuxing failed"));
               } else if (returnCode.isValueCancel()) {
                 writeToLog(
                   "INFO",
@@ -164,15 +158,13 @@ export const useRemuxHlsToMp4 = (item: BaseItemDto) => {
         throw error; // Re-throw the error to propagate it to the caller
       }
     },
-    [output, item]
+    []
   );
 
   const cancelRemuxing = useCallback(() => {
     FFmpegKit.cancel();
-    setProcesses((prev) => {
-      return prev.filter((process) => process.itemId !== item.Id);
-    });
-  }, [item.Name]);
+    setProcesses([]);
+  }, []);
 
   return { startRemuxing, cancelRemuxing };
 };

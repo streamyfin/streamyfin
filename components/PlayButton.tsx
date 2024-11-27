@@ -1,14 +1,18 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
+import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import ios from "@/utils/profiles/ios";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo } from "react";
-import { Alert, Linking, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect } from "react";
+import { Alert, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
   PlayServicesState,
@@ -26,20 +30,21 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Button } from "./Button";
-import { Text } from "./common/Text";
-import { useRouter } from "expo-router";
-import { useSettings } from "@/utils/atoms/settings";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecastProfile } from "@/utils/profiles/chromecast";
-import { usePlaySettings } from "@/providers/PlaySettingsProvider";
+import { SelectedOptions } from "./ItemContent";
 
-interface Props extends React.ComponentProps<typeof Button> {}
+interface Props extends React.ComponentProps<typeof Button> {
+  item: BaseItemDto;
+  selectedOptions: SelectedOptions;
+}
 
 const ANIMATION_DURATION = 500;
 const MIN_PLAYBACK_WIDTH = 15;
 
-export const PlayButton: React.FC<Props> = ({ ...props }) => {
-  const { playSettings, playUrl: url } = usePlaySettings();
+export const PlayButton: React.FC<Props> = ({
+  item,
+  selectedOptions,
+  ...props
+}: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
   const mediaStatus = useMediaStatus();
@@ -58,32 +63,32 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
   const colorChangeProgress = useSharedValue(0);
   const [settings] = useSettings();
 
-  const directStream = useMemo(() => {
-    return !url?.includes("m3u8");
-  }, [url]);
-
-  const item = useMemo(() => {
-    return playSettings?.item;
-  }, [playSettings?.item]);
-
-  const onPress = useCallback(async () => {
-    if (!url || !item) {
-      console.warn(
-        "No URL or item provided to PlayButton",
-        url?.slice(0, 100),
-        item?.Id
-      );
-      return;
-    }
-
-    if (!client) {
-      const vlcLink = "vlc://" + url;
-      if (vlcLink && settings?.openInVLC) {
-        Linking.openURL(vlcLink);
+  const goToPlayer = useCallback(
+    (q: string, bitrateValue: number | undefined) => {
+      if (!bitrateValue) {
+        router.push(`/player/direct-player?${q}`);
         return;
       }
+      router.push(`/player/transcoding-player?${q}`);
+    },
+    [router]
+  );
 
-      router.push("/play-video");
+  const onPress = useCallback(async () => {
+    if (!item) return;
+
+    const queryParams = new URLSearchParams({
+      itemId: item.Id!,
+      audioIndex: selectedOptions.audioIndex?.toString() ?? "",
+      subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
+      mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
+      bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+    });
+
+    const queryString = queryParams.toString();
+
+    if (!client) {
+      goToPlayer(queryString, selectedOptions.bitrate?.value);
       return;
     }
 
@@ -116,15 +121,14 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
                 // Get a new URL with the Chromecast device profile:
                 const data = await getStreamUrl({
                   api,
-                  deviceProfile: chromecastProfile,
                   item,
-                  mediaSourceId: playSettings?.mediaSource?.Id,
-                  startTimeTicks: 0,
-                  maxStreamingBitrate: playSettings?.bitrate?.value,
-                  audioStreamIndex: playSettings?.audioIndex ?? 0,
-                  subtitleStreamIndex: playSettings?.subtitleIndex ?? -1,
+                  deviceProfile: ios,
+                  startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
                   userId: user?.Id,
-                  forceDirectPlay: settings?.forceDirectPlay,
+                  audioStreamIndex: selectedOptions.audioIndex,
+                  maxStreamingBitrate: selectedOptions.bitrate?.value,
+                  mediaSourceId: selectedOptions.mediaSource?.Id,
+                  subtitleStreamIndex: selectedOptions.subtitleIndex,
                 });
 
                 if (!data?.url) {
@@ -205,7 +209,7 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
             });
             break;
           case 1:
-            router.push("/play-video");
+            goToPlayer(queryString, selectedOptions.bitrate?.value);
             break;
           case cancelButtonIndex:
             break;
@@ -213,16 +217,15 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
       }
     );
   }, [
-    url,
     item,
     client,
     settings,
     api,
     user,
-    playSettings,
     router,
     showActionSheetWithOptions,
     mediaStatus,
+    selectedOptions,
   ]);
 
   const derivedTargetWidth = useDerivedValue(() => {
@@ -317,10 +320,11 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
   return (
     <View>
       <TouchableOpacity
+        disabled={!item}
         accessibilityLabel="Play button"
         accessibilityHint="Tap to play the media"
         onPress={onPress}
-        className="relative"
+        className={`relative`}
         {...props}
       >
         <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
@@ -372,7 +376,7 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
           </View>
         </View>
       </TouchableOpacity>
-      <View className="mt-2 flex flex-row items-center">
+      {/* <View className="mt-2 flex flex-row items-center">
         <Ionicons
           name="information-circle"
           size={12}
@@ -382,7 +386,7 @@ export const PlayButton: React.FC<Props> = ({ ...props }) => {
         <Text className="text-neutral-500 ml-1">
           {directStream ? "Direct stream" : "Transcoded stream"}
         </Text>
-      </View>
+      </View> */}
     </View>
   );
 };

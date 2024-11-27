@@ -18,7 +18,6 @@ export const useAdjacentItems = ({ item }: AdjacentEpisodesProps) => {
       const parentId = item?.AlbumId || item?.ParentId;
       const indexNumber = item?.IndexNumber;
 
-      console.log("Getting previous item for " + indexNumber);
       if (
         !api ||
         !parentId ||
@@ -26,12 +25,6 @@ export const useAdjacentItems = ({ item }: AdjacentEpisodesProps) => {
         indexNumber === null ||
         indexNumber - 1 < 1
       ) {
-        console.log("No previous item", {
-          itemIndex: indexNumber,
-          itemId: item?.Id,
-          parentId: parentId,
-          indexNumber: indexNumber,
-        });
         return null;
       }
 

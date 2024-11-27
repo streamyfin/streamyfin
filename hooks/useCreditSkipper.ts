@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
+import { msToSeconds, secondsToMs } from "@/utils/time";
 
 interface CreditTimestamps {
   Introduction: {
@@ -21,16 +22,29 @@ interface CreditTimestamps {
 export const useCreditSkipper = (
   itemId: string | undefined,
   currentTime: number,
-  videoRef: React.RefObject<any>
+  seek: (time: number) => void,
+  play: () => void,
+  isVlc: boolean = false
 ) => {
   const [api] = useAtom(apiAtom);
   const [showSkipCreditButton, setShowSkipCreditButton] = useState(false);
+
+  if (isVlc) {
+    currentTime = msToSeconds(currentTime);
+  }
+
+  const wrappedSeek = (seconds: number) => {
+    if (isVlc) {
+      seek(secondsToMs(seconds));
+      return;
+    }
+    seek(seconds);
+  };
 
   const { data: creditTimestamps } = useQuery<CreditTimestamps | null>({
     queryKey: ["creditTimestamps", itemId],
     queryFn: async () => {
       if (!itemId) {
-        console.log("No item id");
         return null;
       }
 
@@ -61,17 +75,17 @@ export const useCreditSkipper = (
   }, [creditTimestamps, currentTime]);
 
   const skipCredit = useCallback(() => {
-    console.log("skipCredits");
-    if (!creditTimestamps || !videoRef.current) return;
+    if (!creditTimestamps) return;
+    console.log(`Skipping credits to ${creditTimestamps.Credits.End}`);
     try {
-      videoRef.current.seek(creditTimestamps.Credits.End);
+      wrappedSeek(creditTimestamps.Credits.End);
       setTimeout(() => {
-        videoRef.current?.resume();
+        play();
       }, 200);
     } catch (error) {
       writeToLog("ERROR", "Error skipping intro", error);
     }
-  }, [creditTimestamps, videoRef]);
+  }, [creditTimestamps]);
 
   return { showSkipCreditButton, skipCredit };
 };

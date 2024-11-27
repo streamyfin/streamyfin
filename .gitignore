@@ -9,6 +9,7 @@ npm-debug.*
 *.mobileprovision
 *.orig.*
 web-build/
+modules/vlc-player/android/build
 
 # macOS
 .DS_Store
@@ -26,10 +27,11 @@ package-lock.json
 /ios
 /android
 
+modules/player/android
+
 pc-api-7079014811501811218-719-3b9f15aeccf8.json
 credentials.json
 *.apk
 *.ipa
 .continuerc.json
 
-/modules/vlc-player/android

@@ -26,22 +26,8 @@ export const MediaSourceSelector: React.FC<Props> = ({
       item.MediaSources?.find((x) => x.Id === selected?.Id)?.MediaStreams?.find(
         (x) => x.Type === "Video"
       )?.DisplayTitle || "",
-    [item.MediaSources, selected]
+    [item, selected]
   );
-
-  useEffect(() => {
-    if (!selected && item.MediaSources && item.MediaSources.length > 0) {
-      onChange(item.MediaSources[0]);
-    }
-  }, [item.MediaSources, selected]);
-
-  const name = (name?: string | null) => {
-    if (name && name.length > 40)
-      return (
-        name.substring(0, 20) + " [...] " + name.substring(name.length - 20)
-      );
-    return name;
-  };
 
   return (
     <View
@@ -87,4 +73,10 @@ export const MediaSourceSelector: React.FC<Props> = ({
       </DropdownMenu.Root>
     </View>
   );
+};
+
+const name = (name?: string | null) => {
+  if (name && name.length > 40)
+    return name.substring(0, 20) + " [...] " + name.substring(name.length - 20);
+  return name;
 };

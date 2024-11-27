@@ -11,126 +11,73 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
+import { useOrientation } from "@/hooks/useOrientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { useFocusEffect, useNavigation } from "expo-router";
+import { useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 
+export type SelectedOptions = {
+  bitrate: Bitrate;
+  mediaSource: MediaSourceInfo | undefined;
+  audioIndex: number | undefined;
+  subtitleIndex: number;
+};
+
 export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
   ({ item }) => {
     const [api] = useAtom(apiAtom);
-    const { setPlaySettings, playUrl, playSettings } = usePlaySettings();
     const [settings] = useSettings();
+    const { orientation } = useOrientation();
     const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
+    useImageColors({ item });
 
     const [loadingLogo, setLoadingLogo] = useState(true);
-
-    const [orientation, setOrientation] = useState(
-      ScreenOrientation.Orientation.PORTRAIT_UP
-    );
-
-    useFocusEffect(
-      useCallback(() => {
-        if (!settings) return;
-        const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-          getDefaultPlaySettings(item, settings);
-
-        setPlaySettings({
-          item,
-          bitrate,
-          mediaSource,
-          audioIndex,
-          subtitleIndex,
-        });
-
-        if (!mediaSource) {
-          Alert.alert("Error", "No media source found for this item.");
-          navigation.goBack();
-        }
-      }, [item, settings])
-    );
-
-    const selectedMediaSource = useMemo(() => {
-      return playSettings?.mediaSource || undefined;
-    }, [playSettings?.mediaSource]);
-
-    const setSelectedMediaSource = (mediaSource: MediaSourceInfo) => {
-      setPlaySettings((prev) => ({
-        ...prev,
-        mediaSource,
-      }));
-    };
-
-    const selectedAudioStream = useMemo(() => {
-      return playSettings?.audioIndex;
-    }, [playSettings?.audioIndex]);
-
-    const setSelectedAudioStream = (audioIndex: number) => {
-      setPlaySettings((prev) => ({
-        ...prev,
-        audioIndex,
-      }));
-    };
-
-    const selectedSubtitleStream = useMemo(() => {
-      return playSettings?.subtitleIndex;
-    }, [playSettings?.subtitleIndex]);
-
-    const setSelectedSubtitleStream = (subtitleIndex: number) => {
-      setPlaySettings((prev) => ({
-        ...prev,
-        subtitleIndex,
-      }));
-    };
-
-    const maxBitrate = useMemo(() => {
-      return playSettings?.bitrate;
-    }, [playSettings?.bitrate]);
-
-    const setMaxBitrate = (bitrate: Bitrate | undefined) => {
-      console.log("setMaxBitrate", bitrate);
-      setPlaySettings((prev) => ({
-        ...prev,
-        bitrate,
-      }));
-    };
-
-    useEffect(() => {
-      const subscription = ScreenOrientation.addOrientationChangeListener(
-        (event) => {
-          setOrientation(event.orientationInfo.orientation);
-        }
-      );
-
-      ScreenOrientation.getOrientationAsync().then((initialOrientation) => {
-        setOrientation(initialOrientation);
-      });
-
-      return () => {
-        ScreenOrientation.removeOrientationChangeListener(subscription);
-      };
-    }, []);
-
     const [headerHeight, setHeaderHeight] = useState(350);
 
-    useImageColors({ item });
+    const [selectedOptions, setSelectedOptions] = useState<
+      SelectedOptions | undefined
+    >(undefined);
+
+    const {
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultMediaSource,
+      defaultSubtitleIndex,
+    } = useDefaultPlaySettings(item, settings);
+
+    // Needs to automatically change the selected to the default values for default indexes.
+    useEffect(() => {
+      console.log(defaultAudioIndex, defaultSubtitleIndex);
+      setSelectedOptions(() => ({
+        bitrate: defaultBitrate,
+        mediaSource: defaultMediaSource,
+        subtitleIndex: defaultSubtitleIndex ?? -1,
+        audioIndex: defaultAudioIndex,
+      }));
+    }, [
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultSubtitleIndex,
+      defaultMediaSource,
+    ]);
 
     useEffect(() => {
       navigation.setOptions({
@@ -150,13 +97,9 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     }, [item]);
 
     useEffect(() => {
-      // If landscape
-      if (orientation !== ScreenOrientation.Orientation.PORTRAIT_UP) {
+      if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
         setHeaderHeight(230);
-        return;
-      }
-
-      if (item.Type === "Movie") setHeaderHeight(500);
+      else if (item.Type === "Movie") setHeaderHeight(500);
       else setHeaderHeight(350);
     }, [item.Type, orientation]);
 
@@ -166,7 +109,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
 
-    const insets = useSafeAreaInsets();
+    if (!selectedOptions) return null;
 
     return (
       <View
@@ -219,34 +162,63 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 <View className="flex flex-row items-center justify-start w-full h-16">
                   <BitrateSelector
                     className="mr-1"
-                    onChange={(val) => setMaxBitrate(val)}
-                    selected={maxBitrate}
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) => prev && { ...prev, bitrate: val }
+                      )
+                    }
+                    selected={selectedOptions.bitrate}
                   />
                   <MediaSourceSelector
                     className="mr-1"
                     item={item}
-                    onChange={setSelectedMediaSource}
-                    selected={selectedMediaSource}
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            mediaSource: val,
+                          }
+                      )
+                    }
+                    selected={selectedOptions.mediaSource}
                   />
-                  {selectedMediaSource && (
-                    <>
-                      <AudioTrackSelector
-                        className="mr-1"
-                        source={selectedMediaSource}
-                        onChange={setSelectedAudioStream}
-                        selected={selectedAudioStream}
-                      />
-                      <SubtitleTrackSelector
-                        source={selectedMediaSource}
-                        onChange={setSelectedSubtitleStream}
-                        selected={selectedSubtitleStream}
-                      />
-                    </>
-                  )}
+                  <AudioTrackSelector
+                    className="mr-1"
+                    source={selectedOptions.mediaSource}
+                    onChange={(val) => {
+                      console.log(val);
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            audioIndex: val,
+                          }
+                      );
+                    }}
+                    selected={selectedOptions.audioIndex}
+                  />
+                  <SubtitleTrackSelector
+                    source={selectedOptions.mediaSource}
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            subtitleIndex: val,
+                          }
+                      )
+                    }
+                    selected={selectedOptions.subtitleIndex}
+                  />
                 </View>
               )}
 
-              <PlayButton className="grow" />
+              <PlayButton
+                className="grow"
+                selectedOptions={selectedOptions}
+                item={item}
+              />
             </View>
 
             {item.Type === "Episode" && (
@@ -260,10 +232,10 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
 
                 {item.People && item.People.length > 0 && (
                   <View className="mb-4">
-                    {item.People.slice(0, 3).map((person) => (
+                    {item.People.slice(0, 3).map((person, idx) => (
                       <MoreMoviesWithActor
                         currentItem={item}
-                        key={person.Id}
+                        key={idx}
                         actorId={person.Id!}
                         className="mb-4"
                       />

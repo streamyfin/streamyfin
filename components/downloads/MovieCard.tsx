@@ -1,20 +1,17 @@
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import * as Haptics from "expo-haptics";
-import React, { useCallback, useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
 import {
   ActionSheetProvider,
   useActionSheet,
 } from "@expo/react-native-action-sheet";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import * as Haptics from "expo-haptics";
+import React, { useCallback, useMemo } from "react";
+import { TouchableOpacity, View } from "react-native";
 
-import { runtimeTicksToMinutes } from "@/utils/time";
-import { Text } from "../common/Text";
-
-import { useFileOpener } from "@/hooks/useDownloadedFileOpener";
+import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
-import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { ItemCardText } from "../ItemCardText";
 
 interface MovieCardProps {
@@ -28,7 +25,7 @@ interface MovieCardProps {
  */
 export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
-  const { openFile } = useFileOpener();
+  const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
 
   const handleOpenFile = useCallback(() => {

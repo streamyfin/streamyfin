@@ -6,7 +6,6 @@ import { useMemo } from "react";
 export type Bitrate = {
   key: string;
   value: number | undefined;
-  height?: number;
 };
 
 export const BITRATES: Bitrate[] = [
@@ -27,17 +26,14 @@ export const BITRATES: Bitrate[] = [
   {
     key: "2 Mb/s",
     value: 2000000,
-    height: 720,
   },
   {
     key: "500 Kb/s",
     value: 500000,
-    height: 480,
   },
   {
     key: "250 Kb/s",
     value: 250000,
-    height: 480,
   },
 ].sort((a, b) => (b.value || Infinity) - (a.value || Infinity));
 

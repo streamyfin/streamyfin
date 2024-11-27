@@ -7,7 +7,7 @@ import {
   useActionSheet,
 } from "@expo/react-native-action-sheet";
 
-import { useFileOpener } from "@/hooks/useDownloadedFileOpener";
+import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
 import { Text } from "../common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
@@ -26,7 +26,7 @@ interface EpisodeCardProps {
  */
 export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
-  const { openFile } = useFileOpener();
+  const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
 
   const base64Image = useMemo(() => {

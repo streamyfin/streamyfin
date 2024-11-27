@@ -1,7 +1,7 @@
 import { atom, useAtom } from "jotai";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
+import { storage } from "../mmkv";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -59,7 +59,6 @@ export type Settings = {
   forceLandscapeInVideoPlayer?: boolean;
   usePopularPlugin?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
-  forceDirectPlay?: boolean;
   mediaListCollectionIds?: string[];
   searchEngine: "Marlin" | "Jellyfin";
   marlinServerUrl?: string;
@@ -76,21 +75,13 @@ export type Settings = {
   downloadMethod: "optimized" | "remux";
   autoDownload: boolean;
 };
-/**
- *
- * The settings atom is a Jotai atom that stores the user's settings.
- * It is initialized with a default value of null, which indicates that the settings have not been loaded yet.
- * The settings are loaded from AsyncStorage when the atom is read for the first time.
- *
- */
 
-const loadSettings = async (): Promise<Settings> => {
+const loadSettings = (): Settings => {
   const defaultValues: Settings = {
     autoRotate: true,
     forceLandscapeInVideoPlayer: false,
     usePopularPlugin: false,
     deviceProfile: "Expo",
-    forceDirectPlay: false,
     mediaListCollectionIds: [],
     searchEngine: "Jellyfin",
     marlinServerUrl: "",
@@ -115,7 +106,7 @@ const loadSettings = async (): Promise<Settings> => {
   };
 
   try {
-    const jsonValue = await AsyncStorage.getItem("settings");
+    const jsonValue = storage.getString("settings");
     const loadedValues: Partial<Settings> =
       jsonValue != null ? JSON.parse(jsonValue) : {};
 
@@ -126,30 +117,28 @@ const loadSettings = async (): Promise<Settings> => {
   }
 };
 
-// Utility function to save settings to AsyncStorage
-const saveSettings = async (settings: Settings) => {
+const saveSettings = (settings: Settings) => {
   const jsonValue = JSON.stringify(settings);
-  await AsyncStorage.setItem("settings", jsonValue);
+  storage.set("settings", jsonValue);
 };
 
-// Create an atom to store the settings in memory
 export const settingsAtom = atom<Settings | null>(null);
 
-// A hook to manage settings, loading them on initial mount and providing a way to update them
 export const useSettings = () => {
   const [settings, setSettings] = useAtom(settingsAtom);
 
   useEffect(() => {
     if (settings === null) {
-      loadSettings().then(setSettings);
+      const loadedSettings = loadSettings();
+      setSettings(loadedSettings);
     }
   }, [settings, setSettings]);
 
-  const updateSettings = async (update: Partial<Settings>) => {
+  const updateSettings = (update: Partial<Settings>) => {
     if (settings) {
       const newSettings = { ...settings, ...update };
       setSettings(newSettings);
-      await saveSettings(newSettings);
+      saveSettings(newSettings);
     }
   };
 

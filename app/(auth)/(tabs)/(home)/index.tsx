@@ -5,7 +5,7 @@ import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionLi
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
-import { TAB_HEIGHT } from "@/constants/Values";
+import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -53,7 +53,6 @@ type MediaListSection = {
 type Section = ScrollingCollectionListSection | MediaListSection;
 
 export default function index() {
-  const queryClient = useQueryClient();
   const router = useRouter();
 
   const api = useAtomValue(apiAtom);
@@ -67,6 +66,8 @@ export default function index() {
 
   const { downloadedFiles } = useDownload();
   const navigation = useNavigation();
+
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
@@ -164,28 +165,13 @@ export default function index() {
     );
   }, [userViews]);
 
+  const invalidateCache = useRevalidatePlaybackProgressCache();
+
   const refetch = useCallback(async () => {
     setLoading(true);
-    await queryClient.invalidateQueries({
-      queryKey: ["home"],
-      refetchType: "all",
-      type: "all",
-      exact: false,
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["home"],
-      refetchType: "all",
-      type: "all",
-      exact: false,
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["item"],
-      refetchType: "all",
-      type: "all",
-      exact: false,
-    });
+    await invalidateCache();
     setLoading(false);
-  }, [queryClient]);
+  }, []);
 
   const createCollectionConfig = useCallback(
     (
@@ -241,7 +227,7 @@ export default function index() {
     const ss: Section[] = [
       {
         title: "Continue Watching",
-        queryKey: ["home", "resumeItems", user.Id],
+        queryKey: ["home", "resumeItems"],
         queryFn: async () =>
           (
             await getItemsApi(api).getResumeItems({
@@ -255,7 +241,7 @@ export default function index() {
       },
       {
         title: "Next Up",
-        queryKey: ["home", "nextUp-all", user?.Id],
+        queryKey: ["home", "nextUp-all"],
         queryFn: async () =>
           (
             await getTvShowsApi(api).getNextUp({
@@ -361,8 +347,6 @@ export default function index() {
     );
   }
 
-  const insets = useSafeAreaInsets();
-
   if (e1 || e2)
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
@@ -392,9 +376,6 @@ export default function index() {
         paddingLeft: insets.left,
         paddingRight: insets.right,
         paddingBottom: 16,
-      }}
-      style={{
-        marginBottom: TAB_HEIGHT,
       }}
     >
       <View className="flex flex-col space-y-4">

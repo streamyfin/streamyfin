@@ -26,7 +26,7 @@ import { storage } from "@/utils/mmkv";
 interface Props extends ViewProps {}
 
 export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
-  const { processes, startDownload } = useDownload();
+  const { processes } = useDownload();
   if (processes?.length === 0)
     return (
       <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
@@ -85,7 +85,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       toast.success("Download canceled");
     },
     onError: (e) => {
-      console.log(e);
+      console.error(e);
       toast.error("Could not cancel download");
     },
   });
@@ -95,7 +95,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
     const length = p?.item?.RunTimeTicks || 0;
     const timeLeft = (length - length * (p.progress / 100)) / p.speed;
-    return formatTimeString(timeLeft, true);
+    return formatTimeString(timeLeft, "tick");
   };
 
   const base64Image = useMemo(() => {

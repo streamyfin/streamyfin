@@ -3,9 +3,9 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
-import ios from "@/utils/profiles/ios";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import native from "@/utils/profiles/native";
-import old from "@/utils/profiles/old";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
@@ -21,17 +21,17 @@ import { router, useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, TouchableOpacity, View, ViewProps } from "react-native";
+import { MMKV } from "react-native-mmkv";
+import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
-import { Bitrate, BITRATES, BitrateSelector } from "./BitrateSelector";
+import { Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { toast } from "sonner-native";
-import iosFmp4 from "@/utils/profiles/iosFmp4";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
 
 interface DownloadProps extends ViewProps {
   item: BaseItemDto;
@@ -43,10 +43,10 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
   const [queue, setQueue] = useAtom(queueAtom);
   const [settings] = useSettings();
   const { processes, startBackgroundDownload } = useDownload();
-  const { startRemuxing } = useRemuxHlsToMp4(item);
+  const { startRemuxing } = useRemuxHlsToMp4();
 
   const [selectedMediaSource, setSelectedMediaSource] = useState<
-    MediaSourceInfo | undefined
+    MediaSourceInfo | undefined | null
   >(undefined);
   const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
   const [selectedSubtitleStream, setSelectedSubtitleStream] =
@@ -63,7 +63,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
         getDefaultPlaySettings(item, settings);
 
       // 4. Set states
-      setSelectedMediaSource(mediaSource);
+      setSelectedMediaSource(mediaSource ?? undefined);
       setSelectedAudioStream(audioIndex ?? 0);
       setSelectedSubtitleStream(subtitleIndex ?? -1);
       setMaxBitrate(bitrate);
@@ -99,81 +99,36 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       );
     }
 
-    let deviceProfile: any = iosFmp4;
+    const res = await getStreamUrl({
+      api,
+      item,
+      startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+      userId: user?.Id,
+      audioStreamIndex: selectedAudioStream,
+      maxStreamingBitrate: maxBitrate.value,
+      mediaSourceId: selectedMediaSource.Id,
+      subtitleStreamIndex: selectedSubtitleStream,
+      deviceProfile: native,
+    });
 
-    if (settings?.deviceProfile === "Native") {
-      deviceProfile = native;
-    } else if (settings?.deviceProfile === "Old") {
-      deviceProfile = old;
+    if (!res) {
+      Alert.alert(
+        "Something went wrong",
+        "Could not get stream url from Jellyfin"
+      );
+      return;
     }
 
-    const response = await api.axiosInstance.post(
-      `${api.basePath}/Items/${item.Id}/PlaybackInfo`,
-      {
-        DeviceProfile: deviceProfile,
-        UserId: user.Id,
-        MaxStreamingBitrate: maxBitrate.value,
-        StartTimeTicks: 0,
-        EnableTranscoding: maxBitrate.value ? true : undefined,
-        AutoOpenLiveStream: true,
-        AllowVideoStreamCopy: maxBitrate.value ? false : true,
-        MediaSourceId: selectedMediaSource?.Id,
-        AudioStreamIndex: selectedAudioStream,
-        SubtitleStreamIndex: selectedSubtitleStream,
-      },
-      {
-        headers: {
-          Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
-        },
-      }
-    );
+    const { mediaSource, url } = res;
 
-    let url: string | undefined = undefined;
-    let fileExtension: string | undefined | null = "mp4";
+    if (!url || !mediaSource) throw new Error("No url");
 
-    const mediaSource: MediaSourceInfo = response.data.MediaSources.find(
-      (source: MediaSourceInfo) => source.Id === selectedMediaSource?.Id
-    );
-
-    if (!mediaSource) {
-      throw new Error("No media source");
-    }
-
-    if (mediaSource.SupportsDirectPlay) {
-      if (item.MediaType === "Video") {
-        url = `${api.basePath}/Videos/${item.Id}/stream.mp4?mediaSourceId=${item.Id}&static=true&mediaSourceId=${mediaSource.Id}&deviceId=${api.deviceInfo.id}&api_key=${api.accessToken}`;
-      } else if (item.MediaType === "Audio") {
-        console.log("Using direct stream for audio!");
-        const searchParams = new URLSearchParams({
-          UserId: user.Id,
-          DeviceId: api.deviceInfo.id,
-          MaxStreamingBitrate: "140000000",
-          Container:
-            "opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg",
-          TranscodingContainer: "mp4",
-          TranscodingProtocol: "hls",
-          AudioCodec: "aac",
-          api_key: api.accessToken,
-          StartTimeTicks: "0",
-          EnableRedirection: "true",
-          EnableRemoteMedia: "false",
-        });
-        url = `${api.basePath}/Audio/${
-          item.Id
-        }/universal?${searchParams.toString()}`;
-      }
-    } else if (mediaSource.TranscodingUrl) {
-      url = `${api.basePath}${mediaSource.TranscodingUrl}`;
-      fileExtension = mediaSource.TranscodingContainer;
-    }
-
-    if (!url) throw new Error("No url");
-    if (!fileExtension) throw new Error("No file extension");
+    saveDownloadItemInfoToDiskTmp(item, mediaSource, url);
 
     if (settings?.downloadMethod === "optimized") {
-      return await startBackgroundDownload(url, item, fileExtension);
+      return await startBackgroundDownload(url, item, mediaSource);
     } else {
-      return await startRemuxing(url);
+      return await startRemuxing(item, url, mediaSource);
     }
   }, [
     api,
@@ -195,7 +150,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
   const isDownloaded = useMemo(() => {
     if (!downloadedFiles) return false;
 
-    return downloadedFiles.some((file) => file.Id === item.Id);
+    return downloadedFiles.some((file) => file.item.Id === item.Id);
   }, [downloadedFiles, item.Id]);
 
   const renderBackdrop = useCallback(

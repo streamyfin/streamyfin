@@ -31,15 +31,6 @@ export const postCapabilities = async ({
     throw new Error("Missing parameters for marking item as not played");
   }
 
-  let profile: any = iosFmp4;
-
-  if (deviceProfile === "Native") {
-    profile = native;
-  }
-  if (deviceProfile === "Old") {
-    profile = old;
-  }
-
   try {
     const d = api.axiosInstance.post(
       api.basePath + "/Sessions/Capabilities/Full",
@@ -57,7 +48,7 @@ export const postCapabilities = async ({
         ],
         supportsMediaControl: true,
         id: sessionId,
-        DeviceProfile: profile,
+        DeviceProfile: native,
       },
       {
         headers: getAuthHeaders(api),
