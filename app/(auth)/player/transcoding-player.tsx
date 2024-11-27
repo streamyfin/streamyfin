@@ -243,9 +243,9 @@ const Player = () => {
   };
 
   const stop = useCallback(() => {
-    setIsPlaybackStopped(true);
-    videoRef.current?.pause();
     reportPlaybackStopped();
+    videoRef.current?.pause();
+    setIsPlaybackStopped(true);
   }, [videoRef, reportPlaybackStopped]);
 
   const reportPlaybackStart = async () => {
@@ -374,6 +374,7 @@ const Player = () => {
       play();
 
       return () => {
+        videoRef.current?.pause();
         stop();
       };
     }, [])
@@ -495,6 +496,7 @@ const Player = () => {
           seek={seek}
           play={play}
           pause={pause}
+          stop={stop}
           getSubtitleTracks={getSubtitleTracks}
           setSubtitleTrack={(i) =>
             setSelectedTextTrack({
