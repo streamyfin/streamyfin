@@ -53,7 +53,6 @@ type MediaListSection = {
 type Section = ScrollingCollectionListSection | MediaListSection;
 
 export default function index() {
-  const queryClient = useQueryClient();
   const router = useRouter();
 
   const api = useAtomValue(apiAtom);
@@ -67,6 +66,8 @@ export default function index() {
 
   const { downloadedFiles } = useDownload();
   const navigation = useNavigation();
+
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
@@ -345,8 +346,6 @@ export default function index() {
       </View>
     );
   }
-
-  const insets = useSafeAreaInsets();
 
   if (e1 || e2)
     return (
