@@ -496,12 +496,19 @@ const Player = () => {
           play={play}
           pause={pause}
           getSubtitleTracks={getSubtitleTracks}
-          setSubtitleTrack={(i) =>
+          setSubtitleTrack={(i) => {
+            if (i === -1) {
+              setSelectedTextTrack({
+                type: SelectedTrackType.DISABLED,
+                value: undefined,
+              });
+              return;
+            }
             setSelectedTextTrack({
               type: SelectedTrackType.INDEX,
               value: i,
-            })
-          }
+            });
+          }}
           getAudioTracks={getAudioTracks}
           setAudioTrack={(i) => {
             console.log("setAudioTrack ~", i);
