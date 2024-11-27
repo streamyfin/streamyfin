@@ -302,16 +302,6 @@ const Player = () => {
     ]
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      play();
-
-      return () => {
-        stop();
-      };
-    }, [play, stop])
-  );
-
   useOrientation();
   useOrientationSettings();
 
@@ -378,6 +368,16 @@ const Player = () => {
       language: t.language,
     }));
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      play();
+
+      return () => {
+        stop();
+      };
+    }, [])
+  );
 
   if (isLoadingItem || isLoadingStreamUrl)
     return (
