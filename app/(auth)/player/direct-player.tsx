@@ -230,16 +230,11 @@ export default function page() {
     videoRef.current?.pause();
   }, [videoRef]);
 
-  const stop = useCallback(() => {
-    setIsPlaybackStopped(true);
-    videoRef.current?.stop();
-    reportPlaybackStopped();
-  }, [videoRef]);
-
   const reportPlaybackStopped = useCallback(async () => {
     if (offline) return;
 
     const currentTimeInTicks = msToTicks(progress.value);
+
     await getPlaystateApi(api!).onPlaybackStopped({
       itemId: item?.Id!,
       mediaSourceId: mediaSourceId,
@@ -249,6 +244,12 @@ export default function page() {
 
     revalidateProgressCache();
   }, [api, item, mediaSourceId, stream]);
+
+  const stop = useCallback(() => {
+    reportPlaybackStopped();
+    setIsPlaybackStopped(true);
+    videoRef.current?.stop();
+  }, [videoRef, reportPlaybackStopped]);
 
   const reportPlaybackStart = useCallback(async () => {
     if (offline) return;
@@ -340,7 +341,6 @@ export default function page() {
   useFocusEffect(
     React.useCallback(() => {
       return async () => {
-        await reportPlaybackStopped();
         videoRef.current?.stop();
       };
     }, [])
