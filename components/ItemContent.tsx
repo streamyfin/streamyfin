@@ -232,10 +232,10 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
 
                 {item.People && item.People.length > 0 && (
                   <View className="mb-4">
-                    {item.People.slice(0, 3).map((person) => (
+                    {item.People.slice(0, 3).map((person, idx) => (
                       <MoreMoviesWithActor
                         currentItem={item}
-                        key={person.Id}
+                        key={idx}
                         actorId={person.Id!}
                         className="mb-4"
                       />

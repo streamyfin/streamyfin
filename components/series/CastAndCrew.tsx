@@ -38,19 +38,19 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
       <Text className="text-lg font-bold mb-2 px-4">Cast & Crew</Text>
       <HorizontalScroll
         loading={loading}
+        keyExtractor={(i, idx) => i.Id.toString()}
         height={247}
         data={destinctPeople}
-        renderItem={(item, index) => (
+        renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
-              router.push(`/actors/${item.Id}`);
+              router.push(`/actors/${i.Id}`);
             }}
-            key={index}
             className="flex flex-col w-28"
           >
-            <Poster item={item} url={getPrimaryImageUrl({ api, item })} />
-            <Text className="mt-2">{item.Name}</Text>
-            <Text className="text-xs opacity-50">{item.Role}</Text>
+            <Poster item={i} url={getPrimaryImageUrl({ api, item: i })} />
+            <Text className="mt-2">{i.Name}</Text>
+            <Text className="text-xs opacity-50">{i.Role}</Text>
           </TouchableOpacity>
         )}
       />

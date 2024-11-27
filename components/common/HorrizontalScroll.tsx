@@ -16,6 +16,7 @@ interface HorizontalScrollProps<T>
   > {
   data?: T[] | null;
   renderItem: (item: T, index: number) => React.ReactNode;
+  keyExtractor?: (item: T, index: number) => string;
   containerStyle?: ViewStyle;
   contentContainerStyle?: ViewStyle;
   loadingContainerStyle?: ViewStyle;
@@ -32,6 +33,7 @@ export const HorizontalScroll = forwardRef<
   <T,>(
     {
       data = [],
+      keyExtractor,
       renderItem,
       containerStyle,
       contentContainerStyle,
@@ -91,6 +93,7 @@ export const HorizontalScroll = forwardRef<
           paddingHorizontal: 16,
           ...contentContainerStyle,
         }}
+        keyExtractor={keyExtractor}
         ListEmptyComponent={() => (
           <View className="flex-1 justify-center items-center">
             <Text className="text-center text-gray-500">
@@ -98,6 +101,7 @@ export const HorizontalScroll = forwardRef<
             </Text>
           </View>
         )}
+        {...props}
       />
     );
   }
