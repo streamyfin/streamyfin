@@ -224,12 +224,6 @@ const Player = () => {
     videoRef.current?.pause();
   }, [videoRef]);
 
-  const stop = useCallback(() => {
-    setIsPlaybackStopped(true);
-    videoRef.current?.pause();
-    reportPlaybackStopped();
-  }, [videoRef]);
-
   const seek = useCallback(
     (seconds: number) => {
       videoRef.current?.seek(seconds);
@@ -247,6 +241,12 @@ const Player = () => {
     });
     revalidateProgressCache();
   };
+
+  const stop = useCallback(() => {
+    setIsPlaybackStopped(true);
+    videoRef.current?.pause();
+    reportPlaybackStopped();
+  }, [videoRef, reportPlaybackStopped]);
 
   const reportPlaybackStart = async () => {
     if (!item?.Id) return;
