@@ -5,6 +5,7 @@ import { queueActions, queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
 import native from "@/utils/profiles/native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
@@ -21,7 +22,6 @@ import { router, useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, TouchableOpacity, View, ViewProps } from "react-native";
-import { MMKV } from "react-native-mmkv";
 import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "./BitrateSelector";
@@ -31,7 +31,6 @@ import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
 
 interface DownloadProps extends ViewProps {
   item: BaseItemDto;
@@ -124,8 +123,6 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
     if (!url || !mediaSource) throw new Error("No url");
 
     saveDownloadItemInfoToDiskTmp(item, mediaSource, url);
-
-    console.log("Downloading from URL: ", url);
 
     if (settings?.downloadMethod === "optimized") {
       return await startBackgroundDownload(url, item, mediaSource);

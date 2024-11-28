@@ -1,7 +1,9 @@
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { Controls } from "@/components/video-player/controls/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
+import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { TrackInfo } from "@/modules/vlc-player";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -9,6 +11,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import transcoding from "@/utils/profiles/transcoding";
 import { secondsToTicks } from "@/utils/secondsToTicks";
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -27,7 +30,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Pressable, useWindowDimensions, View } from "react-native";
+import { View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
@@ -35,9 +38,6 @@ import Video, {
   SelectedTrackType,
   VideoRef,
 } from "react-native-video";
-import { Controls } from "@/components/video-player/controls/Controls";
-import transcoding from "@/utils/profiles/transcoding";
-import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 
 const Player = () => {
   const api = useAtomValue(apiAtom);

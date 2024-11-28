@@ -1,4 +1,5 @@
 import { useInterval } from "@/hooks/useInterval";
+import { storage } from "@/utils/mmkv";
 import { Api, Jellyfin } from "@jellyfin/sdk";
 import { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
@@ -17,8 +18,6 @@ import React, {
 } from "react";
 import { Platform } from "react-native";
 import uuid from "react-native-uuid";
-import MMKV from "react-native-mmkv";
-import { storage } from "@/utils/mmkv";
 
 interface Server {
   address: string;
