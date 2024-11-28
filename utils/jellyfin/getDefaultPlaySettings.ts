@@ -50,7 +50,9 @@ export function getDefaultPlaySettings(
   )?.Index;
 
   // 4. Get default bitrate
-  const bitrate = BITRATES[0];
+  const bitrate = BITRATES.sort(
+    (a, b) => (b.value || Infinity) - (a.value || Infinity)
+  )[0];
 
   return {
     item,
