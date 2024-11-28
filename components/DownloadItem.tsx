@@ -102,7 +102,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
     const res = await getStreamUrl({
       api,
       item,
-      startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+      startTimeTicks: 0,
       userId: user?.Id,
       audioStreamIndex: selectedAudioStream,
       maxStreamingBitrate: maxBitrate.value,
@@ -124,6 +124,8 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
     if (!url || !mediaSource) throw new Error("No url");
 
     saveDownloadItemInfoToDiskTmp(item, mediaSource, url);
+
+    console.log("Downloading from URL: ", url);
 
     if (settings?.downloadMethod === "optimized") {
       return await startBackgroundDownload(url, item, mediaSource);
