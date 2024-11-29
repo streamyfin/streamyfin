@@ -113,29 +113,47 @@ export const useRemuxHlsToMp4 = () => {
           FFmpegKit.executeAsync(command, async (session) => {
             try {
               const returnCode = await session.getReturnCode();
+              const startTime = new Date();
 
+              let endTime;
               if (returnCode.isValueSuccess()) {
+                endTime = new Date();
+                writeToLog(
+                  "INFO",
+                  `useRemuxHlsToMp4 ~ remuxing completed successfully for item: ${
+                    item.Name
+                  }, start time: ${startTime.toISOString()}, end time: ${endTime.toISOString()}, duration: ${
+                    (endTime.getTime() - startTime.getTime()) / 1000
+                  }s`
+                );
                 if (!item) throw new Error("Item is undefined");
                 await saveDownloadedItemInfo(item);
                 toast.success("Download completed");
-                writeToLog(
-                  "INFO",
-                  `useRemuxHlsToMp4 ~ remuxing completed successfully for item: ${item.Name}`
-                );
                 await queryClient.invalidateQueries({
                   queryKey: ["downloadedItems"],
                 });
                 resolve();
               } else if (returnCode.isValueError()) {
+                endTime = new Date();
+                const allLogs = session.getAllLogsAsString();
                 writeToLog(
                   "ERROR",
-                  `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}`
+                  `useRemuxHlsToMp4 ~ remuxing failed for item: ${
+                    item.Name
+                  }, start time: ${startTime.toISOString()}, end time: ${endTime.toISOString()}, duration: ${
+                    (endTime.getTime() - startTime.getTime()) / 1000
+                  }s. All logs: ${allLogs}`
                 );
                 reject(new Error("Remuxing failed"));
               } else if (returnCode.isValueCancel()) {
+                endTime = new Date();
                 writeToLog(
                   "INFO",
-                  `useRemuxHlsToMp4 ~ remuxing was canceled for item: ${item.Name}`
+                  `useRemuxHlsToMp4 ~ remuxing was canceled for item: ${
+                    item.Name
+                  }, start time: ${startTime.toISOString()}, end time: ${endTime.toISOString()}, duration: ${
+                    (endTime.getTime() - startTime.getTime()) / 1000
+                  }s`
                 );
                 resolve();
               }
@@ -143,16 +161,24 @@ export const useRemuxHlsToMp4 = () => {
               setProcesses((prev) => {
                 return prev.filter((process) => process.itemId !== item.Id);
               });
-            } catch (error) {
+            } catch (e) {
+              const error = e as Error;
+              const errorLog = `Error: ${error.message}, Stack: ${error.stack}`;
+              writeToLog(
+                "ERROR",
+                `useRemuxHlsToMp4 ~ Exception during remuxing for item: ${item.Name}, ${errorLog}`
+              );
               reject(error);
             }
           });
         });
-      } catch (error) {
+      } catch (e) {
+        const error = e as Error;
+        const errorLog = `Error: ${error.message}, Stack: ${error.stack}`;
         console.error("Failed to remux:", error);
         writeToLog(
           "ERROR",
-          `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}`
+          `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}, ${errorLog}`
         );
         setProcesses((prev) => {
           return prev.filter((process) => process.itemId !== item.Id);
