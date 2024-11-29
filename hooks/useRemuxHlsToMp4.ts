@@ -55,9 +55,7 @@ export const useRemuxHlsToMp4 = () => {
         },
       });
 
-      // const command = `-y -loglevel quiet -thread_queue_size 512 -protocol_whitelist file,http,https,tcp,tls,crypto -multiple_requests 1 -tcp_nodelay 1 -fflags +genpts -i ${url} -c copy -bufsize 50M -max_muxing_queue_size 4096 ${output}`;
-
-      const command = `-y -loglevel quiet -thread_queue_size 512 -protocol_whitelist file,http,https,tcp,tls,crypto -i ${url} -map 0 -c copy -bufsize 50M -max_muxing_queue_size 4096 ${output}`;
+      const command = `-y -thread_queue_size 512 -protocol_whitelist file,http,https,tcp,tls,crypto -multiple_requests 1 -tcp_nodelay 1 -fflags +genpts -i ${url} -map 0:v -map 0:a -c copy -bufsize 50M -max_muxing_queue_size 4096 ${output}`;
 
       writeToLog(
         "INFO",
