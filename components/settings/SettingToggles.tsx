@@ -403,6 +403,26 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               </View>
             )}
           </View>
+
+          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
+            <View className="shrink">
+              <Text className="font-semibold">Show Custom Menu Links</Text>
+              <Text className="text-xs opacity-50">
+                Show custom menu links defined inside your Jellyfin web config.json file
+              </Text>
+              <TouchableOpacity
+                  onPress={() =>
+                    Linking.openURL("https://jellyfin.org/docs/general/clients/web-config/#custom-menu-links")
+                }
+              >
+                <Text className="text-xs text-purple-600">More info</Text>
+              </TouchableOpacity>
+            </View>
+            <Switch
+                value={settings.showCustomMenuLinks}
+                onValueChange={(value) => updateSettings({ showCustomMenuLinks: value })}
+            />
+          </View>
         </View>
       </View>
 

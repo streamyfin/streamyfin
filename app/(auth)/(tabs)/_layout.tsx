@@ -18,6 +18,7 @@ import type {
   TabNavigationState,
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
+import {useSettings} from "@/utils/atoms/settings";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -27,6 +28,7 @@ export const NativeTabs = withLayoutContext<
 >(Navigator);
 
 export default function TabLayout() {
+  const [settings] = useSettings();
   return (
     <>
       <SystemBars hidden={false} style="light" />
@@ -71,6 +73,17 @@ export default function TabLayout() {
                 : () => ({ sfSymbol: "rectangle.stack" }),
           }}
         />
+        <NativeTabs.Screen
+          name="(custom-links)"
+          options={{
+            title: "Custom Links",
+            tabBarIcon: Platform.OS == "android"
+              ? () => require("@/assets/icons/list.png")
+              : () => ({sfSymbol: "list.dash"}),
+            tabBarButton: (p) =>
+                settings?.showCustomMenuLinks == true ? undefined : null,
+            }}
+          />
       </NativeTabs>
     </>
   );
