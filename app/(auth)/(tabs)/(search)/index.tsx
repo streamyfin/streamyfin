@@ -70,37 +70,43 @@ export default function search() {
       types: BaseItemKind[];
       query: string;
     }): Promise<BaseItemDto[]> => {
-      if (!api) return [];
+      if (!api || !query) return [];
 
-      if (searchEngine === "Jellyfin") {
-        const searchApi = await getSearchApi(api).getSearchHints({
-          searchTerm: query,
-          limit: 10,
-          includeItemTypes: types,
-        });
+      try {
+        if (searchEngine === "Jellyfin") {
+          const searchApi = await getSearchApi(api).getSearchHints({
+            searchTerm: query,
+            limit: 10,
+            includeItemTypes: types,
+          });
 
-        return searchApi.data.SearchHints as BaseItemDto[];
-      } else {
-        const url = `${settings?.marlinServerUrl}/search?q=${encodeURIComponent(
-          query
-        )}&includeItemTypes=${types
-          .map((type) => encodeURIComponent(type))
-          .join("&includeItemTypes=")}`;
+          return (searchApi.data.SearchHints as BaseItemDto[]) || [];
+        } else {
+          if (!settings?.marlinServerUrl) return [];
+          const url = `${
+            settings.marlinServerUrl
+          }/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
+            .map((type) => encodeURIComponent(type))
+            .join("&includeItemTypes=")}`;
 
-        const response1 = await axios.get(url);
-        const ids = response1.data.ids;
+          const response1 = await axios.get(url);
+          const ids = response1.data.ids;
 
-        if (!ids || !ids.length) return [];
+          if (!ids || !ids.length) return [];
 
-        const response2 = await getItemsApi(api).getItems({
-          ids,
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-        });
+          const response2 = await getItemsApi(api).getItems({
+            ids,
+            enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          });
 
-        return response2.data.Items as BaseItemDto[];
+          return (response2.data.Items as BaseItemDto[]) || [];
+        }
+      } catch (error) {
+        console.error("Error during search:", error);
+        return []; // Ensure an empty array is returned in case of an error
       }
     },
-    [api, settings]
+    [api, searchEngine, settings]
   );
 
   const navigation = useNavigation();
