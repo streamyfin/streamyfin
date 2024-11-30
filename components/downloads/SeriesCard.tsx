@@ -1,55 +1,51 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { ScrollView, View } from "react-native";
-import { EpisodeCard } from "./EpisodeCard";
+import {TouchableOpacity, View} from "react-native";
 import { Text } from "../common/Text";
-import { useMemo } from "react";
-import { SeasonPicker } from "../series/SeasonPicker";
+import React, {useMemo} from "react";
+import {storage} from "@/utils/mmkv";
+import {Image} from "expo-image";
+import {Ionicons} from "@expo/vector-icons";
+import {router} from "expo-router";
 
-export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
-  const groupBySeason = useMemo(() => {
-    const seasons: Record<string, BaseItemDto[]> = {};
-
-    items.forEach((item) => {
-      if (!seasons[item.SeasonName!]) {
-        seasons[item.SeasonName!] = [];
-      }
-
-      seasons[item.SeasonName!].push(item);
-    });
-
-    return Object.values(seasons).sort(
-      (a, b) => a[0].IndexNumber! - b[0].IndexNumber!
-    );
-  }, [items]);
-
-  const sortByIndex = (a: BaseItemDto, b: BaseItemDto) => {
-    return a.IndexNumber! > b.IndexNumber! ? 1 : -1;
-  };
+export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({items}) => {
+  const base64Image = useMemo(() => {
+    return storage.getString(items[0].SeriesId!);
+  }, []);
 
   return (
-    <View>
-      <View className="flex flex-row items-center justify-between px-4">
-        <Text className="text-lg font-bold shrink">{items[0].SeriesName}</Text>
-        <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
-          <Text className="text-xs font-bold">{items.length}</Text>
+    <TouchableOpacity onPress={() => router.push(`/downloads/${items[0].SeriesId}`)}>
+      {base64Image ? (
+        <View className="w-28 aspect-[10/15] rounded-lg overflow-hidden mr-2 border border-neutral-900">
+          <Image
+            source={{
+              uri: `data:image/jpeg;base64,${base64Image}`,
+            }}
+            style={{
+              width: "100%",
+              height: "100%",
+              resizeMode: "cover",
+            }}
+          />
+          <View
+            className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center absolute bottom-1 right-1">
+            <Text className="text-xs font-bold">{items.length}</Text>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View className="w-28 aspect-[10/15] rounded-lg bg-neutral-900 mr-2 flex items-center justify-center">
+          <Ionicons
+            name="image-outline"
+            size={24}
+            color="gray"
+            className="self-center mt-16"
+          />
+        </View>
+      )}
 
-      <Text className="opacity-50 mb-2 px-4">TV-Series</Text>
-      {groupBySeason.map((seasonItems, seasonIndex) => (
-        <View key={seasonIndex}>
-          <Text className="mb-2 font-semibold px-4">
-            {seasonItems[0].SeasonName}
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="px-4 flex flex-row">
-              {seasonItems.sort(sortByIndex)?.map((item, index) => (
-                <EpisodeCard item={item} key={index} />
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-      ))}
-    </View>
+      <View className="w-28 mt-2 flex flex-col">
+        <Text numberOfLines={2} className="">{items[0].SeriesName}</Text>
+        <Text className="text-xs opacity-50">{items[0].ProductionYear}</Text>
+      </View>
+    </TouchableOpacity>
   );
 };

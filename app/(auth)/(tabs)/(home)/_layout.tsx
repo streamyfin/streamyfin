@@ -1,14 +1,11 @@
 import { Chromecast } from "@/components/Chromecast";
-import { HeaderBackButton } from "@/components/common/HeaderBackButton";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { useDownload } from "@/providers/DownloadProvider";
 import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 
 export default function IndexLayout() {
   const router = useRouter();
-
   return (
     <Stack>
       <Stack.Screen
@@ -35,9 +32,15 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name="downloads"
+        name="downloads/index"
         options={{
           title: "Downloads",
+        }}
+      />
+      <Stack.Screen
+        name="downloads/[seriesId]"
+        options={{
+          title: "TV-Series",
         }}
       />
       <Stack.Screen

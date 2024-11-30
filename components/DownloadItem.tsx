@@ -19,7 +19,7 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { router, useFocusEffect } from "expo-router";
+import {Href, router, useFocusEffect} from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, TouchableOpacity, View, ViewProps } from "react-native";
@@ -206,7 +206,16 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       ) : isDownloaded ? (
         <TouchableOpacity
           onPress={() => {
-            router.push("/downloads");
+            router.push(
+              item.Type !== "Episode"
+                ? "/downloads"
+                : {
+                  pathname: `/downloads/${item.SeriesId}`,
+                  params: {
+                    episodeSeasonIndex: item.ParentIndexNumber
+                }
+              } as Href
+            );
           }}
         >
           <Ionicons name="cloud-download" size={26} color="#9333ea" />
