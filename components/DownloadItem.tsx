@@ -7,6 +7,7 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
 import native from "@/utils/profiles/native";
+import download from "@/utils/profiles/download";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
@@ -107,7 +108,7 @@ export const DownloadItem: React.FC<DownloadProps> = ({ item, ...props }) => {
       maxStreamingBitrate: maxBitrate.value,
       mediaSourceId: selectedMediaSource.Id,
       subtitleStreamIndex: selectedSubtitleStream,
-      deviceProfile: native,
+      deviceProfile: download,
     });
 
     if (!res) {

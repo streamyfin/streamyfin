@@ -15,9 +15,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 interface DropdownViewProps {
   showControls: boolean;
+  offline?: boolean; // used to disable external subs for downloads
 }
 
-const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
+const DropdownView: React.FC<DropdownViewProps> = ({
+  showControls,
+  offline = false,
+}) => {
   const router = useRouter();
   const api = useAtomValue(apiAtom);
   const ControlContext = useControlContext();
@@ -54,12 +58,15 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
         deliveryUrl: s.DeliveryUrl,
       })) || [];
 
-    // Combine embedded and unique external subs
-    return [...embeddedSubs, ...externalSubs] as (
-      | EmbeddedSubtitle
-      | ExternalSubtitle
-    )[];
-  }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
+    // Combine embedded subs with external subs only if not offline
+    if (!offline) {
+      return [...embeddedSubs, ...externalSubs] as (
+        | EmbeddedSubtitle
+        | ExternalSubtitle
+      )[];
+    }
+    return embeddedSubs as EmbeddedSubtitle[];
+  }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams, offline]);
 
   const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
     itemId: string;
@@ -271,9 +278,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                       value={selectedSubtitleIndex === sub.index}
                       key={`subtitle-item-${idx}`}
                       onValueChange={() => {
-                        console.log("Set sub index: ", sub.index);
-                        if (selectedSubtitleIndex === sub?.index.toString())
-                          return;
+                        if (selectedSubtitleIndex === sub?.index) return;
                         setSelectedSubtitleIndex(sub.index);
                         if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
                           setSubtitleTrack && setSubtitleTrack(sub.index);
@@ -325,7 +330,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                     key={`audio-item-${idx}`}
                     value={selectedAudioIndex === track.index}
                     onValueChange={() => {
-                      if (selectedAudioIndex === track.index.toString()) return;
+                      if (selectedAudioIndex === track.index) return;
                       setSelectedAudioIndex(track.index);
                       ChangeTranscodingAudio(track.index);
                     }}

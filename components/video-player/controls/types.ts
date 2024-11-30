@@ -1,7 +1,6 @@
 type EmbeddedSubtitle = {
   name: string;
   index: number;
-  isExternal: boolean;
 };
 
 type ExternalSubtitle = {
@@ -15,6 +14,6 @@ type TranscodedSubtitle = {
   name: string;
   index: number;
   IsTextSubtitleStream: boolean;
-}
+};
 
 export { EmbeddedSubtitle, ExternalSubtitle, TranscodedSubtitle };
