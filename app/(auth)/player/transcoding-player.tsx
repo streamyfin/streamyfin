@@ -30,7 +30,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { View } from "react-native";
+import { BackHandler, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
@@ -369,13 +369,23 @@ const Player = () => {
     }));
   };
 
+  const backAction = () => {
+    videoRef.current?.pause();
+    return false;
+  };
+
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
+      const onBackPress = () => {
+        return backAction();
+      };
+
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
       play();
 
-      return () => {
+      return async () => {
         videoRef.current?.pause();
-        stop();
+        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
       };
     }, [])
   );

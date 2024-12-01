@@ -31,7 +31,7 @@ import * as Haptics from "expo-haptics";
 import { useFocusEffect, useGlobalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, View } from "react-native";
+import { Alert, BackHandler, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 
 export default function page() {
@@ -338,10 +338,22 @@ export default function page() {
       : 0;
   }, [item]);
 
+  const backAction = () => {
+    videoRef.current?.stop();
+    return false;
+  };
+
   useFocusEffect(
     React.useCallback(() => {
+      const onBackPress = () => {
+        return backAction();
+      };
+
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
       return async () => {
         videoRef.current?.stop();
+        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
       };
     }, [])
   );
