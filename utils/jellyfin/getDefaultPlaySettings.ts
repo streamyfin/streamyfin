@@ -10,8 +10,8 @@ interface PlaySettings {
   item: BaseItemDto;
   bitrate: (typeof BITRATES)[0];
   mediaSource?: MediaSourceInfo | null;
-  audioIndex?: number | null;
-  subtitleIndex?: number | null;
+  audioIndex?: number | undefined;
+  subtitleIndex?: number | undefined;
 }
 
 export function getDefaultPlaySettings(

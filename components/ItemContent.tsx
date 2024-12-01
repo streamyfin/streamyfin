@@ -1,6 +1,6 @@
 import { AudioTrackSelector } from "@/components/AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "@/components/BitrateSelector";
-import { DownloadItem } from "@/components/DownloadItem";
+import {DownloadSingleItem} from "@/components/DownloadItem";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlayButton } from "@/components/PlayButton";
@@ -87,7 +87,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
               <Chromecast background="blur" width={22} height={22} />
               {item.Type !== "Program" && (
                 <View className="flex flex-row items-center space-x-2">
-                  <DownloadItem item={item} />
+                  <DownloadSingleItem item={item} />
                   <PlayedStatus item={item} />
                 </View>
               )}

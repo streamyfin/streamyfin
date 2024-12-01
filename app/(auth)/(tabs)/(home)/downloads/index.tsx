@@ -63,12 +63,13 @@ export default function page() {
                 Queue and downloads will be lost on app restart
               </Text>
               <View className="flex flex-col space-y-2 mt-2">
-                {queue.map((q) => (
+                {queue.map((q, index) => (
                   <TouchableOpacity
                     onPress={() =>
                       router.push(`/(auth)/items/page?id=${q.item.Id}`)
                     }
                     className="relative bg-neutral-900 border border-neutral-800 p-4 rounded-2xl overflow-hidden flex flex-row items-center justify-between"
+                    key={index}
                   >
                     <View>
                       <Text className="font-semibold">{q.item.Name}</Text>

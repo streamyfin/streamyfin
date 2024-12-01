@@ -6,13 +6,14 @@ import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
-import { DownloadItem } from "../DownloadItem";
+import {DownloadItems, DownloadSingleItem} from "../DownloadItem";
 import { Loader } from "../Loader";
 import { Text } from "../common/Text";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import {SeasonDropdown, SeasonIndexState} from "@/components/series/SeasonDropdown";
+import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 
 type Props = {
   item: BaseItemDto;
@@ -108,16 +109,27 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         minHeight: 144 * nrOfEpisodes,
       }}
     >
-      <SeasonDropdown
-        item={item}
-        seasons={seasons}
-        state={seasonIndexState}
-        onSelect={(season) => {
-          setSeasonIndexState((prev) => ({
-            ...prev,
-            [item.Id ?? ""]: season.IndexNumber,
-          }));
-        }} />
+      <View className="flex flex-row justify-start items-center">
+        <SeasonDropdown
+          item={item}
+          seasons={seasons}
+          state={seasonIndexState}
+          onSelect={(season) => {
+            setSeasonIndexState((prev) => ({
+              ...prev,
+              [item.Id ?? ""]: season.IndexNumber,
+            }));
+          }} />
+        <DownloadItems
+          items={episodes || []}
+          MissingDownloadIconComponent={() => (
+            <MaterialCommunityIcons name="download-multiple" size={24} color="white"/>
+          )}
+          DownloadedIconComponent={() => (
+            <MaterialCommunityIcons name="check-all" size={24} color="#9333ea"/>
+          )}
+        />
+      </View>
       <View className="px-4 flex flex-col my-4">
         {isFetching ? (
           <View
@@ -155,7 +167,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
                   </Text>
                 </View>
                 <View className="self-start ml-auto -mt-0.5">
-                  <DownloadItem item={e} />
+                  <DownloadSingleItem item={e} />
                 </View>
               </View>
 
