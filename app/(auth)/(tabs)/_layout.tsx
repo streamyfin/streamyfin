@@ -6,7 +6,7 @@ import { withLayoutContext } from "expo-router";
 import {
   createNativeBottomTabNavigator,
   NativeBottomTabNavigationEventMap,
-} from "react-native-bottom-tabs/react-navigation";
+} from "@bottom-tabs/react-navigation";
 
 const { Navigator } = createNativeBottomTabNavigator();
 
@@ -18,7 +18,7 @@ import type {
   TabNavigationState,
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
-import {useSettings} from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -77,13 +77,14 @@ export default function TabLayout() {
           name="(custom-links)"
           options={{
             title: "Custom Links",
-            tabBarIcon: Platform.OS == "android"
-              ? () => require("@/assets/icons/list.png")
-              : () => ({sfSymbol: "list.dash"}),
+            tabBarIcon:
+              Platform.OS == "android"
+                ? () => require("@/assets/icons/list.png")
+                : () => ({ sfSymbol: "list.dash" }),
             tabBarButton: (p) =>
-                settings?.showCustomMenuLinks == true ? undefined : null,
-            }}
-          />
+              settings?.showCustomMenuLinks == true ? undefined : null,
+          }}
+        />
       </NativeTabs>
     </>
   );
