@@ -47,8 +47,9 @@ import {
 import { VideoRef } from "react-native-video";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
-import DropdownView from "./DropdownView";
 import * as Haptics from "expo-haptics";
+import DropdownViewDirect from "./dropdown/DropdownViewDirect";
+import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 
 interface Props {
   item: BaseItemDto;
@@ -340,7 +341,11 @@ export const Controls: React.FC<Props> = ({
           setSubtitleTrack={setSubtitleTrack}
           setSubtitleURL={setSubtitleURL}
         >
-          <DropdownView showControls={showControls} />
+          {!mediaSource?.TranscodingUrl ? (
+            <DropdownViewDirect showControls={showControls} />
+          ) : (
+            <DropdownViewTranscoding showControls={showControls} />
+          )}
         </VideoProvider>
 
         <View

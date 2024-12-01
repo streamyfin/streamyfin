@@ -2,13 +2,9 @@ import React, { useCallback, useMemo, useState } from "react";
 import { View, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as DropdownMenu from "zeego/dropdown-menu";
-import { useControlContext } from "./contexts/ControlContext";
-import { useVideoContext } from "./contexts/VideoContext";
-import {
-  EmbeddedSubtitle,
-  ExternalSubtitle,
-  TranscodedSubtitle,
-} from "./types";
+import { useControlContext } from "../contexts/ControlContext";
+import { useVideoContext } from "../contexts/VideoContext";
+import { TranscodedSubtitle } from "../types";
 import { useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -30,43 +26,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({
   const isVideoLoaded = ControlContext?.isVideoLoaded;
 
   const videoContext = useVideoContext();
-  const {
-    subtitleTracks,
-    audioTracks,
-    setSubtitleURL,
-    setSubtitleTrack,
-    setAudioTrack,
-  } = videoContext;
-
-  const allSubtitleTracksForDirectPlay = useMemo(() => {
-    if (mediaSource?.TranscodingUrl) return null;
-    const embeddedSubs =
-      subtitleTracks
-        ?.map((s) => ({
-          name: s.name,
-          index: s.index,
-          deliveryUrl: undefined,
-        }))
-        .filter((sub) => !sub.name.endsWith("[External]")) || [];
-
-    const externalSubs =
-      mediaSource?.MediaStreams?.filter(
-        (stream) => stream.Type === "Subtitle" && !!stream.DeliveryUrl
-      ).map((s) => ({
-        name: s.DisplayTitle! + " [External]",
-        index: s.Index!,
-        deliveryUrl: s.DeliveryUrl,
-      })) || [];
-
-    // Combine embedded subs with external subs only if not offline
-    if (!offline) {
-      return [...embeddedSubs, ...externalSubs] as (
-        | EmbeddedSubtitle
-        | ExternalSubtitle
-      )[];
-    }
-    return embeddedSubs as EmbeddedSubtitle[];
-  }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams, offline]);
+  const { subtitleTracks, setSubtitleTrack } = videoContext;
 
   const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
     itemId: string;
@@ -91,23 +51,19 @@ const DropdownView: React.FC<DropdownViewProps> = ({
     (x) => x.Index === parseInt(subtitleIndex)
   );
 
-  const intialSubtitleIndex =
-    !bitrateValue || !isOnTextSubtitle
-      ? parseInt(subtitleIndex)
-      : chosenSubtitle && isOnTextSubtitle
-      ? textBasedSubs.indexOf(chosenSubtitle)
-      : -1;
+  let initialSubtitleIndex = -1;
+  if (!isOnTextSubtitle) {
+    initialSubtitleIndex = parseInt(subtitleIndex);
+  } else if (chosenSubtitle) {
+    initialSubtitleIndex = textBasedSubs.indexOf(chosenSubtitle);
+  }
 
   const [selectedSubtitleIndex, setSelectedSubtitleIndex] =
-    useState<Number>(intialSubtitleIndex);
-  const [selectedAudioIndex, setSelectedAudioIndex] = useState<Number>(
+    useState<number>(initialSubtitleIndex);
+  const [selectedAudioIndex, setSelectedAudioIndex] = useState<number>(
     parseInt(audioIndex)
   );
 
-  // TODO: Need to account for the fact when user is on text-based subtitle at start.
-  // Then the user swaps to another text based subtitle.
-  // Then changes audio track.
-  // The user will have the first text based subtitle selected still but it should be the second text based subtitle.
   const allSubtitleTracksForTranscodingStream = useMemo(() => {
     const disableSubtitle = {
       name: "Disable",
@@ -190,11 +146,25 @@ const DropdownView: React.FC<DropdownViewProps> = ({
       index: x.Index!,
     })) || [];
   const ChangeTranscodingAudio = useCallback(
-    (audioIndex: number) => {
+    (audioIndex: number, currentSelectedSubtitleIndex: number) => {
+      let newSubtitleIndex: number;
+
+      if (!isOnTextSubtitle) {
+        newSubtitleIndex = parseInt(subtitleIndex);
+      } else if (
+        currentSelectedSubtitleIndex >= 0 &&
+        currentSelectedSubtitleIndex < textBasedSubs.length
+      ) {
+        console.log("setHere SubtitleIndex", currentSelectedSubtitleIndex);
+        newSubtitleIndex = textBasedSubs[currentSelectedSubtitleIndex].Index!;
+        console.log("newSubtitleIndex", newSubtitleIndex);
+      } else {
+        newSubtitleIndex = -1;
+      }
       const queryParams = new URLSearchParams({
         itemId: item.Id ?? "", // Ensure itemId is a string
         audioIndex: audioIndex?.toString() ?? "",
-        subtitleIndex: subtitleIndex,
+        subtitleIndex: newSubtitleIndex?.toString() ?? "",
         mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
         bitrateValue: bitrateValue,
       }).toString();
@@ -240,62 +210,29 @@ const DropdownView: React.FC<DropdownViewProps> = ({
               loop={true}
               sideOffset={10}
             >
-              {!mediaSource?.TranscodingUrl &&
-                allSubtitleTracksForDirectPlay?.map((sub, idx: number) => (
+              {allSubtitleTracksForTranscodingStream?.map(
+                (sub, idx: number) => (
                   <DropdownMenu.CheckboxItem
-                    key={`subtitle-item-${idx}`}
                     value={selectedSubtitleIndex === sub.index}
+                    key={`subtitle-item-${idx}`}
                     onValueChange={() => {
-                      if ("deliveryUrl" in sub && sub.deliveryUrl) {
-                        setSubtitleURL &&
-                          setSubtitleURL(
-                            api?.basePath + sub.deliveryUrl,
-                            sub.name
-                          );
-
-                        console.log(
-                          "Set external subtitle: ",
-                          api?.basePath + sub.deliveryUrl
-                        );
-                      } else {
-                        console.log("Set sub index: ", sub.index);
+                      console.log("sub", sub);
+                      if (selectedSubtitleIndex === sub?.index) return;
+                      setSelectedSubtitleIndex(sub.index);
+                      if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
                         setSubtitleTrack && setSubtitleTrack(sub.index);
+                        return;
                       }
 
-                      setSelectedSubtitleIndex(sub.index);
-                      console.log("Subtitle: ", sub);
+                      ChangeTranscodingSubtitle(sub.index);
                     }}
                   >
                     <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
                       {sub.name}
                     </DropdownMenu.ItemTitle>
                   </DropdownMenu.CheckboxItem>
-                ))}
-              {mediaSource?.TranscodingUrl &&
-                allSubtitleTracksForTranscodingStream?.map(
-                  (sub, idx: number) => (
-                    <DropdownMenu.CheckboxItem
-                      value={selectedSubtitleIndex === sub.index}
-                      key={`subtitle-item-${idx}`}
-                      onValueChange={() => {
-                        if (selectedSubtitleIndex === sub?.index) return;
-                        setSelectedSubtitleIndex(sub.index);
-                        if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
-                          setSubtitleTrack && setSubtitleTrack(sub.index);
-                          return;
-                        }
-
-                        ChangeTranscodingSubtitle(sub.index);
-                      }}
-                    >
-                      <DropdownMenu.ItemTitle
-                        key={`subtitle-item-title-${idx}`}
-                      >
-                        {sub.name}
-                      </DropdownMenu.ItemTitle>
-                    </DropdownMenu.CheckboxItem>
-                  )
-                )}
+                )
+              )}
             </DropdownMenu.SubContent>
           </DropdownMenu.Sub>
           <DropdownMenu.Sub>
@@ -309,37 +246,21 @@ const DropdownView: React.FC<DropdownViewProps> = ({
               loop={true}
               sideOffset={10}
             >
-              {!mediaSource?.TranscodingUrl &&
-                audioTracks?.map((track, idx: number) => (
-                  <DropdownMenu.CheckboxItem
-                    key={`audio-item-${idx}`}
-                    value={selectedAudioIndex === track.index}
-                    onValueChange={() => {
-                      setSelectedAudioIndex(track.index);
-                      setAudioTrack && setAudioTrack(track.index);
-                    }}
-                  >
-                    <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                      {track.name}
-                    </DropdownMenu.ItemTitle>
-                  </DropdownMenu.CheckboxItem>
-                ))}
-              {mediaSource?.TranscodingUrl &&
-                allAudio?.map((track, idx: number) => (
-                  <DropdownMenu.CheckboxItem
-                    key={`audio-item-${idx}`}
-                    value={selectedAudioIndex === track.index}
-                    onValueChange={() => {
-                      if (selectedAudioIndex === track.index) return;
-                      setSelectedAudioIndex(track.index);
-                      ChangeTranscodingAudio(track.index);
-                    }}
-                  >
-                    <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                      {track.name}
-                    </DropdownMenu.ItemTitle>
-                  </DropdownMenu.CheckboxItem>
-                ))}
+              {allAudio?.map((track, idx: number) => (
+                <DropdownMenu.CheckboxItem
+                  key={`audio-item-${idx}`}
+                  value={selectedAudioIndex === track.index}
+                  onValueChange={() => {
+                    if (selectedAudioIndex === track.index) return;
+                    setSelectedAudioIndex(track.index);
+                    ChangeTranscodingAudio(track.index, selectedSubtitleIndex);
+                  }}
+                >
+                  <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                    {track.name}
+                  </DropdownMenu.ItemTitle>
+                </DropdownMenu.CheckboxItem>
+              ))}
             </DropdownMenu.SubContent>
           </DropdownMenu.Sub>
         </DropdownMenu.Content>
