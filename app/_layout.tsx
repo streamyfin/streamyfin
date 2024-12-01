@@ -230,26 +230,24 @@ export default function RootLayout() {
   );
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+      refetchOnWindowFocus: true,
+      retryOnMount: true,
+    },
+  },
+});
+
 function Layout() {
   const [settings, updateSettings] = useSettings();
   const [orientation, setOrientation] = useAtom(orientationAtom);
 
   useKeepAwake();
   useNotificationObserver();
-
-  const queryClientRef = useRef<QueryClient>(
-    new QueryClient({
-      defaultOptions: {
-        queries: {
-          staleTime: 0,
-          refetchOnMount: true,
-          refetchOnReconnect: true,
-          refetchOnWindowFocus: true,
-          retryOnMount: true,
-        },
-      },
-    })
-  );
 
   useEffect(() => {
     checkAndRequestPermissions();
@@ -307,7 +305,7 @@ function Layout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClientRef.current}>
+      <QueryClientProvider client={queryClient}>
         <ActionSheetProvider>
           <JobQueueProvider>
             <JellyfinProvider>
