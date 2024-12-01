@@ -128,7 +128,8 @@ export const useRemuxHlsToMp4 = () => {
                   }s`
                 );
                 if (!item) throw new Error("Item is undefined");
-                await saveDownloadedItemInfo(item);
+                const stat = await session.getLastReceivedStatistics();
+                await saveDownloadedItemInfo(item, stat.getSize());
                 toast.success("Download completed");
                 await queryClient.invalidateQueries({
                   queryKey: ["downloadedItems"],

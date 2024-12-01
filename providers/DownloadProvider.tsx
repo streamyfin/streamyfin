@@ -51,6 +51,7 @@ import useDownloadHelper from "@/utils/download";
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
   mediaSource: MediaSourceInfo;
+  size: number | undefined;
 };
 
 function onAppStateChange(status: AppStateStatus) {
@@ -260,8 +261,8 @@ function useDownloadProvider() {
             )
           );
         })
-        .done(async () => {
-          await saveDownloadedItemInfo(process.item);
+        .done(async (doneHandler) => {
+          await saveDownloadedItemInfo(process.item, doneHandler.bytesDownloaded);
           toast.success(`Download completed for ${process.item.Name}`, {
             duration: 3000,
             action: {
@@ -522,7 +523,7 @@ function useDownloadProvider() {
     }
   }
 
-  function saveDownloadedItemInfo(item: BaseItemDto) {
+  function saveDownloadedItemInfo(item: BaseItemDto, size: number = 0) {
     try {
       const downloadedItems = storage.getString("downloadedItems");
       let items: DownloadedItem[] = downloadedItems
@@ -538,7 +539,7 @@ function useDownloadProvider() {
           "Media source not found in tmp storage. Did you forget to save it before starting download?"
         );
 
-      const newItem = { item, mediaSource: data.mediaSource };
+      const newItem = { item, size, mediaSource: data.mediaSource };
 
       if (existingItemIndex !== -1) {
         items[existingItemIndex] = newItem;
