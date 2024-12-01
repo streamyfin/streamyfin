@@ -572,11 +572,10 @@ function useDownloadProvider() {
 
 export function DownloadProvider({ children }: { children: React.ReactNode }) {
   const downloadProviderValue = useDownloadProvider();
-  const queryClient = new QueryClient();
 
   return (
     <DownloadContext.Provider value={downloadProviderValue}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      {children}
     </DownloadContext.Provider>
   );
 }

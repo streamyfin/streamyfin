@@ -5,7 +5,7 @@ import { Controls } from "@/components/video-player/controls/Controls";
 import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
-import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules/vlc-player";
 import {
@@ -51,7 +51,7 @@ export default function page() {
   const cacheProgress = useSharedValue(0);
 
   const { getDownloadedItem } = useDownload();
-  const revalidateProgressCache = useRevalidatePlaybackProgressCache();
+  const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);

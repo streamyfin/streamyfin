@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 /**
  * useRevalidatePlaybackProgressCache invalidates queries related to playback progress.
  */
-export function useRevalidatePlaybackProgressCache() {
+export function useInvalidatePlaybackProgressCache() {
   const queryClient = useQueryClient();
 
   const revalidate = async () => {

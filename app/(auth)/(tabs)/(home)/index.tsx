@@ -5,7 +5,7 @@ import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionLi
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
-import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -165,7 +165,7 @@ export default function index() {
     );
   }, [userViews]);
 
-  const invalidateCache = useRevalidatePlaybackProgressCache();
+  const invalidateCache = useInvalidatePlaybackProgressCache();
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -371,7 +371,6 @@ export default function index() {
       refreshControl={
         <RefreshControl refreshing={loading} onRefresh={refetch} />
       }
-      key={"home"}
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,

@@ -28,8 +28,10 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   queryKey,
   ...props
 }) => {
+  // console.log(queryKey);
+
   const { data, isLoading } = useQuery({
-    queryKey,
+    queryKey: queryKey,
     queryFn,
     staleTime: 0,
     refetchOnMount: true,

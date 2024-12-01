@@ -3,7 +3,7 @@ import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useOrientationSettings } from "@/hooks/useOrientationSettings";
-import { useRevalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { TrackInfo } from "@/modules/vlc-player";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -46,7 +46,7 @@ const Player = () => {
   const videoRef = useRef<VideoRef | null>(null);
 
   const firstTime = useRef(true);
-  const revalidateProgressCache = useRevalidatePlaybackProgressCache();
+  const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
