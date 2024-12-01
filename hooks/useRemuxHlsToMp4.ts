@@ -14,6 +14,7 @@ import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { toast } from "sonner-native";
 import useImageStorage from "./useImageStorage";
+import useDownloadHelper from "@/utils/download";
 
 /**
  * Custom hook for remuxing HLS to MP4 using FFmpeg.
@@ -28,6 +29,7 @@ export const useRemuxHlsToMp4 = () => {
   const { saveDownloadedItemInfo, setProcesses } = useDownload();
   const router = useRouter();
   const { saveImage } = useImageStorage();
+  const { saveSeriesPrimaryImage } = useDownloadHelper();
 
   const startRemuxing = useCallback(
     async (item: BaseItemDto, url: string, mediaSource: MediaSourceInfo) => {
@@ -35,6 +37,7 @@ export const useRemuxHlsToMp4 = () => {
       if (!api) throw new Error("API is not defined");
       if (!item.Id) throw new Error("Item must have an Id");
 
+      await saveSeriesPrimaryImage(item);
       const itemImage = getItemImage({
         item,
         api,

@@ -46,6 +46,7 @@ import * as Notifications from "expo-notifications";
 import { getItemImage } from "@/utils/getItemImage";
 import useImageStorage from "@/hooks/useImageStorage";
 import { storage } from "@/utils/mmkv";
+import useDownloadHelper from "@/utils/download";
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -66,6 +67,7 @@ function useDownloadProvider() {
   const router = useRouter();
   const [api] = useAtom(apiAtom);
 
+  const {saveSeriesPrimaryImage} = useDownloadHelper();
   const { saveImage } = useImageStorage();
 
   const [processes, setProcesses] = useState<JobStatus[]>([]);
@@ -311,6 +313,7 @@ function useDownloadProvider() {
         const fileExtension = mediaSource.TranscodingContainer;
         const deviceId = await getOrSetDeviceId();
 
+        await saveSeriesPrimaryImage(item);
         const itemImage = getItemImage({
           item,
           api,

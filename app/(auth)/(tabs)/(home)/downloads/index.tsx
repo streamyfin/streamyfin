@@ -117,12 +117,28 @@ export default function page() {
             </ScrollView>
           </View>
         )}
-        {groupedBySeries?.map((items, index) => (
-          <SeriesCard
-            items={items.map((i) => i.item)}
-            key={items[0].item.SeriesId}
-          />
-        ))}
+        {groupedBySeries.length > 0 && (
+          <View className="mb-4">
+            <View className="flex flex-row items-center justify-between mb-2 px-4">
+              <Text className="text-lg font-bold">TV-Series</Text>
+              <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
+                <Text className="text-xs font-bold">{groupedBySeries?.length}</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="px-4 flex flex-row">
+                {groupedBySeries?.map((items) => (
+                  <View className="mb-2 last:mb-0" key={items[0].item.SeriesId}>
+                    <SeriesCard
+                      items={items.map((i) => i.item)}
+                      key={items[0].item.SeriesId}
+                    />
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
         {downloadedFiles?.length === 0 && (
           <View className="flex px-4">
             <Text className="opacity-50">No downloaded items</Text>
