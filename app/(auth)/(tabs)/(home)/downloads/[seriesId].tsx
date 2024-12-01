@@ -83,8 +83,8 @@ export default function page() {
         </View>
       </View>}
       <ScrollView key={seasonIndex}>
-        {groupBySeason.map((episode) => (
-          <View className="px-4 flex flex-col my-4">
+        {groupBySeason.map((episode, index) => (
+          <View className="px-4 flex flex-col my-4" key={index}>
             <EpisodeCard item={episode}/>
           </View>
         ))}

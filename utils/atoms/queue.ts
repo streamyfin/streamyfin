@@ -13,8 +13,8 @@ export const runningAtom = atom<boolean>(false);
 export const queueAtom = atom<Job[]>([]);
 
 export const queueActions = {
-  enqueue: (queue: Job[], setQueue: (update: Job[]) => void, job: Job) => {
-    const updatedQueue = [...queue, job];
+  enqueue: (queue: Job[], setQueue: (update: Job[]) => void, ...job: Job[]) => {
+    const updatedQueue = [...queue, ...job];
     console.info("Enqueueing job", job, updatedQueue);
     setQueue(updatedQueue);
   },

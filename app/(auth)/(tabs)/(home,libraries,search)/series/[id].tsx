@@ -8,13 +8,17 @@ import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById"
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
+import {useLocalSearchParams, useNavigation} from "expo-router";
 import { useAtom } from "jotai";
-import React from "react";
-import { useEffect, useMemo } from "react";
+import React, {useEffect} from "react";
+import { useMemo } from "react";
 import { View } from "react-native";
+import {DownloadItems} from "@/components/DownloadItem";
+import {MaterialCommunityIcons} from "@expo/vector-icons";
+import {getTvShowsApi} from "@jellyfin/sdk/lib/utils/api";
 
 const page: React.FC = () => {
+  const navigation = useNavigation();
   const params = useLocalSearchParams();
   const { id: seriesId, seasonIndex } = params as {
     id: string;
@@ -56,7 +60,43 @@ const page: React.FC = () => {
     [item]
   );
 
-  if (!item || !backdropUrl) return null;
+  const {data: allEpisodes, isLoading} = useQuery({
+    queryKey: ["AllEpisodes", item?.Id],
+    queryFn: async () => {
+      const res = await getTvShowsApi(api!).getEpisodes({
+        seriesId: item?.Id!,
+        userId: user?.Id!,
+        enableUserData: true,
+        fields: ["MediaSources", "MediaStreams", "Overview"],
+      });
+      return res?.data.Items || []
+    },
+    enabled: !!api && !!user?.Id && !!item?.Id
+  });
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        (!isLoading && allEpisodes && allEpisodes.length > 0) && (
+          <View className="flex flex-row items-center space-x-2">
+            <DownloadItems
+              items={allEpisodes || []}
+              MissingDownloadIconComponent={() => (
+                <MaterialCommunityIcons name="folder-download" size={24} color="white"/>
+              )}
+              DownloadedIconComponent={() => (
+                <MaterialCommunityIcons name="folder-check" size={26} color="#9333ea"/>
+              )}
+            />
+          </View>
+        )
+      )
+    })
+  }, [allEpisodes, isLoading]);
+
+  if (!item || !backdropUrl)
+    return null;
+
 
   return (
     <ParallaxScrollView
