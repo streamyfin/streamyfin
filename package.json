@@ -72,6 +72,7 @@
     "react-native-bottom-tabs": "^0.4.0",
     "react-native-circular-progress": "^1.4.1",
     "react-native-compressor": "^1.9.0",
+    "react-native-device-info": "^14.0.1",
     "react-native-edge-to-edge": "^1.1.1",
     "react-native-gesture-handler": "~2.16.1",
     "react-native-get-random-values": "^1.11.0",

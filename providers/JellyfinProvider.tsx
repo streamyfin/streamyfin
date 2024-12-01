@@ -18,6 +18,7 @@ import React, {
 } from "react";
 import { Platform } from "react-native";
 import uuid from "react-native-uuid";
+import { getDeviceName } from "react-native-device-info";
 
 interface Server {
   address: string;
@@ -49,11 +50,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     (async () => {
       const id = getOrSetDeviceId();
+      const deviceName = await getDeviceName();
       setJellyfin(
         () =>
           new Jellyfin({
             clientInfo: { name: "Streamyfin", version: "0.21.0" },
-            deviceInfo: { name: Platform.OS === "ios" ? "iOS" : "Android", id },
+            deviceInfo: {
+              name: deviceName,
+              id,
+            },
           })
       );
       setDeviceId(id);
