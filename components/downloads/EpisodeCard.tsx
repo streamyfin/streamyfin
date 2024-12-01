@@ -1,6 +1,6 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useMemo } from "react";
+import React, {useCallback, useMemo} from "react";
 import { TouchableOpacity, View } from "react-native";
 import {
   ActionSheetProvider,
@@ -8,12 +8,13 @@ import {
 } from "@expo/react-native-action-sheet";
 
 import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
-import { useDownload } from "@/providers/DownloadProvider";
+import {useDownload} from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import {Text} from "@/components/common/Text";
 import {runtimeTicksToSeconds} from "@/utils/time";
+import {DownloadSize} from "@/components/downloads/DownloadSize";
 
 interface EpisodeCardProps {
   item: BaseItemDto;
@@ -114,6 +115,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
           <Text className="text-xs text-neutral-500">
             {runtimeTicksToSeconds(item.RunTimeTicks)}
           </Text>
+          <DownloadSize items={[item]} />
         </View>
       </View>
       <Text numberOfLines={3} className="text-xs text-neutral-500 shrink">{item.Overview}</Text>

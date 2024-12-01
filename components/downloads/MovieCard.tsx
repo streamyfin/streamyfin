@@ -4,7 +4,7 @@ import {
 } from "@expo/react-native-action-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useMemo } from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import { TouchableOpacity, View } from "react-native";
 
 import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
@@ -13,6 +13,7 @@ import { storage } from "@/utils/mmkv";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { ItemCardText } from "../ItemCardText";
+import {DownloadSize} from "@/components/downloads/DownloadSize";
 
 interface MovieCardProps {
   item: BaseItemDto;
@@ -97,6 +98,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
         </View>
       )}
       <ItemCardText item={item} />
+      <DownloadSize items={[item]} />
     </TouchableOpacity>
   );
 };
