@@ -32,6 +32,7 @@ import {
   Pressable,
   TouchableOpacity,
   View,
+  StyleSheet,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
@@ -50,6 +51,7 @@ import { VideoProvider } from "./contexts/VideoContext";
 import * as Haptics from "expo-haptics";
 import DropdownViewDirect from "./dropdown/DropdownViewDirect";
 import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
+import * as Brightness from "expo-brightness";
 
 interface Props {
   item: BaseItemDto;
@@ -133,6 +135,22 @@ export const Controls: React.FC<Props> = ({
     play,
     isVlc
   );
+
+  const [brightness, setBrightness] = useState(useSharedValue(0.5));
+
+  useEffect(() => {
+    const getBrightness = async () => {
+      const currentBrightness = await Brightness.getBrightnessAsync();
+      setBrightness(useSharedValue(currentBrightness));
+    };
+
+    getBrightness();
+  }, []);
+
+  const handleBrightnessChange = async (value) => {
+    setBrightness(value);
+    await Brightness.setBrightnessAsync(value);
+  };
 
   const { showSkipCreditButton, skipCredit } = useCreditSkipper(
     offline ? undefined : item.Id,
@@ -352,7 +370,7 @@ export const Controls: React.FC<Props> = ({
           style={[
             {
               position: "absolute",
-              bottom: 97,
+              bottom: 110,
             },
           ]}
           className={`z-10 p-4
@@ -370,7 +388,7 @@ export const Controls: React.FC<Props> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 94,
+            bottom: 110,
             height: 70,
           }}
           pointerEvents={showSkipCreditButton ? "auto" : "none"}
@@ -409,6 +427,24 @@ export const Controls: React.FC<Props> = ({
           pointerEvents={showControls ? "auto" : "none"}
           className={`flex flex-row items-center space-x-2 z-10 p-4 `}
         >
+          {previousItem && (
+            <TouchableOpacity
+              onPress={goToPreviousItem}
+              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+            >
+              <Ionicons name="play-skip-back" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+
+          {nextItem && (
+            <TouchableOpacity
+              onPress={goToNextItem}
+              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+            >
+              <Ionicons name="play-skip-forward" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+
           {Platform.OS !== "ios" && (
             <TouchableOpacity
               onPress={toggleIgnoreSafeAreas}
@@ -429,6 +465,91 @@ export const Controls: React.FC<Props> = ({
             className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
           >
             <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        <View
+          style={{
+            position: "absolute",
+            top: "50%", // Center vertically
+            left: 0,
+            right: 0,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
+            paddingHorizontal: "28%", // Add some padding to the left and right
+            opacity: showControls ? 1 : 0,
+          }}
+          pointerEvents={showControls ? "box-none" : "none"}
+        >
+          <TouchableOpacity onPress={handleSkipBackward}>
+            <View
+              style={{
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name="refresh-outline"
+                size={50}
+                color="white"
+                style={{
+                  transform: [{ scaleY: -1 }, { rotate: "180deg" }],
+                }}
+              />
+              <Text
+                style={{
+                  position: "absolute",
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  bottom: 10,
+                }}
+              >
+                {settings?.rewindSkipTime}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {!isBuffering ? (
+            <TouchableOpacity
+              onPress={() => {
+                togglePlay(progress.value);
+              }}
+            >
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={50}
+                color="white"
+              />
+            </TouchableOpacity>
+          ) : (
+            <Loader />
+          )}
+
+          <TouchableOpacity onPress={handleSkipForward}>
+            <View
+              style={{
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons name="refresh-outline" size={50} color="white" />
+              <Text
+                style={{
+                  position: "absolute",
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  bottom: 10,
+                }}
+              >
+                {settings?.forwardSkipTime}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -458,50 +579,8 @@ export const Controls: React.FC<Props> = ({
             )}
           </View>
           <View
-            className={`flex flex-col-reverse py-4 px-4 rounded-2xl items-center  bg-neutral-800`}
+            className={`flex flex-col-reverse py-4 pb-2 px-4 rounded-2xl items-center  bg-neutral-800`}
           >
-            <View className="flex flex-row items-center space-x-4">
-              <TouchableOpacity
-                style={{
-                  opacity: !previousItem ? 0.5 : 1,
-                }}
-                onPress={goToPreviousItem}
-              >
-                <Ionicons name="play-skip-back" size={24} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSkipBackward}>
-                <Ionicons
-                  name="refresh-outline"
-                  size={26}
-                  color="white"
-                  style={{
-                    transform: [{ scaleY: -1 }, { rotate: "180deg" }],
-                  }}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  togglePlay(progress.value);
-                }}
-              >
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={30}
-                  color="white"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSkipForward}>
-                <Ionicons name="refresh-outline" size={26} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  opacity: !nextItem ? 0.5 : 1,
-                }}
-                onPress={goToNextItem}
-              >
-                <Ionicons name="play-skip-forward" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
             <View className={`flex flex-col w-full shrink`}>
               <Slider
                 theme={{
@@ -509,9 +588,22 @@ export const Controls: React.FC<Props> = ({
                   minimumTrackTintColor: "#fff",
                   cacheTrackTintColor: "rgba(255,255,255,0.3)",
                   bubbleBackgroundColor: "#fff",
-                  bubbleTextColor: "#000",
+                  bubbleTextColor: "#666",
                   heartbeatColor: "#999",
                 }}
+                renderThumb={() => (
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      left: -2,
+                      borderRadius: 10,
+                      backgroundColor: "#fff",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  ></View>
+                )}
                 cache={cacheProgress}
                 onSlidingStart={handleSliderStart}
                 onSlidingComplete={handleSliderComplete}
@@ -524,47 +616,53 @@ export const Controls: React.FC<Props> = ({
                     return null;
                   }
                   const { x, y, url } = trickPlayUrl;
-
                   const tileWidth = 150;
                   const tileHeight = 150 / trickplayInfo.aspectRatio!;
                   return (
                     <View
                       style={{
                         position: "absolute",
-                        bottom: 0,
-                        left: 0,
-                        width: tileWidth,
-                        height: tileHeight,
-                        marginLeft: -tileWidth / 4,
-                        marginTop: -tileHeight / 4 - 60,
-                        zIndex: 10,
+                        left: -57,
+                        bottom: 15,
+                        paddingTop: 30,
+                        paddingBottom: 5,
+                        width: tileWidth * 1.5, // Adjust the width of the outer container if needed
+                        backgroundColor: "rgba(0, 0, 0, 0.6)", // Outer box background color (optional)
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
-                      className=" bg-neutral-800 overflow-hidden"
                     >
-                      <Image
-                        cachePolicy={"memory-disk"}
+                      <View
                         style={{
-                          width: 150 * trickplayInfo?.data.TileWidth!,
-                          height:
-                            (150 / trickplayInfo.aspectRatio!) *
-                            trickplayInfo?.data.TileHeight!,
-                          transform: [
-                            { translateX: -x * tileWidth },
-                            { translateY: -y * tileHeight },
-                          ],
+                          width: tileWidth,
+                          height: tileHeight,
+                          alignSelf: "center",
+                          transform: [{ scale: 1.4 }],
+                          borderRadius: 5, // Optional border radius
                         }}
-                        source={{ uri: url }}
-                        contentFit="cover"
-                      />
+                        className=" bg-neutral-800 overflow-hidden"
+                      >
+                        <Image
+                          cachePolicy={"memory-disk"}
+                          style={{
+                            width: 150 * trickplayInfo?.data.TileWidth!,
+                            height:
+                              (150 / trickplayInfo.aspectRatio!) *
+                              trickplayInfo?.data.TileHeight!,
+                            transform: [
+                              { translateX: -x * tileWidth },
+                              { translateY: -y * tileHeight },
+                            ],
+                            resizeMode: "cover",
+                          }}
+                          source={{ uri: url }}
+                          contentFit="cover"
+                        />
+                      </View>
                       <Text
                         style={{
-                          position: "absolute",
-                          bottom: 5,
-                          left: 5,
-                          color: "white",
-                          backgroundColor: "rgba(0, 0, 0, 0.5)",
-                          padding: 5,
-                          borderRadius: 5,
+                          marginTop: 30,
+                          fontSize: 16,
                         }}
                       >
                         {`${time.hours > 0 ? `${time.hours}:` : ""}${
