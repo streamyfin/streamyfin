@@ -77,12 +77,12 @@ export default function TabLayout() {
           name="(custom-links)"
           options={{
             title: "Custom Links",
-            // @ts-expect-error
-            tabBarItemHidden: settings?.showCustomMenuLinks ? false : true,
             tabBarIcon:
               Platform.OS == "android"
                 ? () => require("@/assets/icons/list.png")
                 : () => ({ sfSymbol: "list.dash" }),
+            tabBarButton: (p) =>
+              settings?.showCustomMenuLinks == true ? undefined : null,
           }}
         />
       </NativeTabs>
