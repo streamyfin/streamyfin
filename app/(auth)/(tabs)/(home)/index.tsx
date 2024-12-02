@@ -188,7 +188,7 @@ export default function index() {
           (
             await getUserLibraryApi(api).getLatestMedia({
               userId: user?.Id,
-              limit: 50,
+              limit: 20,
               fields: ["PrimaryImageAspectRatio", "Path"],
               imageTypeLimit: 1,
               enableImageTypes: ["Primary", "Backdrop", "Thumb"],
