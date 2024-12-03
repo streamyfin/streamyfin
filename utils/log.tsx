@@ -1,5 +1,7 @@
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import { storage } from "./mmkv";
+import {useQuery} from "@tanstack/react-query";
+import React, {createContext, useContext} from "react";
 
 type LogLevel = "INFO" | "WARN" | "ERROR";
 
@@ -16,6 +18,24 @@ const mmkvStorage = createJSONStorage(() => ({
   removeItem: (key: string) => storage.delete(key),
 }));
 const logsAtom = atomWithStorage("logs", [], mmkvStorage);
+
+const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(null);
+const DownloadContext = createContext<ReturnType<
+  typeof useLogProvider
+> | null>(null);
+
+function useLogProvider() {
+  const { data: logs } = useQuery({
+    queryKey: ["logs"],
+    queryFn: async () => readFromLog(),
+    refetchInterval: 1000,
+  });
+
+  return {
+    logs
+  }
+}
+
 
 export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   const newEntry: LogEntry = {
@@ -43,5 +63,23 @@ export const readFromLog = (): LogEntry[] => {
 export const clearLogs = () => {
   storage.delete("logs");
 };
+
+export function useLog() {
+  const context = useContext(LogContext);
+  if (context === null) {
+    throw new Error("useLog must be used within a LogProvider");
+  }
+  return context;
+}
+
+export function LogProvider({children}: { children: React.ReactNode }) {
+  const provider = useLogProvider();
+
+  return (
+    <LogContext.Provider value={provider}>
+      {children}
+    </LogContext.Provider>
+  )
+}
 
 export default logsAtom;
