@@ -1,12 +1,13 @@
 import {Text} from "@/components/common/Text";
 import {useDownload} from "@/providers/DownloadProvider";
 import {router, useLocalSearchParams, useNavigation} from "expo-router";
-import React, {useEffect, useMemo, useState} from "react";
-import {ScrollView, View} from "react-native";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
+import {ScrollView, TouchableOpacity, View} from "react-native";
 import {EpisodeCard} from "@/components/downloads/EpisodeCard";
 import {BaseItemDto} from "@jellyfin/sdk/lib/generated-client/models";
 import {SeasonDropdown, SeasonIndexState} from "@/components/series/SeasonDropdown";
 import {storage} from "@/utils/mmkv";
+import {Ionicons} from "@expo/vector-icons";
 
 export default function page() {
   const navigation = useNavigation();
@@ -17,7 +18,7 @@ export default function page() {
   };
 
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>({});
-  const {downloadedFiles} = useDownload();
+  const {downloadedFiles, deleteItems} = useDownload();
 
   const series = useMemo(() => {
     try {
@@ -64,6 +65,10 @@ export default function page() {
     }
   }, [series]);
 
+  const deleteSeries = useCallback(
+    async () => deleteItems(groupBySeason),
+    [groupBySeason]
+  );
   return (
     <>
       {series.length > 0 && <View className="my-4 flex flex-row items-center justify-start">
@@ -78,9 +83,16 @@ export default function page() {
               [series[0].item.ParentId ?? ""]: season.ParentIndexNumber,
             }));
           }}/>
-        <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
-          <Text className="text-xs font-bold">{groupBySeason.length}</Text>
-        </View>
+          <View className="flex flex-row items-center justify-between w-72">
+            <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
+                <Text className="text-xs font-bold">{groupBySeason.length}</Text>
+            </View>
+            <View className="bg-neutral-800/80 rounded-full h-10 w-10 flex items-center justify-center">
+              <TouchableOpacity onPress={deleteSeries}>
+                <Ionicons name="trash" size={22} color="white"/>
+              </TouchableOpacity>
+            </View>
+          </View>
       </View>}
       <ScrollView key={seasonIndex}>
         {groupBySeason.map((episode, index) => (
