@@ -131,7 +131,8 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
           <View className="flex flex-col shrink">
             <Text className="font-semibold">Subtitle Size</Text>
             <Text className="text-xs opacity-50">
-              Choose a default subtitle size.
+              Choose a default subtitle size for direct play (only works for
+              some subtitle formats).
             </Text>
           </View>
           <View className="flex flex-row items-center">
