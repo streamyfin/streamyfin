@@ -24,7 +24,9 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         },
-        "UISupportsTrueScreenSizeOnMac": true
+        "UISupportsTrueScreenSizeOnMac": true,
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
       },
       "config": {
         "usesNonExemptEncryption": false
