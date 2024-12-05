@@ -1,6 +1,6 @@
 import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
-import { writeToLog } from "@/utils/log";
+import {useLog, writeToLog} from "@/utils/log";
 import {
   cancelAllJobs,
   cancelJobById,
@@ -47,6 +47,8 @@ import { getItemImage } from "@/utils/getItemImage";
 import useImageStorage from "@/hooks/useImageStorage";
 import { storage } from "@/utils/mmkv";
 import useDownloadHelper from "@/utils/download";
+import {FileInfo} from "expo-file-system";
+import * as Haptics from "expo-haptics";
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -67,6 +69,7 @@ function useDownloadProvider() {
   const [settings] = useSettings();
   const router = useRouter();
   const [api] = useAtom(apiAtom);
+  const { logs } = useLog();
 
   const {saveSeriesPrimaryImage} = useDownloadHelper();
   const { saveImage } = useImageStorage();
@@ -388,19 +391,20 @@ function useDownloadProvider() {
   );
 
   const deleteAllFiles = async (): Promise<void> => {
-    try {
-      await deleteLocalFiles();
-      removeDownloadedItemsFromStorage();
-      await cancelAllServerJobs();
-      queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
-      toast.success("All files, folders, and jobs deleted successfully");
-    } catch (error) {
-      console.error("Failed to delete all files, folders, and jobs:", error);
+    Promise.all([
+      deleteLocalFiles(),
+      removeDownloadedItemsFromStorage(),
+      cancelAllServerJobs(),
+      queryClient.invalidateQueries({queryKey: ["downloadedItems"]}),
+    ]).then(() =>
+      toast.success("All files, folders, and jobs deleted successfully")
+    ).catch((reason) => {
+      console.error("Failed to delete all files, folders, and jobs:", reason);
       toast.error("An error occurred while deleting files and jobs");
-    }
+    });
   };
 
-  const deleteLocalFiles = async (): Promise<void> => {
+  const forEveryDirectoryFile = async (includeMMKV: boolean = true, callback: (file: FileInfo) => void) => {
     const baseDirectory = FileSystem.documentDirectory;
     if (!baseDirectory) {
       throw new Error("Base directory not found");
@@ -408,25 +412,36 @@ function useDownloadProvider() {
 
     const dirContents = await FileSystem.readDirectoryAsync(baseDirectory);
     for (const item of dirContents) {
-      const itemPath = `${baseDirectory}${item}`;
-      const itemInfo = await FileSystem.getInfoAsync(itemPath);
+      // Exclude mmkv directory.
+      // Deleting this deletes all user information as well. Logout should handle this.
+      if (item == "mmkv" && !includeMMKV)
+        continue
+      const itemInfo = await FileSystem.getInfoAsync(`${baseDirectory}${item}`);
       if (itemInfo.exists) {
-        if (itemInfo.isDirectory) {
-          await FileSystem.deleteAsync(itemPath, { idempotent: true });
-        } else {
-          await FileSystem.deleteAsync(itemPath, { idempotent: true });
-        }
+        callback(itemInfo)
       }
     }
+  }
+
+  const deleteLocalFiles = async (): Promise<void> => {
+    await forEveryDirectoryFile(false, (file) => {
+        console.warn("Deleting file", file.uri)
+        FileSystem.deleteAsync(file.uri, {idempotent: true})
+      }
+    )
   };
 
-  const removeDownloadedItemsFromStorage = (): void => {
-    try {
-      storage.delete("downloadedItems");
-    } catch (error) {
-      console.error("Failed to remove downloadedItems from storage:", error);
-      throw error;
-    }
+  const removeDownloadedItemsFromStorage = async () => {
+    // delete any saved images first
+    Promise.all([
+      deleteFileByType("Movie"),
+      deleteFileByType("Episode"),
+    ]).then(() =>
+      storage.delete("downloadedItems")
+    ).catch((reason) => {
+      console.error("Failed to remove downloadedItems from storage:", reason);
+      throw reason
+    })
   };
 
   const cancelAllServerJobs = async (): Promise<void> => {
@@ -434,7 +449,8 @@ function useDownloadProvider() {
       throw new Error("No auth header available");
     }
     if (!settings?.optimizedVersionsServerUrl) {
-      throw new Error("No server URL configured");
+      console.error("No server URL configured");
+      return
     }
 
     const deviceId = await getOrSetDeviceId();
@@ -493,6 +509,43 @@ function useDownloadProvider() {
       );
     }
   };
+
+  const deleteItems = async (items: BaseItemDto[]) => {
+    Promise.all(items.map(i => {
+      if (i.Id)
+        return deleteFile(i.Id)
+      return
+    })).then(() =>
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    )
+  }
+
+  const deleteFileByType = async (type: BaseItemDto['Type']) => {
+    await Promise.all(
+      downloadedFiles
+        ?.filter(file => file.item.Type == type)
+        ?.flatMap(file => {
+          const promises = [];
+          if (type == "Episode" && file.item.SeriesId)
+            promises.push(deleteFile(file.item.SeriesId))
+          promises.push(deleteFile(file.item.Id!))
+          return promises;
+        })
+      || []
+    );
+  }
+
+  const appSizeUsage = useMemo(async () => {
+    const sizes: number[] = [];
+    await forEveryDirectoryFile(
+      true,
+      file => {
+        if (file.exists) sizes.push(file.size)
+      }
+    )
+
+    return sizes.reduce((sum, size) => sum + size, 0);
+  }, [logs, downloadedFiles])
 
   function getDownloadedItem(itemId: string): DownloadedItem | null {
     try {
@@ -566,11 +619,14 @@ function useDownloadProvider() {
     downloadedFiles,
     deleteAllFiles,
     deleteFile,
+    deleteItems,
     saveDownloadedItemInfo,
     removeProcess,
     setProcesses,
     startDownload,
     getDownloadedItem,
+    deleteFileByType,
+    appSizeUsage
   };
 }
 
@@ -590,4 +646,20 @@ export function useDownload() {
     throw new Error("useDownload must be used within a DownloadProvider");
   }
   return context;
+}
+
+export function bytesToReadable(bytes: number): string {
+  const gb = bytes / 1e9;
+
+  if (gb >= 1)
+    return `${gb.toFixed(2)} GB`
+
+  const mb = bytes / 1024 / 1024
+  if (mb >= 1)
+    return `${mb.toFixed(2)} MB`
+
+  const kb = bytes / 1024
+  if (kb >= 1)
+    return `${kb.toFixed(2)} KB`
+  return `${bytes.toFixed(2)} B`
 }

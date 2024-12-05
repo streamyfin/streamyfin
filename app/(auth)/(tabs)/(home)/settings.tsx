@@ -2,31 +2,40 @@ import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { ListItem } from "@/components/ListItem";
 import { SettingToggles } from "@/components/settings/SettingToggles";
-import { useDownload } from "@/providers/DownloadProvider";
+import {bytesToReadable, useDownload} from "@/providers/DownloadProvider";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
-import { clearLogs, readFromLog } from "@/utils/log";
+import {clearLogs, useLog} from "@/utils/log";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useAtom } from "jotai";
-import { Alert, ScrollView, View } from "react-native";
+import {Alert, ScrollView, View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import * as Progress from 'react-native-progress';
+import * as FileSystem from "expo-file-system";
 
 export default function settings() {
   const { logout } = useJellyfin();
-  const { deleteAllFiles } = useDownload();
+  const { deleteAllFiles, appSizeUsage } = useDownload();
+  const { logs } = useLog();
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
-  const { data: logs } = useQuery({
-    queryKey: ["logs"],
-    queryFn: async () => readFromLog(),
-    refetchInterval: 1000,
-  });
-
   const insets = useSafeAreaInsets();
+
+  const {data: size , isLoading: appSizeLoading } = useQuery({
+    queryKey: ["appSize", appSizeUsage],
+    queryFn: async () => {
+      const app = await appSizeUsage
+
+      const remaining = await FileSystem.getFreeDiskStorageAsync()
+      const total = await FileSystem.getTotalDiskCapacityAsync()
+
+      return {app, remaining, total, used: (total - remaining) / total}
+    }
+  })
 
   const openQuickConnectAuthCodeInput = () => {
     Alert.prompt(
@@ -57,6 +66,27 @@ export default function settings() {
     );
   };
 
+  const onDeleteClicked = async () => {
+    try {
+      await deleteAllFiles();
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success
+      );
+    } catch (e) {
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Error
+      );
+      toast.error("Error deleting files");
+    }
+  }
+
+  const onClearLogsClicked = async () => {
+    clearLogs();
+    Haptics.notificationAsync(
+      Haptics.NotificationFeedbackType.Success
+    );
+  };
+
   return (
     <ScrollView
       contentContainerStyle={{
@@ -81,6 +111,9 @@ export default function settings() {
             <ListItem title="Server" subTitle={api?.basePath} />
             <ListItem title="Token" subTitle={api?.accessToken} />
           </View>
+          <Button className="my-2.5" color="black" onPress={logout}>
+            Log out
+          </Button>
         </View>
 
         <View>
@@ -92,42 +125,36 @@ export default function settings() {
 
         <SettingToggles />
 
-        <View>
-          <Text className="font-bold text-lg mb-2">Account and storage</Text>
-          <View className="flex flex-col space-y-2">
-            <Button color="black" onPress={logout}>
-              Log out
-            </Button>
-            <Button
-              color="red"
-              onPress={async () => {
-                try {
-                  await deleteAllFiles();
-                  Haptics.notificationAsync(
-                    Haptics.NotificationFeedbackType.Success
-                  );
-                } catch (e) {
-                  Haptics.notificationAsync(
-                    Haptics.NotificationFeedbackType.Error
-                  );
-                  toast.error("Error deleting files");
-                }
-              }}
-            >
-              Delete all downloaded files
-            </Button>
-            <Button
-              color="red"
-              onPress={async () => {
-                await clearLogs();
-                Haptics.notificationAsync(
-                  Haptics.NotificationFeedbackType.Success
-                );
-              }}
-            >
-              Delete all logs
-            </Button>
+        <View className="flex flex-col space-y-2">
+          <Text className="font-bold text-lg mb-2">Storage</Text>
+          <View className="mb-4 space-y-2">
+            {size && <Text>App usage: {bytesToReadable(size.app)}</Text>}
+            <Progress.Bar
+              className="bg-gray-100/10"
+              indeterminate={appSizeLoading}
+              color="#9333ea"
+              width={null}
+              height={10}
+              borderRadius={6}
+              borderWidth={0}
+              progress={size?.used}
+            />
+            {size && (
+              <Text>Available: {bytesToReadable(size.remaining)}, Total: {bytesToReadable(size.total)}</Text>
+            )}
           </View>
+          <Button
+            color="red"
+            onPress={onDeleteClicked}
+          >
+            Delete all downloaded files
+          </Button>
+          <Button
+            color="red"
+            onPress={onClearLogsClicked}
+          >
+            Delete all logs
+          </Button>
         </View>
         <View>
           <Text className="font-bold text-lg mb-2">Logs</Text>

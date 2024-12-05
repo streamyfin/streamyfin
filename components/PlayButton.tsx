@@ -31,6 +31,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Button } from "./Button";
 import { SelectedOptions } from "./ItemContent";
+import { chromecastProfile } from "@/utils/profiles/chromecast";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -111,18 +112,11 @@ export const PlayButton: React.FC<Props> = ({
               if (state && state !== PlayServicesState.SUCCESS)
                 CastContext.showPlayServicesErrorDialog(state);
               else {
-                // If we're opening a currently playing item, don't restart the media.
-                // Instead just open controls.
-                if (isOpeningCurrentlyPlayingMedia) {
-                  CastContext.showExpandedControls();
-                  return;
-                }
-
                 // Get a new URL with the Chromecast device profile:
                 const data = await getStreamUrl({
                   api,
                   item,
-                  deviceProfile: ios,
+                  deviceProfile: chromecastProfile,
                   startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
                   userId: user?.Id,
                   audioStreamIndex: selectedOptions.audioIndex,

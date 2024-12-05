@@ -2,9 +2,10 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, {useEffect, useMemo, useState} from "react";
 import {Text} from "@/components/common/Text";
 import useDownloadHelper from "@/utils/download";
-import {useDownload} from "@/providers/DownloadProvider";
+import {bytesToReadable, useDownload} from "@/providers/DownloadProvider";
+import {TextProps} from "react-native";
 
-interface DownloadSizeProps {
+interface DownloadSizeProps extends TextProps {
   items: BaseItemDto[];
 }
 
@@ -13,7 +14,7 @@ interface DownloadSizes {
   itemsNeedingSize: BaseItemDto[];
 }
 
-export const DownloadSize: React.FC<DownloadSizeProps> = ({ items }) => {
+export const DownloadSize: React.FC<DownloadSizeProps> = ({ items, ...props }) => {
   const { downloadedFiles, saveDownloadedItemInfo } = useDownload();
   const { getDownloadSize } = useDownloadHelper();
   const [size, setSize] = useState<string | undefined>();
@@ -53,17 +54,9 @@ export const DownloadSize: React.FC<DownloadSizeProps> = ({ items }) => {
     return size
   }, [size])
 
-  const bytesToReadable = (bytes: number) => {
-    const gb = bytes / 1e+9;
-
-    if (gb >= 1)
-      return `${gb.toFixed(2)} GB`
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`
-  }
-
   return (
     <>
-      <Text className="text-xs text-neutral-500">{sizeText}</Text>
+      <Text className="text-xs text-neutral-500" {...props}>{sizeText}</Text>
     </>
   );
 };
