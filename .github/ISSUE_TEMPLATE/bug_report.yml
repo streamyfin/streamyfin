@@ -39,11 +39,15 @@ body:
     validations:
       required: true
 
-  - type: textarea
+  - type: dropdown
     id: version
     attributes:
-      label: Which version of the app are you using?
-      description: e.g. 0.20.1
+      label: Version
+      description:  What version of Streamyfin are you running?
+      options:
+        - 0.21.x
+        - 0.18.x
+        - 0.17.x
     validations:
       required: true
 
