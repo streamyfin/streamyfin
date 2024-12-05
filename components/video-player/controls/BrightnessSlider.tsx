@@ -21,7 +21,6 @@ const BrightnessSlider = () => {
 
   const handleValueChange = async (value: number) => {
     brightness.value = value;
-    console.log(value);
     await Brightness.setBrightnessAsync(value / 100);
   };
 
