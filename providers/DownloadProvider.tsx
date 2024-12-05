@@ -30,7 +30,7 @@ import {
 import axios from "axios";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
-import { useAtom } from "jotai";
+import {atom, useAtom} from "jotai";
 import React, {
   createContext,
   useCallback,
@@ -56,6 +56,8 @@ export type DownloadedItem = {
   size: number | undefined;
 };
 
+export const processesAtom = atom<JobStatus[]>([])
+
 function onAppStateChange(status: AppStateStatus) {
   focusManager.setFocused(status === "active");
 }
@@ -74,7 +76,7 @@ function useDownloadProvider() {
   const {saveSeriesPrimaryImage} = useDownloadHelper();
   const { saveImage } = useImageStorage();
 
-  const [processes, setProcesses] = useState<JobStatus[]>([]);
+  const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
 
   const authHeader = useMemo(() => {
     return api?.accessToken;

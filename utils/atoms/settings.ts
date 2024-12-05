@@ -75,6 +75,7 @@ export type Settings = {
   downloadMethod: "optimized" | "remux";
   autoDownload: boolean,
   showCustomMenuLinks: boolean;
+  remuxConcurrentLimit: 1 | 2 | 3 | 4; // TODO: Maybe let people choose their own limit? 4 seems like a safe max?
 };
 
 const loadSettings = (): Settings => {
@@ -105,6 +106,7 @@ const loadSettings = (): Settings => {
     downloadMethod: "remux",
     autoDownload: false,
     showCustomMenuLinks: false,
+    remuxConcurrentLimit: 1,
   };
 
   try {
