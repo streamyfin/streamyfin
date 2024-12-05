@@ -73,8 +73,9 @@ export type Settings = {
   rewindSkipTime: number;
   optimizedVersionsServerUrl?: string | null;
   downloadMethod: "optimized" | "remux";
-  autoDownload: boolean,
+  autoDownload: boolean;
   showCustomMenuLinks: boolean;
+  subtitleSize: number;
   remuxConcurrentLimit: 1 | 2 | 3 | 4; // TODO: Maybe let people choose their own limit? 4 seems like a safe max?
 };
 
@@ -106,6 +107,7 @@ const loadSettings = (): Settings => {
     downloadMethod: "remux",
     autoDownload: false,
     showCustomMenuLinks: false,
+    subtitleSize: 60,
     remuxConcurrentLimit: 1,
   };
 

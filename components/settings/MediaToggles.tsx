@@ -3,6 +3,7 @@ import { TouchableOpacity, View, ViewProps } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { LANGUAGES } from "@/constants/Languages";
+import { TextInput } from "react-native-gesture-handler";
 
 interface Props extends ViewProps {}
 
@@ -120,6 +121,45 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
               ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
+        </View>
+
+        <View
+          className={`
+              flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
+            `}
+        >
+          <View className="flex flex-col shrink">
+            <Text className="font-semibold">Subtitle Size</Text>
+            <Text className="text-xs opacity-50">
+              Choose a default subtitle size for direct play (only works for
+              some subtitle formats).
+            </Text>
+          </View>
+          <View className="flex flex-row items-center">
+            <TouchableOpacity
+              onPress={() =>
+                updateSettings({
+                  subtitleSize: Math.max(0, settings.subtitleSize - 5),
+                })
+              }
+              className="w-8 h-8 bg-neutral-800 rounded-l-lg flex items-center justify-center"
+            >
+              <Text>-</Text>
+            </TouchableOpacity>
+            <Text className="w-12 h-8 bg-neutral-800 first-letter:px-3 py-2 flex items-center justify-center">
+              {settings.subtitleSize}
+            </Text>
+            <TouchableOpacity
+              className="w-8 h-8 bg-neutral-800 rounded-r-lg flex items-center justify-center"
+              onPress={() =>
+                updateSettings({
+                  subtitleSize: Math.min(120, settings.subtitleSize + 5),
+                })
+              }
+            >
+              <Text>+</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View
