@@ -41,7 +41,8 @@
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.WRITE_SETTINGS"
       ]
     },
     "plugins": [

@@ -467,20 +467,6 @@ const Player = () => {
               selectedTextTrack={selectedTextTrack}
               selectedAudioTrack={selectedAudioTrack}
             />
-            <View
-              style={{
-                position: "absolute",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                opacity: isBuffering ? 1 : 0,
-                width: "100%",
-                height: "100%",
-              }}
-              pointerEvents="none"
-            >
-              <Loader />
-            </View>
           </>
         ) : (
           <Text>No video source...</Text>
