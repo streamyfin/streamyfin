@@ -4,12 +4,10 @@ title: '[Bug]: '
 labels:
   - '❌ bug'
 projects: 
-  - 'streamyfin/5' 
+  - 'fredrikburmester/5' 
 assignees:
   - fredrikburmester
   
-  
-
 body:
   - type: textarea
     id: what-happened
