@@ -47,9 +47,9 @@ body:
     validations:
       required: true
 
-  - type: markdown
+  - type: textarea
+    id: screenshots
     attributes:
-      value: |
-        **Screenshots**  
+      label: 
         If applicable, please add screenshots to help explain your problem.  
         You can drag and drop images here or paste them directly into the comment box.
