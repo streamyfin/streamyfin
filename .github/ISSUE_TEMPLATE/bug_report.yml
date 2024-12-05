@@ -1,52 +1,49 @@
 name: Bug report
 description: Create a report to help us improve
 title: '[Bug]: '
-labels: ['❌ bug']
+labels:
+  - '❌ bug'
 projects: 'Streamyfin Roadmap'
 assignees:
- - fredrickburmester, 
+  - fredrickburmester
 
 body:
-
- - type: textarea
-   id: what-happened
-   attributes:
-    label: What happened?
-    description: Also tell us, what did you expect to happen?
-    placeholder: A clear and concise description of what the bug is.
-   validations:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: A clear and concise description of what the bug is.
+    validations:
       required: true
- - type: textarea
-   id: repro
-   attributes:
-    label: Reproduction steps
-    description: "How do you trigger this bug? Please walk us through it step by step."
-    value: |
-      1.
-      2.
-      3.
-      ...
-    render: bash
-  validations:
-    required: true
-    
- - type: textarea
-   id: device
-   attributes:
-    label: Which device and operating system are you using?
-    description: e.g. iPhone 15, iOS 18.1.1
-   validations:
-    required: true
 
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: "How do you trigger this bug? Please walk us through it step by step."
+      value: |
+        1.
+        2.
+        3.
+        ...
+      render: bash
+    validations:
+      required: true
 
- - type: textarea
-   id: version
-   attributes:
-    label: Which version of the app are you using?
-    description:  e.g. 0.20.1
-   validations:
-    required: true
+  - type: textarea
+    id: device
+    attributes:
+      label: Which device and operating system are you using?
+      description: e.g. iPhone 15, iOS 18.1.1
+    validations:
+      required: true
 
+  - type: textarea
+    id: version
+    attributes:
+      label: Which version of the app are you using?
+      description: e.g. 0.20.1
+    validations:
+      required: true
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
