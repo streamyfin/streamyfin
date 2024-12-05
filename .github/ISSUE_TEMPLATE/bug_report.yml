@@ -3,9 +3,9 @@ description: Create a report to help us improve
 title: '[Bug]: '
 labels:
   - '❌ bug'
-projects: 'Streamyfin Roadmap'
+projects: 'StreamyfinRoadmap'
 assignees:
-  - fredrickburmester
+  - fredrikburmester
 
 body:
   - type: textarea
