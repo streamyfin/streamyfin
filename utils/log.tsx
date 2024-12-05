@@ -55,6 +55,9 @@ export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   storage.set("logs", JSON.stringify(recentLogs));
 };
 
+export const writeInfoLog = (message: string, data?: any) => writeToLog("INFO", message, data);
+export const writeErrorLog = (message: string, data?: any) => writeToLog("ERROR", message, data);
+
 export const readFromLog = (): LogEntry[] => {
   const logs = storage.getString("logs");
   return logs ? JSON.parse(logs) : [];

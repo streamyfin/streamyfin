@@ -1,6 +1,9 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
+import {JobStatus} from "@/utils/optimize-server";
+import {processesAtom} from "@/providers/DownloadProvider";
+import {useSettings} from "@/utils/atoms/settings";
 
 export interface Job {
   id: string;
@@ -49,11 +52,13 @@ export const queueActions = {
 export const useJobProcessor = () => {
   const [queue, setQueue] = useAtom(queueAtom);
   const [running, setRunning] = useAtom(runningAtom);
+  const [processes] = useAtom<JobStatus[]>(processesAtom);
+  const [settings] = useSettings();
 
   useEffect(() => {
-    if (queue.length > 0 && !running) {
+    if (queue.length > 0 && settings && processes.length < settings?.remuxConcurrentLimit) {
       console.info("Processing queue", queue);
       queueActions.processJob(queue, setQueue, setRunning);
     }
-  }, [queue, running, setQueue, setRunning]);
+  }, [processes, queue, running, setQueue, setRunning]);
 };
