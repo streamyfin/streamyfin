@@ -343,7 +343,8 @@ export const Controls: React.FC<Props> = ({
         style={[
           {
             position: "absolute",
-            bottom: 110,
+            right: insets.right,
+            bottom: insets.bottom + 50,
           },
         ]}
         className={`z-10 p-4
@@ -352,17 +353,24 @@ export const Controls: React.FC<Props> = ({
       >
         <TouchableOpacity
           onPress={skipIntro}
-          className="bg-purple-600 rounded-full px-2.5 py-2 font-semibold"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.75)", // Adjusted background color
+            borderRadius: 5, // Adjusted border radius
+            paddingHorizontal: 10,
+            paddingVertical: 15,
+            borderWidth: 2,
+            borderColor: "#5A5454",
+          }}
         >
-          <Text className="text-white">Skip Intro</Text>
+          <Text className="text-white font-bold">Skip Intro</Text>
         </TouchableOpacity>
       </View>
 
       <View
         style={{
           position: "absolute",
-          bottom: 110,
-          height: 70,
+          right: insets.right,
+          bottom: insets.bottom + 50,
         }}
         pointerEvents={showSkipCreditButton ? "auto" : "none"}
         className={`z-10 p-4 ${
@@ -371,9 +379,16 @@ export const Controls: React.FC<Props> = ({
       >
         <TouchableOpacity
           onPress={skipCredit}
-          className="bg-purple-600 rounded-full px-2.5 py-2 font-semibold"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.75)", // Adjusted background color
+            borderRadius: 5, // Adjusted border radius
+            paddingHorizontal: 10,
+            paddingVertical: 15,
+            borderWidth: 2,
+            borderColor: "#5A5454",
+          }}
         >
-          <Text className="text-white">Skip Credits</Text>
+          <Text className="text-white font-bold">Skip Credits</Text>
         </TouchableOpacity>
       </View>
 
