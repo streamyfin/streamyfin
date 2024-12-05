@@ -3,9 +3,12 @@ description: Create a report to help us improve
 title: '[Bug]: '
 labels:
   - '❌ bug'
-projects: 'StreamyfinRoadmap'
+projects: 
+  - '5' 
 assignees:
   - fredrikburmester
+  - Simon-Eklundh
+  
 
 body:
   - type: textarea
@@ -22,12 +25,11 @@ body:
     attributes:
       label: Reproduction steps
       description: "How do you trigger this bug? Please walk us through it step by step."
-      value: |
+      placeholder: |
         1.
         2.
         3.
         ...
-      render: bash
     validations:
       required: true
 
@@ -47,3 +49,9 @@ body:
     validations:
       required: true
 
+  - type: markdown
+    attributes:
+      value: |
+        **Screenshots**  
+        If applicable, please add screenshots to help explain your problem.  
+        You can drag and drop images here or paste them directly into the comment box.
