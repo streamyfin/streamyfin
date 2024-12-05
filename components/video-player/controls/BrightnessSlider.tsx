@@ -4,6 +4,7 @@ import { useSharedValue } from "react-native-reanimated";
 import { Slider } from "react-native-awesome-slider";
 import * as Brightness from "expo-brightness";
 import { Ionicons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 const BrightnessSlider = () => {
   const brightness = useSharedValue(50);

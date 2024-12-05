@@ -453,7 +453,6 @@ export const Controls: React.FC<Props> = ({
           transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
           paddingHorizontal: "28%", // Add some padding to the left and right
           opacity: showControls ? 1 : 0,
-          backgroundColor: "pink",
         }}
         pointerEvents={showControls ? "box-none" : "none"}
       >
