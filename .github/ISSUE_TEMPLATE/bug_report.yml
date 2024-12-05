@@ -4,10 +4,10 @@ title: '[Bug]: '
 labels:
   - '❌ bug'
 projects: 
-  - '5' 
+  - 'streamyfin/5' 
 assignees:
   - fredrikburmester
-  - Simon-Eklundh
+  
   
 
 body:
