@@ -73,8 +73,9 @@ export type Settings = {
   rewindSkipTime: number;
   optimizedVersionsServerUrl?: string | null;
   downloadMethod: "optimized" | "remux";
-  autoDownload: boolean,
+  autoDownload: boolean;
   showCustomMenuLinks: boolean;
+  subtitleSize: number;
 };
 
 const loadSettings = (): Settings => {
@@ -105,6 +106,7 @@ const loadSettings = (): Settings => {
     downloadMethod: "remux",
     autoDownload: false,
     showCustomMenuLinks: false,
+    subtitleSize: 60,
   };
 
   try {

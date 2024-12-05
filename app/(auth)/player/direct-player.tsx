@@ -33,6 +33,8 @@ import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, BackHandler, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
+import settings from "../(tabs)/(home)/settings";
+import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -73,7 +75,7 @@ export default function page() {
     bitrateValue: string;
     offline: string;
   }>();
-
+  const [settings] = useSettings();
   const offline = offlineStr === "true";
 
   const audioIndex = audioIndexStr ? parseInt(audioIndexStr, 10) : undefined;
@@ -357,10 +359,11 @@ export default function page() {
       };
     }, [])
   );
-
   // Preselection of audio and subtitle tracks.
 
-  let initOptions = ["--sub-text-scale=60"];
+  if (!settings) return null;
+
+  let initOptions = [`--sub-text-scale=${settings.subtitleSize}`];
   let externalTrack = { name: "", DeliveryUrl: "" };
 
   const allSubs =
