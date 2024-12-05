@@ -4,7 +4,7 @@ import {
   getOrSetDeviceId,
   userAtom,
 } from "@/providers/JellyfinProvider";
-import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
+import {ScreenOrientationEnum, Settings, useSettings} from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   registerBackgroundFetchAsync,
@@ -17,7 +17,7 @@ import * as BackgroundFetch from "expo-background-fetch";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import { useAtom } from "jotai";
-import { useEffect, useState } from "react";
+import {useEffect, useState} from "react";
 import {
   Linking,
   Switch,
@@ -32,6 +32,7 @@ import { Input } from "../common/Input";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
 import { MediaToggles } from "./MediaToggles";
+import {Stepper} from "@/components/inputs/Stepper";
 
 interface Props extends ViewProps {}
 
@@ -483,7 +484,44 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               </DropdownMenu.Content>
             </DropdownMenu.Root>
           </View>
-          <View className="flex flex-row space-x-2 items-center justify-between bg-neutral-900 p-4">
+          <View
+            pointerEvents={
+              settings.downloadMethod === "remux" ? "auto" : "none"
+            }
+            className={`
+              flex flex-row space-x-2 items-center justify-between bg-neutral-900 p-4
+              ${
+              settings.downloadMethod === "remux"
+                ? "opacity-100"
+                : "opacity-50"
+            }`}
+          >
+            <View className="flex flex-col shrink">
+              <Text className="font-semibold">Remux max download</Text>
+              <Text className="text-xs opacity-50 shrink">
+                This is the total media you want to be able to download at the same time.
+              </Text>
+            </View>
+            <Stepper
+              value={settings.remuxConcurrentLimit}
+              step={1}
+              min={1}
+              max={4}
+              onUpdate={(value) => updateSettings({remuxConcurrentLimit: value as Settings["remuxConcurrentLimit"]})}
+            />
+          </View>
+          <View
+            pointerEvents={
+              settings.downloadMethod === "optimized" ? "auto" : "none"
+            }
+            className={`
+              flex flex-row space-x-2 items-center justify-between bg-neutral-900 p-4
+              ${
+              settings.downloadMethod === "optimized"
+                ? "opacity-100"
+                : "opacity-50"
+            }`}
+          >
             <View className="flex flex-col shrink">
               <Text className="font-semibold">Auto download</Text>
               <Text className="text-xs opacity-50 shrink">

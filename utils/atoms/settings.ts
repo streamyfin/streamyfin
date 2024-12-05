@@ -76,6 +76,7 @@ export type Settings = {
   autoDownload: boolean;
   showCustomMenuLinks: boolean;
   subtitleSize: number;
+  remuxConcurrentLimit: 1 | 2 | 3 | 4; // TODO: Maybe let people choose their own limit? 4 seems like a safe max?
 };
 
 const loadSettings = (): Settings => {
@@ -107,6 +108,7 @@ const loadSettings = (): Settings => {
     autoDownload: false,
     showCustomMenuLinks: false,
     subtitleSize: 60,
+    remuxConcurrentLimit: 1,
   };
 
   try {

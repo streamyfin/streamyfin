@@ -40,7 +40,7 @@ export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
       <Text className="text-lg font-bold mb-2">Active downloads</Text>
       <View className="space-y-2">
         {processes?.map((p) => (
-          <DownloadCard key={p.id} process={p} />
+          <DownloadCard key={p.item.Id} process={p} />
         ))}
       </View>
     </View>
@@ -77,7 +77,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
           await queryClient.refetchQueries({ queryKey: ["jobs"] });
         }
       } else {
-        FFmpegKit.cancel();
+        FFmpegKit.cancel(Number(id));
         setProcesses((prev) => prev.filter((p) => p.id !== id));
       }
     },
