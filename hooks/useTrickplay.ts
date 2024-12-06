@@ -1,8 +1,7 @@
-// hooks/useTrickplay.ts
-
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { ticksToMs } from "@/utils/time";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -111,9 +110,45 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
     [trickplayInfo, item, api, enabled]
   );
 
+  const prefetchAllTrickplayImages = useCallback(() => {
+    if (!api || !enabled || !trickplayInfo || !item.Id || !item.RunTimeTicks) {
+      return;
+    }
+
+    const { data, resolution } = trickplayInfo;
+    const { Interval, TileWidth, TileHeight, Width, Height } = data;
+
+    if (
+      !Interval ||
+      !TileWidth ||
+      !TileHeight ||
+      !resolution ||
+      !Width ||
+      !Height
+    ) {
+      throw new Error("Invalid trickplay data");
+    }
+
+    // Calculate tiles per sheet
+    const tilesPerRow = TileWidth;
+    const tilesPerColumn = TileHeight;
+    const tilesPerSheet = tilesPerRow * tilesPerColumn;
+    const totalTiles = Math.ceil(ticksToMs(item.RunTimeTicks) / Interval);
+    const totalIndexes = Math.ceil(totalTiles / tilesPerSheet);
+
+    // Prefetch all trickplay images
+    for (let index = 0; index < totalIndexes; index++) {
+      const url = `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${index}.jpg?api_key=${api.accessToken}`;
+      Image.prefetch(url);
+    }
+  }, [trickplayInfo, item, api, enabled]);
+
   return {
     trickPlayUrl: enabled ? trickPlayUrl : null,
     calculateTrickplayUrl: enabled ? calculateTrickplayUrl : () => null,
+    prefetchAllTrickplayImages: enabled
+      ? prefetchAllTrickplayImages
+      : () => null,
     trickplayInfo: enabled ? trickplayInfo : null,
   };
 };
