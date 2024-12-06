@@ -113,10 +113,12 @@ export const Controls: React.FC<Props> = ({
   const insets = useSafeAreaInsets();
 
   const { previousItem, nextItem } = useAdjacentItems({ item });
-  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
-    item,
-    !offline && enableTrickplay
-  );
+  const {
+    trickPlayUrl,
+    calculateTrickplayUrl,
+    trickplayInfo,
+    prefetchAllTrickplayImages,
+  } = useTrickplay(item, !offline && enableTrickplay);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(0);
@@ -238,6 +240,10 @@ export const Controls: React.FC<Props> = ({
         : item.RunTimeTicks || 0;
     }
   }, [item, isVlc]);
+
+  useEffect(() => {
+    prefetchAllTrickplayImages();
+  }, []);
 
   const toggleControls = () => setShowControls(!showControls);
 
