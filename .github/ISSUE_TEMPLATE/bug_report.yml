@@ -45,9 +45,9 @@ body:
       label: Version
       description:  What version of Streamyfin are you running?
       options:
-        - 0.21.x
-        - 0.18.x
-        - 0.17.x
+        - 0.22.0
+        - 0.21.0
+        - older
     validations:
       required: true
 
