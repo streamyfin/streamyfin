@@ -344,9 +344,10 @@ export const Controls: React.FC<Props> = ({
           {
             position: "absolute",
             right: insets.right,
-            bottom: insets.bottom + 50,
+            bottom: insets.bottom + 55,
           },
         ]}
+        pointerEvents={showSkipButton ? "auto" : "none"}
         className={`z-10 p-4
             ${showSkipButton ? "opacity-100" : "opacity-0"}
           `}
@@ -561,10 +562,15 @@ export const Controls: React.FC<Props> = ({
             opacity: showControls ? 1 : 0,
           },
         ]}
-        pointerEvents={showControls ? "auto" : "none"}
+        pointerEvents={showControls ? "box-none" : "none"}
         className={`flex flex-col p-4`}
       >
-        <View className="shrink flex flex-col justify-center h-full mb-2">
+        <View
+          className="shrink flex flex-col justify-center h-full mb-2"
+          style={{
+            alignSelf: "flex-start",
+          }}
+        >
           <Text className="font-bold">{item?.Name}</Text>
           {item?.Type === "Episode" && (
             <Text className="opacity-50">{item.SeriesName}</Text>
@@ -577,7 +583,7 @@ export const Controls: React.FC<Props> = ({
           )}
         </View>
         <View
-          className={`flex flex-col-reverse py-4 pb-2 px-4 rounded-2xl items-center  bg-neutral-800`}
+          className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
         >
           <View className={`flex flex-col w-full shrink`}>
             <Slider
