@@ -15,6 +15,7 @@ class VlcPlayerView: ExpoView {
     private var isMediaReady: Bool = false
     private var externalTrack: [String: String]?
     private var progressTimer: DispatchSourceTimer?
+    private var isStopping: Bool = false  // Define isStopping here
 
     // MARK: - Initialization
 
@@ -50,8 +51,8 @@ class VlcPlayerView: ExpoView {
             self, selector: #selector(applicationWillResignActive),
             name: UIApplication.willResignActiveNotification, object: nil)
         NotificationCenter.default.addObserver(
-            self, selector: #selector(applicationWillEnterForeground),
-            name: UIApplication.willEnterForegroundNotification, object: nil)
+            self, selector: #selector(applicationDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     private func setupProgressTimer() {
@@ -259,8 +260,6 @@ class VlcPlayerView: ExpoView {
         print("Track not found for name: \(trackName)")
     }
 
-    private var isStopping: Bool = false
-
     @objc func stop(completion: (() -> Void)? = nil) {
         guard !isStopping else {
             completion?()
@@ -286,7 +285,7 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    @objc private func applicationWillEnterForeground() {
+    @objc private func applicationDidBecomeActive() {
         if !isPaused {
             play()
         }
