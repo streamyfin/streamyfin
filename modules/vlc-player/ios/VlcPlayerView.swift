@@ -5,7 +5,7 @@ import UIKit
 class VlcPlayerView: ExpoView {
     private var mediaPlayer: VLCMediaPlayer?
     private var videoView: UIView?
-    private var progressUpdateInterval: TimeInterval = 0.5
+    private var progressUpdateInterval: TimeInterval = 1.0  // Update interval set to 1 second
     private var isPaused: Bool = false
     private var currentGeometryCString: [CChar]?
     private var lastReportedState: VLCMediaPlayerState?
@@ -14,13 +14,15 @@ class VlcPlayerView: ExpoView {
     private var startPosition: Int32 = 0
     private var isMediaReady: Bool = false
     private var externalTrack: [String: String]?
+    private var progressTimer: DispatchSourceTimer?
 
     // MARK: - Initialization
 
     required init(appContext: AppContext? = nil) {
         super.init(appContext: appContext)
         setupView()
-        // setupNotifications()
+        setupNotifications()
+        setupProgressTimer()
     }
 
     // MARK: - Setup
@@ -52,22 +54,29 @@ class VlcPlayerView: ExpoView {
             name: UIApplication.willEnterForegroundNotification, object: nil)
     }
 
+    private func setupProgressTimer() {
+        progressTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
+        progressTimer?.schedule(deadline: .now(), repeating: progressUpdateInterval)
+        progressTimer?.setEventHandler { [weak self] in
+            self?.updateVideoProgress()
+        }
+        progressTimer?.resume()
+    }
+
     // MARK: - Public Methods
 
     @objc func play() {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.mediaPlayer?.play()
-            self.isPaused = false
+            self?.mediaPlayer?.play()
+            self?.isPaused = false
             print("Play")
         }
     }
 
     @objc func pause() {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.mediaPlayer?.pause()
-            self.isPaused = true
+            self?.mediaPlayer?.pause()
+            self?.isPaused = true
         }
     }
 
@@ -107,23 +116,20 @@ class VlcPlayerView: ExpoView {
             let mediaOptions = source["mediaOptions"] as? [String: Any] ?? [:]
             self.externalTrack = source["externalTrack"] as? [String: String]
             var initOptions = source["initOptions"] as? [Any] ?? []
-            startPosition = source["startPosition"] as? Int32 ?? 0
-            initOptions.append("--start-time=\(startPosition)")
+            self.startPosition = source["startPosition"] as? Int32 ?? 0
+            initOptions.append("--start-time=\(self.startPosition)")
 
-            let uri = source["uri"] as? String
-
-            let autoplay = source["autoplay"] as? Bool ?? false
-            let isNetwork = source["isNetwork"] as? Bool ?? false
-
-            guard let uri = uri, !uri.isEmpty else {
+            guard let uri = source["uri"] as? String, !uri.isEmpty else {
                 print("Error: Invalid or empty URI")
                 self.onVideoError?(["error": "Invalid or empty URI"])
                 return
             }
 
+            let autoplay = source["autoplay"] as? Bool ?? false
+            let isNetwork = source["isNetwork"] as? Bool ?? false
+
             self.onVideoLoadStart?(["target": self.reactTag ?? NSNull()])
             self.mediaPlayer = VLCMediaPlayer(options: initOptions)
-
             self.mediaPlayer?.delegate = self
             self.mediaPlayer?.drawable = self.videoView
             self.mediaPlayer?.scaleFactor = 0
@@ -134,14 +140,8 @@ class VlcPlayerView: ExpoView {
                 media = VLCMedia(url: URL(string: uri)!)
             } else {
                 print("Loading local file: \(uri)")
-                if uri.starts(with: "file://") {
-                    if let url = URL(string: uri) {
-                        media = VLCMedia(url: url)
-                    } else {
-                        print("Error: Invalid local file URL")
-                        self.onVideoError?(["error": "Invalid local file URL"])
-                        return
-                    }
+                if uri.starts(with: "file://"), let url = URL(string: uri) {
+                    media = VLCMedia(url: url)
                 } else {
                     media = VLCMedia(path: uri)
                 }
@@ -153,13 +153,7 @@ class VlcPlayerView: ExpoView {
             // Apply subtitle options
             let subtitleTrackIndex = source["subtitleTrackIndex"] as? Int ?? -1
             print("Debug: Subtitle track index from source: \(subtitleTrackIndex)")
-
-            if subtitleTrackIndex >= -1 {
-                self.setSubtitleTrack(subtitleTrackIndex)
-                print("Debug: Set subtitle track to index: \(subtitleTrackIndex)")
-            } else {
-                print("Debug: Subtitle track index is less than -1, not setting")
-            }
+            self.setSubtitleTrack(subtitleTrackIndex)
 
             self.mediaPlayer?.media = media
 
@@ -169,29 +163,6 @@ class VlcPlayerView: ExpoView {
             }
         }
     }
-
-    // TODO
-    // @objc func setMuted(_ muted: Bool) {
-    //     DispatchQueue.main.async {
-    //         self.mediaPlayer?.audio?.isMuted = muted
-    //     }
-    // }
-
-    // TODO
-    // @objc func setVolume(_ volume: Int) {
-    //     DispatchQueue.main.async {
-    //         self.mediaPlayer?.audio?.volume = Int32(volume)
-    //     }
-    // }
-
-    // TODO
-    // @objc func setVideoAspectRatio(_ ratio: String) {
-    //     DispatchQueue.main.async {
-    //         ratio.withCString { cString in
-    //             self.mediaPlayer?.videoAspectRatio = UnsafeMutablePointer(mutating: cString)
-    //         }
-    //     }
-    // }
 
     @objc func setAudioTrack(_ trackIndex: Int) {
         DispatchQueue.main.async {
@@ -211,55 +182,13 @@ class VlcPlayerView: ExpoView {
         }
     }
 
-    // @objc func getAudioTracks(
-    //     _ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock
-    // ) {
-    //     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-    //         guard let self = self, let mediaPlayer = self.mediaPlayer else {
-    //             DispatchQueue.main.async {
-    //                 reject("ERROR", "Media player not available", nil)
-    //             }
-    //             return
-    //         }
-
-    //         guard let trackNames = mediaPlayer.audioTrackNames,
-    //             let trackIndexes = mediaPlayer.audioTrackIndexes
-    //         else {
-    //             DispatchQueue.main.async {
-    //                 reject("ERROR", "No audio tracks available", nil)
-    //             }
-    //             return
-    //         }
-
-    //         let tracks = zip(trackNames, trackIndexes).map { name, index in
-    //             return ["name": name, "index": index]
-    //         }
-
-    //         DispatchQueue.main.async {
-    //             resolve(tracks)
-    //         }
-    //     }
-    // }
-
     @objc func setSubtitleTrack(_ trackIndex: Int) {
         print("Debug: Attempting to set subtitle track to index: \(trackIndex)")
         DispatchQueue.main.async {
-            if trackIndex == -1 {
-                print("Debug: Disabling subtitles")
-                // Disable subtitles
-                self.mediaPlayer?.currentVideoSubTitleIndex = -1
-            } else {
-                print("Debug: Setting subtitle track to index: \(trackIndex)")
-                // Set the subtitle track
-                self.mediaPlayer?.currentVideoSubTitleIndex = Int32(trackIndex)
-            }
-
-            // Print the result
-            if let currentIndex = self.mediaPlayer?.currentVideoSubTitleIndex {
-                print("Debug: Current subtitle track index after setting: \(currentIndex)")
-            } else {
-                print("Debug: Unable to retrieve current subtitle track index")
-            }
+            self.mediaPlayer?.currentVideoSubTitleIndex = Int32(trackIndex)
+            print(
+                "Debug: Current subtitle track index after setting: \(self.mediaPlayer?.currentVideoSubTitleIndex ?? -1)"
+            )
         }
     }
 
@@ -330,133 +259,6 @@ class VlcPlayerView: ExpoView {
         print("Track not found for name: \(trackName)")
     }
 
-    // @objc func getSubtitleTracks(
-    //     _ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock
-    // ) {
-    //     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-    //         guard let self = self, let mediaPlayer = self.mediaPlayer else {
-    //             DispatchQueue.main.async {
-    //                 reject("ERROR", "Media player not available", nil)
-    //             }
-    //             return
-    //         }
-
-    //         let count = mediaPlayer.numberOfSubtitlesTracks
-    //         guard count > 0 else {
-    //             DispatchQueue.main.async {
-    //                 reject("ERROR", "No subtitle tracks available", nil)
-    //             }
-    //             return
-    //         }
-
-    //         var tracks: [[String: Any]] = [["name": "Disabled", "index": -1]]
-
-    //         if let names = mediaPlayer.videoSubTitlesNames as? [String],
-    //             let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
-    //         {
-    //             for (index, name) in zip(indexes, names) {
-    //                 tracks.append(["name": name, "index": index.intValue])
-    //             }
-    //         }
-
-    //         DispatchQueue.main.async {
-    //             resolve(tracks)
-    //         }
-    //     }
-    // }
-
-    // TODO
-    // @objc func setSubtitleDelay(_ delay: Int) {
-    //     DispatchQueue.main.async {
-    //         self.mediaPlayer?.currentVideoSubTitleDelay = NSInteger(delay)
-    //     }
-    // }
-
-    // TODO
-    // @objc func setAudioDelay(_ delay: Int) {
-    //     DispatchQueue.main.async {
-    //         self.mediaPlayer?.currentAudioPlaybackDelay = NSInteger(delay)
-    //     }
-    // }
-
-    // TODO
-    // @objc func takeSnapshot(_ path: String, width: Int, height: Int) {
-    //     DispatchQueue.main.async { [weak self] in
-    //         guard let self = self else { return }
-    //         self.mediaPlayer?.saveVideoSnapshot(
-    //             at: path, withWidth: Int32(width), andHeight: Int32(height))
-    //     }
-    // }
-
-    // TODO
-    // @objc func setVideoCropGeometry(_ geometry: String?) {
-    //     DispatchQueue.main.async {
-    //         if let geometry = geometry, !geometry.isEmpty {
-    //             self.currentGeometryCString = geometry.cString(using: .utf8)
-    //             self.currentGeometryCString?.withUnsafeMutableBufferPointer { buffer in
-    //                 self.mediaPlayer?.videoCropGeometry = buffer.baseAddress
-    //             }
-    //         } else {
-    //             self.currentGeometryCString = nil
-    //             self.mediaPlayer?.videoCropGeometry = nil
-    //         }
-    //     }
-    // }
-
-    // TODO
-    // @objc func getVideoCropGeometry() -> String? {
-    //     guard let cString = mediaPlayer?.videoCropGeometry else {
-    //         return nil
-    //     }
-    //     return String(cString: cString)
-    // }
-
-    // TODO
-    // @objc func setRate(_ rate: Float) {
-    //     DispatchQueue.main.async {
-    //         self.mediaPlayer?.rate = rate
-    //     }
-    // }
-
-    // TODO
-    // @objc func nextChapter() {
-    //     DispatchQueue.main.async {
-    //         self.mediaPlayer?.nextChapter()
-    //     }
-    // }
-
-    // TODO
-    // @objc func previousChapter() {
-    //     DispatchQueue.main.async {
-    //         self.mediaPlayer?.previousChapter()
-    //     }
-    // }
-
-    // TODO
-    // @objc func getChapters() -> [[String: Any]]? {
-    //     guard let currentTitleIndex = mediaPlayer?.currentTitleIndex,
-    //         let chapters = mediaPlayer?.chapterDescriptions(ofTitle: currentTitleIndex)
-    //             as? [[String: Any]]
-    //     else {
-    //         return nil
-    //     }
-
-    //     return chapters.compactMap { chapter in
-    //         guard let name = chapter[VLCChapterDescriptionName] as? String,
-    //             let timeOffset = chapter[VLCChapterDescriptionTimeOffset] as? NSNumber,
-    //             let duration = chapter[VLCChapterDescriptionDuration] as? NSNumber
-    //         else {
-    //             return nil
-    //         }
-
-    //         return [
-    //             "name": name,
-    //             "timeOffset": timeOffset.doubleValue,
-    //             "duration": duration.doubleValue,
-    //         ]
-    //     }
-    // }
-
     private var isStopping: Bool = false
 
     @objc func stop(completion: (() -> Void)? = nil) {
@@ -509,42 +311,30 @@ class VlcPlayerView: ExpoView {
         completion?()
     }
 
-    private func getSubtitleOptions() -> [String: Any] {
-        return [
-            // Text scaling (100 is default, increase for larger text)
-            "sub-text-scale": "105",
+    private func updateVideoProgress() {
+        guard let player = self.mediaPlayer else { return }
 
-            // Text color (RRGGBB format, 16777215 is white)
-            "freetype-color": "16777215",
+        let currentTimeMs = player.time.intValue
+        let durationMs = player.media?.length.intValue ?? 0
 
-            // Outline thickness (reduced from 2 to 1 for less border)
-            "freetype-outline-thickness": "1",
-
-            // Outline color (RRGGBB format, 0 is black)
-            "freetype-outline-color": "0",
-
-            // Text opacity (0-255, 255 is fully opaque)
-            "freetype-opacity": "255",
-
-            // Shadow opacity (increased from 128 to 180 for more shadow)
-            "freetype-shadow-opacity": "180",
-
-            // Shadow offset (increased from 2 to 3 for more pronounced shadow)
-            "freetype-shadow-offset": "3",
-
-            // Text alignment (0: center, 1: left, 2: right)
-            "sub-text-alignment": "0",
-
-            // Vertical margin (from bottom of the screen, in pixels)
-            "sub-margin-bottom": "50",
-
-            // Background opacity (0-255, 0 for no background)
-            "freetype-background-opacity": "64",
-
-            // Background color (RRGGBB format)
-            "freetype-background-color": "0",
-        ]
+        if currentTimeMs >= 0 && currentTimeMs < durationMs {
+            if player.isPlaying && !self.isMediaReady {
+                self.isMediaReady = true
+                // Set external track subtitle when starting.
+                if let externalTrack = self.externalTrack {
+                    if let name = externalTrack["name"], !name.isEmpty {
+                        let deliveryUrl = externalTrack["DeliveryUrl"] ?? ""
+                        self.setSubtitleURL(deliveryUrl, name: name)
+                    }
+                }
+            }
+            self.onVideoProgress?([
+                "currentTime": currentTimeMs,
+                "duration": durationMs,
+            ])
+        }
     }
+
     // MARK: - Expo Events
 
     @objc var onPlaybackStateChanged: RCTDirectEventBlock?
@@ -558,120 +348,64 @@ class VlcPlayerView: ExpoView {
 
     deinit {
         performStop()
+        progressTimer?.cancel()
     }
 }
 
 extension VlcPlayerView: VLCMediaPlayerDelegate {
     func mediaPlayerStateChanged(_ aNotification: Notification) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.updatePlayerState()
-        }
+        self.updatePlayerState()
     }
 
     private func updatePlayerState() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self, let player = self.mediaPlayer else { return }
-            let currentState = player.state
+        guard let player = self.mediaPlayer else { return }
+        let currentState = player.state
 
-            var stateInfo: [String: Any] = [
-                "target": self.reactTag ?? NSNull(),
-                "currentTime": player.time.intValue,
-                "duration": player.media?.length.intValue ?? 0,
-                "error": false,
-            ]
+        var stateInfo: [String: Any] = [
+            "target": self.reactTag ?? NSNull(),
+            "currentTime": player.time.intValue,
+            "duration": player.media?.length.intValue ?? 0,
+            "error": false,
+        ]
 
-            if player.isPlaying {
-                stateInfo["isPlaying"] = true
-                stateInfo["isBuffering"] = false
-                stateInfo["state"] = "Playing"
-            } else {
-                stateInfo["isPlaying"] = false
-                stateInfo["state"] = "Paused"
-            }
-
-            if player.state == VLCMediaPlayerState.buffering {
-                stateInfo["isBuffering"] = true
-                stateInfo["state"] = "Buffering"
-            } else if player.state == VLCMediaPlayerState.error {
-                print("player.state ~ error")
-                stateInfo["state"] = "Error"
-                self.onVideoLoadEnd?(stateInfo)
-            } else if player.state == VLCMediaPlayerState.opening {
-                print("player.state ~ opening")
-                stateInfo["state"] = "Opening"
-            }
-
-            if self.lastReportedState != currentState
-                || self.lastReportedIsPlaying != player.isPlaying
-            {
-                self.lastReportedState = currentState
-                self.lastReportedIsPlaying = player.isPlaying
-                self.onVideoStateChange?(stateInfo)
-            }
+        if player.isPlaying {
+            stateInfo["isPlaying"] = true
+            stateInfo["isBuffering"] = false
+            stateInfo["state"] = "Playing"
+        } else {
+            stateInfo["isPlaying"] = false
+            stateInfo["state"] = "Paused"
         }
+
+        if player.state == VLCMediaPlayerState.buffering {
+            stateInfo["isBuffering"] = true
+            stateInfo["state"] = "Buffering"
+        } else if player.state == VLCMediaPlayerState.error {
+            print("player.state ~ error")
+            stateInfo["state"] = "Error"
+            self.onVideoLoadEnd?(stateInfo)
+        } else if player.state == VLCMediaPlayerState.opening {
+            print("player.state ~ opening")
+            stateInfo["state"] = "Opening"
+        }
+
+        if self.lastReportedState != currentState
+            || self.lastReportedIsPlaying != player.isPlaying
+        {
+            self.lastReportedState = currentState
+            self.lastReportedIsPlaying = player.isPlaying
+            self.onVideoStateChange?(stateInfo)
+        }
+
     }
-
-    // func seekToStartTime() {
-    //     DispatchQueue.main.async { [weak self] in
-    //         guard let self = self, let player = self.mediaPlayer else { return }
-
-    //         if let startPosition = self.startPosition, startPosition > 0 {
-    //             print("Debug: Seeking to start position: \(startPosition)")
-    //             player.time = VLCTime(int: Int32(startPosition))
-
-    //             // Ensure the player continues playing after seeking
-    //             if !player.isPlaying {
-    //                 player.play()
-    //             }
-    //         }
-    //     }
-    // }
 
     func mediaPlayerTimeChanged(_ aNotification: Notification) {
-        DispatchQueue.main.async { [weak self] in
-            self?.updateVideoProgress()
-        }
-    }
-
-    private func updateVideoProgress() {
-        DispatchQueue.main.async {
-            guard let player = self.mediaPlayer else { return }
-
-            let currentTimeMs = player.time.intValue
-            let durationMs = player.media?.length.intValue ?? 0
-
-            if currentTimeMs >= 0 && currentTimeMs < durationMs {
-                if player.isPlaying && !self.isMediaReady {
-                    self.isMediaReady = true
-                    // Set external track subtitle when starting.
-                    if let externalTrack = self.externalTrack {
-                        if let name = externalTrack["name"] as? String, !name.isEmpty {
-                            let deliveryUrl = externalTrack["DeliveryUrl"] as? String ?? ""
-                            self.setSubtitleURL(deliveryUrl, name: name)
-                        }
-                    }
-                }
-                self.onVideoProgress?([
-                    "currentTime": currentTimeMs,
-                    "duration": durationMs,
-                ])
-            }
-        }
+        // No need to call updateVideoProgress here as it's handled by the timer
     }
 }
 
 extension VlcPlayerView: VLCMediaDelegate {
-    // func mediaMetaDataDidChange(_ aMedia: VLCMedia) {
-    //     // Implement if needed
-    // }
-
-    // func mediaDidFinishParsing(_ aMedia: VLCMedia) {
-    //     DispatchQueue.main.async {
-    //         let duration = aMedia.length.intValue
-    //         self.onVideoStateChange?(["type": "MediaParsed", "duration": duration])
-    //     }
-    // }
+    // Implement VLCMediaDelegate methods if needed
 }
 
 extension VLCMediaPlayerState {
