@@ -9,7 +9,9 @@ class VlcPlayerModule : Module() {
 
     View(VlcPlayerView::class) {
       Prop("source") { view: VlcPlayerView, source: Map<String, Any> ->
-        view.setSource(source)
+        if (!view.hasSource) {
+          view.setSource(source)
+        }
       }
 
       Prop("paused") { view: VlcPlayerView, paused: Boolean ->

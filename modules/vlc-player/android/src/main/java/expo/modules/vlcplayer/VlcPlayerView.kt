@@ -32,6 +32,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var startPosition: Int? = 0
     private var isMediaReady: Boolean = false
     private var externalTrack: Map<String, String>? = null
+    var hasSource: Boolean = false
 
     init {
         setupView()
@@ -87,6 +88,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         //     Log.d("VlcPlayerView", "Debug: Subtitle track index is less than -1, not setting")
         // }
 
+        hasSource = true
 
         if (autoplay) {
             Log.d("VlcPlayerView", "Playing...")
