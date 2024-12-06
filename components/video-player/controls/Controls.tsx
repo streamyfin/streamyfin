@@ -51,6 +51,7 @@ import * as Haptics from "expo-haptics";
 import DropdownViewDirect from "./dropdown/DropdownViewDirect";
 import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import BrightnessSlider from "./BrightnessSlider";
+import SkipButton from "./SkipButton";
 
 interface Props {
   item: BaseItemDto;
@@ -339,60 +340,6 @@ export const Controls: React.FC<Props> = ({
         )}
       </VideoProvider>
 
-      <View
-        style={[
-          {
-            position: "absolute",
-            right: insets.right,
-            bottom: insets.bottom + 55,
-          },
-        ]}
-        pointerEvents={showSkipButton ? "auto" : "none"}
-        className={`z-10 p-4
-            ${showSkipButton ? "opacity-100" : "opacity-0"}
-          `}
-      >
-        <TouchableOpacity
-          onPress={skipIntro}
-          style={{
-            backgroundColor: "rgba(0, 0, 0, 0.75)", // Adjusted background color
-            borderRadius: 5, // Adjusted border radius
-            paddingHorizontal: 10,
-            paddingVertical: 15,
-            borderWidth: 2,
-            borderColor: "#5A5454",
-          }}
-        >
-          <Text className="text-white font-bold">Skip Intro</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View
-        style={{
-          position: "absolute",
-          right: insets.right,
-          bottom: insets.bottom + 50,
-        }}
-        pointerEvents={showSkipCreditButton ? "auto" : "none"}
-        className={`z-10 p-4 ${
-          showSkipCreditButton ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <TouchableOpacity
-          onPress={skipCredit}
-          style={{
-            backgroundColor: "rgba(0, 0, 0, 0.75)", // Adjusted background color
-            borderRadius: 5, // Adjusted border radius
-            paddingHorizontal: 10,
-            paddingVertical: 15,
-            borderWidth: 2,
-            borderColor: "#5A5454",
-          }}
-        >
-          <Text className="text-white font-bold">Skip Credits</Text>
-        </TouchableOpacity>
-      </View>
-
       <Pressable
         onPressIn={() => {
           toggleControls();
@@ -568,19 +515,45 @@ export const Controls: React.FC<Props> = ({
         <View
           className="shrink flex flex-col justify-center h-full mb-2"
           style={{
-            alignSelf: "flex-start",
+            flexDirection: "row",
+            justifyContent: "space-between",
           }}
         >
-          <Text className="font-bold">{item?.Name}</Text>
-          {item?.Type === "Episode" && (
-            <Text className="opacity-50">{item.SeriesName}</Text>
-          )}
-          {item?.Type === "Movie" && (
-            <Text className="text-xs opacity-50">{item?.ProductionYear}</Text>
-          )}
-          {item?.Type === "Audio" && (
-            <Text className="text-xs opacity-50">{item?.Album}</Text>
-          )}
+          <View
+            style={{
+              flexDirection: "column",
+              alignSelf: "flex-end", // Shrink height based on content
+            }}
+          >
+            <Text className="font-bold">{item?.Name}</Text>
+            {item?.Type === "Episode" && (
+              <Text className="opacity-50">{item.SeriesName}</Text>
+            )}
+            {item?.Type === "Movie" && (
+              <Text className="text-xs opacity-50">{item?.ProductionYear}</Text>
+            )}
+            {item?.Type === "Audio" && (
+              <Text className="text-xs opacity-50">{item?.Album}</Text>
+            )}
+          </View>
+          <View
+            style={{
+              flexDirection: "column",
+              alignSelf: "flex-end",
+              marginRight: insets.right,
+            }}
+          >
+            <SkipButton
+              showButton={showSkipButton}
+              onPress={skipIntro}
+              buttonText="Skip Intro"
+            />
+            <SkipButton
+              showButton={showSkipCreditButton}
+              onPress={skipCredit}
+              buttonText="Skip Credits"
+            />
+          </View>
         </View>
         <View
           className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
