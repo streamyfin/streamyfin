@@ -16,6 +16,7 @@ class VlcPlayerView: ExpoView {
     private var externalTrack: [String: String]?
     private var progressTimer: DispatchSourceTimer?
     private var isStopping: Bool = false  // Define isStopping here
+    var hasSource = false
 
     // MARK: - Initialization
 
@@ -157,6 +158,7 @@ class VlcPlayerView: ExpoView {
             self.setSubtitleTrack(subtitleTrackIndex)
 
             self.mediaPlayer?.media = media
+            hasSource = true
 
             if autoplay {
                 print("Playing...")
@@ -280,15 +282,11 @@ class VlcPlayerView: ExpoView {
     // MARK: - Private Methods
 
     @objc private func applicationWillResignActive() {
-        if !isPaused {
-            pause()
-        }
+
     }
 
     @objc private func applicationDidBecomeActive() {
-        if !isPaused {
-            play()
-        }
+
     }
 
     private func performStop(completion: (() -> Void)? = nil) {
