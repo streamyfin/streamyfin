@@ -1,6 +1,8 @@
 package expo.modules.vlcplayer
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -33,6 +35,15 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var isMediaReady: Boolean = false
     private var externalTrack: Map<String, String>? = null
     var hasSource: Boolean = false
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val updateInterval = 1000L // 1 second
+    private val updateProgressRunnable = object : Runnable {
+        override fun run() {
+            updateVideoProgress()
+            handler.postDelayed(this, updateInterval)
+        }
+    }
 
     init {
         setupView()
@@ -99,15 +110,18 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun play() {
         mediaPlayer?.play()
         isPaused = false
+        handler.post(updateProgressRunnable) // Start updating progress
     }
 
     fun pause() {
         mediaPlayer?.pause()
         isPaused = true
+        handler.removeCallbacks(updateProgressRunnable) // Stop updating progress
     }
 
     fun stop() {
         mediaPlayer?.stop()
+        handler.removeCallbacks(updateProgressRunnable) // Stop updating progress
     }
 
     fun seekTo(time: Int) {
@@ -172,6 +186,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         println("onDetachedFromWindow")
         super.onDetachedFromWindow()
         mediaPlayer?.stop()
+        handler.removeCallbacks(updateProgressRunnable) // Stop updating progress
 
         media?.release()
         mediaPlayer?.release()
@@ -189,7 +204,9 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             MediaPlayer.Event.Buffering,
             MediaPlayer.Event.EndReached,
             MediaPlayer.Event.EncounteredError -> updatePlayerState(event)
-            MediaPlayer.Event.TimeChanged -> updateVideoProgress()
+            MediaPlayer.Event.TimeChanged -> {
+                // Do nothing here, as we are updating progress every 1 second
+            }
         }
     }
 
