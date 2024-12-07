@@ -52,6 +52,7 @@ import DropdownViewDirect from "./dropdown/DropdownViewDirect";
 import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import BrightnessSlider from "./BrightnessSlider";
 import SkipButton from "./SkipButton";
+import { debounce } from "lodash";
 
 interface Props {
   item: BaseItemDto;
@@ -245,13 +246,25 @@ export const Controls: React.FC<Props> = ({
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, []);
-
   const toggleControls = () => setShowControls(!showControls);
 
+  const handleSliderStart = useCallback(() => {
+    if (showControls === false) return;
+
+    setIsSliding(true);
+    wasPlayingRef.current = isPlaying;
+    lastProgressRef.current = progress.value;
+
+    pause();
+    isSeeking.value = true;
+  }, [showControls, isPlaying]);
+
+  const [isSliding, setIsSliding] = useState(false);
   const handleSliderComplete = useCallback(
     async (value: number) => {
       isSeeking.value = false;
       progress.value = value;
+      setIsSliding(false);
 
       await seek(
         Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value)))
@@ -262,27 +275,20 @@ export const Controls: React.FC<Props> = ({
   );
 
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const handleSliderChange = useCallback(
+    debounce((value: number) => {
+      const progressInTicks = msToTicks(value);
+      console.log("Progress in ticks", progressInTicks);
+      calculateTrickplayUrl(progressInTicks);
 
-  const handleSliderChange = (value: number) => {
-    const progressInTicks = isVlc ? msToTicks(value) : value;
-    calculateTrickplayUrl(progressInTicks);
-
-    const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
-    const hours = Math.floor(progressInSeconds / 3600);
-    const minutes = Math.floor((progressInSeconds % 3600) / 60);
-    const seconds = progressInSeconds % 60;
-    setTime({ hours, minutes, seconds });
-  };
-
-  const handleSliderStart = useCallback(() => {
-    if (showControls === false) return;
-
-    wasPlayingRef.current = isPlaying;
-    lastProgressRef.current = progress.value;
-
-    pause();
-    isSeeking.value = true;
-  }, [showControls, isPlaying]);
+      const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
+      const hours = Math.floor(progressInSeconds / 3600);
+      const minutes = Math.floor((progressInSeconds % 3600) / 60);
+      const seconds = progressInSeconds % 60;
+      setTime({ hours, minutes, seconds });
+    }, 20), // 100ms debounce delay
+    []
+  );
 
   const handleSkipBackward = useCallback(async () => {
     if (!settings?.rewindSkipTime) return;
@@ -325,6 +331,71 @@ export const Controls: React.FC<Props> = ({
     setIgnoreSafeAreas((prev) => !prev);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
+
+  const memoizedRenderBubble = useCallback(() => {
+    if (!trickPlayUrl || !trickplayInfo) {
+      return null;
+    }
+    const { x, y, url } = trickPlayUrl;
+    const tileWidth = 150;
+    const tileHeight = 150 / trickplayInfo.aspectRatio!;
+
+    console.log("time, ", time);
+
+    return (
+      <View
+        style={{
+          position: "absolute",
+          left: -57,
+          bottom: 15,
+          paddingTop: 30,
+          paddingBottom: 5,
+          width: tileWidth * 1.5,
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            width: tileWidth,
+            height: tileHeight,
+            alignSelf: "center",
+            transform: [{ scale: 1.4 }],
+            borderRadius: 5,
+          }}
+          className="bg-neutral-800 overflow-hidden"
+        >
+          <Image
+            cachePolicy={"memory-disk"}
+            style={{
+              width: 150 * trickplayInfo?.data.TileWidth!,
+              height:
+                (150 / trickplayInfo.aspectRatio!) *
+                trickplayInfo?.data.TileHeight!,
+              transform: [
+                { translateX: -x * tileWidth },
+                { translateY: -y * tileHeight },
+              ],
+              resizeMode: "cover",
+            }}
+            source={{ uri: url }}
+            contentFit="cover"
+          />
+        </View>
+        <Text
+          style={{
+            marginTop: 30,
+            fontSize: 16,
+          }}
+        >
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${
+            time.minutes < 10 ? `0${time.minutes}` : time.minutes
+          }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
+        </Text>
+      </View>
+    );
+  }, [trickPlayUrl, trickplayInfo, time]);
 
   return (
     <ControlProvider
@@ -594,69 +665,7 @@ export const Controls: React.FC<Props> = ({
               containerStyle={{
                 borderRadius: 100,
               }}
-              renderBubble={() => {
-                if (!trickPlayUrl || !trickplayInfo) {
-                  return null;
-                }
-                const { x, y, url } = trickPlayUrl;
-                const tileWidth = 150;
-                const tileHeight = 150 / trickplayInfo.aspectRatio!;
-                return (
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: -57,
-                      bottom: 15,
-                      paddingTop: 30,
-                      paddingBottom: 5,
-                      width: tileWidth * 1.5, // Adjust the width of the outer container if needed
-                      backgroundColor: "rgba(0, 0, 0, 0.6)", // Outer box background color (optional)
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: tileWidth,
-                        height: tileHeight,
-                        alignSelf: "center",
-                        transform: [{ scale: 1.4 }],
-                        borderRadius: 5, // Optional border radius
-                      }}
-                      className=" bg-neutral-800 overflow-hidden"
-                    >
-                      <Image
-                        cachePolicy={"memory-disk"}
-                        style={{
-                          width: 150 * trickplayInfo?.data.TileWidth!,
-                          height:
-                            (150 / trickplayInfo.aspectRatio!) *
-                            trickplayInfo?.data.TileHeight!,
-                          transform: [
-                            { translateX: -x * tileWidth },
-                            { translateY: -y * tileHeight },
-                          ],
-                          resizeMode: "cover",
-                        }}
-                        source={{ uri: url }}
-                        contentFit="cover"
-                      />
-                    </View>
-                    <Text
-                      style={{
-                        marginTop: 30,
-                        fontSize: 16,
-                      }}
-                    >
-                      {`${time.hours > 0 ? `${time.hours}:` : ""}${
-                        time.minutes < 10 ? `0${time.minutes}` : time.minutes
-                      }:${
-                        time.seconds < 10 ? `0${time.seconds}` : time.seconds
-                      }`}
-                    </Text>
-                  </View>
-                );
-              }}
+              renderBubble={() => isSliding && memoizedRenderBubble()}
               sliderHeight={10}
               thumbWidth={0}
               progress={progress}
