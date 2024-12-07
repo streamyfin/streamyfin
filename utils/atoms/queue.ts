@@ -27,14 +27,17 @@ export const queueActions = {
     setProcessing: (processing: boolean) => void
   ) => {
     const [job, ...rest] = queue;
-    setQueue(rest);
 
     console.info("Processing job", job);
 
     setProcessing(true);
 
-    // Excute the function assiociated with the job.
-    await job.execute();
+    // Allow job to execute so that it gets added as a processes first BEFORE updating new queue
+    try {
+      await job.execute();
+    } finally {
+      setQueue(rest);
+    }
 
     console.info("Job done", job);
 
@@ -56,7 +59,7 @@ export const useJobProcessor = () => {
   const [settings] = useSettings();
 
   useEffect(() => {
-    if (queue.length > 0 && settings && processes.length < settings?.remuxConcurrentLimit) {
+    if (!running && queue.length > 0 && settings && processes.length < settings?.remuxConcurrentLimit) {
       console.info("Processing queue", queue);
       queueActions.processJob(queue, setQueue, setRunning);
     }
