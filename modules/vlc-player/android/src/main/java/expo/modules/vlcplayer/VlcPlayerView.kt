@@ -1,6 +1,8 @@
 package expo.modules.vlcplayer
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -32,6 +34,16 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var startPosition: Int? = 0
     private var isMediaReady: Boolean = false
     private var externalTrack: Map<String, String>? = null
+    var hasSource: Boolean = false
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val updateInterval = 1000L // 1 second
+    private val updateProgressRunnable = object : Runnable {
+        override fun run() {
+            updateVideoProgress()
+            handler.postDelayed(this, updateInterval)
+        }
+    }
 
     init {
         setupView()
@@ -48,6 +60,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun setSource(source: Map<String, Any>) {
+        if (hasSource) {
+            mediaPlayer?.attachViews(videoLayout, null, false, false)
+            play()
+            return
+        }
         val mediaOptions = source["mediaOptions"] as? Map<String, Any> ?: emptyMap()
         val autoplay = source["autoplay"] as? Boolean ?: false
         val isNetwork = source["isNetwork"] as? Boolean ?: false
@@ -87,6 +104,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         //     Log.d("VlcPlayerView", "Debug: Subtitle track index is less than -1, not setting")
         // }
 
+        hasSource = true
 
         if (autoplay) {
             Log.d("VlcPlayerView", "Playing...")
@@ -97,15 +115,18 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun play() {
         mediaPlayer?.play()
         isPaused = false
+        handler.post(updateProgressRunnable) // Start updating progress
     }
 
     fun pause() {
         mediaPlayer?.pause()
         isPaused = true
+        handler.removeCallbacks(updateProgressRunnable) // Stop updating progress
     }
 
     fun stop() {
         mediaPlayer?.stop()
+        handler.removeCallbacks(updateProgressRunnable) // Stop updating progress
     }
 
     fun seekTo(time: Int) {
@@ -170,6 +191,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         println("onDetachedFromWindow")
         super.onDetachedFromWindow()
         mediaPlayer?.stop()
+        handler.removeCallbacks(updateProgressRunnable) // Stop updating progress
 
         media?.release()
         mediaPlayer?.release()
@@ -187,7 +209,9 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             MediaPlayer.Event.Buffering,
             MediaPlayer.Event.EndReached,
             MediaPlayer.Event.EncounteredError -> updatePlayerState(event)
-            MediaPlayer.Event.TimeChanged -> updateVideoProgress()
+            MediaPlayer.Event.TimeChanged -> {
+                // Do nothing here, as we are updating progress every 1 second
+            }
         }
     }
 
@@ -241,7 +265,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val currentTimeMs = player.time.toInt()
         val durationMs = player.media?.duration?.toInt() ?: 0
-
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
             // Set subtitle URL if available
             if (player.isPlaying && !isMediaReady) {

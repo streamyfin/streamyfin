@@ -30,8 +30,20 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useGlobalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, BackHandler, View } from "react-native";
+import React, {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
+import {
+  Alert,
+  BackHandler,
+  View,
+  AppState,
+  AppStateStatus,
+} from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import settings from "../(tabs)/(home)/settings";
 import { useSettings } from "@/utils/atoms/settings";
@@ -359,6 +371,36 @@ export default function page() {
       };
     }, [])
   );
+
+  const [appState, setAppState] = useState(AppState.currentState);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (appState.match(/inactive|background/) && nextAppState === "active") {
+        console.log("App has come to the foreground!");
+        // Handle app coming to the foreground
+      } else if (nextAppState.match(/inactive|background/)) {
+        console.log("App has gone to the background!");
+        // Handle app going to the background
+        if (videoRef.current && videoRef.current.pause) {
+          videoRef.current.pause();
+        }
+      }
+      setAppState(nextAppState);
+    };
+
+    // Use AppState.addEventListener and return a cleanup function
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+
+    return () => {
+      // Cleanup the event listener when the component is unmounted
+      subscription.remove();
+    };
+  }, [appState]);
+
   // Preselection of audio and subtitle tracks.
 
   if (!settings) return null;

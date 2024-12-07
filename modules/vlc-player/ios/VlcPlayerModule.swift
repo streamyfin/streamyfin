@@ -5,7 +5,9 @@ public class VlcPlayerModule: Module {
         Name("VlcPlayer")
         View(VlcPlayerView.self) {
             Prop("source") { (view: VlcPlayerView, source: [String: Any]) in
-                view.setSource(source)
+                if !view.hasSource {
+                    view.setSource(source)
+                }
             }
 
             Prop("paused") { (view: VlcPlayerView, paused: Bool) in
