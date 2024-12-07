@@ -16,6 +16,7 @@ class VlcPlayerView: ExpoView {
     private var externalTrack: [String: String]?
     private var progressTimer: DispatchSourceTimer?
     private var isStopping: Bool = false  // Define isStopping here
+    private var lastProgressCall = Date().timeIntervalSince1970
     var hasSource = false
 
     // MARK: - Initialization
@@ -24,7 +25,6 @@ class VlcPlayerView: ExpoView {
         super.init(appContext: appContext)
         setupView()
         setupNotifications()
-        setupProgressTimer()
     }
 
     // MARK: - Setup
@@ -56,15 +56,6 @@ class VlcPlayerView: ExpoView {
             name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
-    private func setupProgressTimer() {
-        progressTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
-        progressTimer?.schedule(deadline: .now(), repeating: progressUpdateInterval)
-        progressTimer?.setEventHandler { [weak self] in
-            self?.updateVideoProgress()
-        }
-        progressTimer?.resume()
-    }
-
     // MARK: - Public Methods
 
     @objc func play() {
@@ -88,7 +79,7 @@ class VlcPlayerView: ExpoView {
 
             let wasPlaying = player.isPlaying
             if wasPlaying {
-                player.pause()
+                self.pause()
             }
 
             if let duration = player.media?.length.intValue {
@@ -101,7 +92,7 @@ class VlcPlayerView: ExpoView {
                 // Wait for a short moment to ensure the seek has been processed
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     if wasPlaying {
-                        player.play()
+                        self.play()
                     }
                     self.updatePlayerState()
                 }
@@ -114,6 +105,9 @@ class VlcPlayerView: ExpoView {
     @objc func setSource(_ source: [String: Any]) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            if self.hasSource {
+                return
+            }
 
             let mediaOptions = source["mediaOptions"] as? [String: Any] ?? [:]
             self.externalTrack = source["externalTrack"] as? [String: String]
@@ -158,7 +152,7 @@ class VlcPlayerView: ExpoView {
             self.setSubtitleTrack(subtitleTrackIndex)
 
             self.mediaPlayer?.media = media
-            hasSource = true
+            self.hasSource = true
 
             if autoplay {
                 print("Playing...")
@@ -314,6 +308,7 @@ class VlcPlayerView: ExpoView {
         let currentTimeMs = player.time.intValue
         let durationMs = player.media?.length.intValue ?? 0
 
+        print("Debug: Current time: \(currentTimeMs)")
         if currentTimeMs >= 0 && currentTimeMs < durationMs {
             if player.isPlaying && !self.isMediaReady {
                 self.isMediaReady = true
@@ -345,11 +340,19 @@ class VlcPlayerView: ExpoView {
 
     deinit {
         performStop()
-        progressTimer?.cancel()
     }
 }
 
 extension VlcPlayerView: VLCMediaPlayerDelegate {
+    func mediaPlayerTimeChanged(_ aNotification: Notification) {
+        // self?.updateVideoProgress()
+        let timeNow = Date().timeIntervalSince1970
+        if timeNow - lastProgressCall >= 1 {
+            lastProgressCall = timeNow
+            updateVideoProgress()
+        }
+    }
+
     func mediaPlayerStateChanged(_ aNotification: Notification) {
         self.updatePlayerState()
     }
@@ -394,10 +397,6 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
             self.onVideoStateChange?(stateInfo)
         }
 
-    }
-
-    func mediaPlayerTimeChanged(_ aNotification: Notification) {
-        // No need to call updateVideoProgress here as it's handled by the timer
     }
 }
 
