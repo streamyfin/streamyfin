@@ -265,7 +265,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val currentTimeMs = player.time.toInt()
         val durationMs = player.media?.duration?.toInt() ?: 0
-        println("isPlayer Attached: ${videoLayout.isAttachedToWindow}")
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
             // Set subtitle URL if available
             if (player.isPlaying && !isMediaReady) {
