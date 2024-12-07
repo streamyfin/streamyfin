@@ -2,7 +2,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtom } from "jotai";
+import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { View, TouchableOpacity } from "react-native";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
@@ -21,11 +21,18 @@ import { router } from "expo-router";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { useSettings } from "@/utils/atoms/settings";
+import {
+  SeasonDropdown,
+  SeasonIndexState,
+} from "@/components/series/SeasonDropdown";
+import { Item } from "zeego/dropdown-menu";
 
 type Props = {
   item: BaseItemDto;
   close: () => void;
 };
+
+export const seasonIndexAtom = atom<SeasonIndexState>({});
 
 export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   const [api] = useAtom(apiAtom);
@@ -33,23 +40,69 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   const scrollViewRef = useRef<HorizontalScrollRef>(null); // Reference to the HorizontalScroll
   const insets = useSafeAreaInsets(); // Get safe area insets
   const [settings] = useSettings();
-  const SeasonId = item.ParentId;
+
+  const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
+  const seasonIndex = seasonIndexState[item.Id ?? ""];
+
+  const [seriesItem, setSeriesItem] = useState<BaseItemDto | null>(null);
+
+  useEffect(() => {
+    if (item.SeriesId) {
+      getUserItemData({ api, userId: user?.Id, itemId: item.SeriesId }).then(
+        (res) => {
+          setSeriesItem(res);
+        }
+      );
+    }
+  }, [item.SeriesId]);
+
+  const { data: seasons } = useQuery({
+    queryKey: ["seasons", item.SeriesId],
+    queryFn: async () => {
+      console.log("Seasons", Boolean(api), user?.Id, item.SeriesId);
+      if (!api || !user?.Id || !item.SeriesId) return [];
+      console.log("Seasons", "Fetching");
+      const response = await api.axiosInstance.get(
+        `${api.basePath}/Shows/${item.SeriesId}/Seasons`,
+        {
+          params: {
+            userId: user?.Id,
+            itemId: item.SeriesId,
+            Fields:
+              "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
+          },
+          headers: {
+            Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
+          },
+        }
+      );
+      console.log("Response", response.data.Items);
+      return response.data.Items;
+    },
+    enabled: !!api && !!user?.Id && !!item.SeasonId,
+  });
+
+  const selectedSeasonId: string | null = useMemo(
+    () =>
+      seasons?.find((season: any) => season.IndexNumber === seasonIndex)?.Id,
+    [seasons, seasonIndex]
+  );
 
   const { data: episodes, isFetching } = useQuery({
-    queryKey: ["episodes", SeasonId],
+    queryKey: ["episodes", item.SeriesId, item.SeasonId],
     queryFn: async () => {
-      if (!api || !user?.Id || !item.Id || !SeasonId) return [];
+      if (!api || !user?.Id || !item.Id || !item.SeasonId) return [];
       const res = await getTvShowsApi(api).getEpisodes({
-        seriesId: item.Id,
+        seriesId: item.SeriesId || "",
         userId: user.Id,
-        seasonId: SeasonId,
+        seasonId: item.SeasonId || undefined,
         enableUserData: true,
         fields: ["MediaSources", "MediaStreams", "Overview"],
       });
 
       return res.data.Items;
     },
-    enabled: !!api && !!user?.Id && !!item.Id && !!SeasonId,
+    enabled: !!api && !!user?.Id && !!item.SeasonId,
   });
 
   const queryClient = useQueryClient();
@@ -146,6 +199,18 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
             }}
             className={`flex flex-row items-center space-x-2`}
           >
+            <SeasonDropdown
+              item={seriesItem ?? item}
+              seasons={seasons}
+              initialSeasonIndex={1}
+              state={seasonIndexState}
+              onSelect={(season) => {
+                setSeasonIndexState((prev) => ({
+                  ...prev,
+                  [item.SeasonId ?? ""]: season.IndexNumber,
+                }));
+              }}
+            />
             <TouchableOpacity
               onPress={async () => {
                 close();
@@ -182,7 +247,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
                     <ContinueWatchingPoster
                       item={_item}
                       useEpisodePoster
-                      showPlayButton={_item.id != item.Id}
+                      showPlayButton={_item.id !== item.Id}
                     />
                   </TouchableOpacity>
                   <View className="shrink">
