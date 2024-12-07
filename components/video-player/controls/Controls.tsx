@@ -53,6 +53,11 @@ import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import BrightnessSlider from "./BrightnessSlider";
 import SkipButton from "./SkipButton";
 import { debounce } from "lodash";
+import { EpisodeList } from "./EpisodeList";
+import { BlurView } from "expo-blur";
+import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
+import { useAtom } from "jotai";
+import { apiAtom } from "@/providers/JellyfinProvider";
 
 interface Props {
   item: BaseItemDto;
@@ -113,6 +118,7 @@ export const Controls: React.FC<Props> = ({
   const [settings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [api] = useAtom(apiAtom);
 
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const {
@@ -397,292 +403,344 @@ export const Controls: React.FC<Props> = ({
     );
   }, [trickPlayUrl, trickplayInfo, time]);
 
+  const [EpisodeView, setEpisodeView] = useState(false);
+
+  const switchOnEpisodeMode = () => {
+    setEpisodeView(true);
+    if (isPlaying) togglePlay(progress.value);
+  };
+
+  const gotoEpisode = async (itemId: string) => {
+    const item = await getItemById(api, itemId);
+    console.log("Item", item);
+    if (!settings || !item) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const { bitrate, mediaSource, audioIndex, subtitleIndex } =
+      getDefaultPlaySettings(item, settings);
+
+    const queryParams = new URLSearchParams({
+      itemId: item.Id ?? "", // Ensure itemId is a string
+      audioIndex: audioIndex?.toString() ?? "",
+      subtitleIndex: subtitleIndex?.toString() ?? "",
+      mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+      bitrateValue: bitrate.toString(),
+    }).toString();
+
+    if (!bitrate.value) {
+      // @ts-expect-error
+      router.replace(`player/direct-player?${queryParams}`);
+      return;
+    }
+    // @ts-expect-error
+    router.replace(`player/transcoding-player?${queryParams}`);
+  };
+
   return (
     <ControlProvider
       item={item}
       mediaSource={mediaSource}
       isVideoLoaded={isVideoLoaded}
     >
-      <VideoProvider
-        getAudioTracks={getAudioTracks}
-        getSubtitleTracks={getSubtitleTracks}
-        setAudioTrack={setAudioTrack}
-        setSubtitleTrack={setSubtitleTrack}
-        setSubtitleURL={setSubtitleURL}
-      >
-        {!mediaSource?.TranscodingUrl ? (
-          <DropdownViewDirect showControls={showControls} />
-        ) : (
-          <DropdownViewTranscoding showControls={showControls} />
-        )}
-      </VideoProvider>
-
-      <Pressable
-        onPressIn={() => {
-          toggleControls();
-        }}
-        style={{
-          position: "absolute",
-          width: Dimensions.get("window").width,
-          height: Dimensions.get("window").height,
-        }}
-      ></Pressable>
-
-      <View
-        style={[
-          {
-            position: "absolute",
-            top: 0,
-            right: 0,
-            opacity: showControls ? 1 : 0,
-          },
-        ]}
-        pointerEvents={showControls ? "auto" : "none"}
-        className={`flex flex-row items-center space-x-2 z-10 p-4 `}
-      >
-        {previousItem && (
-          <TouchableOpacity
-            onPress={goToPreviousItem}
-            className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+      {EpisodeView ? (
+        <EpisodeList item={item} close={() => setEpisodeView(false)} />
+      ) : (
+        <>
+          <VideoProvider
+            getAudioTracks={getAudioTracks}
+            getSubtitleTracks={getSubtitleTracks}
+            setAudioTrack={setAudioTrack}
+            setSubtitleTrack={setSubtitleTrack}
+            setSubtitleURL={setSubtitleURL}
           >
-            <Ionicons name="play-skip-back" size={24} color="white" />
-          </TouchableOpacity>
-        )}
+            {!mediaSource?.TranscodingUrl ? (
+              <DropdownViewDirect showControls={showControls} />
+            ) : (
+              <DropdownViewTranscoding showControls={showControls} />
+            )}
+          </VideoProvider>
 
-        {nextItem && (
-          <TouchableOpacity
-            onPress={goToNextItem}
-            className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-          >
-            <Ionicons name="play-skip-forward" size={24} color="white" />
-          </TouchableOpacity>
-        )}
-
-        {mediaSource?.TranscodingUrl && (
-          <TouchableOpacity
-            onPress={toggleIgnoreSafeAreas}
-            className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-          >
-            <Ionicons
-              name={ignoreSafeAreas ? "contract-outline" : "expand"}
-              size={24}
-              color="white"
-            />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={async () => {
-            if (stop) await stop();
-            router.back();
-          }}
-          className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-        >
-          <Ionicons name="close" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      <View
-        style={{
-          position: "absolute",
-          top: "50%", // Center vertically
-          left: 0,
-          right: 0,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
-          paddingHorizontal: "28%", // Add some padding to the left and right
-          opacity: showControls ? 1 : 0,
-        }}
-        pointerEvents={showControls ? "box-none" : "none"}
-      >
-        <View
-          style={{
-            position: "absolute",
-            alignItems: "center",
-            transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
-            bottom: 30,
-          }}
-        >
-          <BrightnessSlider />
-        </View>
-        <TouchableOpacity onPress={handleSkipBackward}>
-          <View
-            style={{
-              position: "relative",
-              justifyContent: "center",
-              alignItems: "center",
+          <Pressable
+            onPressIn={() => {
+              toggleControls();
             }}
-          >
-            <Ionicons
-              name="refresh-outline"
-              size={50}
-              color="white"
-              style={{
-                transform: [{ scaleY: -1 }, { rotate: "180deg" }],
-              }}
-            />
-            <Text
-              style={{
+            style={{
+              position: "absolute",
+              width: Dimensions.get("window").width,
+              height: Dimensions.get("window").height,
+            }}
+          ></Pressable>
+
+          <View
+            style={[
+              {
                 position: "absolute",
-                color: "white",
-                fontSize: 16,
-                fontWeight: "bold",
-                bottom: 10,
-              }}
-            >
-              {settings?.rewindSkipTime}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => {
-            togglePlay(progress.value);
-          }}
-        >
-          {!isBuffering ? (
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={50}
-              color="white"
-            />
-          ) : (
-            <Loader size={"large"} />
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleSkipForward}>
-          <View
-            style={{
-              position: "relative",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
+                top: 0,
+                right: 0,
+                opacity: showControls ? 1 : 0,
+              },
+            ]}
+            pointerEvents={showControls ? "auto" : "none"}
+            className={`flex flex-row items-center space-x-2 z-10 p-4 `}
           >
-            <Ionicons name="refresh-outline" size={50} color="white" />
-            <Text
-              style={{
-                position: "absolute",
-                color: "white",
-                fontSize: 16,
-                fontWeight: "bold",
-                bottom: 10,
-              }}
-            >
-              {settings?.forwardSkipTime}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      <View
-        style={[
-          {
-            position: "absolute",
-            right: 0,
-            left: 0,
-            bottom: 0,
-            opacity: showControls ? 1 : 0,
-          },
-        ]}
-        pointerEvents={showControls ? "box-none" : "none"}
-        className={`flex flex-col p-4`}
-      >
-        <View
-          className="shrink flex flex-col justify-center h-full mb-2"
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "column",
-              alignSelf: "flex-end", // Shrink height based on content
-            }}
-          >
-            <Text className="font-bold">{item?.Name}</Text>
             {item?.Type === "Episode" && (
-              <Text className="opacity-50">{item.SeriesName}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  switchOnEpisodeMode();
+                }}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons name="list" size={24} color="white" />
+              </TouchableOpacity>
             )}
-            {item?.Type === "Movie" && (
-              <Text className="text-xs opacity-50">{item?.ProductionYear}</Text>
+            {previousItem && (
+              <TouchableOpacity
+                onPress={goToPreviousItem}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons name="play-skip-back" size={24} color="white" />
+              </TouchableOpacity>
             )}
-            {item?.Type === "Audio" && (
-              <Text className="text-xs opacity-50">{item?.Album}</Text>
+
+            {nextItem && (
+              <TouchableOpacity
+                onPress={goToNextItem}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons name="play-skip-forward" size={24} color="white" />
+              </TouchableOpacity>
             )}
+
+            {mediaSource?.TranscodingUrl && (
+              <TouchableOpacity
+                onPress={toggleIgnoreSafeAreas}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons
+                  name={ignoreSafeAreas ? "contract-outline" : "expand"}
+                  size={24}
+                  color="white"
+                />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={async () => {
+                if (stop) await stop();
+                router.back();
+              }}
+              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+            >
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
           </View>
+
           <View
             style={{
-              flexDirection: "column",
-              alignSelf: "flex-end",
-              marginRight: insets.right,
+              position: "absolute",
+              top: "50%", // Center vertically
+              left: 0,
+              right: 0,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
+              paddingHorizontal: "28%", // Add some padding to the left and right
+              opacity: showControls ? 1 : 0,
             }}
+            pointerEvents={showControls ? "box-none" : "none"}
           >
-            <SkipButton
-              showButton={showSkipButton}
-              onPress={skipIntro}
-              buttonText="Skip Intro"
-            />
-            <SkipButton
-              showButton={showSkipCreditButton}
-              onPress={skipCredit}
-              buttonText="Skip Credits"
-            />
-          </View>
-        </View>
-        <View
-          className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
-        >
-          <View className={`flex flex-col w-full shrink`}>
-            <Slider
-              theme={{
-                maximumTrackTintColor: "rgba(255,255,255,0.2)",
-                minimumTrackTintColor: "#fff",
-                cacheTrackTintColor: "rgba(255,255,255,0.3)",
-                bubbleBackgroundColor: "#fff",
-                bubbleTextColor: "#666",
-                heartbeatColor: "#999",
+            <View
+              style={{
+                position: "absolute",
+                alignItems: "center",
+                transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
+                bottom: 30,
               }}
-              renderThumb={() => (
-                <View
+            >
+              <BrightnessSlider />
+            </View>
+            <TouchableOpacity onPress={handleSkipBackward}>
+              <View
+                style={{
+                  position: "relative",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={50}
+                  color="white"
                   style={{
-                    width: 18,
-                    height: 18,
-                    left: -2,
-                    borderRadius: 10,
-                    backgroundColor: "#fff",
-                    justifyContent: "center",
-                    alignItems: "center",
+                    transform: [{ scaleY: -1 }, { rotate: "180deg" }],
                   }}
                 />
-              )}
-              cache={cacheProgress}
-              onSlidingStart={handleSliderStart}
-              onSlidingComplete={handleSliderComplete}
-              onValueChange={handleSliderChange}
-              containerStyle={{
-                borderRadius: 100,
+                <Text
+                  style={{
+                    position: "absolute",
+                    color: "white",
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    bottom: 10,
+                  }}
+                >
+                  {settings?.rewindSkipTime}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                togglePlay(progress.value);
               }}
-              renderBubble={() => isSliding && memoizedRenderBubble()}
-              sliderHeight={10}
-              thumbWidth={0}
-              progress={progress}
-              minimumValue={min}
-              maximumValue={max}
-            />
-            <View className="flex flex-row items-center justify-between mt-0.5">
-              <Text className="text-[12px] text-neutral-400">
-                {formatTimeString(currentTime, isVlc ? "ms" : "s")}
-              </Text>
-              <Text className="text-[12px] text-neutral-400">
-                -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
-              </Text>
+            >
+              {!isBuffering ? (
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={50}
+                  color="white"
+                />
+              ) : (
+                <Loader size={"large"} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleSkipForward}>
+              <View
+                style={{
+                  position: "relative",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="refresh-outline" size={50} color="white" />
+                <Text
+                  style={{
+                    position: "absolute",
+                    color: "white",
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    bottom: 10,
+                  }}
+                >
+                  {settings?.forwardSkipTime}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View
+            style={[
+              {
+                position: "absolute",
+                right: 0,
+                left: 0,
+                bottom: 0,
+                opacity: showControls ? 1 : 0,
+              },
+            ]}
+            pointerEvents={showControls ? "box-none" : "none"}
+            className={`flex flex-col p-4`}
+          >
+            <View
+              className="shrink flex flex-col justify-center h-full mb-2"
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "column",
+                  alignSelf: "flex-end", // Shrink height based on content
+                }}
+              >
+                <Text className="font-bold">{item?.Name}</Text>
+                {item?.Type === "Episode" && (
+                  <Text className="opacity-50">{item.SeriesName}</Text>
+                )}
+                {item?.Type === "Movie" && (
+                  <Text className="text-xs opacity-50">
+                    {item?.ProductionYear}
+                  </Text>
+                )}
+                {item?.Type === "Audio" && (
+                  <Text className="text-xs opacity-50">{item?.Album}</Text>
+                )}
+              </View>
+              <View
+                style={{
+                  flexDirection: "column",
+                  alignSelf: "flex-end",
+                  marginRight: insets.right,
+                }}
+              >
+                <SkipButton
+                  showButton={showSkipButton}
+                  onPress={skipIntro}
+                  buttonText="Skip Intro"
+                />
+                <SkipButton
+                  showButton={showSkipCreditButton}
+                  onPress={skipCredit}
+                  buttonText="Skip Credits"
+                />
+              </View>
+            </View>
+            <View
+              className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
+            >
+              <View className={`flex flex-col w-full shrink`}>
+                <Slider
+                  theme={{
+                    maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                    minimumTrackTintColor: "#fff",
+                    cacheTrackTintColor: "rgba(255,255,255,0.3)",
+                    bubbleBackgroundColor: "#fff",
+                    bubbleTextColor: "#666",
+                    heartbeatColor: "#999",
+                  }}
+                  renderThumb={() => (
+                    <View
+                      style={{
+                        width: 18,
+                        height: 18,
+                        left: -2,
+                        borderRadius: 10,
+                        backgroundColor: "#fff",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    />
+                  )}
+                  cache={cacheProgress}
+                  onSlidingStart={handleSliderStart}
+                  onSlidingComplete={handleSliderComplete}
+                  onValueChange={handleSliderChange}
+                  containerStyle={{
+                    borderRadius: 100,
+                  }}
+                  renderBubble={() => isSliding && memoizedRenderBubble()}
+                  sliderHeight={10}
+                  thumbWidth={0}
+                  progress={progress}
+                  minimumValue={min}
+                  maximumValue={max}
+                />
+                <View className="flex flex-row items-center justify-between mt-0.5">
+                  <Text className="text-[12px] text-neutral-400">
+                    {formatTimeString(currentTime, isVlc ? "ms" : "s")}
+                  </Text>
+                  <Text className="text-[12px] text-neutral-400">
+                    -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
-      </View>
+        </>
+      )}
     </ControlProvider>
   );
 };
