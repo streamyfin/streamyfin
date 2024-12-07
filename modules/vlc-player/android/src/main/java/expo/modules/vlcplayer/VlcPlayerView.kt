@@ -60,6 +60,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun setSource(source: Map<String, Any>) {
+        if (hasSource) {
+            mediaPlayer?.attachViews(videoLayout, null, false, false)
+            play()
+            return
+        }
         val mediaOptions = source["mediaOptions"] as? Map<String, Any> ?: emptyMap()
         val autoplay = source["autoplay"] as? Boolean ?: false
         val isNetwork = source["isNetwork"] as? Boolean ?: false
@@ -260,7 +265,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         val currentTimeMs = player.time.toInt()
         val durationMs = player.media?.duration?.toInt() ?: 0
-
+        println("isPlayer Attached: ${videoLayout.isAttachedToWindow}")
         if (currentTimeMs >= 0 && currentTimeMs < durationMs) {
             // Set subtitle URL if available
             if (player.isPlaying && !isMediaReady) {
