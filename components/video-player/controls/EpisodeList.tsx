@@ -42,6 +42,16 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   const [settings] = useSettings();
 
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
+
+  useEffect(() => {
+    if (item.SeriesId) {
+      setSeasonIndexState((prev) => ({
+        ...prev,
+        [item.SeriesId ?? ""]: item.ParentIndexNumber ?? 0,
+      }));
+    }
+  }, []);
+
   const seasonIndex = seasonIndexState[item.SeriesId ?? ""];
 
   const [seriesItem, setSeriesItem] = useState<BaseItemDto | null>(null);
