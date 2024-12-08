@@ -18,7 +18,7 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {Href, router, useFocusEffect} from "expo-router";
+import { Href, router, useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, TouchableOpacity, View, ViewProps } from "react-native";
@@ -34,8 +34,8 @@ import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
-  MissingDownloadIconComponent: () =>  React.ReactElement;
-  DownloadedIconComponent: () =>  React.ReactElement;
+  MissingDownloadIconComponent: () => React.ReactElement;
+  DownloadedIconComponent: () => React.ReactElement;
 }
 
 export const DownloadItems: React.FC<DownloadProps> = ({
@@ -51,16 +51,25 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
   const { startRemuxing } = useRemuxHlsToMp4();
 
-  const [selectedMediaSource, setSelectedMediaSource] = useState<MediaSourceInfo | undefined | null>(undefined);
+  const [selectedMediaSource, setSelectedMediaSource] = useState<
+    MediaSourceInfo | undefined | null
+  >(undefined);
   const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
-  const [selectedSubtitleStream, setSelectedSubtitleStream] = useState<number>(0);
+  const [selectedSubtitleStream, setSelectedSubtitleStream] =
+    useState<number>(0);
   const [maxBitrate, setMaxBitrate] = useState<Bitrate>({
     key: "Max",
     value: undefined,
   });
 
-  const userCanDownload = useMemo(() => user?.Policy?.EnableContentDownloading, [user]);
-  const usingOptimizedServer = useMemo(() => settings?.downloadMethod === "optimized", [settings]);
+  const userCanDownload = useMemo(
+    () => user?.Policy?.EnableContentDownloading,
+    [user]
+  );
+  const usingOptimizedServer = useMemo(
+    () => settings?.downloadMethod === "optimized",
+    [settings]
+  );
 
   /**
    * Bottom sheet
@@ -78,73 +87,76 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   }, []);
 
   // region computed
-  const itemIds = useMemo(() => items.map(i => i.Id), [items]);
-  const pendingItems = useMemo(() =>
-    items.filter(i => !downloadedFiles?.some(f => f.item.Id === i.Id)),
+  const itemIds = useMemo(() => items.map((i) => i.Id), [items]);
+  const pendingItems = useMemo(
+    () =>
+      items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
     [items, downloadedFiles]
   );
   const isDownloaded = useMemo(() => {
-    if (!downloadedFiles)
-      return false;
+    if (!downloadedFiles) return false;
     return pendingItems.length == 0;
   }, [downloadedFiles, pendingItems]);
 
-  const itemsProcesses = useMemo(() =>
-    processes?.filter(p => itemIds.includes(p.item.Id)),
+  const itemsProcesses = useMemo(
+    () => processes?.filter((p) => itemIds.includes(p.item.Id)),
     [processes, itemIds]
   );
 
   const progress = useMemo(() => {
-      if (itemIds.length == 1)
-        return itemsProcesses.reduce((acc, p) => acc + p.progress, 0)
-      return ((itemIds.length - queue.filter(q => itemIds.includes(q.item.Id)).length) / itemIds.length) * 100
-    },
-    [queue, itemsProcesses, itemIds]
-  );
+    if (itemIds.length == 1)
+      return itemsProcesses.reduce((acc, p) => acc + p.progress, 0);
+    return (
+      ((itemIds.length -
+        queue.filter((q) => itemIds.includes(q.item.Id)).length) /
+        itemIds.length) *
+      100
+    );
+  }, [queue, itemsProcesses, itemIds]);
 
   const itemsQueued = useMemo(() => {
-      return pendingItems.length > 0 && pendingItems.every(p => queue.some(q => p.Id == q.item.Id))
-    },
-    [queue, pendingItems]
-  );
+    return (
+      pendingItems.length > 0 &&
+      pendingItems.every((p) => queue.some((q) => p.Id == q.item.Id))
+    );
+  }, [queue, pendingItems]);
   // endregion computed
 
   // region helper functions
   const navigateToDownloads = () => router.push("/downloads");
 
   const onDownloadedPress = () => {
-    const firstItem = items?.[0]
+    const firstItem = items?.[0];
     router.push(
       firstItem.Type !== "Episode"
         ? "/downloads"
-        : {
-          pathname: `/downloads/${firstItem.SeriesId}`,
-          params: {
-            episodeSeasonIndex: firstItem.ParentIndexNumber
-          }
-        } as Href
+        : ({
+            pathname: `/downloads/${firstItem.SeriesId}`,
+            params: {
+              episodeSeasonIndex: firstItem.ParentIndexNumber,
+            },
+          } as Href)
     );
-  }
+  };
 
   const acceptDownloadOptions = useCallback(() => {
     if (userCanDownload === true) {
-      if (pendingItems.some(i => !i.Id)) {
+      if (pendingItems.some((i) => !i.Id)) {
         throw new Error("No item id");
       }
       closeModal();
 
-      if (usingOptimizedServer)
-        initiateDownload(...pendingItems);
+      if (usingOptimizedServer) initiateDownload(...pendingItems);
       else {
         queueActions.enqueue(
           queue,
           setQueue,
-          ...pendingItems.map(item => ({
+          ...pendingItems.map((item) => ({
             id: item.Id!,
             execute: async () => await initiateDownload(item),
             item,
           }))
-        )
+        );
       }
     } else {
       toast.error("You are not allowed to download files.");
@@ -160,70 +172,83 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     maxBitrate,
     selectedMediaSource,
     selectedAudioStream,
-    selectedSubtitleStream
-  ])
+    selectedSubtitleStream,
+  ]);
 
   /**
    * Start download
    */
-  const initiateDownload = useCallback(async (...items: BaseItemDto[]) => {
-    if (!api || !user?.Id || items.some(p => !p.Id) || (pendingItems.length === 1 && !selectedMediaSource?.Id)) {
-      throw new Error("DownloadItem ~ initiateDownload: No api or user or item");
-    }
-    let mediaSource = selectedMediaSource
-    let audioIndex: number | undefined = selectedAudioStream
-    let subtitleIndex: number | undefined = selectedSubtitleStream
-
-    for (const item of items) {
-      if (pendingItems.length > 1) {
-        ({ mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(item, settings!));
-      }
-
-      const res = await getStreamUrl({
-        api,
-        item,
-        startTimeTicks: 0,
-        userId: user?.Id,
-        audioStreamIndex: audioIndex,
-        maxStreamingBitrate: maxBitrate.value,
-        mediaSourceId: mediaSource?.Id,
-        subtitleStreamIndex: subtitleIndex,
-        deviceProfile: download,
-      });
-
-      if (!res) {
-        Alert.alert(
-          "Something went wrong",
-          "Could not get stream url from Jellyfin"
+  const initiateDownload = useCallback(
+    async (...items: BaseItemDto[]) => {
+      if (
+        !api ||
+        !user?.Id ||
+        items.some((p) => !p.Id) ||
+        (pendingItems.length === 1 && !selectedMediaSource?.Id)
+      ) {
+        throw new Error(
+          "DownloadItem ~ initiateDownload: No api or user or item"
         );
-        continue;
       }
+      let mediaSource = selectedMediaSource;
+      let audioIndex: number | undefined = selectedAudioStream;
+      let subtitleIndex: number | undefined = selectedSubtitleStream;
 
-      const {mediaSource: source, url} = res;
+      for (const item of items) {
+        if (pendingItems.length > 1) {
+          ({ mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
+            item,
+            settings!
+          ));
+        }
 
-      if (!url || !source) throw new Error("No url");
+        const res = await getStreamUrl({
+          api,
+          item,
+          startTimeTicks: 0,
+          userId: user?.Id,
+          audioStreamIndex: audioIndex,
+          maxStreamingBitrate: maxBitrate.value,
+          mediaSourceId: mediaSource?.Id,
+          subtitleStreamIndex: subtitleIndex,
+          deviceProfile: download,
+        });
 
-      saveDownloadItemInfoToDiskTmp(item, source, url);
+        if (!res) {
+          Alert.alert(
+            "Something went wrong",
+            "Could not get stream url from Jellyfin"
+          );
+          continue;
+        }
 
-      if (usingOptimizedServer) {
-        await startBackgroundDownload(url, item, source);
-      } else {
-        await startRemuxing(item, url, source);
+        const { mediaSource: source, url } = res;
+
+        if (!url || !source) throw new Error("No url");
+
+        saveDownloadItemInfoToDiskTmp(item, source, url);
+
+        if (usingOptimizedServer) {
+          await startBackgroundDownload(url, item, source);
+        } else {
+          await startRemuxing(item, url, source);
+        }
       }
-    }
-  }, [
-    api,
-    user?.Id,
-    pendingItems,
-    selectedMediaSource,
-    selectedAudioStream,
-    selectedSubtitleStream,
-    settings,
-    maxBitrate,
-    usingOptimizedServer,
-    startBackgroundDownload,
-    startRemuxing,
-  ]);
+    },
+    [
+      api,
+      user?.Id,
+      pendingItems,
+      selectedMediaSource,
+      selectedAudioStream,
+      selectedSubtitleStream,
+      settings,
+      maxBitrate,
+      usingOptimizedServer,
+      startBackgroundDownload,
+      startRemuxing,
+    ]
+  );
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -255,7 +280,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   return (
     <View
-      className="bg-neutral-800/80 rounded-full h-10 w-10 flex items-center justify-center"
+      className="bg-neutral-800/80 rounded-full h-9 w-9 flex items-center justify-center"
       {...props}
     >
       {processes && itemsProcesses.length > 0 ? (
@@ -343,7 +368,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             </Button>
             <View className="opacity-70 text-center w-full flex items-center">
               <Text className="text-xs">
-                {usingOptimizedServer ? "Using optimized server" : "Using default method"}
+                {usingOptimizedServer
+                  ? "Using optimized server"
+                  : "Using default method"}
               </Text>
             </View>
           </View>
@@ -353,7 +380,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   );
 };
 
-export const DownloadSingleItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
+export const DownloadSingleItem: React.FC<{ item: BaseItemDto }> = ({
+  item,
+}) => {
   return (
     <DownloadItems
       items={[item]}
@@ -364,5 +393,5 @@ export const DownloadSingleItem: React.FC<{ item: BaseItemDto }> = ({ item }) =>
         <Ionicons name="cloud-download" size={26} color="#9333ea" />
       )}
     />
-  )
-}
+  );
+};

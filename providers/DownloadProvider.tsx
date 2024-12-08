@@ -1,6 +1,6 @@
 import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
-import {useLog, writeToLog} from "@/utils/log";
+import { useLog, writeToLog } from "@/utils/log";
 import {
   cancelAllJobs,
   cancelJobById,
@@ -30,7 +30,7 @@ import {
 import axios from "axios";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
-import {atom, useAtom} from "jotai";
+import { atom, useAtom } from "jotai";
 import React, {
   createContext,
   useCallback,
@@ -47,16 +47,15 @@ import { getItemImage } from "@/utils/getItemImage";
 import useImageStorage from "@/hooks/useImageStorage";
 import { storage } from "@/utils/mmkv";
 import useDownloadHelper from "@/utils/download";
-import {FileInfo} from "expo-file-system";
+import { FileInfo } from "expo-file-system";
 import * as Haptics from "expo-haptics";
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
   mediaSource: MediaSourceInfo;
-  size: number | undefined;
 };
 
-export const processesAtom = atom<JobStatus[]>([])
+export const processesAtom = atom<JobStatus[]>([]);
 
 function onAppStateChange(status: AppStateStatus) {
   focusManager.setFocused(status === "active");
@@ -73,7 +72,7 @@ function useDownloadProvider() {
   const [api] = useAtom(apiAtom);
   const { logs } = useLog();
 
-  const {saveSeriesPrimaryImage} = useDownloadHelper();
+  const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
 
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
@@ -267,7 +266,10 @@ function useDownloadProvider() {
           );
         })
         .done(async (doneHandler) => {
-          await saveDownloadedItemInfo(process.item, doneHandler.bytesDownloaded);
+          await saveDownloadedItemInfo(
+            process.item,
+            doneHandler.bytesDownloaded
+          );
           toast.success(`Download completed for ${process.item.Name}`, {
             duration: 3000,
             action: {
@@ -397,16 +399,21 @@ function useDownloadProvider() {
       deleteLocalFiles(),
       removeDownloadedItemsFromStorage(),
       cancelAllServerJobs(),
-      queryClient.invalidateQueries({queryKey: ["downloadedItems"]}),
-    ]).then(() =>
-      toast.success("All files, folders, and jobs deleted successfully")
-    ).catch((reason) => {
-      console.error("Failed to delete all files, folders, and jobs:", reason);
-      toast.error("An error occurred while deleting files and jobs");
-    });
+      queryClient.invalidateQueries({ queryKey: ["downloadedItems"] }),
+    ])
+      .then(() =>
+        toast.success("All files, folders, and jobs deleted successfully")
+      )
+      .catch((reason) => {
+        console.error("Failed to delete all files, folders, and jobs:", reason);
+        toast.error("An error occurred while deleting files and jobs");
+      });
   };
 
-  const forEveryDirectoryFile = async (includeMMKV: boolean = true, callback: (file: FileInfo) => void) => {
+  const forEveryDirectoryFile = async (
+    includeMMKV: boolean = true,
+    callback: (file: FileInfo) => void
+  ) => {
     const baseDirectory = FileSystem.documentDirectory;
     if (!baseDirectory) {
       throw new Error("Base directory not found");
@@ -416,34 +423,29 @@ function useDownloadProvider() {
     for (const item of dirContents) {
       // Exclude mmkv directory.
       // Deleting this deletes all user information as well. Logout should handle this.
-      if (item == "mmkv" && !includeMMKV)
-        continue
+      if (item == "mmkv" && !includeMMKV) continue;
       const itemInfo = await FileSystem.getInfoAsync(`${baseDirectory}${item}`);
       if (itemInfo.exists) {
-        callback(itemInfo)
+        callback(itemInfo);
       }
     }
-  }
+  };
 
   const deleteLocalFiles = async (): Promise<void> => {
     await forEveryDirectoryFile(false, (file) => {
-        console.warn("Deleting file", file.uri)
-        FileSystem.deleteAsync(file.uri, {idempotent: true})
-      }
-    )
+      console.warn("Deleting file", file.uri);
+      FileSystem.deleteAsync(file.uri, { idempotent: true });
+    });
   };
 
   const removeDownloadedItemsFromStorage = async () => {
     // delete any saved images first
-    Promise.all([
-      deleteFileByType("Movie"),
-      deleteFileByType("Episode"),
-    ]).then(() =>
-      storage.delete("downloadedItems")
-    ).catch((reason) => {
-      console.error("Failed to remove downloadedItems from storage:", reason);
-      throw reason
-    })
+    Promise.all([deleteFileByType("Movie"), deleteFileByType("Episode")])
+      .then(() => storage.delete("downloadedItems"))
+      .catch((reason) => {
+        console.error("Failed to remove downloadedItems from storage:", reason);
+        throw reason;
+      });
   };
 
   const cancelAllServerJobs = async (): Promise<void> => {
@@ -452,7 +454,7 @@ function useDownloadProvider() {
     }
     if (!settings?.optimizedVersionsServerUrl) {
       console.error("No server URL configured");
-      return
+      return;
     }
 
     const deviceId = await getOrSetDeviceId();
@@ -513,41 +515,38 @@ function useDownloadProvider() {
   };
 
   const deleteItems = async (items: BaseItemDto[]) => {
-    Promise.all(items.map(i => {
-      if (i.Id)
-        return deleteFile(i.Id)
-      return
-    })).then(() =>
+    Promise.all(
+      items.map((i) => {
+        if (i.Id) return deleteFile(i.Id);
+        return;
+      })
+    ).then(() =>
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    )
-  }
+    );
+  };
 
-  const deleteFileByType = async (type: BaseItemDto['Type']) => {
+  const deleteFileByType = async (type: BaseItemDto["Type"]) => {
     await Promise.all(
       downloadedFiles
-        ?.filter(file => file.item.Type == type)
-        ?.flatMap(file => {
+        ?.filter((file) => file.item.Type == type)
+        ?.flatMap((file) => {
           const promises = [];
           if (type == "Episode" && file.item.SeriesId)
-            promises.push(deleteFile(file.item.SeriesId))
-          promises.push(deleteFile(file.item.Id!))
+            promises.push(deleteFile(file.item.SeriesId));
+          promises.push(deleteFile(file.item.Id!));
           return promises;
-        })
-      || []
+        }) || []
     );
-  }
+  };
 
   const appSizeUsage = useMemo(async () => {
     const sizes: number[] = [];
-    await forEveryDirectoryFile(
-      true,
-      file => {
-        if (file.exists) sizes.push(file.size)
-      }
-    )
+    await forEveryDirectoryFile(true, (file) => {
+      if (file.exists) sizes.push(file.size);
+    });
 
     return sizes.reduce((sum, size) => sum + size, 0);
-  }, [logs, downloadedFiles])
+  }, [logs, downloadedFiles]);
 
   function getDownloadedItem(itemId: string): DownloadedItem | null {
     try {
@@ -594,7 +593,7 @@ function useDownloadProvider() {
           "Media source not found in tmp storage. Did you forget to save it before starting download?"
         );
 
-      const newItem = { item, size, mediaSource: data.mediaSource };
+      const newItem = { item, mediaSource: data.mediaSource };
 
       if (existingItemIndex !== -1) {
         items[existingItemIndex] = newItem;
@@ -605,6 +604,8 @@ function useDownloadProvider() {
       deleteDownloadItemInfoFromDiskTmp(item.Id!);
 
       storage.set("downloadedItems", JSON.stringify(items));
+      storage.set("downloadedItemSize-" + item.Id, size.toString());
+
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
       refetch();
     } catch (error) {
@@ -613,6 +614,11 @@ function useDownloadProvider() {
         error
       );
     }
+  }
+
+  function getDownloadedItemSize(itemId: string): number {
+    const size = storage.getString("downloadedItemSize-" + itemId);
+    return size ? parseInt(size) : 0;
   }
 
   return {
@@ -628,7 +634,8 @@ function useDownloadProvider() {
     startDownload,
     getDownloadedItem,
     deleteFileByType,
-    appSizeUsage
+    appSizeUsage,
+    getDownloadedItemSize,
   };
 }
 
@@ -653,15 +660,12 @@ export function useDownload() {
 export function bytesToReadable(bytes: number): string {
   const gb = bytes / 1e9;
 
-  if (gb >= 1)
-    return `${gb.toFixed(2)} GB`
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
 
-  const mb = bytes / 1024 / 1024
-  if (mb >= 1)
-    return `${mb.toFixed(2)} MB`
+  const mb = bytes / 1024 / 1024;
+  if (mb >= 1) return `${mb.toFixed(2)} MB`;
 
-  const kb = bytes / 1024
-  if (kb >= 1)
-    return `${kb.toFixed(2)} KB`
-  return `${bytes.toFixed(2)} B`
+  const kb = bytes / 1024;
+  if (kb >= 1) return `${kb.toFixed(2)} KB`;
+  return `${bytes.toFixed(2)} B`;
 }

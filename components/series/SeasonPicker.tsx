@@ -112,7 +112,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         minHeight: 144 * nrOfEpisodes,
       }}
     >
-      <View className="flex flex-row justify-start items-center">
+      <View className="flex flex-row justify-start items-center px-4">
         <SeasonDropdown
           item={item}
           seasons={seasons}
@@ -125,18 +125,19 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
           }}
         />
         <DownloadItems
+          className="ml-2"
           items={episodes || []}
           MissingDownloadIconComponent={() => (
             <MaterialCommunityIcons
               name="download-multiple"
-              size={24}
+              size={20}
               color="white"
             />
           )}
           DownloadedIconComponent={() => (
             <MaterialCommunityIcons
               name="check-all"
-              size={24}
+              size={20}
               color="#9333ea"
             />
           )}

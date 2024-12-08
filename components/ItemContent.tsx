@@ -1,6 +1,6 @@
 import { AudioTrackSelector } from "@/components/AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "@/components/BitrateSelector";
-import {DownloadSingleItem} from "@/components/DownloadItem";
+import { DownloadSingleItem } from "@/components/DownloadItem";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlayButton } from "@/components/PlayButton";
@@ -228,6 +228,10 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
             <OverviewText text={item.Overview} className="px-4 my-4" />
             {item.Type !== "Program" && (
               <>
+                {item.Type === "Episode" && (
+                  <CurrentSeries item={item} className="mb-4" />
+                )}
+
                 <CastAndCrew item={item} className="mb-4" loading={loading} />
 
                 {item.People && item.People.length > 0 && (
@@ -241,10 +245,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                       />
                     ))}
                   </View>
-                )}
-
-                {item.Type === "Episode" && (
-                  <CurrentSeries item={item} className="mb-4" />
                 )}
 
                 <SimilarItems itemId={item.Id} />

@@ -1,31 +1,28 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Haptics from "expo-haptics";
-import React, {useCallback, useMemo} from "react";
-import { TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { TouchableOpacity, TouchableOpacityProps, View } from "react-native";
 import {
   ActionSheetProvider,
   useActionSheet,
 } from "@expo/react-native-action-sheet";
 
 import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
-import {useDownload} from "@/providers/DownloadProvider";
+import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import {Text} from "@/components/common/Text";
-import {runtimeTicksToSeconds} from "@/utils/time";
-import {DownloadSize} from "@/components/downloads/DownloadSize";
+import { Text } from "@/components/common/Text";
+import { runtimeTicksToSeconds } from "@/utils/time";
+import { DownloadSize } from "@/components/downloads/DownloadSize";
+import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import ContinueWatchingPoster from "../ContinueWatchingPoster";
 
-interface EpisodeCardProps {
+interface EpisodeCardProps extends TouchableOpacityProps {
   item: BaseItemDto;
 }
 
-/**
- * EpisodeCard component displays an episode with action sheet options.
- * @param {EpisodeCardProps} props - The component props.
- * @returns {React.ReactElement} The rendered EpisodeCard component.
- */
-export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
+export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
   const { deleteFile } = useDownload();
   const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
@@ -77,35 +74,14 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
     <TouchableOpacity
       onPress={handleOpenFile}
       onLongPress={showActionSheet}
-      className="flex flex-col mr-2"
+      key={item.Id}
+      className="flex flex-col mb-4"
     >
       <View className="flex flex-row items-start mb-2">
         <View className="mr-2">
-          {base64Image ? (
-            <View className="w-44 aspect-video rounded-lg overflow-hidden">
-                <Image
-                    source={{
-                      uri: `data:image/jpeg;base64,${base64Image}`,
-                    }}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      resizeMode: "cover",
-                    }}
-                />
-              </View>
-          ) : (
-            <View className="w-44 aspect-video rounded-lg bg-neutral-900 flex items-center justify-center">
-                <Ionicons
-                    name="image-outline"
-                    size={24}
-                    color="gray"
-                    className="self-center mt-16"
-                />
-              </View>
-          )}
+          <ContinueWatchingPoster size="small" item={item} useEpisodePoster />
         </View>
-        <View className="w-56 flex flex-col">
+        <View className="shrink">
           <Text numberOfLines={2} className="">
             {item.Name}
           </Text>
@@ -115,10 +91,12 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
           <Text className="text-xs text-neutral-500">
             {runtimeTicksToSeconds(item.RunTimeTicks)}
           </Text>
-          <DownloadSize items={[item]} />
         </View>
       </View>
-      <Text numberOfLines={3} className="text-xs text-neutral-500 shrink">{item.Overview}</Text>
+
+      <Text numberOfLines={3} className="text-xs text-neutral-500 shrink">
+        {item.Overview}
+      </Text>
     </TouchableOpacity>
   );
 };

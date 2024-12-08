@@ -2,7 +2,7 @@ import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, TouchableOpacity, View, Alert } from "react-native";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
@@ -78,14 +78,28 @@ export default function page() {
     }
   }, [series]);
 
-  const deleteSeries = useCallback(
-    async () => deleteItems(groupBySeason),
-    [groupBySeason]
-  );
+  const deleteSeries = useCallback(() => {
+    Alert.alert(
+      "Delete season",
+      "Are you sure you want to delete the entire season?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          onPress: () => deleteItems(groupBySeason),
+          style: "destructive",
+        },
+      ]
+    );
+  }, [groupBySeason]);
+
   return (
-    <View className="px-4 flex-1">
+    <View className="flex-1">
       {series.length > 0 && (
-        <View className="flex flex-row items-center justify-start my-2">
+        <View className="flex flex-row items-center justify-start my-2 px-4">
           <SeasonDropdown
             item={series[0].item}
             seasons={series.map((s) => s.item)}
@@ -101,18 +115,16 @@ export default function page() {
           <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center ml-2">
             <Text className="text-xs font-bold">{groupBySeason.length}</Text>
           </View>
-          <View className="bg-neutral-800/80 rounded-full h-10 w-10 flex items-center justify-center ml-auto">
+          <View className="bg-neutral-800/80 rounded-full h-9 w-9 flex items-center justify-center ml-auto">
             <TouchableOpacity onPress={deleteSeries}>
-              <Ionicons name="trash" size={22} color="white" />
+              <Ionicons name="trash" size={20} color="white" />
             </TouchableOpacity>
           </View>
         </View>
       )}
-      <ScrollView key={seasonIndex}>
+      <ScrollView key={seasonIndex} className="px-4">
         {groupBySeason.map((episode, index) => (
-          <View className="flex flex-col mb-4" key={index}>
-            <EpisodeCard item={episode} />
-          </View>
+          <EpisodeCard key={index} item={episode} />
         ))}
       </ScrollView>
     </View>

@@ -1,62 +1,47 @@
+import { Text } from "@/components/common/Text";
+import { bytesToReadable, useDownload } from "@/providers/DownloadProvider";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import React, {useEffect, useMemo, useState} from "react";
-import {Text} from "@/components/common/Text";
-import useDownloadHelper from "@/utils/download";
-import {bytesToReadable, useDownload} from "@/providers/DownloadProvider";
-import {TextProps} from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { TextProps } from "react-native";
 
 interface DownloadSizeProps extends TextProps {
   items: BaseItemDto[];
 }
 
-interface DownloadSizes {
-  knownSize: number;
-  itemsNeedingSize: BaseItemDto[];
-}
-
-export const DownloadSize: React.FC<DownloadSizeProps> = ({ items, ...props }) => {
-  const { downloadedFiles, saveDownloadedItemInfo } = useDownload();
-  const { getDownloadSize } = useDownloadHelper();
+export const DownloadSize: React.FC<DownloadSizeProps> = ({
+  items,
+  ...props
+}) => {
+  const { downloadedFiles, getDownloadedItemSize } = useDownload();
   const [size, setSize] = useState<string | undefined>();
 
-  const itemIds = useMemo(() => items.map(i => i.Id), [items])
+  const itemIds = useMemo(() => items.map((i) => i.Id), [items]);
 
   useEffect(() => {
-    if (!downloadedFiles)
-      return
+    if (!downloadedFiles) return;
 
-    const {knownSize, itemsNeedingSize} = downloadedFiles
-      .filter(f => itemIds.includes(f.item.Id))
-      ?.reduce<DownloadSizes>((acc, file) => {
-        if (file?.size && file.size > 0)
-          acc.knownSize += file.size
-        else
-          acc.itemsNeedingSize.push(file.item)
-        return acc
-    }, {
-        knownSize: 0,
-        itemsNeedingSize: []
-    })
+    let s = 0;
 
-      getDownloadSize(
-        (item, size) => saveDownloadedItemInfo(item, size),
-        ...itemsNeedingSize
-      ).then(sizeSum => {
-        setSize(bytesToReadable((sizeSum + knownSize)))
-      })
-    },
-    [items, itemIds]
-  );
+    for (const item of items) {
+      if (!item.Id) continue;
+      const size = getDownloadedItemSize(item.Id);
+      if (size) {
+        s += size;
+      }
+    }
+    setSize(bytesToReadable(s));
+  }, [itemIds]);
 
   const sizeText = useMemo(() => {
-    if (!size)
-      return "reading size..."
-    return size
-  }, [size])
+    if (!size) return "...";
+    return size;
+  }, [size]);
 
   return (
     <>
-      <Text className="text-xs text-neutral-500" {...props}>{sizeText}</Text>
+      <Text className="text-xs text-neutral-500" {...props}>
+        {sizeText}
+      </Text>
     </>
   );
 };
