@@ -235,9 +235,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
                 <View
                   key={_item.Id}
                   style={{}}
-                  className={`flex flex-col w-44 
-          ${item?.Id === _item.Id ? "" : "opacity-50"}
-        `}
+                  className={`flex flex-col w-44 opacity-100`}
                 >
                   <TouchableOpacity
                     onPress={() => {
