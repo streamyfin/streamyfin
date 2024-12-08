@@ -121,14 +121,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     }
   }, [episodes]);
 
-  // Used for width calculation
-  const [nrOfEpisodes, setNrOfEpisodes] = useState(0);
-  useEffect(() => {
-    if (episodes && episodes.length > 0) {
-      setNrOfEpisodes(episodes.length);
-    }
-  }, [episodes]);
-
   // Scroll to the current item when episodes are fetched
   useEffect(() => {
     if (episodes && scrollViewRef.current) {
@@ -171,16 +163,11 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
         left: insets.left,
         right: insets.right,
         bottom: insets.bottom,
-        backgroundColor: "rgba(0, 0, 0, 0.85)", // Dark transparent background
+        backgroundColor: "black", // Dark transparent background
       }}
     >
       {isFetching ? (
-        <View
-          style={{
-            minWidth: 144 * nrOfEpisodes,
-          }}
-          className="flex flex-col items-center justify-center"
-        >
+        <View className="flex flex-col items-center justify-center">
           <Loader />
         </View>
       ) : (
@@ -195,17 +182,19 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
             }}
             className={`flex flex-row items-center space-x-2`}
           >
-            <SeasonDropdown
-              item={seriesItem}
-              seasons={seasons}
-              state={seasonIndexState}
-              onSelect={(season) => {
-                setSeasonIndexState((prev) => ({
-                  ...prev,
-                  [item.SeriesId ?? ""]: season.IndexNumber,
-                }));
-              }}
-            />
+            {seriesItem && (
+              <SeasonDropdown
+                item={seriesItem}
+                seasons={seasons}
+                state={seasonIndexState}
+                onSelect={(season) => {
+                  setSeasonIndexState((prev) => ({
+                    ...prev,
+                    [item.SeriesId ?? ""]: season.IndexNumber,
+                  }));
+                }}
+              />
+            )}
             <TouchableOpacity
               onPress={async () => {
                 close();
@@ -270,7 +259,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
                   </Text>
                 </View>
               )}
-              keyExtractor={(e: BaseItemDto) => e.Id}
+              keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
               estimatedItemSize={200}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{
