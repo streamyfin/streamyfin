@@ -192,106 +192,97 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
         backgroundColor: "black",
       }}
     >
-      {isFetching ? (
-        <View className="flex flex-col items-center justify-center">
-          <Loader />
-        </View>
-      ) : (
-        <>
-          <View
-            style={{
-              justifyContent: "space-between",
-            }}
-            className={`flex flex-row items-center space-x-2 z-10 p-4`}
-          >
-            {seriesItem && (
-              <SeasonDropdown
-                item={seriesItem}
-                seasons={seasons}
-                state={seasonIndexState}
-                onSelect={(season) => {
-                  setSeasonIndexState((prev) => ({
-                    ...prev,
-                    [item.SeriesId ?? ""]: season.IndexNumber,
-                  }));
-                }}
-              />
-            )}
-            <TouchableOpacity
-              onPress={async () => {
-                close();
+      <>
+        <View
+          style={{
+            justifyContent: "space-between",
+          }}
+          className={`flex flex-row items-center space-x-2 z-10 p-4`}
+        >
+          {seriesItem && (
+            <SeasonDropdown
+              item={seriesItem}
+              seasons={seasons}
+              state={seasonIndexState}
+              onSelect={(season) => {
+                setSeasonIndexState((prev) => ({
+                  ...prev,
+                  [item.SeriesId ?? ""]: season.IndexNumber,
+                }));
               }}
-              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-            >
-              <Ionicons name="close" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-          <View
-            style={{
-              alignSelf: "center",
+            />
+          )}
+          <TouchableOpacity
+            onPress={async () => {
+              close();
             }}
+            className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
           >
-            <HorizontalScroll
-              ref={scrollViewRef}
-              data={episodes}
-              extraData={item}
-              renderItem={(_item, idx) => (
-                <View
-                  key={_item.Id}
-                  style={{}}
-                  className={`flex flex-col w-44 ${
-                    item.Id !== _item.Id ? "opacity-75" : ""
-                  }`}
+            <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+        <View
+          style={{
+            alignSelf: "center",
+          }}
+        >
+          <HorizontalScroll
+            ref={scrollViewRef}
+            data={episodes}
+            extraData={item}
+            renderItem={(_item, idx) => (
+              <View
+                key={_item.Id}
+                style={{}}
+                className={`flex flex-col w-44 ${
+                  item.Id !== _item.Id ? "opacity-75" : ""
+                }`}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    gotoEpisode(_item.Id);
+                  }}
                 >
-                  <TouchableOpacity
-                    onPress={() => {
-                      gotoEpisode(_item.Id);
+                  <ContinueWatchingPoster
+                    item={_item}
+                    useEpisodePoster
+                    showPlayButton={_item.Id !== item.Id}
+                  />
+                </TouchableOpacity>
+                <View className="shrink">
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      lineHeight: 18, // Adjust this value based on your text size
+                      height: 36, // lineHeight * 2 for consistent two-line space
                     }}
                   >
-                    <ContinueWatchingPoster
-                      item={_item}
-                      useEpisodePoster
-                      showPlayButton={_item.Id !== item.Id}
-                    />
-                  </TouchableOpacity>
-                  <View className="shrink">
-                    <Text
-                      numberOfLines={2}
-                      style={{
-                        lineHeight: 18, // Adjust this value based on your text size
-                        height: 36, // lineHeight * 2 for consistent two-line space
-                      }}
-                    >
-                      {_item.Name}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      className="text-xs text-neutral-475"
-                    >
-                      {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
-                    </Text>
-                    <Text className="text-xs text-neutral-500">
-                      {runtimeTicksToSeconds(_item.RunTimeTicks)}
-                    </Text>
-                  </View>
-                  <View className="self-start mt-2">
-                    <DownloadSingleItem item={_item} />
-                  </View>
-                  <Text
-                    numberOfLines={5}
-                    className="text-xs text-neutral-500 shrink"
-                  >
-                    {_item.Overview}
+                    {_item.Name}
+                  </Text>
+                  <Text numberOfLines={1} className="text-xs text-neutral-475">
+                    {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
+                  </Text>
+                  <Text className="text-xs text-neutral-500">
+                    {runtimeTicksToSeconds(_item.RunTimeTicks)}
                   </Text>
                 </View>
-              )}
-              keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
-              estimatedItemSize={200}
-              showsHorizontalScrollIndicator={false}
-            />
-          </View>
-        </>
-      )}
+                <View className="self-start mt-2">
+                  <DownloadSingleItem item={_item} />
+                </View>
+                <Text
+                  numberOfLines={5}
+                  className="text-xs text-neutral-500 shrink"
+                >
+                  {_item.Overview}
+                </Text>
+              </View>
+            )}
+            keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
+            estimatedItemSize={200}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+      </>
     </View>
   );
 };
