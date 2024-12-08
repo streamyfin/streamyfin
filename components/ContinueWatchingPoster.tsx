@@ -1,27 +1,30 @@
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { useAtom, useAtomValue } from "jotai";
-import { useMemo, useState } from "react";
+import { useAtomValue } from "jotai";
+import { useMemo } from "react";
 import { View } from "react-native";
 import { WatchedIndicator } from "./WatchedIndicator";
 import React from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 type ContinueWatchingPosterProps = {
   item: BaseItemDto;
   useEpisodePoster?: boolean;
   size?: "small" | "normal";
+  showPlayButton?: boolean;
 };
 
 const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
   item,
   useEpisodePoster = false,
   size = "normal",
+  showPlayButton = false,
 }) => {
   const api = useAtomValue(apiAtom);
 
   /**
-   * Get horrizontal poster for movie and episode, with failover to primary.
+   * Get horizontal poster for movie and episode, with failover to primary.
    */
   const url = useMemo(() => {
     if (!api) return;
@@ -73,16 +76,23 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       ${size === "small" ? "w-32" : "w-44"}
     `}
     >
-      <Image
-        key={item.Id}
-        id={item.Id}
-        source={{
-          uri: url,
-        }}
-        cachePolicy={"memory-disk"}
-        contentFit="cover"
-        className="w-full h-full"
-      />
+      <View className="w-full h-full flex items-center justify-center">
+        <Image
+          key={item.Id}
+          id={item.Id}
+          source={{
+            uri: url,
+          }}
+          cachePolicy={"memory-disk"}
+          contentFit="cover"
+          className="w-full h-full"
+        />
+        {showPlayButton && (
+          <View className="absolute inset-0 flex items-center justify-center">
+            <Ionicons name="play-circle" size={40} color="white" />
+          </View>
+        )}
+      </View>
       {!progress && <WatchedIndicator item={item} />}
       {progress > 0 && (
         <>
