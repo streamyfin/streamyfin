@@ -183,11 +183,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     <View
       style={{
         position: "absolute",
-        top: insets.top,
         left: insets.left,
         right: insets.right,
-        bottom: 0,
-        backgroundColor: "black", // Dark transparent background
+        backgroundColor: "black",
       }}
     >
       {isFetching ? (
@@ -198,13 +196,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
         <>
           <View
             style={{
-              position: "absolute",
-              top: insets.top,
-              right: insets.right,
-              zIndex: 10,
-              padding: 16,
+              justifyContent: "space-between",
             }}
-            className={`flex flex-row items-center space-x-2`}
+            className={`flex flex-row items-center space-x-2 z-10 p-4`}
           >
             {seriesItem && (
               <SeasonDropdown
@@ -230,22 +224,20 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
           </View>
           <View
             style={{
-              position: "absolute",
-              bottom: insets.bottom,
-              width: "100%",
-              paddingBottom: 16, // Add padding to stay within the safe area
+              alignSelf: "center",
             }}
           >
             <HorizontalScroll
-              ref={scrollViewRef} // Attach the reference to the HorizontalScroll
+              ref={scrollViewRef}
               data={episodes}
               extraData={item}
               renderItem={(_item, idx) => (
                 <View
                   key={_item.Id}
+                  style={{}}
                   className={`flex flex-col w-44 
-                    ${item?.Id === _item.Id ? "" : "opacity-50"}
-                  `}
+          ${item?.Id === _item.Id ? "" : "opacity-50"}
+        `}
                 >
                   <TouchableOpacity
                     onPress={() => {
@@ -259,12 +251,18 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
                     />
                   </TouchableOpacity>
                   <View className="shrink">
-                    <Text numberOfLines={2} className="">
+                    <Text
+                      numberOfLines={2}
+                      style={{
+                        lineHeight: 18, // Adjust this value based on your text size
+                        height: 36, // lineHeight * 2 for consistent two-line space
+                      }}
+                    >
                       {_item.Name}
                     </Text>
                     <Text
                       numberOfLines={1}
-                      className="text-xs text-neutral-500"
+                      className="text-xs text-neutral-475"
                     >
                       {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
                     </Text>
