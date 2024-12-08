@@ -17,7 +17,7 @@ import {
   HorizontalScroll,
   HorizontalScrollRef,
 } from "@/components/common/HorrizontalScroll";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { useSettings } from "@/utils/atoms/settings";
@@ -155,22 +155,28 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     }
   }, [episodes, item.Id]);
 
+  const { audioIndex, subtitleIndex, bitrateValue } = useLocalSearchParams<{
+    audioIndex: string;
+    subtitleIndex: string;
+    mediaSourceId: string;
+    bitrateValue: string;
+  }>();
+
   const gotoEpisode = async (itemId: string) => {
     const item = await getItemById(api, itemId);
     if (!settings || !item) return;
 
-    const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-      getDefaultPlaySettings(item, settings);
+    const { mediaSource } = getDefaultPlaySettings(item, settings);
 
     const queryParams = new URLSearchParams({
       itemId: item.Id ?? "", // Ensure itemId is a string
       audioIndex: audioIndex?.toString() ?? "",
       subtitleIndex: subtitleIndex?.toString() ?? "",
       mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-      bitrateValue: bitrate.toString(),
+      bitrateValue: bitrateValue,
     }).toString();
 
-    if (!bitrate.value) {
+    if (!bitrateValue) {
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
       return;
