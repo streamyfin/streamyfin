@@ -183,8 +183,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     <View
       style={{
         position: "absolute",
-        left: insets.left,
-        right: insets.right,
         backgroundColor: "black",
       }}
     >
@@ -235,7 +233,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
                 <View
                   key={_item.Id}
                   style={{}}
-                  className={`flex flex-col w-44 opacity-100`}
+                  className={`flex flex-col w-44 ${
+                    item.Id !== _item.Id ? "opacity-75" : ""
+                  }`}
                 >
                   <TouchableOpacity
                     onPress={() => {
@@ -282,9 +282,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
               keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
               estimatedItemSize={200}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingHorizontal: 16,
-              }}
             />
           </View>
         </>
