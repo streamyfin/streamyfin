@@ -362,23 +362,10 @@ const Player = () => {
     }));
   };
 
-  const backAction = () => {
-    videoRef.current?.pause();
-    return false;
-  };
-
   useFocusEffect(
     React.useCallback(() => {
-      const onBackPress = () => {
-        return backAction();
-      };
-
-      BackHandler.addEventListener("hardwareBackPress", onBackPress);
-      play();
-
       return async () => {
-        videoRef.current?.pause();
-        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+        stop();
       };
     }, [])
   );
