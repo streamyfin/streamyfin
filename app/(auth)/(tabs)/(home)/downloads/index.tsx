@@ -71,7 +71,7 @@ export default function page() {
       writeToLog("ERROR", reason);
       toast.error("Failed to delete all movies");
     });
-  const deleteShows = () => deleteFileByType("Movie")
+  const deleteShows = () => deleteFileByType("Episode")
     .then(() => toast.success("Deleted all TV-Series successfully!"))
     .catch((reason) => {
       writeToLog("ERROR", reason);
