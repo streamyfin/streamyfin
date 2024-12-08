@@ -6,10 +6,11 @@ import {
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
+import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
-import {LogProvider, writeToLog} from "@/utils/log";
+import { LogProvider, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
@@ -304,57 +305,59 @@ function Layout() {
   }
 
   return (
-    <GestureHandlerRootView style={{flex: 1}}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <ActionSheetProvider>
           <JobQueueProvider>
             <JellyfinProvider>
               <PlaySettingsProvider>
                 <LogProvider>
-                  <DownloadProvider>
-                    <BottomSheetModalProvider>
-                      <SystemBars style="light" hidden={false}/>
-                      <ThemeProvider value={DarkTheme}>
-                        <Stack initialRouteName="/home">
-                          <Stack.Screen
-                            name="(auth)/(tabs)"
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
+                  <WebSocketProvider>
+                    <DownloadProvider>
+                      <BottomSheetModalProvider>
+                        <SystemBars style="light" hidden={false} />
+                        <ThemeProvider value={DarkTheme}>
+                          <Stack initialRouteName="/home">
+                            <Stack.Screen
+                              name="(auth)/(tabs)"
+                              options={{
+                                headerShown: false,
+                                title: "",
+                                header: () => null,
+                              }}
+                            />
+                            <Stack.Screen
+                              name="(auth)/player"
+                              options={{
+                                headerShown: false,
+                                title: "",
+                                header: () => null,
+                              }}
+                            />
+                            <Stack.Screen
+                              name="login"
+                              options={{ headerShown: false, title: "Login" }}
+                            />
+                            <Stack.Screen name="+not-found" />
+                          </Stack>
+                          <Toaster
+                            duration={4000}
+                            toastOptions={{
+                              style: {
+                                backgroundColor: "#262626",
+                                borderColor: "#363639",
+                                borderWidth: 1,
+                              },
+                              titleStyle: {
+                                color: "white",
+                              },
                             }}
+                            closeButton
                           />
-                          <Stack.Screen
-                            name="(auth)/player"
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
-                            }}
-                          />
-                          <Stack.Screen
-                            name="login"
-                            options={{headerShown: false, title: "Login"}}
-                          />
-                          <Stack.Screen name="+not-found"/>
-                        </Stack>
-                        <Toaster
-                          duration={4000}
-                          toastOptions={{
-                            style: {
-                              backgroundColor: "#262626",
-                              borderColor: "#363639",
-                              borderWidth: 1,
-                            },
-                            titleStyle: {
-                              color: "white",
-                            },
-                          }}
-                          closeButton
-                        />
-                      </ThemeProvider>
-                    </BottomSheetModalProvider>
-                  </DownloadProvider>
+                        </ThemeProvider>
+                      </BottomSheetModalProvider>
+                    </DownloadProvider>
+                  </WebSocketProvider>
                 </LogProvider>
               </PlaySettingsProvider>
             </JellyfinProvider>
