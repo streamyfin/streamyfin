@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { View, TouchableOpacity } from "react-native";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { Loader } from "@/components/Loader";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Text } from "@/components/common/Text";
@@ -42,7 +42,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   const [settings] = useSettings();
 
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
-  const seasonIndex = seasonIndexState[item.Id ?? ""];
+  const seasonIndex = seasonIndexState[item.SeriesId ?? ""];
 
   const [seriesItem, setSeriesItem] = useState<BaseItemDto | null>(null);
 
@@ -59,9 +59,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   const { data: seasons } = useQuery({
     queryKey: ["seasons", item.SeriesId],
     queryFn: async () => {
-      console.log("Seasons", Boolean(api), user?.Id, item.SeriesId);
       if (!api || !user?.Id || !item.SeriesId) return [];
-      console.log("Seasons", "Fetching");
       const response = await api.axiosInstance.get(
         `${api.basePath}/Shows/${item.SeriesId}/Seasons`,
         {
@@ -76,7 +74,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
           },
         }
       );
-      console.log("Response", response.data.Items);
       return response.data.Items;
     },
     enabled: !!api && !!user?.Id && !!item.SeasonId,
@@ -89,20 +86,20 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   );
 
   const { data: episodes, isFetching } = useQuery({
-    queryKey: ["episodes", item.SeriesId, item.SeasonId],
+    queryKey: ["episodes", item.SeriesId, selectedSeasonId],
     queryFn: async () => {
-      if (!api || !user?.Id || !item.Id || !item.SeasonId) return [];
+      if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
       const res = await getTvShowsApi(api).getEpisodes({
         seriesId: item.SeriesId || "",
         userId: user.Id,
-        seasonId: item.SeasonId || undefined,
+        seasonId: selectedSeasonId || undefined,
         enableUserData: true,
         fields: ["MediaSources", "MediaStreams", "Overview"],
       });
 
       return res.data.Items;
     },
-    enabled: !!api && !!user?.Id && !!item.SeasonId,
+    enabled: !!api && !!user?.Id && !!selectedSeasonId,
   });
 
   const queryClient = useQueryClient();
@@ -144,7 +141,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
 
   const gotoEpisode = async (itemId: string) => {
     const item = await getItemById(api, itemId);
-    console.log("Item", item);
     if (!settings || !item) return;
 
     const { bitrate, mediaSource, audioIndex, subtitleIndex } =
@@ -200,14 +196,13 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
             className={`flex flex-row items-center space-x-2`}
           >
             <SeasonDropdown
-              item={seriesItem ?? item}
+              item={seriesItem}
               seasons={seasons}
-              initialSeasonIndex={1}
               state={seasonIndexState}
               onSelect={(season) => {
                 setSeasonIndexState((prev) => ({
                   ...prev,
-                  [item.SeasonId ?? ""]: season.IndexNumber,
+                  [item.SeriesId ?? ""]: season.IndexNumber,
                 }));
               }}
             />
