@@ -203,7 +203,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
           style={{
             justifyContent: "space-between",
           }}
-          className={`flex flex-row items-center space-x-2 z-10 py-4 pr-4`}
+          className={`flex flex-row items-center space-x-2 z-10 p-4`}
         >
           {seriesItem && (
             <SeasonDropdown
