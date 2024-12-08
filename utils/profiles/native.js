@@ -10,21 +10,12 @@ import MediaTypes from "../../constants/MediaTypes";
  */
 export default {
   Name: "1. Vlc Player",
-  MaxStaticBitrate: 9999_000_000,
-  MaxStreamingBitrate: 9999_000_000,
+  MaxStaticBitrate: 999_999_999,
+  MaxStreamingBitrate: 999_999_999,
   CodecProfiles: [
     {
       Type: MediaTypes.Video,
       Codec: "h264,h265,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1",
-      // TODO: Fix dolby vision playback
-      // Conditions: [
-      //   {
-      //     Condition: "NotEquals",
-      //     Property: "VideoProfile",
-      //     Value: "dolby-vision|dvhe|dvh1|dvhe.05|dvhe.07",
-      //     IsRequired: false,
-      //   },
-      // ],
     },
     {
       Type: MediaTypes.Audio,
