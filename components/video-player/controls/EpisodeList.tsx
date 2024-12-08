@@ -186,7 +186,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
         top: insets.top,
         left: insets.left,
         right: insets.right,
-        bottom: insets.bottom,
+        bottom: 0,
         backgroundColor: "black", // Dark transparent background
       }}
     >
