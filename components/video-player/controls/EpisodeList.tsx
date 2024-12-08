@@ -98,11 +98,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     [seasons, seasonIndex]
   );
 
-  const {
-    data: episodes,
-    isFetching,
-    isFetched,
-  } = useQuery({
+  const { data: episodes, isFetching } = useQuery({
     queryKey: ["episodes", item.SeriesId, selectedSeasonId],
     queryFn: async () => {
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
@@ -121,15 +117,14 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
 
   useEffect(() => {
     if (item?.Type === "Episode" && item.Id) {
-      console.log("loaded");
       const index = episodes?.findIndex((ep) => ep.Id === item.Id);
       if (index !== undefined && index !== -1) {
         setTimeout(() => {
           scrollToIndex(index);
-        }, 500);
+        }, 400);
       }
     }
-  }, [isFetched]);
+  }, [episodes, item]);
 
   const queryClient = useQueryClient();
   useEffect(() => {
@@ -195,7 +190,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
       style={{
         position: "absolute",
         backgroundColor: "black",
-        height: "100%",
       }}
     >
       <>
@@ -227,61 +221,68 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
             <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
         </View>
-        <HorizontalScroll
-          ref={scrollViewRef}
-          data={episodes}
-          extraData={item}
-          renderItem={(_item, idx) => (
-            <View
-              key={_item.Id}
-              style={{}}
-              className={`flex flex-col w-44 ${
-                item.Id !== _item.Id ? "opacity-75" : ""
-              }`}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  gotoEpisode(_item.Id);
-                }}
+        <View
+          style={{
+            backgroundColor: "black",
+            height: "100%",
+          }}
+        >
+          <HorizontalScroll
+            ref={scrollViewRef}
+            data={episodes}
+            extraData={item}
+            renderItem={(_item, idx) => (
+              <View
+                key={_item.Id}
+                style={{}}
+                className={`flex flex-col w-44 ${
+                  item.Id !== _item.Id ? "opacity-75" : ""
+                }`}
               >
-                <ContinueWatchingPoster
-                  item={_item}
-                  useEpisodePoster
-                  showPlayButton={_item.Id !== item.Id}
-                />
-              </TouchableOpacity>
-              <View className="shrink">
-                <Text
-                  numberOfLines={2}
-                  style={{
-                    lineHeight: 18, // Adjust this value based on your text size
-                    height: 36, // lineHeight * 2 for consistent two-line space
+                <TouchableOpacity
+                  onPress={() => {
+                    gotoEpisode(_item.Id);
                   }}
                 >
-                  {_item.Name}
-                </Text>
-                <Text numberOfLines={1} className="text-xs text-neutral-475">
-                  {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
-                </Text>
-                <Text className="text-xs text-neutral-500">
-                  {runtimeTicksToSeconds(_item.RunTimeTicks)}
+                  <ContinueWatchingPoster
+                    item={_item}
+                    useEpisodePoster
+                    showPlayButton={_item.Id !== item.Id}
+                  />
+                </TouchableOpacity>
+                <View className="shrink">
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      lineHeight: 18, // Adjust this value based on your text size
+                      height: 36, // lineHeight * 2 for consistent two-line space
+                    }}
+                  >
+                    {_item.Name}
+                  </Text>
+                  <Text numberOfLines={1} className="text-xs text-neutral-475">
+                    {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
+                  </Text>
+                  <Text className="text-xs text-neutral-500">
+                    {runtimeTicksToSeconds(_item.RunTimeTicks)}
+                  </Text>
+                </View>
+                <View className="self-start mt-2">
+                  <DownloadSingleItem item={_item} />
+                </View>
+                <Text
+                  numberOfLines={5}
+                  className="text-xs text-neutral-500 shrink"
+                >
+                  {_item.Overview}
                 </Text>
               </View>
-              <View className="self-start mt-2">
-                <DownloadSingleItem item={_item} />
-              </View>
-              <Text
-                numberOfLines={5}
-                className="text-xs text-neutral-500 shrink"
-              >
-                {_item.Overview}
-              </Text>
-            </View>
-          )}
-          keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
-          estimatedItemSize={200}
-          showsHorizontalScrollIndicator={false}
-        />
+            )}
+            keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
+            estimatedItemSize={200}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
       </>
     </View>
   );
