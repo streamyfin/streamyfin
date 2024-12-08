@@ -185,11 +185,17 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     router.replace(`player/transcoding-player?${queryParams}`);
   };
 
+  if (!episodes) {
+    return <Loader />;
+  }
+
   return (
     <View
       style={{
         position: "absolute",
         backgroundColor: "black",
+        height: "100%",
+        width: "100%",
       }}
     >
       <>
@@ -221,68 +227,62 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
             <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
         </View>
-        <View
-          style={{
-            backgroundColor: "black",
-            height: "100%",
-          }}
-        >
-          <HorizontalScroll
-            ref={scrollViewRef}
-            data={episodes}
-            extraData={item}
-            renderItem={(_item, idx) => (
-              <View
-                key={_item.Id}
-                style={{}}
-                className={`flex flex-col w-44 ${
-                  item.Id !== _item.Id ? "opacity-75" : ""
-                }`}
+
+        <HorizontalScroll
+          ref={scrollViewRef}
+          data={episodes}
+          extraData={item}
+          renderItem={(_item, idx) => (
+            <View
+              key={_item.Id}
+              style={{}}
+              className={`flex flex-col w-44 ${
+                item.Id !== _item.Id ? "opacity-75" : ""
+              }`}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  gotoEpisode(_item.Id);
+                }}
               >
-                <TouchableOpacity
-                  onPress={() => {
-                    gotoEpisode(_item.Id);
+                <ContinueWatchingPoster
+                  item={_item}
+                  useEpisodePoster
+                  showPlayButton={_item.Id !== item.Id}
+                />
+              </TouchableOpacity>
+              <View className="shrink">
+                <Text
+                  numberOfLines={2}
+                  style={{
+                    lineHeight: 18, // Adjust this value based on your text size
+                    height: 36, // lineHeight * 2 for consistent two-line space
                   }}
                 >
-                  <ContinueWatchingPoster
-                    item={_item}
-                    useEpisodePoster
-                    showPlayButton={_item.Id !== item.Id}
-                  />
-                </TouchableOpacity>
-                <View className="shrink">
-                  <Text
-                    numberOfLines={2}
-                    style={{
-                      lineHeight: 18, // Adjust this value based on your text size
-                      height: 36, // lineHeight * 2 for consistent two-line space
-                    }}
-                  >
-                    {_item.Name}
-                  </Text>
-                  <Text numberOfLines={1} className="text-xs text-neutral-475">
-                    {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
-                  </Text>
-                  <Text className="text-xs text-neutral-500">
-                    {runtimeTicksToSeconds(_item.RunTimeTicks)}
-                  </Text>
-                </View>
-                <View className="self-start mt-2">
-                  <DownloadSingleItem item={_item} />
-                </View>
-                <Text
-                  numberOfLines={5}
-                  className="text-xs text-neutral-500 shrink"
-                >
-                  {_item.Overview}
+                  {_item.Name}
+                </Text>
+                <Text numberOfLines={1} className="text-xs text-neutral-475">
+                  {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
+                </Text>
+                <Text className="text-xs text-neutral-500">
+                  {runtimeTicksToSeconds(_item.RunTimeTicks)}
                 </Text>
               </View>
-            )}
-            keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
-            estimatedItemSize={200}
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
+              <View className="self-start mt-2">
+                <DownloadSingleItem item={_item} />
+              </View>
+              <Text
+                numberOfLines={5}
+                className="text-xs text-neutral-500 shrink"
+              >
+                {_item.Overview}
+              </Text>
+            </View>
+          )}
+          keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
+          estimatedItemSize={200}
+          showsHorizontalScrollIndicator={false}
+        />
       </>
     </View>
   );
