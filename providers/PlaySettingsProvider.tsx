@@ -1,13 +1,10 @@
 import { Bitrate } from "@/components/BitrateSelector";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import ios from "@/utils/profiles/ios";
 import native from "@/utils/profiles/native";
-import old from "@/utils/profiles/old";
 import {
   BaseItemDto,
   MediaSourceInfo,
-  PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
@@ -19,7 +16,6 @@ import React, {
   useState,
 } from "react";
 import { apiAtom, userAtom } from "./JellyfinProvider";
-import iosFmp4 from "@/utils/profiles/iosFmp4";
 
 export type PlaybackType = {
   item?: BaseItemDto | null;
@@ -124,25 +120,25 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     [api, user, settings, playSettings]
   );
 
-  useEffect(() => {
-    const postCaps = async () => {
-      if (!api) return;
-      await getSessionApi(api).postFullCapabilities({
-        clientCapabilitiesDto: {
-          AppStoreUrl: "https://apps.apple.com/us/app/streamyfin/id6593660679",
-          DeviceProfile: native as any,
-          IconUrl:
-            "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
-          PlayableMediaTypes: ["Audio", "Video"],
-          SupportedCommands: ["Play"],
-          SupportsMediaControl: true,
-          SupportsPersistentIdentifier: true,
-        },
-      });
-    };
+  // useEffect(() => {
+  //   const postCaps = async () => {
+  //     if (!api) return;
+  //     await getSessionApi(api).postFullCapabilities({
+  //       clientCapabilitiesDto: {
+  //         AppStoreUrl: "https://apps.apple.com/us/app/streamyfin/id6593660679",
+  //         DeviceProfile: native as any,
+  //         IconUrl:
+  //           "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
+  //         PlayableMediaTypes: ["Audio", "Video"],
+  //         SupportedCommands: ["Play"],
+  //         SupportsMediaControl: true,
+  //         SupportsPersistentIdentifier: true,
+  //       },
+  //     });
+  //   };
 
-    postCaps();
-  }, [settings, api]);
+  //   postCaps();
+  // }, [settings, api]);
 
   return (
     <PlaySettingsContext.Provider

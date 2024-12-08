@@ -66,7 +66,7 @@ interface Props {
   ignoreSafeAreas?: boolean;
   setIgnoreSafeAreas: React.Dispatch<React.SetStateAction<boolean>>;
   enableTrickplay?: boolean;
-  togglePlay: (ticks: number) => void;
+  togglePlay: () => void;
   setShowControls: (shown: boolean) => void;
   offline?: boolean;
   isVideoLoaded?: boolean;
@@ -538,7 +538,7 @@ export const Controls: React.FC<Props> = ({
 
         <TouchableOpacity
           onPress={() => {
-            togglePlay(progress.value);
+            togglePlay();
           }}
         >
           {!isBuffering ? (
