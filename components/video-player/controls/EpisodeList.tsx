@@ -37,12 +37,15 @@ export const seasonIndexAtom = atom<SeasonIndexState>({});
 export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const scrollViewRef = useRef<HorizontalScrollRef>(null); // Reference to the HorizontalScroll
   const insets = useSafeAreaInsets(); // Get safe area insets
   const [settings] = useSettings();
-
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
+  const scrollViewRef = useRef<HorizontalScrollRef>(null); // Reference to the HorizontalScroll
+  const scrollToIndex = (index: number) => {
+    scrollViewRef.current?.scrollToIndex(index, 100);
+  };
 
+  // Set the initial season index
   useEffect(() => {
     if (item.SeriesId) {
       setSeasonIndexState((prev) => ({
@@ -53,9 +56,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
   }, []);
 
   const seasonIndex = seasonIndexState[item.SeriesId ?? ""];
-
   const [seriesItem, setSeriesItem] = useState<BaseItemDto | null>(null);
 
+  // This effect fetches the series item data/
   useEffect(() => {
     if (item.SeriesId) {
       getUserItemData({ api, userId: user?.Id, itemId: item.SeriesId }).then(
@@ -111,6 +114,17 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     },
     enabled: !!api && !!user?.Id && !!selectedSeasonId,
   });
+
+  useEffect(() => {
+    if (item?.Type === "Episode" && item.Id) {
+      const index = episodes?.findIndex((ep) => ep.Id === item.Id);
+      if (index !== undefined && index !== -1) {
+        setTimeout(() => {
+          scrollToIndex(index);
+        }, 400);
+      }
+    }
+  }, [episodes, item]);
 
   const queryClient = useQueryClient();
   useEffect(() => {
