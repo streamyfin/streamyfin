@@ -44,7 +44,11 @@ export const SeasonDropdown: React.FC<Props> = ({
           },
     [item]
   );
-  const seasonIndex = useMemo(() => state[item[keys.id] ?? ""], [state]);
+
+  const seasonIndex = useMemo(
+    () => state[(item[keys.id] as string) ?? ""],
+    [state]
+  );
 
   useEffect(() => {
     if (seasons && seasons.length > 0 && seasonIndex === undefined) {
@@ -80,12 +84,12 @@ export const SeasonDropdown: React.FC<Props> = ({
   }, [seasons, seasonIndex, item[keys.id], initialSeasonIndex]);
 
   const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
-    a[keys.index] - b[keys.index];
+    Number(a[keys.index]) - Number(b[keys.index]);
 
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
-        <View className="flex flex-row px-4">
+        <View className="flex flex-row">
           <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
             <Text>Season {seasonIndex}</Text>
           </TouchableOpacity>
