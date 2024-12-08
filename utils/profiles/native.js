@@ -10,8 +10,8 @@ import MediaTypes from "../../constants/MediaTypes";
  */
 export default {
   Name: "1. Vlc Player",
-  MaxStaticBitrate: 20_000_000,
-  MaxStreamingBitrate: 20_000_000,
+  MaxStaticBitrate: 999_999_999,
+  MaxStreamingBitrate: 999_999_999,
   CodecProfiles: [
     {
       Type: MediaTypes.Video,

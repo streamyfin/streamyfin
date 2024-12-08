@@ -180,69 +180,58 @@ export default function page() {
     staleTime: 0,
   });
 
-  const togglePlay = useCallback(
-    async (ms: number) => {
-      if (!api) return;
+  const togglePlay = useCallback(async () => {
+    if (!api) return;
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (isPlaying) {
-        await videoRef.current?.pause();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isPlaying) {
+      await videoRef.current?.pause();
 
-        if (!offline && stream) {
-          await getPlaystateApi(api).onPlaybackProgress({
-            itemId: item?.Id!,
-            audioStreamIndex: audioIndex ? audioIndex : undefined,
-            subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-            mediaSourceId: mediaSourceId,
-            positionTicks: msToTicks(ms),
-            isPaused: true,
-            playMethod: stream.url?.includes("m3u8")
-              ? "Transcode"
-              : "DirectStream",
-            playSessionId: stream.sessionId,
-          });
-        }
-
-        console.log("Actually marked as paused");
-      } else {
-        videoRef.current?.play();
-        if (!offline && stream) {
-          await getPlaystateApi(api).onPlaybackProgress({
-            itemId: item?.Id!,
-            audioStreamIndex: audioIndex ? audioIndex : undefined,
-            subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-            mediaSourceId: mediaSourceId,
-            positionTicks: msToTicks(ms),
-            isPaused: false,
-            playMethod: stream?.url.includes("m3u8")
-              ? "Transcode"
-              : "DirectStream",
-            playSessionId: stream.sessionId,
-          });
-        }
+      if (!offline && stream) {
+        await getPlaystateApi(api).onPlaybackProgress({
+          itemId: item?.Id!,
+          audioStreamIndex: audioIndex ? audioIndex : undefined,
+          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+          mediaSourceId: mediaSourceId,
+          positionTicks: msToTicks(progress.value),
+          isPaused: true,
+          playMethod: stream.url?.includes("m3u8")
+            ? "Transcode"
+            : "DirectStream",
+          playSessionId: stream.sessionId,
+        });
       }
-    },
-    [
-      isPlaying,
-      api,
-      item,
-      stream,
-      videoRef,
-      audioIndex,
-      subtitleIndex,
-      mediaSourceId,
-      offline,
-    ]
-  );
 
-  const play = useCallback(() => {
-    videoRef.current?.play();
-    reportPlaybackStart();
-  }, [videoRef]);
-
-  const pause = useCallback(() => {
-    videoRef.current?.pause();
-  }, [videoRef]);
+      console.log("Actually marked as paused");
+    } else {
+      videoRef.current?.play();
+      if (!offline && stream) {
+        await getPlaystateApi(api).onPlaybackProgress({
+          itemId: item?.Id!,
+          audioStreamIndex: audioIndex ? audioIndex : undefined,
+          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+          mediaSourceId: mediaSourceId,
+          positionTicks: msToTicks(progress.value),
+          isPaused: false,
+          playMethod: stream?.url.includes("m3u8")
+            ? "Transcode"
+            : "DirectStream",
+          playSessionId: stream.sessionId,
+        });
+      }
+    }
+  }, [
+    isPlaying,
+    api,
+    item,
+    stream,
+    videoRef,
+    audioIndex,
+    subtitleIndex,
+    mediaSourceId,
+    offline,
+    progress.value,
+  ]);
 
   const reportPlaybackStopped = useCallback(async () => {
     if (offline) return;
@@ -298,6 +287,8 @@ export default function page() {
 
       if (!item?.Id || !stream) return;
 
+      console.log("onProgress ~", currentTimeInTicks, isPlaying);
+
       await getPlaystateApi(api!).onPlaybackProgress({
         itemId: item.Id,
         audioStreamIndex: audioIndex ? audioIndex : undefined,
@@ -317,8 +308,7 @@ export default function page() {
 
   useWebSocket({
     isPlaying: isPlaying,
-    pauseVideo: pause,
-    playVideo: play,
+    togglePlay: togglePlay,
     stopPlayback: stop,
     offline,
   });

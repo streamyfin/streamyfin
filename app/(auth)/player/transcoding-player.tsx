@@ -169,51 +169,44 @@ const Player = () => {
   const poster = usePoster(item, api);
   const videoSource = useVideoSource(item, api, poster, stream?.url);
 
-  const togglePlay = useCallback(
-    async (ticks: number) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (isPlaying) {
-        videoRef.current?.pause();
-        await getPlaystateApi(api!).onPlaybackProgress({
-          itemId: item?.Id!,
-          audioStreamIndex: audioIndex ? audioIndex : undefined,
-          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-          mediaSourceId: mediaSourceId,
-          positionTicks: Math.floor(ticks),
-          isPaused: true,
-          playMethod: stream?.url.includes("m3u8")
-            ? "Transcode"
-            : "DirectStream",
-          playSessionId: stream?.sessionId,
-        });
-      } else {
-        videoRef.current?.resume();
-        await getPlaystateApi(api!).onPlaybackProgress({
-          itemId: item?.Id!,
-          audioStreamIndex: audioIndex ? audioIndex : undefined,
-          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-          mediaSourceId: mediaSourceId,
-          positionTicks: Math.floor(ticks),
-          isPaused: false,
-          playMethod: stream?.url.includes("m3u8")
-            ? "Transcode"
-            : "DirectStream",
-          playSessionId: stream?.sessionId,
-        });
-      }
-    },
-    [
-      isPlaying,
-      api,
-      item,
-      videoRef,
-      settings,
-      stream,
-      audioIndex,
-      subtitleIndex,
-      mediaSourceId,
-    ]
-  );
+  const togglePlay = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isPlaying) {
+      videoRef.current?.pause();
+      await getPlaystateApi(api!).onPlaybackProgress({
+        itemId: item?.Id!,
+        audioStreamIndex: audioIndex ? audioIndex : undefined,
+        subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+        mediaSourceId: mediaSourceId,
+        positionTicks: Math.floor(progress.value),
+        isPaused: true,
+        playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+        playSessionId: stream?.sessionId,
+      });
+    } else {
+      videoRef.current?.resume();
+      await getPlaystateApi(api!).onPlaybackProgress({
+        itemId: item?.Id!,
+        audioStreamIndex: audioIndex ? audioIndex : undefined,
+        subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+        mediaSourceId: mediaSourceId,
+        positionTicks: Math.floor(progress.value),
+        isPaused: false,
+        playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+        playSessionId: stream?.sessionId,
+      });
+    }
+  }, [
+    isPlaying,
+    api,
+    item,
+    videoRef,
+    settings,
+    stream,
+    audioIndex,
+    subtitleIndex,
+    mediaSourceId,
+  ]);
 
   const play = useCallback(() => {
     videoRef.current?.resume();
@@ -307,9 +300,9 @@ const Player = () => {
 
   useWebSocket({
     isPlaying: isPlaying,
-    pauseVideo: pause,
-    playVideo: play,
+    togglePlay: togglePlay,
     stopPlayback: stop,
+    offline: false,
   });
 
   const [selectedTextTrack, setSelectedTextTrack] = useState<
