@@ -526,7 +526,6 @@ export const Controls: React.FC<Props> = ({
             )}
             <TouchableOpacity
               onPress={async () => {
-                if (stop) await stop();
                 router.back();
               }}
               className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"

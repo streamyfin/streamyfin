@@ -342,22 +342,11 @@ export default function page() {
       : 0;
   }, [item]);
 
-  const backAction = () => {
-    videoRef.current?.stop();
-    return false;
-  };
-
   useFocusEffect(
     React.useCallback(() => {
-      const onBackPress = () => {
-        return backAction();
-      };
-
-      BackHandler.addEventListener("hardwareBackPress", onBackPress);
-
       return async () => {
-        videoRef.current?.stop();
-        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+        stop();
+        console.log("Unmounted");
       };
     }, [])
   );
