@@ -163,8 +163,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     router.replace(`player/transcoding-player?${queryParams}`);
   };
 
-  console.log("itemId", item.Id);
-
   return (
     <View
       style={{
@@ -248,7 +246,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
                     />
                   </TouchableOpacity>
                   <View className="shrink">
-                    <Text numberOfLines={5} className="">
+                    <Text numberOfLines={2} className="">
                       {_item.Name}
                     </Text>
                     <Text
