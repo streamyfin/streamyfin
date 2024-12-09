@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Slider } from "react-native-awesome-slider";
-import VolumeManager from "react-native-volume-manager";
+import { VolumeManager } from "react-native-volume-manager";
 import { Ionicons } from "@expo/vector-icons";
 
 const AudioSlider = () => {
@@ -13,7 +13,7 @@ const AudioSlider = () => {
   useEffect(() => {
     const fetchInitialVolume = async () => {
       try {
-        const initialVolume = await VolumeManager.getVolume();
+        const { volume: initialVolume } = await VolumeManager.getVolume();
         console.log("initialVolume", initialVolume);
         volume.value = initialVolume * 100;
       } catch (error) {
@@ -21,13 +21,35 @@ const AudioSlider = () => {
       }
     };
     fetchInitialVolume();
+
+    // Disable the native volume UI when the component mounts
+    VolumeManager.showNativeVolumeUI({ enabled: false });
+
+    return () => {
+      // Re-enable the native volume UI when the component unmounts
+      VolumeManager.showNativeVolumeUI({ enabled: true });
+    };
   }, []);
 
   const handleValueChange = async (value: number) => {
     volume.value = value;
     console.log("volume", value);
     await VolumeManager.setVolume(value / 100);
+
+    // Re-call showNativeVolumeUI to ensure the setting is applied on iOS
+    VolumeManager.showNativeVolumeUI({ enabled: false });
   };
+
+  useEffect(() => {
+    const volumeListener = VolumeManager.addVolumeListener((result) => {
+      console.log("Volume changed:", result.volume);
+      volume.value = result.volume * 100;
+    });
+
+    return () => {
+      volumeListener.remove();
+    };
+  }, []);
 
   return (
     <View style={styles.sliderContainer}>

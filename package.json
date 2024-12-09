@@ -71,7 +71,7 @@
     "react-dom": "18.2.0",
     "react-native": "0.74.5",
     "react-native-awesome-slider": "^2.5.6",
-    "react-native-bottom-tabs": "^0.7.1",
+    "react-native-bottom-tabs": "0.7.1",
     "react-native-circular-progress": "^1.4.1",
     "react-native-compressor": "^1.9.0",
     "react-native-device-info": "^14.0.1",
