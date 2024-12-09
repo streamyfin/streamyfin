@@ -2,6 +2,7 @@ import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { storage } from "../mmkv";
+import { Platform } from "react-native";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -107,7 +108,7 @@ const loadSettings = (): Settings => {
     downloadMethod: "remux",
     autoDownload: false,
     showCustomMenuLinks: false,
-    subtitleSize: 60,
+    subtitleSize: Platform.OS === "ios" ? 60 : 100,
     remuxConcurrentLimit: 1,
   };
 
