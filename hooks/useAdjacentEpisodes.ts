@@ -1,8 +1,8 @@
-import index from "@/app/(auth)/(tabs)/(home)";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api/items-api";
+import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useAtomValue } from "jotai";
 
 interface AdjacentEpisodesProps {
@@ -12,81 +12,53 @@ interface AdjacentEpisodesProps {
 export const useAdjacentItems = ({ item }: AdjacentEpisodesProps) => {
   const api = useAtomValue(apiAtom);
 
-  const { data: previousItem } = useQuery({
-    queryKey: ["previousItem", item?.Id, item?.ParentId, item?.IndexNumber],
-    queryFn: async (): Promise<BaseItemDto | null> => {
-      const parentId = item?.AlbumId || item?.ParentId;
-      const indexNumber = item?.IndexNumber;
-
-      if (
-        !api ||
-        !parentId ||
-        indexNumber === undefined ||
-        indexNumber === null ||
-        indexNumber - 1 < 1
-      ) {
+  const { data: adjacentItems } = useQuery({
+    queryKey: ["adjacentItems", item?.Id, item?.SeriesId],
+    queryFn: async (): Promise<BaseItemDto[] | null> => {
+      if (!api || !item || !item.SeriesId) {
         return null;
       }
 
-      const newIndexNumber = indexNumber - 2;
-
-      const res = await getItemsApi(api).getItems({
-        parentId: parentId!,
-        startIndex: newIndexNumber,
-        limit: 1,
-        sortBy: ["IndexNumber"],
-        includeItemTypes: ["Episode", "Audio"],
+      const res = await getTvShowsApi(api).getEpisodes({
+        seriesId: item.SeriesId,
+        adjacentTo: item.Id,
+        limit: 3,
         fields: ["MediaSources", "MediaStreams", "ParentId"],
       });
 
-      if (res.data.Items?.[0]?.IndexNumber !== indexNumber - 1) {
-        throw new Error("Previous item is not correct");
-      }
-
-      return res.data.Items?.[0] || null;
+      return res.data.Items || null;
     },
-    enabled: item?.Type === "Episode" || item?.Type === "Audio",
+    enabled:
+      !!api &&
+      !!item?.Id &&
+      !!item?.SeriesId &&
+      (item?.Type === "Episode" || item?.Type === "Audio"),
     staleTime: 0,
   });
 
-  const { data: nextItem } = useQuery({
-    queryKey: ["nextItem", item?.Id, item?.ParentId, item?.IndexNumber],
-    queryFn: async (): Promise<BaseItemDto | null> => {
-      const parentId = item?.AlbumId || item?.ParentId;
-      const indexNumber = item?.IndexNumber;
+  const previousItem = useMemo(() => {
+    if (!adjacentItems || adjacentItems.length <= 1) {
+      return null;
+    }
 
-      if (
-        !api ||
-        !parentId ||
-        indexNumber === undefined ||
-        indexNumber === null
-      ) {
-        console.log("No next item", {
-          itemId: item?.Id,
-          parentId: parentId,
-          indexNumber: indexNumber,
-        });
-        return null;
-      }
+    if (adjacentItems.length === 2) {
+      return adjacentItems[0].Id === item?.Id ? null : adjacentItems[0];
+    }
 
-      const res = await getItemsApi(api).getItems({
-        parentId: parentId!,
-        startIndex: indexNumber,
-        sortBy: ["IndexNumber"],
-        limit: 1,
-        includeItemTypes: ["Episode", "Audio"],
-        fields: ["MediaSources", "MediaStreams", "ParentId"],
-      });
+    return adjacentItems[0];
+  }, [adjacentItems, item]);
 
-      if (res.data.Items?.[0]?.IndexNumber !== indexNumber + 1) {
-        throw new Error("Previous item is not correct");
-      }
+  const nextItem = useMemo(() => {
+    if (!adjacentItems || adjacentItems.length <= 1) {
+      return null;
+    }
 
-      return res.data.Items?.[0] || null;
-    },
-    enabled: item?.Type === "Episode" || item?.Type === "Audio",
-    staleTime: 0,
-  });
+    if (adjacentItems.length === 2) {
+      return adjacentItems[1].Id === item?.Id ? null : adjacentItems[1];
+    }
+
+    return adjacentItems[2];
+  }, [adjacentItems, item]);
 
   return { previousItem, nextItem };
 };
