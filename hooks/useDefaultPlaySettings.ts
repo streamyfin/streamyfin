@@ -17,16 +17,20 @@ const useDefaultPlaySettings = (
     // 2. Get default or preferred audio
     const defaultAudioIndex = mediaSource?.DefaultAudioStreamIndex;
     const preferedAudioIndex = mediaSource?.MediaStreams?.find(
-      (x) => x.Language === settings?.defaultAudioLanguage
+      (x) => x.Type === "Audio" && x.Language === settings?.defaultAudioLanguage
     )?.Index;
+
     const firstAudioIndex = mediaSource?.MediaStreams?.find(
       (x) => x.Type === "Audio"
     )?.Index;
 
     // 3. Get default or preferred subtitle
     const preferedSubtitleIndex = mediaSource?.MediaStreams?.find(
-      (x) => x.Language === settings?.defaultSubtitleLanguage?.value
+      (x) =>
+        x.Type === "Subtitle" &&
+        x.Language === settings?.defaultSubtitleLanguage?.value
     )?.Index;
+
     const defaultSubtitleIndex = mediaSource?.MediaStreams?.find(
       (stream) => stream.Type === "Subtitle" && stream.IsDefault
     )?.Index;
@@ -38,7 +42,9 @@ const useDefaultPlaySettings = (
       defaultAudioIndex:
         preferedAudioIndex || defaultAudioIndex || firstAudioIndex || undefined,
       defaultSubtitleIndex:
-        preferedSubtitleIndex || defaultSubtitleIndex || undefined,
+        preferedSubtitleIndex !== undefined
+          ? preferedSubtitleIndex
+          : defaultSubtitleIndex || undefined,
       defaultMediaSource: mediaSource || undefined,
       defaultBitrate: bitrate || undefined,
     };
