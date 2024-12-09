@@ -1,14 +1,20 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View, StyleSheet } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Slider } from "react-native-awesome-slider";
 import { VolumeManager } from "react-native-volume-manager";
 import { Ionicons } from "@expo/vector-icons";
 
-const AudioSlider = () => {
+interface AudioSliderProps {
+  setVisibility: (show: boolean) => void;
+}
+
+const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   const volume = useSharedValue<number>(50); // Explicitly type as number
   const min = useSharedValue<number>(0); // Explicitly type as number
   const max = useSharedValue<number>(100); // Explicitly type as number
+
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null); // Use a ref to store the timeout ID
 
   useEffect(() => {
     const fetchInitialVolume = async () => {
@@ -33,7 +39,7 @@ const AudioSlider = () => {
 
   const handleValueChange = async (value: number) => {
     volume.value = value;
-    console.log("volume", value);
+    console.log("volume through slider", value);
     await VolumeManager.setVolume(value / 100);
 
     // Re-call showNativeVolumeUI to ensure the setting is applied on iOS
@@ -42,14 +48,28 @@ const AudioSlider = () => {
 
   useEffect(() => {
     const volumeListener = VolumeManager.addVolumeListener((result) => {
-      console.log("Volume changed:", result.volume);
+      console.log("Volume through device", result.volume);
       volume.value = result.volume * 100;
+      setVisibility(true);
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Set a new timeout to hide the visibility after 2 seconds
+      timeoutRef.current = setTimeout(() => {
+        setVisibility(false);
+      }, 1000);
     });
 
     return () => {
       volumeListener.remove();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, []);
+  }, [volume]);
 
   return (
     <View style={styles.sliderContainer}>

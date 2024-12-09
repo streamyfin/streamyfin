@@ -1,6 +1,9 @@
-import { TrackInfo } from '@/modules/vlc-player';
-import { BaseItemDto, MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client';
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { TrackInfo } from "@/modules/vlc-player";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 interface ControlContextProps {
   item: BaseItemDto;
@@ -8,7 +11,9 @@ interface ControlContextProps {
   isVideoLoaded: boolean | undefined;
 }
 
-const ControlContext = createContext<ControlContextProps | undefined>(undefined);
+const ControlContext = createContext<ControlContextProps | undefined>(
+  undefined
+);
 
 interface ControlProviderProps {
   children: ReactNode;
@@ -17,7 +22,12 @@ interface ControlProviderProps {
   isVideoLoaded: boolean | undefined;
 }
 
-export const ControlProvider: React.FC<ControlProviderProps> = ({ children, item, mediaSource, isVideoLoaded }) => {
+export const ControlProvider: React.FC<ControlProviderProps> = ({
+  children,
+  item,
+  mediaSource,
+  isVideoLoaded,
+}) => {
   return (
     <ControlContext.Provider value={{ item, mediaSource, isVideoLoaded }}>
       {children}
@@ -28,7 +38,7 @@ export const ControlProvider: React.FC<ControlProviderProps> = ({ children, item
 export const useControlContext = () => {
   const context = useContext(ControlContext);
   if (context === undefined) {
-    throw new Error('useControlContext must be used within a ControlProvider');
+    throw new Error("useControlContext must be used within a ControlProvider");
   }
   return context;
 };

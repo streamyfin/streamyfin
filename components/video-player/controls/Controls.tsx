@@ -253,7 +253,14 @@ export const Controls: React.FC<Props> = ({
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, []);
-  const toggleControls = () => setShowControls(!showControls);
+  const toggleControls = () => {
+    if (showControls) {
+      setShowAudioSlider(false);
+      setShowControls(false);
+    } else {
+      setShowControls(true);
+    }
+  };
 
   const handleSliderStart = useCallback(() => {
     if (showControls === false) return;
@@ -438,6 +445,9 @@ export const Controls: React.FC<Props> = ({
     router.replace(`player/transcoding-player?${queryParams}`);
   };
 
+  // Used when user changes audio through audio button on device.
+  const [showAudioSlider, setShowAudioSlider] = useState(false);
+
   return (
     <ControlProvider
       item={item}
@@ -546,7 +556,6 @@ export const Controls: React.FC<Props> = ({
               alignItems: "center",
               transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
               paddingHorizontal: "28%", // Add some padding to the left and right
-              opacity: showControls ? 1 : 0,
             }}
             pointerEvents={showControls ? "box-none" : "none"}
           >
@@ -557,6 +566,7 @@ export const Controls: React.FC<Props> = ({
                 transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
                 left: 0,
                 bottom: 30,
+                opacity: showControls ? 1 : 0,
               }}
             >
               <BrightnessSlider />
@@ -567,6 +577,7 @@ export const Controls: React.FC<Props> = ({
                   position: "relative",
                   justifyContent: "center",
                   alignItems: "center",
+                  opacity: showControls ? 1 : 0,
                 }}
               >
                 <Ionicons
@@ -601,6 +612,9 @@ export const Controls: React.FC<Props> = ({
                   name={isPlaying ? "pause" : "play"}
                   size={50}
                   color="white"
+                  style={{
+                    opacity: showControls ? 1 : 0,
+                  }}
                 />
               ) : (
                 <Loader size={"large"} />
@@ -613,6 +627,7 @@ export const Controls: React.FC<Props> = ({
                   position: "relative",
                   justifyContent: "center",
                   alignItems: "center",
+                  opacity: showControls ? 1 : 0,
                 }}
               >
                 <Ionicons name="refresh-outline" size={50} color="white" />
@@ -637,9 +652,10 @@ export const Controls: React.FC<Props> = ({
                 transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
                 bottom: 30,
                 right: 0,
+                opacity: showAudioSlider || showControls ? 1 : 0,
               }}
             >
-              <AudioSlider />
+              <AudioSlider setVisibility={setShowAudioSlider} />
             </View>
           </View>
 
