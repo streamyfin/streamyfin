@@ -1,7 +1,7 @@
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
-import {writeErrorLog, writeInfoLog, writeToLog} from "@/utils/log";
+import { writeErrorLog, writeInfoLog, writeToLog } from "@/utils/log";
 import {
   BaseItemDto,
   MediaSourceInfo,
@@ -9,34 +9,34 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
-import {FFmpegKit, FFmpegSession, Statistics} from "ffmpeg-kit-react-native";
-import {useAtomValue} from "jotai";
-import {useCallback} from "react";
+import { FFmpegKit, FFmpegSession, Statistics } from "ffmpeg-kit-react-native";
+import { useAtomValue } from "jotai";
+import { useCallback } from "react";
 import { toast } from "sonner-native";
 import useImageStorage from "./useImageStorage";
 import useDownloadHelper from "@/utils/download";
-import {Api} from "@jellyfin/sdk";
-import {useSettings} from "@/utils/atoms/settings";
-import {JobStatus} from "@/utils/optimize-server";
+import { Api } from "@jellyfin/sdk";
+import { useSettings } from "@/utils/atoms/settings";
+import { JobStatus } from "@/utils/optimize-server";
 
 const createFFmpegCommand = (url: string, output: string) => [
-  "-y",                                                 // overwrite output files without asking
-  "-thread_queue_size 512",                             // https://ffmpeg.org/ffmpeg.html#toc-Advanced-options
+  "-y", // overwrite output files without asking
+  "-thread_queue_size 512", // https://ffmpeg.org/ffmpeg.html#toc-Advanced-options
 
   // region ffmpeg protocol commands                    // https://ffmpeg.org/ffmpeg-protocols.html
   "-protocol_whitelist file,http,https,tcp,tls,crypto", // whitelist
-  "-multiple_requests 1",                               // http
-  "-tcp_nodelay 1",                                     // http
+  "-multiple_requests 1", // http
+  "-tcp_nodelay 1", // http
   // endregion ffmpeg protocol commands
 
-  "-fflags +genpts",                                    // format flags
-  `-i ${url}`,                                          // infile
-  "-map 0:v -map 0:a",                                  // select all streams for video & audio
-  "-c copy",                                            // streamcopy, preventing transcoding
-  "-bufsize 25M",                                       // amount of data processed before calculating current bitrate
-  "-max_muxing_queue_size 4096",                        // sets the size of stream buffer in packets for output
-  output
-]
+  "-fflags +genpts", // format flags
+  `-i ${url}`, // infile
+  "-map 0:v -map 0:a", // select all streams for video & audio
+  "-c copy", // streamcopy, preventing transcoding
+  "-bufsize 25M", // amount of data processed before calculating current bitrate
+  "-max_muxing_queue_size 4096", // sets the size of stream buffer in packets for output
+  output,
+];
 
 /**
  * Custom hook for remuxing HLS to MP4 using FFmpeg.
@@ -51,9 +51,9 @@ export const useRemuxHlsToMp4 = () => {
   const queryClient = useQueryClient();
 
   const [settings] = useSettings();
-  const {saveImage} = useImageStorage();
-  const {saveSeriesPrimaryImage} = useDownloadHelper();
-  const {saveDownloadedItemInfo, setProcesses, processes} = useDownload();
+  const { saveImage } = useImageStorage();
+  const { saveSeriesPrimaryImage } = useDownloadHelper();
+  const { saveDownloadedItemInfo, setProcesses, processes } = useDownload();
 
   const onSaveAssets = async (api: Api, item: BaseItemDto) => {
     await saveSeriesPrimaryImage(item);
@@ -66,86 +66,64 @@ export const useRemuxHlsToMp4 = () => {
     });
 
     await saveImage(item.Id, itemImage?.uri);
-  }
+  };
 
-  const completeCallback = useCallback(async (session: FFmpegSession, item: BaseItemDto) => {
-    try {
-      let endTime;
-      const returnCode = await session.getReturnCode();
-      const startTime = new Date();
+  const completeCallback = useCallback(
+    async (session: FFmpegSession, item: BaseItemDto) => {
+      try {
+        console.log("completeCallback");
+        const returnCode = await session.getReturnCode();
 
-      if (returnCode.isValueSuccess()) {
-        endTime = new Date();
-        const stat = await session.getLastReceivedStatistics();
-        await queryClient.invalidateQueries({queryKey: ["downloadedItems"]});
+        if (returnCode.isValueSuccess()) {
+          const stat = await session.getLastReceivedStatistics();
+          await queryClient.invalidateQueries({
+            queryKey: ["downloadedItems"],
+          });
+          saveDownloadedItemInfo(item, stat.getSize());
+          toast.success("Download completed");
+        }
 
-        saveDownloadedItemInfo(item, stat.getSize());
-        writeInfoLog(
-          `useRemuxHlsToMp4 ~ remuxing completed successfully for item: ${item.Name}, 
-          start time: ${startTime.toISOString()}, end time: ${endTime.toISOString()}, 
-          duration: ${(endTime.getTime() - startTime.getTime()) / 1000}s`
-          .replace(/^ +/g, '')
-        )
-        toast.success("Download completed");
-      } else if (returnCode.isValueError()) {
-        endTime = new Date();
-        const allLogs = session.getAllLogsAsString();
-        writeErrorLog(
-          `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}, 
-          start time: ${startTime.toISOString()}, end time: ${endTime.toISOString()}, 
-          duration: ${(endTime.getTime() - startTime.getTime()) / 1000}s. All logs: ${allLogs}`
-          .replace(/^ +/g, '')
-        )
-      } else if (returnCode.isValueCancel()) {
-        endTime = new Date();
-        writeInfoLog(
-          `useRemuxHlsToMp4 ~ remuxing was canceled for item: ${item.Name}, 
-          start time: ${startTime.toISOString()}, end time: ${endTime.toISOString()}, 
-          duration: ${(endTime.getTime() - startTime.getTime()) / 1000}s`
-          .replace(/^ +/g, '')
-        )
+        setProcesses((prev) => {
+          return prev.filter((process) => process.itemId !== item.Id);
+        });
+      } catch (e) {
+        console.error(e);
       }
 
+      console.log("completeCallback ~ end");
+    },
+    [processes, setProcesses]
+  );
+
+  const statisticsCallback = useCallback(
+    (statistics: Statistics, item: BaseItemDto) => {
+      const videoLength =
+        (item.MediaSources?.[0]?.RunTimeTicks || 0) / 10000000; // In seconds
+      const fps = item.MediaStreams?.[0]?.RealFrameRate || 25;
+      const totalFrames = videoLength * fps;
+      const processedFrames = statistics.getVideoFrameNumber();
+      const speed = statistics.getSpeed();
+
+      const percentage =
+        totalFrames > 0 ? Math.floor((processedFrames / totalFrames) * 100) : 0;
+
+      if (!item.Id) throw new Error("Item is undefined");
       setProcesses((prev) => {
-        return prev.filter((process) => process.itemId !== item.Id);
+        return prev.map((process) => {
+          if (process.itemId === item.Id) {
+            return {
+              ...process,
+              id: statistics.getSessionId().toString(),
+              progress: percentage,
+              speed: Math.max(speed, 0),
+            };
+          }
+          return process;
+        });
       });
-    } catch (e) {
-      const error = e as Error;
-      writeErrorLog(
-        `useRemuxHlsToMp4 ~ Exception during remuxing for item: ${item.Name}, 
-        Error: ${error.message}, Stack: ${error.stack}`
-        .replace(/^ +/g, '')
-      );
-    }
-  }, [processes, setProcesses]);
-
-  const statisticsCallback = useCallback((statistics: Statistics, item: BaseItemDto) => {
-    const videoLength = (item.MediaSources?.[0]?.RunTimeTicks || 0) / 10000000; // In seconds
-    const fps = item.MediaStreams?.[0]?.RealFrameRate || 25;
-    const totalFrames = videoLength * fps;
-    const processedFrames = statistics.getVideoFrameNumber();
-    const speed = statistics.getSpeed();
-
-    const percentage =
-      totalFrames > 0
-        ? Math.floor((processedFrames / totalFrames) * 100)
-        : 0;
-
-    if (!item.Id) throw new Error("Item is undefined");
-    setProcesses((prev) => {
-      return prev.map((process) => {
-        if (process.itemId === item.Id) {
-          return {
-            ...process,
-            id: statistics.getSessionId().toString(),
-            progress: percentage,
-            speed: Math.max(speed, 0),
-          };
-        }
-        return process;
-      });
-    });
-  }, [setProcesses, completeCallback]);
+    },
+    [setProcesses, completeCallback]
+  );
 
   const startRemuxing = useCallback(
     async (item: BaseItemDto, url: string, mediaSource: MediaSourceInfo) => {
@@ -177,17 +155,17 @@ export const useRemuxHlsToMp4 = () => {
           progress: 0,
           status: "downloading",
           timestamp: new Date(),
-        }
+        };
 
         writeInfoLog(`useRemuxHlsToMp4 ~ startRemuxing for item ${item.Name}`);
         setProcesses((prev) => [...prev, job]);
 
         await FFmpegKit.executeAsync(
           createFFmpegCommand(url, output).join(" "),
-          session => completeCallback(session, item),
+          (session) => completeCallback(session, item),
           undefined,
-          s => statisticsCallback(s, item)
-        )
+          (s) => statisticsCallback(s, item)
+        );
       } catch (e) {
         const error = e as Error;
         console.error("Failed to remux:", error);
