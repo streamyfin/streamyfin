@@ -58,6 +58,7 @@ import { BlurView } from "expo-blur";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import AudioSlider from "./AudioSlider";
 
 interface Props {
   item: BaseItemDto;
@@ -554,6 +555,7 @@ export const Controls: React.FC<Props> = ({
                 position: "absolute",
                 alignItems: "center",
                 transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
+                left: 0,
                 bottom: 30,
               }}
             >
@@ -627,6 +629,18 @@ export const Controls: React.FC<Props> = ({
                 </Text>
               </View>
             </TouchableOpacity>
+
+            <View
+              style={{
+                position: "absolute",
+                alignItems: "center",
+                transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
+                bottom: 30,
+                right: 0,
+              }}
+            >
+              <AudioSlider />
+            </View>
           </View>
 
           <View
