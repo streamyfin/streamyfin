@@ -24,7 +24,7 @@ import {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
@@ -128,6 +128,10 @@ export const Controls: React.FC<Props> = ({
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
 
+  const { bitrateValue } = useLocalSearchParams<{
+    bitrateValue: string;
+  }>();
+
   const { showSkipButton, skipIntro } = useIntroSkipper(
     offline ? undefined : item.Id,
     currentTime,
@@ -149,18 +153,20 @@ export const Controls: React.FC<Props> = ({
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-      getDefaultPlaySettings(previousItem, settings);
+    const { mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
+      previousItem,
+      settings
+    );
 
     const queryParams = new URLSearchParams({
       itemId: previousItem.Id ?? "", // Ensure itemId is a string
       audioIndex: audioIndex?.toString() ?? "",
       subtitleIndex: subtitleIndex?.toString() ?? "",
       mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-      bitrateValue: bitrate.toString(),
+      bitrateValue: bitrateValue.toString(),
     }).toString();
 
-    if (!bitrate.value) {
+    if (!bitrateValue) {
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
       return;
@@ -174,18 +180,20 @@ export const Controls: React.FC<Props> = ({
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-      getDefaultPlaySettings(nextItem, settings);
+    const { mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
+      nextItem,
+      settings
+    );
 
     const queryParams = new URLSearchParams({
       itemId: nextItem.Id ?? "", // Ensure itemId is a string
       audioIndex: audioIndex?.toString() ?? "",
       subtitleIndex: subtitleIndex?.toString() ?? "",
       mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-      bitrateValue: bitrate.toString(),
+      bitrateValue: bitrateValue.toString(),
     }).toString();
 
-    if (!bitrate.value) {
+    if (!bitrateValue) {
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
       return;
