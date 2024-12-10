@@ -26,13 +26,7 @@ import {
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Dimensions,
-  Platform,
-  Pressable,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -40,10 +34,7 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
@@ -54,12 +45,10 @@ import BrightnessSlider from "./BrightnessSlider";
 import SkipButton from "./SkipButton";
 import { debounce } from "lodash";
 import { EpisodeList } from "./EpisodeList";
-import { BlurView } from "expo-blur";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import AudioSlider from "./AudioSlider";
-import { secondsToTicks } from "@/utils/secondsToTicks";
 
 interface Props {
   item: BaseItemDto;
