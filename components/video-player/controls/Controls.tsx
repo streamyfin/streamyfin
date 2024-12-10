@@ -59,6 +59,7 @@ import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import AudioSlider from "./AudioSlider";
+import { secondsToTicks } from "@/utils/secondsToTicks";
 
 interface Props {
   item: BaseItemDto;
@@ -291,10 +292,9 @@ export const Controls: React.FC<Props> = ({
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const handleSliderChange = useCallback(
     debounce((value: number) => {
-      const progressInTicks = msToTicks(value);
+      const progressInTicks = isVlc ? msToTicks(value) : value;
       console.log("Progress in ticks", progressInTicks);
       calculateTrickplayUrl(progressInTicks);
-
       const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
       const hours = Math.floor(progressInSeconds / 3600);
       const minutes = Math.floor((progressInSeconds % 3600) / 60);
