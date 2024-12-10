@@ -26,13 +26,7 @@ import {
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Dimensions,
-  Platform,
-  Pressable,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -40,10 +34,7 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
@@ -54,7 +45,6 @@ import BrightnessSlider from "./BrightnessSlider";
 import SkipButton from "./SkipButton";
 import { debounce } from "lodash";
 import { EpisodeList } from "./EpisodeList";
-import { BlurView } from "expo-blur";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -291,10 +281,9 @@ export const Controls: React.FC<Props> = ({
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const handleSliderChange = useCallback(
     debounce((value: number) => {
-      const progressInTicks = msToTicks(value);
+      const progressInTicks = isVlc ? msToTicks(value) : value;
       console.log("Progress in ticks", progressInTicks);
       calculateTrickplayUrl(progressInTicks);
-
       const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
       const hours = Math.floor(progressInSeconds / 3600);
       const minutes = Math.floor((progressInSeconds % 3600) / 60);
@@ -415,7 +404,7 @@ export const Controls: React.FC<Props> = ({
 
   const switchOnEpisodeMode = () => {
     setEpisodeView(true);
-    if (isPlaying) togglePlay(progress.value);
+    if (isPlaying) togglePlay();
   };
 
   const gotoEpisode = async (itemId: string) => {
