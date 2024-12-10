@@ -8,8 +8,10 @@ import {
   TrackInfo,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { writeToLog } from "@/utils/log";
 import {
   formatTimeString,
@@ -23,8 +25,11 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useAtom } from "jotai";
+import { debounce } from "lodash";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
@@ -36,19 +41,15 @@ import {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
+import AudioSlider from "./AudioSlider";
+import BrightnessSlider from "./BrightnessSlider";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
-import * as Haptics from "expo-haptics";
 import DropdownViewDirect from "./dropdown/DropdownViewDirect";
 import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
-import BrightnessSlider from "./BrightnessSlider";
-import SkipButton from "./SkipButton";
-import { debounce } from "lodash";
 import { EpisodeList } from "./EpisodeList";
-import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
-import { useAtom } from "jotai";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import AudioSlider from "./AudioSlider";
+import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
+import SkipButton from "./SkipButton";
 
 interface Props {
   item: BaseItemDto;
@@ -120,7 +121,7 @@ export const Controls: React.FC<Props> = ({
   } = useTrickplay(item, !offline && enableTrickplay);
 
   const [currentTime, setCurrentTime] = useState(0);
-  const [remainingTime, setRemainingTime] = useState(0);
+  const [remainingTime, setRemainingTime] = useState(Infinity);
 
   const min = useSharedValue(0);
   const max = useSharedValue(item.RunTimeTicks || 0);
@@ -209,15 +210,10 @@ export const Controls: React.FC<Props> = ({
         ? maxValue - currentProgress
         : ticksToSeconds(maxValue - currentProgress);
 
+      console.log("remaining: ", remaining);
+
       setCurrentTime(current);
       setRemainingTime(remaining);
-
-      // Currently doesm't work in VLC because of some corrupted timestamps, will need to find a workaround.
-      if (currentProgress === maxValue) {
-        setShowControls(true);
-        // Automatically play the next item if it exists
-        goToNextItem();
-      }
     },
     [goToNextItem, isVlc]
   );
@@ -229,7 +225,6 @@ export const Controls: React.FC<Props> = ({
       isSeeking: isSeeking.value,
     }),
     (result) => {
-      // console.log("Progress changed", result);
       if (result.isSeeking === false) {
         runOnJS(updateTimes)(result.progress, result.max);
       }
@@ -290,7 +285,6 @@ export const Controls: React.FC<Props> = ({
   const handleSliderChange = useCallback(
     debounce((value: number) => {
       const progressInTicks = isVlc ? msToTicks(value) : value;
-      console.log("Progress in ticks", progressInTicks);
       calculateTrickplayUrl(progressInTicks);
       const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
       const hours = Math.floor(progressInSeconds / 3600);
@@ -663,10 +657,8 @@ export const Controls: React.FC<Props> = ({
                 right: 0,
                 left: 0,
                 bottom: 0,
-                opacity: showControls ? 1 : 0,
               },
             ]}
-            pointerEvents={showControls ? "box-none" : "none"}
             className={`flex flex-col p-4`}
           >
             <View
@@ -680,7 +672,9 @@ export const Controls: React.FC<Props> = ({
                 style={{
                   flexDirection: "column",
                   alignSelf: "flex-end", // Shrink height based on content
+                  opacity: showControls ? 1 : 0,
                 }}
+                pointerEvents={showControls ? "box-none" : "none"}
               >
                 <Text className="font-bold">{item?.Name}</Text>
                 {item?.Type === "Episode" && (
@@ -699,7 +693,6 @@ export const Controls: React.FC<Props> = ({
                 style={{
                   flexDirection: "column",
                   alignSelf: "flex-end",
-                  marginRight: insets.right,
                 }}
               >
                 <SkipButton
@@ -712,10 +705,19 @@ export const Controls: React.FC<Props> = ({
                   onPress={skipCredit}
                   buttonText="Skip Credits"
                 />
+                <NextEpisodeCountDownButton
+                  show={isVlc ? remainingTime < 10000 : remainingTime < 10}
+                  onFinish={goToNextItem}
+                  onPress={goToNextItem}
+                />
               </View>
             </View>
             <View
               className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
+              style={{
+                opacity: showControls ? 1 : 0,
+              }}
+              pointerEvents={showControls ? "box-none" : "none"}
             >
               <View className={`flex flex-col w-full shrink`}>
                 <Slider

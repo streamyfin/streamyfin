@@ -3,7 +3,8 @@ import React, { PropsWithChildren, ReactNode, useMemo } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Loader } from "./Loader";
 
-interface ButtonProps extends React.ComponentProps<typeof TouchableOpacity> {
+export interface ButtonProps
+  extends React.ComponentProps<typeof TouchableOpacity> {
   onPress?: () => void;
   className?: string;
   textClassName?: string;
