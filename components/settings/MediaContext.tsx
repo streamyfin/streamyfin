@@ -70,6 +70,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
           "";
 
     updatePayload.SubtitleMode = update?.subtitleMode;
+    updatePayload.PlayDefaultAudioTrack = update?.playDefaultAudioTrack;
 
     console.log("updatePayload", updatePayload);
 
@@ -119,6 +120,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
       defaultSubtitleLanguage: subtitlePreference,
       defaultAudioLanguage: audioPreference,
       subtitleMode: user?.Configuration?.SubtitleMode,
+      playDefaultAudioTrack: user?.Configuration?.PlayDefaultAudioTrack,
     });
   }, [user, cultures]);
 

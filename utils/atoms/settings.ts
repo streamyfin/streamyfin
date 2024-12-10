@@ -70,8 +70,9 @@ export type Settings = {
   openInVLC?: boolean;
   downloadQuality?: DownloadOption;
   libraryOptions: LibraryOptions;
-  defaultSubtitleLanguage: CultureDto | null;
   defaultAudioLanguage: CultureDto | null;
+  playDefaultAudioTrack: boolean;
+  defaultSubtitleLanguage: CultureDto | null;
   subtitleMode: SubtitlePlaybackMode;
   showHomeTitles: boolean;
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
@@ -104,6 +105,7 @@ const loadSettings = (): Settings => {
       showStats: true,
     },
     defaultAudioLanguage: null,
+    playDefaultAudioTrack: true,
     defaultSubtitleLanguage: null,
     subtitleMode: SubtitlePlaybackMode.Default,
     showHomeTitles: true,

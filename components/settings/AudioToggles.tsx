@@ -2,6 +2,7 @@ import { TouchableOpacity, View, ViewProps } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
+import { Switch } from "react-native-gesture-handler";
 
 interface Props extends ViewProps {}
 
@@ -71,6 +72,22 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
               ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
+        </View>
+        <View className="flex flex-col">
+          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
+            <View className="flex flex-col">
+              <Text className="font-semibold">Use Default Audio</Text>
+              <Text className="text-xs opacity-50">
+                Play default audio track regardless of language.
+              </Text>
+            </View>
+            <Switch
+              value={settings.playDefaultAudioTrack}
+              onValueChange={(value) =>
+                updateSettings({ playDefaultAudioTrack: value })
+              }
+            />
+          </View>
         </View>
       </View>
     </View>
