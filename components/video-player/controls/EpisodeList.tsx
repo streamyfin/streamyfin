@@ -25,7 +25,6 @@ import {
   SeasonDropdown,
   SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
-import { Item } from "zeego/dropdown-menu";
 
 type Props = {
   item: BaseItemDto;
@@ -155,10 +154,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     }
   }, [episodes, item.Id]);
 
-  const { audioIndex, subtitleIndex, bitrateValue } = useLocalSearchParams<{
-    audioIndex: string;
-    subtitleIndex: string;
-    mediaSourceId: string;
+  const { bitrateValue } = useLocalSearchParams<{
     bitrateValue: string;
   }>();
 
@@ -166,7 +162,10 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     const item = await getItemById(api, itemId);
     if (!settings || !item) return;
 
-    const { mediaSource } = getDefaultPlaySettings(item, settings);
+    const { mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
+      item,
+      settings
+    );
 
     const queryParams = new URLSearchParams({
       itemId: item.Id ?? "", // Ensure itemId is a string
