@@ -706,7 +706,13 @@ export const Controls: React.FC<Props> = ({
                   buttonText="Skip Credits"
                 />
                 <NextEpisodeCountDownButton
-                  show={isVlc ? remainingTime < 10000 : remainingTime < 10}
+                  show={
+                    !nextItem
+                      ? false
+                      : isVlc
+                      ? remainingTime < 10000
+                      : remainingTime < 10
+                  }
                   onFinish={goToNextItem}
                   onPress={goToNextItem}
                 />
