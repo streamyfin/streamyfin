@@ -3,7 +3,10 @@ import { useEffect } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { storage } from "../mmkv";
 import { Platform } from "react-native";
-import { CultureDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  CultureDto,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -69,6 +72,7 @@ export type Settings = {
   libraryOptions: LibraryOptions;
   defaultSubtitleLanguage: CultureDto | null;
   defaultAudioLanguage: CultureDto | null;
+  subtitleMode: SubtitlePlaybackMode;
   showHomeTitles: boolean;
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
@@ -101,6 +105,7 @@ const loadSettings = (): Settings => {
     },
     defaultAudioLanguage: null,
     defaultSubtitleLanguage: null,
+    subtitleMode: SubtitlePlaybackMode.Default,
     showHomeTitles: true,
     defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
     forwardSkipTime: 30,

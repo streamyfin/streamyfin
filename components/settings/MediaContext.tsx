@@ -11,8 +11,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface MediaContextType {
-  settings: any;
-  updateSettings: any;
+  settings: Settings | null;
+  updateSettings: (update: Partial<Settings>) => void;
   user: UserDto | undefined;
   cultures: CultureDto[];
 }
@@ -68,6 +68,8 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
         : update?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           "";
+
+    updatePayload.SubtitleMode = update?.subtitleMode;
 
     console.log("updatePayload", updatePayload);
 
