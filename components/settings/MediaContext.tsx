@@ -118,6 +118,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     updateSettings({
       defaultSubtitleLanguage: subtitlePreference,
       defaultAudioLanguage: audioPreference,
+      subtitleMode: user?.Configuration?.SubtitleMode,
     });
   }, [user, cultures]);
 

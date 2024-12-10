@@ -89,7 +89,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         >
           <View className="flex flex-col shrink">
             <Text className="font-semibold">Subtitle Mode</Text>
-            <Text className="text-xs opacity-50">
+            <Text className="text-xs opacity-50 mr-2">
               Subtitles are loaded based on the default and forced flags in the
               embedded metadata. Language preferences are considered when
               multiple options are available.
