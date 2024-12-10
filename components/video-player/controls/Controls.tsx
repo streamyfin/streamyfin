@@ -404,7 +404,7 @@ export const Controls: React.FC<Props> = ({
 
   const switchOnEpisodeMode = () => {
     setEpisodeView(true);
-    if (isPlaying) togglePlay(progress.value);
+    if (isPlaying) togglePlay();
   };
 
   const gotoEpisode = async (itemId: string) => {
