@@ -53,7 +53,16 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
     console.log("update", update);
 
-    let updatePayload = {} as Partial<UserConfiguration>;
+    let updatePayload = {
+      SubtitleMode: update?.subtitleMode ?? settings?.subtitleMode,
+      PlayDefaultAudioTrack:
+        update?.playDefaultAudioTrack ?? settings?.playDefaultAudioTrack,
+      RememberAudioSelections:
+        update?.rememberAudioSelections ?? settings?.rememberAudioSelections,
+      RememberSubtitleSelections:
+        update?.rememberSubtitleSelections ??
+        settings?.rememberSubtitleSelections,
+    } as Partial<UserConfiguration>;
 
     updatePayload.AudioLanguagePreference =
       update?.defaultAudioLanguage === null
@@ -68,9 +77,6 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
         : update?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           "";
-
-    updatePayload.SubtitleMode = update?.subtitleMode;
-    updatePayload.PlayDefaultAudioTrack = update?.playDefaultAudioTrack;
 
     console.log("updatePayload", updatePayload);
 
@@ -121,6 +127,9 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
       defaultAudioLanguage: audioPreference,
       subtitleMode: user?.Configuration?.SubtitleMode,
       playDefaultAudioTrack: user?.Configuration?.PlayDefaultAudioTrack,
+      rememberAudioSelections: user?.Configuration?.RememberAudioSelections,
+      rememberSubtitleSelections:
+        user?.Configuration?.RememberSubtitleSelections,
     });
   }, [user, cultures]);
 

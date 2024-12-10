@@ -127,6 +127,26 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           </DropdownMenu.Root>
         </View>
 
+        <View className="flex flex-col">
+          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
+            <View className="flex flex-col">
+              <Text className="font-semibold">
+                Set Subtitle Track From Previous Item
+              </Text>
+              <Text className="text-xs opacity-50 min max-w-[85%]">
+                Try to set the subtitle track to the closest match to the last
+                video.
+              </Text>
+            </View>
+            <Switch
+              value={settings.rememberSubtitleSelections}
+              onValueChange={(value) =>
+                updateSettings({ rememberSubtitleSelections: value })
+              }
+            />
+          </View>
+        </View>
+
         <View
           className={`
               flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
@@ -163,21 +183,6 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             >
               <Text>+</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        <View className="flex flex-col">
-          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col">
-              <Text className="font-semibold"></Text>
-              <Text className="text-xs opacity-50">Made by: lostb1t</Text>
-            </View>
-            <Switch
-              value={settings.usePopularPlugin}
-              onValueChange={(value) =>
-                updateSettings({ usePopularPlugin: value })
-              }
-            />
           </View>
         </View>
       </View>

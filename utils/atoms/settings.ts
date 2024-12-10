@@ -72,8 +72,10 @@ export type Settings = {
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
+  rememberAudioSelections: boolean;
   defaultSubtitleLanguage: CultureDto | null;
   subtitleMode: SubtitlePlaybackMode;
+  rememberSubtitleSelections: boolean;
   showHomeTitles: boolean;
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
@@ -106,8 +108,10 @@ const loadSettings = (): Settings => {
     },
     defaultAudioLanguage: null,
     playDefaultAudioTrack: true,
+    rememberAudioSelections: true,
     defaultSubtitleLanguage: null,
     subtitleMode: SubtitlePlaybackMode.Default,
+    rememberSubtitleSelections: true,
     showHomeTitles: true,
     defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
     forwardSkipTime: 30,

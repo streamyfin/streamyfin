@@ -89,6 +89,25 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             />
           </View>
         </View>
+        <View className="flex flex-col">
+          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
+            <View className="flex flex-col">
+              <Text className="font-semibold">
+                Set Audio Track From Previous Item
+              </Text>
+              <Text className="text-xs opacity-50 min max-w-[85%]">
+                Try to set the audio track to the closest match to the last
+                video.
+              </Text>
+            </View>
+            <Switch
+              value={settings.rememberAudioSelections}
+              onValueChange={(value) =>
+                updateSettings({ rememberAudioSelections: value })
+              }
+            />
+          </View>
+        </View>
       </View>
     </View>
   );
