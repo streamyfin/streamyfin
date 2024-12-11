@@ -103,37 +103,19 @@ const Login: React.FC = () => {
    * - Logs errors and timeout information to the console.
    */
   async function checkUrl(url: string) {
-    url = url.endsWith("/") ? url.slice(0, -1) : url;
     setLoadingServerCheck(true);
 
-    const protocols = ["https://", "http://"];
-    const timeout = 2000; // 2 seconds timeout for long 404 responses
-
     try {
-      for (const protocol of protocols) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
+      const response = await fetch(`${url}/System/Info/Public`, {
+        mode: "cors",
+      });
 
-        try {
-          const response = await fetch(`${protocol}${url}/System/Info/Public`, {
-            mode: "cors",
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-          if (response.ok) {
-            const data = (await response.json()) as PublicSystemInfo;
-            setServerName(data.ServerName || "");
-            return `${protocol}${url}`;
-          }
-        } catch (e) {
-          const error = e as Error;
-          if (error.name === "AbortError") {
-            console.error(`Request to ${protocol}${url} timed out`);
-          } else {
-            console.error(`Error checking ${protocol}${url}:`, error);
-          }
-        }
+      if (response.ok) {
+        const data = (await response.json()) as PublicSystemInfo;
+        setServerName(data.ServerName || "");
+        return url;
       }
+
       return undefined;
     } finally {
       setLoadingServerCheck(false);
@@ -159,9 +141,7 @@ const Login: React.FC = () => {
   const handleConnect = async (url: string) => {
     url = url.trim();
 
-    const result = await checkUrl(
-      url.startsWith("http") ? new URL(url).host : url
-    );
+    const result = await checkUrl(url);
 
     if (result === undefined) {
       Alert.alert(
@@ -171,7 +151,7 @@ const Login: React.FC = () => {
       return;
     }
 
-    setServer({ address: result });
+    setServer({ address: url });
   };
 
   const handleQuickConnect = async () => {

@@ -45,6 +45,10 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
     return `/(auth)/(tabs)/(libraries)/${item.Id}`;
   }
 
+  if (item.Type === "Playlist") {
+    return `/(auth)/(tabs)/(libraries)/${item.Id}`;
+  }
+
   return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
 };
 
