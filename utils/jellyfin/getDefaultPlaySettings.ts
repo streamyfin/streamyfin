@@ -4,7 +4,8 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { Settings } from "../atoms/settings";
+import { Settings, useSettings } from "../atoms/settings";
+import { StreamRanker, SubtitleStreamRanker } from "../streamRanker";
 
 interface PlaySettings {
   item: BaseItemDto;
@@ -14,9 +15,13 @@ interface PlaySettings {
   subtitleIndex?: number | undefined;
 }
 
+// Used getting default values for the next player.
 export function getDefaultPlaySettings(
   item: BaseItemDto,
-  settings: Settings
+  settings: Settings,
+  previousIndex?: number,
+  previousItem?: BaseItemDto,
+  previousSource?: MediaSourceInfo
 ): PlaySettings {
   if (item.Type === "Program") {
     return {
@@ -41,7 +46,22 @@ export function getDefaultPlaySettings(
     (x) => x.Type === "Audio"
   )?.Index;
 
-  // TODO: Need to most common next subtitle index as an option.
+  // We prefer the previous track over the default track.
+  let trackOptions = {};
+  const mediaStreams = mediaSource?.MediaStreams ?? [];
+  if (settings?.rememberSubtitleSelections) {
+    if (previousIndex !== undefined && previousSource) {
+      const subtitleRanker = new SubtitleStreamRanker();
+      const ranker = new StreamRanker(subtitleRanker);
+      ranker.rankStream(
+        previousIndex,
+        previousSource,
+        mediaStreams,
+        trackOptions
+      );
+    }
+  }
+
   const finalSubtitleIndex = mediaSource?.DefaultAudioStreamIndex;
 
   // 4. Get default bitrate

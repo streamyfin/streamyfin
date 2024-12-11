@@ -38,6 +38,7 @@ import Video, {
   SelectedTrackType,
   VideoRef,
 } from "react-native-video";
+import index from "../(tabs)/(home)";
 
 const Player = () => {
   const api = useAtomValue(apiAtom);
@@ -116,14 +117,7 @@ const Player = () => {
     isLoading: isLoadingStreamUrl,
     isError: isErrorStreamUrl,
   } = useQuery({
-    queryKey: [
-      "stream-url",
-      itemId,
-      audioIndex,
-      subtitleIndex,
-      bitrateValue,
-      mediaSourceId,
-    ],
+    queryKey: ["stream-url", itemId, bitrateValue, mediaSourceId],
 
     queryFn: async () => {
       if (!api) {
@@ -263,6 +257,13 @@ const Player = () => {
       progress.value = ticks;
       cacheProgress.value = secondsToTicks(data.playableDuration);
 
+      console.log(
+        "onProgress ~",
+        ticks,
+        isPlaying,
+        `AUDIO index: ${audioIndex} SUB index" ${subtitleIndex}`
+      );
+
       // TODO: Use this when streaming with HLS url, but NOT when direct playing
       // TODO: since playable duration is always 0 then.
       setIsBuffering(data.playableDuration === 0);
@@ -326,23 +327,39 @@ const Player = () => {
 
   // Set intial Subtitle Track.
   // We will only select external tracks if they are are text based. Else it should be burned in already.
-  const textSubs =
-    stream?.mediaSource.MediaStreams?.filter(
-      (sub) => sub.Type === "Subtitle" && sub.IsTextSubtitleStream
-    ) || [];
+  // This function aims to get the embedded track index from the source subtitle index.
+  const getEmbeddedTrackIndex = (sourceSubtitleIndex: number) => {
+    const textSubs =
+      stream?.mediaSource.MediaStreams?.filter(
+        (sub) => sub.Type === "Subtitle" && sub.IsTextSubtitleStream
+      ) || [];
 
-  const uniqueTextSubs = Array.from(
-    new Set(textSubs.map((sub) => sub.DisplayTitle))
-  ).map((title) => textSubs.find((sub) => sub.DisplayTitle === title));
-  const chosenSubtitleTrack = textSubs.find(
-    (sub) => sub.Index === subtitleIndex
-  );
+    // Get unique text-based subtitles because react-native-video removes hls text tracks duplicates.
+    const uniqueTextSubs = Array.from(
+      new Set(textSubs.map((sub) => sub.DisplayTitle))
+    ).map((title) => textSubs.find((sub) => sub.DisplayTitle === title));
+
+    const matchingSubtitle = textSubs.find(
+      (sub) => sub?.Index === sourceSubtitleIndex
+    );
+    return (
+      uniqueTextSubs.findIndex(
+        (sub) => sub?.DisplayTitle === matchingSubtitle?.DisplayTitle
+      ) ?? -1
+    );
+  };
+
   useEffect(() => {
-    if (chosenSubtitleTrack && selectedTextTrack === undefined) {
-      console.log("Setting selected text track", chosenSubtitleTrack);
+    if (selectedTextTrack === undefined) {
+      const embeddedTrackIndex = getEmbeddedTrackIndex(subtitleIndex!);
+      console.log(
+        "Setting selected text track",
+        subtitleIndex,
+        embeddedTrackIndex
+      );
       setSelectedTextTrack({
         type: SelectedTrackType.INDEX,
-        value: uniqueTextSubs.indexOf(chosenSubtitleTrack),
+        value: embeddedTrackIndex,
       });
     }
   }, [embededTextTracks]);

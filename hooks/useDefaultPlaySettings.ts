@@ -6,6 +6,7 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
 
+// Used only for intial play settings.
 const useDefaultPlaySettings = (
   item: BaseItemDto,
   settings: Settings | null

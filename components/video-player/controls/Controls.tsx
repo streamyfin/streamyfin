@@ -128,8 +128,9 @@ export const Controls: React.FC<Props> = ({
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
 
-  const { bitrateValue } = useLocalSearchParams<{
+  const { bitrateValue, usedSubtitleIndex } = useLocalSearchParams<{
     bitrateValue: string;
+    subtitleIndex: string;
   }>();
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
@@ -153,16 +154,22 @@ export const Controls: React.FC<Props> = ({
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const { mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
+    const {
+      mediaSource: newMediaSource,
+      audioIndex,
+      subtitleIndex,
+    } = getDefaultPlaySettings(
       previousItem,
-      settings
+      settings,
+      item,
+      mediaSource ?? undefined
     );
 
     const queryParams = new URLSearchParams({
       itemId: previousItem.Id ?? "", // Ensure itemId is a string
       audioIndex: audioIndex?.toString() ?? "",
       subtitleIndex: subtitleIndex?.toString() ?? "",
-      mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+      mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
       bitrateValue: bitrateValue.toString(),
     }).toString();
 

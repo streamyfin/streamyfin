@@ -7,7 +7,7 @@ import { useVideoContext } from "../contexts/VideoContext";
 import { EmbeddedSubtitle, ExternalSubtitle } from "../types";
 import { useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 interface DropdownViewDirectProps {
   showControls: boolean;
@@ -71,13 +71,6 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
     bitrateValue: string;
   }>();
 
-  const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState<Number>(
-    parseInt(subtitleIndex)
-  );
-  const [selectedAudioIndex, setSelectedAudioIndex] = useState<Number>(
-    parseInt(audioIndex)
-  );
-
   return (
     <View
       style={{
@@ -116,7 +109,7 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
               {allSubtitleTracksForDirectPlay?.map((sub, idx: number) => (
                 <DropdownMenu.CheckboxItem
                   key={`subtitle-item-${idx}`}
-                  value={selectedSubtitleIndex === sub.index}
+                  value={subtitleIndex === sub.index.toString()}
                   onValueChange={() => {
                     if ("deliveryUrl" in sub && sub.deliveryUrl) {
                       setSubtitleURL &&
@@ -133,8 +126,9 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
                       console.log("Set sub index: ", sub.index);
                       setSubtitleTrack && setSubtitleTrack(sub.index);
                     }
-
-                    setSelectedSubtitleIndex(sub.index);
+                    router.setParams({
+                      subtitleIndex: sub.index.toString(),
+                    });
                     console.log("Subtitle: ", sub);
                   }}
                 >
@@ -159,10 +153,12 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
               {audioTracks?.map((track, idx: number) => (
                 <DropdownMenu.CheckboxItem
                   key={`audio-item-${idx}`}
-                  value={selectedAudioIndex === track.index}
+                  value={audioIndex === track.index.toString()}
                   onValueChange={() => {
-                    setSelectedAudioIndex(track.index);
                     setAudioTrack && setAudioTrack(track.index);
+                    router.setParams({
+                      audioIndex: track.index.toString(),
+                    });
                   }}
                 >
                   <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
