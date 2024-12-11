@@ -32,6 +32,7 @@ abstract class StreamRankerStrategy {
 
     let bestStreamIndex = null;
     let bestStreamScore = 0;
+
     const prevStream = prevSource.MediaStreams[prevIndex];
 
     if (!prevStream) {

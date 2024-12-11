@@ -9,7 +9,10 @@ import {
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
 import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import {
+  getDefaultPlaySettings,
+  previousIndexes,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 import { writeToLog } from "@/utils/log";
 import {
   formatTimeString,
@@ -128,8 +131,9 @@ export const Controls: React.FC<Props> = ({
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
 
-  const { bitrateValue, usedSubtitleIndex } = useLocalSearchParams<{
+  const { bitrateValue, subtitleIndex, audioIndex } = useLocalSearchParams<{
     bitrateValue: string;
+    audioIndex: string;
     subtitleIndex: string;
   }>();
 
@@ -154,21 +158,26 @@ export const Controls: React.FC<Props> = ({
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    const previousIndexes: previousIndexes = {
+      subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
+      audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
+    };
+
     const {
       mediaSource: newMediaSource,
-      audioIndex,
-      subtitleIndex,
+      audioIndex: defaultAudioIndex,
+      subtitleIndex: defaultSubtitleIndex,
     } = getDefaultPlaySettings(
       previousItem,
       settings,
-      item,
+      previousIndexes,
       mediaSource ?? undefined
     );
 
     const queryParams = new URLSearchParams({
       itemId: previousItem.Id ?? "", // Ensure itemId is a string
-      audioIndex: audioIndex?.toString() ?? "",
-      subtitleIndex: subtitleIndex?.toString() ?? "",
+      audioIndex: defaultAudioIndex?.toString() ?? "",
+      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
       mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
       bitrateValue: bitrateValue.toString(),
     }).toString();
@@ -180,23 +189,34 @@ export const Controls: React.FC<Props> = ({
     }
     // @ts-expect-error
     router.replace(`player/transcoding-player?${queryParams}`);
-  }, [previousItem, settings]);
+  }, [previousItem, settings, subtitleIndex, audioIndex]);
 
   const goToNextItem = useCallback(() => {
     if (!nextItem || !settings) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const { mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
+    const previousIndexes: previousIndexes = {
+      subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
+      audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
+    };
+
+    const {
+      mediaSource: newMediaSource,
+      audioIndex: defaultAudioIndex,
+      subtitleIndex: defaultSubtitleIndex,
+    } = getDefaultPlaySettings(
       nextItem,
-      settings
+      settings,
+      previousIndexes,
+      mediaSource ?? undefined
     );
 
     const queryParams = new URLSearchParams({
       itemId: nextItem.Id ?? "", // Ensure itemId is a string
-      audioIndex: audioIndex?.toString() ?? "",
-      subtitleIndex: subtitleIndex?.toString() ?? "",
-      mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+      audioIndex: defaultAudioIndex?.toString() ?? "",
+      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+      mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
       bitrateValue: bitrateValue.toString(),
     }).toString();
 
@@ -207,7 +227,7 @@ export const Controls: React.FC<Props> = ({
     }
     // @ts-expect-error
     router.replace(`player/transcoding-player?${queryParams}`);
-  }, [nextItem, settings]);
+  }, [nextItem, settings, subtitleIndex, audioIndex]);
 
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
@@ -422,32 +442,51 @@ export const Controls: React.FC<Props> = ({
     if (isPlaying) togglePlay();
   };
 
-  const gotoEpisode = async (itemId: string) => {
-    const item = await getItemById(api, itemId);
-    console.log("Item", item);
-    if (!settings || !item) return;
+  const goToItem = useCallback(
+    async (itemId: string) => {
+      try {
+        const gotoItem = await getItemById(api, itemId);
+        if (!settings || !gotoItem) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-      getDefaultPlaySettings(item, settings);
+        const previousIndexes: previousIndexes = {
+          subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
+          audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
+        };
 
-    const queryParams = new URLSearchParams({
-      itemId: item.Id ?? "", // Ensure itemId is a string
-      audioIndex: audioIndex?.toString() ?? "",
-      subtitleIndex: subtitleIndex?.toString() ?? "",
-      mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-      bitrateValue: bitrate.toString(),
-    }).toString();
+        const {
+          mediaSource: newMediaSource,
+          audioIndex: defaultAudioIndex,
+          subtitleIndex: defaultSubtitleIndex,
+        } = getDefaultPlaySettings(
+          gotoItem,
+          settings,
+          previousIndexes,
+          mediaSource ?? undefined
+        );
 
-    if (!bitrate.value) {
-      // @ts-expect-error
-      router.replace(`player/direct-player?${queryParams}`);
-      return;
-    }
-    // @ts-expect-error
-    router.replace(`player/transcoding-player?${queryParams}`);
-  };
+        const queryParams = new URLSearchParams({
+          itemId: gotoItem.Id ?? "", // Ensure itemId is a string
+          audioIndex: defaultAudioIndex?.toString() ?? "",
+          subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+          mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+          bitrateValue: bitrateValue.toString(),
+        }).toString();
+
+        if (!bitrateValue) {
+          // @ts-expect-error
+          router.replace(`player/direct-player?${queryParams}`);
+          return;
+        }
+        // @ts-expect-error
+        router.replace(`player/transcoding-player?${queryParams}`);
+      } catch (error) {
+        console.error("Error in gotoEpisode:", error);
+      }
+    },
+    [settings, subtitleIndex, audioIndex]
+  );
 
   // Used when user changes audio through audio button on device.
   const [showAudioSlider, setShowAudioSlider] = useState(false);
@@ -459,7 +498,11 @@ export const Controls: React.FC<Props> = ({
       isVideoLoaded={isVideoLoaded}
     >
       {EpisodeView ? (
-        <EpisodeList item={item} close={() => setEpisodeView(false)} />
+        <EpisodeList
+          item={item}
+          close={() => setEpisodeView(false)}
+          goToItem={goToItem}
+        />
       ) : (
         <>
           <VideoProvider

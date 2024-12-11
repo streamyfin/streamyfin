@@ -17,10 +17,6 @@ import {
   HorizontalScroll,
   HorizontalScrollRef,
 } from "@/components/common/HorrizontalScroll";
-import { router, useLocalSearchParams } from "expo-router";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
-import { useSettings } from "@/utils/atoms/settings";
 import {
   SeasonDropdown,
   SeasonIndexState,
@@ -29,15 +25,15 @@ import {
 type Props = {
   item: BaseItemDto;
   close: () => void;
+  goToItem: (itemId: string) => Promise<void>;
 };
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
-export const EpisodeList: React.FC<Props> = ({ item, close }) => {
+export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets(); // Get safe area insets
-  const [settings] = useSettings();
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
   const scrollViewRef = useRef<HorizontalScrollRef>(null); // Reference to the HorizontalScroll
   const scrollToIndex = (index: number) => {
@@ -154,36 +150,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
     }
   }, [episodes, item.Id]);
 
-  const { bitrateValue } = useLocalSearchParams<{
-    bitrateValue: string;
-  }>();
-
-  const gotoEpisode = async (itemId: string) => {
-    const item = await getItemById(api, itemId);
-    if (!settings || !item) return;
-
-    const { mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
-      item,
-      settings
-    );
-
-    const queryParams = new URLSearchParams({
-      itemId: item.Id ?? "", // Ensure itemId is a string
-      audioIndex: audioIndex?.toString() ?? "",
-      subtitleIndex: subtitleIndex?.toString() ?? "",
-      mediaSourceId: mediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-      bitrateValue: bitrateValue,
-    }).toString();
-
-    if (!bitrateValue) {
-      // @ts-expect-error
-      router.replace(`player/direct-player?${queryParams}`);
-      return;
-    }
-    // @ts-expect-error
-    router.replace(`player/transcoding-player?${queryParams}`);
-  };
-
   if (!episodes) {
     return <Loader />;
   }
@@ -241,7 +207,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close }) => {
             >
               <TouchableOpacity
                 onPress={() => {
-                  gotoEpisode(_item.Id);
+                  goToItem(_item.Id);
                 }}
               >
                 <ContinueWatchingPoster

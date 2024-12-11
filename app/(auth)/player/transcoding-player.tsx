@@ -335,23 +335,20 @@ const Player = () => {
       ) || [];
 
     // Get unique text-based subtitles because react-native-video removes hls text tracks duplicates.
-    const uniqueTextSubs = Array.from(
-      new Set(textSubs.map((sub) => sub.DisplayTitle))
-    ).map((title) => textSubs.find((sub) => sub.DisplayTitle === title));
-
     const matchingSubtitle = textSubs.find(
       (sub) => sub?.Index === sourceSubtitleIndex
     );
-    return (
-      uniqueTextSubs.findIndex(
-        (sub) => sub?.DisplayTitle === matchingSubtitle?.DisplayTitle
-      ) ?? -1
-    );
+
+    if (!matchingSubtitle) return -1;
+    return textSubs.indexOf(matchingSubtitle);
   };
 
   useEffect(() => {
     if (selectedTextTrack === undefined) {
       const embeddedTrackIndex = getEmbeddedTrackIndex(subtitleIndex!);
+
+      // Most likely the subtitle is burned in.
+      if (embeddedTrackIndex === -1) return;
       console.log(
         "Setting selected text track",
         subtitleIndex,

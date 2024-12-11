@@ -5,7 +5,11 @@ import {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { Settings, useSettings } from "../atoms/settings";
-import { StreamRanker, SubtitleStreamRanker } from "../streamRanker";
+import {
+  AudioStreamRanker,
+  StreamRanker,
+  SubtitleStreamRanker,
+} from "../streamRanker";
 
 interface PlaySettings {
   item: BaseItemDto;
@@ -15,12 +19,21 @@ interface PlaySettings {
   subtitleIndex?: number | undefined;
 }
 
+export interface previousIndexes {
+  audioIndex?: number;
+  subtitleIndex?: number;
+}
+
+interface TrackOptions {
+  DefaultAudioStreamIndex: number | undefined;
+  DefaultSubtitleStreamIndex: number | undefined;
+}
+
 // Used getting default values for the next player.
 export function getDefaultPlaySettings(
   item: BaseItemDto,
   settings: Settings,
-  previousIndex?: number,
-  previousItem?: BaseItemDto,
+  previousIndexes?: previousIndexes,
   previousSource?: MediaSourceInfo
 ): PlaySettings {
   if (item.Type === "Program") {
@@ -47,14 +60,18 @@ export function getDefaultPlaySettings(
   )?.Index;
 
   // We prefer the previous track over the default track.
-  let trackOptions = {};
+  let trackOptions: TrackOptions = {
+    DefaultAudioStreamIndex: defaultAudioIndex ?? -1,
+    DefaultSubtitleStreamIndex: mediaSource?.DefaultSubtitleStreamIndex ?? -1,
+  };
+
   const mediaStreams = mediaSource?.MediaStreams ?? [];
-  if (settings?.rememberSubtitleSelections) {
-    if (previousIndex !== undefined && previousSource) {
+  if (settings?.rememberSubtitleSelections && previousIndexes) {
+    if (previousIndexes.subtitleIndex !== undefined && previousSource) {
       const subtitleRanker = new SubtitleStreamRanker();
       const ranker = new StreamRanker(subtitleRanker);
       ranker.rankStream(
-        previousIndex,
+        previousIndexes.subtitleIndex,
         previousSource,
         mediaStreams,
         trackOptions
@@ -62,7 +79,18 @@ export function getDefaultPlaySettings(
     }
   }
 
-  const finalSubtitleIndex = mediaSource?.DefaultAudioStreamIndex;
+  if (settings?.rememberAudioSelections && previousIndexes) {
+    if (previousIndexes.audioIndex !== undefined && previousSource) {
+      const audioRanker = new AudioStreamRanker();
+      const ranker = new StreamRanker(audioRanker);
+      ranker.rankStream(
+        previousIndexes.audioIndex,
+        previousSource,
+        mediaStreams,
+        trackOptions
+      );
+    }
+  }
 
   // 4. Get default bitrate
   const bitrate = BITRATES.sort(
@@ -73,7 +101,7 @@ export function getDefaultPlaySettings(
     item,
     bitrate,
     mediaSource,
-    audioIndex: preferedAudioIndex ?? defaultAudioIndex ?? firstAudioIndex,
-    subtitleIndex: finalSubtitleIndex || -1,
+    audioIndex: trackOptions.DefaultAudioStreamIndex,
+    subtitleIndex: trackOptions.DefaultSubtitleStreamIndex,
   };
 }

@@ -187,12 +187,20 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                     key={`subtitle-item-${idx}`}
                     onValueChange={() => {
                       console.log("sub", sub);
-                      if (subtitleIndex === sub?.index.toString()) return;
+                      if (
+                        subtitleIndex ===
+                        (sub.IsTextSubtitleStream && isOnTextSubtitle
+                          ? getSourceSubtitleIndex(sub.index).toString()
+                          : sub?.index.toString())
+                      )
+                        return;
+
                       router.setParams({
                         subtitleIndex: getSourceSubtitleIndex(
                           sub.index
                         ).toString(),
                       });
+                      console.log("Got here");
 
                       if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
                         setSubtitleTrack && setSubtitleTrack(sub.index);
