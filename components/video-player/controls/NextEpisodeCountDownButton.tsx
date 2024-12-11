@@ -66,12 +66,12 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
 
   return (
     <TouchableOpacity
-      className="w-32 overflow-hidden rounded-md bg-neutral-900"
+      className="w-32 overflow-hidden rounded-md bg-black/60 border border-neutral-900"
       {...props}
       onPress={handlePress}
     >
       <Animated.View style={animatedStyle} />
-      <View className="px-2 py-3">
+      <View className="px-3 py-3">
         <Text className="text-center font-bold">Next Episode</Text>
       </View>
     </TouchableOpacity>

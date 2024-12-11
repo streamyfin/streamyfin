@@ -1,7 +1,7 @@
 import React from "react";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { View, TouchableOpacity, Text, ViewProps } from "react-native";
 
-interface SkipButtonProps {
+interface SkipButtonProps extends ViewProps {
   onPress: () => void;
   showButton: boolean;
   buttonText: string;
@@ -11,29 +11,18 @@ const SkipButton: React.FC<SkipButtonProps> = ({
   onPress,
   showButton,
   buttonText,
+  ...props
 }) => {
   return (
-    <View style={{ display: showButton ? "flex" : "none" }}>
-      <TouchableOpacity onPress={onPress} style={styles.button}>
-        <Text style={styles.text}>{buttonText}</Text>
+    <View className={showButton ? "flex" : "hidden"} {...props}>
+      <TouchableOpacity
+        onPress={onPress}
+        className="bg-black/60 rounded-md px-3 py-3 border border-neutral-900"
+      >
+        <Text className="text-white font-bold">{buttonText}</Text>
       </TouchableOpacity>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 15,
-    borderWidth: 2,
-    borderColor: "#5A5454",
-  },
-  text: {
-    color: "white",
-    fontWeight: "bold",
-  },
-});
 
 export default SkipButton;

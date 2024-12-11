@@ -689,12 +689,7 @@ export const Controls: React.FC<Props> = ({
                   <Text className="text-xs opacity-50">{item?.Album}</Text>
                 )}
               </View>
-              <View
-                style={{
-                  flexDirection: "column",
-                  alignSelf: "flex-end",
-                }}
-              >
+              <View className="flex flex-row space-x-2">
                 <SkipButton
                   showButton={showSkipButton}
                   onPress={skipIntro}
