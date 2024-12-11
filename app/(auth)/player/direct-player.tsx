@@ -125,14 +125,7 @@ export default function page() {
     isLoading: isLoadingStreamUrl,
     isError: isErrorStreamUrl,
   } = useQuery({
-    queryKey: [
-      "stream-url",
-      itemId,
-      audioIndex,
-      subtitleIndex,
-      mediaSourceId,
-      bitrateValue,
-    ],
+    queryKey: ["stream-url", itemId, mediaSourceId, bitrateValue],
     queryFn: async () => {
       console.log("Offline:", offline);
       if (offline) {
@@ -254,6 +247,7 @@ export default function page() {
     videoRef.current?.stop();
   }, [videoRef, reportPlaybackStopped]);
 
+  // TODO: unused should remove.
   const reportPlaybackStart = useCallback(async () => {
     if (offline) return;
 
@@ -287,7 +281,12 @@ export default function page() {
 
       if (!item?.Id || !stream) return;
 
-      console.log("onProgress ~", currentTimeInTicks, isPlaying);
+      console.log(
+        "onProgress ~",
+        currentTimeInTicks,
+        isPlaying,
+        `AUDIO index: ${audioIndex} SUB index" ${subtitleIndex}`
+      );
 
       await getPlaystateApi(api!).onPlaybackProgress({
         itemId: item.Id,
@@ -300,7 +299,7 @@ export default function page() {
         playSessionId: stream.sessionId,
       });
     },
-    [item?.Id, isPlaying, api, isPlaybackStopped]
+    [item?.Id, isPlaying, api, isPlaybackStopped, audioIndex, subtitleIndex]
   );
 
   useOrientation();

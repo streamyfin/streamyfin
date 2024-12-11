@@ -4,7 +4,11 @@ import {
   getOrSetDeviceId,
   userAtom,
 } from "@/providers/JellyfinProvider";
-import {ScreenOrientationEnum, Settings, useSettings} from "@/utils/atoms/settings";
+import {
+  ScreenOrientationEnum,
+  Settings,
+  useSettings,
+} from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   registerBackgroundFetchAsync,
@@ -17,7 +21,7 @@ import * as BackgroundFetch from "expo-background-fetch";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import { useAtom } from "jotai";
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import {
   Linking,
   Switch,
@@ -32,7 +36,10 @@ import { Input } from "../common/Input";
 import { Text } from "../common/Text";
 import { Loader } from "../Loader";
 import { MediaToggles } from "./MediaToggles";
-import {Stepper} from "@/components/inputs/Stepper";
+import { Stepper } from "@/components/inputs/Stepper";
+import { MediaProvider } from "./MediaContext";
+import { SubtitleToggles } from "./SubtitleToggles";
+import { AudioToggles } from "./AudioToggles";
 
 interface Props extends ViewProps {}
 
@@ -120,7 +127,11 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
         </View>
       </View> */}
 
-      <MediaToggles />
+      <MediaProvider>
+        <MediaToggles />
+        <AudioToggles />
+        <SubtitleToggles />
+      </MediaProvider>
 
       <View>
         <Text className="text-lg font-bold mb-2">Other</Text>
@@ -409,19 +420,24 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
             <View className="shrink">
               <Text className="font-semibold">Show Custom Menu Links</Text>
               <Text className="text-xs opacity-50">
-                Show custom menu links defined inside your Jellyfin web config.json file
+                Show custom menu links defined inside your Jellyfin web
+                config.json file
               </Text>
               <TouchableOpacity
-                  onPress={() =>
-                    Linking.openURL("https://jellyfin.org/docs/general/clients/web-config/#custom-menu-links")
+                onPress={() =>
+                  Linking.openURL(
+                    "https://jellyfin.org/docs/general/clients/web-config/#custom-menu-links"
+                  )
                 }
               >
                 <Text className="text-xs text-purple-600">More info</Text>
               </TouchableOpacity>
             </View>
             <Switch
-                value={settings.showCustomMenuLinks}
-                onValueChange={(value) => updateSettings({ showCustomMenuLinks: value })}
+              value={settings.showCustomMenuLinks}
+              onValueChange={(value) =>
+                updateSettings({ showCustomMenuLinks: value })
+              }
             />
           </View>
         </View>
@@ -491,15 +507,16 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
             className={`
               flex flex-row space-x-2 items-center justify-between bg-neutral-900 p-4
               ${
-              settings.downloadMethod === "remux"
-                ? "opacity-100"
-                : "opacity-50"
-            }`}
+                settings.downloadMethod === "remux"
+                  ? "opacity-100"
+                  : "opacity-50"
+              }`}
           >
             <View className="flex flex-col shrink">
               <Text className="font-semibold">Remux max download</Text>
               <Text className="text-xs opacity-50 shrink">
-                This is the total media you want to be able to download at the same time.
+                This is the total media you want to be able to download at the
+                same time.
               </Text>
             </View>
             <Stepper
@@ -507,7 +524,12 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               step={1}
               min={1}
               max={4}
-              onUpdate={(value) => updateSettings({remuxConcurrentLimit: value as Settings["remuxConcurrentLimit"]})}
+              onUpdate={(value) =>
+                updateSettings({
+                  remuxConcurrentLimit:
+                    value as Settings["remuxConcurrentLimit"],
+                })
+              }
             />
           </View>
           <View
@@ -517,10 +539,10 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
             className={`
               flex flex-row space-x-2 items-center justify-between bg-neutral-900 p-4
               ${
-              settings.downloadMethod === "optimized"
-                ? "opacity-100"
-                : "opacity-50"
-            }`}
+                settings.downloadMethod === "optimized"
+                  ? "opacity-100"
+                  : "opacity-50"
+              }`}
           >
             <View className="flex flex-col shrink">
               <Text className="font-semibold">Auto download</Text>

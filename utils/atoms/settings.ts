@@ -3,6 +3,10 @@ import { useEffect } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { storage } from "../mmkv";
 import { Platform } from "react-native";
+import {
+  CultureDto,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -66,8 +70,12 @@ export type Settings = {
   openInVLC?: boolean;
   downloadQuality?: DownloadOption;
   libraryOptions: LibraryOptions;
-  defaultSubtitleLanguage: DefaultLanguageOption | null;
-  defaultAudioLanguage: DefaultLanguageOption | null;
+  defaultAudioLanguage: CultureDto | null;
+  playDefaultAudioTrack: boolean;
+  rememberAudioSelections: boolean;
+  defaultSubtitleLanguage: CultureDto | null;
+  subtitleMode: SubtitlePlaybackMode;
+  rememberSubtitleSelections: boolean;
   showHomeTitles: boolean;
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
@@ -99,7 +107,11 @@ const loadSettings = (): Settings => {
       showStats: true,
     },
     defaultAudioLanguage: null,
+    playDefaultAudioTrack: true,
+    rememberAudioSelections: true,
     defaultSubtitleLanguage: null,
+    subtitleMode: SubtitlePlaybackMode.Default,
+    rememberSubtitleSelections: true,
     showHomeTitles: true,
     defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
     forwardSkipTime: 30,
@@ -144,6 +156,7 @@ export const useSettings = () => {
   const updateSettings = (update: Partial<Settings>) => {
     if (settings) {
       const newSettings = { ...settings, ...update };
+
       setSettings(newSettings);
       saveSettings(newSettings);
     }
