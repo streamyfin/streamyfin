@@ -111,26 +111,28 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
   // Set default settings from user configuration.s
   useEffect(() => {
-    const userSubtitlePreference =
-      user?.Configuration?.SubtitleLanguagePreference;
-    const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
+    if (user && cultures) {
+      const userSubtitlePreference =
+        user?.Configuration?.SubtitleLanguagePreference;
+      const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
 
-    const subtitlePreference = cultures.find(
-      (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference
-    );
-    const audioPreference = cultures.find(
-      (x) => x.ThreeLetterISOLanguageName === userAudioPreference
-    );
+      const subtitlePreference = cultures.find(
+        (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference
+      );
+      const audioPreference = cultures.find(
+        (x) => x.ThreeLetterISOLanguageName === userAudioPreference
+      );
 
-    updateSettings({
-      defaultSubtitleLanguage: subtitlePreference,
-      defaultAudioLanguage: audioPreference,
-      subtitleMode: user?.Configuration?.SubtitleMode,
-      playDefaultAudioTrack: user?.Configuration?.PlayDefaultAudioTrack,
-      rememberAudioSelections: user?.Configuration?.RememberAudioSelections,
-      rememberSubtitleSelections:
-        user?.Configuration?.RememberSubtitleSelections,
-    });
+      updateSettings({
+        defaultSubtitleLanguage: subtitlePreference,
+        defaultAudioLanguage: audioPreference,
+        subtitleMode: user?.Configuration?.SubtitleMode,
+        playDefaultAudioTrack: user?.Configuration?.PlayDefaultAudioTrack,
+        rememberAudioSelections: user?.Configuration?.RememberAudioSelections,
+        rememberSubtitleSelections:
+          user?.Configuration?.RememberSubtitleSelections,
+      });
+    }
   }, [user, cultures]);
 
   if (!api) return null;
