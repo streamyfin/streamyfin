@@ -39,6 +39,7 @@ import Video, {
   VideoRef,
 } from "react-native-video";
 import index from "../(tabs)/(home)";
+import { SubtitleHelper } from "@/utils/SubtitleHelper";
 
 const Player = () => {
   const api = useAtomValue(apiAtom);
@@ -112,12 +113,14 @@ const Player = () => {
     staleTime: 0,
   });
 
+  // TODO: NEED TO FIND A WAY TO FROM SWITCHING TO IMAGE BASED TO TEXT BASED SUBTITLES, THERE IS A BUG.
+  // MOST LIKELY LIKELY NEED A MASSIVE REFACTOR.
   const {
     data: stream,
     isLoading: isLoadingStreamUrl,
     isError: isErrorStreamUrl,
   } = useQuery({
-    queryKey: ["stream-url", itemId, bitrateValue, mediaSourceId],
+    queryKey: ["stream-url", itemId, bitrateValue, mediaSourceId, audioIndex],
 
     queryFn: async () => {
       if (!api) {
@@ -325,27 +328,14 @@ const Player = () => {
     SelectedTrack | undefined
   >(undefined);
 
-  // Set intial Subtitle Track.
-  // We will only select external tracks if they are are text based. Else it should be burned in already.
-  // This function aims to get the embedded track index from the source subtitle index.
-  const getEmbeddedTrackIndex = (sourceSubtitleIndex: number) => {
-    const textSubs =
-      stream?.mediaSource.MediaStreams?.filter(
-        (sub) => sub.Type === "Subtitle" && sub.IsTextSubtitleStream
-      ) || [];
-
-    // Get unique text-based subtitles because react-native-video removes hls text tracks duplicates.
-    const matchingSubtitle = textSubs.find(
-      (sub) => sub?.Index === sourceSubtitleIndex
-    );
-
-    if (!matchingSubtitle) return -1;
-    return textSubs.indexOf(matchingSubtitle);
-  };
-
   useEffect(() => {
     if (selectedTextTrack === undefined) {
-      const embeddedTrackIndex = getEmbeddedTrackIndex(subtitleIndex!);
+      const subtitleHelper = new SubtitleHelper(
+        stream?.mediaSource.MediaStreams ?? []
+      );
+      const embeddedTrackIndex = subtitleHelper.getEmbeddedTrackIndex(
+        subtitleIndex!
+      );
 
       // Most likely the subtitle is burned in.
       if (embeddedTrackIndex === -1) return;

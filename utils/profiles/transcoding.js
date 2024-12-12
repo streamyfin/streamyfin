@@ -5,7 +5,6 @@
  */
 import MediaTypes from "../../constants/MediaTypes";
 
-
 export default {
   Name: "Vlc Player for HLS streams.",
   MaxStaticBitrate: 20_000_000,
@@ -40,7 +39,7 @@ export default {
       Type: MediaTypes.Video,
       Context: "Streaming",
       Protocol: "hls",
-      Container: "ts",
+      Container: "fmp4",
       VideoCodec: "h264, hevc",
       AudioCodec: "aac,mp3,ac3",
       CopyTimestamps: false,
@@ -77,7 +76,6 @@ export default {
     { Format: "vplayer", Method: "Hls" },
     { Format: "vtt", Method: "Hls" },
     { Format: "webvtt", Method: "Hls" },
-
 
     // Image based subs use encode.
     { Format: "dvdsub", Method: "Encode" },

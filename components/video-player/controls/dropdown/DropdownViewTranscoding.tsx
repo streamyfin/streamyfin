@@ -8,6 +8,7 @@ import { TranscodedSubtitle } from "../types";
 import { useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { SubtitleHelper } from "@/utils/SubtitleHelper";
 
 interface DropdownViewProps {
   showControls: boolean;
@@ -43,6 +44,8 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
     mediaSource?.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [];
   const textBasedSubs = allSubs.filter((x) => x.IsTextSubtitleStream);
 
+  const subtitleHelper = new SubtitleHelper(mediaSource?.MediaStreams ?? []);
+
   const allSubtitleTracksForTranscodingStream = useMemo(() => {
     const disableSubtitle = {
       name: "Disable",
@@ -57,28 +60,9 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
           IsTextSubtitleStream: true,
         })) || [];
 
-      console.log("textSubtitles", textSubtitles);
-
-      let textIndex = 0; // To track position in textSubtitles
-      // Merge text and image subtitles in the order of allSubs
-      const sortedSubtitles = allSubs.map((sub) => {
-        if (sub.IsTextSubtitleStream) {
-          if (textSubtitles.length === 0) return disableSubtitle;
-          const textSubtitle = textSubtitles[textIndex];
-          if (!textSubtitle) return disableSubtitle;
-          textIndex++;
-          return textSubtitle;
-        } else {
-          return {
-            name: sub.DisplayTitle!,
-            index: sub.Index!,
-            IsTextSubtitleStream: sub.IsTextSubtitleStream,
-          } as TranscodedSubtitle;
-        }
-      });
+      const sortedSubtitles = subtitleHelper.getSortedSubtitles(textSubtitles);
 
       console.log("sortedSubtitles", sortedSubtitles);
-
       return [disableSubtitle, ...sortedSubtitles];
     }
 
@@ -113,16 +97,6 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       name: x.DisplayTitle!,
       index: x.Index!,
     })) || [];
-
-  // HLS stream indexes are not the same as the actual source indexes.
-  // This function aims to get the source subtitle index from the embedded track index.
-  const getSourceSubtitleIndex = (embeddedTrackIndex: number): number => {
-    // If we're not on text-based subtitles, return the embedded track index
-    if (!isOnTextSubtitle) {
-      return parseInt(subtitleIndex);
-    }
-    return textBasedSubs[embeddedTrackIndex]?.Index ?? -1;
-  };
 
   const ChangeTranscodingAudio = useCallback(
     (audioIndex: number) => {
@@ -182,7 +156,9 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                     value={
                       subtitleIndex ===
                       (isOnTextSubtitle && sub.IsTextSubtitleStream
-                        ? getSourceSubtitleIndex(sub.index).toString()
+                        ? subtitleHelper
+                            .getSourceSubtitleIndex(sub.index)
+                            .toString()
                         : sub?.index.toString())
                     }
                     key={`subtitle-item-${idx}`}
@@ -191,17 +167,18 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                       if (
                         subtitleIndex ===
                         (isOnTextSubtitle && sub.IsTextSubtitleStream
-                          ? getSourceSubtitleIndex(sub.index).toString()
+                          ? subtitleHelper
+                              .getSourceSubtitleIndex(sub.index)
+                              .toString()
                           : sub?.index.toString())
                       )
                         return;
 
                       router.setParams({
-                        subtitleIndex: getSourceSubtitleIndex(
-                          sub.index
-                        ).toString(),
+                        subtitleIndex: subtitleHelper
+                          .getSourceSubtitleIndex(sub.index)
+                          .toString(),
                       });
-                      console.log("Got here");
 
                       if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
                         setSubtitleTrack && setSubtitleTrack(sub.index);
