@@ -11,7 +11,5 @@
   },
   "[swift]": {
     "editor.defaultFormatter": "sswg.swift-lang"
-  },
-  "java.configuration.updateBuildConfiguration": "interactive",
-  "java.compile.nullAnalysis.mode": "automatic"
+  }
 }

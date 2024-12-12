@@ -318,7 +318,7 @@ export const Controls: React.FC<Props> = ({
       const minutes = Math.floor((progressInSeconds % 3600) / 60);
       const seconds = progressInSeconds % 60;
       setTime({ hours, minutes, seconds });
-    }, 10),
+    }, 3),
     []
   );
 
