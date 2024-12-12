@@ -38,7 +38,6 @@ import Video, {
   SelectedTrackType,
   VideoRef,
 } from "react-native-video";
-import index from "../(tabs)/(home)";
 
 const Player = () => {
   const api = useAtomValue(apiAtom);
@@ -54,6 +53,7 @@ const Player = () => {
   const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);
@@ -117,7 +117,14 @@ const Player = () => {
     isLoading: isLoadingStreamUrl,
     isError: isErrorStreamUrl,
   } = useQuery({
-    queryKey: ["stream-url", itemId, bitrateValue, mediaSourceId],
+    queryKey: [
+      "stream-url",
+      itemId,
+      bitrateValue,
+      mediaSourceId,
+      subtitleIndex,
+      audioIndex,
+    ],
 
     queryFn: async () => {
       if (!api) {
