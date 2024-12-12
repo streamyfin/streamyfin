@@ -65,6 +65,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
         if (sub.IsTextSubtitleStream) {
           if (textSubtitles.length === 0) return disableSubtitle;
           const textSubtitle = textSubtitles[textIndex];
+          if (!textSubtitle) return disableSubtitle;
           textIndex++;
           return textSubtitle;
         } else {
@@ -180,7 +181,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                   <DropdownMenu.CheckboxItem
                     value={
                       subtitleIndex ===
-                      (sub.IsTextSubtitleStream && isOnTextSubtitle
+                      (isOnTextSubtitle && sub.IsTextSubtitleStream
                         ? getSourceSubtitleIndex(sub.index).toString()
                         : sub?.index.toString())
                     }
@@ -189,7 +190,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                       console.log("sub", sub);
                       if (
                         subtitleIndex ===
-                        (sub.IsTextSubtitleStream && isOnTextSubtitle
+                        (isOnTextSubtitle && sub.IsTextSubtitleStream
                           ? getSourceSubtitleIndex(sub.index).toString()
                           : sub?.index.toString())
                       )
