@@ -34,4 +34,4 @@ credentials.json
 *.apk
 *.ipa
 .continuerc.json
-
+.vscode/

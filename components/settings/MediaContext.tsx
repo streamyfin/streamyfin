@@ -1,6 +1,12 @@
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { useAtomValue } from "jotai";
-import React, { createContext, useContext, ReactNode, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useEffect,
+  useState,
+} from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import {
@@ -31,6 +37,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
   const [settings, updateSettings] = useSettings();
   const api = useAtomValue(apiAtom);
   const queryClient = useQueryClient();
+  const [pulledPreferences, setPulledPreferences] = useState(false);
 
   const updateSetingsWrapper = (update: Partial<Settings>) => {
     const updateUserConfiguration = async (
@@ -111,7 +118,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
   // Set default settings from user configuration.s
   useEffect(() => {
-    if (user && cultures) {
+    if (user && cultures.length != 0 && !pulledPreferences) {
       const userSubtitlePreference =
         user?.Configuration?.SubtitleLanguagePreference;
       const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
@@ -132,8 +139,9 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
         rememberSubtitleSelections:
           user?.Configuration?.RememberSubtitleSelections,
       });
+      setPulledPreferences(true);
     }
-  }, [user, cultures]);
+  }, [user, cultures, pulledPreferences]);
 
   if (!api) return null;
 
