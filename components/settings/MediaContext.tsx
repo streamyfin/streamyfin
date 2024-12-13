@@ -1,6 +1,12 @@
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { useAtomValue } from "jotai";
-import React, { createContext, useContext, ReactNode, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useEffect,
+  useState,
+} from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import {
@@ -87,16 +93,14 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     queryKey: ["authUser"],
     queryFn: async () => {
       if (!api) return;
-
       const userApi = await getUserApi(api).getCurrentUser();
       return userApi.data;
     },
     enabled: !!api,
     staleTime: 0,
-    refetchOnMount: true,
   });
 
-  const { data: cultures = [] } = useQuery({
+  const { data: cultures = [], isFetched: isCulturesFetched } = useQuery({
     queryKey: ["cultures"],
     queryFn: async () => {
       if (!api) return [];
@@ -105,35 +109,33 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
       return cultures;
     },
     enabled: !!api,
-    staleTime: 0,
-    refetchOnMount: true,
+    staleTime: 43200000, // 12 hours
   });
 
   // Set default settings from user configuration.s
   useEffect(() => {
-    if (user && cultures) {
-      const userSubtitlePreference =
-        user?.Configuration?.SubtitleLanguagePreference;
-      const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
+    if (!user || cultures.length === 0) return;
+    const userSubtitlePreference =
+      user?.Configuration?.SubtitleLanguagePreference;
+    const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
 
-      const subtitlePreference = cultures.find(
-        (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference
-      );
-      const audioPreference = cultures.find(
-        (x) => x.ThreeLetterISOLanguageName === userAudioPreference
-      );
+    const subtitlePreference = cultures.find(
+      (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference
+    );
+    const audioPreference = cultures.find(
+      (x) => x.ThreeLetterISOLanguageName === userAudioPreference
+    );
 
-      updateSettings({
-        defaultSubtitleLanguage: subtitlePreference,
-        defaultAudioLanguage: audioPreference,
-        subtitleMode: user?.Configuration?.SubtitleMode,
-        playDefaultAudioTrack: user?.Configuration?.PlayDefaultAudioTrack,
-        rememberAudioSelections: user?.Configuration?.RememberAudioSelections,
-        rememberSubtitleSelections:
-          user?.Configuration?.RememberSubtitleSelections,
-      });
-    }
-  }, [user, cultures]);
+    updateSettings({
+      defaultSubtitleLanguage: subtitlePreference,
+      defaultAudioLanguage: audioPreference,
+      subtitleMode: user?.Configuration?.SubtitleMode,
+      playDefaultAudioTrack: user?.Configuration?.PlayDefaultAudioTrack,
+      rememberAudioSelections: user?.Configuration?.RememberAudioSelections,
+      rememberSubtitleSelections:
+        user?.Configuration?.RememberSubtitleSelections,
+    });
+  }, [user, isCulturesFetched]);
 
   if (!api) return null;
 

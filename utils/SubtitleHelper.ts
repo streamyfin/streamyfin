@@ -127,7 +127,7 @@ export class SubtitleHelper {
   // This function aims to get the source subtitle index from the embedded track index.
   getSourceSubtitleIndex = (embeddedTrackIndex: number): number => {
     if (Platform.OS === "android") {
-      return this.getSubtitles()[embeddedTrackIndex]?.Index ?? -1;
+      return this.getTextSubtitles()[embeddedTrackIndex]?.Index ?? -1;
     }
     return this.getUniqueTextBasedSubtitles()[embeddedTrackIndex]?.Index ?? -1;
   };

@@ -35,14 +35,18 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
   }>();
 
   // Either its on a text subtitle or its on not on any subtitle therefore it should show all the embedded HLS subtitles.
-  const isOnTextSubtitle =
-    mediaSource?.MediaStreams?.find(
-      (x) => x.Index === parseInt(subtitleIndex) && x.IsTextSubtitleStream
-    ) || subtitleIndex === "-1";
+
+  const isOnTextSubtitle = useMemo(() => {
+    const res = Boolean(
+      mediaSource?.MediaStreams?.find(
+        (x) => x.Index === parseInt(subtitleIndex) && x.IsTextSubtitleStream
+      ) || subtitleIndex === "-1"
+    );
+    return res;
+  }, []);
 
   const allSubs =
     mediaSource?.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [];
-  const textBasedSubs = allSubs.filter((x) => x.IsTextSubtitleStream);
 
   const subtitleHelper = new SubtitleHelper(mediaSource?.MediaStreams ?? []);
 
@@ -75,7 +79,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
     return [disableSubtitle, ...transcodedSubtitle];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
 
-  const ChangeTranscodingSubtitle = useCallback(
+  const changeToImageBasedSub = useCallback(
     (subtitleIndex: number) => {
       const queryParams = new URLSearchParams({
         itemId: item.Id ?? "", // Ensure itemId is a string
@@ -184,8 +188,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                         setSubtitleTrack && setSubtitleTrack(sub.index);
                         return;
                       }
-                      console.log("ChangeTranscodingSubtitle", subtitleIndex);
-                      ChangeTranscodingSubtitle(sub.index);
+                      changeToImageBasedSub(sub.index);
                     }}
                   >
                     <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>

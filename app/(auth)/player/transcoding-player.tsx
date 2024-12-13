@@ -30,7 +30,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { BackHandler, View } from "react-native";
+import { View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, {
   OnProgressData,
@@ -38,7 +38,6 @@ import Video, {
   SelectedTrackType,
   VideoRef,
 } from "react-native-video";
-import index from "../(tabs)/(home)";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
 
 const Player = () => {
@@ -55,6 +54,7 @@ const Player = () => {
   const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);

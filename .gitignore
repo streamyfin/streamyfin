@@ -35,3 +35,4 @@ credentials.json
 *.ipa
 .continuerc.json
 
+.vscode/
