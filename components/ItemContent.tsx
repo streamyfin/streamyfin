@@ -20,6 +20,7 @@ import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById"
 import {
   BaseItemDto,
   MediaSourceInfo,
+  MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
@@ -32,6 +33,7 @@ import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
+import { SubtitleHelper } from "@/utils/SubtitleHelper";
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -108,6 +110,36 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
+
+    const [isTranscoding, setIsTranscoding] = useState(false);
+    const [previouslyChosenSubtitleIndex, setPreviouslyChosenSubtitleIndex] =
+      useState<number | undefined>(selectedOptions?.subtitleIndex);
+
+    useEffect(() => {
+      const isTranscoding = Boolean(selectedOptions?.bitrate.value);
+      if (isTranscoding) {
+        setPreviouslyChosenSubtitleIndex(selectedOptions?.subtitleIndex);
+        const subHelper = new SubtitleHelper(
+          selectedOptions?.mediaSource?.MediaStreams ?? []
+        );
+
+        const newSubtitleIndex = subHelper.getMostCommonSubtitleByName(
+          selectedOptions?.subtitleIndex
+        );
+
+        setSelectedOptions((prev) => ({
+          ...prev!,
+          subtitleIndex: newSubtitleIndex ?? -1,
+        }));
+      }
+      if (!isTranscoding && previouslyChosenSubtitleIndex !== undefined) {
+        setSelectedOptions((prev) => ({
+          ...prev!,
+          subtitleIndex: previouslyChosenSubtitleIndex,
+        }));
+      }
+      setIsTranscoding(isTranscoding);
+    }, [selectedOptions?.bitrate]);
 
     if (!selectedOptions) return null;
 
@@ -199,6 +231,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     selected={selectedOptions.audioIndex}
                   />
                   <SubtitleTrackSelector
+                    isTranscoding={isTranscoding}
                     source={selectedOptions.mediaSource}
                     onChange={(val) =>
                       setSelectedOptions(

@@ -1,26 +1,34 @@
 import { tc } from "@/utils/textTools";
 import { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
+import { SubtitleHelper } from "@/utils/SubtitleHelper";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
   onChange: (value: number) => void;
   selected?: number | undefined;
+  isTranscoding?: boolean;
 }
 
 export const SubtitleTrackSelector: React.FC<Props> = ({
   source,
   onChange,
   selected,
+  isTranscoding,
   ...props
 }) => {
-  const subtitleStreams = useMemo(
-    () => source?.MediaStreams?.filter((x) => x.Type === "Subtitle") ?? [],
-    [source]
-  );
+  const subtitleStreams = useMemo(() => {
+    const subtitleHelper = new SubtitleHelper(source?.MediaStreams ?? []);
+
+    if (isTranscoding && Platform.OS === "ios") {
+      return subtitleHelper.getUniqueSubtitles();
+    }
+
+    return subtitleHelper.getSubtitles();
+  }, [source, isTranscoding]);
 
   const selectedSubtitleSteam = useMemo(
     () => subtitleStreams.find((x) => x.Index === selected),
