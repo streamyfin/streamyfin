@@ -53,7 +53,7 @@ export const useRemuxHlsToMp4 = () => {
   const [settings] = useSettings();
   const { saveImage } = useImageStorage();
   const { saveSeriesPrimaryImage } = useDownloadHelper();
-  const { saveDownloadedItemInfo, setProcesses, processes } = useDownload();
+  const { saveDownloadedItemInfo, setProcesses, processes, APP_CACHE_DOWNLOAD_DIRECTORY } = useDownload();
 
   const onSaveAssets = async (api: Api, item: BaseItemDto) => {
     await saveSeriesPrimaryImage(item);
@@ -76,6 +76,10 @@ export const useRemuxHlsToMp4 = () => {
 
         if (returnCode.isValueSuccess()) {
           const stat = await session.getLastReceivedStatistics();
+          await FileSystem.moveAsync({
+              from: `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`,
+              to: `${FileSystem.documentDirectory}${item.Id}.mp4`
+          })
           await queryClient.invalidateQueries({
             queryKey: ["downloadedItems"],
           });
@@ -127,7 +131,13 @@ export const useRemuxHlsToMp4 = () => {
 
   const startRemuxing = useCallback(
     async (item: BaseItemDto, url: string, mediaSource: MediaSourceInfo) => {
-      const output = `${FileSystem.documentDirectory}${item.Id}.mp4`;
+      const cacheDir = await FileSystem.getInfoAsync(APP_CACHE_DOWNLOAD_DIRECTORY);
+      if (!cacheDir.exists) {
+        await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {intermediates: true})
+      }
+
+      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`
+
       if (!api) throw new Error("API is not defined");
       if (!item.Id) throw new Error("Item must have an Id");
 

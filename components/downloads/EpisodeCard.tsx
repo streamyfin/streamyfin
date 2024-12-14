@@ -91,6 +91,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
           <Text className="text-xs text-neutral-500">
             {runtimeTicksToSeconds(item.RunTimeTicks)}
           </Text>
+          <DownloadSize items={[item]} />
         </View>
       </View>
 
