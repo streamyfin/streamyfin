@@ -64,7 +64,7 @@ export default function index() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [loadingRetry, setLoadingRetry] = useState(false);
 
-  const { downloadedFiles } = useDownload();
+  const { downloadedFiles, cleanCacheDirectory } = useDownload();
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
@@ -107,6 +107,9 @@ export default function index() {
       setIsConnected(state.isConnected);
     });
 
+    cleanCacheDirectory()
+      .then(r => console.log("Cache directory cleaned"))
+      .catch(e => console.error("Something went wrong cleaning cache directory"))
     return () => {
       unsubscribe();
     };

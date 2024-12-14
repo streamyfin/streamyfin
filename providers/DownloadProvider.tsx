@@ -39,7 +39,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import {AppState, AppStateStatus, Platform} from "react-native";
 import { toast } from "sonner-native";
 import { apiAtom } from "./JellyfinProvider";
 import * as Notifications from "expo-notifications";
@@ -49,6 +49,7 @@ import { storage } from "@/utils/mmkv";
 import useDownloadHelper from "@/utils/download";
 import { FileInfo } from "expo-file-system";
 import * as Haptics from "expo-haptics";
+import * as Application from "expo-application";
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -193,6 +194,8 @@ function useDownloadProvider() {
     },
     [settings?.optimizedVersionsServerUrl, authHeader]
   );
+
+  const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`
 
   const startDownload = useCallback(
     async (process: JobStatus) => {
@@ -410,8 +413,9 @@ function useDownloadProvider() {
       });
   };
 
-  const forEveryDirectoryFile = async (
+  const forEveryDocumentDirFile = async (
     includeMMKV: boolean = true,
+    ignoreList: string[] = [],
     callback: (file: FileInfo) => void
   ) => {
     const baseDirectory = FileSystem.documentDirectory;
@@ -423,16 +427,19 @@ function useDownloadProvider() {
     for (const item of dirContents) {
       // Exclude mmkv directory.
       // Deleting this deletes all user information as well. Logout should handle this.
-      if (item == "mmkv" && !includeMMKV) continue;
+      if ((item == "mmkv" && !includeMMKV) || ignoreList.some(i => item.includes(i))) {
+        console.log("Skipping read for item", item)
+        continue;
+      }
       const itemInfo = await FileSystem.getInfoAsync(`${baseDirectory}${item}`);
-      if (itemInfo.exists) {
+      if (!itemInfo.isDirectory && itemInfo.exists) {
         callback(itemInfo);
       }
     }
   };
 
   const deleteLocalFiles = async (): Promise<void> => {
-    await forEveryDirectoryFile(false, (file) => {
+    await forEveryDocumentDirFile(false, [], (file) => {
       console.warn("Deleting file", file.uri);
       FileSystem.deleteAsync(file.uri, { idempotent: true });
     });
@@ -525,6 +532,30 @@ function useDownloadProvider() {
     );
   };
 
+  const cleanCacheDirectory = async () => {
+    const cacheDir = await FileSystem.getInfoAsync(APP_CACHE_DOWNLOAD_DIRECTORY);
+    if (cacheDir.exists) {
+      const cachedFiles = await FileSystem.readDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY)
+      let position = 0
+      const batchSize = 3
+
+      // batching promise.all to avoid OOM
+      while (position < cachedFiles.length) {
+        const itemsForBatch = cachedFiles.slice(position, position + batchSize)
+        await Promise.all(itemsForBatch.map(async file => {
+          const info = await FileSystem.getInfoAsync(`${APP_CACHE_DOWNLOAD_DIRECTORY}${file}`)
+          if (info.exists) {
+            await FileSystem.deleteAsync(info.uri, { idempotent: true })
+            return Promise.resolve(file)
+          }
+          return Promise.reject()
+        }))
+
+        position += batchSize
+      }
+    }
+  }
+
   const deleteFileByType = async (type: BaseItemDto["Type"]) => {
     await Promise.all(
       downloadedFiles
@@ -540,9 +571,17 @@ function useDownloadProvider() {
   };
 
   const appSizeUsage = useMemo(async () => {
-    const sizes: number[] = [];
-    await forEveryDirectoryFile(true, (file) => {
-      if (file.exists) sizes.push(file.size);
+    const ignore: string[] = [];
+    const sizes: number[] = downloadedFiles?.map(d => {
+      ignore.push(d.item.Id!!)
+      return getDownloadedItemSize(d.item.Id!!)
+    }) || [];
+
+    await forEveryDocumentDirFile(true, ignore, (file) => {
+      // Skip reading downloaded files since these are saved in storage
+      if (!downloadedFiles?.some(d => file.uri.includes(d.item.Id!!)) && file.exists) {
+        sizes.push(file.size);
+      }
     });
 
     return sizes.reduce((sum, size) => sum + size, 0);
@@ -636,6 +675,8 @@ function useDownloadProvider() {
     deleteFileByType,
     appSizeUsage,
     getDownloadedItemSize,
+    APP_CACHE_DOWNLOAD_DIRECTORY,
+    cleanCacheDirectory
   };
 }
 
@@ -662,10 +703,10 @@ export function bytesToReadable(bytes: number): string {
 
   if (gb >= 1) return `${gb.toFixed(2)} GB`;
 
-  const mb = bytes / 1024 / 1024;
+  const mb = bytes / 1024.0 / 1024.0;
   if (mb >= 1) return `${mb.toFixed(2)} MB`;
 
-  const kb = bytes / 1024;
+  const kb = bytes / 1024.0;
   if (kb >= 1) return `${kb.toFixed(2)} KB`;
   return `${bytes.toFixed(2)} B`;
 }
