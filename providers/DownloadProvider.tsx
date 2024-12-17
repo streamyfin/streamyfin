@@ -423,20 +423,32 @@ function useDownloadProvider() {
       throw new Error("Base directory not found");
     }
 
+    console.log(`ignoreList length: ${ignoreList?.length}`);
+
     const dirContents = await FileSystem.readDirectoryAsync(baseDirectory);
     for (const item of dirContents) {
       // Exclude mmkv directory.
       // Deleting this deletes all user information as well. Logout should handle this.
-      if ((item == "mmkv" && !includeMMKV) || ignoreList.some(i => item.includes(i))) {
+      if (
+        (item == "mmkv" && !includeMMKV) ||
+        ignoreList.some(i => item.includes(i))
+      ) {
         console.log("Skipping read for item", item)
         continue;
       }
-      const itemInfo = await FileSystem.getInfoAsync(`${baseDirectory}${item}`);
-      if (!itemInfo.isDirectory && itemInfo.exists) {
-        callback(itemInfo);
-      }
+      await FileSystem.getInfoAsync(`${baseDirectory}${item}`)
+        .then((itemInfo) => {
+          console.log("Loading itemInfo", itemInfo);
+
+          if (itemInfo.exists && !itemInfo.isDirectory) {
+            callback(itemInfo);
+          }
+        })
+        .catch(e =>
+          console.error(e)
+        )
     }
-  };
+  }
 
   const deleteLocalFiles = async (): Promise<void> => {
     await forEveryDocumentDirFile(false, [], (file) => {
@@ -571,21 +583,23 @@ function useDownloadProvider() {
   };
 
   const appSizeUsage = useMemo(async () => {
-    const ignore: string[] = [];
     const sizes: number[] = downloadedFiles?.map(d => {
-      ignore.push(d.item.Id!!)
       return getDownloadedItemSize(d.item.Id!!)
     }) || [];
 
-    await forEveryDocumentDirFile(true, ignore, (file) => {
-      // Skip reading downloaded files since these are saved in storage
-      if (!downloadedFiles?.some(d => file.uri.includes(d.item.Id!!)) && file.exists) {
-        sizes.push(file.size);
-      }
-    });
+    await forEveryDocumentDirFile(
+      true,
+      getAllDownloadedItems().map(d => d.item.Id!!),
+      (file) => {
+        if (file.exists) {
+          sizes.push(file.size);
+        }
+      }).catch(e => {
+      console.error(e)
+    })
 
     return sizes.reduce((sum, size) => sum + size, 0);
-  }, [logs, downloadedFiles]);
+  }, [logs, downloadedFiles, forEveryDocumentDirFile]);
 
   function getDownloadedItem(itemId: string): DownloadedItem | null {
     try {
