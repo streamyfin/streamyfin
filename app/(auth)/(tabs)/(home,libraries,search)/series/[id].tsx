@@ -82,7 +82,6 @@ const page: React.FC = () => {
           <View className="flex flex-row items-center space-x-2">
             <DownloadItems
               title="Download Series"
-              subtitle={`${allEpisodes.length} episodes`}
               items={allEpisodes || []}
               MissingDownloadIconComponent={() => (
                 <Ionicons name="download" size={22} color="white" />

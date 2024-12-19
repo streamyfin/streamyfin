@@ -126,14 +126,13 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         />
         <DownloadItems
           title="Download Season"
-          subtitle={`${episodes?.length} episodes`}
           className="ml-2"
           items={episodes || []}
           MissingDownloadIconComponent={() => (
             <Ionicons name="download" size={20} color="white" />
           )}
           DownloadedIconComponent={() => (
-            <Ionicons name="checkbox-sharp" size={20} color="#9333ea" />
+            <Ionicons name="download" size={20} color="#9333ea" />
           )}
         />
       </View>

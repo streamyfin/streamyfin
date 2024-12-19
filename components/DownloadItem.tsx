@@ -90,18 +90,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.dismiss();
   }, []);
 
-  // region computed
   const itemIds = useMemo(() => items.map((i) => i.Id), [items]);
-  const pendingItems = useMemo(
+
+  // Get a list of all items that are not downloaded - based on the items passed in as props
+  const itemsNotDownloaded = useMemo(
     () =>
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
     [items, downloadedFiles]
   );
-  const isDownloaded = useMemo(() => {
-    if (!downloadedFiles) return false;
-    return pendingItems.length == 0;
-  }, [downloadedFiles, pendingItems]);
 
+  const allItemsDownloaded = useMemo(() => {
+    if (items.length === 0) return false;
+    return itemsNotDownloaded.length === 0;
+  }, [items, itemsNotDownloaded]);
   const itemsProcesses = useMemo(
     () => processes?.filter((p) => itemIds.includes(p.item.Id)),
     [processes, itemIds]
@@ -120,10 +121,10 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   const itemsQueued = useMemo(() => {
     return (
-      pendingItems.length > 0 &&
-      pendingItems.every((p) => queue.some((q) => p.Id == q.item.Id))
+      itemsNotDownloaded.length > 0 &&
+      itemsNotDownloaded.every((p) => queue.some((q) => p.Id == q.item.Id))
     );
-  }, [queue, pendingItems]);
+  }, [queue, itemsNotDownloaded]);
   // endregion computed
 
   // region helper functions
@@ -145,17 +146,17 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   const acceptDownloadOptions = useCallback(() => {
     if (userCanDownload === true) {
-      if (pendingItems.some((i) => !i.Id)) {
+      if (itemsNotDownloaded.some((i) => !i.Id)) {
         throw new Error("No item id");
       }
       closeModal();
 
-      if (usingOptimizedServer) initiateDownload(...pendingItems);
+      if (usingOptimizedServer) initiateDownload(...itemsNotDownloaded);
       else {
         queueActions.enqueue(
           queue,
           setQueue,
-          ...pendingItems.map((item) => ({
+          ...itemsNotDownloaded.map((item) => ({
             id: item.Id!,
             execute: async () => await initiateDownload(item),
             item,
@@ -168,7 +169,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   }, [
     queue,
     setQueue,
-    pendingItems,
+    itemsNotDownloaded,
     usingOptimizedServer,
     userCanDownload,
 
@@ -188,7 +189,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         !api ||
         !user?.Id ||
         items.some((p) => !p.Id) ||
-        (pendingItems.length === 1 && !selectedMediaSource?.Id)
+        (itemsNotDownloaded.length === 1 && !selectedMediaSource?.Id)
       ) {
         throw new Error(
           "DownloadItem ~ initiateDownload: No api or user or item"
@@ -199,7 +200,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       let subtitleIndex: number | undefined = selectedSubtitleStream;
 
       for (const item of items) {
-        if (pendingItems.length > 1) {
+        if (itemsNotDownloaded.length > 1) {
           ({ mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
             item,
             settings!
@@ -242,7 +243,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     [
       api,
       user?.Id,
-      pendingItems,
+      itemsNotDownloaded,
       selectedMediaSource,
       selectedAudioStream,
       selectedSubtitleStream,
@@ -270,7 +271,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   useFocusEffect(
     useCallback(() => {
       if (!settings) return;
-      if (pendingItems.length !== 1) return;
+      if (itemsNotDownloaded.length !== 1) return;
       const { bitrate, mediaSource, audioIndex, subtitleIndex } =
         getDefaultPlaySettings(items[0], settings);
 
@@ -279,7 +280,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       setSelectedAudioStream(audioIndex ?? 0);
       setSelectedSubtitleStream(subtitleIndex ?? -1);
       setMaxBitrate(bitrate);
-    }, [items, pendingItems, settings])
+    }, [items, itemsNotDownloaded, settings])
   );
 
   return (
@@ -307,7 +308,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         <TouchableOpacity onPress={navigateToDownloads}>
           <Ionicons name="hourglass" size={24} color="white" />
         </TouchableOpacity>
-      ) : isDownloaded ? (
+      ) : allItemsDownloaded ? (
         <TouchableOpacity onPress={onDownloadedPress}>
           {DownloadedIconComponent()}
         </TouchableOpacity>
@@ -334,7 +335,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               <Text className="font-bold text-2xl text-neutral-100">
                 {title}
               </Text>
-              <Text className="text-neutral-300">{subtitle}</Text>
+              <Text className="text-neutral-300">
+                {subtitle || `Download ${itemsNotDownloaded.length} items`}
+              </Text>
             </View>
             <View className="flex flex-col space-y-2 w-full items-start">
               <BitrateSelector
@@ -342,7 +345,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 onChange={setMaxBitrate}
                 selected={maxBitrate}
               />
-              {pendingItems.length === 1 && (
+              {itemsNotDownloaded.length === 1 && (
                 <>
                   <MediaSourceSelector
                     item={items[0]}
