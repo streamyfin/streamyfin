@@ -326,9 +326,14 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       >
         <BottomSheetView>
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
-            <Text className="font-bold text-2xl text-neutral-10">
-              Download options
-            </Text>
+            <View>
+              <Text className="font-bold text-2xl text-neutral-100">
+                Download
+              </Text>
+              <Text className="text-neutral-300">
+                Entire season of {items.length} episodes
+              </Text>
+            </View>
             <View className="flex flex-col space-y-2 w-full items-start">
               <BitrateSelector
                 inverted
