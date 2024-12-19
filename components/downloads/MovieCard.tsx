@@ -97,7 +97,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
           />
         </View>
       )}
-      <ItemCardText item={item} />
+      <View className="w-28">
+        <ItemCardText item={item} />
+      </View>
       <DownloadSize items={[item]} />
     </TouchableOpacity>
   );
