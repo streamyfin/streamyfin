@@ -34,6 +34,7 @@ import { ItemHeader } from "./ItemHeader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
+import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -258,7 +259,9 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
               <SeasonEpisodesCarousel item={item} loading={loading} />
             )}
 
-            <OverviewText text={item.Overview} className="px-4 my-4" />
+            <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+            <OverviewText text={item.Overview} className="px-4 mb-4" />
+
             {item.Type !== "Program" && (
               <>
                 {item.Type === "Episode" && (
