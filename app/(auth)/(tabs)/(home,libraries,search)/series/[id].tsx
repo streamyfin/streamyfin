@@ -1,4 +1,5 @@
 import { Text } from "@/components/common/Text";
+import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
@@ -6,16 +7,14 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+import { Ionicons } from "@expo/vector-icons";
+import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import {useLocalSearchParams, useNavigation} from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import React, {useEffect} from "react";
-import { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { View } from "react-native";
-import {DownloadItems} from "@/components/DownloadItem";
-import {MaterialCommunityIcons} from "@expo/vector-icons";
-import {getTvShowsApi} from "@jellyfin/sdk/lib/utils/api";
 
 const page: React.FC = () => {
   const navigation = useNavigation();
@@ -60,7 +59,7 @@ const page: React.FC = () => {
     [item]
   );
 
-  const {data: allEpisodes, isLoading} = useQuery({
+  const { data: allEpisodes, isLoading } = useQuery({
     queryKey: ["AllEpisodes", item?.Id],
     queryFn: async () => {
       const res = await getTvShowsApi(api!).getEpisodes({
@@ -69,34 +68,39 @@ const page: React.FC = () => {
         enableUserData: true,
         fields: ["MediaSources", "MediaStreams", "Overview"],
       });
-      return res?.data.Items || []
+      return res?.data.Items || [];
     },
-    enabled: !!api && !!user?.Id && !!item?.Id
+    enabled: !!api && !!user?.Id && !!item?.Id,
   });
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        (!isLoading && allEpisodes && allEpisodes.length > 0) && (
+      headerRight: () =>
+        !isLoading &&
+        allEpisodes &&
+        allEpisodes.length > 0 && (
           <View className="flex flex-row items-center space-x-2">
             <DownloadItems
+              title="Download Series"
+              subtitle={`${allEpisodes.length} episodes`}
               items={allEpisodes || []}
               MissingDownloadIconComponent={() => (
-                <MaterialCommunityIcons name="folder-download" size={24} color="white"/>
+                <Ionicons name="download" size={22} color="white" />
               )}
               DownloadedIconComponent={() => (
-                <MaterialCommunityIcons name="folder-check" size={26} color="#9333ea"/>
+                <Ionicons
+                  name="checkmark-done-outline"
+                  size={24}
+                  color="#9333ea"
+                />
               )}
             />
           </View>
-        )
-      )
-    })
+        ),
+    });
   }, [allEpisodes, isLoading]);
 
-  if (!item || !backdropUrl)
-    return null;
-
+  if (!item || !backdropUrl) return null;
 
   return (
     <ParallaxScrollView
