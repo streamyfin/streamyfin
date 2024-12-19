@@ -32,6 +32,7 @@ import {
 import {
   BaseItemDto,
   BaseItemDtoQueryResult,
+  BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
@@ -40,8 +41,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const MemoizedTouchableItemRouter = React.memo(TouchableItemRouter);
+import { colletionTypeToItemType } from "@/utils/collectionTypeToItemType";
 
 const Page = () => {
   const searchParams = useLocalSearchParams();
@@ -141,6 +141,18 @@ const Page = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !library) return null;
 
+      console.log("[libraryId] ~", library);
+
+      let itemType: BaseItemKind | undefined;
+
+      // This fix makes sure to only return 1 type of items, if defined.
+      // This is because the underlying directory some times contains other types, and we don't want to show them.
+      if (library.CollectionType === "movies") {
+        itemType = "Movie";
+      } else if (library.CollectionType === "tvshows") {
+        itemType = "Series";
+      }
+
       const response = await getItemsApi(api).getItems({
         userId: user?.Id,
         parentId: libraryId,
@@ -155,6 +167,7 @@ const Page = () => {
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => parseInt(year)),
+        includeItemTypes: itemType ? [itemType] : undefined,
       });
 
       return response.data || null;
