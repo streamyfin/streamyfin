@@ -13,12 +13,13 @@ export const ItemCardText: React.FC<ItemCardProps> = ({ item }) => {
     <View className="mt-2 flex flex-col">
       {item.Type === "Episode" ? (
         <>
-          <Text numberOfLines={2} className="">
-            {item.SeriesName}
+          <Text numberOfLines={1} className="">
+            {item.Name}
           </Text>
           <Text numberOfLines={1} className="text-xs opacity-50">
-            {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}{" "}
-            {item.Name}
+            {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
+            {" - "}
+            {item.SeriesName}
           </Text>
         </>
       ) : (
