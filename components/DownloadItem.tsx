@@ -36,12 +36,16 @@ interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
   MissingDownloadIconComponent: () => React.ReactElement;
   DownloadedIconComponent: () => React.ReactElement;
+  title?: string;
+  subtitle?: string;
 }
 
 export const DownloadItems: React.FC<DownloadProps> = ({
   items,
   MissingDownloadIconComponent,
   DownloadedIconComponent,
+  title = "Download",
+  subtitle = "",
   ...props
 }) => {
   const [api] = useAtom(apiAtom);
@@ -328,11 +332,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
             <View>
               <Text className="font-bold text-2xl text-neutral-100">
-                Download
+                {title}
               </Text>
-              <Text className="text-neutral-300">
-                Entire season of {items.length} episodes
-              </Text>
+              <Text className="text-neutral-300">{subtitle}</Text>
             </View>
             <View className="flex flex-col space-y-2 w-full items-start">
               <BitrateSelector
@@ -390,6 +392,8 @@ export const DownloadSingleItem: React.FC<{ item: BaseItemDto }> = ({
 }) => {
   return (
     <DownloadItems
+      title="Download Episode"
+      subtitle={item.Name!}
       items={[item]}
       MissingDownloadIconComponent={() => (
         <Ionicons name="cloud-download-outline" size={24} color="white" />
