@@ -124,11 +124,11 @@ const AudioStreamInfo = ({ audioStreams }: { audioStreams: MediaStream[] }) => {
   return (
     <View className="flex flex-col">
       {audioStreams.map((audioStreams, index) => (
-        <View className="flex flex-col">
+        <View key={index} className="flex flex-col">
           <Text className="mb-3 text-neutral-400 text-xs">
             {audioStreams.DisplayTitle}
           </Text>
-          <View key={index} className="flex-row flex-wrap gap-2">
+          <View className="flex-row flex-wrap gap-2">
             <Badge
               variant="gray"
               iconLeft={
