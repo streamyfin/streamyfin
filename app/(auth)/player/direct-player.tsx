@@ -43,6 +43,7 @@ import {
   View,
   AppState,
   AppStateStatus,
+  Platform,
 } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import settings from "../(tabs)/(home)/settings";
@@ -448,7 +449,7 @@ export default function page() {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
-          opacity: showControls ? 0.5 : 1,
+          opacity: showControls ? (Platform.OS === "android" ? 0.7 : 0.5) : 1,
         }}
       >
         <VlcPlayerView

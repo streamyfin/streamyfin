@@ -42,7 +42,10 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
@@ -506,11 +509,23 @@ export const Controls: React.FC<Props> = ({
             setSubtitleTrack={setSubtitleTrack}
             setSubtitleURL={setSubtitleURL}
           >
-            {!mediaSource?.TranscodingUrl ? (
-              <DropdownViewDirect showControls={showControls} />
-            ) : (
-              <DropdownViewTranscoding showControls={showControls} />
-            )}
+            <View
+              style={[
+                {
+                  position: "absolute",
+                  top: insets.top,
+                  left: insets.left,
+                  opacity: showControls ? 1 : 0,
+                  zIndex: 1000,
+                },
+              ]}
+            >
+              {!mediaSource?.TranscodingUrl ? (
+                <DropdownViewDirect showControls={showControls} />
+              ) : (
+                <DropdownViewTranscoding showControls={showControls} />
+              )}
+            </View>
           </VideoProvider>
 
           <Pressable
@@ -528,8 +543,8 @@ export const Controls: React.FC<Props> = ({
             style={[
               {
                 position: "absolute",
-                top: 0,
-                right: 0,
+                top: insets.top,
+                right: insets.right,
                 opacity: showControls ? 1 : 0,
               },
             ]}
@@ -579,7 +594,7 @@ export const Controls: React.FC<Props> = ({
             <TouchableOpacity
               onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                stop();
+                router.back();
               }}
               className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
             >
@@ -591,8 +606,8 @@ export const Controls: React.FC<Props> = ({
             style={{
               position: "absolute",
               top: "50%", // Center vertically
-              left: 0,
-              right: 0,
+              left: insets.left,
+              right: insets.right,
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
@@ -705,9 +720,9 @@ export const Controls: React.FC<Props> = ({
             style={[
               {
                 position: "absolute",
-                right: 0,
-                left: 0,
-                bottom: 0,
+                right: insets.right,
+                left: insets.left,
+                bottom: insets.bottom,
               },
             ]}
             className={`flex flex-col p-4`}

@@ -72,105 +72,93 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
   }>();
 
   return (
-    <View
-      style={{
-        position: "absolute",
-        zIndex: 1000,
-        opacity: showControls ? 1 : 0,
-      }}
-      className="p-4"
-    >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <TouchableOpacity className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
-            <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
-          </TouchableOpacity>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          loop={true}
-          side="bottom"
-          align="start"
-          alignOffset={0}
-          avoidCollisions={true}
-          collisionPadding={8}
-          sideOffset={8}
-        >
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger key="subtitle-trigger">
-              Subtitle
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.SubContent
-              alignOffset={-10}
-              avoidCollisions={true}
-              collisionPadding={0}
-              loop={true}
-              sideOffset={10}
-            >
-              {allSubtitleTracksForDirectPlay?.map((sub, idx: number) => (
-                <DropdownMenu.CheckboxItem
-                  key={`subtitle-item-${idx}`}
-                  value={subtitleIndex === sub.index.toString()}
-                  onValueChange={() => {
-                    if ("deliveryUrl" in sub && sub.deliveryUrl) {
-                      setSubtitleURL &&
-                        setSubtitleURL(
-                          api?.basePath + sub.deliveryUrl,
-                          sub.name
-                        );
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <TouchableOpacity className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
+          <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
+        </TouchableOpacity>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content
+        loop={true}
+        side="bottom"
+        align="start"
+        alignOffset={0}
+        avoidCollisions={true}
+        collisionPadding={8}
+        sideOffset={8}
+      >
+        <DropdownMenu.Sub>
+          <DropdownMenu.SubTrigger key="subtitle-trigger">
+            Subtitle
+          </DropdownMenu.SubTrigger>
+          <DropdownMenu.SubContent
+            alignOffset={-10}
+            avoidCollisions={true}
+            collisionPadding={0}
+            loop={true}
+            sideOffset={10}
+          >
+            {allSubtitleTracksForDirectPlay?.map((sub, idx: number) => (
+              <DropdownMenu.CheckboxItem
+                key={`subtitle-item-${idx}`}
+                value={subtitleIndex === sub.index.toString()}
+                onValueChange={() => {
+                  if ("deliveryUrl" in sub && sub.deliveryUrl) {
+                    setSubtitleURL &&
+                      setSubtitleURL(api?.basePath + sub.deliveryUrl, sub.name);
 
-                      console.log(
-                        "Set external subtitle: ",
-                        api?.basePath + sub.deliveryUrl
-                      );
-                    } else {
-                      console.log("Set sub index: ", sub.index);
-                      setSubtitleTrack && setSubtitleTrack(sub.index);
-                    }
-                    router.setParams({
-                      subtitleIndex: sub.index.toString(),
-                    });
-                    console.log("Subtitle: ", sub);
-                  }}
-                >
-                  <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
-                    {sub.name}
-                  </DropdownMenu.ItemTitle>
-                </DropdownMenu.CheckboxItem>
-              ))}
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Sub>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger key="audio-trigger">
-              Audio
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.SubContent
-              alignOffset={-10}
-              avoidCollisions={true}
-              collisionPadding={0}
-              loop={true}
-              sideOffset={10}
-            >
-              {audioTracks?.map((track, idx: number) => (
-                <DropdownMenu.CheckboxItem
-                  key={`audio-item-${idx}`}
-                  value={audioIndex === track.index.toString()}
-                  onValueChange={() => {
-                    setAudioTrack && setAudioTrack(track.index);
-                    router.setParams({
-                      audioIndex: track.index.toString(),
-                    });
-                  }}
-                >
-                  <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                    {track.name}
-                  </DropdownMenu.ItemTitle>
-                </DropdownMenu.CheckboxItem>
-              ))}
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Sub>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </View>
+                    console.log(
+                      "Set external subtitle: ",
+                      api?.basePath + sub.deliveryUrl
+                    );
+                  } else {
+                    console.log("Set sub index: ", sub.index);
+                    setSubtitleTrack && setSubtitleTrack(sub.index);
+                  }
+                  router.setParams({
+                    subtitleIndex: sub.index.toString(),
+                  });
+                  console.log("Subtitle: ", sub);
+                }}
+              >
+                <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
+                  {sub.name}
+                </DropdownMenu.ItemTitle>
+              </DropdownMenu.CheckboxItem>
+            ))}
+          </DropdownMenu.SubContent>
+        </DropdownMenu.Sub>
+        <DropdownMenu.Sub>
+          <DropdownMenu.SubTrigger key="audio-trigger">
+            Audio
+          </DropdownMenu.SubTrigger>
+          <DropdownMenu.SubContent
+            alignOffset={-10}
+            avoidCollisions={true}
+            collisionPadding={0}
+            loop={true}
+            sideOffset={10}
+          >
+            {audioTracks?.map((track, idx: number) => (
+              <DropdownMenu.CheckboxItem
+                key={`audio-item-${idx}`}
+                value={audioIndex === track.index.toString()}
+                onValueChange={() => {
+                  setAudioTrack && setAudioTrack(track.index);
+                  router.setParams({
+                    audioIndex: track.index.toString(),
+                  });
+                }}
+              >
+                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                  {track.name}
+                </DropdownMenu.ItemTitle>
+              </DropdownMenu.CheckboxItem>
+            ))}
+          </DropdownMenu.SubContent>
+        </DropdownMenu.Sub>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   );
 };
 
