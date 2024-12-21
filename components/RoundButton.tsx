@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 
 interface Props extends TouchableOpacityProps {
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
   background?: boolean;
   size?: "default" | "large";
+  fillColor?: "primary";
+  hapticFeedback?: boolean;
 }
 
 export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
@@ -20,15 +23,43 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   onPress,
   children,
   size = "default",
+  fillColor,
+  hapticFeedback = true,
   ...props
 }) => {
   const buttonSize = size === "large" ? "h-10 w-10" : "h-9 w-9";
+  const fillColorClass = fillColor === "primary" ? "bg-purple-600" : "";
+
+  const handlePress = () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onPress();
+  };
+
+  if (fillColor)
+    return (
+      <TouchableOpacity
+        onPress={handlePress}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
+        {...props}
+      >
+        {icon ? (
+          <Ionicons
+            name={icon}
+            size={size === "large" ? 22 : 18}
+            color={"white"}
+          />
+        ) : null}
+        {children ? children : null}
+      </TouchableOpacity>
+    );
 
   if (background === false)
     return (
       <TouchableOpacity
-        onPress={onPress}
-        className={`rounded-full ${buttonSize} flex items-center justify-center`}
+        onPress={handlePress}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
         {...props}
       >
         {icon ? (
@@ -45,8 +76,10 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   if (Platform.OS === "android")
     return (
       <TouchableOpacity
-        onPress={onPress}
-        className={`rounded-full ${buttonSize} flex items-center justify-center bg-neutral-800/80`}
+        onPress={handlePress}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${
+          fillColor ? fillColorClass : "bg-neutral-800/80"
+        }`}
         {...props}
       >
         {icon ? (
@@ -61,10 +94,10 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     );
 
   return (
-    <TouchableOpacity onPress={onPress} {...props}>
+    <TouchableOpacity onPress={handlePress} {...props}>
       <BlurView
         intensity={90}
-        className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center`}
+        className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${fillColorClass}`}
         {...props}
       >
         {icon ? (
