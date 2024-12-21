@@ -1,11 +1,7 @@
 import { Text } from "@/components/common/Text";
 import { ItemContent } from "@/components/ItemContent";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import {
-  getMediaInfoApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
@@ -48,20 +44,25 @@ const Page: React.FC = () => {
   });
 
   const fadeOut = (callback: any) => {
-    opacity.value = withTiming(0, { duration: 300 }, (finished) => {
-      if (finished) {
-        runOnJS(callback)();
-      }
-    });
+    setTimeout(() => {
+      opacity.value = withTiming(0, { duration: 500 }, (finished) => {
+        if (finished) {
+          runOnJS(callback)();
+        }
+      });
+    }, 100);
   };
 
   const fadeIn = (callback: any) => {
-    opacity.value = withTiming(1, { duration: 300 }, (finished) => {
-      if (finished) {
-        runOnJS(callback)();
-      }
-    });
+    setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 500 }, (finished) => {
+        if (finished) {
+          runOnJS(callback)();
+        }
+      });
+    }, 100);
   };
+
   useEffect(() => {
     if (item) {
       fadeOut(() => {});
@@ -84,14 +85,24 @@ const Page: React.FC = () => {
         style={[animatedStyle]}
         className="absolute top-0 left-0 flex flex-col items-start h-screen w-screen px-4 z-50 bg-black"
       >
-        <View className="h-[350px] bg-transparent rounded-lg mb-4 w-full"></View>
-        <View className="h-6 bg-neutral-900 rounded mb-1 w-12"></View>
-        <View className="h-12 bg-neutral-900 rounded-lg mb-1 w-1/2"></View>
-        <View className="h-12 bg-neutral-900 rounded-lg w-2/3 mb-10"></View>
-        <View className="h-4 bg-neutral-900 rounded-lg mb-1 w-full"></View>
-        <View className="h-12 bg-neutral-900 rounded-lg mb-1 w-full"></View>
-        <View className="h-12 bg-neutral-900 rounded-lg mb-1 w-full"></View>
-        <View className="h-4 bg-neutral-900 rounded-lg mb-1 w-1/4"></View>
+        <View
+          style={{
+            height: item?.Type === "Episode" ? 300 : 450,
+          }}
+          className="bg-transparent rounded-lg mb-4 w-full"
+        ></View>
+        <View className="h-6 bg-neutral-900 rounded mb-4 w-14"></View>
+        <View className="h-10 bg-neutral-900 rounded-lg mb-2 w-1/2"></View>
+        <View className="h-3 bg-neutral-900 rounded mb-3 w-8"></View>
+        <View className="flex flex-row space-x-1 mb-8">
+          <View className="h-6 bg-neutral-900 rounded mb-3 w-14"></View>
+          <View className="h-6 bg-neutral-900 rounded mb-3 w-14"></View>
+          <View className="h-6 bg-neutral-900 rounded mb-3 w-14"></View>
+        </View>
+        <View className="h-3 bg-neutral-900 rounded w-2/3 mb-1"></View>
+        <View className="h-10 bg-neutral-900 rounded-lg w-full mb-2"></View>
+        <View className="h-12 bg-neutral-900 rounded-lg w-full mb-2"></View>
+        <View className="h-24 bg-neutral-900 rounded-lg mb-1 w-full"></View>
       </Animated.View>
       {item && <ItemContent item={item} />}
     </View>
