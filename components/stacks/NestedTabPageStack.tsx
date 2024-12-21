@@ -1,6 +1,15 @@
+import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { HeaderBackButton } from "../common/HeaderBackButton";
+import { ParamListBase, RouteProp } from "@react-navigation/native";
 
-const commonScreenOptions = {
+type ICommonScreenOptions =
+  | NativeStackNavigationOptions
+  | ((prop: {
+      route: RouteProp<ParamListBase, string>;
+      navigation: any;
+    }) => NativeStackNavigationOptions);
+
+const commonScreenOptions: ICommonScreenOptions = {
   title: "",
   headerShown: true,
   headerTransparent: true,
@@ -17,5 +26,5 @@ const routes = [
   "series/[id]",
 ];
 
-export const nestedTabPageScreenOptions: { [key: string]: any } =
+export const nestedTabPageScreenOptions: Record<string, ICommonScreenOptions> =
   Object.fromEntries(routes.map((route) => [route, commonScreenOptions]));
