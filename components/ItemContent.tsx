@@ -90,7 +90,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
               <Chromecast background="blur" width={22} height={22} />
               {item.Type !== "Program" && (
                 <View className="flex flex-row items-center space-x-2">
-                  <DownloadSingleItem item={item} />
+                  <DownloadSingleItem item={item} size="large" />
                   <PlayedStatus item={item} />
                 </View>
               )}
@@ -286,8 +286,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 <SimilarItems itemId={item.Id} />
               </>
             )}
-
-            <View className="h-16"></View>
           </View>
         </ParallaxScrollView>
       </View>

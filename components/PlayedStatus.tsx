@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 import { useAtom } from "jotai";
 import React from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
+import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
@@ -46,44 +47,35 @@ export const PlayedStatus: React.FC<Props> = ({ item, ...props }) => {
     });
   };
 
+  const handlePress = async (played: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (played) {
+      await markAsNotPlayed({
+        api: api,
+        itemId: item?.Id,
+        userId: user?.Id,
+      });
+    } else {
+      await markAsPlayed({
+        api: api,
+        item: item,
+        userId: user?.Id,
+      });
+    }
+    invalidateQueries();
+  };
+
   return (
-    <View
-      className=" bg-neutral-800/80 rounded-full h-10 w-10 flex items-center justify-center"
-      {...props}
-    >
-      {item.UserData?.Played ? (
-        <TouchableOpacity
-          onPress={async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            await markAsNotPlayed({
-              api: api,
-              itemId: item?.Id,
-              userId: user?.Id,
-            });
-            invalidateQueries();
-          }}
-        >
-          <View className="rounded h-10 aspect-square flex items-center justify-center">
-            <Ionicons name="checkmark-circle" size={24} color="white" />
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          onPress={async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            await markAsPlayed({
-              api: api,
-              item: item,
-              userId: user?.Id,
-            });
-            invalidateQueries();
-          }}
-        >
-          <View className="rounded h-10 aspect-square flex items-center justify-center">
-            <Ionicons name="checkmark-circle-outline" size={24} color="white" />
-          </View>
-        </TouchableOpacity>
-      )}
+    <View {...props}>
+      <RoundButton
+        icon={
+          item.UserData?.Played
+            ? "checkmark-circle"
+            : "checkmark-circle-outline"
+        }
+        onPress={() => handlePress(item.UserData?.Played || false)}
+        size="large"
+      />
     </View>
   );
 };

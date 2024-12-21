@@ -10,6 +10,7 @@ import GoogleCast, {
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
+import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
   width?: number;
@@ -53,51 +54,30 @@ export const Chromecast: React.FC<Props> = ({
 
   if (background === "transparent")
     return (
-      <>
-        <TouchableOpacity
-          onPress={() => {
-            if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
-            else CastContext.showCastDialog();
-          }}
-          className="rounded-full h-10 w-10 flex items-center justify-center b"
-          {...props}
-        >
-          <Feather name="cast" size={22} color={"white"} />
-        </TouchableOpacity>
-        <AndroidCastButton />
-      </>
-    );
-
-  if (Platform.OS === "android")
-    return (
-      <TouchableOpacity
+      <RoundButton
+        size="large"
+        className="mr-2"
+        background={false}
         onPress={() => {
           if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
           else CastContext.showCastDialog();
         }}
-        className="rounded-full h-10 w-10 flex items-center justify-center bg-neutral-800/80"
         {...props}
       >
         <Feather name="cast" size={22} color={"white"} />
-      </TouchableOpacity>
+      </RoundButton>
     );
 
   return (
-    <TouchableOpacity
+    <RoundButton
+      size="large"
       onPress={() => {
         if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
         else CastContext.showCastDialog();
       }}
       {...props}
     >
-      <BlurView
-        intensity={100}
-        className="rounded-full overflow-hidden h-10 aspect-square flex items-center justify-center"
-        {...props}
-      >
-        <Feather name="cast" size={22} color={"white"} />
-      </BlurView>
-      <AndroidCastButton />
-    </TouchableOpacity>
+      <Feather name="cast" size={22} color={"white"} />
+    </RoundButton>
   );
 };

@@ -21,7 +21,7 @@ import {
 import { Href, router, useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, TouchableOpacity, View, ViewProps } from "react-native";
+import { Alert, View, ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "./BitrateSelector";
@@ -30,6 +30,7 @@ import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
+import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
 
 interface DownloadProps extends ViewProps {
@@ -38,6 +39,7 @@ interface DownloadProps extends ViewProps {
   DownloadedIconComponent: () => React.ReactElement;
   title?: string;
   subtitle?: string;
+  size?: "default" | "large";
 }
 
 export const DownloadItems: React.FC<DownloadProps> = ({
@@ -46,6 +48,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   DownloadedIconComponent,
   title = "Download",
   subtitle = "",
+  size = "default",
   ...props
 }) => {
   const [api] = useAtom(apiAtom);
@@ -75,9 +78,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     [settings]
   );
 
-  /**
-   * Bottom sheet
-   */
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const handlePresentModalPress = useCallback(() => {
@@ -92,7 +92,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   const itemIds = useMemo(() => items.map((i) => i.Id), [items]);
 
-  // Get a list of all items that are not downloaded - based on the items passed in as props
   const itemsNotDownloaded = useMemo(
     () =>
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
@@ -125,9 +124,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       itemsNotDownloaded.every((p) => queue.some((q) => p.Id == q.item.Id))
     );
   }, [queue, itemsNotDownloaded]);
-  // endregion computed
-
-  // region helper functions
   const navigateToDownloads = () => router.push("/downloads");
 
   const onDownloadedPress = () => {
@@ -172,17 +168,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     itemsNotDownloaded,
     usingOptimizedServer,
     userCanDownload,
-
-    // Need to be reference at the time async lambda is created for initiateDownload
     maxBitrate,
     selectedMediaSource,
     selectedAudioStream,
     selectedSubtitleStream,
   ]);
 
-  /**
-   * Start download
-   */
   const initiateDownload = useCallback(
     async (...items: BaseItemDto[]) => {
       if (
@@ -265,9 +256,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     ),
     []
   );
-  // endregion helper functions
-
-  // Allow to select & set settings for single download
   useFocusEffect(
     useCallback(() => {
       if (!settings) return;
@@ -275,7 +263,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       const { bitrate, mediaSource, audioIndex, subtitleIndex } =
         getDefaultPlaySettings(items[0], settings);
 
-      // 4. Set states
       setSelectedMediaSource(mediaSource ?? undefined);
       setSelectedAudioStream(audioIndex ?? 0);
       setSelectedSubtitleStream(subtitleIndex ?? -1);
@@ -283,40 +270,47 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     }, [items, itemsNotDownloaded, settings])
   );
 
-  return (
-    <View
-      className="bg-neutral-800/80 rounded-full h-9 w-9 flex items-center justify-center"
-      {...props}
-    >
-      {processes && itemsProcesses.length > 0 ? (
-        <TouchableOpacity onPress={navigateToDownloads}>
-          {progress === 0 ? (
-            <Loader />
-          ) : (
-            <View className="-rotate-45">
-              <ProgressCircle
-                size={24}
-                fill={progress}
-                width={4}
-                tintColor="#9334E9"
-                backgroundColor="#bdc3c7"
-              />
-            </View>
-          )}
-        </TouchableOpacity>
-      ) : itemsQueued ? (
-        <TouchableOpacity onPress={navigateToDownloads}>
-          <Ionicons name="hourglass" size={24} color="white" />
-        </TouchableOpacity>
-      ) : allItemsDownloaded ? (
-        <TouchableOpacity onPress={onDownloadedPress}>
-          {DownloadedIconComponent()}
-        </TouchableOpacity>
+  const renderButtonContent = () => {
+    if (processes && itemsProcesses.length > 0) {
+      return progress === 0 ? (
+        <Loader />
       ) : (
-        <TouchableOpacity onPress={handlePresentModalPress}>
-          {MissingDownloadIconComponent()}
-        </TouchableOpacity>
-      )}
+        <View className="-rotate-45">
+          <ProgressCircle
+            size={24}
+            fill={progress}
+            width={4}
+            tintColor="#9334E9"
+            backgroundColor="#bdc3c7"
+          />
+        </View>
+      );
+    } else if (itemsQueued) {
+      return <Ionicons name="hourglass" size={24} color="white" />;
+    } else if (allItemsDownloaded) {
+      return <DownloadedIconComponent />;
+    } else {
+      return <MissingDownloadIconComponent />;
+    }
+  };
+
+  const onButtonPress = () => {
+    if (processes && itemsProcesses.length > 0) {
+      navigateToDownloads();
+    } else if (itemsQueued) {
+      navigateToDownloads();
+    } else if (allItemsDownloaded) {
+      onDownloadedPress();
+    } else {
+      handlePresentModalPress();
+    }
+  };
+
+  return (
+    <View {...props}>
+      <RoundButton size={size} onPress={onButtonPress}>
+        {renderButtonContent()}
+      </RoundButton>
       <BottomSheetModal
         ref={bottomSheetModalRef}
         enableDynamicSizing
@@ -390,11 +384,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   );
 };
 
-export const DownloadSingleItem: React.FC<{ item: BaseItemDto }> = ({
-  item,
-}) => {
+export const DownloadSingleItem: React.FC<{
+  size?: "default" | "large";
+  item: BaseItemDto;
+}> = ({ item, size = "default" }) => {
   return (
     <DownloadItems
+      size={size}
       title="Download Episode"
       subtitle={item.Name!}
       items={[item]}
