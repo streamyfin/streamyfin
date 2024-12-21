@@ -79,7 +79,7 @@ interface Props {
   setSubtitleURL?: (url: string, customName: string) => void;
   setSubtitleTrack?: (index: number) => void;
   setAudioTrack?: (index: number) => void;
-  stop?: (() => Promise<void>) | (() => void);
+  stop: (() => Promise<void>) | (() => void);
   isVlc?: boolean;
 }
 
@@ -578,7 +578,8 @@ export const Controls: React.FC<Props> = ({
             )}
             <TouchableOpacity
               onPress={async () => {
-                router.back();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                stop();
               }}
               className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
             >

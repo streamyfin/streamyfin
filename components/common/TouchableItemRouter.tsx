@@ -66,7 +66,6 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     return (
       <TouchableOpacity
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           const url = itemRouter(item, from);
           // @ts-ignore
           router.push(url);
