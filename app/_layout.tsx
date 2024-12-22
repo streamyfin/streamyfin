@@ -336,7 +336,11 @@ function Layout() {
                             />
                             <Stack.Screen
                               name="login"
-                              options={{ headerShown: false, title: "Login" }}
+                              options={{
+                                headerShown: true,
+                                title: "",
+                                headerTransparent: true,
+                              }}
                             />
                             <Stack.Screen name="+not-found" />
                           </Stack>

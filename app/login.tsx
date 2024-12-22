@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useState } from "react";
 import {
@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -64,6 +65,23 @@ const Login: React.FC = () => {
       }
     })();
   }, [_apiUrl, _username, _password]);
+
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: serverName,
+      headerLeft: () =>
+        api?.basePath ? (
+          <TouchableOpacity
+            onPress={() => {
+              removeServer();
+            }}
+          >
+            <Ionicons name="chevron-back" size={24} color="white" />
+          </TouchableOpacity>
+        ) : null,
+    });
+  }, [serverName, navigation, api?.basePath]);
 
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -176,38 +194,14 @@ const Login: React.FC = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1, height: "100%" }}
         >
-          <View className="flex flex-col w-full h-full relative items-center justify-center">
-            <View className="px-4 -mt-20">
-              <View className="mb-4">
-                <Text className="text-3xl font-bold mb-1">
-                  {serverName || "Streamyfin"}
-                </Text>
-                <View className="bg-neutral-900 rounded-xl p-4 mb-2 flex flex-row items-center justify-between">
-                  <Text className="">URL</Text>
-                  <Text numberOfLines={1} className="shrink">
-                    {api.basePath}
-                  </Text>
-                </View>
-                <Button
-                  color="black"
-                  onPress={() => {
-                    removeServer();
-                  }}
-                  justify="between"
-                  iconLeft={
-                    <Ionicons
-                      name="arrow-back-outline"
-                      size={18}
-                      color={"white"}
-                    />
-                  }
-                >
-                  Change server
-                </Button>
-              </View>
-
+          <View className="flex flex-col h-full relative items-center justify-center">
+            <View className="px-4 -mt-20 w-full">
               <View className="flex flex-col space-y-2">
-                <Text className="text-2xl font-bold">Log in</Text>
+                <Text className="text-2xl font-bold -mb-2">
+                  Log in to{" "}
+                  <Text className="text-purple-600">{serverName}</Text>
+                </Text>
+                <Text className="text-xs text-neutral-400">{serverURL}</Text>
                 <Input
                   placeholder="Username"
                   onChangeText={(text) =>
