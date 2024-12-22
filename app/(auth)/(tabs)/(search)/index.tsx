@@ -20,6 +20,7 @@ import axios from "axios";
 import { Href, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, {
+  PropsWithChildren,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -29,6 +30,10 @@ import React, {
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
+import {useJellyseerr} from "@/hooks/useJellyseerr";
+import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
+import {MediaType} from "@/utils/jellyseerr/server/constants/media";
+import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 
 const exampleSearches = [
   "Lord of the rings",
@@ -53,6 +58,7 @@ export default function search() {
   const [user] = useAtom(userAtom);
 
   const [settings] = useSettings();
+  const { jellyseerrApi } = useJellyseerr();
 
   const searchEngine = useMemo(() => {
     return settings?.searchEngine || "Jellyfin";
@@ -135,6 +141,30 @@ export default function search() {
     enabled: debouncedSearch.length > 0,
   });
 
+  const { data: jellyseerrResults, isFetching: r1 } = useQuery({
+    queryKey: ["search", "jellyseerrResults", debouncedSearch],
+    queryFn: async () => {
+      const response = await jellyseerrApi?.search({
+        query: new URLSearchParams(debouncedSearch).toString(),
+        page: 1, // todo: maybe rework page & page-size if first results are not enough...
+        language: 'en'
+      })
+
+      return response?.results;
+    },
+    enabled: !!jellyseerrApi && debouncedSearch.length > 0,
+  });
+
+  const jellyseerrMovieResults: MovieResult[] | undefined = useMemo(() =>
+      jellyseerrResults?.filter(r => r.mediaType === MediaType.MOVIE) as MovieResult[],
+    [jellyseerrResults]
+  )
+
+  const jellyseerrTvResults: TvResult[] | undefined = useMemo(() =>
+      jellyseerrResults?.filter(r => r.mediaType === MediaType.TV) as TvResult[],
+    [jellyseerrResults]
+  )
+
   const { data: series, isFetching: l2 } = useQuery({
     queryKey: ["search", "series", debouncedSearch],
     queryFn: () =>
@@ -214,9 +244,11 @@ export default function search() {
       episodes?.length ||
       series?.length ||
       collections?.length ||
-      actors?.length
+      actors?.length ||
+      jellyseerrMovieResults?.length ||
+      jellyseerrTvResults?.length
     );
-  }, [artists, episodes, albums, songs, movies, series, collections, actors]);
+  }, [artists, episodes, albums, songs, movies, series, collections, actors, jellyseerrResults]);
 
   const loading = useMemo(() => {
     return l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8;
@@ -255,7 +287,7 @@ export default function search() {
           <SearchItemWrapper
             header="Movies"
             ids={movies?.map((m) => m.Id!)}
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 key={item.Id}
                 className="flex flex-col w-28 mr-2"
@@ -272,9 +304,16 @@ export default function search() {
             )}
           />
           <SearchItemWrapper
+            header="Request Movies"
+            items={jellyseerrMovieResults}
+            renderItem={(item: MovieResult) => (
+              <JellyseerrPoster item={item} key={item.id} />
+            )}
+          />
+          <SearchItemWrapper
             ids={series?.map((m) => m.Id!)}
             header="Series"
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 key={item.Id}
                 item={item}
@@ -291,9 +330,16 @@ export default function search() {
             )}
           />
           <SearchItemWrapper
+            header="Request Series"
+            items={jellyseerrTvResults}
+            renderItem={(item: TvResult) => (
+              <JellyseerrPoster item={item} key={item.id} />
+            )}
+          />
+          <SearchItemWrapper
             ids={episodes?.map((m) => m.Id!)}
             header="Episodes"
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
@@ -307,7 +353,7 @@ export default function search() {
           <SearchItemWrapper
             ids={collections?.map((m) => m.Id!)}
             header="Collections"
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 key={item.Id}
                 item={item}
@@ -323,7 +369,7 @@ export default function search() {
           <SearchItemWrapper
             ids={actors?.map((m) => m.Id!)}
             header="Actors"
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
@@ -337,7 +383,7 @@ export default function search() {
           <SearchItemWrapper
             ids={artists?.map((m) => m.Id!)}
             header="Artists"
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
@@ -351,7 +397,7 @@ export default function search() {
           <SearchItemWrapper
             ids={albums?.map((m) => m.Id!)}
             header="Albums"
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
@@ -365,7 +411,7 @@ export default function search() {
           <SearchItemWrapper
             ids={songs?.map((m) => m.Id!)}
             header="Songs"
-            renderItem={(item) => (
+            renderItem={(item: BaseItemDto) => (
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
@@ -408,13 +454,14 @@ export default function search() {
   );
 }
 
-type Props = {
+type Props<T> = {
   ids?: string[] | null;
-  renderItem: (item: BaseItemDto) => React.ReactNode;
+  items?: T[];
+  renderItem: (item: any) => React.ReactNode;
   header?: string;
 };
 
-const SearchItemWrapper: React.FC<Props> = ({ ids, renderItem, header }) => {
+const SearchItemWrapper = <T extends unknown> ({ ids, items, renderItem, header }: PropsWithChildren<Props<T>>) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
@@ -444,7 +491,7 @@ const SearchItemWrapper: React.FC<Props> = ({ ids, renderItem, header }) => {
     staleTime: Infinity,
   });
 
-  if (!data) return null;
+  if (!data && (!items || items.length === 0)) return null;
 
   return (
     <>
@@ -454,7 +501,14 @@ const SearchItemWrapper: React.FC<Props> = ({ ids, renderItem, header }) => {
         className="px-4 mb-2"
         showsHorizontalScrollIndicator={false}
       >
-        {data.map((item) => renderItem(item))}
+        {
+          data && data?.length > 0
+            ? data.map((item) => renderItem(item))
+            :
+          items && items?.length > 0
+            ? items.map(i => renderItem(i))
+            : undefined
+        }
       </ScrollView>
     </>
   );

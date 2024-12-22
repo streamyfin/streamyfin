@@ -2,7 +2,7 @@ import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { ListItem } from "@/components/ListItem";
 import { SettingToggles } from "@/components/settings/SettingToggles";
-import { bytesToReadable, useDownload } from "@/providers/DownloadProvider";
+import {useDownload} from "@/providers/DownloadProvider";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { clearLogs, useLog } from "@/utils/log";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
@@ -122,7 +122,7 @@ export default function settings() {
         <View className="flex flex-col space-y-2">
           <Text className="font-bold text-lg mb-2">Storage</Text>
           <View className="mb-4 space-y-2">
-            {size && <Text>App usage: {bytesToReadable(size.app)}</Text>}
+            {size && <Text>App usage: {size.app.bytesToReadable()}</Text>}
             <Progress.Bar
               className="bg-gray-100/10"
               indeterminate={appSizeLoading}
@@ -135,8 +135,8 @@ export default function settings() {
             />
             {size && (
               <Text>
-                Available: {bytesToReadable(size.remaining)}, Total:{" "}
-                {bytesToReadable(size.total)}
+                Available: {size.remaining?.bytesToReadable()}, Total:{" "}
+                {size.total?.bytesToReadable()}
               </Text>
             )}
           </View>

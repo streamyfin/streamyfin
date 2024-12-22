@@ -9,7 +9,7 @@ type ICommonScreenOptions =
       navigation: any;
     }) => NativeStackNavigationOptions);
 
-const commonScreenOptions: ICommonScreenOptions = {
+export const commonScreenOptions: ICommonScreenOptions = {
   title: "",
   headerShown: true,
   headerTransparent: true,

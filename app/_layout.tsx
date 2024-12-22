@@ -1,3 +1,4 @@
+import "@/augmentations";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
   getOrSetDeviceId,
