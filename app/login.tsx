@@ -198,8 +198,15 @@ const Login: React.FC = () => {
             <View className="px-4 -mt-20 w-full">
               <View className="flex flex-col space-y-2">
                 <Text className="text-2xl font-bold -mb-2">
-                  Log in to{" "}
-                  <Text className="text-purple-600">{serverName}</Text>
+                  Log in
+                  <>
+                    {serverName ? (
+                      <>
+                        {" to "}
+                        <Text className="text-purple-600">{serverName}</Text>
+                      </>
+                    ) : null}
+                  </>
                 </Text>
                 <Text className="text-xs text-neutral-400">{serverURL}</Text>
                 <Input
@@ -275,7 +282,7 @@ const Login: React.FC = () => {
             />
             <Text className="text-3xl font-bold">Streamyfin</Text>
             <Text className="text-neutral-500">
-              Connect to your Jellyfin server
+              Enter the URL to your Jellyfin server
             </Text>
             <Input
               placeholder="Server URL"
@@ -287,6 +294,9 @@ const Login: React.FC = () => {
               textContentType="URL"
               maxLength={500}
             />
+            <Text className="text-xs text-neutral-500">
+              Make sure to include http or https
+            </Text>
           </View>
           <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
             <Button
