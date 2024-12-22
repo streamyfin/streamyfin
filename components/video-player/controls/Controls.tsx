@@ -551,7 +551,7 @@ export const Controls: React.FC<Props> = ({
             pointerEvents={showControls ? "auto" : "none"}
             className={`flex flex-row items-center space-x-2 z-10 p-4 `}
           >
-            {item?.Type === "Episode" && (
+            {item?.Type === "Episode" && !offline && (
               <TouchableOpacity
                 onPress={() => {
                   switchOnEpisodeMode();
@@ -561,7 +561,7 @@ export const Controls: React.FC<Props> = ({
                 <Ionicons name="list" size={24} color="white" />
               </TouchableOpacity>
             )}
-            {previousItem && (
+            {previousItem && !offline && (
               <TouchableOpacity
                 onPress={goToPreviousItem}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
@@ -570,7 +570,7 @@ export const Controls: React.FC<Props> = ({
               </TouchableOpacity>
             )}
 
-            {nextItem && (
+            {nextItem && !offline && (
               <TouchableOpacity
                 onPress={goToNextItem}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
