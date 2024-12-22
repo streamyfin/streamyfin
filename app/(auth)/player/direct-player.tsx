@@ -502,7 +502,7 @@ export default function page() {
           enableTrickplay={true}
           getAudioTracks={videoRef.current?.getAudioTracks}
           getSubtitleTracks={videoRef.current?.getSubtitleTracks}
-          offline={false}
+          offline={offline}
           setSubtitleTrack={videoRef.current.setSubtitleTrack}
           setSubtitleURL={videoRef.current.setSubtitleURL}
           setAudioTrack={videoRef.current.setAudioTrack}

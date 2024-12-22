@@ -1,3 +1,4 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
@@ -33,7 +34,6 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
@@ -551,7 +551,7 @@ export const Controls: React.FC<Props> = ({
             pointerEvents={showControls ? "auto" : "none"}
             className={`flex flex-row items-center space-x-2 z-10 p-4 `}
           >
-            {item?.Type === "Episode" && (
+            {item?.Type === "Episode" && !offline && (
               <TouchableOpacity
                 onPress={() => {
                   switchOnEpisodeMode();
@@ -561,7 +561,7 @@ export const Controls: React.FC<Props> = ({
                 <Ionicons name="list" size={24} color="white" />
               </TouchableOpacity>
             )}
-            {previousItem && (
+            {previousItem && !offline && (
               <TouchableOpacity
                 onPress={goToPreviousItem}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
@@ -570,7 +570,7 @@ export const Controls: React.FC<Props> = ({
               </TouchableOpacity>
             )}
 
-            {nextItem && (
+            {nextItem && !offline && (
               <TouchableOpacity
                 onPress={goToNextItem}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
