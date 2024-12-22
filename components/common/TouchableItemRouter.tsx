@@ -1,8 +1,10 @@
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Haptics from "expo-haptics";
 import { useRouter, useSegments } from "expo-router";
 import { PropsWithChildren } from "react";
 import { TouchableOpacity, TouchableOpacityProps } from "react-native";
+import * as ContextMenu from "zeego/context-menu";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -62,17 +64,82 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
 
   const from = segments[2];
 
+  const markAsPlayedStatus = useMarkAsPlayed(item);
+
   if (from === "(home)" || from === "(search)" || from === "(libraries)")
     return (
-      <TouchableOpacity
-        onPress={() => {
-          const url = itemRouter(item, from);
-          // @ts-ignore
-          router.push(url);
-        }}
-        {...props}
-      >
-        {children}
-      </TouchableOpacity>
+      <ContextMenu.Root>
+        <ContextMenu.Trigger>
+          <TouchableOpacity
+            onPress={() => {
+              const url = itemRouter(item, from);
+              // @ts-ignore
+              router.push(url);
+            }}
+            {...props}
+          >
+            {children}
+          </TouchableOpacity>
+        </ContextMenu.Trigger>
+        <ContextMenu.Content
+          avoidCollisions
+          alignOffset={0}
+          collisionPadding={0}
+          loop={false}
+          key={"content"}
+        >
+          <ContextMenu.Label key="label-1">Actions</ContextMenu.Label>
+          <ContextMenu.Item
+            key="item-1"
+            onSelect={() => {
+              markAsPlayedStatus(true);
+            }}
+            shouldDismissMenuOnSelect
+          >
+            <ContextMenu.ItemTitle key="item-1-title">
+              Mark as watched
+            </ContextMenu.ItemTitle>
+            <ContextMenu.ItemIcon
+              ios={{
+                name: "checkmark.circle", // Changed to "checkmark.circle" which represents "watched"
+                pointSize: 18,
+                weight: "semibold",
+                scale: "medium",
+                hierarchicalColor: {
+                  dark: "green", // Changed to green for "watched"
+                  light: "green",
+                },
+              }}
+              androidIconName="checkmark-circle"
+            ></ContextMenu.ItemIcon>
+          </ContextMenu.Item>
+          <ContextMenu.Item
+            key="item-2"
+            onSelect={() => {
+              markAsPlayedStatus(true);
+            }}
+            shouldDismissMenuOnSelect
+            destructive
+          >
+            <ContextMenu.ItemTitle key="item-2-title">
+              Mark as not watched
+            </ContextMenu.ItemTitle>
+            <ContextMenu.ItemIcon
+              ios={{
+                name: "eye.slash", // Changed to "eye.slash" which represents "not watched"
+                pointSize: 18, // Adjusted for better visibility
+                weight: "semibold",
+                scale: "medium",
+                hierarchicalColor: {
+                  dark: "red", // Changed to red for "not watched"
+                  light: "red",
+                },
+                // Removed paletteColors as it's not necessary in this case
+              }}
+              androidIconName="eye-slash"
+            ></ContextMenu.ItemIcon>
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Root>
     );
 };
