@@ -5,10 +5,7 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
 import React from "react";
-import {
-  ScrollView,
-  View
-} from "react-native";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
@@ -26,9 +23,6 @@ export default function page() {
         paddingRight: insets.right,
         paddingBottom: 16,
         paddingTop: 8,
-      }}
-      style={{
-        marginBottom: TAB_HEIGHT,
       }}
     >
       <View className="flex flex-col space-y-2">

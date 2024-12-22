@@ -1,13 +1,21 @@
 import { ItemImage } from "@/components/common/ItemImage";
+import { Text } from "@/components/common/Text";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
 import { TAB_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { Ionicons } from "@expo/vector-icons";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useState } from "react";
-import { Button, Dimensions, ScrollView, View } from "react-native";
+import {
+  Button,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const HOUR_HEIGHT = 30;
@@ -78,8 +86,6 @@ export default function page() {
 
   const screenWidth = Dimensions.get("window").width;
 
-  const memoizedChannels = useMemo(() => channels?.Items || [], [channels]);
-
   const [scrollX, setScrollX] = useState(0);
 
   const handleNextPage = useCallback(() => {
@@ -100,24 +106,15 @@ export default function page() {
         paddingRight: insets.right,
         paddingBottom: 16,
       }}
-      style={{
-        marginBottom: TAB_HEIGHT,
-      }}
     >
-      <View className="flex flex-row  bg-neutral-800 w-full items-end">
-        <Button
-          title="Previous"
-          onPress={handlePrevPage}
-          disabled={currentPage === 1}
-        />
-        <Button
-          title="Next"
-          onPress={handleNextPage}
-          disabled={
-            !channels || (channels?.Items?.length || 0) < ITEMS_PER_PAGE
-          }
-        />
-      </View>
+      <PageButtons
+        currentPage={currentPage}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+        isNextDisabled={
+          !channels || (channels?.Items?.length || 0) < ITEMS_PER_PAGE
+        }
+      />
 
       <View className="flex flex-row">
         <View className="flex flex-col w-[64px]">
@@ -166,3 +163,57 @@ export default function page() {
     </ScrollView>
   );
 }
+
+interface PageButtonsProps {
+  currentPage: number;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+  isNextDisabled: boolean;
+}
+
+const PageButtons: React.FC<PageButtonsProps> = ({
+  currentPage,
+  onPrevPage,
+  onNextPage,
+  isNextDisabled,
+}) => {
+  return (
+    <View className="flex flex-row justify-between items-center bg-neutral-800 w-full px-4 py-2">
+      <TouchableOpacity
+        onPress={onPrevPage}
+        disabled={currentPage === 1}
+        className="flex flex-row items-center"
+      >
+        <Ionicons
+          name="chevron-back"
+          size={24}
+          color={currentPage === 1 ? "gray" : "white"}
+        />
+        <Text
+          className={`ml-1 ${
+            currentPage === 1 ? "text-gray-500" : "text-white"
+          }`}
+        >
+          Previous
+        </Text>
+      </TouchableOpacity>
+      <Text className="text-white">Page {currentPage}</Text>
+      <TouchableOpacity
+        onPress={onNextPage}
+        disabled={isNextDisabled}
+        className="flex flex-row items-center"
+      >
+        <Text
+          className={`mr-1 ${isNextDisabled ? "text-gray-500" : "text-white"}`}
+        >
+          Next
+        </Text>
+        <Ionicons
+          name="chevron-forward"
+          size={24}
+          color={isNextDisabled ? "gray" : "white"}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+};
