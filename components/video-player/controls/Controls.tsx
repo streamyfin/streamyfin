@@ -1,3 +1,4 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
@@ -33,7 +34,6 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
