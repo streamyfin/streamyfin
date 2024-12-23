@@ -116,7 +116,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
           <ContextMenu.Item
             key="item-2"
             onSelect={() => {
-              markAsPlayedStatus(true);
+              markAsPlayedStatus(false);
             }}
             shouldDismissMenuOnSelect
             destructive
