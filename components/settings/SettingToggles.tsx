@@ -258,6 +258,21 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
             </DropdownMenu.Root>
           </View>
 
+          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
+            <View className="shrink">
+              <Text className="font-semibold">Safe area in controls</Text>
+              <Text className="text-xs opacity-50">
+                Enable safe area in video player controls
+              </Text>
+            </View>
+            <Switch
+              value={settings.safeAreaInControlsEnabled}
+              onValueChange={(value) =>
+                updateSettings({ safeAreaInControlsEnabled: value })
+              }
+            />
+          </View>
+
           <View className="flex flex-col">
             <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
               <View className="flex flex-col">

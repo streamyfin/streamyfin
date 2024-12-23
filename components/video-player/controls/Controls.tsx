@@ -513,8 +513,8 @@ export const Controls: React.FC<Props> = ({
               style={[
                 {
                   position: "absolute",
-                  top: insets.top,
-                  left: insets.left,
+                  top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
+                  left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
                   opacity: showControls ? 1 : 0,
                   zIndex: 1000,
                 },
@@ -543,8 +543,8 @@ export const Controls: React.FC<Props> = ({
             style={[
               {
                 position: "absolute",
-                top: insets.top,
-                right: insets.right,
+                top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
+                right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
                 opacity: showControls ? 1 : 0,
               },
             ]}
@@ -606,8 +606,8 @@ export const Controls: React.FC<Props> = ({
             style={{
               position: "absolute",
               top: "50%", // Center vertically
-              left: insets.left,
-              right: insets.right,
+              left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
+              right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
@@ -720,9 +720,9 @@ export const Controls: React.FC<Props> = ({
             style={[
               {
                 position: "absolute",
-                right: insets.right,
-                left: insets.left,
-                bottom: insets.bottom,
+                right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
+                left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
+                bottom: settings?.safeAreaInControlsEnabled ? insets.bottom : 0,
               },
             ]}
             className={`flex flex-col p-4`}
