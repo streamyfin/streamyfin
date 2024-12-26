@@ -519,6 +519,7 @@ export const Controls: React.FC<Props> = ({
                   zIndex: 1000,
                 },
               ]}
+              className={`flex flex-row items-center space-x-2 z-10 p-4 `}
             >
               {!mediaSource?.TranscodingUrl ? (
                 <DropdownViewDirect showControls={showControls} />
