@@ -104,9 +104,12 @@ const page: React.FC = () => {
           "CanDelete",
           "MediaSourceCount",
         ],
+        // true is needed for merged versions
+        recursive: true,
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => parseInt(year)),
+        includeItemTypes: ["Movie", "Series", "MusicAlbum"],
       });
 
       return response.data || null;
