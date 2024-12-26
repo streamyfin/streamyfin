@@ -151,6 +151,8 @@ const Page = () => {
         itemType = "Movie";
       } else if (library.CollectionType === "tvshows") {
         itemType = "Series";
+      } else if (library.CollectionType === "boxsets") {
+        itemType = "BoxSet";
       }
 
       const response = await getItemsApi(api).getItems({
@@ -161,7 +163,8 @@ const Page = () => {
         sortBy: [sortBy[0], "SortName", "ProductionYear"],
         sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        recursive: false,
+        // true is needed for merged versions
+        recursive: true,
         imageTypeLimit: 1,
         fields: ["PrimaryImageAspectRatio", "SortName"],
         genres: selectedGenres,
