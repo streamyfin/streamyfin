@@ -46,7 +46,7 @@ import { colletionTypeToItemType } from "@/utils/collectionTypeToItemType";
 const Page = () => {
   const searchParams = useLocalSearchParams();
   const { libraryId } = searchParams as { libraryId: string };
-  console.log(libraryId);
+
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { width: screenWidth } = useWindowDimensions();
