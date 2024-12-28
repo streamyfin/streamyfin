@@ -3,11 +3,12 @@
   "main": "./index",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "submodule-reload": "git submodule update --init --remote --recursive",
+    "start": "bun run submodule-reload && expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web",
+    "android": "bun run submodule-reload && expo run:android",
+    "ios": "bun run submodule-reload && expo run:ios",
+    "web": "bun run submodule-reload && expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "postinstall": "patch-package"

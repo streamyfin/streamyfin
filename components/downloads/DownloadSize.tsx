@@ -1,5 +1,5 @@
 import { Text } from "@/components/common/Text";
-import { bytesToReadable, useDownload } from "@/providers/DownloadProvider";
+import { useDownload } from "@/providers/DownloadProvider";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useEffect, useMemo, useState } from "react";
 import { TextProps } from "react-native";
@@ -29,7 +29,7 @@ export const DownloadSize: React.FC<DownloadSizeProps> = ({
         s += size;
       }
     }
-    setSize(bytesToReadable(s));
+    setSize(s.bytesToReadable());
   }, [itemIds]);
 
   const sizeText = useMemo(() => {

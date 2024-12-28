@@ -87,6 +87,7 @@ export type Settings = {
   subtitleSize: number;
   remuxConcurrentLimit: 1 | 2 | 3 | 4;
   safeAreaInControlsEnabled: boolean;
+  jellyseerrServerUrl?: string;
 };
 
 const loadSettings = (): Settings => {
@@ -124,6 +125,7 @@ const loadSettings = (): Settings => {
     subtitleSize: Platform.OS === "ios" ? 60 : 100,
     remuxConcurrentLimit: 1,
     safeAreaInControlsEnabled: true,
+    jellyseerrServerUrl: undefined,
   };
 
   try {
