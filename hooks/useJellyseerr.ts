@@ -17,6 +17,7 @@ import {SeasonWithEpisodes, TvDetails} from "@/utils/jellyseerr/server/models/Tv
 import {IssueStatus, IssueType} from "@/utils/jellyseerr/server/constants/issue";
 import Issue from "@/utils/jellyseerr/server/entity/Issue";
 import {RTRating} from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
+import {writeErrorLog} from "@/utils/log";
 
 interface SearchParams {
   query: string,
@@ -102,6 +103,12 @@ export class JellyseerrApi {
             requiresPass: true
           };
         }
+        toast.error(`Jellyseerr test failed. Please try again.`);
+        writeErrorLog(
+          `Jellyseerr returned a ${status} for url:\n` +
+          response.config.url + '\n' +
+          JSON.stringify(response.data)
+        );
         return {
           isValid: false,
           requiresPass: false
@@ -122,7 +129,9 @@ export class JellyseerrApi {
       password,
       email: username
     }).then(response => {
-      const user = response.data;
+      const user = response?.data;
+      if (!user)
+        throw Error("Login failed")
       storage.setAny(JELLYSEERR_USER, user);
       return user
     })
@@ -186,6 +195,27 @@ export class JellyseerrApi {
   }
 
   private setInterceptors() {
+    this.axios.interceptors.response.use(
+      async (response) => {
+        const cookies = response.headers["set-cookie"];
+        if (cookies) {
+          storage.setAny(JELLYSEERR_COOKIES, response.headers["set-cookie"]?.flatMap(c => c.split("; ")));
+        }
+        return response;
+      },
+      (error: AxiosError) => {
+        const errorMsg = "Jellyseerr response error:";
+        console.error(errorMsg, error, error.response?.data);
+        writeErrorLog(
+          errorMsg + ` ${error.toString()}\n` +
+          JSON.stringify(error.response?.data)
+        );
+        if (error.status === 403) {
+          clearJellyseerrStorageData()
+        }
+      }
+    );
+
     this.axios.interceptors.request.use(
       async (config) => {
         const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
@@ -202,22 +232,6 @@ export class JellyseerrApi {
       },
       (error) => {
         console.error("Jellyseerr request error", error)
-      }
-    );
-
-    this.axios.interceptors.response.use(
-      async (response) => {
-        const cookies = response.headers["set-cookie"];
-        if (cookies) {
-          storage.setAny(JELLYSEERR_COOKIES, response.headers["set-cookie"]?.flatMap(c => c.split("; ")));
-        }
-        return response;
-      },
-      (error: AxiosError) => {
-        console.error("Jellyseerr response error:", error,error.response?.data)
-        if (error.status === 403) {
-          clearJellyseerrStorageData()
-        }
       }
     );
   }
