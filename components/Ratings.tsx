@@ -55,7 +55,9 @@ export const JellyserrRatings: React.FC<{result: MovieResult | TvResult}> = ({ r
         ? jellyseerrApi?.movieRatings(result.id)
         : jellyseerrApi?.tvRatings(result.id)
     },
-    enabled: !!jellyseerrApi
+    staleTime: (5).minutesToMilliseconds(),
+    retry: false,
+    enabled: !!jellyseerrApi,
   });
 
   return (isLoading || !!result.voteCount ||

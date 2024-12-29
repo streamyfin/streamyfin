@@ -1,6 +1,9 @@
 declare global {
   interface Number {
     bytesToReadable(): string;
+    secondsToMilliseconds(): number
+    minutesToMilliseconds(): number
+    hoursToMilliseconds(): number
   }
 }
 
@@ -17,6 +20,18 @@ Number.prototype.bytesToReadable = function () {
   if (kb >= 1) return `${kb.toFixed(2)} KB`;
 
   return `${bytes.toFixed(2)} B`;
+}
+
+Number.prototype.secondsToMilliseconds = function () {
+  return this.valueOf() * 1000
+}
+
+Number.prototype.minutesToMilliseconds = function () {
+  return this.valueOf() * (60).secondsToMilliseconds()
+}
+
+Number.prototype.hoursToMilliseconds = function () {
+  return this.valueOf() * (60).minutesToMilliseconds()
 }
 
 export {};
