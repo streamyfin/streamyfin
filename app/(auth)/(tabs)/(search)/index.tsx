@@ -34,6 +34,11 @@ import {useJellyseerr} from "@/hooks/useJellyseerr";
 import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
 import {MediaType} from "@/utils/jellyseerr/server/constants/media";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
+import {Tag} from "@/components/GenreTags";
+import DiscoverSlide from "@/components/jellyseerr/DiscoverSlide";
+import {sortBy} from "lodash";
+
+type SearchType = 'Library' | 'Discover';
 
 const exampleSearches = [
   "Lord of the rings",
@@ -50,6 +55,7 @@ export default function search() {
 
   const { q, prev } = params as { q: string; prev: Href<string> };
 
+  const [searchType, setSearchType] = useState<SearchType>("Library");
   const [search, setSearch] = useState<string>("");
 
   const [debouncedSearch] = useDebounce(search, 500);
@@ -138,10 +144,10 @@ export default function search() {
         query: debouncedSearch,
         types: ["Movie"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: jellyseerrResults, isFetching: r1 } = useQuery({
+  const { data: jellyseerrResults, isFetching: j1 } = useQuery({
     queryKey: ["search", "jellyseerrResults", debouncedSearch],
     queryFn: async () => {
       const response = await jellyseerrApi?.search({
@@ -152,7 +158,13 @@ export default function search() {
 
       return response?.results;
     },
-    enabled: !!jellyseerrApi && debouncedSearch.length > 0,
+    enabled: !!jellyseerrApi && searchType === "Discover" && debouncedSearch.length > 0,
+  });
+
+  const { data: jellyseerrDiscoverSettings, isFetching: j2 } = useQuery({
+    queryKey: ["search", "jellyseerrDiscoverSettings", debouncedSearch],
+    queryFn: async () => jellyseerrApi?.discoverSettings(),
+    enabled: !!jellyseerrApi && searchType === "Discover" && debouncedSearch.length == 0,
   });
 
   const jellyseerrMovieResults: MovieResult[] | undefined = useMemo(() =>
@@ -172,7 +184,7 @@ export default function search() {
         query: debouncedSearch,
         types: ["Series"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: episodes, isFetching: l3 } = useQuery({
@@ -182,7 +194,7 @@ export default function search() {
         query: debouncedSearch,
         types: ["Episode"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: collections, isFetching: l7 } = useQuery({
@@ -192,7 +204,7 @@ export default function search() {
         query: debouncedSearch,
         types: ["BoxSet"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: actors, isFetching: l8 } = useQuery({
@@ -202,7 +214,7 @@ export default function search() {
         query: debouncedSearch,
         types: ["Person"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: artists, isFetching: l4 } = useQuery({
@@ -212,7 +224,7 @@ export default function search() {
         query: debouncedSearch,
         types: ["MusicArtist"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: albums, isFetching: l5 } = useQuery({
@@ -222,7 +234,7 @@ export default function search() {
         query: debouncedSearch,
         types: ["MusicAlbum"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: songs, isFetching: l6 } = useQuery({
@@ -232,7 +244,7 @@ export default function search() {
         query: debouncedSearch,
         types: ["Audio"],
       }),
-    enabled: debouncedSearch.length > 0,
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const noResults = useMemo(() => {
@@ -251,8 +263,8 @@ export default function search() {
   }, [artists, episodes, albums, songs, movies, series, collections, actors, jellyseerrResults]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8;
-  }, [l1, l2, l3, l4, l5, l6, l7, l8]);
+    return l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || j1 || j2;
+  }, [l1, l2, l3, l4, l5, l6, l7, l8, j1, j2]);
 
   return (
     <>
@@ -277,6 +289,18 @@ export default function search() {
               />
             </View>
           )}
+          {jellyseerrApi && (
+            <View className="flex flex-row flex-wrap space-x-2 px-4">
+              <TouchableOpacity onPress={() => setSearchType('Library')}>
+                <Tag text="Library" textClass="p-1"
+                     className={searchType === "Library" ? "bg-neutral-600" : undefined}/>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setSearchType('Discover')}>
+                <Tag text="Discover" textClass="p-1"
+                     className={searchType === "Discover" ? "bg-neutral-600" : undefined}/>
+              </TouchableOpacity>
+            </View>
+          )}
           {!!q && (
             <View className="px-4 flex flex-col space-y-2">
               <Text className="text-neutral-500 ">
@@ -284,144 +308,153 @@ export default function search() {
               </Text>
             </View>
           )}
-          <SearchItemWrapper
-            header="Movies"
-            ids={movies?.map((m) => m.Id!)}
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                key={item.Id}
-                className="flex flex-col w-28 mr-2"
-                item={item}
-              >
-                <MoviePoster item={item} key={item.Id} />
-                <Text numberOfLines={2} className="mt-2">
-                  {item.Name}
-                </Text>
-                <Text className="opacity-50 text-xs">
-                  {item.ProductionYear}
-                </Text>
-              </TouchableItemRouter>
-            )}
-          />
-          <SearchItemWrapper
-            header="Request Movies"
-            items={jellyseerrMovieResults}
-            renderItem={(item: MovieResult) => (
-              <JellyseerrPoster item={item} key={item.id} />
-            )}
-          />
-          <SearchItemWrapper
-            ids={series?.map((m) => m.Id!)}
-            header="Series"
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                key={item.Id}
-                item={item}
-                className="flex flex-col w-28 mr-2"
-              >
-                <SeriesPoster item={item} key={item.Id} />
-                <Text numberOfLines={2} className="mt-2">
-                  {item.Name}
-                </Text>
-                <Text className="opacity-50 text-xs">
-                  {item.ProductionYear}
-                </Text>
-              </TouchableItemRouter>
-            )}
-          />
-          <SearchItemWrapper
-            header="Request Series"
-            items={jellyseerrTvResults}
-            renderItem={(item: TvResult) => (
-              <JellyseerrPoster item={item} key={item.id} />
-            )}
-          />
-          <SearchItemWrapper
-            ids={episodes?.map((m) => m.Id!)}
-            header="Episodes"
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                item={item}
-                key={item.Id}
-                className="flex flex-col w-44 mr-2"
-              >
-                <ContinueWatchingPoster item={item} />
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
-            )}
-          />
-          <SearchItemWrapper
-            ids={collections?.map((m) => m.Id!)}
-            header="Collections"
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                key={item.Id}
-                item={item}
-                className="flex flex-col w-28 mr-2"
-              >
-                <MoviePoster item={item} key={item.Id} />
-                <Text numberOfLines={2} className="mt-2">
-                  {item.Name}
-                </Text>
-              </TouchableItemRouter>
-            )}
-          />
-          <SearchItemWrapper
-            ids={actors?.map((m) => m.Id!)}
-            header="Actors"
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                item={item}
-                key={item.Id}
-                className="flex flex-col w-28 mr-2"
-              >
-                <MoviePoster item={item} />
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
-            )}
-          />
-          <SearchItemWrapper
-            ids={artists?.map((m) => m.Id!)}
-            header="Artists"
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                item={item}
-                key={item.Id}
-                className="flex flex-col w-28 mr-2"
-              >
-                <AlbumCover id={item.Id} />
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
-            )}
-          />
-          <SearchItemWrapper
-            ids={albums?.map((m) => m.Id!)}
-            header="Albums"
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                item={item}
-                key={item.Id}
-                className="flex flex-col w-28 mr-2"
-              >
-                <AlbumCover id={item.Id} />
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
-            )}
-          />
-          <SearchItemWrapper
-            ids={songs?.map((m) => m.Id!)}
-            header="Songs"
-            renderItem={(item: BaseItemDto) => (
-              <TouchableItemRouter
-                item={item}
-                key={item.Id}
-                className="flex flex-col w-28 mr-2"
-              >
-                <AlbumCover id={item.AlbumId} />
-                <ItemCardText item={item} />
-              </TouchableItemRouter>
-            )}
-          />
+          {searchType === "Library" && (
+            <>
+              <SearchItemWrapper
+                header="Movies"
+                ids={movies?.map((m) => m.Id!)}
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    key={item.Id}
+                    className="flex flex-col w-28 mr-2"
+                    item={item}
+                  >
+                    <MoviePoster item={item} key={item.Id}/>
+                    <Text numberOfLines={2} className="mt-2">
+                      {item.Name}
+                    </Text>
+                    <Text className="opacity-50 text-xs">
+                      {item.ProductionYear}
+                    </Text>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                ids={series?.map((m) => m.Id!)}
+                header="Series"
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    key={item.Id}
+                    item={item}
+                    className="flex flex-col w-28 mr-2"
+                  >
+                    <SeriesPoster item={item} key={item.Id}/>
+                    <Text numberOfLines={2} className="mt-2">
+                      {item.Name}
+                    </Text>
+                    <Text className="opacity-50 text-xs">
+                      {item.ProductionYear}
+                    </Text>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                ids={episodes?.map((m) => m.Id!)}
+                header="Episodes"
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className="flex flex-col w-44 mr-2"
+                  >
+                    <ContinueWatchingPoster item={item}/>
+                    <ItemCardText item={item}/>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                ids={collections?.map((m) => m.Id!)}
+                header="Collections"
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    key={item.Id}
+                    item={item}
+                    className="flex flex-col w-28 mr-2"
+                  >
+                    <MoviePoster item={item} key={item.Id}/>
+                    <Text numberOfLines={2} className="mt-2">
+                      {item.Name}
+                    </Text>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                ids={actors?.map((m) => m.Id!)}
+                header="Actors"
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className="flex flex-col w-28 mr-2"
+                  >
+                    <MoviePoster item={item}/>
+                    <ItemCardText item={item}/>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                ids={artists?.map((m) => m.Id!)}
+                header="Artists"
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className="flex flex-col w-28 mr-2"
+                  >
+                    <AlbumCover id={item.Id}/>
+                    <ItemCardText item={item}/>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                ids={albums?.map((m) => m.Id!)}
+                header="Albums"
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className="flex flex-col w-28 mr-2"
+                  >
+                    <AlbumCover id={item.Id}/>
+                    <ItemCardText item={item}/>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                ids={songs?.map((m) => m.Id!)}
+                header="Songs"
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className="flex flex-col w-28 mr-2"
+                  >
+                    <AlbumCover id={item.AlbumId}/>
+                    <ItemCardText item={item}/>
+                  </TouchableItemRouter>
+                )}
+              />
+            </>
+          )}
+          {searchType === "Discover" && (
+            <>
+              <SearchItemWrapper
+                header="Request Movies"
+                items={jellyseerrMovieResults}
+                renderItem={(item: MovieResult) => (
+                  <JellyseerrPoster item={item} key={item.id}/>
+                )}
+              />
+              <SearchItemWrapper
+                header="Request Series"
+                items={jellyseerrTvResults}
+                renderItem={(item: TvResult) => (
+                  <JellyseerrPoster item={item} key={item.id}/>
+                )}
+              />
+            </>
+          )}
+
           {loading ? (
             <View className="mt-4 flex justify-center items-center">
               <Loader />
@@ -435,7 +468,7 @@ export default function search() {
                 "{debouncedSearch}"
               </Text>
             </View>
-          ) : debouncedSearch.length === 0 ? (
+          ) : debouncedSearch.length === 0 && searchType === 'Library' ? (
             <View className="mt-4 flex flex-col items-center space-y-2">
               {exampleSearches.map((e) => (
                 <TouchableOpacity
@@ -446,6 +479,12 @@ export default function search() {
                   <Text className="text-purple-600">{e}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          ) : debouncedSearch.length === 0 && searchType === 'Discover' ? (
+            <View className="mt-4 flex flex-col space-y-2 px-2">
+              {sortBy?.(jellyseerrDiscoverSettings?.filter(s => s.enabled), 'order')
+                .map((slide) => <DiscoverSlide key={slide.id} slide={slide}/>)
+              }
             </View>
           ) : null}
         </View>
