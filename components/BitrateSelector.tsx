@@ -1,14 +1,14 @@
 import { TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
-import { atom, useAtom } from "jotai";
+import { useMemo } from "react";
 
 export type Bitrate = {
   key: string;
   value: number | undefined;
 };
 
-const BITRATES: Bitrate[] = [
+export const BITRATES: Bitrate[] = [
   {
     key: "Max",
     value: undefined,
@@ -16,10 +16,12 @@ const BITRATES: Bitrate[] = [
   {
     key: "8 Mb/s",
     value: 8000000,
+    height: 1080,
   },
   {
     key: "4 Mb/s",
     value: 4000000,
+    height: 1080,
   },
   {
     key: "2 Mb/s",
@@ -33,46 +35,62 @@ const BITRATES: Bitrate[] = [
     key: "250 Kb/s",
     value: 250000,
   },
-];
+].sort((a, b) => (b.value || Infinity) - (a.value || Infinity));
 
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: Bitrate) => void;
-  selected: Bitrate;
+  selected?: Bitrate | null;
+  inverted?: boolean | null;
 }
 
 export const BitrateSelector: React.FC<Props> = ({
   onChange,
   selected,
+  inverted,
   ...props
 }) => {
+  const sorted = useMemo(() => {
+    if (inverted)
+      return BITRATES.sort(
+        (a, b) => (a.value || Infinity) - (b.value || Infinity)
+      );
+    return BITRATES.sort(
+      (a, b) => (b.value || Infinity) - (a.value || Infinity)
+    );
+  }, []);
+
   return (
-    <View className="flex flex-row items-center justify-between" {...props}>
+    <View
+      className="flex shrink"
+      style={{
+        minWidth: 60,
+        maxWidth: 200,
+      }}
+    >
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
-          <View className="flex flex-col mb-2">
-            <Text className="opacity-50 mb-1 text-xs">Bitrate</Text>
-            <View className="flex flex-row">
-              <TouchableOpacity className="bg-neutral-900 h-12 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-                <Text>
-                  {BITRATES.find((b) => b.value === selected.value)?.key}
-                </Text>
-              </TouchableOpacity>
-            </View>
+          <View className="flex flex-col" {...props}>
+            <Text className="opacity-50 mb-1 text-xs">Quality</Text>
+            <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
+              <Text style={{}} className="" numberOfLines={1}>
+                {BITRATES.find((b) => b.value === selected?.value)?.key}
+              </Text>
+            </TouchableOpacity>
           </View>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content
-          loop={true}
+          loop={false}
           side="bottom"
-          align="start"
+          align="center"
           alignOffset={0}
           avoidCollisions={true}
-          collisionPadding={8}
-          sideOffset={8}
+          collisionPadding={0}
+          sideOffset={0}
         >
           <DropdownMenu.Label>Bitrates</DropdownMenu.Label>
-          {BITRATES?.map((b, index: number) => (
+          {sorted.map((b) => (
             <DropdownMenu.Item
-              key={index.toString()}
+              key={b.key}
               onSelect={() => {
                 onChange(b);
               }}

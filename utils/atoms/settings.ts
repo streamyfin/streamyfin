@@ -1,68 +1,171 @@
 import { atom, useAtom } from "jotai";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect } from "react";
 import { getLocales } from "expo-localization";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { storage } from "../mmkv";
+import { Platform } from "react-native";
+import {
+  CultureDto,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
 
-type Settings = {
+export type DownloadQuality = "original" | "high" | "low";
+
+export type DownloadOption = {
+  label: string;
+  value: DownloadQuality;
+};
+
+export const ScreenOrientationEnum: Record<
+  ScreenOrientation.OrientationLock,
+  string
+> = {
+  [ScreenOrientation.OrientationLock.DEFAULT]: "Default",
+  [ScreenOrientation.OrientationLock.ALL]: "All",
+  [ScreenOrientation.OrientationLock.PORTRAIT]: "Portrait",
+  [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "Portrait Up",
+  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]: "Portrait Down",
+  [ScreenOrientation.OrientationLock.LANDSCAPE]: "Landscape",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "Landscape Left",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "Landscape Right",
+  [ScreenOrientation.OrientationLock.OTHER]: "Other",
+  [ScreenOrientation.OrientationLock.UNKNOWN]: "Unknown",
+};
+
+export const DownloadOptions: DownloadOption[] = [
+  {
+    label: "Original quality",
+    value: "original",
+  },
+  {
+    label: "High quality",
+    value: "high",
+  },
+  {
+    label: "Small file size",
+    value: "low",
+  },
+];
+
+export type LibraryOptions = {
+  display: "row" | "list";
+  cardStyle: "compact" | "detailed";
+  imageStyle: "poster" | "cover";
+  showTitles: boolean;
+  showStats: boolean;
+};
+
+export type DefaultLanguageOption = {
+  value: string;
+  label: string;
+};
+
+export type Settings = {
   autoRotate?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
-  openFullScreenVideoPlayerByDefault?: boolean;
   usePopularPlugin?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
-  forceDirectPlay?: boolean;
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
+  searchEngine: "Marlin" | "Jellyfin";
+  marlinServerUrl?: string;
+  openInVLC?: boolean;
+  downloadQuality?: DownloadOption;
+  libraryOptions: LibraryOptions;
+  defaultAudioLanguage: CultureDto | null;
+  playDefaultAudioTrack: boolean;
+  rememberAudioSelections: boolean;
+  defaultSubtitleLanguage: CultureDto | null;
+  subtitleMode: SubtitlePlaybackMode;
+  rememberSubtitleSelections: boolean;
+  showHomeTitles: boolean;
+  defaultVideoOrientation: ScreenOrientation.OrientationLock;
+  forwardSkipTime: number;
+  rewindSkipTime: number;
+  optimizedVersionsServerUrl?: string | null;
+  downloadMethod: "optimized" | "remux";
+  autoDownload: boolean;
+  showCustomMenuLinks: boolean;
+  subtitleSize: number;
+  remuxConcurrentLimit: 1 | 2 | 3 | 4;
+  safeAreaInControlsEnabled: boolean;
+  jellyseerrServerUrl?: string;
 };
 
-/**
- *
- * The settings atom is a Jotai atom that stores the user's settings.
- * It is initialized with a default value of null, which indicates that the settings have not been loaded yet.
- * The settings are loaded from AsyncStorage when the atom is read for the first time.
- *
- */
+const loadSettings = (): Settings => {
+  const defaultValues: Settings = {
+    autoRotate: true,
+    forceLandscapeInVideoPlayer: false,
+    usePopularPlugin: false,
+    deviceProfile: "Expo",
+    mediaListCollectionIds: [],
+    preferedLanguage: getLocales()[0] || "en",
+    searchEngine: "Jellyfin",
+    marlinServerUrl: "",
+    openInVLC: false,
+    downloadQuality: DownloadOptions[0],
+    libraryOptions: {
+      display: "list",
+      cardStyle: "detailed",
+      imageStyle: "cover",
+      showTitles: true,
+      showStats: true,
+    },
+    defaultAudioLanguage: null,
+    playDefaultAudioTrack: true,
+    rememberAudioSelections: true,
+    defaultSubtitleLanguage: null,
+    subtitleMode: SubtitlePlaybackMode.Default,
+    rememberSubtitleSelections: true,
+    showHomeTitles: true,
+    defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
+    forwardSkipTime: 30,
+    rewindSkipTime: 10,
+    optimizedVersionsServerUrl: null,
+    downloadMethod: "remux",
+    autoDownload: false,
+    showCustomMenuLinks: false,
+    subtitleSize: Platform.OS === "ios" ? 60 : 100,
+    remuxConcurrentLimit: 1,
+    safeAreaInControlsEnabled: true,
+    jellyseerrServerUrl: undefined,
+  };
 
-// Utility function to load settings from AsyncStorage
-const loadSettings = async (): Promise<Settings> => {
-  const jsonValue = await AsyncStorage.getItem("settings");
-  return jsonValue != null
-    ? JSON.parse(jsonValue)
-    : {
-        autoRotate: true,
-        forceLandscapeInVideoPlayer: false,
-        openFullScreenVideoPlayerByDefault: false,
-        usePopularPlugin: false,
-        deviceProfile: "Expo",
-        forceDirectPlay: false,
-        mediaListCollectionIds: [],
-        preferedLanguage: getLocales()[0] || "en",
-      };
+  try {
+    const jsonValue = storage.getString("settings");
+    const loadedValues: Partial<Settings> =
+      jsonValue != null ? JSON.parse(jsonValue) : {};
+
+    return { ...defaultValues, ...loadedValues };
+  } catch (error) {
+    console.error("Failed to load settings:", error);
+    return defaultValues;
+  }
 };
 
-// Utility function to save settings to AsyncStorage
-const saveSettings = async (settings: Settings) => {
+const saveSettings = (settings: Settings) => {
   const jsonValue = JSON.stringify(settings);
-  await AsyncStorage.setItem("settings", jsonValue);
+  storage.set("settings", jsonValue);
 };
 
-// Create an atom to store the settings in memory
-const settingsAtom = atom<Settings | null>(null);
+export const settingsAtom = atom<Settings | null>(null);
 
-// A hook to manage settings, loading them on initial mount and providing a way to update them
 export const useSettings = () => {
   const [settings, setSettings] = useAtom(settingsAtom);
 
   useEffect(() => {
     if (settings === null) {
-      loadSettings().then(setSettings);
+      const loadedSettings = loadSettings();
+      setSettings(loadedSettings);
     }
   }, [settings, setSettings]);
 
-  const updateSettings = async (update: Partial<Settings>) => {
+  const updateSettings = (update: Partial<Settings>) => {
     if (settings) {
       const newSettings = { ...settings, ...update };
+
       setSettings(newSettings);
-      await saveSettings(newSettings);
+      saveSettings(newSettings);
     }
   };
 

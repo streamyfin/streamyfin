@@ -1,4 +1,5 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import React from "react";
 import { View } from "react-native";
 
 export const WatchedIndicator: React.FC<{ item: BaseItemDto }> = ({ item }) => {

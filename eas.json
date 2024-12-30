@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 9.1.0"
+    "version": ">= 9.1.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -21,13 +22,13 @@
       }
     },
     "production": {
-      "channel": "0.6.1",
+      "channel": "0.23.0",
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
-      "channel": "0.6.1",
+      "channel": "0.23.0",
       "android": {
         "buildType": "apk",
         "image": "latest"

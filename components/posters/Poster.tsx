@@ -24,7 +24,7 @@ const Poster: React.FC<PosterProps> = ({ item, url, blurhash }) => {
     );
 
   return (
-    <View className="rounded-md overflow-hidden border border-neutral-900">
+    <View className="rounded-lg overflow-hidden border border-neutral-900">
       <Image
         placeholder={
           blurhash

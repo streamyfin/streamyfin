@@ -1,26 +1,29 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { markAsNotPlayed } from "@/utils/jellyfin/playstate/markAsNotPlayed";
-import { markAsPlayed } from "@/utils/jellyfin/playstate/markAsPlayed";
-import { Ionicons } from "@expo/vector-icons";
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
-import { useAtom } from "jotai";
 import React from "react";
-import { TouchableOpacity, View } from "react-native";
+import { View, ViewProps } from "react-native";
+import { RoundButton } from "./RoundButton";
 
-export const PlayedStatus: React.FC<{ item: BaseItemDto }> = ({ item }) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
+interface Props extends ViewProps {
+  item: BaseItemDto;
+}
 
+export const PlayedStatus: React.FC<Props> = ({ item, ...props }) => {
   const queryClient = useQueryClient();
 
   const invalidateQueries = () => {
     queryClient.invalidateQueries({
-      queryKey: ["item"],
+      queryKey: ["item", item.Id],
     });
     queryClient.invalidateQueries({
       queryKey: ["resumeItems"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["continueWatching"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["nextUp-all"],
     });
     queryClient.invalidateQueries({
       queryKey: ["nextUp"],
@@ -32,45 +35,20 @@ export const PlayedStatus: React.FC<{ item: BaseItemDto }> = ({ item }) => {
       queryKey: ["seasons"],
     });
     queryClient.invalidateQueries({
-      queryKey: ["nextUp-all"],
+      queryKey: ["home"],
     });
   };
 
+  const markAsPlayedStatus = useMarkAsPlayed(item);
+
   return (
-    <View>
-      {item.UserData?.Played ? (
-        <TouchableOpacity
-          onPress={async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            await markAsNotPlayed({
-              api: api,
-              itemId: item?.Id,
-              userId: user?.Id,
-            });
-            invalidateQueries();
-          }}
-        >
-          <View className="rounded h-10 aspect-square flex items-center justify-center">
-            <Ionicons name="checkmark-circle" size={30} color="white" />
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          onPress={async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            await markAsPlayed({
-              api: api,
-              item: item,
-              userId: user?.Id,
-            });
-            invalidateQueries();
-          }}
-        >
-          <View className="rounded h-10 aspect-square flex items-center justify-center">
-            <Ionicons name="checkmark-circle-outline" size={30} color="white" />
-          </View>
-        </TouchableOpacity>
-      )}
+    <View {...props}>
+      <RoundButton
+        fillColor={item.UserData?.Played ? "primary" : undefined}
+        icon={item.UserData?.Played ? "checkmark" : "checkmark"}
+        onPress={() => markAsPlayedStatus(item.UserData?.Played || false)}
+        size="large"
+      />
     </View>
   );
 };

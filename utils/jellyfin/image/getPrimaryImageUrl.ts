@@ -15,8 +15,8 @@ import { isBaseItemDto } from "../jellyfin";
 export const getPrimaryImageUrl = ({
   api,
   item,
-  quality = 90,
-  width = 500,
+  quality = 80,
+  width = 400,
 }: {
   api?: Api | null;
   item?: BaseItemDto | BaseItemPerson | null;

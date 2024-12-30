@@ -12,7 +12,6 @@
   "server": {
     "server_label": "Server: {{serverURL}}",
     "change_server": "Byt server",
-    "connect_to_server": "Anslut till din Jellyfin-server",
     "server_url_placeholder": "Server URL",
     "server_url_hint": "Server URL kräver http eller https",
     "connect_button": "Anslut"

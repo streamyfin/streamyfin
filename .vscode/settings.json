@@ -8,5 +8,8 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
+  },
+  "[swift]": {
+    "editor.defaultFormatter": "sswg.swift-lang"
   }
 }

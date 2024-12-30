@@ -29,7 +29,7 @@ const ArtistPoster: React.FC<ArtistPosterProps> = ({
   if (!url)
     return (
       <View
-        className="rounded-md overflow-hidden border border-neutral-900"
+        className="rounded-lg overflow-hidden border border-neutral-900"
         style={{
           aspectRatio: "1/1",
         }}

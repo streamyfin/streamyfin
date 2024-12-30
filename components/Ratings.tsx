@@ -3,14 +3,19 @@ import { View, ViewProps } from "react-native";
 import { Badge } from "./Badge";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
+import {useJellyseerr} from "@/hooks/useJellyseerr";
+import {useQuery} from "@tanstack/react-query";
+import {MediaType} from "@/utils/jellyseerr/server/constants/media";
 
 interface Props extends ViewProps {
-  item: BaseItemDto;
+  item?: BaseItemDto | null;
 }
 
-export const Ratings: React.FC<Props> = ({ item }) => {
+export const Ratings: React.FC<Props> = ({ item, ...props }) => {
+  if (!item) return null;
   return (
-    <View className="flex flex-row items-center justify-center mt-2 space-x-2">
+    <View className="flex flex-row items-center mt-2 space-x-2" {...props}>
       {item.OfficialRating && (
         <Badge text={item.OfficialRating} variant="gray" />
       )}
@@ -39,3 +44,82 @@ export const Ratings: React.FC<Props> = ({ item }) => {
     </View>
   );
 };
+
+
+export const JellyserrRatings: React.FC<{result: MovieResult | TvResult}> = ({ result }) => {
+  const {jellyseerrApi} = useJellyseerr();
+  const { data, isLoading } = useQuery({
+    queryKey: ['jellyseerr', result.id, result.mediaType, 'ratings'],
+    queryFn: async () => {
+      return result.mediaType === MediaType.MOVIE
+        ? jellyseerrApi?.movieRatings(result.id)
+        : jellyseerrApi?.tvRatings(result.id)
+    },
+    staleTime: (5).minutesToMilliseconds(),
+    retry: false,
+    enabled: !!jellyseerrApi,
+  });
+
+  return (isLoading || !!result.voteCount ||
+      (data?.criticsRating && !!data?.criticsScore) ||
+      (data?.audienceRating && !!data?.audienceScore)) && (
+      <View className="flex flex-row flex-wrap space-x-1">
+        {data?.criticsRating && !!data?.criticsScore && (
+          <Badge
+            text={`${data.criticsScore}%`}
+            variant="gray"
+            iconLeft={
+              <Image
+                className="mr-1"
+                source={
+                  data?.criticsRating === 'Rotten'
+                    ? require("@/utils/jellyseerr/src/assets/rt_rotten.svg")
+                    : require("@/utils/jellyseerr/src/assets/rt_fresh.svg")
+                }
+                style={{
+                  width: 14,
+                  height: 14,
+                }}
+              />
+            }
+          />
+        )}
+        {data?.audienceRating && !!data?.audienceScore && (
+          <Badge
+            text={`${data.audienceScore}%`}
+            variant="gray"
+            iconLeft={
+              <Image
+                className="mr-1"
+                source={
+                  data?.audienceRating === 'Spilled'
+                    ? require("@/utils/jellyseerr/src/assets/rt_aud_rotten.svg")
+                    : require("@/utils/jellyseerr/src/assets/rt_aud_fresh.svg")
+                }
+                style={{
+                  width: 14,
+                  height: 14,
+                }}
+              />
+            }
+          />
+        )}
+        {!!result.voteCount && (
+          <Badge
+            text={`${Math.round(result.voteAverage * 10)}%`}
+            variant="gray"
+            iconLeft={
+              <Image
+                className="mr-1"
+                source={require("@/utils/jellyseerr/src/assets/tmdb_logo.svg")}
+                style={{
+                  width: 14,
+                  height: 14,
+                }}
+              />
+            }
+          />
+        )}
+      </View>
+    )
+}

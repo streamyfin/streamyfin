@@ -12,9 +12,9 @@
   "server": {
     "server_label": "Server: {{serverURL}}",
     "change_server": "Change server",
-    "connect_to_server": "Connect to your Jellyfin server",
+    "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
     "server_url_placeholder": "Server URL",
-    "server_url_hint": "Server URL requires http or https",
+    "server_url_hint": "Make sure to include http or https",
     "connect_button": "Connect"
   },
   "home": {
@@ -27,12 +27,15 @@
     "continueWatching": "Continue Watching",
     "nextUp": "Next Up",
     "recentlyAddedMovies": "Recently Added in Movies",
-    "recentlyAddedTVShows": "Recently Added in TV-Shows",
-    "suggestions": "Suggestions"
+    "recentlyAddedSeries": "Recently Added in Series",
+    "suggestedMovies": "Suggested Movies",
+    "suggestedEpisodes": "Suggested Episodes"
+
   },
   "tabs": {
     "home": "Home",
     "search": "Search",
-    "library": "Library"
+    "library": "Library",
+    "customLinks": "Custom Links"
   }
 }

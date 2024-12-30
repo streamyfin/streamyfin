@@ -6,23 +6,28 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, TouchableOpacity, View, ViewProps } from "react-native";
 import { Text } from "./common/Text";
 import { ItemCardText } from "./ItemCardText";
 import { Loader } from "./Loader";
+import { HorizontalScroll } from "./common/HorrizontalScroll";
+import { TouchableItemRouter } from "./common/TouchableItemRouter";
 
-type SimilarItemsProps = {
-  itemId: string;
-};
+interface SimilarItemsProps extends ViewProps {
+  itemId?: string | null;
+}
 
-export const SimilarItems: React.FC<SimilarItemsProps> = ({ itemId }) => {
+export const SimilarItems: React.FC<SimilarItemsProps> = ({
+  itemId,
+  ...props
+}) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
   const { data: similarItems, isLoading } = useQuery<BaseItemDto[]>({
     queryKey: ["similarItems", itemId],
     queryFn: async () => {
-      if (!api || !user?.Id) return [];
+      if (!api || !user?.Id || !itemId) return [];
       const response = await getLibraryApi(api).getSimilarItems({
         itemId,
         userId: user.Id,
@@ -41,29 +46,26 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({ itemId }) => {
   );
 
   return (
-    <View>
-      <Text className="px-4 text-2xl font-bold mb-2">Similar items</Text>
-      {isLoading ? (
-        <View className="my-12">
-          <Loader />
-        </View>
-      ) : (
-        <ScrollView horizontal>
-          <View className="px-4 flex flex-row gap-x-2">
-            {movies.map((item) => (
-              <TouchableOpacity
-                key={item.Id}
-                onPress={() => router.push(`/items/${item.Id}`)}
-                className="flex flex-col w-32"
-              >
-                <MoviePoster item={item} />
-                <ItemCardText item={item} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-      )}
-      {movies.length === 0 && <Text className="px-4">No similar items</Text>}
+    <View {...props}>
+      <Text className="px-4 text-lg font-bold mb-2">Similar items</Text>
+      <HorizontalScroll
+        data={movies}
+        loading={isLoading}
+        height={247}
+        noItemsText="No similar items found"
+        renderItem={(item: BaseItemDto, idx: number) => (
+          <TouchableItemRouter
+            key={idx}
+            item={item}
+            className="flex flex-col w-28"
+          >
+            <View>
+              <MoviePoster item={item} />
+              <ItemCardText item={item} />
+            </View>
+          </TouchableItemRouter>
+        )}
+      />
     </View>
   );
 };

@@ -1,88 +1,108 @@
-import React, { useEffect } from "react";
-import { ScrollView, ScrollViewProps, View, ViewStyle } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
-import { Loader } from "../Loader";
+import { FlashList, FlashListProps } from "@shopify/flash-list";
+import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import { View, ViewStyle } from "react-native";
 import { Text } from "./Text";
 
-interface HorizontalScrollProps<T> extends ScrollViewProps {
+type PartialExcept<T, K extends keyof T> = Partial<T> & Pick<T, K>;
+
+export interface HorizontalScrollRef {
+  scrollToIndex: (index: number, viewOffset: number) => void;
+}
+
+interface HorizontalScrollProps<T>
+  extends PartialExcept<
+    Omit<FlashListProps<T>, "renderItem">,
+    "estimatedItemSize"
+  > {
   data?: T[] | null;
   renderItem: (item: T, index: number) => React.ReactNode;
+  keyExtractor?: (item: T, index: number) => string;
   containerStyle?: ViewStyle;
   contentContainerStyle?: ViewStyle;
   loadingContainerStyle?: ViewStyle;
   height?: number;
   loading?: boolean;
+  extraData?: any;
+  noItemsText?: string;
 }
 
-export function HorizontalScroll<T>({
-  data = [],
-  renderItem,
-  containerStyle,
-  contentContainerStyle,
-  loadingContainerStyle,
-  loading = false,
-  height = 164,
-  ...props
-}: HorizontalScrollProps<T>): React.ReactElement {
-  const animatedOpacity = useSharedValue(0);
-  const animatedStyle1 = useAnimatedStyle(() => {
-    return {
-      opacity: withTiming(animatedOpacity.value, { duration: 250 }),
-    };
-  });
+export const HorizontalScroll = forwardRef<
+  HorizontalScrollRef,
+  HorizontalScrollProps<any>
+>(
+  <T,>(
+    {
+      data = [],
+      keyExtractor,
+      renderItem,
+      containerStyle,
+      contentContainerStyle,
+      loadingContainerStyle,
+      loading = false,
+      height = 164,
+      extraData,
+      noItemsText,
+      ...props
+    }: HorizontalScrollProps<T>,
+    ref: React.ForwardedRef<HorizontalScrollRef>
+  ) => {
+    const flashListRef = useRef<FlashList<T>>(null);
 
-  useEffect(() => {
-    if (data) {
-      animatedOpacity.value = 1;
-    }
-  }, [data]);
+    useImperativeHandle(ref!, () => ({
+      scrollToIndex: (index: number, viewOffset: number) => {
+        flashListRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0,
+          viewOffset,
+        });
+      },
+    }));
 
-  if (data === undefined || data === null || loading) {
-    return (
-      <View
-        style={[
-          {
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-          },
-          loadingContainerStyle,
-        ]}
-      >
-        <Loader />
+    const renderFlashListItem = ({
+      item,
+      index,
+    }: {
+      item: T;
+      index: number;
+    }) => (
+      <View className="mr-2">
+        <React.Fragment>{renderItem(item, index)}</React.Fragment>
       </View>
     );
-  }
 
-  return (
-    <ScrollView
-      horizontal
-      style={containerStyle}
-      contentContainerStyle={contentContainerStyle}
-      showsHorizontalScrollIndicator={false}
-      {...props}
-    >
-      <Animated.View
-        className={`
-        flex flex-row px-4
-      `}
-        style={[animatedStyle1]}
-      >
-        {data.map((item, index) => (
-          <View className="mr-2" key={index}>
-            <React.Fragment>{renderItem(item, index)}</React.Fragment>
-          </View>
-        ))}
-        {data.length === 0 && (
+    if (!data || loading) {
+      return (
+        <View className="px-4 mb-2">
+          <View className="bg-neutral-950 h-24 w-full rounded-md mb-2"></View>
+          <View className="bg-neutral-950 h-10 w-full rounded-md mb-1"></View>
+        </View>
+      );
+    }
+
+    return (
+      <FlashList<T>
+        ref={flashListRef}
+        data={data}
+        extraData={extraData}
+        renderItem={renderFlashListItem}
+        horizontal
+        estimatedItemSize={200}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          ...contentContainerStyle,
+        }}
+        keyExtractor={keyExtractor}
+        ListEmptyComponent={() => (
           <View className="flex-1 justify-center items-center">
-            <Text className="text-center text-gray-500">No data available</Text>
+            <Text className="text-center text-gray-500">
+              {noItemsText || "No data available"}
+            </Text>
           </View>
         )}
-      </Animated.View>
-    </ScrollView>
-  );
-}
+        {...props}
+      />
+    );
+  }
+);

@@ -29,7 +29,7 @@ export const ResetFiltersButton: React.FC<Props> = ({ ...props }) => {
         setSelectedTags([]);
         setSelectedYears([]);
       }}
-      className="bg-purple-600 rounded-full w-8 h-8 flex items-center justify-center"
+      className="bg-purple-600 rounded-full w-[30px] h-[30px] flex items-center justify-center mr-1"
       {...props}
     >
       <Ionicons name="close" size={20} color="white" />

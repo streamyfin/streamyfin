@@ -1,11 +1,13 @@
-import React, { useEffect } from "react";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
-  NativeScrollEvent,
-  ScrollView,
-  ScrollViewProps,
-  View,
-  ViewStyle,
-} from "react-native";
+  BaseItemDto,
+  BaseItemDtoQueryResult,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { FlashList, FlashListProps } from "@shopify/flash-list";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import React, { useEffect, useMemo } from "react";
+import { View, ViewStyle } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -13,16 +15,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { Loader } from "../Loader";
 import { Text } from "./Text";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import {
-  BaseItemDto,
-  BaseItemDtoQueryResult,
-} from "@jellyfin/sdk/lib/generated-client/models";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useNavigation } from "expo-router";
-import { useAtom } from "jotai";
 
-interface HorizontalScrollProps extends ScrollViewProps {
+interface HorizontalScrollProps
+  extends Omit<FlashListProps<BaseItemDto>, "renderItem" | "data" | "style"> {
   queryFn: ({
     pageParam,
   }: {
@@ -38,18 +33,6 @@ interface HorizontalScrollProps extends ScrollViewProps {
   loading?: boolean;
 }
 
-const isCloseToBottom = ({
-  layoutMeasurement,
-  contentOffset,
-  contentSize,
-}: NativeScrollEvent) => {
-  const paddingToBottom = 50;
-  return (
-    layoutMeasurement.height + contentOffset.y >=
-    contentSize.height - paddingToBottom
-  );
-};
-
 export function InfiniteHorizontalScroll({
   queryFn,
   queryKey,
@@ -64,7 +47,6 @@ export function InfiniteHorizontalScroll({
 }: HorizontalScrollProps): React.ReactElement {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const navigation = useNavigation();
 
   const animatedOpacity = useSharedValue(0);
   const animatedStyle1 = useAnimatedStyle(() => {
@@ -73,7 +55,7 @@ export function InfiniteHorizontalScroll({
     };
   });
 
-  const { data, isFetching, fetchNextPage } = useInfiniteQuery({
+  const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey,
     queryFn,
     getNextPageParam: (lastPage, pages) => {
@@ -100,6 +82,13 @@ export function InfiniteHorizontalScroll({
     enabled: !!api && !!user?.Id,
   });
 
+  const flatData = useMemo(() => {
+    return (
+      (data?.pages.flatMap((p) => p?.Items).filter(Boolean) as BaseItemDto[]) ||
+      []
+    );
+  }, [data]);
+
   useEffect(() => {
     if (data) {
       animatedOpacity.value = 1;
@@ -124,41 +113,34 @@ export function InfiniteHorizontalScroll({
   }
 
   return (
-    <ScrollView
-      horizontal
-      onScroll={({ nativeEvent }) => {
-        if (isCloseToBottom(nativeEvent)) {
-          fetchNextPage();
-        }
-      }}
-      scrollEventThrottle={400}
-      style={containerStyle}
-      contentContainerStyle={contentContainerStyle}
-      showsHorizontalScrollIndicator={false}
-      {...props}
-    >
-      <Animated.View
-        className={`
-        flex flex-row px-4
-      `}
-        style={[animatedStyle1]}
-      >
-        {data?.pages
-          .flatMap((page) => page?.Items)
-          .map(
-            (item, index) =>
-              item && (
-                <View className="mr-2" key={index}>
-                  <React.Fragment>{renderItem(item, index)}</React.Fragment>
-                </View>
-              )
-          )}
-        {data?.pages.flatMap((page) => page?.Items).length === 0 && (
+    <Animated.View style={[containerStyle, animatedStyle1]}>
+      <FlashList
+        data={flatData}
+        renderItem={({ item, index }) => (
+          <View className="mr-2">
+            <React.Fragment>{renderItem(item, index)}</React.Fragment>
+          </View>
+        )}
+        estimatedItemSize={height}
+        horizontal
+        onEndReached={() => {
+          if (hasNextPage) {
+            fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          ...contentContainerStyle,
+        }}
+        showsHorizontalScrollIndicator={false}
+        ListEmptyComponent={
           <View className="flex-1 justify-center items-center">
             <Text className="text-center text-gray-500">No data available</Text>
           </View>
-        )}
-      </Animated.View>
-    </ScrollView>
+        }
+        {...props}
+      />
+    </Animated.View>
   );
 }

@@ -4,23 +4,38 @@ import {
   BaseItemDtoQueryResult,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { View, ViewProps } from "react-native";
-import { ScrollingCollectionList } from "../home/ScrollingCollectionList";
-import { Text } from "../common/Text";
-import { InfiniteHorizontalScroll } from "../common/InfiniteHorrizontalScroll";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import MoviePoster from "../posters/MoviePoster";
 import { useCallback } from "react";
+import { View, ViewProps } from "react-native";
+import { InfiniteHorizontalScroll } from "../common/InfiniteHorrizontalScroll";
+import { Text } from "../common/Text";
+import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import { ItemCardText } from "../ItemCardText";
+import MoviePoster from "../posters/MoviePoster";
+import {
+  type QueryKey,
+  type QueryFunction,
+  useQuery,
+} from "@tanstack/react-query";
 
 interface Props extends ViewProps {
-  collection: BaseItemDto;
+  queryKey: QueryKey;
+  queryFn: QueryFunction<BaseItemDto>;
 }
 
-export const MediaListSection: React.FC<Props> = ({ collection, ...props }) => {
+export const MediaListSection: React.FC<Props> = ({
+  queryFn,
+  queryKey,
+  ...props
+}) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+
+  const { data: collection } = useQuery({
+    queryKey,
+    queryFn,
+    staleTime: 0,
+  });
 
   const fetchItems = useCallback(
     async ({
@@ -28,18 +43,18 @@ export const MediaListSection: React.FC<Props> = ({ collection, ...props }) => {
     }: {
       pageParam: number;
     }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !user?.Id) return null;
+      if (!api || !user?.Id || !collection) return null;
 
       const response = await getItemsApi(api).getItems({
         userId: user.Id,
         parentId: collection.Id,
         startIndex: pageParam,
-        limit: 10,
+        limit: 8,
       });
 
       return response.data;
     },
-    [api, user?.Id, collection.Id]
+    [api, user?.Id, collection?.Id]
   );
 
   if (!collection) return null;
@@ -56,11 +71,12 @@ export const MediaListSection: React.FC<Props> = ({ collection, ...props }) => {
             key={index}
             item={item}
             className={`flex flex-col
-              ${"w-32"}
+              ${"w-28"}
             `}
           >
             <View>
               <MoviePoster item={item} />
+              <ItemCardText item={item} />
             </View>
           </TouchableItemRouter>
         )}

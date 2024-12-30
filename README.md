@@ -1,18 +1,20 @@
 # 📺 Streamyfin
 
+<a href="https://www.buymeacoffee.com/fredrikbur3" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+
 Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Expo. If you're looking for an alternative to other Jellyfin clients, we hope you'll find Streamyfin to be a useful addition to your media streaming toolbox.
 
-<div style="display: flex; flex-direction: row; gap: 5px">
-  <img width=100 src="./assets/images/screenshots/1.jpg" />
-  <img width=100 src="./assets/images/screenshots/3.jpg" />
-  <img width=100 src="./assets/images/screenshots/4.jpg" />
-  <img width=100 src="./assets/images/screenshots/5.jpg" />
-  <img width=100 src="./assets/images/screenshots/7.jpg" />
+<div style="display: flex; flex-direction: row; gap: 8px">
+  <img width=150 src="./assets/images/screenshots/screenshot1.png" />
+  <img width=150 src="./assets/images/screenshots/screenshot3.png" />
+  <img width=150 src="./assets/images/screenshots/screenshot2.png" />
+  
 </div>
 
 ## 🌟 Features
 
-- 📱 **Native video player**: Playback with the platform native video player. With support for subtitles, playback speed control, and more.
+- 🚀 **Skp intro / credits support**
+- 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking.
 - 📺 **Picture in Picture** (iPhone only): Watch movies in PiP mode on your iPhone.
 - 🔊 **Background audio**: Stream music in the background, even when locking the phone.
 - 📥 **Download media** (Experimental): Save your media locally and watch it offline.
@@ -24,7 +26,34 @@ Streamyfin includes some exciting experimental features like media downloading a
 
 ### Downloading
 
-Downloading works by using ffmpeg to convert a HLS stream into a video file on the device. This means that you can download and view any file you can stream! The file is converted by Jellyfin on the server in real time as it is downloaded. This means a **bit longer download times** but supports any file that your server can transcode.
+Downloading works by using ffmpeg to convert an HLS stream into a video file on the device. This means that you can download and view any file you can stream! The file is converted by Jellyfin on the server in real time as it is downloaded. This means a **bit longer download times** but supports any file that your server can transcode.
+
+### Chromecast
+
+Chromecast support is still in development, and we're working on improving it. Currently, it supports casting videos and audio, but we're working on adding support for subtitles and other features.
+
+## Plugins
+
+In Streamyfin we have built-in support for a few plugins. These plugins are not required to use Streamyfin, but they add some extra functionality.
+
+### Collection rows
+
+Jellyfin collections can be shown as rows or carousel on the home screen.
+The following tags can be added to a collection to provide this functionality.
+
+Available tags:
+
+- sf_promoted: will make the collection a row at home
+- sf_carousel: will make the collection a carousel on home.
+
+A plugin exists to create collections based on external sources like mdblist. This make the automatic process of managing collections such as trending, most watched, etc.
+See [Collection Import Plugin](https://github.com/lostb1t/jellyfin-plugin-collection-import) for more info.
+
+### Jellysearch
+
+[Jellysearch](https://gitlab.com/DomiStyle/jellysearch) now works with Streamyfin! 🚀
+
+> A fast full-text search proxy for Jellyfin. Integrates seamlessly with most Jellyfin clients.
 
 ## Roadmap for V1
 
@@ -32,15 +61,12 @@ Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) to
 
 ## Get it now
 
-<div style="display:flex;">
-  <a href="https://apps.apple.com/se/app/streamyfin/id6593660679?l=en-GB">
-    <img height=50 alt="Get Streamyfin on App Store" src="./assets/Download_on_the_App_Store_Badge.png"/>
-  </a>
-
-  <a href="https://play.google.com/store/apps/details?id=com.fredrikburmester.streamyfin">
-    <img height=75 alt="Get the beta on Google Play" src="./assets/en_badge_web_generic.png"/>
-  </a>
+<div style="display: flex; gap: 5px;">
+  <a href="https://apps.apple.com/app/streamyfin/id6593660679?l=en-GB"><img height=50 alt="Get Streamyfin on App Store" src="./assets/Download_on_the_App_Store_Badge.png"/></a>
+  <a href="https://play.google.com/store/apps/details?id=com.fredrikburmester.streamyfin"><img height=50 alt="Get the beta on Google Play" src="./assets/Google_Play_Store_badge_EN.svg"/></a>
 </div>
+
+Or download the APKs [here on GitHub](https://github.com/fredrikburmester/streamyfin/releases) for Android.
 
 ### Beta testing
 
@@ -49,8 +75,6 @@ Get the latest updates by using the TestFlight version of the app.
 <a href="https://testflight.apple.com/join/CWBaAAK2">
   <img height=75 alt="Get the beta on TestFlight" src="./assets/Get_the_beta_on_Testflight.svg"/>
 </a>
-
-Or download the APKs here on GitHub for Android.
 
 ## 🚀 Getting Started
 
@@ -64,6 +88,12 @@ Or download the APKs here on GitHub for Android.
 We welcome any help to make Streamyfin better. If you'd like to contribute, please fork the repository and submit a pull request. For major changes, it's best to open an issue first to discuss your ideas.
 
 ### Development info
+
+1. Use node `20`
+2. Install dependencies `bun i`
+3. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`.
+
+## Extended chromecast controls
 
 Add this to AppDelegate.mm:
 
@@ -106,16 +136,12 @@ Key points of the MPL-2.0:
 
 ## 🌐 Connect with Us
 
-Join our Discord: [https://discord.gg/zyGKHJZvv4](https://discord.gg/zyGKHJZvv4)
+Join our Discord: [https://discord.gg/BuGG9ZNhaE](https://discord.gg/BuGG9ZNhaE)
 
 If you have questions or need support, feel free to reach out:
 
 - GitHub Issues: Report bugs or request features here.
 - Email: [fredrik.burmester@gmail.com](mailto:fredrik.burmester@gmail.com)
-
-## Support
-
-<a href="https://www.buymeacoffee.com/fredrikbur3" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
 ## 📝 Credits
 
@@ -128,3 +154,7 @@ I'd like to thank the following people and projects for their contributions to S
 - [Reiverr](https://github.com/aleksilassila/reiverr) for great help with understanding the Jellyfin API.
 - [Jellyfin TS SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) for the TypeScript SDK.
 - The Jellyfin devs for always being helpful in the Discord.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=fredrikburmester/streamyfin&type=Date)](https://star-history.com/#fredrikburmester/streamyfin&Date)

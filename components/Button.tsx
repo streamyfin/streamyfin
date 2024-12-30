@@ -3,14 +3,15 @@ import React, { PropsWithChildren, ReactNode, useMemo } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Loader } from "./Loader";
 
-interface ButtonProps extends React.ComponentProps<typeof TouchableOpacity> {
+export interface ButtonProps
+  extends React.ComponentProps<typeof TouchableOpacity> {
   onPress?: () => void;
   className?: string;
   textClassName?: string;
   disabled?: boolean;
   children?: string | ReactNode;
   loading?: boolean;
-  color?: "purple" | "red" | "black";
+  color?: "purple" | "red" | "black" | "transparent";
   iconRight?: ReactNode;
   iconLeft?: ReactNode;
   justify?: "center" | "between";
@@ -37,6 +38,8 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         return "bg-red-600";
       case "black":
         return "bg-neutral-900 border border-neutral-800";
+      case "transparent":
+        return "bg-transparent";
     }
   }, [color]);
 

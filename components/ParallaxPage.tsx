@@ -1,27 +1,27 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import type { PropsWithChildren, ReactElement } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { type PropsWithChildren, type ReactElement } from "react";
+import { View, ViewProps } from "react-native";
 import Animated, {
   interpolate,
   useAnimatedRef,
   useAnimatedStyle,
   useScrollViewOffset,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Chromecast } from "./Chromecast";
 
-const HEADER_HEIGHT = 400;
-
-type Props = PropsWithChildren<{
+interface Props extends ViewProps {
   headerImage: ReactElement;
   logo?: ReactElement;
-}>;
+  episodePoster?: ReactElement;
+  headerHeight?: number;
+}
 
-export const ParallaxScrollView: React.FC<Props> = ({
+export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
   children,
   headerImage,
+  episodePoster,
+  headerHeight = 400,
   logo,
+  ...props
 }: Props) => {
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
@@ -32,25 +32,23 @@ export const ParallaxScrollView: React.FC<Props> = ({
         {
           translateY: interpolate(
             scrollOffset.value,
-            [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
-            [-HEADER_HEIGHT / 2, 0, HEADER_HEIGHT * 0.75],
+            [-headerHeight, 0, headerHeight],
+            [-headerHeight / 2, 0, headerHeight * 0.75]
           ),
         },
         {
           scale: interpolate(
             scrollOffset.value,
-            [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
-            [2, 1, 1],
+            [-headerHeight, 0, headerHeight],
+            [2, 1, 1]
           ),
         },
       ],
     };
   });
 
-  const inset = useSafeAreaInsets();
-
   return (
-    <View className="flex-1">
+    <View className="flex-1" {...props}>
       <Animated.ScrollView
         style={{
           position: "relative",
@@ -58,32 +56,14 @@ export const ParallaxScrollView: React.FC<Props> = ({
         ref={scrollRef}
         scrollEventThrottle={16}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="absolute left-4 z-50 bg-black rounded-full p-2 border border-neutral-900"
-          style={{
-            top: inset.top + 17,
-          }}
-        >
-          <Ionicons
-            className="drop-shadow-2xl"
-            name="arrow-back"
-            size={24}
-            color="#077DF2"
-          />
-        </TouchableOpacity>
-
-        <View
-          className="absolute right-4 z-50 bg-black rounded-full p-0.5"
-          style={{
-            top: inset.top + 17,
-          }}
-        >
-          <Chromecast width={22} height={22} />
-        </View>
-
         {logo && (
-          <View className="absolute top-[250px] h-[130px] left-0 w-full z-40 px-4 flex justify-center items-center">
+          <View
+            style={{
+              top: headerHeight - 200,
+              height: 130,
+            }}
+            className="absolute left-0 w-full z-40 px-4 flex justify-center items-center"
+          >
             {logo}
           </View>
         )}
@@ -91,7 +71,7 @@ export const ParallaxScrollView: React.FC<Props> = ({
         <Animated.View
           style={[
             {
-              height: HEADER_HEIGHT,
+              height: headerHeight,
               backgroundColor: "black",
             },
             headerAnimatedStyle,
@@ -99,7 +79,35 @@ export const ParallaxScrollView: React.FC<Props> = ({
         >
           {headerImage}
         </Animated.View>
-        <View className="flex-1 overflow-hidden bg-black pb-24">
+
+        <View
+          style={{
+            top: -50,
+          }}
+          className="relative flex-1  bg-transparent pb-24"
+        >
+          <LinearGradient
+            // Background Linear Gradient
+            colors={["transparent", "rgba(0,0,0,1)"]}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: -150,
+              height: 200,
+            }}
+          />
+          <View
+            // Background Linear Gradient
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 50,
+              height: "100%",
+              backgroundColor: "black",
+            }}
+          />
           {children}
         </View>
       </Animated.ScrollView>

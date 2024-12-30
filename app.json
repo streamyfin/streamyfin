@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.6.1",
+    "version": "0.23.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#29164B"
+      "backgroundColor": "#2E2E2E"
     },
     "jsEngine": "hermes",
     "assetBundlePatterns": ["**/*"],
@@ -19,31 +19,33 @@
       "infoPlist": {
         "NSCameraUsageDescription": "The app needs access to your camera to scan barcodes.",
         "NSMicrophoneUsageDescription": "The app needs access to your microphone.",
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": ["audio", "fetch"],
         "NSLocalNetworkUsageDescription": "The app needs access to your local network to connect to your Jellyfin server.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "UISupportsTrueScreenSizeOnMac": true,
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.fredrikburmester.streamyfin"
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 18,
+      "versionCode": 49,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png"
+        "foregroundImage": "./assets/images/adaptive_icon.png"
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.WRITE_SETTINGS"
       ]
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -72,9 +74,15 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "14.0"
+            "deploymentTarget": "15.6",
+            "useFrameworks": "static"
           },
           "android": {
+            "android": {
+              "compileSdkVersion": 34,
+              "targetSdkVersion": 34,
+              "buildToolsVersion": "34.0.0"
+            },
             "minSdkVersion": 24,
             "usesCleartextTraffic": true,
             "packagingOptions": {
@@ -97,7 +105,14 @@
           "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-asset",
+      [
+        "react-native-edge-to-edge",
+        { "android": { "parentTheme": "Material3" } }
+      ],
+      ["react-native-bottom-tabs"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"]
     ],
     "experiments": {
       "typedRoutes": true

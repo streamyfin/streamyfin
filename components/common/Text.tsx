@@ -1,11 +1,16 @@
 import React from "react";
 import { TextProps } from "react-native";
-import { Text as DefaultText } from "react-native";
-export function Text(props: TextProps) {
+import { UITextView } from "react-native-uitextview";
+
+export function Text(
+  props: TextProps & {
+    uiTextView?: boolean;
+  }
+) {
   const { style, ...otherProps } = props;
 
   return (
-    <DefaultText
+    <UITextView
       allowFontScaling={false}
       style={[{ color: "white" }, style]}
       {...otherProps}

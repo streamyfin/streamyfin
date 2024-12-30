@@ -21,15 +21,29 @@ export const getLogoImageUrlById = ({
     return null;
   }
 
-  const imageTags = item.ImageTags?.["Logo"];
-
-  if (!imageTags) return null;
-
   const params = new URLSearchParams();
 
-  params.append("tag", imageTags);
   params.append("quality", "90");
   params.append("fillHeight", height.toString());
+
+  if (item.Type === "Episode") {
+    const imageTag = item.ParentLogoImageTag;
+    const parentId = item.ParentLogoItemId;
+
+    if (!parentId || !imageTag) {
+      return null;
+    }
+
+    params.append("tag", imageTag);
+
+    return `${api.basePath}/Items/${parentId}/Images/Logo?${params.toString()}`;
+  }
+
+  const imageTag = item.ImageTags?.["Logo"];
+
+  if (!imageTag) return null;
+
+  params.append("tag", imageTag);
 
   return `${api.basePath}/Items/${item.Id}/Images/Logo?${params.toString()}`;
 };

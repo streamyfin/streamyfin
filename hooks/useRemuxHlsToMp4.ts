@@ -1,11 +1,42 @@
-import { useCallback } from "react";
-import { useAtom } from "jotai";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getItemImage } from "@/utils/getItemImage";
+import { writeErrorLog, writeInfoLog, writeToLog } from "@/utils/log";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
-import { FFmpegKit, FFmpegKitConfig } from "ffmpeg-kit-react-native";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { runningProcesses } from "@/utils/atoms/downloads";
-import { writeToLog } from "@/utils/log";
+import { useRouter } from "expo-router";
+import { FFmpegKit, FFmpegSession, Statistics } from "ffmpeg-kit-react-native";
+import { useAtomValue } from "jotai";
+import { useCallback } from "react";
+import { toast } from "sonner-native";
+import useImageStorage from "./useImageStorage";
+import useDownloadHelper from "@/utils/download";
+import { Api } from "@jellyfin/sdk";
+import { useSettings } from "@/utils/atoms/settings";
+import { JobStatus } from "@/utils/optimize-server";
+
+const createFFmpegCommand = (url: string, output: string) => [
+  "-y", // overwrite output files without asking
+  "-thread_queue_size 512", // https://ffmpeg.org/ffmpeg.html#toc-Advanced-options
+
+  // region ffmpeg protocol commands                    // https://ffmpeg.org/ffmpeg-protocols.html
+  "-protocol_whitelist file,http,https,tcp,tls,crypto", // whitelist
+  "-multiple_requests 1", // http
+  "-tcp_nodelay 1", // http
+  // endregion ffmpeg protocol commands
+
+  "-fflags +genpts", // format flags
+  `-i ${url}`, // infile
+  "-map 0:v -map 0:a", // select all streams for video & audio
+  "-c copy", // streamcopy, preventing transcoding
+  "-bufsize 25M", // amount of data processed before calculating current bitrate
+  "-max_muxing_queue_size 4096", // sets the size of stream buffer in packets for output
+  output,
+];
 
 /**
  * Custom hook for remuxing HLS to MP4 using FFmpeg.
@@ -14,125 +45,157 @@ import { writeToLog } from "@/utils/log";
  * @param item - The BaseItemDto object representing the media item
  * @returns An object with remuxing-related functions
  */
-export const useRemuxHlsToMp4 = (url: string, item: BaseItemDto) => {
-  const [_, setProgress] = useAtom(runningProcesses);
+export const useRemuxHlsToMp4 = () => {
+  const api = useAtomValue(apiAtom);
+  const router = useRouter();
+  const queryClient = useQueryClient();
 
-  if (!item.Id || !item.Name) {
-    writeToLog("ERROR", "useRemuxHlsToMp4 ~ missing arguments");
-    throw new Error("Item must have an Id and Name");
-  }
+  const [settings] = useSettings();
+  const { saveImage } = useImageStorage();
+  const { saveSeriesPrimaryImage } = useDownloadHelper();
+  const { saveDownloadedItemInfo, setProcesses, processes, APP_CACHE_DOWNLOAD_DIRECTORY } = useDownload();
 
-  const output = `${FileSystem.documentDirectory}${item.Id}.mp4`;
-  const command = `-y -loglevel quiet -thread_queue_size 512 -protocol_whitelist file,http,https,tcp,tls,crypto -multiple_requests 1 -tcp_nodelay 1 -fflags +genpts -i ${url} -c copy -bufsize 50M -max_muxing_queue_size 4096 ${output}`;
+  const onSaveAssets = async (api: Api, item: BaseItemDto) => {
+    await saveSeriesPrimaryImage(item);
+    const itemImage = getItemImage({
+      item,
+      api,
+      variant: "Primary",
+      quality: 90,
+      width: 500,
+    });
 
-  const startRemuxing = useCallback(async () => {
-    writeToLog(
-      "INFO",
-      `useRemuxHlsToMp4 ~ startRemuxing for item ${item.Name}`,
-    );
+    await saveImage(item.Id, itemImage?.uri);
+  };
 
-    try {
-      setProgress({ item, progress: 0, startTime: new Date(), speed: 0 });
+  const completeCallback = useCallback(
+    async (session: FFmpegSession, item: BaseItemDto) => {
+      try {
+        console.log("completeCallback");
+        const returnCode = await session.getReturnCode();
 
-      FFmpegKitConfig.enableStatisticsCallback((statistics) => {
-        const videoLength =
-          (item.MediaSources?.[0]?.RunTimeTicks || 0) / 10000000; // In seconds
-        const fps = item.MediaStreams?.[0]?.RealFrameRate || 25;
-        const totalFrames = videoLength * fps;
-        const processedFrames = statistics.getVideoFrameNumber();
-        const speed = statistics.getSpeed();
+        if (returnCode.isValueSuccess()) {
+          const stat = await session.getLastReceivedStatistics();
+          await FileSystem.moveAsync({
+              from: `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`,
+              to: `${FileSystem.documentDirectory}${item.Id}.mp4`
+          })
+          await queryClient.invalidateQueries({
+            queryKey: ["downloadedItems"],
+          });
+          saveDownloadedItemInfo(item, stat.getSize());
+          toast.success("Download completed");
+        }
 
-        const percentage =
-          totalFrames > 0
-            ? Math.floor((processedFrames / totalFrames) * 100)
-            : 0;
+        setProcesses((prev) => {
+          return prev.filter((process) => process.itemId !== item.Id);
+        });
+      } catch (e) {
+        console.error(e);
+      }
 
-        setProgress((prev) =>
-          prev?.item.Id === item.Id!
-            ? { ...prev, progress: percentage, speed }
-            : prev,
-        );
-      });
+      console.log("completeCallback ~ end");
+    },
+    [processes, setProcesses]
+  );
 
-      // Await the execution of the FFmpeg command and ensure that the callback is awaited properly.
-      await new Promise<void>((resolve, reject) => {
-        FFmpegKit.executeAsync(command, async (session) => {
-          try {
-            const returnCode = await session.getReturnCode();
+  const statisticsCallback = useCallback(
+    (statistics: Statistics, item: BaseItemDto) => {
+      const videoLength =
+        (item.MediaSources?.[0]?.RunTimeTicks || 0) / 10000000; // In seconds
+      const fps = item.MediaStreams?.[0]?.RealFrameRate || 25;
+      const totalFrames = videoLength * fps;
+      const processedFrames = statistics.getVideoFrameNumber();
+      const speed = statistics.getSpeed();
 
-            if (returnCode.isValueSuccess()) {
-              await updateDownloadedFiles(item);
-              writeToLog(
-                "INFO",
-                `useRemuxHlsToMp4 ~ remuxing completed successfully for item: ${item.Name}`,
-              );
-              resolve();
-            } else if (returnCode.isValueError()) {
-              writeToLog(
-                "ERROR",
-                `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}`,
-              );
-              reject(new Error("Remuxing failed")); // Reject the promise on error
-            } else if (returnCode.isValueCancel()) {
-              writeToLog(
-                "INFO",
-                `useRemuxHlsToMp4 ~ remuxing was canceled for item: ${item.Name}`,
-              );
-              resolve();
-            }
+      const percentage =
+        totalFrames > 0 ? Math.floor((processedFrames / totalFrames) * 100) : 0;
 
-            setProgress(null);
-          } catch (error) {
-            reject(error);
+      if (!item.Id) throw new Error("Item is undefined");
+      setProcesses((prev) => {
+        return prev.map((process) => {
+          if (process.itemId === item.Id) {
+            return {
+              ...process,
+              id: statistics.getSessionId().toString(),
+              progress: percentage,
+              speed: Math.max(speed, 0),
+            };
           }
+          return process;
         });
       });
-    } catch (error) {
-      console.error("Failed to remux:", error);
-      writeToLog(
-        "ERROR",
-        `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}`,
-      );
-      setProgress(null);
-      throw error; // Re-throw the error to propagate it to the caller
-    }
-  }, [output, item, command, setProgress]);
+    },
+    [setProcesses, completeCallback]
+  );
+
+  const startRemuxing = useCallback(
+    async (item: BaseItemDto, url: string, mediaSource: MediaSourceInfo) => {
+      const cacheDir = await FileSystem.getInfoAsync(APP_CACHE_DOWNLOAD_DIRECTORY);
+      if (!cacheDir.exists) {
+        await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {intermediates: true})
+      }
+
+      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`
+
+      if (!api) throw new Error("API is not defined");
+      if (!item.Id) throw new Error("Item must have an Id");
+
+      // First lets save any important assets we want to present to the user offline
+      await onSaveAssets(api, item);
+
+      toast.success(`Download started for ${item.Name}`, {
+        action: {
+          label: "Go to download",
+          onClick: () => {
+            router.push("/downloads");
+            toast.dismiss();
+          },
+        },
+      });
+
+      try {
+        const job: JobStatus = {
+          id: "",
+          deviceId: "",
+          inputUrl: url,
+          item: item,
+          itemId: item.Id!,
+          outputPath: output,
+          progress: 0,
+          status: "downloading",
+          timestamp: new Date(),
+        };
+
+        writeInfoLog(`useRemuxHlsToMp4 ~ startRemuxing for item ${item.Name}`);
+        setProcesses((prev) => [...prev, job]);
+
+        await FFmpegKit.executeAsync(
+          createFFmpegCommand(url, output).join(" "),
+          (session) => completeCallback(session, item),
+          undefined,
+          (s) => statisticsCallback(s, item)
+        );
+      } catch (e) {
+        const error = e as Error;
+        console.error("Failed to remux:", error);
+        writeErrorLog(
+          `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}, 
+          Error: ${error.message}, Stack: ${error.stack}`
+        );
+        setProcesses((prev) => {
+          return prev.filter((process) => process.itemId !== item.Id);
+        });
+        throw error; // Re-throw the error to propagate it to the caller
+      }
+    },
+    [settings, processes, setProcesses, completeCallback, statisticsCallback]
+  );
 
   const cancelRemuxing = useCallback(() => {
     FFmpegKit.cancel();
-    setProgress(null);
-    writeToLog(
-      "INFO",
-      `useRemuxHlsToMp4 ~ remuxing cancelled for item: ${item.Name}`,
-    );
-  }, [item.Name, setProgress]);
+    setProcesses([]);
+  }, []);
 
   return { startRemuxing, cancelRemuxing };
 };
-
-/**
- * Updates the list of downloaded files in AsyncStorage.
- *
- * @param item - The item to add to the downloaded files list
- */
-async function updateDownloadedFiles(item: BaseItemDto): Promise<void> {
-  try {
-    const currentFiles: BaseItemDto[] = JSON.parse(
-      (await AsyncStorage.getItem("downloaded_files")) || "[]",
-    );
-    const updatedFiles = [
-      ...currentFiles.filter((i) => i.Id !== item.Id),
-      item,
-    ];
-    await AsyncStorage.setItem(
-      "downloaded_files",
-      JSON.stringify(updatedFiles),
-    );
-  } catch (error) {
-    console.error("Error updating downloaded files:", error);
-    writeToLog(
-      "ERROR",
-      `Failed to update downloaded files for item: ${item.Name}`,
-    );
-  }
-}

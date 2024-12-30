@@ -8,30 +8,18 @@ type ItemCardProps = {
   item: BaseItemDto;
 };
 
-function seasonNameToIndex(seasonName: string | null | undefined) {
-  if (!seasonName) return -1;
-  if (seasonName.startsWith("Season")) {
-    return parseInt(seasonName.replace("Season ", ""));
-  }
-  if (seasonName.startsWith("Specials")) {
-    return 0;
-  }
-  return -1;
-}
-
 export const ItemCardText: React.FC<ItemCardProps> = ({ item }) => {
   return (
-    <View className="mt-2 flex flex-col h-12">
+    <View className="mt-2 flex flex-col">
       {item.Type === "Episode" ? (
         <>
-          <Text numberOfLines={2} className="">
-            {item.SeriesName}
+          <Text numberOfLines={1} className="">
+            {item.Name}
           </Text>
           <Text numberOfLines={1} className="text-xs opacity-50">
-            {`S${seasonNameToIndex(
-              item?.SeasonName,
-            )}:E${item.IndexNumber?.toString()}`}{" "}
-            {item.Name}
+            {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
+            {" - "}
+            {item.SeriesName}
           </Text>
         </>
       ) : (

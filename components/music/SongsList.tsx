@@ -1,9 +1,6 @@
-import { TouchableOpacity, View, ViewProps } from "react-native";
-import { Text } from "@/components/common/Text";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import ArtistPoster from "../ArtistPoster";
-import { runtimeTicksToMinutes, runtimeTicksToSeconds } from "@/utils/time";
 import { useRouter } from "expo-router";
+import { View, ViewProps } from "react-native";
 import { SongsListItem } from "./SongsListItem";
 
 interface Props extends ViewProps {

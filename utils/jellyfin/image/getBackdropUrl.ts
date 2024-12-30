@@ -36,6 +36,10 @@ export const getBackdropUrl = ({
     params.append("fillWidth", width.toString());
   }
 
+  if (item.Type === "Episode") {
+    return getPrimaryImageUrl({ api, item, quality, width });
+  }
+
   if (backdropImageTags) {
     params.append("tag", backdropImageTags);
     return `${api.basePath}/Items/${

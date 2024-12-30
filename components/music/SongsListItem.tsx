@@ -1,27 +1,18 @@
-import {
-  TouchableOpacity,
-  TouchableOpacityProps,
-  View,
-  ViewProps,
-} from "react-native";
 import { Text } from "@/components/common/Text";
-import index from "@/app/(auth)/(tabs)/home";
-import { runtimeTicksToSeconds } from "@/utils/time";
-import { router } from "expo-router";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { useAtom } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { chromecastProfile } from "@/utils/profiles/chromecast";
-import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { usePlaySettings } from "@/providers/PlaySettingsProvider";
+import { runtimeTicksToSeconds } from "@/utils/time";
+import { useActionSheet } from "@expo/react-native-action-sheet";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { useRouter } from "expo-router";
+import { useAtom } from "jotai";
+import { useCallback } from "react";
+import { TouchableOpacity, TouchableOpacityProps, View } from "react-native";
 import CastContext, {
   PlayServicesState,
   useCastDevice,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import { currentlyPlayingItemAtom, playingAtom } from "../CurrentlyPlayingBar";
-import { useActionSheet } from "@expo/react-native-action-sheet";
-import ios from "@/utils/profiles/ios";
 
 interface Props extends TouchableOpacityProps {
   collectionId: string;
@@ -42,11 +33,11 @@ export const SongsListItem: React.FC<Props> = ({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const castDevice = useCastDevice();
-  const [, setCp] = useAtom(currentlyPlayingItemAtom);
-  const [, setPlaying] = useAtom(playingAtom);
-
+  const router = useRouter();
   const client = useRemoteMediaClient();
   const { showActionSheetWithOptions } = useActionSheet();
+
+  const { setPlaySettings } = usePlaySettings();
 
   const openSelect = () => {
     if (!castDevice?.deviceId) {
@@ -73,30 +64,23 @@ export const SongsListItem: React.FC<Props> = ({
           case cancelButtonIndex:
             break;
         }
-      },
+      }
     );
   };
 
-  const play = async (type: "device" | "cast") => {
-    if (!user?.Id || !api || !item.Id) return;
+  const play = useCallback(async (type: "device" | "cast") => {
+    if (!user?.Id || !api || !item.Id) {
+      console.warn("No user, api or item", user, api, item.Id);
+      return;
+    }
 
-    const response = await getMediaInfoApi(api!).getPlaybackInfo({
-      itemId: item?.Id,
-      userId: user?.Id,
-    });
-
-    const sessionData = response.data;
-
-    const url = await getStreamUrl({
-      api,
-      userId: user.Id,
+    const data = await setPlaySettings({
       item,
-      startTimeTicks: item?.UserData?.PlaybackPositionTicks || 0,
-      sessionData,
-      deviceProfile: castDevice?.deviceId ? chromecastProfile : ios,
     });
 
-    if (!url || !item) return;
+    if (!data?.url) {
+      throw new Error("play-music ~ No stream url");
+    }
 
     if (type === "cast" && client) {
       await CastContext.getPlayServicesState().then((state) => {
@@ -105,7 +89,7 @@ export const SongsListItem: React.FC<Props> = ({
         else {
           client.loadMedia({
             mediaInfo: {
-              contentUrl: url,
+              contentUrl: data.url!,
               contentType: "video/mp4",
               metadata: {
                 type: item.Type === "Episode" ? "tvShow" : "movie",
@@ -118,13 +102,10 @@ export const SongsListItem: React.FC<Props> = ({
         }
       });
     } else {
-      setCp({
-        item,
-        playbackUrl: url,
-      });
-      setPlaying(true);
+      console.log("Playing on device", data.url, item.Id);
+      router.push("/music-player");
     }
-  };
+  }, []);
 
   return (
     <TouchableOpacity

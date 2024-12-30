@@ -1,26 +1,25 @@
-import {
-  DeviceProfile,
-  DlnaProfileType,
-} from "@jellyfin/sdk/lib/generated-client/models";
-
-const MediaTypes = {
-  Audio: "Audio",
-  Video: "Video",
-  Photo: "Photo",
-  Book: "Book",
-};
+import { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 
 export const chromecastProfile: DeviceProfile = {
   Name: "Chromecast Video Profile",
-  Id: "chromecast-001",
-  MaxStreamingBitrate: 4000000, // 4 Mbps
-  MaxStaticBitrate: 4000000, // 4 Mbps
+  MaxStreamingBitrate: 8000000, // 8 Mbps
+  MaxStaticBitrate: 8000000, // 8 Mbps
   MusicStreamingTranscodingBitrate: 384000, // 384 kbps
+  CodecProfiles: [
+    {
+      Type: "Video",
+      Codec: "h264",
+    },
+    {
+      Type: "Audio",
+      Codec: "aac,mp3,flac,opus,vorbis",
+    },
+  ],
   DirectPlayProfiles: [
     {
-      Container: "mp4,webm",
+      Container: "mp4",
       Type: "Video",
-      VideoCodec: "h264,vp8,vp9",
+      VideoCodec: "h264",
       AudioCodec: "aac,mp3,opus,vorbis",
     },
     {
@@ -78,53 +77,14 @@ export const chromecastProfile: DeviceProfile = {
       MaxAudioChannels: "2",
     },
   ],
-  ContainerProfiles: [
-    {
-      Type: "Video",
-      Container: "mp4",
-    },
-    {
-      Type: "Video",
-      Container: "webm",
-    },
-  ],
-  CodecProfiles: [
-    {
-      Type: "Video",
-      Codec: "h264",
-      Conditions: [
-        {
-          Condition: "LessThanEqual",
-          Property: "VideoBitDepth",
-          Value: "8",
-        },
-        {
-          Condition: "LessThanEqual",
-          Property: "VideoLevel",
-          Value: "41",
-        },
-      ],
-    },
-    {
-      Type: "Video",
-      Codec: "vp9",
-      Conditions: [
-        {
-          Condition: "LessThanEqual",
-          Property: "VideoBitDepth",
-          Value: "10",
-        },
-      ],
-    },
-  ],
   SubtitleProfiles: [
     {
       Format: "vtt",
-      Method: "Hls",
+      Method: "Encode",
     },
     {
       Format: "vtt",
-      Method: "External",
+      Method: "Encode",
     },
   ],
 };

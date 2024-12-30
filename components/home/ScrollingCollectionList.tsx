@@ -1,60 +1,119 @@
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { View, ViewProps } from "react-native";
+import {
+  useQuery,
+  type QueryFunction,
+  type QueryKey,
+} from "@tanstack/react-query";
+import { ScrollView, View, ViewProps } from "react-native";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
-import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import SeriesPoster from "../posters/SeriesPoster";
 
 interface Props extends ViewProps {
-  title: string;
-  loading?: boolean;
+  title?: string | null;
   orientation?: "horizontal" | "vertical";
-  data?: BaseItemDto[] | null;
-  height?: "small" | "large";
   disabled?: boolean;
+  queryKey: QueryKey;
+  queryFn: QueryFunction<BaseItemDto[]>;
 }
 
 export const ScrollingCollectionList: React.FC<Props> = ({
   title,
-  data,
   orientation = "vertical",
-  height = "small",
-  loading = false,
   disabled = false,
+  queryFn,
+  queryKey,
   ...props
 }) => {
-  if (disabled) return null;
+  // console.log(queryKey);
+
+  const { data, isLoading } = useQuery({
+    queryKey: queryKey,
+    queryFn,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  if (disabled || !title) return null;
 
   return (
-    <View {...props}>
-      <Text className="px-4 text-2xl font-bold mb-2 text-neutral-100">
+    <View {...props} className="">
+      <Text className="px-4 text-lg font-bold mb-2 text-neutral-100">
         {title}
       </Text>
-      <HorizontalScroll<BaseItemDto>
-        data={data}
-        height={orientation === "vertical" ? 247 : 164}
-        loading={loading}
-        renderItem={(item, index) => (
-          <TouchableItemRouter
-            key={index}
-            item={item}
-            className={`flex flex-col
-              ${orientation === "vertical" ? "w-32" : "w-48"}
-            `}
-          >
-            <View>
-              {orientation === "vertical" ? (
-                <MoviePoster item={item} />
-              ) : (
-                <ContinueWatchingPoster item={item} />
-              )}
-              <ItemCardText item={item} />
+      {isLoading === false && data?.length === 0 && (
+        <View className="px-4">
+          <Text className="text-neutral-500">No items</Text>
+        </View>
+      )}
+      {isLoading ? (
+        <View
+          className={`
+            flex flex-row gap-2 px-4
+        `}
+        >
+          {[1, 2, 3].map((i) => (
+            <View className="w-44" key={i}>
+              <View className="bg-neutral-900 h-24 w-full rounded-md mb-1"></View>
+              <View className="rounded-md overflow-hidden mb-1 self-start">
+                <Text
+                  className="text-neutral-900 bg-neutral-900 rounded-md"
+                  numberOfLines={1}
+                >
+                  Nisi mollit voluptate amet.
+                </Text>
+              </View>
+              <View className="rounded-md overflow-hidden self-start mb-1">
+                <Text
+                  className="text-neutral-900 bg-neutral-900 text-xs rounded-md "
+                  numberOfLines={1}
+                >
+                  Lorem ipsum
+                </Text>
+              </View>
             </View>
-          </TouchableItemRouter>
-        )}
-      />
+          ))}
+        </View>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View className="px-4 flex flex-row">
+            {data?.map((item, index) => (
+              <TouchableItemRouter
+                item={item}
+                key={index}
+                className={`
+              mr-2 
+
+              ${orientation === "horizontal" ? "w-44" : "w-28"}
+            `}
+              >
+                {item.Type === "Episode" && orientation === "horizontal" && (
+                  <ContinueWatchingPoster item={item} />
+                )}
+                {item.Type === "Episode" && orientation === "vertical" && (
+                  <SeriesPoster item={item} />
+                )}
+                {item.Type === "Movie" && orientation === "horizontal" && (
+                  <ContinueWatchingPoster item={item} />
+                )}
+                {item.Type === "Movie" && orientation === "vertical" && (
+                  <MoviePoster item={item} />
+                )}
+                {item.Type === "Series" && <SeriesPoster item={item} />}
+                {item.Type === "Program" && (
+                  <ContinueWatchingPoster item={item} />
+                )}
+                <ItemCardText item={item} />
+              </TouchableItemRouter>
+            ))}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 };

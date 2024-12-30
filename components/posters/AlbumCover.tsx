@@ -36,7 +36,7 @@ const AlbumCover: React.FC<ArtistPosterProps> = ({ item, id }) => {
 
   if (!item && id)
     return (
-      <View className="relative rounded-md overflow-hidden border border-neutral-900">
+      <View className="relative rounded-lg overflow-hidden border border-neutral-900">
         <Image
           key={id}
           id={id}

@@ -28,7 +28,7 @@ const ParentPoster: React.FC<PosterProps> = ({ id }) => {
     );
 
   return (
-    <View className="rounded-md overflow-hidden border border-neutral-900">
+    <View className="rounded-lg overflow-hidden border border-neutral-900">
       <Image
         key={id}
         id={id}
