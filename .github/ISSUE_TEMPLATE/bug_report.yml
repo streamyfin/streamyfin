@@ -1,13 +1,13 @@
 name: Bug report
 description: Create a report to help us improve
-title: '[Bug]: '
+title: "[Bug]: "
 labels:
-  - ['❌ bug']
-projects: 
-  - ['fredrikburmester/5']
+  - ["❌ bug"]
+projects:
+  - ["fredrikburmester/5"]
 assignees:
   - fredrikburmester
-  
+
 body:
   - type: textarea
     id: what-happened
@@ -43,8 +43,9 @@ body:
     id: version
     attributes:
       label: Version
-      description:  What version of Streamyfin are you running?
+      description: What version of Streamyfin are you running?
       options:
+        - 0.23.0
         - 0.22.0
         - 0.21.0
         - older
@@ -54,6 +55,5 @@ body:
   - type: textarea
     id: screenshots
     attributes:
-      label: 
-        If applicable, please add screenshots to help explain your problem.  
+      label: If applicable, please add screenshots to help explain your problem.
         You can drag and drop images here or paste them directly into the comment box.
