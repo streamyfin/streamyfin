@@ -160,6 +160,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
           setJellyseerrUser(user);
           updateSettings({jellyseerrServerUrl})
         })
+        .catch(() => {
+          toast.error("Failed to login to jellyseerr!")
+        })
         .finally(() => {
           setJellyseerrPassword(undefined);
         })
@@ -725,6 +728,8 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
                 <Text className="text-xs opacity-50">
                   Set the URL for your jellyseerr instance.
                 </Text>
+                <Text className="text-xs text-gray-600">Example: http(s)://your-host.url</Text>
+                <Text className="text-xs text-gray-600 mb-1">(add port if required)</Text>
                 <Text className="text-xs text-red-600">This integration is in its early stages. Expect things to change.</Text>
               </View>
               <Input
