@@ -105,7 +105,7 @@ export class JellyseerrApi {
           }
 
           console.log("Jellyseerr connecting successfully tested!");
-          storage.setAny(JELLYSEERR_COOKIES, headers["set-cookie"]?.flatMap(c => c.split("; ")));
+          storage.setAny(JELLYSEERR_COOKIES, headers["set-cookie"]?.flatMap(c => c.split("; ")) ?? []);
           return {
             isValid: true,
             requiresPass: true
@@ -243,7 +243,7 @@ export class JellyseerrApi {
     this.axios.interceptors.request.use(
       async (config) => {
         const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
-        if (config.method !== "head" && cookies) {
+        if (cookies) {
           const headerName = this.axios.defaults.xsrfHeaderName!!;
           const xsrfToken = cookies
             .find(c => c.includes(headerName))
