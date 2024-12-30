@@ -481,7 +481,7 @@ export default function search() {
               ))}
             </View>
           ) : debouncedSearch.length === 0 && searchType === 'Discover' ? (
-            <View className="mt-4 flex flex-col space-y-2 px-2">
+            <View className="flex flex-col px-4">
               {sortBy?.(jellyseerrDiscoverSettings?.filter(s => s.enabled), 'order')
                 .map((slide) => <DiscoverSlide key={slide.id} slide={slide}/>)
               }
