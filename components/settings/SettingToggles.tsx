@@ -21,9 +21,8 @@ import * as BackgroundFetch from "expo-background-fetch";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import { useAtom } from "jotai";
-import React, {useCallback, useEffect, useState} from "react";
+import React, {useCallback, useEffect, useRef, useState} from "react";
 import {
-  Alert,
   Linking,
   Switch,
   TouchableOpacity,
@@ -59,7 +58,10 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
+  const jellyseerrPassInputRef = useRef(null);
   const [marlinUrl, setMarlinUrl] = useState<string>("");
+  const [promptForJellyseerrPass, setPromptForJellyseerrPass] = useState<boolean>(false);
+  const [isJellyseerrLoading, setIsLoadingJellyseerr] = useState<boolean>(false);
   const [jellyseerrPassword, setJellyseerrPassword] = useState<string | undefined>(undefined);
   const [optimizedVersionsServerUrl, setOptimizedVersionsServerUrl] =
     useState<string>(settings?.optimizedVersionsServerUrl || "");
@@ -121,39 +123,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
     staleTime: 0,
   });
 
-  const promptForJellyseerrLogin = useCallback(() =>
-    Alert.prompt(
-      'Enter jellyfin password',
-      `Enter password for jellyfin user ${user?.Name}`,
-      (input) => setJellyseerrPassword(input),
-      'secure-text'
-    ),
-    [user, setJellyseerrPassword]
-  );
-
-  const testJellyseerrServerUrl = useCallback(async () => {
-    if (!jellyseerrServerUrl || jellyseerrApi)
-      return;
-
-    const jellyseerrTempApi = new JellyseerrApi(jellyseerrServerUrl);
-
-    jellyseerrTempApi.test().then(result => {
-      if (result.isValid) {
-
-        if (result.requiresPass)
-          promptForJellyseerrLogin()
-        else
-          updateSettings({jellyseerrServerUrl})
-      }
-      else {
-        setjellyseerrServerUrl(undefined);
-        clearAllJellyseerData();
-      }
-    })
-  }, [jellyseerrServerUrl])
-
-  useEffect(() => {
+  const loginToJellyseerr = useCallback(() => {
     if (jellyseerrServerUrl && user?.Name && jellyseerrPassword) {
+      setIsLoadingJellyseerr(true)
       const jellyseerrTempApi = new JellyseerrApi(jellyseerrServerUrl);
       jellyseerrTempApi.login(user?.Name, jellyseerrPassword)
         .then(user => {
@@ -165,9 +137,34 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
         })
         .finally(() => {
           setJellyseerrPassword(undefined);
+          setPromptForJellyseerrPass(false)
+          setIsLoadingJellyseerr(false)
         })
     }
   }, [user, jellyseerrServerUrl, jellyseerrPassword]);
+
+  const testJellyseerrServerUrl = useCallback(async () => {
+    if (!jellyseerrServerUrl || jellyseerrApi)
+      return;
+
+    setIsLoadingJellyseerr(true)
+    const jellyseerrTempApi = new JellyseerrApi(jellyseerrServerUrl);
+
+    jellyseerrTempApi.test().then(result => {
+      if (result.isValid) {
+        if (result.requiresPass)
+          setPromptForJellyseerrPass(true)
+          // promptForJellyseerrLogin()
+        else
+          updateSettings({jellyseerrServerUrl})
+      }
+      else {
+        setPromptForJellyseerrPass(false)
+        setjellyseerrServerUrl(undefined);
+        clearAllJellyseerData();
+      }
+    }).finally(() => setIsLoadingJellyseerr(false))
+  }, [jellyseerrServerUrl])
 
   if (!settings) return null;
 
@@ -697,7 +694,7 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
 
       <View className="mt-4">
         <Text className="text-lg font-bold mb-2">Jellyseerr</Text>
-        <View className="flex flex-col rounded-xl overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
+        <View className="flex flex-col rounded-xl overflow-hidden divide-y-2 divide-solid divide-neutral-800">
           {jellyseerrUser && <>
               <View className="flex flex-col overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
                   <ListItem title="Total media requests" subTitle={jellyseerrUser?.requestCount?.toString()}/>
@@ -718,7 +715,7 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
                 : "opacity-50"
             }`}
           >
-            <View className="flex flex-col bg-neutral-900 px-4 py-4">
+            <View className="flex flex-col bg-neutral-900 px-4 py-4 space-y-2">
               <View className="flex flex-col shrink mb-2">
                 <View className="flex flex-row justify-between items-center">
                   <Text className="font-semibold">
@@ -741,17 +738,49 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
                 textContentType="URL"
                 onChangeText={setjellyseerrServerUrl}
               />
+
+              {promptForJellyseerrPass &&
+                <Input
+                  autoFocus={true}
+                  focusable={true}
+                  placeholder={`Enter password for jellyfin user ${user?.Name}`}
+                  value={jellyseerrPassword}
+                  keyboardType="default"
+                  secureTextEntry={true}
+                  returnKeyType="done"
+                  autoCapitalize="none"
+                  textContentType="password"
+                  onChangeText={setJellyseerrPassword}
+                />
+              }
             </View>
           </View>
+          {isJellyseerrLoading &&
+              <Loader className="rounded-xl overflow-hidden w-full h-full bg-neutral-700/10 absolute"/>
+          }
           <Button
             color="purple"
             className="h-12 mt-2"
-            onPress={() => jellyseerrUser
-              ? clearAllJellyseerData().finally(() => setjellyseerrServerUrl(undefined))
-              : testJellyseerrServerUrl()
+            onPress={() =>
+              jellyseerrUser
+                ? clearAllJellyseerData().finally(() => {
+                  setjellyseerrServerUrl(undefined)
+                  setPromptForJellyseerrPass(false)
+                  setIsLoadingJellyseerr(false)
+                })
+                :
+                promptForJellyseerrPass
+                  ? loginToJellyseerr()
+                  : testJellyseerrServerUrl()
             }
           >
-            {jellyseerrUser ? "Clear jellyseerr data" : "Save"}
+            {jellyseerrUser
+              ? "Clear jellyseerr data"
+              :
+            promptForJellyseerrPass
+              ? "Login"
+              : "Save"
+            }
           </Button>
         </View>
       </View>
