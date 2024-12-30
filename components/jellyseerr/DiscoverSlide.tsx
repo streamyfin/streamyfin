@@ -52,7 +52,7 @@ const DiscoverSlide: React.FC<Props> = ({slide}) => {
 
   return (
     (flatData && flatData?.length > 0) && <>
-      <Text className="font-bold text-lg mb-2">{DiscoverSliderType[slide.type].toString().toTitle()}</Text>
+      <Text className="mt-4 font-bold text-lg mb-2">{DiscoverSliderType[slide.type].toString().toTitle()}</Text>
       <FlashList
         horizontal
         showsHorizontalScrollIndicator={false}
