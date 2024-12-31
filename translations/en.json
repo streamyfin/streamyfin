@@ -28,7 +28,88 @@
     "suggested_movies": "Suggested Movies",
     "suggested_episodes": "Suggested Episodes",
     "settings": {
-      "settings_title": "Settings"
+      "settings_title": "Settings",
+      "user_info": "User Info",
+      "user": "User",
+      "server": "Server",
+      "token": "Token",
+      "log_out": "Log out",
+      "quick_connect": "Quick connect",
+      "authorize": "Authorize",
+      "media":{
+        "media_title": "Media",
+        "forward_skip_length": "Forward skip length",
+        "forward_skip_length_hint": "Choose length in seconds when skipping in video playback.",
+        "rewind_length": "Rewind length",
+        "rewind_length_hint": "Choose length in seconds when skipping in video playback." 
+      },
+      "audio": {
+        "audio_title": "Audio",
+        "audio_language": "Audio language",
+        "audio_language_hint": "Choose a default audio language.",
+        "use_default_audio": "Use Default Audio",
+        "use_default_audio_hint": "Play default audio track regardless of language.",
+        "set_audio_track": "Set Audio Track From Previous Item",
+        "set_audio_track_hint": "Try to set the audio track to the closest match to the last\nvideo."
+      },
+      "subtitles": {
+        "subtitle_title": "Subtitle",
+        "subtitle_language": "Subtitle language",
+        "subtitle_language_hint": "Choose a default subtitle language.",
+        "subtitle_mode": "Subtitle Mode",
+        "subtitle_mode_hint": "Subtitles are loaded based on the default and forced flags in the\nembedded metadata. Language preferences are considered when\nmultiple options are available.",
+        "set_subtitle_track": "Try to set the subtitle track to the closest match to the last\nvideo.",
+        "subtitle_size": "Subtitle Size",
+        "subtitle_size_hint": "Choose a default subtitle size for direct play (only works for\nsome subtitle formats)."
+      },
+      "other": {
+        "other_title": "Other",
+        "auto_rotate": "Auto rotate",
+        "auto_rotate_hint": "Important on android since the video player orientation is\nlocked to the app orientation.",
+        "video_orientation": "Video orientation",
+        "video_orientation_hint": "Set the full screen video player orientation",
+        "safe_area_in_controls": "Safe area in controls",
+        "safe_area_in_controls_hint": "Enable safe area in video player controls",
+        "use_popular_lists_plugin": "Use popular lists plugin",
+        "use_popular_lists_plugin_hint": "Made by: lostb1t",
+        "more_info": "More info",
+        "search_engine": "Search engine",
+        "search_engine_hint": "Choose the search engine you want to use.",
+        "show_custom_menu_links": "Show Custom Menu Links",
+        "show_custom_menu_links_hint": "Show custom menu links defined inside your Jellyfin web\nconfig.json file"
+      },
+      "downloads": {
+        "downloads_title": "Downloads",
+        "download_method": "Download method",
+        "download_method_hint": "Choose the download method to use. Optimized requires the\noptimized server.",
+        "remux_max_download": "Remux max download",
+        "remux_max_download_hint": "This is the total media you want to be able to download at the\nsame time.",
+        "auto_download": "Auto download",
+        "auto_download_hint": "This will automatically download the media file when it's\nfinished optimizing on the server.",
+        "optimized_versions_server": "Optimized versions server",
+        "optimized_versions_server_hint": "TSet the URL for the optimized versions server for downloads."
+      },
+      "jellyseer": {
+        "jellyseer_warning": "This integration is in its early stages. Expect things to change.",
+        "server_url": "Server URL",
+        "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
+        "server_url_placeholder": "Jellyseerr URL...",
+        "password": "Password",
+        "password_placeholder": "Enter password for Jellyfin user {{username}}"
+      },
+      "storage": {
+        "storage_title": "Storage",
+        "app_usage": "App usage: {{usedSpace}}",
+        "available_total": "Available: {{availableSpace}}, Total: {{totalSpace}}",
+        "delete_all_downloaded_files": "Delete all downloaded files",
+        "delete_all_logs": "Delete all logs"
+      },
+      "logs": {
+        "logs_title": "Logs",
+        "no_logs_available": "No logs available"
+      },
+      "save_button": "Save",
+      "login_button": "Login"
     },
     "downloads": {
       "downloads_title": "Downloads",
