@@ -30,7 +30,10 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
 
-  const seasonIndex = seasonIndexState[item.Id ?? ""];
+  const seasonIndex = useMemo(
+    () => seasonIndexState[item.Id ?? ""],
+    [item, seasonIndexState]
+  );
 
   const { data: seasons } = useQuery({
     queryKey: ["seasons", item.Id],
@@ -53,19 +56,28 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
 
       return response.data.Items;
     },
+    staleTime: 60,
     enabled: !!api && !!user?.Id && !!item.Id,
   });
 
-  const selectedSeasonId: string | null = useMemo(
-    () =>
-      seasons?.find((season: any) => season.IndexNumber === seasonIndex)?.Id,
-    [seasons, seasonIndex]
-  );
+  const selectedSeasonId: string | null = useMemo(() => {
+    const season: BaseItemDto = seasons?.find(
+      (s: BaseItemDto) =>
+        s.IndexNumber === seasonIndex || s.Name === seasonIndex
+    );
+
+    if (!season?.Id) return null;
+
+    return season.Id!;
+  }, [seasons, seasonIndex]);
 
   const { data: episodes, isFetching } = useQuery({
     queryKey: ["episodes", item.Id, selectedSeasonId],
     queryFn: async () => {
-      if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
+      if (!api || !user?.Id || !item.Id || !selectedSeasonId) {
+        return [];
+      }
+
       const res = await getTvShowsApi(api).getEpisodes({
         seriesId: item.Id,
         userId: user.Id,
@@ -73,6 +85,12 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         enableUserData: true,
         fields: ["MediaSources", "MediaStreams", "Overview"],
       });
+
+      if (res.data.TotalRecordCount === 0)
+        console.warn(
+          "No episodes found for season with ID ~",
+          selectedSeasonId
+        );
 
       return res.data.Items;
     },
@@ -118,25 +136,28 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
           seasons={seasons}
           state={seasonIndexState}
           onSelect={(season) => {
+            if (!item.Id) return;
             setSeasonIndexState((prev) => ({
               ...prev,
-              [item.Id ?? ""]: season.IndexNumber,
+              [item.Id!]: season.IndexNumber ?? season.Name,
             }));
           }}
         />
-        <DownloadItems
-          title="Download Season"
-          className="ml-2"
-          items={episodes || []}
-          MissingDownloadIconComponent={() => (
-            <Ionicons name="download" size={20} color="white" />
-          )}
-          DownloadedIconComponent={() => (
-            <Ionicons name="download" size={20} color="#9333ea" />
-          )}
-        />
+        {episodes?.length || 0 > 0 ? (
+          <DownloadItems
+            title="Download Season"
+            className="ml-2"
+            items={episodes || []}
+            MissingDownloadIconComponent={() => (
+              <Ionicons name="download" size={20} color="white" />
+            )}
+            DownloadedIconComponent={() => (
+              <Ionicons name="download" size={20} color="#9333ea" />
+            )}
+          />
+        ) : null}
       </View>
-      <View className="px-4 flex flex-col my-4">
+      <View className="px-4 flex flex-col mt-4">
         {isFetching ? (
           <View
             style={{
@@ -186,6 +207,13 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             </TouchableItemRouter>
           ))
         )}
+        {(episodes?.length || 0) === 0 ? (
+          <View className="flex flex-col">
+            <Text className="text-neutral-500">
+              No episodes for this season
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );

@@ -35,7 +35,6 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
         },
         (finished) => {
           if (finished && onFinish) {
-            console.log("finish");
             runOnJS(onFinish)();
           }
         }

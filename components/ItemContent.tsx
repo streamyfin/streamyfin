@@ -68,7 +68,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
 
     // Needs to automatically change the selected to the default values for default indexes.
     useEffect(() => {
-      console.log(defaultAudioIndex, defaultSubtitleIndex);
       setSelectedOptions(() => ({
         bitrate: defaultBitrate,
         mediaSource: defaultMediaSource,
@@ -220,7 +219,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     className="mr-1"
                     source={selectedOptions.mediaSource}
                     onChange={(val) => {
-                      console.log(val);
                       setSelectedOptions(
                         (prev) =>
                           prev && {

@@ -240,8 +240,6 @@ export const Controls: React.FC<Props> = ({
         ? maxValue - currentProgress
         : ticksToSeconds(maxValue - currentProgress);
 
-      console.log("remaining: ", remaining);
-
       setCurrentTime(current);
       setRemainingTime(remaining);
     },
@@ -349,7 +347,6 @@ export const Controls: React.FC<Props> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const curr = progress.value;
-      console.log(curr);
       if (curr !== undefined) {
         const newTime = isVlc
           ? curr + secondsToMs(settings.forwardSkipTime)
@@ -374,8 +371,6 @@ export const Controls: React.FC<Props> = ({
     const { x, y, url } = trickPlayUrl;
     const tileWidth = 150;
     const tileHeight = 150 / trickplayInfo.aspectRatio!;
-
-    console.log("time, ", time);
 
     return (
       <View

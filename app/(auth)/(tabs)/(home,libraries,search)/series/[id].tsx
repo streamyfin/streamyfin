@@ -1,8 +1,11 @@
 import { Text } from "@/components/common/Text";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { Ratings } from "@/components/Ratings";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
+import { SeriesActions } from "@/components/series/SeriesActions";
+import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -70,6 +73,7 @@ const page: React.FC = () => {
       });
       return res?.data.Items || [];
     },
+    staleTime: 60,
     enabled: !!api && !!user?.Id && !!item?.Id,
   });
 
@@ -133,10 +137,7 @@ const page: React.FC = () => {
       }
     >
       <View className="flex flex-col pt-4">
-        <View className="px-4 py-4">
-          <Text className="text-3xl font-bold">{item?.Name}</Text>
-          <Text className="">{item?.Overview}</Text>
-        </View>
+        <SeriesHeader item={item} />
         <View className="mb-4">
           <NextUp seriesId={seriesId} />
         </View>

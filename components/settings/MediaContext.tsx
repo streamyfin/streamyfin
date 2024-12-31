@@ -57,8 +57,6 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
     updateSettings(update);
 
-    console.log("update", update);
-
     let updatePayload = {
       SubtitleMode: update?.subtitleMode ?? settings?.subtitleMode,
       PlayDefaultAudioTrack:
@@ -83,8 +81,6 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
         : update?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           "";
-
-    console.log("updatePayload", updatePayload);
 
     updateUserConfiguration(updatePayload);
   };

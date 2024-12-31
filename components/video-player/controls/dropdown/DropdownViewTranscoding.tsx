@@ -66,7 +66,6 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
 
       const sortedSubtitles = subtitleHelper.getSortedSubtitles(textSubtitles);
 
-      console.log("sortedSubtitles", sortedSubtitles);
       return [disableSubtitle, ...sortedSubtitles];
     }
 
@@ -104,7 +103,6 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
 
   const ChangeTranscodingAudio = useCallback(
     (audioIndex: number) => {
-      console.log("ChangeTranscodingAudio", subtitleIndex, audioIndex);
       const queryParams = new URLSearchParams({
         itemId: item.Id ?? "", // Ensure itemId is a string
         audioIndex: audioIndex?.toString() ?? "",
@@ -167,7 +165,6 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                     }
                     key={`subtitle-item-${idx}`}
                     onValueChange={() => {
-                      console.log("sub", sub);
                       if (
                         subtitleIndex ===
                         (isOnTextSubtitle && sub.IsTextSubtitleStream
@@ -216,7 +213,6 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
                   value={audioIndex === track.index.toString()}
                   onValueChange={() => {
                     if (audioIndex === track.index.toString()) return;
-                    console.log("Setting audio track to: ", track.index);
                     router.setParams({
                       audioIndex: track.index.toString(),
                     });

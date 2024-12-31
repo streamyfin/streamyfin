@@ -21,9 +21,8 @@ import * as BackgroundFetch from "expo-background-fetch";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import { useAtom } from "jotai";
-import React, {useCallback, useEffect, useState} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Linking,
   Switch,
   TouchableOpacity,
@@ -41,31 +40,22 @@ import { Stepper } from "@/components/inputs/Stepper";
 import { MediaProvider } from "./MediaContext";
 import { SubtitleToggles } from "./SubtitleToggles";
 import { AudioToggles } from "./AudioToggles";
-import {JellyseerrApi, useJellyseerr} from "@/hooks/useJellyseerr";
-import {ListItem} from "@/components/ListItem";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { ListItem } from "@/components/ListItem";
+import { JellyseerrSettings } from "./Jellyseerr";
 
 interface Props extends ViewProps {}
 
 export const SettingToggles: React.FC<Props> = ({ ...props }) => {
   const [settings, updateSettings] = useSettings();
   const { setProcesses } = useDownload();
-  const {
-    jellyseerrApi,
-    jellyseerrUser,
-    setJellyseerrUser ,
-    clearAllJellyseerData
-  } = useJellyseerr();
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
   const [marlinUrl, setMarlinUrl] = useState<string>("");
-  const [jellyseerrPassword, setJellyseerrPassword] = useState<string | undefined>(undefined);
   const [optimizedVersionsServerUrl, setOptimizedVersionsServerUrl] =
     useState<string>(settings?.optimizedVersionsServerUrl || "");
-
-  const [jellyseerrServerUrl, setjellyseerrServerUrl] =
-    useState<string | undefined>(settings?.jellyseerrServerUrl || undefined);
 
   const queryClient = useQueryClient();
 
@@ -120,54 +110,6 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
     enabled: !!api && !!user?.Id && settings?.usePopularPlugin === true,
     staleTime: 0,
   });
-
-  const promptForJellyseerrLogin = useCallback(() =>
-    Alert.prompt(
-      'Enter jellyfin password',
-      `Enter password for jellyfin user ${user?.Name}`,
-      (input) => setJellyseerrPassword(input),
-      'secure-text'
-    ),
-    [user, setJellyseerrPassword]
-  );
-
-  const testJellyseerrServerUrl = useCallback(async () => {
-    if (!jellyseerrServerUrl || jellyseerrApi)
-      return;
-
-    const jellyseerrTempApi = new JellyseerrApi(jellyseerrServerUrl);
-
-    jellyseerrTempApi.test().then(result => {
-      if (result.isValid) {
-
-        if (result.requiresPass)
-          promptForJellyseerrLogin()
-        else
-          updateSettings({jellyseerrServerUrl})
-      }
-      else {
-        setjellyseerrServerUrl(undefined);
-        clearAllJellyseerData();
-      }
-    })
-  }, [jellyseerrServerUrl])
-
-  useEffect(() => {
-    if (jellyseerrServerUrl && user?.Name && jellyseerrPassword) {
-      const jellyseerrTempApi = new JellyseerrApi(jellyseerrServerUrl);
-      jellyseerrTempApi.login(user?.Name, jellyseerrPassword)
-        .then(user => {
-          setJellyseerrUser(user);
-          updateSettings({jellyseerrServerUrl})
-        })
-        .catch(() => {
-          toast.error("Failed to login to jellyseerr!")
-        })
-        .finally(() => {
-          setJellyseerrPassword(undefined);
-        })
-    }
-  }, [user, jellyseerrServerUrl, jellyseerrPassword]);
 
   if (!settings) return null;
 
@@ -695,66 +637,7 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
         </View>
       </View>
 
-      <View className="mt-4">
-        <Text className="text-lg font-bold mb-2">Jellyseerr</Text>
-        <View className="flex flex-col rounded-xl overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
-          {jellyseerrUser && <>
-              <View className="flex flex-col overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
-                  <ListItem title="Total media requests" subTitle={jellyseerrUser?.requestCount?.toString()}/>
-                  <ListItem title="Movie quota limit" subTitle={jellyseerrUser?.movieQuotaLimit?.toString() ?? "Unlimited"}/>
-                  <ListItem title="Movie quota days" subTitle={jellyseerrUser?.movieQuotaDays?.toString() ?? "Unlimited"}/>
-                  <ListItem title="TV quota limit" subTitle={jellyseerrUser?.tvQuotaLimit?.toString() ?? "Unlimited"}/>
-                  <ListItem title="TV quota days" subTitle={jellyseerrUser?.tvQuotaDays?.toString() ?? "Unlimited"}/>
-              </View>
-          </>}
-          <View
-            pointerEvents={
-              !jellyseerrUser || jellyseerrPassword ? "auto" : "none"
-            }
-            className={`
-              ${
-              !jellyseerrUser || jellyseerrPassword
-                ? "opacity-100"
-                : "opacity-50"
-            }`}
-          >
-            <View className="flex flex-col bg-neutral-900 px-4 py-4">
-              <View className="flex flex-col shrink mb-2">
-                <View className="flex flex-row justify-between items-center">
-                  <Text className="font-semibold">
-                    Server URL
-                  </Text>
-                </View>
-                <Text className="text-xs opacity-50">
-                  Set the URL for your jellyseerr instance.
-                </Text>
-                <Text className="text-xs text-gray-600">Example: http(s)://your-host.url</Text>
-                <Text className="text-xs text-gray-600 mb-1">(add port if required)</Text>
-                <Text className="text-xs text-red-600">This integration is in its early stages. Expect things to change.</Text>
-              </View>
-              <Input
-                placeholder="Jellyseerrs server URL..."
-                value={settings?.jellyseerrServerUrl ?? jellyseerrServerUrl}
-                keyboardType="url"
-                returnKeyType="done"
-                autoCapitalize="none"
-                textContentType="URL"
-                onChangeText={setjellyseerrServerUrl}
-              />
-            </View>
-          </View>
-          <Button
-            color="purple"
-            className="h-12 mt-2"
-            onPress={() => jellyseerrUser
-              ? clearAllJellyseerData().finally(() => setjellyseerrServerUrl(undefined))
-              : testJellyseerrServerUrl()
-            }
-          >
-            {jellyseerrUser ? "Clear jellyseerr data" : "Save"}
-          </Button>
-        </View>
-      </View>
+      <JellyseerrSettings />
     </View>
   );
 };

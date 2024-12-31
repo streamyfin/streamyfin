@@ -14,7 +14,6 @@ const BrightnessSlider = () => {
   useEffect(() => {
     const fetchInitialBrightness = async () => {
       const initialBrightness = await Brightness.getBrightnessAsync();
-      console.log("initialBrightness", initialBrightness);
       brightness.value = initialBrightness * 100;
     };
     fetchInitialBrightness();

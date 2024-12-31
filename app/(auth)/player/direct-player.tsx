@@ -282,13 +282,6 @@ export default function page() {
 
       if (!item?.Id || !stream) return;
 
-      console.log(
-        "onProgress ~",
-        currentTimeInTicks,
-        isPlaying,
-        `AUDIO index: ${audioIndex} SUB index" ${subtitleIndex}`
-      );
-
       await getPlaystateApi(api!).onPlaybackProgress({
         itemId: item.Id,
         audioStreamIndex: audioIndex ? audioIndex : undefined,

@@ -15,10 +15,10 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
 
 - 🚀 **Skp intro / credits support**
 - 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking.
-- 📺 **Picture in Picture** (iPhone only): Watch movies in PiP mode on your iPhone.
 - 🔊 **Background audio**: Stream music in the background, even when locking the phone.
 - 📥 **Download media** (Experimental): Save your media locally and watch it offline.
 - 📡 **Chromecast** (Experimental): Cast your media to any Chromecast-enabled device.
+- 🤖 **Jellyseerr integration**: Request media directly in the app.
 
 ## 🧪 Experimental Features
 
@@ -70,11 +70,9 @@ Or download the APKs [here on GitHub](https://github.com/fredrikburmester/stream
 
 ### Beta testing
 
-Get the latest updates by using the TestFlight version of the app.
+To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where i'll post APKs and IPAs. This won't give automatic access to the TestFlight however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
 
-<a href="https://testflight.apple.com/join/CWBaAAK2">
-  <img height=75 alt="Get the beta on TestFlight" src="./assets/Get_the_beta_on_Testflight.svg"/>
-</a>
+ **Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
 
 ## 🚀 Getting Started
 
@@ -89,36 +87,10 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 
 ### Development info
 
-1. Use node `20`
-2. Install dependencies `bun i`
-3. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`.
-
-## Extended chromecast controls
-
-Add this to AppDelegate.mm:
-
-```
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
-{
-// @generated begin react-native-google-cast-didFinishLaunchingWithOptions - expo prebuild (DO NOT MODIFY) sync-8901be60b982d2ae9c658b1e8c50634d61bb5091
-#if __has_include(<GoogleCast/GoogleCast.h>)
-...
-
-[GCKCastContext sharedInstance].useDefaultExpandedMediaControls = true;`
-#endif
-```
-
-Add this to Info.plist:
-
-```
-<key>NSBonjourServices</key>
-<array>
-  <string>_googlecast._tcp</string>
-  <string>_CC1AD845._googlecast._tcp</string>
-</array>
-<key>NSLocalNetworkUsageDescription</key>
-<string>${PRODUCT_NAME} uses the local network to discover Cast-enabled devices on your WiFi network.</string>
-```
+1. Use node `>20`
+2. Install dependencies `bun i && bun run submodule-reload`
+3. Make sure you have xcode and/or android studio installed.
+4. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`. This will open a simulator on you computer and run the app.
 
 ## 📄 License
 
@@ -153,6 +125,7 @@ I'd like to thank the following people and projects for their contributions to S
 
 - [Reiverr](https://github.com/aleksilassila/reiverr) for great help with understanding the Jellyfin API.
 - [Jellyfin TS SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) for the TypeScript SDK.
+- [Jellyseerr](https://github.com/Fallenbagel/jellyseerr) for enabling API integration with their project.
 - The Jellyfin devs for always being helpful in the Discord.
 
 ## Star History

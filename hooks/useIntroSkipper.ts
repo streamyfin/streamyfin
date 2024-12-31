@@ -76,7 +76,6 @@ export const useIntroSkipper = (
   }, [introTimestamps, currentTime]);
 
   const skipIntro = useCallback(() => {
-    console.log("skipIntro");
     if (!introTimestamps) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
