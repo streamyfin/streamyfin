@@ -16,9 +16,11 @@ import {DownloadSize} from "@/components/downloads/DownloadSize";
 import {BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomSheetView} from "@gorhom/bottom-sheet";
 import {toast} from "sonner-native";
 import {writeToLog} from "@/utils/log";
+import { useTranslation } from "react-i18next";
 
 export default function page() {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
   const { removeProcess, downloadedFiles, deleteFileByType } = useDownload();
   const router = useRouter();
@@ -92,9 +94,9 @@ export default function page() {
           <View className="mb-4 flex flex-col space-y-4 px-4">
             {settings?.downloadMethod === "remux" && (
               <View className="bg-neutral-900 p-4 rounded-2xl">
-                <Text className="text-lg font-bold">Queue</Text>
+                <Text className="text-lg font-bold">{t("home.downloads.queue")}</Text>
                 <Text className="text-xs opacity-70 text-red-600">
-                  Queue and downloads will be lost on app restart
+                  {t("home.downloads.queue_hint")}
                 </Text>
                 <View className="flex flex-col space-y-2 mt-2">
                   {queue.map((q, index) => (
@@ -125,7 +127,7 @@ export default function page() {
                 </View>
 
                 {queue.length === 0 && (
-                  <Text className="opacity-50">No items in queue</Text>
+                  <Text className="opacity-50">{t("home.downloads.no_items_in_queue")}</Text>
                 )}
               </View>
             )}
@@ -136,7 +138,7 @@ export default function page() {
           {movies.length > 0 && (
             <View className="mb-4">
               <View className="flex flex-row items-center justify-between mb-2 px-4">
-                <Text className="text-lg font-bold">Movies</Text>
+                <Text className="text-lg font-bold">{t("home.downloads.movies")}</Text>
                 <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
                   <Text className="text-xs font-bold">{movies?.length}</Text>
                 </View>
@@ -155,7 +157,7 @@ export default function page() {
           {groupedBySeries.length > 0 && (
             <View className="mb-4">
               <View className="flex flex-row items-center justify-between mb-2 px-4">
-                <Text className="text-lg font-bold">TV-Series</Text>
+                <Text className="text-lg font-bold">{t("home.downloads.tvseries")}</Text>
                 <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
                   <Text className="text-xs font-bold">{groupedBySeries?.length}</Text>
                 </View>
@@ -176,7 +178,7 @@ export default function page() {
           )}
           {downloadedFiles?.length === 0 && (
             <View className="flex px-4">
-              <Text className="opacity-50">No downloaded items</Text>
+              <Text className="opacity-50">{t("home.downloads.no_downloaded_items")}</Text>
             </View>
           )}
         </View>
@@ -200,9 +202,9 @@ export default function page() {
       >
         <BottomSheetView>
           <View className="p-4 space-y-4 mb-4">
-            <Button color="purple" onPress={deleteMovies}>Delete all Movies</Button>
-            <Button color="purple" onPress={deleteShows}>Delete all TV-Series</Button>
-            <Button color="red" onPress={deleteAllMedia}>Delete all</Button>
+            <Button color="purple" onPress={deleteMovies}>{t("home.downloads.delete_all_movies_button")}</Button>
+            <Button color="purple" onPress={deleteShows}>{t("home.downloads.delete_all_tvseries_button")}</Button>
+            <Button color="red" onPress={deleteAllMedia}>{t("home.downloads.delete_all_button")}</Button>
           </View>
         </BottomSheetView>
       </BottomSheetModal>

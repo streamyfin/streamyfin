@@ -26,7 +26,26 @@
     "nextUp": "À suivre",
     "recentlyAddedIn": "Ajoutés récemment dans {{libraryName}}",
     "suggestedMovies": "Films suggérés",
-    "suggestedEpisodes": "Épisodes suggérés"
+    "suggestedEpisodes": "Épisodes suggérés",
+    "settings": {
+      "settings_title": "Paramètres"
+    },
+    "downloads": {
+      "downloads_title": "Téléchargements",
+      "tvseries": "Séries TV",
+      "movies": "Films",
+      "queue": "File d'attente",
+      "queue_hint": "La file d'attente et les téléchargements seront perdus au redémarrage de l'application",
+      "no_items_in_queue": "Aucun item dans la file d'attente",
+      "no_downloaded_items": "Aucun item téléchargé",
+      "delete_all_movies_button": "Supprimer tous les films",
+      "delete_all_tvseries_button": "Supprimer toutes les séries",
+      "delete_all_button": "Supprimer tout",
+      "active_download": "Téléchargement actif",
+      "no_active_downloads": "Aucun téléchargements actifs",
+      "active_downloads": "Téléchargements actifs",
+      "toasts": {}
+    }
   },
   "search": {
     "search_title": "Recherche",

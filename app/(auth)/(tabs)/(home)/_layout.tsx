@@ -36,19 +36,19 @@ export default function IndexLayout() {
       <Stack.Screen
         name="downloads/index"
         options={{
-          title: "Downloads",
+          title: t("home.downloads.downloads_title"),
         }}
       />
       <Stack.Screen
         name="downloads/[seriesId]"
         options={{
-          title: "TV-Series",
+          title: t("home.downloads.tvseries"),
         }}
       />
       <Stack.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: t("home.settings.settings_title"),
         }}
       />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
