@@ -21,14 +21,11 @@ import {
 } from "react-native";
 
 import { z } from "zod";
-
-const { t, i18n } = useTranslation();
-
 const CredentialsSchema = z.object({
-  username: z.string().min(1, t("login.username_required")),
-});
+  username: z.string().min(1, "Username is required"),});
 
 const Login: React.FC = () => {
+  const { t } = useTranslation();
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
   const [api] = useAtom(apiAtom);
