@@ -44,9 +44,9 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
 
   return (
     <View>
-      <Text className="text-lg font-bold mb-2 px-4">Next up</Text>
+      <Text className="text-lg font-bold px-4 mb-2">Next up</Text>
       <FlashList
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ paddingLeft: 16 }}
         horizontal
         estimatedItemSize={172}
         showsHorizontalScrollIndicator={false}
