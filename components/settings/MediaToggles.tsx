@@ -1,17 +1,19 @@
 import { useSettings } from "@/utils/atoms/settings";
 import { TouchableOpacity, View, ViewProps } from "react-native";
 import { Text } from "../common/Text";
+import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {}
 
 export const MediaToggles: React.FC<Props> = ({ ...props }) => {
   const [settings, updateSettings] = useSettings();
+  const { t } = useTranslation();
 
   if (!settings) return null;
 
   return (
     <View>
-      <Text className="text-lg font-bold mb-2">Media</Text>
+      <Text className="text-lg font-bold mb-2">{t("home.settings.media.media_title")}</Text>
       <View className="flex flex-col rounded-xl mb-4 overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
         <View
           className={`
@@ -19,9 +21,9 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
             `}
         >
           <View className="flex flex-col shrink">
-            <Text className="font-semibold">Forward skip length</Text>
+            <Text className="font-semibold">{t("home.settings.media.forward_skip_length")}</Text>
             <Text className="text-xs opacity-50">
-              Choose length in seconds when skipping in video playback.
+              {t("home.settings.media.forward_skip_length_hint")}
             </Text>
           </View>
           <View className="flex flex-row items-center">
@@ -57,9 +59,9 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
             `}
         >
           <View className="flex flex-col shrink">
-            <Text className="font-semibold">Rewind length</Text>
+            <Text className="font-semibold">{t("home.settings.media.rewind_length")}</Text>
             <Text className="text-xs opacity-50">
-              Choose length in seconds when skipping in video playback.
+              {t("home.settings.media.rewind_length_hint")}
             </Text>
           </View>
           <View className="flex flex-row items-center">

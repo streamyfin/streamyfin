@@ -14,6 +14,7 @@ import { Alert, ScrollView, View } from "react-native";
 import * as Progress from "react-native-progress";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { useTranslation } from "react-i18next";
 
 export default function settings() {
   const { logout } = useJellyfin();
@@ -24,6 +25,8 @@ export default function settings() {
   const [user] = useAtom(userAtom);
 
   const insets = useSafeAreaInsets();
+
+  const { t } = useTranslation();
 
   const { data: size, isLoading: appSizeLoading } = useQuery({
     queryKey: ["appSize", appSizeUsage],
@@ -98,31 +101,31 @@ export default function settings() {
           registerBackgroundFetchAsync
         </Button> */}
         <View>
-          <Text className="font-bold text-lg mb-2">User Info</Text>
+          <Text className="font-bold text-lg mb-2">{t("home.settings.user_info.user_info_title")}</Text>
 
           <View className="flex flex-col rounded-xl overflow-hidden border-neutral-800 divide-y-2 divide-solid divide-neutral-800 ">
-            <ListItem title="User" subTitle={user?.Name} />
-            <ListItem title="Server" subTitle={api?.basePath} />
-            <ListItem title="Token" subTitle={api?.accessToken} />
+            <ListItem title={t("home.settings.user_info.user")} subTitle={user?.Name} />
+            <ListItem title={t("home.settings.user_info.server")} subTitle={api?.basePath} />
+            <ListItem title={t("home.settings.user_info.token")} subTitle={api?.accessToken} />
           </View>
           <Button className="my-2.5" color="black" onPress={logout}>
-            Log out
+            {t("home.settings.user_info.log_out_button")}
           </Button>
         </View>
 
         <View>
-          <Text className="font-bold text-lg mb-2">Quick connect</Text>
+          <Text className="font-bold text-lg mb-2">{t("home.settings.quick_connect.quick_connect_title")}</Text>
           <Button onPress={openQuickConnectAuthCodeInput} color="black">
-            Authorize
+            {t("home.settings.quick_connect.authorize_button")}
           </Button>
         </View>
 
         <SettingToggles />
 
         <View className="flex flex-col space-y-2">
-          <Text className="font-bold text-lg mb-2">Storage</Text>
+          <Text className="font-bold text-lg mb-2">{t("home.settings.storage.storage_title")}</Text>
           <View className="mb-4 space-y-2">
-            {size && <Text>App usage: {size.app.bytesToReadable()}</Text>}
+            {size && <Text>{t("home.settings.storage.app_usage", {usedSpace: size.app.bytesToReadable()})}</Text>}
             <Progress.Bar
               className="bg-gray-100/10"
               indeterminate={appSizeLoading}
@@ -135,20 +138,20 @@ export default function settings() {
             />
             {size && (
               <Text>
-                Available: {size.remaining?.bytesToReadable()}, Total:{" "}
-                {size.total?.bytesToReadable()}
+                {t("home.settings.storage.available_total", {availableSpace: size.remaining?.bytesToReadable(), totalSpace: size.total?.bytesToReadable()})}
+                {}
               </Text>
             )}
           </View>
           <Button color="red" onPress={onDeleteClicked}>
-            Delete all downloaded files
+            {t("home.settings.storage.delete_all_downloaded_files")}
           </Button>
           <Button color="red" onPress={onClearLogsClicked}>
-            Delete all logs
+            {t("home.settings.storage.delete_all_logs")}
           </Button>
         </View>
         <View>
-          <Text className="font-bold text-lg mb-2">Logs</Text>
+          <Text className="font-bold text-lg mb-2">{t("home.settings.logs.logs_title")}</Text>
           <View className="flex flex-col space-y-2">
             {logs?.map((log, index) => (
               <View key={index} className="bg-neutral-900 rounded-xl p-3">
@@ -167,7 +170,7 @@ export default function settings() {
               </View>
             ))}
             {logs?.length === 0 && (
-              <Text className="opacity-50">No logs available</Text>
+              <Text className="opacity-50">{t("home.settings.logs.no_logs_available")}</Text>
             )}
           </View>
         </View>

@@ -11,6 +11,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useAtom } from "jotai";
 import { toast } from "sonner-native";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 export const JellyseerrSettings = () => {
   const {
@@ -19,6 +20,8 @@ export const JellyseerrSettings = () => {
     setJellyseerrUser,
     clearAllJellyseerData,
   } = useJellyseerr();
+
+  const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
   const [settings, updateSettings] = useSettings();
@@ -121,19 +124,16 @@ export const JellyseerrSettings = () => {
         ) : (
           <View className="flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900">
             <Text className="text-xs text-red-600 mb-2">
-              This integration is in its early stages. Expect things to change.
+              {t("home.settings.jellyseer.jellyseer_warning")}
             </Text>
-            <Text className="font-bold mb-1">Server URL</Text>
+            <Text className="font-bold mb-1">{t("home.settings.jellyseer.server_url")}</Text>
             <View className="flex flex-col shrink mb-2">
               <Text className="text-xs text-gray-600">
-                Example: http(s)://your-host.url
-              </Text>
-              <Text className="text-xs text-gray-600">
-                (add port if required)
+                {t("home.settings.jellyseer.server_url_hint")}
               </Text>
             </View>
             <Input
-              placeholder="Jellyseerr URL..."
+              placeholder={t("home.settings.jellyseer.server_url_placeholder")}
               value={settings?.jellyseerrServerUrl ?? jellyseerrServerUrl}
               defaultValue={
                 settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
@@ -163,7 +163,7 @@ export const JellyseerrSettings = () => {
                 marginBottom: 8,
               }}
             >
-              {promptForJellyseerrPass ? "Clear" : "Save"}
+              {promptForJellyseerrPass ? t("home.settings.jellyseer.clear_button") : t("home.settings.jellyseer.save_button")}
             </Button>
 
             <View
@@ -172,11 +172,11 @@ export const JellyseerrSettings = () => {
                 opacity: promptForJellyseerrPass ? 1 : 0.5,
               }}
             >
-              <Text className="font-bold mb-2">Password</Text>
+              <Text className="font-bold mb-2">{t("home.settings.jellyseer.password")}</Text>
               <Input
                 autoFocus={true}
                 focusable={true}
-                placeholder={`Enter password for Jellyfin user ${user?.Name}`}
+                placeholder={t("home.settings.jellyseer.password_placeholder", {username: user?.Name})}
                 value={jellyseerrPassword}
                 keyboardType="default"
                 secureTextEntry={true}
@@ -196,7 +196,7 @@ export const JellyseerrSettings = () => {
                 className="h-12 mt-2"
                 onPress={() => loginToJellyseerrMutation.mutate()}
               >
-                Login
+                {t("home.settings.jellyseer.login_button")}
               </Button>
             </View>
           </View>

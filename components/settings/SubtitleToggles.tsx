@@ -4,6 +4,7 @@ import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {}
 
@@ -11,6 +12,8 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const media = useMedia();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
+  const { t } = useTranslation();
+
   if (!settings) return null;
 
   const subtitleModes = [
@@ -23,7 +26,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
 
   return (
     <View>
-      <Text className="text-lg font-bold mb-2">Subtitle</Text>
+      <Text className="text-lg font-bold mb-2">{t("home.settings.subtitles.subtitle_title")}</Text>
       <View className="flex flex-col rounded-xl mb-4 overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
         <View
           className={`
@@ -31,9 +34,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             `}
         >
           <View className="flex flex-col shrink">
-            <Text className="font-semibold">Subtitle language</Text>
+            <Text className="font-semibold">{t("home.settings.subtitles.subtitle_language")}</Text>
             <Text className="text-xs opacity-50">
-              Choose a default subtitle language.
+              {t("home.settings.subtitles.subtitle_language_hint")}
             </Text>
           </View>
           <DropdownMenu.Root>
@@ -88,11 +91,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             `}
         >
           <View className="flex flex-col shrink">
-            <Text className="font-semibold">Subtitle Mode</Text>
+            <Text className="font-semibold">{t("home.settings.subtitles.subtitle_mode")}</Text>
             <Text className="text-xs opacity-50 mr-2">
-              Subtitles are loaded based on the default and forced flags in the
-              embedded metadata. Language preferences are considered when
-              multiple options are available.
+              {t("home.settings.subtitles.subtitle_mode_hint")}
             </Text>
           </View>
           <DropdownMenu.Root>
@@ -131,11 +132,10 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
             <View className="flex flex-col">
               <Text className="font-semibold">
-                Set Subtitle Track From Previous Item
+                {t("home.settings.subtitles.set_subtitle_track")}
               </Text>
               <Text className="text-xs opacity-50 min max-w-[85%]">
-                Try to set the subtitle track to the closest match to the last
-                video.
+                {t("home.settings.subtitles.set_subtitle_track_hint")}
               </Text>
             </View>
             <Switch
@@ -153,10 +153,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             `}
         >
           <View className="flex flex-col shrink">
-            <Text className="font-semibold">Subtitle Size</Text>
+            <Text className="font-semibold">{t("home.settings.subtitles.subtitle_size")}</Text>
             <Text className="text-xs opacity-50">
-              Choose a default subtitle size for direct play (only works for
-              some subtitle formats).
+              {t("home.settings.subtitles.subtitle_size_hint")}
             </Text>
           </View>
           <View className="flex flex-row items-center">

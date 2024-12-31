@@ -29,13 +29,16 @@
     "suggested_episodes": "Suggested Episodes",
     "settings": {
       "settings_title": "Settings",
-      "user_info": "User Info",
-      "user": "User",
-      "server": "Server",
-      "token": "Token",
-      "log_out": "Log out",
-      "quick_connect": "Quick connect",
-      "authorize": "Authorize",
+      "user_info": {
+        "user_info_title": "User Info",
+        "user": "User",
+        "server": "Server",
+        "log_out_button": "Log out"
+      },
+      "quick_connect": {
+        "quick_connect_title": "Quick connect",
+        "authorize_button": "Authorize"
+      },
       "media":{
         "media_title": "Media",
         "forward_skip_length": "Forward skip length",
@@ -58,14 +61,15 @@
         "subtitle_language_hint": "Choose a default subtitle language.",
         "subtitle_mode": "Subtitle Mode",
         "subtitle_mode_hint": "Subtitles are loaded based on the default and forced flags in the\nembedded metadata. Language preferences are considered when\nmultiple options are available.",
-        "set_subtitle_track": "Try to set the subtitle track to the closest match to the last\nvideo.",
+        "set_subtitle_track": "Set Subtitle Track From Previous Item",
+        "set_subtitle_track_hint" :"Try to set the subtitle track to the closest match to the last\nvideo.",
         "subtitle_size": "Subtitle Size",
         "subtitle_size_hint": "Choose a default subtitle size for direct play (only works for\nsome subtitle formats)."
       },
       "other": {
         "other_title": "Other",
         "auto_rotate": "Auto rotate",
-        "auto_rotate_hint": "Important on android since the video player orientation is\nlocked to the app orientation.",
+        "auto_rotate_hint": "Important on android since the video player orientation is locked to the app orientation.",
         "video_orientation": "Video orientation",
         "video_orientation_hint": "Set the full screen video player orientation",
         "safe_area_in_controls": "Safe area in controls",
@@ -76,18 +80,20 @@
         "search_engine": "Search engine",
         "search_engine_hint": "Choose the search engine you want to use.",
         "show_custom_menu_links": "Show Custom Menu Links",
-        "show_custom_menu_links_hint": "Show custom menu links defined inside your Jellyfin web\nconfig.json file"
+        "show_custom_menu_links_hint": "Show custom menu links defined inside your Jellyfin web config.json file",
+        "save_button": "Save"
       },
       "downloads": {
         "downloads_title": "Downloads",
         "download_method": "Download method",
-        "download_method_hint": "Choose the download method to use. Optimized requires the\noptimized server.",
+        "download_method_hint": "Choose the download method to use. Optimized requires the optimized server.",
         "remux_max_download": "Remux max download",
-        "remux_max_download_hint": "This is the total media you want to be able to download at the\nsame time.",
+        "remux_max_download_hint": "This is the total media you want to be able to download at the same time.",
         "auto_download": "Auto download",
-        "auto_download_hint": "This will automatically download the media file when it's\nfinished optimizing on the server.",
+        "auto_download_hint": "This will automatically download the media file when it's finished optimizing on the server.",
         "optimized_versions_server": "Optimized versions server",
-        "optimized_versions_server_hint": "TSet the URL for the optimized versions server for downloads."
+        "optimized_versions_server_hint": "Set the URL for the optimized versions server for downloads.",
+        "save_button": "Save"
       },
       "jellyseer": {
         "jellyseer_warning": "This integration is in its early stages. Expect things to change.",
@@ -95,7 +101,10 @@
         "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
         "server_url_placeholder": "Jellyseerr URL...",
         "password": "Password",
-        "password_placeholder": "Enter password for Jellyfin user {{username}}"
+        "password_placeholder": "Enter password for Jellyfin user {{username}}",
+        "save_button": "Save",
+        "clear_button": "Clear",
+        "login_button": "Login"
       },
       "storage": {
         "storage_title": "Storage",
@@ -107,9 +116,7 @@
       "logs": {
         "logs_title": "Logs",
         "no_logs_available": "No logs available"
-      },
-      "save_button": "Save",
-      "login_button": "Login"
+      }
     },
     "downloads": {
       "downloads_title": "Downloads",

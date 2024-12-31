@@ -3,6 +3,7 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
+import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {}
 
@@ -10,12 +11,13 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   const media = useMedia();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
+  const { t } = useTranslation();
 
   if (!settings) return null;
 
   return (
     <View>
-      <Text className="text-lg font-bold mb-2">Audio</Text>
+      <Text className="text-lg font-bold mb-2">{t("home.settings.audio.audio_title")}</Text>
       <View className="flex flex-col rounded-xl mb-4 overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
         <View
           className={`
@@ -23,9 +25,9 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             `}
         >
           <View className="flex flex-col shrink">
-            <Text className="font-semibold">Audio language</Text>
+            <Text className="font-semibold">{t("home.settings.audio.audio_language")}</Text>
             <Text className="text-xs opacity-50">
-              Choose a default audio language.
+              {t("home.settings.audio.audio_language_hint")}
             </Text>
           </View>
           <DropdownMenu.Root>
@@ -76,9 +78,9 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         <View className="flex flex-col">
           <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
             <View className="flex flex-col">
-              <Text className="font-semibold">Use Default Audio</Text>
+              <Text className="font-semibold">{t("home.settings.audio.use_default_audio")}</Text>
               <Text className="text-xs opacity-50">
-                Play default audio track regardless of language.
+                {t("home.settings.audio.use_default_audio_hint")}
               </Text>
             </View>
             <Switch
@@ -93,11 +95,10 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
           <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
             <View className="flex flex-col">
               <Text className="font-semibold">
-                Set Audio Track From Previous Item
+                {t("home.settings.audio.set_audio_track")}
               </Text>
               <Text className="text-xs opacity-50 min max-w-[85%]">
-                Try to set the audio track to the closest match to the last
-                video.
+                {t("home.settings.audio.set_audio_track_hint")}
               </Text>
             </View>
             <Switch
