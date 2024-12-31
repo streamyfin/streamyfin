@@ -10,7 +10,6 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -21,11 +20,11 @@ import {
 } from "react-native";
 
 import { z } from "zod";
+import { t } from 'i18next';
 const CredentialsSchema = z.object({
-  username: z.string().min(1, "Username is required"),});
+  username: z.string().min(1, t("login.username_required")),});
 
-const Login: React.FC = () => {
-  const { t } = useTranslation();
+  const Login: React.FC = () => {
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
   const [api] = useAtom(apiAtom);
