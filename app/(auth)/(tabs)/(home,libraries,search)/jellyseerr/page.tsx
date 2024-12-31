@@ -153,7 +153,7 @@ const Page: React.FC = () => {
       >
         <View className="flex flex-col">
           <View className="space-y-4">
-            <View className="p-4">
+            <View className="px-4">
               <View className="flex flex-row justify-between w-full">
                 <View className="flex flex-col w-56">
                   <JellyserrRatings result={result as MovieResult | TvResult} />

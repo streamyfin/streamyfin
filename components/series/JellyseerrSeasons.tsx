@@ -155,20 +155,16 @@ const JellyseerrSeasons: React.FC<{
 
   const promptRequestAll = useCallback(
     () =>
-      Alert.alert(
-        "Request all?",
-        "Are you sure you want to request all seasons?",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-          {
-            text: "YES",
-            onPress: requestAll,
-          },
-        ]
-      ),
+      Alert.alert("Confirm", "Are you sure you want to request all seasons?", [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Yes",
+          onPress: requestAll,
+        },
+      ]),
     [requestAll]
   );
 
