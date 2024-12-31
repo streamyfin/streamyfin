@@ -206,7 +206,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             </TouchableItemRouter>
           ))
         )}
-        {episodes?.length || 0 > 0 ? (
+        {(episodes?.length || 0) === 0 ? (
           <View className="flex flex-col">
             <Text className="text-neutral-500">
               No episodes for this season
