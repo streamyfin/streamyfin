@@ -156,7 +156,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
           />
         ) : null}
       </View>
-      <View className="px-4 flex flex-col my-4">
+      <View className="px-4 flex flex-col mt-4">
         {isFetching ? (
           <View
             style={{
