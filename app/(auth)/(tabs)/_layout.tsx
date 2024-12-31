@@ -78,7 +78,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(custom-links)"
           options={{
-            title: t("tabs.customLinks"),
+            title: t("tabs.custom_links"),
             // @ts-expect-error
             tabBarItemHidden: settings?.showCustomMenuLinks ? false : true,
             tabBarIcon:

@@ -17,16 +17,16 @@
   },
   "home": {
     "home": "Accueil",
-    "noInternet": "Pas d'Internet",
-    "noInternetMessage": "Aucun problème, vous pouvez toujours regarder\nle contenu téléchargé.",
-    "goToDownloads": "Aller aux téléchargements",
+    "no_internet": "Pas d'Internet",
+    "no_internet_message": "Aucun problème, vous pouvez toujours regarder\nle contenu téléchargé.",
+    "go_to_downloads": "Aller aux téléchargements",
     "oops": "Oups!",
-    "errorMessage": "Quelque chose s'est mal passé.\nVeuillez vous reconnecter à nouveau.",
-    "continueWatching": "Continuer à regarder",
-    "nextUp": "À suivre",
-    "recentlyAddedIn": "Ajoutés récemment dans {{libraryName}}",
-    "suggestedMovies": "Films suggérés",
-    "suggestedEpisodes": "Épisodes suggérés",
+    "error_message": "Quelque chose s'est mal passé.\nVeuillez vous reconnecter à nouveau.",
+    "continue_watching": "Continuer à regarder",
+    "next_up": "À suivre",
+    "recently_added_in": "Ajoutés récemment dans {{libraryName}}",
+    "suggested_movies": "Films suggérés",
+    "suggested_episodes": "Épisodes suggérés",
     "settings": {
       "settings_title": "Paramètres"
     },
@@ -62,6 +62,6 @@
     "home": "Accueil",
     "search": "Recherche",
     "library": "Bibliothèque",
-    "customLinks": "Liens personalisés"
+    "custom_links": "Liens personalisés"
   }
 }

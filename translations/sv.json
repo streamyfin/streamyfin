@@ -14,14 +14,14 @@
   },
   "home": {
     "home": "Hem",
-    "noInternet": "Ingen Internet",
-    "noInternetMessage": "Ingen fara, du kan fortfarande titta\npå nedladdat innehåll.",
-    "goToDownloads": "Gå till nedladdningar",
+    "no_internet": "Ingen Internet",
+    "no_internet_message": "Ingen fara, du kan fortfarande titta\npå nedladdat innehåll.",
+    "go_to_downloads": "Gå till nedladdningar",
     "oops": "Hoppsan!",
-    "errorMessage": "Något gick fel.\nLogga ut och in igen.",
-    "continueWatching": "Fortsätt titta",
-    "nextUp": "Nästa upp",
-    "recentlyAddedIn": "Nyligen tillagt i {{libraryName}}"
+    "error_message": "Något gick fel.\nLogga ut och in igen.",
+    "continue_watching": "Fortsätt titta",
+    "next_up": "Nästa upp",
+    "recently_added_in": "Nyligen tillagt i {{libraryName}}"
   },
   "tabs": {
     "home": "Hem",

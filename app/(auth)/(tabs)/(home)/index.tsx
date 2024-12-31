@@ -215,7 +215,7 @@ export default function index() {
     const latestMediaViews = collections.map((c) => {
       const includeItemTypes: BaseItemKind[] =
         c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-      const title = t("home.recentlyAddedIn", {libraryName: c.Name});
+      const title = t("home.recently_added_in", {libraryName: c.Name});
       const queryKey = [
         "home",
         "recentlyAddedIn" + c.CollectionType,
@@ -232,7 +232,7 @@ export default function index() {
 
     const ss: Section[] = [
       {
-        title: t("home.continueWatching"),
+        title: t("home.continue_watching"),
         queryKey: ["home", "resumeItems"],
         queryFn: async () =>
           (
@@ -246,7 +246,7 @@ export default function index() {
         orientation: "horizontal",
       },
       {
-        title: t("home.nextUp"),
+        title: t("home.next_up"),
         queryKey: ["home", "nextUp-all"],
         queryFn: async () =>
           (
@@ -273,7 +273,7 @@ export default function index() {
           } as Section)
       ) || []),
       {
-        title: t("home.suggestedMovies"),
+        title: t("home.suggested_movies"),
         queryKey: ["home", "suggestedMovies", user?.Id],
         queryFn: async () =>
           (
@@ -288,7 +288,7 @@ export default function index() {
         orientation: "vertical",
       },
       {
-        title: t("home.suggestedEpisodes"),
+        title: t("home.suggested_episodes"),
         queryKey: ["home", "suggestedEpisodes", user?.Id],
         queryFn: async () => {
           try {
@@ -314,9 +314,9 @@ export default function index() {
   if (isConnected === false) {
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6 px-8">
-        <Text className="text-3xl font-bold mb-2">{t("home.noInternet")}</Text>
+        <Text className="text-3xl font-bold mb-2">{t("home.no_internet")}</Text>
         <Text className="text-center opacity-70">
-        {t("home.noInternetMessage")}
+        {t("home.no_internet_message")}
         </Text>
         <View className="mt-4">
           <Button
@@ -327,7 +327,7 @@ export default function index() {
               <Ionicons name="arrow-forward" size={20} color="white" />
             }
           >
-            {t("home.goToDownloads")}
+            {t("home.go_to_downloads")}
           </Button>
           <Button
             color="black"
@@ -357,7 +357,7 @@ export default function index() {
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
         <Text className="text-3xl font-bold mb-2">{t("home.oops")}</Text>
-        <Text className="text-center opacity-70">{t("home.errorMessage")}</Text>
+        <Text className="text-center opacity-70">{t("home.error_message")}</Text>
       </View>
     );
 

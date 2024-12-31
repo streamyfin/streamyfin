@@ -17,16 +17,16 @@
   },
   "home": {
     "home": "Home",
-    "noInternet": "No Internet",
-    "noInternetMessage": "No worries, you can still watch\ndownloaded content.",
-    "goToDownloads": "Go to downloads",
+    "no_internet": "No Internet",
+    "no_internet_message": "No worries, you can still watch\ndownloaded content.",
+    "go_to_downloads": "Go to downloads",
     "oops": "Oops!",
-    "errorMessage": "Something went wrong.\nPlease log out and in again.",
-    "continueWatching": "Continue Watching",
-    "nextUp": "Next Up",
-    "recentlyAddedIn": "Recently Added in {{libraryName}}",
-    "suggestedMovies": "Suggested Movies",
-    "suggestedEpisodes": "Suggested Episodes",
+    "error_message": "Something went wrong.\nPlease log out and in again.",
+    "continue_watching": "Continue Watching",
+    "next_up": "Next Up",
+    "recently_added_in": "Recently Added in {{libraryName}}",
+    "suggested_movies": "Suggested Movies",
+    "suggested_episodes": "Suggested Episodes",
     "settings": {
       "settings_title": "Settings"
     },
@@ -62,6 +62,6 @@
     "home": "Home",
     "search": "Search",
     "library": "Library",
-    "customLinks": "Custom Links"
+    "custom_links": "Custom Links"
   }
 }
