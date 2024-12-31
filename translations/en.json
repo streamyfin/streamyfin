@@ -33,6 +33,12 @@
     "search_hint": "Search here...",
     "no_results_found_for": "No results found for"
   },
+  "library": {
+    "library_title": "Library",
+    "no_items_found": "No items found",
+    "no_results": "No results",
+    "no_libraries_found": "No libraries found"
+  },
   "tabs": {
     "home": "Home",
     "search": "Search",

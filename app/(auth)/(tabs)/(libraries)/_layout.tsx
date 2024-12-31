@@ -4,9 +4,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
+import { useTranslation } from "react-i18next";
 
 export default function IndexLayout() {
   const [settings, updateSettings] = useSettings();
+
+  const { t } = useTranslation();
 
   if (!settings?.libraryOptions) return null;
 
@@ -17,7 +20,7 @@ export default function IndexLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: "Library",
+          headerTitle: t("library.library_title"),
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,

@@ -42,6 +42,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colletionTypeToItemType } from "@/utils/collectionTypeToItemType";
+import { useTranslation } from "react-i18next";
 
 const Page = () => {
   const searchParams = useLocalSearchParams();
@@ -62,6 +63,8 @@ const Page = () => {
   );
 
   const { orientation } = useOrientation();
+
+  const { t } = useTranslation();
 
   useEffect(() => {
     const sop = getSortOrderPreference(libraryId, sortOrderPreference);
@@ -437,7 +440,7 @@ const Page = () => {
   if (flatData.length === 0)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">No items found</Text>
+        <Text className="text-lg text-neutral-500">{t("library.no_items_found")}</Text>
       </View>
     );
 
@@ -446,7 +449,7 @@ const Page = () => {
       key={orientation}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">No results</Text>
+          <Text className="font-bold text-xl text-neutral-500">{t("library.no_results")}</Text>
         </View>
       }
       contentInsetAdjustmentBehavior="automatic"

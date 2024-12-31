@@ -13,6 +13,7 @@ import { useAtom } from "jotai";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 export default function index() {
   const [api] = useAtom(apiAtom);
@@ -54,6 +55,8 @@ export default function index() {
     }
   }, [data]);
 
+  const { t } = useTranslation();
+
   const insets = useSafeAreaInsets();
 
   if (isLoading)
@@ -66,7 +69,7 @@ export default function index() {
   if (!data)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">No libraries found</Text>
+        <Text className="text-lg text-neutral-500">{t("library.no_libraries_found")}</Text>
       </View>
     );
 
