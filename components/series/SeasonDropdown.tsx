@@ -19,7 +19,7 @@ type SeasonKeys = {
 };
 
 export type SeasonIndexState = {
-  [seriesId: string]: number | null | undefined;
+  [seriesId: string]: number | string | null | undefined;
 };
 
 export const SeasonDropdown: React.FC<Props> = ({
