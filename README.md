@@ -89,36 +89,10 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 
 ### Development info
 
-1. Use node `20`
-2. Install dependencies `bun i`
-3. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`.
-
-## Extended chromecast controls
-
-Add this to AppDelegate.mm:
-
-```
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
-{
-// @generated begin react-native-google-cast-didFinishLaunchingWithOptions - expo prebuild (DO NOT MODIFY) sync-8901be60b982d2ae9c658b1e8c50634d61bb5091
-#if __has_include(<GoogleCast/GoogleCast.h>)
-...
-
-[GCKCastContext sharedInstance].useDefaultExpandedMediaControls = true;`
-#endif
-```
-
-Add this to Info.plist:
-
-```
-<key>NSBonjourServices</key>
-<array>
-  <string>_googlecast._tcp</string>
-  <string>_CC1AD845._googlecast._tcp</string>
-</array>
-<key>NSLocalNetworkUsageDescription</key>
-<string>${PRODUCT_NAME} uses the local network to discover Cast-enabled devices on your WiFi network.</string>
-```
+1. Use node `>20`
+2. Install dependencies `bun i && bun run submodule-reload`
+3. Make sure you have xcode and/or android studio installed.
+4. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`. This will open a simulator on you computer and run the app.
 
 ## 📄 License
 
@@ -153,6 +127,7 @@ I'd like to thank the following people and projects for their contributions to S
 
 - [Reiverr](https://github.com/aleksilassila/reiverr) for great help with understanding the Jellyfin API.
 - [Jellyfin TS SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) for the TypeScript SDK.
+- [Jellyseerr](https://github.com/Fallenbagel/jellyseerr) for enabling API integration with their project.
 - The Jellyfin devs for always being helpful in the Discord.
 
 ## Star History
