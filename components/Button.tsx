@@ -47,7 +47,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
     <TouchableOpacity
       className={`
         p-3 rounded-xl items-center justify-center
-        ${loading || (disabled && "opacity-50")}
+        ${(loading || disabled) && "opacity-50"}
         ${colorClasses}
         ${className}
       `}
