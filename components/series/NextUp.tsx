@@ -11,6 +11,7 @@ import { Text } from "../common/Text";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import { FlashList } from "@shopify/flash-list";
 
 export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
   const [user] = useAtom(userAtom);
@@ -44,9 +45,13 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
   return (
     <View>
       <Text className="text-lg font-bold mb-2 px-4">Next up</Text>
-      <HorizontalScroll
+      <FlashList
+        contentContainerStyle={{ padding: 16 }}
+        horizontal
+        estimatedItemSize={172}
+        showsHorizontalScrollIndicator={false}
         data={items}
-        renderItem={(item, index) => (
+        renderItem={({ item, index }) => (
           <TouchableItemRouter
             item={item}
             key={index}
