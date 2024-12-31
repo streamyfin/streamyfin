@@ -3,11 +3,10 @@ import { View, ViewProps } from "react-native";
 import { Badge } from "./Badge";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
-import {useJellyseerr} from "@/hooks/useJellyseerr";
-import {useQuery} from "@tanstack/react-query";
-import {MediaType} from "@/utils/jellyseerr/server/constants/media";
-
+import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useQuery } from "@tanstack/react-query";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
 }
@@ -21,7 +20,7 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
       )}
       {item.CommunityRating && (
         <Badge
-          text={item.CommunityRating}
+          text={item.CommunityRating.toFixed(1)}
           variant="gray"
           iconLeft={<Ionicons name="star" size={14} color="gold" />}
         />
@@ -32,7 +31,11 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
           variant="gray"
           iconLeft={
             <Image
-              source={require("@/assets/images/rotten-tomatoes.png")}
+              source={
+                item.CriticRating < 60
+                  ? require("@/assets/images/rotten-tomatoes.png")
+                  : require("@/assets/images/not-rotten-tomatoes.svg")
+              }
               style={{
                 width: 14,
                 height: 14,
@@ -45,22 +48,25 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
   );
 };
 
-
-export const JellyserrRatings: React.FC<{result: MovieResult | TvResult}> = ({ result }) => {
-  const {jellyseerrApi} = useJellyseerr();
+export const JellyserrRatings: React.FC<{ result: MovieResult | TvResult }> = ({
+  result,
+}) => {
+  const { jellyseerrApi } = useJellyseerr();
   const { data, isLoading } = useQuery({
-    queryKey: ['jellyseerr', result.id, result.mediaType, 'ratings'],
+    queryKey: ["jellyseerr", result.id, result.mediaType, "ratings"],
     queryFn: async () => {
       return result.mediaType === MediaType.MOVIE
         ? jellyseerrApi?.movieRatings(result.id)
-        : jellyseerrApi?.tvRatings(result.id)
+        : jellyseerrApi?.tvRatings(result.id);
     },
     staleTime: (5).minutesToMilliseconds(),
     retry: false,
     enabled: !!jellyseerrApi,
   });
 
-  return (isLoading || !!result.voteCount ||
+  return (
+    (isLoading ||
+      !!result.voteCount ||
       (data?.criticsRating && !!data?.criticsScore) ||
       (data?.audienceRating && !!data?.audienceScore)) && (
       <View className="flex flex-row flex-wrap space-x-1">
@@ -72,7 +78,7 @@ export const JellyserrRatings: React.FC<{result: MovieResult | TvResult}> = ({ r
               <Image
                 className="mr-1"
                 source={
-                  data?.criticsRating === 'Rotten'
+                  data?.criticsRating === "Rotten"
                     ? require("@/utils/jellyseerr/src/assets/rt_rotten.svg")
                     : require("@/utils/jellyseerr/src/assets/rt_fresh.svg")
                 }
@@ -92,7 +98,7 @@ export const JellyserrRatings: React.FC<{result: MovieResult | TvResult}> = ({ r
               <Image
                 className="mr-1"
                 source={
-                  data?.audienceRating === 'Spilled'
+                  data?.audienceRating === "Spilled"
                     ? require("@/utils/jellyseerr/src/assets/rt_aud_rotten.svg")
                     : require("@/utils/jellyseerr/src/assets/rt_aud_fresh.svg")
                 }
@@ -122,4 +128,5 @@ export const JellyserrRatings: React.FC<{result: MovieResult | TvResult}> = ({ r
         )}
       </View>
     )
-}
+  );
+};
