@@ -1,40 +1,62 @@
-import React, {useCallback, useRef, useState} from "react";
-import {useLocalSearchParams} from "expo-router";
-import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
-import {Text} from "@/components/common/Text";
-import {ParallaxScrollView} from "@/components/ParallaxPage";
-import {Image} from "expo-image";
-import {TouchableOpacity, View} from "react-native";
-import {Ionicons} from "@expo/vector-icons";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {OverviewText} from "@/components/OverviewText";
-import {GenreTags} from "@/components/GenreTags";
-import {MediaType} from "@/utils/jellyseerr/server/constants/media";
-import {useQuery} from "@tanstack/react-query";
-import {useJellyseerr} from "@/hooks/useJellyseerr";
-import {Button} from "@/components/Button";
-import {BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomSheetView} from "@gorhom/bottom-sheet";
-import {IssueType, IssueTypeName} from "@/utils/jellyseerr/server/constants/issue";
+import React, { useCallback, useRef, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import { Text } from "@/components/common/Text";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { Image } from "expo-image";
+import { TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OverviewText } from "@/components/OverviewText";
+import { GenreTags } from "@/components/GenreTags";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import { useQuery } from "@tanstack/react-query";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { Button } from "@/components/Button";
+import {
+  BottomSheetBackdrop,
+  BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
+import {
+  IssueType,
+  IssueTypeName,
+} from "@/utils/jellyseerr/server/constants/issue";
 import * as DropdownMenu from "zeego/dropdown-menu";
-import {Input} from "@/components/common/Input";
-import {TvDetails} from "@/utils/jellyseerr/server/models/Tv";
+import { Input } from "@/components/common/Input";
+import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
-import {JellyserrRatings} from "@/components/Ratings";
+import { JellyserrRatings } from "@/components/Ratings";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const {mediaTitle, releaseYear, canRequest: canRequestString, posterSrc, ...result} =
-    params as unknown as {mediaTitle: string, releaseYear: number, canRequest: string, posterSrc: string} & Partial<MovieResult |  TvResult>;
+  const {
+    mediaTitle,
+    releaseYear,
+    canRequest: canRequestString,
+    posterSrc,
+    ...result
+  } = params as unknown as {
+    mediaTitle: string;
+    releaseYear: number;
+    canRequest: string;
+    posterSrc: string;
+  } & Partial<MovieResult | TvResult>;
 
   const canRequest = canRequestString === "true";
-  const {jellyseerrApi, requestMedia} = useJellyseerr();
+  const { jellyseerrApi, requestMedia } = useJellyseerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
-  const {data: details, isLoading} = useQuery({
+  const {
+    data: details,
+    isFetching,
+    isLoading,
+  } = useQuery({
     enabled: !!jellyseerrApi && !!result && !!result.id,
     queryKey: ["jellyseerr", "detail", result.mediaType, result.id],
     staleTime: 0,
@@ -45,8 +67,8 @@ const Page: React.FC = () => {
     queryFn: async () => {
       return result.mediaType === MediaType.MOVIE
         ? jellyseerrApi?.movieDetails(result.id!!)
-        : jellyseerrApi?.tvDetails(result.id!!)
-    }
+        : jellyseerrApi?.tvDetails(result.id!!);
+    },
   });
 
   const renderBackdrop = useCallback(
@@ -62,23 +84,30 @@ const Page: React.FC = () => {
 
   const submitIssue = useCallback(() => {
     if (result.id && issueType && issueMessage && details) {
-      jellyseerrApi?.submitIssue(details.mediaInfo.id, Number(issueType), issueMessage)
+      jellyseerrApi
+        ?.submitIssue(details.mediaInfo.id, Number(issueType), issueMessage)
         .then(() => {
-          setIssueType(undefined)
-          setIssueMessage(undefined)
-          bottomSheetModalRef?.current?.close()
-        })
+          setIssueType(undefined);
+          setIssueMessage(undefined);
+          bottomSheetModalRef?.current?.close();
+        });
     }
-  }, [jellyseerrApi, details, result, issueType, issueMessage])
+  }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
-  const request = useCallback(() => requestMedia(mediaTitle, {
-    mediaId: Number(result.id!!),
-    mediaType: result.mediaType!!,
-    tvdbId: details?.externalIds?.tvdbId,
-    seasons: (details as TvDetails)?.seasons?.filter?.(s => s.seasonNumber !== 0)?.map?.(s => s.seasonNumber)
-  }), [details, result, requestMedia]);
+  const request = useCallback(
+    () =>
+      requestMedia(mediaTitle, {
+        mediaId: Number(result.id!!),
+        mediaType: result.mediaType!!,
+        tvdbId: details?.externalIds?.tvdbId,
+        seasons: (details as TvDetails)?.seasons
+          ?.filter?.((s) => s.seasonNumber !== 0)
+          ?.map?.((s) => s.seasonNumber),
+      }),
+    [details, result, requestMedia]
+  );
 
-  return  (
+  return (
     <View
       className="flex-1 relative"
       style={{
@@ -115,7 +144,7 @@ const Page: React.FC = () => {
                   name="image-outline"
                   size={24}
                   color="white"
-                  style={{opacity: 0.4}}
+                  style={{ opacity: 0.4 }}
                 />
               </View>
             )}
@@ -123,12 +152,18 @@ const Page: React.FC = () => {
         }
       >
         <View className="flex flex-col">
-          <View className="p-4 space-y-4">
-            <>
+          <View className="space-y-4">
+            <View className="p-4">
               <View className="flex flex-row justify-between w-full">
                 <View className="flex flex-col w-56">
-                  <JellyserrRatings result={(result as MovieResult | TvResult)}/>
-                  <Text uiTextView selectable className="font-bold text-2xl mb-1">{mediaTitle}</Text>
+                  <JellyserrRatings result={result as MovieResult | TvResult} />
+                  <Text
+                    uiTextView
+                    selectable
+                    className="font-bold text-2xl mb-1"
+                  >
+                    {mediaTitle}
+                  </Text>
                   <Text className="opacity-50">{releaseYear}</Text>
                 </View>
                 <Image
@@ -140,34 +175,39 @@ const Page: React.FC = () => {
                   }}
                 />
               </View>
-            </>
-            <GenreTags genres={details?.genres?.map(g => g.name) || []} />
-            {canRequest ?
-              <Button color="purple" onPress={request}>Request</Button>
-              :
-              <Button
-                className="bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100"
-                color="transparent"
-                onPress={() => bottomSheetModalRef?.current?.present()}
-                iconLeft={
-                  <Ionicons name="warning-outline" size={24} color="white"/>
-                }
-                style={{
-                  borderWidth: 1,
-                  borderStyle: "solid",
-                }}>
-                Report issue
-              </Button>
-            }
-            <OverviewText text={result.overview} className="mb-4" />
+              <View className="mb-4">
+                <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
+              </View>
+              {canRequest ? (
+                <Button color="purple" onPress={request}>
+                  Request
+                </Button>
+              ) : (
+                <Button
+                  className="bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100"
+                  color="transparent"
+                  onPress={() => bottomSheetModalRef?.current?.present()}
+                  iconLeft={
+                    <Ionicons name="warning-outline" size={24} color="white" />
+                  }
+                  style={{
+                    borderWidth: 1,
+                    borderStyle: "solid",
+                  }}
+                >
+                  Report issue
+                </Button>
+              )}
+              <OverviewText text={result.overview} className="mt-4" />
+            </View>
 
-            {result.mediaType === MediaType.TV &&
-                <JellyseerrSeasons
-                    isLoading={isLoading}
-                    result={result as TvResult}
-                    details={details as TvDetails}
-                />
-            }
+            {result.mediaType === MediaType.TV && (
+              <JellyseerrSeasons
+                isLoading={isLoading || isFetching}
+                result={result as TvResult}
+                details={details as TvDetails}
+              />
+            )}
           </View>
         </View>
       </ParallaxScrollView>
@@ -185,17 +225,23 @@ const Page: React.FC = () => {
         <BottomSheetView>
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
             <View>
-              <Text className="font-bold text-2xl text-neutral-100">Whats wrong?</Text>
+              <Text className="font-bold text-2xl text-neutral-100">
+                Whats wrong?
+              </Text>
             </View>
             <View className="flex flex-col space-y-2 items-start">
               <View className="flex flex-col">
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger>
                     <View className="flex flex-col">
-                      <Text className="opacity-50 mb-1 text-xs">Issue Type</Text>
+                      <Text className="opacity-50 mb-1 text-xs">
+                        Issue Type
+                      </Text>
                       <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
                         <Text style={{}} className="" numberOfLines={1}>
-                          {issueType ? IssueTypeName[issueType] : 'Select an issue' }
+                          {issueType
+                            ? IssueTypeName[issueType]
+                            : "Select an issue"}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -210,14 +256,20 @@ const Page: React.FC = () => {
                     sideOffset={0}
                   >
                     <DropdownMenu.Label>Types</DropdownMenu.Label>
-                    {Object.entries(IssueTypeName).reverse().map(([key, value], idx) => (
-                      <DropdownMenu.Item
-                        key={value}
-                        onSelect={() => setIssueType(key as unknown as IssueType)}
-                      >
-                        <DropdownMenu.ItemTitle>{value}</DropdownMenu.ItemTitle>
-                      </DropdownMenu.Item>
-                    ))}
+                    {Object.entries(IssueTypeName)
+                      .reverse()
+                      .map(([key, value], idx) => (
+                        <DropdownMenu.Item
+                          key={value}
+                          onSelect={() =>
+                            setIssueType(key as unknown as IssueType)
+                          }
+                        >
+                          <DropdownMenu.ItemTitle>
+                            {value}
+                          </DropdownMenu.ItemTitle>
+                        </DropdownMenu.Item>
+                      ))}
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </View>
@@ -234,11 +286,7 @@ const Page: React.FC = () => {
                 onChangeText={setIssueMessage}
               />
             </View>
-            <Button
-              className="mt-auto"
-              onPress={submitIssue}
-              color="purple"
-            >
+            <Button className="mt-auto" onPress={submitIssue} color="purple">
               Submit
             </Button>
           </View>
@@ -246,6 +294,6 @@ const Page: React.FC = () => {
       </BottomSheetModal>
     </View>
   );
-}
+};
 
 export default Page;
