@@ -24,7 +24,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
       <View className="flex flex-col overflow-visible">
         <Text className="font-bold ">{title}</Text>
         {subTitle && (
-          <Text uiTextView selectable className="text-xs">
+          <Text uiTextView selectable className="text-xs text-neutral-400">
             {subTitle}
           </Text>
         )}
