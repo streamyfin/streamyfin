@@ -70,11 +70,9 @@ Or download the APKs [here on GitHub](https://github.com/fredrikburmester/stream
 
 ### Beta testing
 
-Get the latest updates by using the TestFlight version of the app.
+To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where i'll post APKs and IPAs. This won't give automatic access to the TestFlight however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
 
-<a href="https://testflight.apple.com/join/CWBaAAK2">
-  <img height=75 alt="Get the beta on TestFlight" src="./assets/Get_the_beta_on_Testflight.svg"/>
-</a>
+ **Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
 
 ## 🚀 Getting Started
 
