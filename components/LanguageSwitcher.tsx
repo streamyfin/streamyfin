@@ -9,7 +9,7 @@ interface Props extends ViewProps {}
 export const LanguageSwitcher: React.FC<Props> = ({ ...props }) => {
   const { i18n } = useTranslation();
 
-  const lngs = ["en", "sv"];
+  const lngs = ["en", "fr", "sv"];
 
   const [settings, updateSettings] = useSettings();
   return (

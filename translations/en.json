@@ -3,8 +3,10 @@
     "username_required": "Username is required",
     "error_title": "Error",
     "login_title": "Log in",
+    "login_to_title": "Log in to",
     "username_placeholder": "Username",
     "password_placeholder": "Password",
+    "use_quick_connect": "Use Quick Connect",
     "login_button": "Log in"
   },
   "server": {
@@ -25,6 +27,11 @@
     "recentlyAddedIn": "Recently Added in {{libraryName}}",
     "suggestedMovies": "Suggested Movies",
     "suggestedEpisodes": "Suggested Episodes"
+  },
+  "search": {
+    "search_title": "Search",
+    "search_hint": "Search here...",
+    "no_results_found_for": "No results found for"
   },
   "tabs": {
     "home": "Home",

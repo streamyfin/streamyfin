@@ -1,0 +1,42 @@
+{
+  "login": {
+    "username_required": "Le nom d'utilisateur est requis",
+    "error_title": "Erreur",
+    "login_title": "Se connecter",
+    "login_to_title": "Se connecter à",
+    "username_placeholder": "Nom d'utilisateur",
+    "password_placeholder": "Mot de passe",
+    "use_quick_connect": "Utiliser Quick Connect",
+    "login_button": "Se connecter"
+  },
+  "server": {
+    "enter_url_to_jellyfin_server": "Entrez l'URL de votre serveur Jellyfin",
+    "server_url_placeholder": "URL du serveur",
+    "server_url_hint": "Assurez-vous d'inclure http ou https",
+    "connect_button": "Connexion"
+  },
+  "home": {
+    "home": "Accueil",
+    "noInternet": "Pas d'Internet",
+    "noInternetMessage": "Aucun problème, vous pouvez toujours regarder\nle contenu téléchargé.",
+    "goToDownloads": "Aller aux téléchargements",
+    "oops": "Oups!",
+    "errorMessage": "Quelque chose s'est mal passé.\nVeuillez vous reconnecter à nouveau.",
+    "continueWatching": "Continuer à regarder",
+    "nextUp": "À suivre",
+    "recentlyAddedIn": "Ajoutés récemment dans {{libraryName}}",
+    "suggestedMovies": "Films suggérés",
+    "suggestedEpisodes": "Épisodes suggérés"
+  },
+  "search": {
+    "search_title": "Recherche",
+    "search_hint": "Rechercher ici...",
+    "no_results_found_for": "Aucun résultat trouvé pour"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "search": "Recherche",
+    "library": "Bibliothèque",
+    "customLinks": "Liens personalisés"
+  }
+}

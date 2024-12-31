@@ -56,7 +56,7 @@ type Section = ScrollingCollectionListSection | MediaListSection;
 export default function index() {
   const router = useRouter();
 
-  const { i18n, t } = useTranslation();
+  const { t } = useTranslation();
 
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);

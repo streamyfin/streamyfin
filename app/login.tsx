@@ -198,14 +198,13 @@ const CredentialsSchema = z.object({
             <View className="px-4 -mt-20 w-full">
               <View className="flex flex-col space-y-2">
                 <Text className="text-2xl font-bold -mb-2">
-                {t("login.login_title")}
                   <>
                     {serverName ? (
                       <>
-                        {" to "}
+                        {t("login.login_to_title") + " "}
                         <Text className="text-purple-600">{serverName}</Text>
                       </>
-                    ) : null}
+                    ) : t("login.login_title")}
                   </>
                 </Text>
                 <Text className="text-xs text-neutral-400">{serverURL}</Text>
@@ -251,7 +250,7 @@ const CredentialsSchema = z.object({
                 onPress={handleQuickConnect}
                 className="w-full mb-2"
               >
-                Use Quick Connect
+                {t("login.use_quick_connect")}
               </Button>
               <Button onPress={handleLogin} loading={loading}>
               {t("login.login_button")}

@@ -37,6 +37,7 @@ import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import {Tag} from "@/components/GenreTags";
 import DiscoverSlide from "@/components/jellyseerr/DiscoverSlide";
 import {sortBy} from "lodash";
+import { useTranslation } from "react-i18next";
 
 type SearchType = 'Library' | 'Discover';
 
@@ -120,6 +121,7 @@ export default function search() {
     },
     [api, searchEngine, settings]
   );
+  const { t } = useTranslation();
 
   const navigation = useNavigation();
   useLayoutEffect(() => {
@@ -283,7 +285,7 @@ export default function search() {
                 autoCorrect={false}
                 returnKeyType="done"
                 keyboardType="web-search"
-                placeholder="Search here..."
+                placeholder={t("search.search_hint")}
                 value={search}
                 onChangeText={(text) => setSearch(text)}
               />
@@ -462,7 +464,7 @@ export default function search() {
           ) : noResults && debouncedSearch.length > 0 ? (
             <View>
               <Text className="text-center text-lg font-bold mt-4">
-                No results found for
+                {t("search.no_results_found_for")}
               </Text>
               <Text className="text-xs text-purple-600 text-center">
                 "{debouncedSearch}"
