@@ -3,7 +3,7 @@ import { Text } from "../common/Text";
 import { Ratings } from "../Ratings";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
-import { SeriesActions } from "./SeriesActions";
+import { ItemActions } from "./SeriesActions";
 
 interface Props {
   item: BaseItemDto;
@@ -56,7 +56,7 @@ export const SeriesHeader = ({ item }: Props) => {
       <Text className="">{yearString}</Text>
       <View className="flex flex-row items-center justify-between">
         <Ratings item={item} className="mb-2" />
-        <SeriesActions item={item} />
+        <ItemActions item={item} />
       </View>
       <Text className="">{item?.Overview}</Text>
     </View>

@@ -4,7 +4,7 @@ import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { Ratings } from "@/components/Ratings";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
-import { SeriesActions } from "@/components/series/SeriesActions";
+import { ItemActions } from "@/components/series/SeriesActions";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";

@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
-import { View, TouchableOpacity, ViewProps } from "react-native";
+import { TouchableOpacity, View, ViewProps } from "react-native";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
 }
 
-export const SeriesActions = ({ item, ...props }: Props) => {
+export const ItemActions = ({ item, ...props }: Props) => {
   const router = useRouter();
 
   const trailerLink = useMemo(() => item.RemoteTrailers?.[0]?.Url, [item]);
