@@ -1,7 +1,6 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
@@ -296,7 +295,6 @@ const CredentialsSchema = z.object({
             <Text className="text-xs text-neutral-500">
               {t("server.server_url_hint")}
             </Text>
-            <LanguageSwitcher />
           </View>
           <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
             <Button
