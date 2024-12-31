@@ -106,19 +106,12 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
                   if ("deliveryUrl" in sub && sub.deliveryUrl) {
                     setSubtitleURL &&
                       setSubtitleURL(api?.basePath + sub.deliveryUrl, sub.name);
-
-                    console.log(
-                      "Set external subtitle: ",
-                      api?.basePath + sub.deliveryUrl
-                    );
                   } else {
-                    console.log("Set sub index: ", sub.index);
                     setSubtitleTrack && setSubtitleTrack(sub.index);
                   }
                   router.setParams({
                     subtitleIndex: sub.index.toString(),
                   });
-                  console.log("Subtitle: ", sub);
                 }}
               >
                 <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>

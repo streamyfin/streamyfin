@@ -141,8 +141,6 @@ const Page = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !library) return null;
 
-      console.log("[libraryId] ~", library);
-
       let itemType: BaseItemKind | undefined;
 
       // This fix makes sure to only return 1 type of items, if defined.

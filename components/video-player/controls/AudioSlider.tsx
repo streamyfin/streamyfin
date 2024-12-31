@@ -20,7 +20,6 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
     const fetchInitialVolume = async () => {
       try {
         const { volume: initialVolume } = await VolumeManager.getVolume();
-        console.log("initialVolume", initialVolume);
         volume.value = initialVolume * 100;
       } catch (error) {
         console.error("Error fetching initial volume:", error);
@@ -39,7 +38,6 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
 
   const handleValueChange = async (value: number) => {
     volume.value = value;
-    console.log("volume through slider", value);
     await VolumeManager.setVolume(value / 100);
 
     // Re-call showNativeVolumeUI to ensure the setting is applied on iOS
@@ -48,7 +46,6 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
 
   useEffect(() => {
     const volumeListener = VolumeManager.addVolumeListener((result) => {
-      console.log("Volume through device", result.volume);
       volume.value = result.volume * 100;
       setVisibility(true);
 
