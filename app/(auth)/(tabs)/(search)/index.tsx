@@ -30,15 +30,15 @@ import React, {
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
-import {useJellyseerr} from "@/hooks/useJellyseerr";
-import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
-import {MediaType} from "@/utils/jellyseerr/server/constants/media";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import {Tag} from "@/components/GenreTags";
+import { Tag } from "@/components/GenreTags";
 import DiscoverSlide from "@/components/jellyseerr/DiscoverSlide";
-import {sortBy} from "lodash";
+import { sortBy } from "lodash";
 
-type SearchType = 'Library' | 'Discover';
+type SearchType = "Library" | "Discover";
 
 const exampleSearches = [
   "Lord of the rings",
@@ -153,29 +153,41 @@ export default function search() {
       const response = await jellyseerrApi?.search({
         query: new URLSearchParams(debouncedSearch).toString(),
         page: 1, // todo: maybe rework page & page-size if first results are not enough...
-        language: 'en'
-      })
+        language: "en",
+      });
 
       return response?.results;
     },
-    enabled: !!jellyseerrApi && searchType === "Discover" && debouncedSearch.length > 0,
+    enabled:
+      !!jellyseerrApi &&
+      searchType === "Discover" &&
+      debouncedSearch.length > 0,
   });
 
   const { data: jellyseerrDiscoverSettings, isFetching: j2 } = useQuery({
     queryKey: ["search", "jellyseerrDiscoverSettings", debouncedSearch],
     queryFn: async () => jellyseerrApi?.discoverSettings(),
-    enabled: !!jellyseerrApi && searchType === "Discover" && debouncedSearch.length == 0,
+    enabled:
+      !!jellyseerrApi &&
+      searchType === "Discover" &&
+      debouncedSearch.length == 0,
   });
 
-  const jellyseerrMovieResults: MovieResult[] | undefined = useMemo(() =>
-      jellyseerrResults?.filter(r => r.mediaType === MediaType.MOVIE) as MovieResult[],
+  const jellyseerrMovieResults: MovieResult[] | undefined = useMemo(
+    () =>
+      jellyseerrResults?.filter(
+        (r) => r.mediaType === MediaType.MOVIE
+      ) as MovieResult[],
     [jellyseerrResults]
-  )
+  );
 
-  const jellyseerrTvResults: TvResult[] | undefined = useMemo(() =>
-      jellyseerrResults?.filter(r => r.mediaType === MediaType.TV) as TvResult[],
+  const jellyseerrTvResults: TvResult[] | undefined = useMemo(
+    () =>
+      jellyseerrResults?.filter(
+        (r) => r.mediaType === MediaType.TV
+      ) as TvResult[],
     [jellyseerrResults]
-  )
+  );
 
   const { data: series, isFetching: l2 } = useQuery({
     queryKey: ["search", "series", debouncedSearch],
@@ -260,7 +272,17 @@ export default function search() {
       jellyseerrMovieResults?.length ||
       jellyseerrTvResults?.length
     );
-  }, [artists, episodes, albums, songs, movies, series, collections, actors, jellyseerrResults]);
+  }, [
+    artists,
+    episodes,
+    albums,
+    songs,
+    movies,
+    series,
+    collections,
+    actors,
+    jellyseerrResults,
+  ]);
 
   const loading = useMemo(() => {
     return l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || j1 || j2;
@@ -290,14 +312,24 @@ export default function search() {
             </View>
           )}
           {jellyseerrApi && (
-            <View className="flex flex-row flex-wrap space-x-2 px-4">
-              <TouchableOpacity onPress={() => setSearchType('Library')}>
-                <Tag text="Library" textClass="p-1"
-                     className={searchType === "Library" ? "bg-neutral-600" : undefined}/>
+            <View className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
+              <TouchableOpacity onPress={() => setSearchType("Library")}>
+                <Tag
+                  text="Library"
+                  textClass="p-1"
+                  className={
+                    searchType === "Library" ? "bg-neutral-600" : undefined
+                  }
+                />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSearchType('Discover')}>
-                <Tag text="Discover" textClass="p-1"
-                     className={searchType === "Discover" ? "bg-neutral-600" : undefined}/>
+              <TouchableOpacity onPress={() => setSearchType("Discover")}>
+                <Tag
+                  text="Discover"
+                  textClass="p-1"
+                  className={
+                    searchType === "Discover" ? "bg-neutral-600" : undefined
+                  }
+                />
               </TouchableOpacity>
             </View>
           )}
@@ -319,7 +351,7 @@ export default function search() {
                     className="flex flex-col w-28 mr-2"
                     item={item}
                   >
-                    <MoviePoster item={item} key={item.Id}/>
+                    <MoviePoster item={item} key={item.Id} />
                     <Text numberOfLines={2} className="mt-2">
                       {item.Name}
                     </Text>
@@ -338,7 +370,7 @@ export default function search() {
                     item={item}
                     className="flex flex-col w-28 mr-2"
                   >
-                    <SeriesPoster item={item} key={item.Id}/>
+                    <SeriesPoster item={item} key={item.Id} />
                     <Text numberOfLines={2} className="mt-2">
                       {item.Name}
                     </Text>
@@ -357,8 +389,8 @@ export default function search() {
                     key={item.Id}
                     className="flex flex-col w-44 mr-2"
                   >
-                    <ContinueWatchingPoster item={item}/>
-                    <ItemCardText item={item}/>
+                    <ContinueWatchingPoster item={item} />
+                    <ItemCardText item={item} />
                   </TouchableItemRouter>
                 )}
               />
@@ -371,7 +403,7 @@ export default function search() {
                     item={item}
                     className="flex flex-col w-28 mr-2"
                   >
-                    <MoviePoster item={item} key={item.Id}/>
+                    <MoviePoster item={item} key={item.Id} />
                     <Text numberOfLines={2} className="mt-2">
                       {item.Name}
                     </Text>
@@ -387,8 +419,8 @@ export default function search() {
                     key={item.Id}
                     className="flex flex-col w-28 mr-2"
                   >
-                    <MoviePoster item={item}/>
-                    <ItemCardText item={item}/>
+                    <MoviePoster item={item} />
+                    <ItemCardText item={item} />
                   </TouchableItemRouter>
                 )}
               />
@@ -401,8 +433,8 @@ export default function search() {
                     key={item.Id}
                     className="flex flex-col w-28 mr-2"
                   >
-                    <AlbumCover id={item.Id}/>
-                    <ItemCardText item={item}/>
+                    <AlbumCover id={item.Id} />
+                    <ItemCardText item={item} />
                   </TouchableItemRouter>
                 )}
               />
@@ -415,8 +447,8 @@ export default function search() {
                     key={item.Id}
                     className="flex flex-col w-28 mr-2"
                   >
-                    <AlbumCover id={item.Id}/>
-                    <ItemCardText item={item}/>
+                    <AlbumCover id={item.Id} />
+                    <ItemCardText item={item} />
                   </TouchableItemRouter>
                 )}
               />
@@ -429,8 +461,8 @@ export default function search() {
                     key={item.Id}
                     className="flex flex-col w-28 mr-2"
                   >
-                    <AlbumCover id={item.AlbumId}/>
-                    <ItemCardText item={item}/>
+                    <AlbumCover id={item.AlbumId} />
+                    <ItemCardText item={item} />
                   </TouchableItemRouter>
                 )}
               />
@@ -442,14 +474,14 @@ export default function search() {
                 header="Request Movies"
                 items={jellyseerrMovieResults}
                 renderItem={(item: MovieResult) => (
-                  <JellyseerrPoster item={item} key={item.id}/>
+                  <JellyseerrPoster item={item} key={item.id} />
                 )}
               />
               <SearchItemWrapper
                 header="Request Series"
                 items={jellyseerrTvResults}
                 renderItem={(item: TvResult) => (
-                  <JellyseerrPoster item={item} key={item.id}/>
+                  <JellyseerrPoster item={item} key={item.id} />
                 )}
               />
             </>
@@ -468,7 +500,7 @@ export default function search() {
                 "{debouncedSearch}"
               </Text>
             </View>
-          ) : debouncedSearch.length === 0 && searchType === 'Library' ? (
+          ) : debouncedSearch.length === 0 && searchType === "Library" ? (
             <View className="mt-4 flex flex-col items-center space-y-2">
               {exampleSearches.map((e) => (
                 <TouchableOpacity
@@ -480,11 +512,14 @@ export default function search() {
                 </TouchableOpacity>
               ))}
             </View>
-          ) : debouncedSearch.length === 0 && searchType === 'Discover' ? (
+          ) : debouncedSearch.length === 0 && searchType === "Discover" ? (
             <View className="flex flex-col px-4">
-              {sortBy?.(jellyseerrDiscoverSettings?.filter(s => s.enabled), 'order')
-                .map((slide) => <DiscoverSlide key={slide.id} slide={slide}/>)
-              }
+              {sortBy?.(
+                jellyseerrDiscoverSettings?.filter((s) => s.enabled),
+                "order"
+              ).map((slide) => (
+                <DiscoverSlide key={slide.id} slide={slide} />
+              ))}
             </View>
           ) : null}
         </View>
@@ -500,7 +535,12 @@ type Props<T> = {
   header?: string;
 };
 
-const SearchItemWrapper = <T extends unknown> ({ ids, items, renderItem, header }: PropsWithChildren<Props<T>>) => {
+const SearchItemWrapper = <T extends unknown>({
+  ids,
+  items,
+  renderItem,
+  header,
+}: PropsWithChildren<Props<T>>) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
@@ -540,14 +580,11 @@ const SearchItemWrapper = <T extends unknown> ({ ids, items, renderItem, header 
         className="px-4 mb-2"
         showsHorizontalScrollIndicator={false}
       >
-        {
-          data && data?.length > 0
-            ? data.map((item) => renderItem(item))
-            :
-          items && items?.length > 0
-            ? items.map(i => renderItem(i))
-            : undefined
-        }
+        {data && data?.length > 0
+          ? data.map((item) => renderItem(item))
+          : items && items?.length > 0
+          ? items.map((i) => renderItem(i))
+          : undefined}
       </ScrollView>
     </>
   );
