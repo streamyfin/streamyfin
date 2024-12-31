@@ -15,10 +15,10 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
 
 - 🚀 **Skp intro / credits support**
 - 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking.
-- 📺 **Picture in Picture** (iPhone only): Watch movies in PiP mode on your iPhone.
 - 🔊 **Background audio**: Stream music in the background, even when locking the phone.
 - 📥 **Download media** (Experimental): Save your media locally and watch it offline.
 - 📡 **Chromecast** (Experimental): Cast your media to any Chromecast-enabled device.
+- 🤖 **Jellyseerr integration**: Request media directly in the app.
 
 ## 🧪 Experimental Features
 
