@@ -21,6 +21,8 @@ export default function index() {
   const queryClient = useQueryClient();
   const [settings] = useSettings();
 
+  const { t } = useTranslation();
+
   const { data, isLoading: isLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
@@ -54,8 +56,6 @@ export default function index() {
       });
     }
   }, [data]);
-
-  const { t } = useTranslation();
 
   const insets = useSafeAreaInsets();
 

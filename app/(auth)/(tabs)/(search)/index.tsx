@@ -54,6 +54,8 @@ export default function search() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
 
+  const { t } = useTranslation();
+
   const { q, prev } = params as { q: string; prev: Href<string> };
 
   const [searchType, setSearchType] = useState<SearchType>("Library");
@@ -121,7 +123,6 @@ export default function search() {
     },
     [api, searchEngine, settings]
   );
-  const { t } = useTranslation();
 
   const navigation = useNavigation();
   useLayoutEffect(() => {
