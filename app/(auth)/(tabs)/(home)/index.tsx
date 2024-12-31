@@ -215,7 +215,7 @@ export default function index() {
     const latestMediaViews = collections.map((c) => {
       const includeItemTypes: BaseItemKind[] =
         c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-      const title = t("recentlyAdded" + c.Name);
+      const title = t("home.recentlyAddedIn", {libraryName: c.Name});
       const queryKey = [
         "home",
         "recentlyAddedIn" + c.CollectionType,

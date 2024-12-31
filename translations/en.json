@@ -2,16 +2,12 @@
   "login": {
     "username_required": "Username is required",
     "error_title": "Error",
-    "url_error_message": "URL needs to start with http or https.",
-    "login": "Log in",
-    "login_subtitle": "Log in to any user account",
+    "login_title": "Log in",
     "username_placeholder": "Username",
     "password_placeholder": "Password",
     "login_button": "Log in"
   },
   "server": {
-    "server_label": "Server: {{serverURL}}",
-    "change_server": "Change server",
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
     "server_url_placeholder": "Server URL",
     "server_url_hint": "Make sure to include http or https",
@@ -26,11 +22,9 @@
     "errorMessage": "Something went wrong.\nPlease log out and in again.",
     "continueWatching": "Continue Watching",
     "nextUp": "Next Up",
-    "recentlyAddedMovies": "Recently Added in Movies",
-    "recentlyAddedSeries": "Recently Added in Series",
+    "recentlyAddedIn": "Recently Added in {{libraryName}}",
     "suggestedMovies": "Suggested Movies",
     "suggestedEpisodes": "Suggested Episodes"
-
   },
   "tabs": {
     "home": "Home",

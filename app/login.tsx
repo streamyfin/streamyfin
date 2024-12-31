@@ -22,12 +22,13 @@ import {
 
 import { z } from "zod";
 
+const { t, i18n } = useTranslation();
+
 const CredentialsSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  username: z.string().min(1, t("login.username_required")),
 });
 
 const Login: React.FC = () => {
-  const { t, i18n } = useTranslation();
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
   const [api] = useAtom(apiAtom);
@@ -186,7 +187,7 @@ const Login: React.FC = () => {
         ]);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to initiate Quick Connect");
+      Alert.alert(t("login.error_title"), "Failed to initiate Quick Connect");
     }
   };
 
@@ -201,7 +202,7 @@ const Login: React.FC = () => {
             <View className="px-4 -mt-20 w-full">
               <View className="flex flex-col space-y-2">
                 <Text className="text-2xl font-bold -mb-2">
-                {t("login.login_button")}
+                {t("login.login_title")}
                   <>
                     {serverName ? (
                       <>
