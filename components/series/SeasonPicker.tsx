@@ -56,6 +56,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
 
       return response.data.Items;
     },
+    staleTime: 60,
     enabled: !!api && !!user?.Id && !!item.Id,
   });
 

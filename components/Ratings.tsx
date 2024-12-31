@@ -7,6 +7,7 @@ import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useQuery } from "@tanstack/react-query";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
 }
