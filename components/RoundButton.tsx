@@ -9,7 +9,7 @@ import {
 import * as Haptics from "expo-haptics";
 
 interface Props extends TouchableOpacityProps {
-  onPress?: () => void,
+  onPress?: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
   background?: boolean;
   size?: "default" | "large";
