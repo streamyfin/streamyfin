@@ -3,10 +3,19 @@ import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageSta
 import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { Menu, Divider, Provider } from "react-native-paper";
+import {useState} from "react";
+
 
 export default function IndexLayout() {
   const router = useRouter();
+  const [menuVisible, setMenuVisible] = useState(false);
+
+  const openMenu = () => setMenuVisible(true);
+  const closeMenu = () => setMenuVisible(false);
+
   return (
+    <Provider>
     <Stack>
       <Stack.Screen
         name="index"
@@ -20,6 +29,23 @@ export default function IndexLayout() {
           headerRight: () => (
             <View className="flex flex-row items-center space-x-2">
               <Chromecast />
+              <Menu
+                visible={menuVisible}
+                onDismiss={closeMenu}
+                anchor={
+                  <TouchableOpacity onPress={openMenu}>
+                    <Feather name="menu" color={"white"} size={22} />
+                  </TouchableOpacity>
+                }
+              >
+                <Menu.Item
+                  onPress={() => {
+                    closeMenu();
+                    router.push("/(auth)/(favorites)");
+                  }}
+                  title="Favorites"
+                />
+              </Menu>
               <TouchableOpacity
                 onPress={() => {
                   router.push("/(auth)/settings");
@@ -63,5 +89,6 @@ export default function IndexLayout() {
         }}
       />
     </Stack>
+    </Provider>
   );
 }

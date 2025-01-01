@@ -6,6 +6,7 @@ import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
 import { SeriesActions } from "@/components/series/SeriesActions";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
+import { FavoriteButton} from "@/components/series/FavoriteButton";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -83,6 +84,10 @@ const page: React.FC = () => {
         !isLoading &&
         allEpisodes &&
         allEpisodes.length > 0 && (
+        <>
+          <View className="flex flex-row items-center space-x-2 right-3">
+            {item && <FavoriteButton seriesId={seriesId} />}
+            </View>
           <View className="flex flex-row items-center space-x-2">
             <DownloadItems
               title="Download Series"
@@ -99,6 +104,7 @@ const page: React.FC = () => {
               )}
             />
           </View>
+          </>
         ),
     });
   }, [allEpisodes, isLoading]);
