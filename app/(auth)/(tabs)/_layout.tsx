@@ -63,6 +63,17 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
+          name="(favorites)"
+          options={{
+            title: "Favorites",
+            tabBarIcon:
+              Platform.OS == "android"
+                ? ({ color, focused, size }) =>
+                    require("@/assets/icons/heart.png")
+                : () => ({ sfSymbol: "heart" }),
+          }}
+        />
+        <NativeTabs.Screen
           name="(libraries)"
           options={{
             title: "Library",

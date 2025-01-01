@@ -11,6 +11,7 @@ import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import SeriesPoster from "../posters/SeriesPoster";
+import { useEffect } from "react";
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -18,6 +19,7 @@ interface Props extends ViewProps {
   disabled?: boolean;
   queryKey: QueryKey;
   queryFn: QueryFunction<BaseItemDto[]>;
+  hideIfEmpty?: boolean;
 }
 
 export const ScrollingCollectionList: React.FC<Props> = ({
@@ -26,10 +28,9 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   disabled = false,
   queryFn,
   queryKey,
+  hideIfEmpty = false,
   ...props
 }) => {
-  // console.log(queryKey);
-
   const { data, isLoading } = useQuery({
     queryKey: queryKey,
     queryFn,
@@ -40,6 +41,8 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   });
 
   if (disabled || !title) return null;
+
+  if (hideIfEmpty === true && data?.length === 0) return null;
 
   return (
     <View {...props} className="">
@@ -86,11 +89,9 @@ export const ScrollingCollectionList: React.FC<Props> = ({
               <TouchableItemRouter
                 item={item}
                 key={index}
-                className={`
-              mr-2 
-
-              ${orientation === "horizontal" ? "w-44" : "w-28"}
-            `}
+                className={`mr-2 
+                  ${orientation === "horizontal" ? "w-44" : "w-28"}
+                `}
               >
                 {item.Type === "Episode" && orientation === "horizontal" && (
                   <ContinueWatchingPoster item={item} />
