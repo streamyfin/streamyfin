@@ -33,18 +33,19 @@
         "user_info_title": "User Info",
         "user": "User",
         "server": "Server",
-        "log_out_button": "Log out"
+        "log_out_button": "Log out",
+        "token": "Token"
       },
       "quick_connect": {
         "quick_connect_title": "Quick connect",
         "authorize_button": "Authorize"
       },
-      "media":{
+      "media": {
         "media_title": "Media",
         "forward_skip_length": "Forward skip length",
         "forward_skip_length_hint": "Choose length in seconds when skipping in video playback.",
         "rewind_length": "Rewind length",
-        "rewind_length_hint": "Choose length in seconds when skipping in video playback." 
+        "rewind_length_hint": "Choose length in seconds when skipping in video playback."
       },
       "audio": {
         "audio_title": "Audio",
@@ -62,7 +63,7 @@
         "subtitle_mode": "Subtitle Mode",
         "subtitle_mode_hint": "Subtitles are loaded based on the default and forced flags in the\nembedded metadata. Language preferences are considered when\nmultiple options are available.",
         "set_subtitle_track": "Set Subtitle Track From Previous Item",
-        "set_subtitle_track_hint" :"Try to set the subtitle track to the closest match to the last\nvideo.",
+        "set_subtitle_track_hint": "Try to set the subtitle track to the closest match to the last\nvideo.",
         "subtitle_size": "Subtitle Size",
         "subtitle_size_hint": "Choose a default subtitle size for direct play (only works for\nsome subtitle formats)."
       },
@@ -116,6 +117,12 @@
       "logs": {
         "logs_title": "Logs",
         "no_logs_available": "No logs available"
+      },
+      "languages": {
+        "title": "Languages",
+        "app_language": "App language",
+        "app_language_description": "Select the language for the app.",
+        "system": "System"
       }
     },
     "downloads": {

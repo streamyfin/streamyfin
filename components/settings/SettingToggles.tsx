@@ -44,6 +44,7 @@ import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { ListItem } from "@/components/ListItem";
 import { JellyseerrSettings } from "./Jellyseerr";
 import { useTranslation } from "react-i18next";
+import { AppLanguageSelector } from "./AppLanguageSelector";
 
 interface Props extends ViewProps {}
 
@@ -133,6 +134,8 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
         </View>
       </View> */}
 
+      <AppLanguageSelector />
+
       <MediaProvider>
         <MediaToggles />
         <AudioToggles />
@@ -140,12 +143,16 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
       </MediaProvider>
 
       <View>
-        <Text className="text-lg font-bold mb-2">{t("home.settings.other.other_title")}</Text>
+        <Text className="text-lg font-bold mb-2">
+          {t("home.settings.other.other_title")}
+        </Text>
 
         <View className="flex flex-col rounded-xl overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
           <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
             <View className="shrink">
-              <Text className="font-semibold">{t("home.settings.other.auto_rotate")}</Text>
+              <Text className="font-semibold">
+                {t("home.settings.other.auto_rotate")}
+              </Text>
               <Text className="text-xs opacity-50">
                 {t("home.settings.other.auto_rotate_hint")}
               </Text>
@@ -168,7 +175,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               `}
           >
             <View className="flex flex-col shrink">
-              <Text className="font-semibold">{t("home.settings.other.video_orientation")}</Text>
+              <Text className="font-semibold">
+                {t("home.settings.other.video_orientation")}
+              </Text>
               <Text className="text-xs opacity-50">
                 {t("home.settings.other.video_orientation_hint")}
               </Text>
@@ -265,7 +274,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
 
           <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
             <View className="shrink">
-              <Text className="font-semibold">{t("home.settings.other.safe_area_in_controls")}</Text>
+              <Text className="font-semibold">
+                {t("home.settings.other.safe_area_in_controls")}
+              </Text>
               <Text className="text-xs opacity-50">
                 {t("home.settings.other.safe_area_in_controls_hint")}
               </Text>
@@ -281,8 +292,12 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
           <View className="flex flex-col">
             <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
               <View className="flex flex-col">
-                <Text className="font-semibold">{t("home.settings.other.use_popular_lists_plugin")}</Text>
-                <Text className="text-xs opacity-50">{t("home.settings.other.use_popular_lists_plugin_hint")}</Text>
+                <Text className="font-semibold">
+                  {t("home.settings.other.use_popular_lists_plugin")}
+                </Text>
+                <Text className="text-xs opacity-50">
+                  {t("home.settings.other.use_popular_lists_plugin_hint")}
+                </Text>
                 <TouchableOpacity
                   onPress={() => {
                     Linking.openURL(
@@ -290,7 +305,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
                     );
                   }}
                 >
-                  <Text className="text-xs text-purple-600">{t("home.settings.other.more_info")}</Text>
+                  <Text className="text-xs text-purple-600">
+                    {t("home.settings.other.more_info")}
+                  </Text>
                 </TouchableOpacity>
               </View>
               <Switch
@@ -355,7 +372,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               `}
             >
               <View className="flex flex-col shrink">
-                <Text className="font-semibold">{t("home.settings.other.search_engine")}</Text>
+                <Text className="font-semibold">
+                  {t("home.settings.other.search_engine")}
+                </Text>
                 <Text className="text-xs opacity-50">
                   {t("home.settings.other.search_engine_hint")}
                 </Text>
@@ -438,7 +457,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
 
           <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
             <View className="shrink">
-              <Text className="font-semibold">{t("home.settings.other.show_custom_menu_links")}</Text>
+              <Text className="font-semibold">
+                {t("home.settings.other.show_custom_menu_links")}
+              </Text>
               <Text className="text-xs opacity-50">
                 {t("home.settings.other.show_custom_menu_links_hint")}
               </Text>
@@ -449,7 +470,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
                   )
                 }
               >
-                <Text className="text-xs text-purple-600">{t("home.settings.other.more_info")}</Text>
+                <Text className="text-xs text-purple-600">
+                  {t("home.settings.other.more_info")}
+                </Text>
               </TouchableOpacity>
             </View>
             <Switch
@@ -463,7 +486,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
       </View>
 
       <View className="mt-4">
-        <Text className="text-lg font-bold mb-2">{t("home.settings.downloads.downloads_title")}</Text>
+        <Text className="text-lg font-bold mb-2">
+          {t("home.settings.downloads.downloads_title")}
+        </Text>
         <View className="flex flex-col rounded-xl overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
           <View
             className={`
@@ -471,7 +496,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               `}
           >
             <View className="flex flex-col shrink">
-              <Text className="font-semibold">{t("home.settings.downloads.download_method")}</Text>
+              <Text className="font-semibold">
+                {t("home.settings.downloads.download_method")}
+              </Text>
               <Text className="text-xs opacity-50">
                 {t("home.settings.downloads.download_method_hint")}
               </Text>
@@ -531,7 +558,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               }`}
           >
             <View className="flex flex-col shrink">
-              <Text className="font-semibold">{t("home.settings.downloads.remux_max_download")}</Text>
+              <Text className="font-semibold">
+                {t("home.settings.downloads.remux_max_download")}
+              </Text>
               <Text className="text-xs opacity-50 shrink">
                 {t("home.settings.downloads.remux_max_download_hint")}
               </Text>
@@ -562,7 +591,9 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               }`}
           >
             <View className="flex flex-col shrink">
-              <Text className="font-semibold">{t("home.settings.downloads.auto_download")}</Text>
+              <Text className="font-semibold">
+                {t("home.settings.downloads.auto_download")}
+              </Text>
               <Text className="text-xs opacity-50 shrink">
                 {t("home.settings.downloads.auto_download_hint")}
               </Text>

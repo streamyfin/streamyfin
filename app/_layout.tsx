@@ -273,9 +273,9 @@ function Layout() {
 
   useEffect(() => {
     i18n.changeLanguage(
-      settings?.preferedLanguage || getLocales()[0].languageCode || "en"
+      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en"
     );
-  }, [settings]);
+  }, [settings?.preferedLanguage, i18n]);
 
   const appState = useRef(AppState.currentState);
 

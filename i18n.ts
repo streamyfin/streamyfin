@@ -6,8 +6,14 @@ import fr from "./translations/fr.json";
 import sv from "./translations/sv.json";
 import { getLocales } from "expo-localization";
 
+export const APP_LANGUAGES = [
+  { label: "English", value: "en" },
+  { label: "Français", value: "fr" },
+  { label: "Svenska", value: "sv" },
+];
+
 i18n.use(initReactI18next).init({
-  compatibilityJSON: "v3",
+  compatibilityJSON: "v4",
   resources: {
     en: { translation: en },
     fr: { translation: fr },

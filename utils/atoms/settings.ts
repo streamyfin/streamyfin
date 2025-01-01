@@ -99,7 +99,7 @@ const loadSettings = (): Settings => {
     usePopularPlugin: false,
     deviceProfile: "Expo",
     mediaListCollectionIds: [],
-    preferedLanguage: getLocales()[0].languageCode || "en",
+    preferedLanguage: undefined,
     searchEngine: "Jellyfin",
     marlinServerUrl: "",
     openInVLC: false,
