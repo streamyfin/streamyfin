@@ -513,7 +513,7 @@ export default function search() {
               ))}
             </View>
           ) : debouncedSearch.length === 0 && searchType === "Discover" ? (
-            <View className="flex flex-col px-4">
+            <View className="flex flex-col">
               {sortBy?.(
                 jellyseerrDiscoverSettings?.filter((s) => s.enabled),
                 "order"
