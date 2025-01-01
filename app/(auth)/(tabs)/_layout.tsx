@@ -48,7 +48,10 @@ export default function TabLayout() {
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
                     require("@/assets/icons/house.fill.png")
-                : () => ({ sfSymbol: "house" }),
+                : ({ focused }) =>
+                    focused
+                      ? { sfSymbol: "house.fill" }
+                      : { sfSymbol: "house" },
           }}
         />
         <NativeTabs.Screen
@@ -59,7 +62,10 @@ export default function TabLayout() {
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
                     require("@/assets/icons/magnifyingglass.png")
-                : () => ({ sfSymbol: "magnifyingglass" }),
+                : ({ focused }) =>
+                    focused
+                      ? { sfSymbol: "magnifyingglass" }
+                      : { sfSymbol: "magnifyingglass" },
           }}
         />
         <NativeTabs.Screen
@@ -69,8 +75,13 @@ export default function TabLayout() {
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
-                    require("@/assets/icons/heart.png")
-                : () => ({ sfSymbol: "heart" }),
+                    focused
+                      ? require("@/assets/icons/heart.fill.png")
+                      : require("@/assets/icons/heart.png")
+                : ({ focused }) =>
+                    focused
+                      ? { sfSymbol: "heart.fill" }
+                      : { sfSymbol: "heart" },
           }}
         />
         <NativeTabs.Screen
@@ -81,7 +92,10 @@ export default function TabLayout() {
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
                     require("@/assets/icons/server.rack.png")
-                : () => ({ sfSymbol: "rectangle.stack" }),
+                : ({ focused }) =>
+                    focused
+                      ? { sfSymbol: "rectangle.stack.fill" }
+                      : { sfSymbol: "rectangle.stack" },
           }}
         />
         <NativeTabs.Screen
@@ -92,8 +106,11 @@ export default function TabLayout() {
             tabBarItemHidden: settings?.showCustomMenuLinks ? false : true,
             tabBarIcon:
               Platform.OS == "android"
-                ? () => require("@/assets/icons/list.png")
-                : () => ({ sfSymbol: "list.dash" }),
+                ? ({ focused }) => require("@/assets/icons/list.png")
+                : ({ focused }) =>
+                    focused
+                      ? { sfSymbol: "list.dash.fill" }
+                      : { sfSymbol: "list.dash" },
           }}
         />
       </NativeTabs>

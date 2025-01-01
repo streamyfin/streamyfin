@@ -1,4 +1,5 @@
 import "@/augmentations";
+import { Text } from "@/components/common/Text";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
   getOrSetDeviceId,
@@ -36,7 +37,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useEffect, useRef } from "react";
-import { Appearance, AppState } from "react-native";
+import { Appearance, AppState, TouchableOpacity } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";

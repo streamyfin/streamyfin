@@ -11,7 +11,6 @@ import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import SeriesPoster from "../posters/SeriesPoster";
-import { useEffect } from "react";
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -45,7 +44,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   if (hideIfEmpty === true && data?.length === 0) return null;
 
   return (
-    <View {...props} className="">
+    <View {...props}>
       <Text className="px-4 text-lg font-bold mb-2 text-neutral-100">
         {title}
       </Text>
@@ -85,10 +84,10 @@ export const ScrollingCollectionList: React.FC<Props> = ({
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View className="px-4 flex flex-row">
-            {data?.map((item, index) => (
+            {data?.map((item) => (
               <TouchableItemRouter
                 item={item}
-                key={index}
+                key={item.Id}
                 className={`mr-2 
                   ${orientation === "horizontal" ? "w-44" : "w-28"}
                 `}
