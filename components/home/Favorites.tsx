@@ -64,7 +64,7 @@ export const Favorites = () => {
   );
 
   return (
-    <View className="flex flex-col space-y-4">
+    <View className="flex flex-co gap-y-4">
       <ScrollingCollectionList
         queryFn={fetchFavoriteSeries}
         queryKey={["home", "favorites", "series"]}
