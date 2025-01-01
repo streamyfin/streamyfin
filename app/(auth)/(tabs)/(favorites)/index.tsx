@@ -28,7 +28,9 @@ export default function favorites() {
         paddingBottom: 16,
       }}
     >
-      <Favorites />
+      <View className="my-4">
+        <Favorites />
+      </View>
     </ScrollView>
   );
 }

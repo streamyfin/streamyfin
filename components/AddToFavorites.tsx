@@ -61,6 +61,7 @@ export const AddToFavorites: React.FC<Props> = ({ item, type, ...props }) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [type, item.Id] });
+      queryClient.invalidateQueries({ queryKey: ["home", "favorites"] });
     },
   });
 
@@ -90,6 +91,7 @@ export const AddToFavorites: React.FC<Props> = ({ item, type, ...props }) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [type, item.Id] });
+      queryClient.invalidateQueries({ queryKey: ["home", "favorites"] });
     },
   });
 
