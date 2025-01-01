@@ -66,7 +66,12 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
 
   const markAsPlayedStatus = useMarkAsPlayed(item);
 
-  if (from === "(home)" || from === "(search)" || from === "(libraries)")
+  if (
+    from === "(home)" ||
+    from === "(search)" ||
+    from === "(libraries)" ||
+    from === "(favorites)"
+  )
     return (
       <ContextMenu.Root>
         <ContextMenu.Trigger>

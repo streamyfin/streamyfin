@@ -1,6 +1,6 @@
 import { Chromecast } from "@/components/Chromecast";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 
