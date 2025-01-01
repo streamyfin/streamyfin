@@ -9,9 +9,10 @@ import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
+  type: "item" | "series";
 }
 
-export const AddToFavorites: React.FC<Props> = ({ item, ...props }) => {
+export const AddToFavorites: React.FC<Props> = ({ item, type, ...props }) => {
   const queryClient = useQueryClient();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -19,6 +20,20 @@ export const AddToFavorites: React.FC<Props> = ({ item, ...props }) => {
   const isFavorite = useMemo(() => {
     return item.UserData?.IsFavorite;
   }, [item.UserData?.IsFavorite]);
+
+  const updateItemInQueries = (newData: Partial<BaseItemDto>) => {
+    queryClient.setQueryData<BaseItemDto | undefined>(
+      [type, item.Id],
+      (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          ...newData,
+          UserData: { ...old.UserData, ...newData.UserData },
+        };
+      }
+    );
+  };
 
   const markFavoriteMutation = useMutation({
     mutationFn: async () => {
@@ -30,22 +45,22 @@ export const AddToFavorites: React.FC<Props> = ({ item, ...props }) => {
       }
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["item", item.Id] });
+      await queryClient.cancelQueries({ queryKey: [type, item.Id] });
       const previousItem = queryClient.getQueryData<BaseItemDto>([
-        "item",
+        type,
         item.Id,
       ]);
-      queryClient.setQueryData<BaseItemDto>(["item", item.Id], (old) => ({
-        ...old!,
-        UserData: { ...old!.UserData, IsFavorite: true },
-      }));
+      updateItemInQueries({ UserData: { IsFavorite: true } });
+
       return { previousItem };
     },
     onError: (err, variables, context) => {
-      queryClient.setQueryData(["item", item.Id], context?.previousItem);
+      if (context?.previousItem) {
+        queryClient.setQueryData([type, item.Id], context.previousItem);
+      }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
+      queryClient.invalidateQueries({ queryKey: [type, item.Id] });
     },
   });
 
@@ -59,22 +74,22 @@ export const AddToFavorites: React.FC<Props> = ({ item, ...props }) => {
       }
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["item", item.Id] });
+      await queryClient.cancelQueries({ queryKey: [type, item.Id] });
       const previousItem = queryClient.getQueryData<BaseItemDto>([
-        "item",
+        type,
         item.Id,
       ]);
-      queryClient.setQueryData<BaseItemDto>(["item", item.Id], (old) => ({
-        ...old!,
-        UserData: { ...old!.UserData, IsFavorite: false },
-      }));
+      updateItemInQueries({ UserData: { IsFavorite: false } });
+
       return { previousItem };
     },
     onError: (err, variables, context) => {
-      queryClient.setQueryData(["item", item.Id], context?.previousItem);
+      if (context?.previousItem) {
+        queryClient.setQueryData([type, item.Id], context.previousItem);
+      }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
+      queryClient.invalidateQueries({ queryKey: [type, item.Id] });
     },
   });
 

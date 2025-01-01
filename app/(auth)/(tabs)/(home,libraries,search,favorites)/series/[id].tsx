@@ -1,10 +1,8 @@
-import { Text } from "@/components/common/Text";
+import { AddToFavorites } from "@/components/AddToFavorites";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { Ratings } from "@/components/Ratings";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
-import { ItemActions } from "@/components/series/SeriesActions";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
@@ -38,7 +36,6 @@ const page: React.FC = () => {
         userId: user?.Id,
         itemId: seriesId,
       }),
-    enabled: !!seriesId && !!api,
     staleTime: 60 * 1000,
   });
 
@@ -81,10 +78,13 @@ const page: React.FC = () => {
     navigation.setOptions({
       headerRight: () =>
         !isLoading &&
+        item &&
         allEpisodes &&
         allEpisodes.length > 0 && (
           <View className="flex flex-row items-center space-x-2">
+            <AddToFavorites item={item} type="series" />
             <DownloadItems
+              size="large"
               title="Download Series"
               items={allEpisodes || []}
               MissingDownloadIconComponent={() => (
@@ -101,7 +101,7 @@ const page: React.FC = () => {
           </View>
         ),
     });
-  }, [allEpisodes, isLoading]);
+  }, [allEpisodes, isLoading, item]);
 
   if (!item || !backdropUrl) return null;
 
