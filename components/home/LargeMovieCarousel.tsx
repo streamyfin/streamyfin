@@ -88,7 +88,7 @@ export const LargeMovieCarousel: React.FC<Props> = ({ ...props }) => {
   if (!popularItems) return null;
 
   return (
-    <View className="flex flex-col items-center" {...props}>
+    <View className="flex flex-col items-center mt-4" {...props}>
       <Carousel
         autoPlay={true}
         autoPlayInterval={3000}
