@@ -61,6 +61,18 @@ export default function IndexLayout() {
           title: "",
         }}
       />
+      <Stack.Screen
+        name="settings/jellyseerr/page"
+        options={{
+          title: "",
+        }}
+      />
+      <Stack.Screen
+        name="settings/popular-lists/page"
+        options={{
+          title: "",
+        }}
+      />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
         <Stack.Screen key={name} name={name} options={options} />
       ))}

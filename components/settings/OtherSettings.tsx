@@ -29,7 +29,6 @@ export const OtherSettings: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
-  const [marlinUrl, setMarlinUrl] = useState<string>("");
 
   /********************
    * Background task
@@ -61,29 +60,6 @@ export const OtherSettings: React.FC = () => {
   /**********************
    *********************/
 
-  const queryClient = useQueryClient();
-
-  const {
-    data: mediaListCollections,
-    isLoading: isLoadingMediaListCollections,
-  } = useQuery({
-    queryKey: ["sf_promoted", user?.Id, settings?.usePopularPlugin],
-    queryFn: async () => {
-      if (!api || !user?.Id) return [];
-
-      const response = await getItemsApi(api).getItems({
-        userId: user.Id,
-        tags: ["sf_promoted"],
-        recursive: true,
-        fields: ["Tags"],
-        includeItemTypes: ["BoxSet"],
-      });
-
-      return response.data.Items ?? [];
-    },
-    enabled: !!api && !!user?.Id && settings?.usePopularPlugin === true,
-    staleTime: 0,
-  });
 
   if (!settings) return null;
 
@@ -211,40 +187,7 @@ export const OtherSettings: React.FC = () => {
         />
       </ListItem>
 
-      {settings.usePopularPlugin && (
-        <ListGroup title="Media List Collections">
-          {mediaListCollections?.map((mlc) => (
-            <ListItem key={mlc.Id} title={mlc.Name}>
-              <Switch
-                value={settings.mediaListCollectionIds?.includes(mlc.Id!)}
-                onValueChange={(value) => {
-                  if (!settings.mediaListCollectionIds) {
-                    updateSettings({
-                      mediaListCollectionIds: [mlc.Id!],
-                    });
-                    return;
-                  }
-
-                  updateSettings({
-                    mediaListCollectionIds:
-                      settings.mediaListCollectionIds.includes(mlc.Id!)
-                        ? settings.mediaListCollectionIds.filter(
-                            (id) => id !== mlc.Id
-                          )
-                        : [...settings.mediaListCollectionIds, mlc.Id!],
-                  });
-                }}
-              />
-            </ListItem>
-          ))}
-          {isLoadingMediaListCollections && <Loader />}
-          {mediaListCollections?.length === 0 && (
-            <Text className="text-xs opacity-50 p-4">
-              No collections found. Add some in Jellyfin.
-            </Text>
-          )}
-        </ListGroup>
-      )}
+      
       <ListItem
         title="Show Custom Menu Links"
         onPress={() =>

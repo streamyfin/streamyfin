@@ -24,6 +24,11 @@ export const PluginSettings = () => {
           title="Marlin Search"
           showArrow
         />
+        <ListItem
+          onPress={() => router.push("/settings/popular-lists/page")}
+          title="Popular Lists"
+          showArrow
+        />
       </ListGroup>
     </View>
   );
