@@ -49,6 +49,12 @@ export default function IndexLayout() {
           title: "Settings",
         }}
       />
+      <Stack.Screen
+        name="settings/optimized-server/page"
+        options={{
+          title: "",
+        }}
+      />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
         <Stack.Screen key={name} name={name} options={options} />
       ))}
