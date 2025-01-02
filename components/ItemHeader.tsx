@@ -1,10 +1,11 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import React from "react";
 import { View, ViewProps } from "react-native";
+import { GenreTags } from "./GenreTags";
 import { MoviesTitleHeader } from "./movies/MoviesTitleHeader";
 import { Ratings } from "./Ratings";
 import { EpisodeTitleHeader } from "./series/EpisodeTitleHeader";
-import { GenreTags } from "./GenreTags";
-import React from "react";
+import { ItemActions } from "./series/SeriesActions";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -27,7 +28,10 @@ export const ItemHeader: React.FC<Props> = ({ item, ...props }) => {
   return (
     <View className="flex flex-col" {...props}>
       <View className="flex flex-col" {...props}>
-        <Ratings item={item} className="mb-2" />
+        <View className="flex flex-row items-center justify-between">
+          <Ratings item={item} className="mb-2" />
+          <ItemActions item={item} />
+        </View>
         {item.Type === "Episode" && (
           <>
             <EpisodeTitleHeader item={item} />

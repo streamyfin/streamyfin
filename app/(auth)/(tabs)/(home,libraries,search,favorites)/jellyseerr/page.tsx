@@ -4,7 +4,7 @@ import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { Image } from "expo-image";
-import { TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OverviewText } from "@/components/OverviewText";
@@ -16,7 +16,7 @@ import { Button } from "@/components/Button";
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
-  BottomSheetModal,
+  BottomSheetModal, BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import {
@@ -24,7 +24,6 @@ import {
   IssueTypeName,
 } from "@/utils/jellyseerr/server/constants/issue";
 import * as DropdownMenu from "zeego/dropdown-menu";
-import { Input } from "@/components/common/Input";
 import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
@@ -274,17 +273,22 @@ const Page: React.FC = () => {
                 </DropdownMenu.Root>
               </View>
 
-              <Input
-                className="w-full"
-                placeholder="(optional) Describe the issue..."
-                value={issueMessage}
-                keyboardType="default"
-                returnKeyType="done"
-                autoCapitalize="none"
-                textContentType="none"
-                maxLength={254}
-                onChangeText={setIssueMessage}
-              />
+              <View
+                className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full"
+              >
+                <BottomSheetTextInput
+                  multiline
+                  maxLength={254}
+                  style={{color: "white"}}
+                  clearButtonMode="always"
+                  placeholder="(optional) Describe the issue..."
+                  placeholderTextColor="#9CA3AF"
+                  // Issue with multiline + Textinput inside a portal
+                  // https://github.com/callstack/react-native-paper/issues/1668
+                  defaultValue={issueMessage}
+                  onChangeText={setIssueMessage}
+                />
+              </View>
             </View>
             <Button className="mt-auto" onPress={submitIssue} color="purple">
               Submit

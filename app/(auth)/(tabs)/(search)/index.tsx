@@ -321,7 +321,7 @@ export default function search() {
                   text="Library"
                   textClass="p-1"
                   className={
-                    searchType === "Library" ? "bg-neutral-600" : undefined
+                    searchType === "Library" ? "bg-purple-600" : undefined
                   }
                 />
               </TouchableOpacity>
@@ -330,7 +330,7 @@ export default function search() {
                   text="Discover"
                   textClass="p-1"
                   className={
-                    searchType === "Discover" ? "bg-neutral-600" : undefined
+                    searchType === "Discover" ? "bg-purple-600" : undefined
                   }
                 />
               </TouchableOpacity>
@@ -516,7 +516,7 @@ export default function search() {
               ))}
             </View>
           ) : debouncedSearch.length === 0 && searchType === "Discover" ? (
-            <View className="flex flex-col px-4">
+            <View className="flex flex-col">
               {sortBy?.(
                 jellyseerrDiscoverSettings?.filter((s) => s.enabled),
                 "order"

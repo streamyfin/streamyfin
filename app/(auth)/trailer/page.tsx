@@ -1,13 +1,11 @@
-import { useGlobalSearchParams, useNavigation } from "expo-router";
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { Button, Dimensions } from "react-native";
-import { Alert, View } from "react-native";
+import { useGlobalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, Dimensions, View } from "react-native";
 import YoutubePlayer, { PLAYER_STATES } from "react-native-youtube-iframe";
 import { useTranslation } from "react-i18next";
 
 export default function page() {
   const searchParams = useGlobalSearchParams();
-  const navigation = useNavigation();
   const { t } = useTranslation();
   console.log(searchParams);
 
@@ -31,15 +29,10 @@ export default function page() {
   }, []);
 
   useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-
     togglePlaying();
   }, []);
 
   const screenWidth = Dimensions.get("screen").width;
-  const screenHeight = Dimensions.get("screen").height;
 
   return (
     <View className="flex flex-col bg-black items-center justify-center h-full">

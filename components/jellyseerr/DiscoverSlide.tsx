@@ -71,11 +71,14 @@ const DiscoverSlide: React.FC<Props> = ({ slide }) => {
     flatData &&
     flatData?.length > 0 && (
       <View className="mb-4">
-        <Text className="font-bold text-lg mb-2">
+        <Text className="font-bold text-lg mb-2 px-4">
           {DiscoverSliderType[slide.type].toString().toTitle()}
         </Text>
         <FlashList
           horizontal
+          contentContainerStyle={{
+            paddingLeft: 16,
+          }}
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item!!.id.toString()}
           estimatedItemSize={250}

@@ -39,7 +39,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import {AppState, AppStateStatus, Platform} from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
 import { apiAtom } from "./JellyfinProvider";
 import * as Notifications from "expo-notifications";
@@ -197,7 +197,7 @@ function useDownloadProvider() {
     [settings?.optimizedVersionsServerUrl, authHeader]
   );
 
-  const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`
+  const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;
 
   const startDownload = useCallback(
     async (process: JobStatus) => {
@@ -425,32 +425,25 @@ function useDownloadProvider() {
       throw new Error("Base directory not found");
     }
 
-    console.log(`ignoreList length: ${ignoreList?.length}`);
-
     const dirContents = await FileSystem.readDirectoryAsync(baseDirectory);
     for (const item of dirContents) {
       // Exclude mmkv directory.
       // Deleting this deletes all user information as well. Logout should handle this.
       if (
         (item == "mmkv" && !includeMMKV) ||
-        ignoreList.some(i => item.includes(i))
+        ignoreList.some((i) => item.includes(i))
       ) {
-        console.log("Skipping read for item", item)
         continue;
       }
       await FileSystem.getInfoAsync(`${baseDirectory}${item}`)
         .then((itemInfo) => {
-          console.log("Loading itemInfo", itemInfo);
-
           if (itemInfo.exists && !itemInfo.isDirectory) {
             callback(itemInfo);
           }
         })
-        .catch(e =>
-          console.error(e)
-        )
+        .catch((e) => console.error(e));
     }
-  }
+  };
 
   const deleteLocalFiles = async (): Promise<void> => {
     await forEveryDocumentDirFile(false, [], (file) => {
@@ -547,28 +540,36 @@ function useDownloadProvider() {
   };
 
   const cleanCacheDirectory = async () => {
-    const cacheDir = await FileSystem.getInfoAsync(APP_CACHE_DOWNLOAD_DIRECTORY);
+    const cacheDir = await FileSystem.getInfoAsync(
+      APP_CACHE_DOWNLOAD_DIRECTORY
+    );
     if (cacheDir.exists) {
-      const cachedFiles = await FileSystem.readDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY)
-      let position = 0
-      const batchSize = 3
+      const cachedFiles = await FileSystem.readDirectoryAsync(
+        APP_CACHE_DOWNLOAD_DIRECTORY
+      );
+      let position = 0;
+      const batchSize = 3;
 
       // batching promise.all to avoid OOM
       while (position < cachedFiles.length) {
-        const itemsForBatch = cachedFiles.slice(position, position + batchSize)
-        await Promise.all(itemsForBatch.map(async file => {
-          const info = await FileSystem.getInfoAsync(`${APP_CACHE_DOWNLOAD_DIRECTORY}${file}`)
-          if (info.exists) {
-            await FileSystem.deleteAsync(info.uri, { idempotent: true })
-            return Promise.resolve(file)
-          }
-          return Promise.reject()
-        }))
+        const itemsForBatch = cachedFiles.slice(position, position + batchSize);
+        await Promise.all(
+          itemsForBatch.map(async (file) => {
+            const info = await FileSystem.getInfoAsync(
+              `${APP_CACHE_DOWNLOAD_DIRECTORY}${file}`
+            );
+            if (info.exists) {
+              await FileSystem.deleteAsync(info.uri, { idempotent: true });
+              return Promise.resolve(file);
+            }
+            return Promise.reject();
+          })
+        );
 
-        position += batchSize
+        position += batchSize;
       }
     }
-  }
+  };
 
   const deleteFileByType = async (type: BaseItemDto["Type"]) => {
     await Promise.all(
@@ -585,20 +586,22 @@ function useDownloadProvider() {
   };
 
   const appSizeUsage = useMemo(async () => {
-    const sizes: number[] = downloadedFiles?.map(d => {
-      return getDownloadedItemSize(d.item.Id!!)
-    }) || [];
+    const sizes: number[] =
+      downloadedFiles?.map((d) => {
+        return getDownloadedItemSize(d.item.Id!!);
+      }) || [];
 
     await forEveryDocumentDirFile(
       true,
-      getAllDownloadedItems().map(d => d.item.Id!!),
+      getAllDownloadedItems().map((d) => d.item.Id!!),
       (file) => {
         if (file.exists) {
           sizes.push(file.size);
         }
-      }).catch(e => {
-      console.error(e)
-    })
+      }
+    ).catch((e) => {
+      console.error(e);
+    });
 
     return sizes.reduce((sum, size) => sum + size, 0);
   }, [logs, downloadedFiles, forEveryDocumentDirFile]);
@@ -692,7 +695,7 @@ function useDownloadProvider() {
     appSizeUsage,
     getDownloadedItemSize,
     APP_CACHE_DOWNLOAD_DIRECTORY,
-    cleanCacheDirectory
+    cleanCacheDirectory,
   };
 }
 

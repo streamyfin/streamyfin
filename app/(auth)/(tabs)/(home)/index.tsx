@@ -110,9 +110,9 @@ export default function index() {
       setIsConnected(state.isConnected);
     });
 
-    cleanCacheDirectory()
-      .then(r => console.log("Cache directory cleaned"))
-      .catch(e => console.error("Something went wrong cleaning cache directory"))
+    cleanCacheDirectory().catch((e) =>
+      console.error("Something went wrong cleaning cache directory")
+    );
     return () => {
       unsubscribe();
     };

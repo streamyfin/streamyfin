@@ -15,12 +15,12 @@ import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
 import { useOrientation } from "@/hooks/useOrientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { SubtitleHelper } from "@/utils/SubtitleHelper";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import {
   BaseItemDto,
   MediaSourceInfo,
-  MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
@@ -31,10 +31,10 @@ import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
+import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
-import { SubtitleHelper } from "@/utils/SubtitleHelper";
-import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
+import { AddToFavorites } from "./AddToFavorites";
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -91,6 +91,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 <View className="flex flex-row items-center space-x-2">
                   <DownloadSingleItem item={item} size="large" />
                   <PlayedStatus item={item} />
+                  <AddToFavorites item={item} type="item" />
                 </View>
               )}
             </View>
