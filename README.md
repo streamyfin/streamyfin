@@ -66,7 +66,7 @@ Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) to
   <a href="https://play.google.com/store/apps/details?id=com.fredrikburmester.streamyfin"><img height=50 alt="Get the beta on Google Play" src="./assets/Google_Play_Store_badge_EN.svg"/></a>
 </div>
 
-Or download the APKs [here on GitHub](https://github.com/fredrikburmester/streamyfin/releases) for Android.
+Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/releases) for Android.
 
 ### Beta testing
 
@@ -108,7 +108,7 @@ Key points of the MPL-2.0:
 
 ## 🌐 Connect with Us
 
-Join our Discord: [https://discord.gg/BuGG9ZNhaE](https://discord.gg/BuGG9ZNhaE)
+Join our Discord: [https://discord.gg/aJvAYeycyY](https://discord.gg/aJvAYeycyY)
 
 If you have questions or need support, feel free to reach out:
 
@@ -117,7 +117,7 @@ If you have questions or need support, feel free to reach out:
 
 ## 📝 Credits
 
-Streamyfin is developed by Fredrik Burmester and is not affiliated with Jellyfin. The app is built with Expo, React Native, and other open-source libraries.
+Streamyfin is developed by [Fredrik Burmester](https://github.com/fredrikburmester) and is not affiliated with Jellyfin. The app is built with Expo, React Native, and other open-source libraries.
 
 ## ✨ Acknowledgements
 
@@ -130,4 +130,4 @@ I'd like to thank the following people and projects for their contributions to S
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=fredrikburmester/streamyfin&type=Date)](https://star-history.com/#fredrikburmester/streamyfin&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.com/#streamyfin/streamyfin&Date)
