@@ -1,6 +1,8 @@
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import * as Haptics from "expo-haptics";
+import {
+  BaseItemDto,
+  BaseItemPerson,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { useRouter, useSegments } from "expo-router";
 import { PropsWithChildren } from "react";
 import { TouchableOpacity, TouchableOpacityProps } from "react-native";
@@ -10,8 +12,13 @@ interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
 }
 
-export const itemRouter = (item: BaseItemDto, from: string) => {
-  if (item.CollectionType === "livetv") {
+export const itemRouter = (
+  item: BaseItemDto | BaseItemPerson,
+  from: string
+) => {
+  console.log(item.Type);
+
+  if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${from}/livetv`;
   }
 
@@ -31,7 +38,7 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
     return `/(auth)/(tabs)/${from}/artists/${item.Id}`;
   }
 
-  if (item.Type === "Person") {
+  if (item.Type === "Person" || item.Type === "Actor") {
     return `/(auth)/(tabs)/${from}/actors/${item.Id}`;
   }
 
