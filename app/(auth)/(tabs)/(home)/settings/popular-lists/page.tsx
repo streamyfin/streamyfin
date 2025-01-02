@@ -19,7 +19,9 @@ export default function page() {
   const [settings, updateSettings] = useSettings();
 
   const handleOpenLink = () => {
-    Linking.openURL("https://github.com/fredrikburmester/marlin-search");
+    Linking.openURL(
+      "https://github.com/lostb1t/jellyfin-plugin-collection-import"
+    );
   };
 
   const queryClient = useQueryClient();
@@ -101,6 +103,13 @@ export default function page() {
           )}
         </ListGroup>
       )}
+      <Text className="px-4 text-xs text-neutral-500 mt-1">
+        Popular Lists is a plugin that enables you to show custom Jellyfin lists
+        on the Streamyfin home page.{" "}
+        <Text className="text-blue-500" onPress={handleOpenLink}>
+          Read more about Popular Lists.
+        </Text>
+      </Text>
     </View>
   );
 }
