@@ -16,7 +16,7 @@ export const PluginSettings = () => {
       <ListGroup title="Plugins">
         <ListItem
           onPress={() => router.push("/settings/jellyseerr/page")}
-          title={"Jellyseerr Settings"}
+          title={"Jellyseerr"}
           showArrow
         />
         <ListItem
