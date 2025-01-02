@@ -6,6 +6,7 @@ import { DownloadSettings } from "@/components/settings/DownloadSettings";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
 import { OtherSettings } from "@/components/settings/OtherSettings";
+import { PluginSettings } from "@/components/settings/PluginSettings";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
@@ -63,15 +64,7 @@ export default function settings() {
         <OtherSettings />
         <DownloadSettings />
 
-        <View>
-          <ListGroup title="Jellyseerr">
-            <ListItem
-              onPress={() => router.push("/settings/jellyseerr/page")}
-              title={"Jellyseerr Settings"}
-              showArrow
-            ></ListItem>
-          </ListGroup>
-        </View>
+        <PluginSettings />
 
         <View className="mb-4">
           <ListGroup title={"Logs"}>

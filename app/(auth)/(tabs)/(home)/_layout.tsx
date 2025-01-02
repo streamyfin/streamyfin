@@ -1,6 +1,6 @@
 import { Chromecast } from "@/components/Chromecast";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 
@@ -51,6 +51,12 @@ export default function IndexLayout() {
       />
       <Stack.Screen
         name="settings/optimized-server/page"
+        options={{
+          title: "",
+        }}
+      />
+      <Stack.Screen
+        name="settings/marlin-search/page"
         options={{
           title: "",
         }}

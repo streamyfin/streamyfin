@@ -1,11 +1,5 @@
-import { Stepper } from "@/components/inputs/Stepper";
-import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  ScreenOrientationEnum,
-  Settings,
-  useSettings,
-} from "@/utils/atoms/settings";
+import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   registerBackgroundFetchAsync,
@@ -15,22 +9,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as BackgroundFetch from "expo-background-fetch";
-import { useRouter } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import { useAtom } from "jotai";
 import React, { useEffect, useState } from "react";
-import {
-  Linking,
-  Switch,
-  TouchableOpacity,
-  View,
-  ViewProps,
-} from "react-native";
+import { Linking, Switch, TouchableOpacity, ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
-import { Button } from "../Button";
-import { Input } from "../common/Input";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -75,6 +60,8 @@ export const OtherSettings: React.FC = () => {
   }, [settings?.autoDownload]);
   /**********************
    *********************/
+
+  const queryClient = useQueryClient();
 
   const {
     data: mediaListCollections,
@@ -258,129 +245,6 @@ export const OtherSettings: React.FC = () => {
           )}
         </ListGroup>
       )}
-
-      <ListItem title="Search engine">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger>
-            <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
-              <Text className="mr-1 text-[#8E8D91]">
-                {settings.searchEngine}
-              </Text>
-              <Ionicons name="chevron-expand-sharp" size={18} color="#5A5960" />
-            </TouchableOpacity>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content
-            loop={true}
-            side="bottom"
-            align="start"
-            alignOffset={0}
-            avoidCollisions={true}
-            collisionPadding={8}
-            sideOffset={8}
-          >
-            <DropdownMenu.Label>Orientation</DropdownMenu.Label>
-            <DropdownMenu.Item
-              key="1"
-              onSelect={() => {
-                updateSettings({
-                  defaultVideoOrientation:
-                    ScreenOrientation.OrientationLock.DEFAULT,
-                });
-              }}
-            >
-              <DropdownMenu.ItemTitle>
-                {
-                  ScreenOrientationEnum[
-                    ScreenOrientation.OrientationLock.DEFAULT
-                  ]
-                }
-              </DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              key="2"
-              onSelect={() => {
-                updateSettings({
-                  defaultVideoOrientation:
-                    ScreenOrientation.OrientationLock.PORTRAIT_UP,
-                });
-              }}
-            >
-              <DropdownMenu.ItemTitle>
-                {
-                  ScreenOrientationEnum[
-                    ScreenOrientation.OrientationLock.PORTRAIT_UP
-                  ]
-                }
-              </DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              key="3"
-              onSelect={() => {
-                updateSettings({
-                  defaultVideoOrientation:
-                    ScreenOrientation.OrientationLock.LANDSCAPE_LEFT,
-                });
-              }}
-            >
-              <DropdownMenu.ItemTitle>
-                {
-                  ScreenOrientationEnum[
-                    ScreenOrientation.OrientationLock.LANDSCAPE_LEFT
-                  ]
-                }
-              </DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              key="4"
-              onSelect={() => {
-                updateSettings({
-                  defaultVideoOrientation:
-                    ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT,
-                });
-              }}
-            >
-              <DropdownMenu.ItemTitle>
-                {
-                  ScreenOrientationEnum[
-                    ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
-                  ]
-                }
-              </DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      </ListItem>
-
-      {settings.searchEngine === "Marlin" && (
-        <ListItem title="Marlin Server URL">
-          <View className="flex flex-row items-center space-x-2">
-            <Input
-              placeholder="Marlin Server URL..."
-              defaultValue={settings.marlinServerUrl}
-              value={marlinUrl}
-              keyboardType="url"
-              returnKeyType="done"
-              autoCapitalize="none"
-              textContentType="URL"
-              onChangeText={(text) => setMarlinUrl(text)}
-            />
-            <Button
-              color="purple"
-              className="shrink w-16 h-12"
-              onPress={() => {
-                updateSettings({
-                  marlinServerUrl: marlinUrl.endsWith("/")
-                    ? marlinUrl
-                    : marlinUrl + "/",
-                });
-              }}
-            >
-              Save
-            </Button>
-          </View>
-        </ListItem>
-      )}
-
       <ListItem
         title="Show Custom Menu Links"
         onPress={() =>
