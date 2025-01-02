@@ -15,11 +15,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { RoundButton } from "@/components/RoundButton";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { TvResult } from "@/utils/jellyseerr/server/models/Search";
-import { useQuery } from "@tanstack/react-query";
+import {QueryObserverResult, RefetchOptions, useQuery} from "@tanstack/react-query";
 import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
 import { Image } from "expo-image";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import { Loader } from "../Loader";
+import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
 
 const JellyseerrSeasonEpisodes: React.FC<{
   details: TvDetails;
@@ -100,7 +101,8 @@ const JellyseerrSeasons: React.FC<{
   isLoading: boolean;
   result?: TvResult;
   details?: TvDetails;
-}> = ({ isLoading, result, details }) => {
+  refetch:  (options?: (RefetchOptions | undefined)) => Promise<QueryObserverResult<TvDetails | MovieDetails | undefined, Error>>;
+}> = ({ isLoading, result, details, refetch }) => {
   if (!details) return null;
 
   const { jellyseerrApi, requestMedia } = useJellyseerr();
@@ -168,6 +170,21 @@ const JellyseerrSeasons: React.FC<{
     [requestAll]
   );
 
+  const requestSeason = useCallback(async (canRequest: Boolean, seasonNumber: number) => {
+    if (canRequest) {
+      requestMedia(
+        `${result?.name!!}, Season ${seasonNumber}`,
+        {
+          mediaId: details.id,
+          mediaType: MediaType.TV,
+          tvdbId: details.externalIds?.tvdbId,
+          seasons: [seasonNumber],
+        },
+        refetch
+      )
+    }
+  }, [requestMedia]);
+
   if (isLoading)
     return (
       <View>
@@ -231,22 +248,7 @@ const JellyseerrSeasons: React.FC<{
                 return (
                   <JellyseerrIconStatus
                     key={0}
-                    onPress={
-                      canRequest
-                        ? () =>
-                            requestMedia(
-                              `${result?.name!!}, Season ${
-                                season.seasonNumber
-                              }`,
-                              {
-                                mediaId: details.id,
-                                mediaType: MediaType.TV,
-                                tvdbId: details.externalIds?.tvdbId,
-                                seasons: [season.seasonNumber],
-                              }
-                            )
-                        : undefined
-                    }
+                    onPress={() => requestSeason(canRequest, season.seasonNumber)}
                     className={canRequest ? "bg-gray-700/40" : undefined}
                     mediaStatus={
                       seasons?.find(

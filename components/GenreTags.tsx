@@ -26,7 +26,7 @@ export const Tags: React.FC<TagProps & ViewProps> = ({ tags, textClass = "text-x
   return (
     <View className={`flex flex-row flex-wrap gap-1 ${props.className}`} {...props}>
       {tags.map((tag, idx) => (
-        <View>
+        <View key={idx}>
           <Tag key={idx} textClass={textClass} text={tag}/>
         </View>
       ))}
