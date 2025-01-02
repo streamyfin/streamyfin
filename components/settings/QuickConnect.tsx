@@ -50,7 +50,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
       <ListGroup title={"Quick Connect"}>
         <ListItem
           onPress={openQuickConnectAuthCodeInput}
-          title="Autheorize Quick Connect"
+          title="Authorize Quick Connect"
           textColor="blue"
         ></ListItem>
       </ListGroup>
