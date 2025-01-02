@@ -162,8 +162,8 @@ const CredentialsSchema = z.object({
 
     if (result === undefined) {
       Alert.alert(
-        "Connection failed",
-        "Could not connect to the server. Please check the URL and your network connection."
+        t("login.connection_failed"),
+        t("login.could_not_connect_to_server")
       );
       return;
     }
@@ -175,14 +175,14 @@ const CredentialsSchema = z.object({
     try {
       const code = await initiateQuickConnect();
       if (code) {
-        Alert.alert("Quick Connect", `Enter code ${code} to login`, [
+        Alert.alert(t("login.quick_connect"), t("login.enter_code_to_login", {code: code}), [
           {
-            text: "Got It",
+            text: t("login.got_it"),
           },
         ]);
       }
     } catch (error) {
-      Alert.alert(t("login.error_title"), "Failed to initiate Quick Connect");
+      Alert.alert(t("login.error_title"), t("login.failed_to_initiate_quick_connect"));
     }
   };
 

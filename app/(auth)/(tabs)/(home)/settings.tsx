@@ -42,8 +42,8 @@ export default function settings() {
 
   const openQuickConnectAuthCodeInput = () => {
     Alert.prompt(
-      "Quick connect",
-      "Enter the quick connect code",
+      t("home.settings.quick_connect.quick_connect_title"),
+      t("home.settings.quick_connect.enter_the_quick_connect_code"),
       async (text) => {
         if (text) {
           try {
@@ -55,14 +55,14 @@ export default function settings() {
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success
               );
-              Alert.alert("Success", "Quick connect authorized");
+              Alert.alert(t("home.settings.quick_connect.success"), t("home.settings.quick_connect.quick_connect_autorized"));
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert("Error", "Invalid code");
+              Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
             }
           } catch (e) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert("Error", "Invalid code");
+            Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
           }
         }
       }

@@ -7,7 +7,13 @@
     "username_placeholder": "Username",
     "password_placeholder": "Password",
     "use_quick_connect": "Use Quick Connect",
-    "login_button": "Log in"
+    "login_button": "Log in",
+    "quick_connect": "Quick Connect",
+    "enter_code_to_login": "Enter code {{code}} to login",
+    "failed_to_initiate_quick_connect": "Failed to initiate Quick Connect",
+    "got_it": "Got it",
+    "connection_failed": "Connection failed",
+    "could_not_connect_to_server": "Could not connect to the server. Please check the URL and your network connection."
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
@@ -38,7 +44,12 @@
       },
       "quick_connect": {
         "quick_connect_title": "Quick connect",
-        "authorize_button": "Authorize"
+        "authorize_button": "Authorize",
+        "enter_the_quick_connect_code": "Enter the Quick Connect code",
+        "success": "Success",
+        "quick_connect_autorized": "Quick Connect authorized",
+        "error": "Error",
+        "invalid_code": "Invalid code"
       },
       "media": {
         "media_title": "Media",
