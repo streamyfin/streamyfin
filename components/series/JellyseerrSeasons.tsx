@@ -20,6 +20,7 @@ import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
 import { Image } from "expo-image";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import { Loader } from "../Loader";
+import { t } from "i18next";
 
 const JellyseerrSeasonEpisodes: React.FC<{
   details: TvDetails;
@@ -155,13 +156,13 @@ const JellyseerrSeasons: React.FC<{
 
   const promptRequestAll = useCallback(
     () =>
-      Alert.alert("Confirm", "Are you sure you want to request all seasons?", [
+      Alert.alert(t("jellyseerr.confirm"), t("jellyseerr.are_you_sure_you_want_to_request_all_seasons"), [
         {
-          text: "Cancel",
+          text: t("jellyseerr.cancel"),
           style: "cancel",
         },
         {
-          text: "Yes",
+          text: t("jellyseerr.yes"),
           onPress: requestAll,
         },
       ]),

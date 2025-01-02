@@ -22,13 +22,12 @@ import { Button } from "../Button";
 import { Image } from "expo-image";
 import { useMemo } from "react";
 import { storage } from "@/utils/mmkv";
-import { useTranslation } from "react-i18next";
+import { t } from "i18next";
 
 interface Props extends ViewProps {}
 
 export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
   const { processes } = useDownload();
-  const { t } = useTranslation();
   if (processes?.length === 0)
     return (
       <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
@@ -84,11 +83,11 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       }
     },
     onSuccess: () => {
-      toast.success("Download canceled");
+      toast.success(t("home.downloads.toasts.download_cancelled"));
     },
     onError: (e) => {
       console.error(e);
-      toast.error("Could not cancel download");
+      toast.error(t("home.downloads.toasts.could_not_cancel_download"));
     },
   });
 

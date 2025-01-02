@@ -50,7 +50,7 @@ export const JellyseerrSettings = () => {
       updateSettings({ jellyseerrServerUrl });
     },
     onError: () => {
-      toast.error("Failed to login");
+      toast.error(t("jellyseerr.failed_to_login"));
     },
     onSettled: () => {
       setJellyseerrPassword(undefined);
@@ -124,16 +124,16 @@ export const JellyseerrSettings = () => {
         ) : (
           <View className="flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900">
             <Text className="text-xs text-red-600 mb-2">
-              {t("home.settings.jellyseer.jellyseer_warning")}
+              {t("home.settings.jellyseerr.jellyseerr_warning")}
             </Text>
-            <Text className="font-bold mb-1">{t("home.settings.jellyseer.server_url")}</Text>
+            <Text className="font-bold mb-1">{t("home.settings.jellyseerr.server_url")}</Text>
             <View className="flex flex-col shrink mb-2">
               <Text className="text-xs text-gray-600">
-                {t("home.settings.jellyseer.server_url_hint")}
+                {t("home.settings.jellyseerr.server_url_hint")}
               </Text>
             </View>
             <Input
-              placeholder={t("home.settings.jellyseer.server_url_placeholder")}
+              placeholder={t("home.settings.jellyseerr.server_url_placeholder")}
               value={settings?.jellyseerrServerUrl ?? jellyseerrServerUrl}
               defaultValue={
                 settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
@@ -163,7 +163,7 @@ export const JellyseerrSettings = () => {
                 marginBottom: 8,
               }}
             >
-              {promptForJellyseerrPass ? t("home.settings.jellyseer.clear_button") : t("home.settings.jellyseer.save_button")}
+              {promptForJellyseerrPass ? t("home.settings.jellyseerr.clear_button") : t("home.settings.jellyseerr.save_button")}
             </Button>
 
             <View
@@ -172,11 +172,11 @@ export const JellyseerrSettings = () => {
                 opacity: promptForJellyseerrPass ? 1 : 0.5,
               }}
             >
-              <Text className="font-bold mb-2">{t("home.settings.jellyseer.password")}</Text>
+              <Text className="font-bold mb-2">{t("home.settings.jellyseerr.password")}</Text>
               <Input
                 autoFocus={true}
                 focusable={true}
-                placeholder={t("home.settings.jellyseer.password_placeholder", {username: user?.Name})}
+                placeholder={t("home.settings.jellyseerr.password_placeholder", {username: user?.Name})}
                 value={jellyseerrPassword}
                 keyboardType="default"
                 secureTextEntry={true}
@@ -196,7 +196,7 @@ export const JellyseerrSettings = () => {
                 className="h-12 mt-2"
                 onPress={() => loginToJellyseerrMutation.mutate()}
               >
-                {t("home.settings.jellyseer.login_button")}
+                {t("home.settings.jellyseerr.login_button")}
               </Button>
             </View>
           </View>

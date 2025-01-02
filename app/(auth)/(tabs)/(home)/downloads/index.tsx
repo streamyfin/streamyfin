@@ -17,6 +17,7 @@ import {BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomS
 import {toast} from "sonner-native";
 import {writeToLog} from "@/utils/log";
 import { useTranslation } from "react-i18next";
+import { t } from 'i18next';
 
 export default function page() {
   const navigation = useNavigation();
@@ -68,16 +69,16 @@ export default function page() {
   }, [downloadedFiles]);
 
   const deleteMovies = () => deleteFileByType("Movie")
-    .then(() => toast.success("Deleted all movies successfully!"))
+    .then(() => toast.success(t("home.downloads.toasts.deleted_all_movies_successfully")))
     .catch((reason) => {
       writeToLog("ERROR", reason);
-      toast.error("Failed to delete all movies");
+      toast.error(t("home.downloads.toasts.failed_to_delete_all_movies"));
     });
   const deleteShows = () => deleteFileByType("Episode")
-    .then(() => toast.success("Deleted all TV-Series successfully!"))
+    .then(() => toast.success(t("home.downloads.toasts.deleted_all_tvseries_successfully")))
     .catch((reason) => {
       writeToLog("ERROR", reason);
-      toast.error("Failed to delete all TV-Series");
+      toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
     });
   const deleteAllMedia = async () => await Promise.all([deleteMovies(), deleteShows()])
 
@@ -216,15 +217,15 @@ function migration_20241124() {
   const router = useRouter();
   const { deleteAllFiles } = useDownload();
   Alert.alert(
-    "New app version requires re-download",
-    "The new update reqires content to be downloaded again. Please remove all downloaded content and try again.",
+    t("home.downloads.new_app_version_requires_re_download"),
+    t("home.downloads.new_app_version_requires_re_download_description"),
     [
       {
-        text: "Back",
+        text: t("home.downloads.back"),
         onPress: () => router.back(),
       },
       {
-        text: "Delete",
+        text: t("home.downloads.delete"),
         style: "destructive",
         onPress: async () => await deleteAllFiles(),
       },

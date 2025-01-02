@@ -32,6 +32,7 @@ import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
+import { useTranslation } from "react-i18next";
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
@@ -55,6 +56,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [user] = useAtom(userAtom);
   const [queue, setQueue] = useAtom(queueAtom);
   const [settings] = useSettings();
+  const { t } = useTranslation();
   const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
   const { startRemuxing } = useRemuxHlsToMp4();
 
@@ -160,7 +162,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         );
       }
     } else {
-      toast.error("You are not allowed to download files.");
+      toast.error(t("home.downloads.toasts.you_are_not_allowed_to_download_files"));
     }
   }, [
     queue,
@@ -212,8 +214,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         if (!res) {
           Alert.alert(
-            "Something went wrong",
-            "Could not get stream url from Jellyfin"
+            t("home.downloads.something_went_wrong"),
+            t("home.downloads.could_not_get_stream_url_from_jellyfin")
           );
           continue;
         }

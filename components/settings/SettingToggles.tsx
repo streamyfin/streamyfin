@@ -77,10 +77,10 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
 
       if (settings?.autoDownload === true && !registered) {
         registerBackgroundFetchAsync();
-        toast.success("Background downloads enabled");
+        toast.success(t("home.settings.toasts.background_downloads_enabled"));
       } else if (settings?.autoDownload === false && registered) {
         unregisterBackgroundFetchAsync();
-        toast.info("Background downloads disabled");
+        toast.info(t("home.settings.toasts.background_downloads_disabled"));
       } else if (settings?.autoDownload === true && registered) {
         // Don't to anything
       } else if (settings?.autoDownload === false && !registered) {
@@ -654,8 +654,8 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
                       deviceId: await getOrSetDeviceId(),
                     });
                     if (res) {
-                      toast.success("Connected");
-                    } else toast.error("Could not connect");
+                      toast.success(t("home.settings.toasts.connected"));
+                    } else toast.error(t("home.settings.toasts.could_not_connect"));
                   }}
                 >
                   {t("home.settings.downloads.save_button")}

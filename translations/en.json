@@ -107,8 +107,8 @@
         "optimized_versions_server_hint": "Set the URL for the optimized versions server for downloads.",
         "save_button": "Save"
       },
-      "jellyseer": {
-        "jellyseer_warning": "This integration is in its early stages. Expect things to change.",
+      "jellyseerr": {
+        "jellyseerr_warning": "This integration is in its early stages. Expect things to change.",
         "server_url": "Server URL",
         "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
         "server_url_placeholder": "Jellyseerr URL...",
@@ -134,6 +134,13 @@
         "app_language": "App language",
         "app_language_description": "Select the language for the app.",
         "system": "System"
+      },
+      "toasts":{
+        "error_deleting_files": "Error deleting files",
+        "background_downloads_enabled": "Background downloads enabled",
+        "background_downloads_disabled": "Background downloads disabled",
+        "connected": "Connected",
+        "could_not_connect": "Could not connect"
       }
     },
     "downloads": {
@@ -150,7 +157,36 @@
       "active_download": "Active download",
       "no_active_downloads": "No active downloads",
       "active_downloads": "Active downloads",
-      "toasts": {}
+      "new_app_version_requires_re_download": "New app version requires re-download",
+      "new_app_version_requires_re_download_description": "The new update reqires content to be downloaded again. Please remove all downloaded content and try again.",
+      "back": "Back",
+      "delete": "Delete",
+      "something_went_wrong": "Something went wrong",
+      "could_not_get_stream_url_from_jellyfin": "Could not get stream URL from Jellyfin",
+      "toasts": {
+        "you_are_not_allowed_to_download_files": "You are not allowed to download files.",
+        "deleted_all_movies_successfully": "Deleted all movies successfully!",
+        "failed_to_delete_all_movies": "Failed to delete all movies",
+        "deleted_all_tvseries_successfully": "Deleted all TV-Series successfully!",
+        "failed_to_delete_all_tvseries": "Failed to delete all TV-Series",
+        "download_cancelled": "Download cancelled",
+        "could_not_cancel_download": "Could not cancel download",
+        "download_completed": "Download completed",
+        "download_started_for": "Download started for {{item}}",
+        "item_is_ready_to_be_downloaded": "{{item}} is ready to be downloaded",
+        "download_stated_for_item": "Download started for {{item}}",
+        "download_failed_for_item": "Download failed for {{item}} - {{error}}",
+        "download_completed_for_item": "Download completed for {{item}}",
+        "queued_item_for_optimization": "Queued {{item}} for optimization",
+        "failed_to_start_download_for_item": "Failed to start download for {{item}}: {{message}}",
+        "server_responded_with_status_code": "Server responded with status {{statusCode}}",
+        "no_response_received_from_server": "No response received from server",
+        "error_setting_up_the_request": "Error setting up the request",
+        "failed_to_start_download_for_item_unexpected_error": "Failed to start download for {{item}}: Unexpected error",
+        "all_files_folders_and_jobs_deleted_successfully": "All files, folders and jobs deleted successfully",
+        "an_error_occured_while_deleting_files_and_jobs": "An error occurred while deleting files and jobs",
+        "go_to_downloads": "Go to downloads"
+      }
     }
   },
   "search": {
@@ -163,6 +199,31 @@
     "no_items_found": "No items found",
     "no_results": "No results",
     "no_libraries_found": "No libraries found"
+  },
+  "player": {
+    "error": "Error",
+    "failed_to_get_stream_url": "Failed to get stream URL",
+    "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
+    "client_error": "Client error",
+    "could_not_create_stream_for_chromecast": "Could not create stream for Chromecast",
+    "message_from_server": "Message from server: {{message}}",
+    "video_has_finished_playing": "Video has finished playing!"
+  },
+  "jellyseerr":{
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "yes": "Yes",
+    "are_you_sure_you_want_to_request_all_seasons": "Are you sure you want to request all seasons?",
+    "failed_to_login": "Failed to login",
+    "toasts": {
+      "jellyseer_does_not_meet_requirements": "Jellyseerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "jellyseerr_test_failed": "Jellyseerr test failed. Please try again.",
+      "failed_to_test_jellyseerr_server_url": "Failed to test jellyseerr server url",
+      "issue_submitted": "Issue submitted!",
+      "requested_item": "Requested {{item}}!",
+      "you_dont_have_permission_to_request": "You don't have permission to request!",
+      "something_went_wrong_requesting_media": "Something went wrong requesting media!"
+    }
   },
   "tabs": {
     "home": "Home",

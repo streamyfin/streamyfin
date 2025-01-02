@@ -75,7 +75,7 @@ export default function settings() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Error deleting files");
+      toast.error(t("home.settings.toasts.error_deleting_files"));
     }
   };
 

@@ -28,6 +28,7 @@ import Issue from "@/utils/jellyseerr/server/entity/Issue";
 import { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import { writeErrorLog } from "@/utils/log";
 import DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import { t } from "i18next";
 
 interface SearchParams {
   query: string;
@@ -113,7 +114,7 @@ export class JellyseerrApi {
         if (inRange(status, 200, 299)) {
           if (data.version < "2.0.0") {
             const error =
-              "Jellyseerr server does not meet minimum version requirements! Please update to at least 2.0.0";
+              t("jellyseerr.toasts.jellyseer_does_not_meet_requirements");
             toast.error(error);
             throw Error(error);
           }
@@ -127,7 +128,7 @@ export class JellyseerrApi {
             requiresPass: true,
           };
         }
-        toast.error(`Jellyseerr test failed. Please try again.`);
+        toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
         writeErrorLog(
           `Jellyseerr returned a ${status} for url:\n` +
             response.config.url +
@@ -140,7 +141,7 @@ export class JellyseerrApi {
         };
       })
       .catch((e) => {
-        const msg = "Failed to test jellyseerr server url";
+        const msg = t("jellyseerr.toasts.failed_to_test_jellyseerr_server_url");
         toast.error(msg);
         console.error(msg, e);
         return {
@@ -259,7 +260,7 @@ export class JellyseerrApi {
         const issue = response.data;
 
         if (issue.status === IssueStatus.OPEN) {
-          toast.success("Issue submitted!");
+          toast.success(t("jellyseerr.toasts.issue_submitted"));
         }
         return issue;
       });
@@ -342,13 +343,13 @@ export const useJellyseerr = () => {
         switch (mediaRequest.status) {
           case MediaRequestStatus.PENDING:
           case MediaRequestStatus.APPROVED:
-            toast.success(`Requested ${title}!`);
+            toast.success(t("jellyseerr.toasts.requested_item", {item: title}));
             break;
           case MediaRequestStatus.DECLINED:
-            toast.error(`You don't have permission to request!`);
+            toast.error(t("jellyseerr.toasts.you_dont_have_permission_to_request"));
             break;
           case MediaRequestStatus.FAILED:
-            toast.error(`Something went wrong requesting media!`);
+            toast.error(t("jellyseerr.toasts.something_went_wrong_requesting_media"));
             break;
         }
       });
