@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { Text } from "../common/Text";
 import { useCallback, useRef, useState } from "react";
 import { Input } from "../common/Input";
-import { ListItem } from "../ListItem";
+import { ListItem } from "../list/ListItem";
 import { Loader } from "../Loader";
 import { useSettings } from "@/utils/atoms/settings";
 import { Button } from "../Button";
@@ -11,6 +11,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useAtom } from "jotai";
 import { toast } from "sonner-native";
 import { useMutation } from "@tanstack/react-query";
+import { ListGroup } from "../list/ListGroup";
 
 export const JellyseerrSettings = () => {
   const {
@@ -83,41 +84,43 @@ export const JellyseerrSettings = () => {
   };
 
   return (
-    <View className="mt-4">
-      <Text className="text-lg font-bold mb-2">Jellyseerr</Text>
+    <View className="">
       <View>
         {jellyseerrUser ? (
-          <View className="flex flex-col rounded-xl overflow-hidden bg-neutral-900 pt-0 divide-y divide-neutral-800">
-            <ListItem
-              title="Total media requests"
-              subTitle={jellyseerrUser?.requestCount?.toString()}
-            />
-            <ListItem
-              title="Movie quota limit"
-              subTitle={
-                jellyseerrUser?.movieQuotaLimit?.toString() ?? "Unlimited"
-              }
-            />
-            <ListItem
-              title="Movie quota days"
-              subTitle={
-                jellyseerrUser?.movieQuotaDays?.toString() ?? "Unlimited"
-              }
-            />
-            <ListItem
-              title="TV quota limit"
-              subTitle={jellyseerrUser?.tvQuotaLimit?.toString() ?? "Unlimited"}
-            />
-            <ListItem
-              title="TV quota days"
-              subTitle={jellyseerrUser?.tvQuotaDays?.toString() ?? "Unlimited"}
-            />
+          <>
+            <ListGroup title={"Jellyseerr"}>
+              <ListItem
+                title="Total media requests"
+                value={jellyseerrUser?.requestCount?.toString()}
+              />
+              <ListItem
+                title="Movie quota limit"
+                value={
+                  jellyseerrUser?.movieQuotaLimit?.toString() ?? "Unlimited"
+                }
+              />
+              <ListItem
+                title="Movie quota days"
+                value={
+                  jellyseerrUser?.movieQuotaDays?.toString() ?? "Unlimited"
+                }
+              />
+              <ListItem
+                title="TV quota limit"
+                value={jellyseerrUser?.tvQuotaLimit?.toString() ?? "Unlimited"}
+              />
+              <ListItem
+                title="TV quota days"
+                value={jellyseerrUser?.tvQuotaDays?.toString() ?? "Unlimited"}
+              />
+            </ListGroup>
+
             <View className="p-4">
               <Button color="red" onPress={clearData}>
                 Reset Jellyseerr config
               </Button>
             </View>
-          </View>
+          </>
         ) : (
           <View className="flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900">
             <Text className="text-xs text-red-600 mb-2">

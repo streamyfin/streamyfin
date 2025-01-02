@@ -1,6 +1,6 @@
 import { Chromecast } from "@/components/Chromecast";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 
@@ -47,6 +47,30 @@ export default function IndexLayout() {
         name="settings"
         options={{
           title: "Settings",
+        }}
+      />
+      <Stack.Screen
+        name="settings/optimized-server/page"
+        options={{
+          title: "",
+        }}
+      />
+      <Stack.Screen
+        name="settings/marlin-search/page"
+        options={{
+          title: "",
+        }}
+      />
+      <Stack.Screen
+        name="settings/jellyseerr/page"
+        options={{
+          title: "",
+        }}
+      />
+      <Stack.Screen
+        name="settings/popular-lists/page"
+        options={{
+          title: "",
         }}
       />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (

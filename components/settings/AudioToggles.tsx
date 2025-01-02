@@ -3,6 +3,9 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
+import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
+import { Ionicons } from "@expo/vector-icons";
 
 interface Props extends ViewProps {}
 
@@ -14,26 +17,35 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   if (!settings) return null;
 
   return (
-    <View>
-      <Text className="text-lg font-bold mb-2">Audio</Text>
-      <View className="flex flex-col rounded-xl mb-4 overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
-        <View
-          className={`
-              flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
-            `}
-        >
-          <View className="flex flex-col shrink">
-            <Text className="font-semibold">Audio language</Text>
-            <Text className="text-xs opacity-50">
-              Choose a default audio language.
-            </Text>
-          </View>
+    <View {...props}>
+      <ListGroup
+        title={"Audio"}
+        description={
+          <Text className="text-[#8E8D91] text-xs">
+            Choose a default audio language.
+          </Text>
+        }
+      >
+        <ListItem title={"Set Audio Track From Previous Item"}>
+          <Switch
+            value={settings.rememberAudioSelections}
+            onValueChange={(value) =>
+              updateSettings({ rememberAudioSelections: value })
+            }
+          />
+        </ListItem>
+        <ListItem title="Audio language">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <TouchableOpacity className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-                <Text>
+              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3 ">
+                <Text className="mr-1 text-[#8E8D91]">
                   {settings?.defaultAudioLanguage?.DisplayName || "None"}
                 </Text>
+                <Ionicons
+                  name="chevron-expand-sharp"
+                  size={18}
+                  color="#5A5960"
+                />
               </TouchableOpacity>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
@@ -72,43 +84,8 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
               ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
-        </View>
-        <View className="flex flex-col">
-          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col">
-              <Text className="font-semibold">Use Default Audio</Text>
-              <Text className="text-xs opacity-50">
-                Play default audio track regardless of language.
-              </Text>
-            </View>
-            <Switch
-              value={settings.playDefaultAudioTrack}
-              onValueChange={(value) =>
-                updateSettings({ playDefaultAudioTrack: value })
-              }
-            />
-          </View>
-        </View>
-        <View className="flex flex-col">
-          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col">
-              <Text className="font-semibold">
-                Set Audio Track From Previous Item
-              </Text>
-              <Text className="text-xs opacity-50 min max-w-[85%]">
-                Try to set the audio track to the closest match to the last
-                video.
-              </Text>
-            </View>
-            <Switch
-              value={settings.rememberAudioSelections}
-              onValueChange={(value) =>
-                updateSettings({ rememberAudioSelections: value })
-              }
-            />
-          </View>
-        </View>
-      </View>
+        </ListItem>
+      </ListGroup>
     </View>
   );
 };

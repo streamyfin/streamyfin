@@ -3,6 +3,9 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
+import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
+import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 
 interface Props extends ViewProps {}
@@ -11,6 +14,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const media = useMedia();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
+
   if (!settings) return null;
 
   const subtitleModes = [
@@ -22,26 +26,27 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   ];
 
   return (
-    <View>
-      <Text className="text-lg font-bold mb-2">Subtitle</Text>
-      <View className="flex flex-col rounded-xl mb-4 overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
-        <View
-          className={`
-              flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
-            `}
-        >
-          <View className="flex flex-col shrink">
-            <Text className="font-semibold">Subtitle language</Text>
-            <Text className="text-xs opacity-50">
-              Choose a default subtitle language.
-            </Text>
-          </View>
+    <View {...props}>
+      <ListGroup
+        title={"Subtitles"}
+        description={
+          <Text className="text-[#8E8D91] text-xs">
+            Configure subtitle preferences.
+          </Text>
+        }
+      >
+        <ListItem title="Subtitle language">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <TouchableOpacity className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-                <Text>
+              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
+                <Text className="mr-1 text-[#8E8D91]">
                   {settings?.defaultSubtitleLanguage?.DisplayName || "None"}
                 </Text>
+                <Ionicons
+                  name="chevron-expand-sharp"
+                  size={18}
+                  color="#5A5960"
+                />
               </TouchableOpacity>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
@@ -80,25 +85,20 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
-        </View>
+        </ListItem>
 
-        <View
-          className={`
-              flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
-            `}
-        >
-          <View className="flex flex-col shrink">
-            <Text className="font-semibold">Subtitle Mode</Text>
-            <Text className="text-xs opacity-50 mr-2">
-              Subtitles are loaded based on the default and forced flags in the
-              embedded metadata. Language preferences are considered when
-              multiple options are available.
-            </Text>
-          </View>
+        <ListItem title="Subtitle Mode">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <TouchableOpacity className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-                <Text>{settings?.subtitleMode || "Loading"}</Text>
+              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
+                <Text className="mr-1 text-[#8E8D91]">
+                  {settings?.subtitleMode || "Loading"}
+                </Text>
+                <Ionicons
+                  name="chevron-expand-sharp"
+                  size={18}
+                  color="#5A5960"
+                />
               </TouchableOpacity>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
@@ -125,40 +125,18 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
-        </View>
+        </ListItem>
 
-        <View className="flex flex-col">
-          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col">
-              <Text className="font-semibold">
-                Set Subtitle Track From Previous Item
-              </Text>
-              <Text className="text-xs opacity-50 min max-w-[85%]">
-                Try to set the subtitle track to the closest match to the last
-                video.
-              </Text>
-            </View>
-            <Switch
-              value={settings.rememberSubtitleSelections}
-              onValueChange={(value) =>
-                updateSettings({ rememberSubtitleSelections: value })
-              }
-            />
-          </View>
-        </View>
+        <ListItem title="Set Subtitle Track From Previous Item">
+          <Switch
+            value={settings.rememberSubtitleSelections}
+            onValueChange={(value) =>
+              updateSettings({ rememberSubtitleSelections: value })
+            }
+          />
+        </ListItem>
 
-        <View
-          className={`
-              flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
-            `}
-        >
-          <View className="flex flex-col shrink">
-            <Text className="font-semibold">Subtitle Size</Text>
-            <Text className="text-xs opacity-50">
-              Choose a default subtitle size for direct play (only works for
-              some subtitle formats).
-            </Text>
-          </View>
+        <ListItem title="Subtitle Size">
           <View className="flex flex-row items-center">
             <TouchableOpacity
               onPress={() =>
@@ -170,7 +148,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             >
               <Text>-</Text>
             </TouchableOpacity>
-            <Text className="w-12 h-8 bg-neutral-800 first-letter:px-3 py-2 flex items-center justify-center">
+            <Text className="w-12 h-8 bg-neutral-800 px-3 py-2 flex items-center justify-center">
               {settings.subtitleSize}
             </Text>
             <TouchableOpacity
@@ -184,8 +162,8 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               <Text>+</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </ListItem>
+      </ListGroup>
     </View>
   );
 };

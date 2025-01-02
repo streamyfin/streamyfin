@@ -61,7 +61,7 @@ export const MediaListSection: React.FC<Props> = ({
 
   return (
     <View {...props}>
-      <Text className="px-4 text-2xl font-bold mb-2 text-neutral-100">
+      <Text className="px-4 text-lg font-bold mb-2 text-neutral-100">
         {collection.Name}
       </Text>
       <InfiniteHorizontalScroll
