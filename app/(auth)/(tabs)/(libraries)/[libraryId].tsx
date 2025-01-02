@@ -41,7 +41,6 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colletionTypeToItemType } from "@/utils/collectionTypeToItemType";
 
 const Page = () => {
   const searchParams = useLocalSearchParams();
