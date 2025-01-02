@@ -19,6 +19,9 @@ export default function IndexLayout() {
           headerLargeTitle: true,
           headerTitle: "Library",
           headerBlurEffect: "prominent",
+          headerLargeStyle: {
+            backgroundColor: "black",
+          },
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
           headerRight: () => (

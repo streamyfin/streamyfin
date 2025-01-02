@@ -1,6 +1,7 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
+import { PreviousServersList } from "@/components/PreviousServersList";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
@@ -294,9 +295,14 @@ const Login: React.FC = () => {
               textContentType="URL"
               maxLength={500}
             />
-            <Text className="text-xs text-neutral-500">
+            <Text className="text-xs text-neutral-500 ml-4">
               Make sure to include http or https
             </Text>
+            <PreviousServersList
+              onServerSelect={(s) => {
+                handleConnect(s.address);
+              }}
+            />
           </View>
           <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
             <Button
