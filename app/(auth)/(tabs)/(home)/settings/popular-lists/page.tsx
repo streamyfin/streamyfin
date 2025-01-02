@@ -120,11 +120,7 @@ export default function page() {
                     ))}
                   </ListGroup>
                   <Text className="px-4 text-xs text-neutral-500 mt-1">
-                    Popular Lists is a plugin that enables you to show custom
-                    Jellyfin lists on the Streamyfin home page.{" "}
-                    <Text className="text-blue-500" onPress={handleOpenLink}>
-                      Read more about Popular Lists.
-                    </Text>
+                    Select the lists you want displayed on the home screen.
                   </Text>
                 </>
               )}
