@@ -1,4 +1,3 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
@@ -6,29 +5,21 @@ import {
   unregisterBackgroundFetchAsync,
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as BackgroundFetch from "expo-background-fetch";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
-import { useAtom } from "jotai";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Linking, Switch, TouchableOpacity, ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { Loader } from "../Loader";
 
 interface Props extends ViewProps {}
 
 export const OtherSettings: React.FC = () => {
   const [settings, updateSettings] = useSettings();
-
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-
 
   /********************
    * Background task
@@ -59,7 +50,6 @@ export const OtherSettings: React.FC = () => {
   }, [settings?.autoDownload]);
   /**********************
    *********************/
-
 
   if (!settings) return null;
 
@@ -173,21 +163,6 @@ export const OtherSettings: React.FC = () => {
         />
       </ListItem>
 
-      <ListItem
-        title="Use popular lists plugin"
-        onPress={() =>
-          Linking.openURL(
-            "https://github.com/lostb1t/jellyfin-plugin-media-lists"
-          )
-        }
-      >
-        <Switch
-          value={settings.usePopularPlugin}
-          onValueChange={(value) => updateSettings({ usePopularPlugin: value })}
-        />
-      </ListItem>
-
-      
       <ListItem
         title="Show Custom Menu Links"
         onPress={() =>
