@@ -52,7 +52,7 @@ export default function page() {
 
   return (
     <View className="px-4 pt-4">
-      <ListGroup title={"Enable plugin"} className="mb-4">
+      <ListGroup title={"Enable plugin"} className="">
         <ListItem
           title={"Enable Popular Lists"}
           onPress={() => {
@@ -68,41 +68,6 @@ export default function page() {
           />
         </ListItem>
       </ListGroup>
-
-      {settings.usePopularPlugin && (
-        <ListGroup title="Media List Collections">
-          {mediaListCollections?.map((mlc) => (
-            <ListItem key={mlc.Id} title={mlc.Name}>
-              <Switch
-                value={settings.mediaListCollectionIds?.includes(mlc.Id!)}
-                onValueChange={(value) => {
-                  if (!settings.mediaListCollectionIds) {
-                    updateSettings({
-                      mediaListCollectionIds: [mlc.Id!],
-                    });
-                    return;
-                  }
-
-                  updateSettings({
-                    mediaListCollectionIds:
-                      settings.mediaListCollectionIds.includes(mlc.Id!)
-                        ? settings.mediaListCollectionIds.filter(
-                            (id) => id !== mlc.Id
-                          )
-                        : [...settings.mediaListCollectionIds, mlc.Id!],
-                  });
-                }}
-              />
-            </ListItem>
-          ))}
-          {isLoadingMediaListCollections && <Loader />}
-          {mediaListCollections?.length === 0 && (
-            <Text className="text-xs opacity-50 p-4">
-              No collections found. Add some in Jellyfin.
-            </Text>
-          )}
-        </ListGroup>
-      )}
       <Text className="px-4 text-xs text-neutral-500 mt-1">
         Popular Lists is a plugin that enables you to show custom Jellyfin lists
         on the Streamyfin home page.{" "}
@@ -110,6 +75,65 @@ export default function page() {
           Read more about Popular Lists.
         </Text>
       </Text>
+
+      {settings.usePopularPlugin && (
+        <>
+          {!isLoadingMediaListCollections ? (
+            <>
+              {mediaListCollections?.length === 0 ? (
+                <Text className="text-xs opacity-50 p-4">
+                  No collections found. Add some in Jellyfin.
+                </Text>
+              ) : (
+                <>
+                  <ListGroup title="Media List Collections" className="mt-4">
+                    {mediaListCollections?.map((mlc) => (
+                      <ListItem key={mlc.Id} title={mlc.Name}>
+                        <Switch
+                          value={settings.mediaListCollectionIds?.includes(
+                            mlc.Id!
+                          )}
+                          onValueChange={(value) => {
+                            if (!settings.mediaListCollectionIds) {
+                              updateSettings({
+                                mediaListCollectionIds: [mlc.Id!],
+                              });
+                              return;
+                            }
+
+                            updateSettings({
+                              mediaListCollectionIds:
+                                settings.mediaListCollectionIds.includes(
+                                  mlc.Id!
+                                )
+                                  ? settings.mediaListCollectionIds.filter(
+                                      (id) => id !== mlc.Id
+                                    )
+                                  : [
+                                      ...settings.mediaListCollectionIds,
+                                      mlc.Id!,
+                                    ],
+                            });
+                          }}
+                        />
+                      </ListItem>
+                    ))}
+                  </ListGroup>
+                  <Text className="px-4 text-xs text-neutral-500 mt-1">
+                    Popular Lists is a plugin that enables you to show custom
+                    Jellyfin lists on the Streamyfin home page.{" "}
+                    <Text className="text-blue-500" onPress={handleOpenLink}>
+                      Read more about Popular Lists.
+                    </Text>
+                  </Text>
+                </>
+              )}
+            </>
+          ) : (
+            <Loader />
+          )}
+        </>
+      )}
     </View>
   );
 }

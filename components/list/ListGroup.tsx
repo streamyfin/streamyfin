@@ -23,14 +23,13 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
   const childrenArray = Children.toArray(children);
 
   return (
-    <View>
+    <View {...props}>
       <Text className="ml-4 mb-1 uppercase text-[#8E8D91] text-xs">
         {title}
       </Text>
       <View
         style={[]}
         className="flex flex-col rounded-xl overflow-hidden pl-4 bg-neutral-900"
-        {...props}
       >
         {Children.map(childrenArray, (child, index) => {
           if (isValidElement<{ style?: ViewStyle }>(child)) {

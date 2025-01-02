@@ -1,4 +1,5 @@
 import { Chromecast } from "@/components/Chromecast";
+import { Text } from "@/components/common/Text";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
@@ -15,6 +16,9 @@ export default function IndexLayout() {
           headerLargeTitle: true,
           headerTitle: "Home",
           headerBlurEffect: "prominent",
+          headerLargeStyle: {
+            backgroundColor: "black",
+          },
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
           headerRight: () => (

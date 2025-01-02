@@ -1,4 +1,7 @@
-import {commonScreenOptions, nestedTabPageScreenOptions} from "@/components/stacks/NestedTabPageStack";
+import {
+  commonScreenOptions,
+  nestedTabPageScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
 
@@ -11,6 +14,9 @@ export default function SearchLayout() {
           headerShown: true,
           headerLargeTitle: true,
           headerTitle: "Search",
+          headerLargeStyle: {
+            backgroundColor: "black",
+          },
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
@@ -29,10 +35,7 @@ export default function SearchLayout() {
           headerShadowVisible: false,
         }}
       />
-      <Stack.Screen
-        name="jellyseerr/page"
-        options={commonScreenOptions}
-      />
+      <Stack.Screen name="jellyseerr/page" options={commonScreenOptions} />
     </Stack>
   );
 }
