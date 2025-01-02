@@ -129,7 +129,7 @@ export default function search() {
     if (Platform.OS === "ios")
       navigation.setOptions({
         headerSearchBarOptions: {
-          placeholder: "Search...",
+          placeholder: t("search.search"),
           onChangeText: (e: any) => {
             router.setParams({ q: "" });
             setSearch(e.nativeEvent.text);
@@ -308,7 +308,7 @@ export default function search() {
                 autoCorrect={false}
                 returnKeyType="done"
                 keyboardType="web-search"
-                placeholder={t("search.search_hint")}
+                placeholder={t("search.search_here")}
                 value={search}
                 onChangeText={(text) => setSearch(text)}
               />

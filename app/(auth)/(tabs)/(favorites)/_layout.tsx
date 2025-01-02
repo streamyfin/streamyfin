@@ -1,8 +1,10 @@
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 
 export default function SearchLayout() {
+  const { t } = useTranslation();
   return (
     <Stack>
       <Stack.Screen
@@ -10,7 +12,7 @@ export default function SearchLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: "Favorites",
+          headerTitle: t("favorites.favorites_title"),
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,

@@ -191,14 +191,35 @@
   },
   "search": {
     "search_title": "Search",
-    "search_hint": "Search here...",
+    "search_here": "Search here...",
+    "search": "Search...",
     "no_results_found_for": "No results found for"
   },
   "library": {
     "library_title": "Library",
     "no_items_found": "No items found",
     "no_results": "No results",
-    "no_libraries_found": "No libraries found"
+    "no_libraries_found": "No libraries found",
+    "options": {
+      "display": "Display",
+      "row": "Row",
+      "list": "List",
+      "image_style": "Image style",
+      "poster": "Poster",
+      "cover": "Cover",
+      "show_titles": "Show titles",
+      "show_stats": "Show stats"
+    },
+    "headers": {
+      "genres": "Genres",
+      "years": "Years",
+      "sort_by": "Sort By",
+      "sort_order": "Sort Order",
+      "tags": "Tags"
+    }
+  },
+  "favorites": {
+    "favorites_title": "Favorites"
   },
   "player": {
     "error": "Error",
@@ -229,6 +250,7 @@
     "home": "Home",
     "search": "Search",
     "library": "Library",
-    "custom_links": "Custom Links"
+    "custom_links": "Custom Links",
+    "favorites": "Favorites"
   }
 }

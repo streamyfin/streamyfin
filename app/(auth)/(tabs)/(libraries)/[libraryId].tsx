@@ -302,7 +302,7 @@ const Page = () => {
                   }}
                   set={setSelectedGenres}
                   values={selectedGenres}
-                  title="Genres"
+                  title={t("library.headers.genres")}
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -329,7 +329,7 @@ const Page = () => {
                   }}
                   set={setSelectedYears}
                   values={selectedYears}
-                  title="Years"
+                  title={t("library.headers.years")}
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) => item.includes(search)}
                 />
@@ -354,7 +354,7 @@ const Page = () => {
                   }}
                   set={setSelectedTags}
                   values={selectedTags}
-                  title="Tags"
+                  title={t("library.headers.tags")}
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -372,7 +372,7 @@ const Page = () => {
                   queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
                   values={sortBy}
-                  title="Sort By"
+                  title={t("library.headers.sort_by")}
                   renderItemLabel={(item) =>
                     sortOptions.find((i) => i.key === item)?.value || ""
                   }
@@ -392,7 +392,7 @@ const Page = () => {
                   queryFn={async () => sortOrderOptions.map((s) => s.key)}
                   set={setSortOrder}
                   values={sortOrder}
-                  title="Sort Order"
+                  title={t("library.headers.sort_order")}
                   renderItemLabel={(item) =>
                     sortOrderOptions.find((i) => i.key === item)?.value || ""
                   }

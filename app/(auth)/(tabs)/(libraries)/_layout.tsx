@@ -42,11 +42,11 @@ export default function IndexLayout() {
                 side={"bottom"}
                 sideOffset={10}
               >
-                <DropdownMenu.Label>Display</DropdownMenu.Label>
+                <DropdownMenu.Label>{t("library.options.display")}</DropdownMenu.Label>
                 <DropdownMenu.Group key="display-group">
                   <DropdownMenu.Sub>
                     <DropdownMenu.SubTrigger key="image-style-trigger">
-                      Display
+                      {t("library.options.display")}
                     </DropdownMenu.SubTrigger>
                     <DropdownMenu.SubContent
                       alignOffset={-10}
@@ -69,7 +69,7 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="display-title-1">
-                          Row
+                          {t("library.options.row")}
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                       <DropdownMenu.CheckboxItem
@@ -86,14 +86,14 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="display-title-2">
-                          List
+                          {t("library.options.list")}
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                     </DropdownMenu.SubContent>
                   </DropdownMenu.Sub>
                   <DropdownMenu.Sub>
                     <DropdownMenu.SubTrigger key="image-style-trigger">
-                      Image style
+                      {t("library.options.image_style")}
                     </DropdownMenu.SubTrigger>
                     <DropdownMenu.SubContent
                       alignOffset={-10}
@@ -116,7 +116,7 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="poster-title">
-                          Poster
+                          {t("library.options.poster")}
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                       <DropdownMenu.CheckboxItem
@@ -133,7 +133,7 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="cover-title">
-                          Cover
+                          {t("library.options.cover")}
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                     </DropdownMenu.SubContent>
@@ -157,7 +157,7 @@ export default function IndexLayout() {
                   >
                     <DropdownMenu.ItemIndicator />
                     <DropdownMenu.ItemTitle key="show-titles-title">
-                      Show titles
+                      {t("library.options.show_titles")}
                     </DropdownMenu.ItemTitle>
                   </DropdownMenu.CheckboxItem>
                   <DropdownMenu.CheckboxItem
@@ -174,7 +174,7 @@ export default function IndexLayout() {
                   >
                     <DropdownMenu.ItemIndicator />
                     <DropdownMenu.ItemTitle key="show-stats-title">
-                      Show stats
+                      {t("library.options.show_stats")}
                     </DropdownMenu.ItemTitle>
                   </DropdownMenu.CheckboxItem>
                 </DropdownMenu.Group>

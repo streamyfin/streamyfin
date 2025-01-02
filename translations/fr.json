@@ -49,19 +49,41 @@
   },
   "search": {
     "search_title": "Recherche",
-    "search_hint": "Rechercher ici...",
+    "search_here": "Rechercher ici...",
+    "search": "Rechercher...",
     "no_results_found_for": "Aucun résultat trouvé pour"
   },
   "library": {
     "library_title": "Bibliothèque",
     "no_items_found": "Aucun item trouvé",
     "no_results": "Aucun résultat",
-    "no_libraries_found": "Aucune bibliothèque trouvée"
+    "no_libraries_found": "Aucune bibliothèque trouvée",
+    "options": {
+      "display": "Affichage",
+      "row": "Rangée",
+      "list": "Liste",
+      "image_style": "Style d'image",
+      "poster": "Affiche",
+      "cover": "Couverture",
+      "show_titles": "Afficher les titres",
+      "show_stats": "Afficher les statistiques"
+    },
+    "headers": {
+      "genres": "Genres",
+      "years": "Années",
+      "sort_by": "Trier par",
+      "sort_order": "Ordre de tri",
+      "tags": "Tags"
+    }
+  },
+  "favorites": {
+    "favorites_title": "Favoris"
   },
   "tabs": {
     "home": "Accueil",
     "search": "Recherche",
     "library": "Bibliothèque",
-    "custom_links": "Liens personalisés"
+    "custom_links": "Liens personalisés",
+    "favorites": "Favoris"
   }
 }

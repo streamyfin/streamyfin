@@ -73,7 +73,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(favorites)"
           options={{
-            title: "Favorites",
+            title: t("tabs.favorites"),
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
