@@ -5,6 +5,7 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BaseItemDto,
+  BaseItemKind,
   CollectionType,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
@@ -50,18 +51,52 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     [library]
   );
 
+  const itemType = useMemo(() => {
+    let _itemType: BaseItemKind | undefined;
+
+    if (library.CollectionType === "movies") {
+      _itemType = "Movie";
+    } else if (library.CollectionType === "tvshows") {
+      _itemType = "Series";
+    } else if (library.CollectionType === "boxsets") {
+      _itemType = "BoxSet";
+    } else if (library.CollectionType === "music") {
+      _itemType = "MusicAlbum";
+    }
+
+    return _itemType;
+  }, [library.CollectionType]);
+
+  const itemTypeName = useMemo(() => {
+    let nameStr: string;
+
+    if (library.CollectionType === "movies") {
+      nameStr = "movies";
+    } else if (library.CollectionType === "tvshows") {
+      nameStr = "series";
+    } else if (library.CollectionType === "boxsets") {
+      nameStr = "box sets";
+    } else if (library.CollectionType === "music") {
+      nameStr = "albums";
+    } else {
+      nameStr = "items";
+    }
+
+    return nameStr;
+  }, [library.CollectionType]);
+
   const { data: itemsCount } = useQuery({
     queryKey: ["library-count", library.Id],
     queryFn: async () => {
-      if (!api) return null;
-      const response = await getItemsApi(api).getItems({
+      const response = await getItemsApi(api!).getItems({
         userId: user?.Id,
         parentId: library.Id,
+        recursive: true,
         limit: 0,
+        includeItemTypes: itemType ? [itemType] : undefined,
       });
       return response.data.TotalRecordCount;
     },
-    staleTime: 1000 * 60 * 60,
   });
 
   if (!url) return null;
@@ -80,7 +115,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
           </Text>
           {settings?.libraryOptions?.showStats && (
             <Text className="font-bold text-xs text-neutral-500 text-start ml-auto">
-              {itemsCount} items
+              {itemsCount} {itemTypeName}
             </Text>
           )}
         </View>
@@ -109,6 +144,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
                 width: "100%",
                 height: "100%",
               }}
+              cachePolicy={"memory-disk"}
             />
             <View
               style={{
@@ -128,7 +164,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
           )}
           {settings?.libraryOptions?.showStats && (
             <Text className="font-bold text-xs  text-start px-4">
-              {itemsCount} items
+              {itemsCount} {itemTypeName}
             </Text>
           )}
         </View>
@@ -145,7 +181,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
           </Text>
           {settings?.libraryOptions?.showStats && (
             <Text className="font-bold text-xs text-neutral-500 text-start px-4">
-              {itemsCount} items
+              {itemsCount} {itemTypeName}
             </Text>
           )}
         </View>
