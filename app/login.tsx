@@ -9,7 +9,7 @@ import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -121,7 +121,7 @@ const Login: React.FC = () => {
    * - Sets loadingServerCheck state to true at the beginning and false at the end.
    * - Logs errors and timeout information to the console.
    */
-  async function checkUrl(url: string) {
+  const checkUrl = useCallback(async (url: string) => {
     setLoadingServerCheck(true);
 
     try {
@@ -131,6 +131,7 @@ const Login: React.FC = () => {
 
       if (response.ok) {
         const data = (await response.json()) as PublicSystemInfo;
+
         setServerName(data.ServerName || "");
         return url;
       }
@@ -139,7 +140,7 @@ const Login: React.FC = () => {
     } finally {
       setLoadingServerCheck(false);
     }
-  }
+  }, []);
 
   /**
    * Handles the connection attempt to a Jellyfin server.
@@ -157,7 +158,7 @@ const Login: React.FC = () => {
    * - Sets the server address using `setServer` if the connection is successful.
    *
    */
-  const handleConnect = async (url: string) => {
+  const handleConnect = useCallback(async (url: string) => {
     url = url.trim();
 
     const result = await checkUrl(url);
@@ -171,7 +172,7 @@ const Login: React.FC = () => {
     }
 
     setServer({ address: url });
-  };
+  }, []);
 
   const handleQuickConnect = async () => {
     try {
@@ -209,7 +210,7 @@ const Login: React.FC = () => {
                     ) : null}
                   </>
                 </Text>
-                <Text className="text-xs text-neutral-400">{serverURL}</Text>
+                <Text className="text-xs text-neutral-400">{api.basePath}</Text>
                 <Input
                   placeholder="Username"
                   onChangeText={(text) =>
