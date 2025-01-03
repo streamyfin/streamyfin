@@ -407,7 +407,7 @@ function useDownloadProvider() {
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] }),
     ])
       .then(() =>
-        toast.success(t("home.downloads.toasts.all_files_folders_jobs_deleted"))
+        toast.success(t("home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"))
       )
       .catch((reason) => {
         console.error("Failed to delete all files, folders, and jobs:", reason);

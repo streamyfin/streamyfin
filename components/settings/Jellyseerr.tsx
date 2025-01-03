@@ -93,34 +93,34 @@ export const JellyseerrSettings = () => {
           <>
             <ListGroup title={"Jellyseerr"}>
               <ListItem
-                title="Total media requests"
+                title={t("home.settings.plugins.jellyseerr.total_media_requests")}
                 value={jellyseerrUser?.requestCount?.toString()}
               />
               <ListItem
-                title="Movie quota limit"
+                title={t("home.settings.plugins.jellyseerr.movie_quota_limit")}
                 value={
-                  jellyseerrUser?.movieQuotaLimit?.toString() ?? "Unlimited"
+                  jellyseerrUser?.movieQuotaLimit?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")
                 }
               />
               <ListItem
-                title="Movie quota days"
+                title={t("home.settings.plugins.jellyseerr.movie_quota_days")}
                 value={
-                  jellyseerrUser?.movieQuotaDays?.toString() ?? "Unlimited"
+                  jellyseerrUser?.movieQuotaDays?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")
                 }
               />
               <ListItem
-                title="TV quota limit"
-                value={jellyseerrUser?.tvQuotaLimit?.toString() ?? "Unlimited"}
+                title={t("home.settings.plugins.jellyseerr.tv_quota_limit")}
+                value={jellyseerrUser?.tvQuotaLimit?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")}
               />
               <ListItem
-                title="TV quota days"
-                value={jellyseerrUser?.tvQuotaDays?.toString() ?? "Unlimited"}
+                title={t("home.settings.plugins.jellyseerr.tv_quota_days")}
+                value={jellyseerrUser?.tvQuotaDays?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")}
               />
             </ListGroup>
 
             <View className="p-4">
               <Button color="red" onPress={clearData}>
-                Reset Jellyseerr config
+                {t("home.settings.plugins.jellyseerr.reset_jellyseerr_config_button")}
               </Button>
             </View>
           </>

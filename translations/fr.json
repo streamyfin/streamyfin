@@ -7,13 +7,21 @@
     "username_placeholder": "Nom d'utilisateur",
     "password_placeholder": "Mot de passe",
     "use_quick_connect": "Utiliser Quick Connect",
-    "login_button": "Se connecter"
+    "login_button": "Se connecter",
+    "quick_connect": "Quick Connect",
+    "enter_code_to_login": "Entrez le code {{code}} pour vous connecter",
+    "failed_to_initiate_quick_connect": "Échec de l'initialisation de Quick Connect",
+    "got_it": "D'accord",
+    "connection_failed": "La connection a échouée",
+    "could_not_connect_to_server": "Impossible de se connecter au serveur. Veuillez vérifier l'URL et votre connection réseau."
   },
   "server": {
     "enter_url_to_jellyfin_server": "Entrez l'URL de votre serveur Jellyfin",
     "server_url_placeholder": "URL du serveur",
     "server_url_hint": "Assurez-vous d'inclure http ou https",
-    "connect_button": "Connexion"
+    "connect_button": "Connexion",
+    "previous_servers": "Serveurs précédents",
+    "clear_button": "Effacer"
   },
   "home": {
     "home": "Accueil",
@@ -28,7 +36,119 @@
     "suggested_movies": "Films suggérés",
     "suggested_episodes": "Épisodes suggérés",
     "settings": {
-      "settings_title": "Paramètres"
+      "settings_title": "Paramètres",
+      "log_out_button": "Déconnexion",
+      "user_info": {
+        "user_info_title": "Informations utilisateur",
+        "user": "Utilisateur",
+        "server": "Serveur",
+        "token": "Jeton",
+        "app_version": "Version de l'application"
+      },
+      "quick_connect": {
+        "quick_connect_title": "Quick connect",
+        "authorize_button": "Autoriser Quick Connect",
+        "enter_the_quick_connect_code": "Entrez le code Quick Connect",
+        "success": "Succès",
+        "quick_connect_autorized": "Quick Connect autorisé",
+        "error": "Errur",
+        "invalid_code": "Code invalide"
+      },
+      "media_controls": {
+        "media_controls_title": "Contrôles Média",
+        "forward_skip_length": "Durée de saut en avant",
+        "rewind_length": "Durée de retour arrière"
+      },
+      "audio": {
+        "audio_title": "Audio",
+        "set_audio_track": "Configurer la piste audio à partir de l'élément précédent",
+        "audio_language": "Langue audio",
+        "audio_hint": "Chosissez une langue audio par défaut."
+      },
+      "subtitles": {
+        "subtitle_title": "Sous-titres",
+        "subtitle_language": "Langue des sous-titres",
+        "subtitle_mode": "Mode des sous-titres",
+        "set_subtitle_track": "Configurer la piste de sous-titres à partir de l'élément précédent",
+        "subtitle_size": "Taille des sous-titres",
+        "subtitle_hint": "Configurez les préférences des sous-titres."
+      },
+      "other": {
+        "other_title": "Autres",
+        "auto_rotate": "Rotation automatique",
+        "video_orientation": "Orientation vidéo",
+        "safe_area_in_controls": "Zone de sécurité dans les contrôles",
+        "show_custom_menu_links": "Afficher les liens personnalisés"
+      },
+      "downloads": {
+        "downloads_title": "Téléchargements",
+        "download_method": "Méthode de téléchargement",
+        "remux_max_download": "Téléchargement max remux",
+        "auto_download": "Téléchargement automatique",
+        "optimized_versions_server": "Serveur de versions optimisées"
+      },
+      "plugins": {
+        "plugins_title": "Plugiciels",
+        "jellyseerr": {
+          "jellyseerr_warning": "Cette intégration est dans ses débuts. Attendez-vous à ce que des choses changent.",
+          "server_url": "URL du serveur",
+          "server_url_hint": "Exemple: http(s)://votre-domaine.url\n(ajouter le port si nécessaire)",
+          "server_url_placeholder": "URL Jellyseerr...",
+          "password": "Mot de passe",
+          "password_placeholder": "Entrez le mot de passe pour l'utilisateur Jellyfin {{username}}",
+          "save_button": "Enregistrer",
+          "clear_button": "Effacer",
+          "login_button": "Connexion",
+          "total_media_requests": "Total de demandes de médias",
+          "movie_quota_limit": "Limite de quota de film",
+          "movie_quota_days": "Jours de quota de film",
+          "tv_quota_limit": "Limite de quota TV",
+          "tv_quota_days": "Jours de quota TV",
+          "reset_jellyseerr_config_button": "Réinitialiser la configuration Jellyseerr",
+          "unlimited": "Illimité"
+        },
+        "marlin_search": {
+          "enable_marlin_search": "Activer Marlin Search ",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://domaine.org:port",
+          "marlin_search_hint": "Entrez l'URL du serveur Marlin. L'URL devrait inclure http ou https et optionnellement le port.",
+          "read_more_about_marlin": "Lisez-en plus sur Marlin.",
+          "save_button": "Enregistrer"
+        },
+        "popular_lists": {
+          "enable_plugin": "Activer le plugiciel",
+          "enable_popular_lists": "Activer Popular Lists",
+          "enable_popular_hint": "Popular Lists est un plugiciel qui affiche des listes populaires sur l'écran d'accueil.",
+          "read_more_about_popular_lists": "Lisez-en plus sur Popular Lists.",
+          "no_collections_found": "Aucune collection trouvée. Ajoutez-en dans Jellyfin.",
+          "select_the_lists_you_want_to_display": "Sélectionnez les listes que vous voulez afficher sur l'écran d'accueil."
+        }
+      },
+      "storage": {
+        "storage_title": "Stockage",
+        "app_usage": "App {{usedSpace}}%",
+        "phone_usage": "Téléphone {{availableSpace}}%",
+        "size_used": "{{used}} de {{total}} utilisé",
+        "delete_all_downloaded_files": "Supprimer tous les fichiers téléchargés"
+      },
+      "logs": {
+        "logs_title": "Journaux",
+        "no_logs_available": "Aucun journal disponible",
+        "delete_all_logs": "Supprimer tous les journaux"
+      },
+      "languages": {
+        "title": "Langues",
+        "app_language": "Langue de l'application",
+        "app_language_description": "Sélectionnez la langue de l'application",
+        "system": "Système"
+      },
+      "toasts":{
+        "error_deleting_files": "Erreur lors de la suppression des fichiers",
+        "background_downloads_enabled": "Téléchargements en arrière-plan activés",
+        "background_downloads_disabled": "Téléchargements en arrière-plan désactivés",
+        "connected": "Connecté",
+        "could_not_connect": "Impossible de se connecter"
+      }
     },
     "downloads": {
       "downloads_title": "Téléchargements",
@@ -44,14 +164,53 @@
       "active_download": "Téléchargement actif",
       "no_active_downloads": "Aucun téléchargements actifs",
       "active_downloads": "Téléchargements actifs",
-      "toasts": {}
+      "new_app_version_requires_re_download": "La nouvelle version de l'application nécessite un nouveau téléchargement",
+      "new_app_version_requires_re_download_description": "Une nouvelle version de l'application est disponible. Veuillez supprimer tous les téléchargements et redémarrer l'application pour télécharger à nouveau",
+      "back": "Retour",
+      "delete": "Supprimer",
+      "something_went_wrong": "Quelque chose s'est mal passé",
+      "could_not_get_stream_url_from_jellyfin": "Impossible d'obtenir l'URL du flux depuis Jellyfin",
+      "toasts": {
+        "you_are_not_allowed_to_download_files": "Vous n'êtes pas autorisé à télécharger des fichiers",
+        "deleted_all_movies_successfully": "Tous les films ont été supprimés avec succès!",
+        "failed_to_delete_all_movies": "Échec de la suppression de tous les films",
+        "deleted_all_tvseries_successfully": "Toutes les séries ont été supprimées avec succès!",
+        "failed_to_delete_all_tvseries": "Échec de la suppression de toutes les séries",
+        "download_cancelled": "Téléchargement annulé",
+        "could_not_cancel_download": "Impossible d'annuler le téléchargement",
+        "download_completed": "Téléchargement terminé",
+        "download_started_for": "Téléchargement démarré pour {{item}}",
+        "item_is_ready_to_be_downloaded": "{{item}} est prêt à être téléchargé",
+        "download_stated_for_item": "Téléchargement démarré pour {{item}}",
+        "download_failed_for_item": "Échec du téléchargement pour {{item}} - {{error}}",
+        "download_completed_for_item": "Téléchargement terminé pour {{item}}",
+        "queued_item_for_optimization": "{{item}} mis en file d'attente pour l'optimisation",
+        "failed_to_start_download_for_item": "Échec du démarrage du téléchargement pour {{item}}: {{message}}",
+        "server_responded_with_status_code": "Le serveur a répondu avec le code de statut {{statusCode}}",
+        "no_response_received_from_server": "Aucune réponse reçue du serveur",
+        "error_setting_up_the_request": "Erreur lors de la configuration de la demande",
+        "failed_to_start_download_for_item_unexpected_error": "Échec du démarrage du téléchargement pour {{item}}: Erreur inattendue",
+        "all_files_folders_and_jobs_deleted_successfully": "Tous les fichiers, dossiers et travaux ont été supprimés avec succès",
+        "an_error_occured_while_deleting_files_and_jobs": "Une erreur s'est produite lors de la suppression des fichiers et des travaux",
+        "go_to_downloads": "Aller aux téléchargements"
+      }
     }
   },
   "search": {
     "search_title": "Recherche",
     "search_here": "Rechercher ici...",
     "search": "Rechercher...",
-    "no_results_found_for": "Aucun résultat trouvé pour"
+    "no_results_found_for": "Aucun résultat trouvé pour",
+    "movies": "Films",
+    "series": "Séries",
+    "episodes": "Épisodes",
+    "collections": "Collections",
+    "actors": "Acteurs",
+    "artists": "Artistes",
+    "albums": "Albums",
+    "songs": "Chansons",
+    "requested_movies": "Films demandés",
+    "requested_series": "Séries demandées"
   },
   "library": {
     "library_title": "Bibliothèque",
@@ -77,7 +236,40 @@
     }
   },
   "favorites": {
-    "favorites_title": "Favoris"
+    "favorites_title": "Favoris",
+    "series": "Séries",
+    "movies": "Films",
+    "episodes": "Épisodes",
+    "videos": "Vidéos",
+    "boxsets": "Coffrets",
+    "playlists": "Listes de lecture",
+    "music_albums": "Albums de musique",
+    "audio": "Audio"
+  },
+  "player": {
+    "error": "Erreur",
+    "failed_to_get_stream_url": "Échec de l'obtention de l'URL du flux",
+    "an_error_occured_while_playing_the_video": "Une erreur s'est produite lors de la lecture de la vidéo",
+    "client_error": "Erreur client",
+    "could_not_create_stream_for_chromecast": "Impossible de créer un flux pour Chromecast",
+    "message_from_server": "Message du serveur: {{message}}",
+    "video_has_finished_playing": "La vidéo a fini de jouer!"
+  },
+  "jellyseerr":{
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "yes": "Oui",
+    "are_you_sure_you_want_to_request_all_seasons": "Êtes-vous sûr de vouloir demander toutes les saisons?",
+    "failed_to_login": "Échec de la connexion",
+    "toasts": {
+      "jellyseer_does_not_meet_requirements": "Jellyseer ne répond pas aux exigences! Veuillez mettre à jour au moins vers la version 2.0.0.",
+      "jellyseerr_test_failed": "Échec du test de Jellyseerr",
+      "failed_to_test_jellyseerr_server_url": "Échec du test de l'URL du serveur Jellyseerr",
+      "issue_submitted": "Problème soumis!",
+      "requested_item": "{{item}}} demandé!",
+      "you_dont_have_permission_to_request": "Vous n'avez pas la permission de demander {{item}}",
+      "something_went_wrong_requesting_media": "Quelque chose s'est mal passé en demandant le média!"
+    }
   },
   "tabs": {
     "home": "Accueil",

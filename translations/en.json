@@ -98,7 +98,14 @@
           "password_placeholder": "Enter password for Jellyfin user {{username}}",
           "save_button": "Save",
           "clear_button": "Clear",
-          "login_button": "Login"
+          "login_button": "Login",
+          "total_media_requests": "Total media requests",
+          "movie_quota_limit": "Movie quota limit",
+          "movie_quota_days": "Movie quota days",
+          "tv_quota_limit": "TV quota limit",
+          "tv_quota_days": "TV quota days",
+          "reset_jellyseerr_config_button": "Reset Jellyseerr config",
+          "unlimited": "Unlimited"
         },
         "marlin_search": {
           "enable_marlin_search": "Enable Marlin Search ",
@@ -193,7 +200,17 @@
     "search_title": "Search",
     "search_here": "Search here...",
     "search": "Search...",
-    "no_results_found_for": "No results found for"
+    "no_results_found_for": "No results found for",
+    "movies": "Movies",
+    "series": "Series",
+    "episodes": "Episodes",
+    "collections": "Collections",
+    "actors": "Actors",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "requested_movies": "Requested Movies",
+    "requested_series": "Requested Series"
   },
   "library": {
     "library_title": "Library",
@@ -219,7 +236,15 @@
     }
   },
   "favorites": {
-    "favorites_title": "Favorites"
+    "favorites_title": "Favorites",
+    "series": "Series",
+    "movies": "Movies",
+    "episodes": "Episodes",
+    "videos": "Videos",
+    "boxsets": "Boxsets",
+    "playlists": "Playlists",
+    "music_albums": "Music Albums",
+    "audio": "Audio"
   },
   "player": {
     "error": "Error",

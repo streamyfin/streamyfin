@@ -348,7 +348,7 @@ export default function search() {
           {searchType === "Library" && (
             <>
               <SearchItemWrapper
-                header="Movies"
+                header={t("search.movies")}
                 ids={movies?.map((m) => m.Id!)}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
@@ -368,7 +368,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={series?.map((m) => m.Id!)}
-                header="Series"
+                header={t("search.series")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     key={item.Id}
@@ -387,7 +387,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={episodes?.map((m) => m.Id!)}
-                header="Episodes"
+                header={t("search.episodes")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     item={item}
@@ -401,7 +401,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={collections?.map((m) => m.Id!)}
-                header="Collections"
+                header={t("search.collections")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     key={item.Id}
@@ -417,7 +417,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={actors?.map((m) => m.Id!)}
-                header="Actors"
+                header={t("search.actors")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     item={item}
@@ -431,7 +431,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={artists?.map((m) => m.Id!)}
-                header="Artists"
+                header={t("search.artists")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     item={item}
@@ -445,7 +445,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={albums?.map((m) => m.Id!)}
-                header="Albums"
+                header={t("search.albums")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     item={item}
@@ -459,7 +459,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={songs?.map((m) => m.Id!)}
-                header="Songs"
+                header={t("search.songs")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     item={item}
@@ -476,14 +476,14 @@ export default function search() {
           {searchType === "Discover" && (
             <>
               <SearchItemWrapper
-                header="Request Movies"
+                header={t("search.requested_movies")}
                 items={jellyseerrMovieResults}
                 renderItem={(item: MovieResult) => (
                   <JellyseerrPoster item={item} key={item.id} />
                 )}
               />
               <SearchItemWrapper
-                header="Request Series"
+                header={t("search.requested_series")}
                 items={jellyseerrTvResults}
                 renderItem={(item: TvResult) => (
                   <JellyseerrPoster item={item} key={item.id} />
