@@ -7,8 +7,6 @@ import { useTranslation } from "react-i18next";
 export default function page() {
   const searchParams = useGlobalSearchParams();
   const { t } = useTranslation();
-  console.log(searchParams);
-
   const { url } = searchParams as { url: string };
 
   const videoId = useMemo(() => {

@@ -4,6 +4,9 @@ import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
 import { useTranslation } from "react-i18next";
+import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
+import { Ionicons } from "@expo/vector-icons";
 
 interface Props extends ViewProps {}
 
@@ -16,26 +19,35 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   if (!settings) return null;
 
   return (
-    <View>
-      <Text className="text-lg font-bold mb-2">{t("home.settings.audio.audio_title")}</Text>
-      <View className="flex flex-col rounded-xl mb-4 overflow-hidden  divide-y-2 divide-solid divide-neutral-800">
-        <View
-          className={`
-              flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
-            `}
-        >
-          <View className="flex flex-col shrink">
-            <Text className="font-semibold">{t("home.settings.audio.audio_language")}</Text>
-            <Text className="text-xs opacity-50">
-              {t("home.settings.audio.audio_language_hint")}
-            </Text>
-          </View>
+    <View {...props}>
+      <ListGroup
+        title={t("home.settings.audio.audio_title")}
+        description={
+          <Text className="text-[#8E8D91] text-xs">
+            {t("home.settings.audio.audio_hint")}
+          </Text>
+        }
+      >
+        <ListItem title={t("home.settings.audio.set_audio_track")}>
+          <Switch
+            value={settings.rememberAudioSelections}
+            onValueChange={(value) =>
+              updateSettings({ rememberAudioSelections: value })
+            }
+          />
+        </ListItem>
+        <ListItem title={t("home.settings.audio.audio_language")}>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <TouchableOpacity className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-                <Text>
+              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3 ">
+                <Text className="mr-1 text-[#8E8D91]">
                   {settings?.defaultAudioLanguage?.DisplayName || "None"}
                 </Text>
+                <Ionicons
+                  name="chevron-expand-sharp"
+                  size={18}
+                  color="#5A5960"
+                />
               </TouchableOpacity>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
@@ -74,42 +86,8 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
               ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
-        </View>
-        <View className="flex flex-col">
-          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col">
-              <Text className="font-semibold">{t("home.settings.audio.use_default_audio")}</Text>
-              <Text className="text-xs opacity-50">
-                {t("home.settings.audio.use_default_audio_hint")}
-              </Text>
-            </View>
-            <Switch
-              value={settings.playDefaultAudioTrack}
-              onValueChange={(value) =>
-                updateSettings({ playDefaultAudioTrack: value })
-              }
-            />
-          </View>
-        </View>
-        <View className="flex flex-col">
-          <View className="flex flex-row items-center justify-between bg-neutral-900 p-4">
-            <View className="flex flex-col">
-              <Text className="font-semibold">
-                {t("home.settings.audio.set_audio_track")}
-              </Text>
-              <Text className="text-xs opacity-50 min max-w-[85%]">
-                {t("home.settings.audio.set_audio_track_hint")}
-              </Text>
-            </View>
-            <Switch
-              value={settings.rememberAudioSelections}
-              onValueChange={(value) =>
-                updateSettings({ rememberAudioSelections: value })
-              }
-            />
-          </View>
-        </View>
-      </View>
+        </ListItem>
+      </ListGroup>
     </View>
   );
 };

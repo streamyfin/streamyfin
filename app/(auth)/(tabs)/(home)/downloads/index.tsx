@@ -6,18 +6,23 @@ import { DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
-import {useNavigation, useRouter} from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useAtom } from "jotai";
-import React, {useEffect, useMemo, useRef} from "react";
-import {Alert, ScrollView, TouchableOpacity, View} from "react-native";
+import React, { useEffect, useMemo, useRef } from "react";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { Button } from "@/components/Button";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {DownloadSize} from "@/components/downloads/DownloadSize";
-import {BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomSheetView} from "@gorhom/bottom-sheet";
-import {toast} from "sonner-native";
-import {writeToLog} from "@/utils/log";
 import { useTranslation } from "react-i18next";
 import { t } from 'i18next';
+import { DownloadSize } from "@/components/downloads/DownloadSize";
+import {
+  BottomSheetBackdrop,
+  BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
+import { toast } from "sonner-native";
+import { writeToLog } from "@/utils/log";
 
 export default function page() {
   const navigation = useNavigation();
@@ -59,28 +64,29 @@ export default function page() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={bottomSheetModalRef.current?.present}
-        >
-          <DownloadSize items={downloadedFiles?.map(f => f.item) || []}/>
+        <TouchableOpacity onPress={bottomSheetModalRef.current?.present}>
+          <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
         </TouchableOpacity>
-      )
-    })
+      ),
+    });
   }, [downloadedFiles]);
 
-  const deleteMovies = () => deleteFileByType("Movie")
-    .then(() => toast.success(t("home.downloads.toasts.deleted_all_movies_successfully")))
-    .catch((reason) => {
-      writeToLog("ERROR", reason);
-      toast.error(t("home.downloads.toasts.failed_to_delete_all_movies"));
-    });
-  const deleteShows = () => deleteFileByType("Episode")
-    .then(() => toast.success(t("home.downloads.toasts.deleted_all_tvseries_successfully")))
-    .catch((reason) => {
-      writeToLog("ERROR", reason);
-      toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
-    });
-  const deleteAllMedia = async () => await Promise.all([deleteMovies(), deleteShows()])
+  const deleteMovies = () =>
+    deleteFileByType("Movie")
+      .then(() => toast.success(t("home.downloads.toasts.deleted_all_movies_successfully")))
+      .catch((reason) => {
+        writeToLog("ERROR", reason);
+        toast.error(t("home.downloads.toasts.failed_to_delete_all_movies"));
+      });
+  const deleteShows = () =>
+    deleteFileByType("Episode")
+      .then(() => toast.success(t("home.downloads.toasts.deleted_all_tvseries_successfully")))
+      .catch((reason) => {
+        writeToLog("ERROR", reason);
+        toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
+      });
+  const deleteAllMedia = async () =>
+    await Promise.all([deleteMovies(), deleteShows()]);
 
   return (
     <>
@@ -110,7 +116,9 @@ export default function page() {
                     >
                       <View>
                         <Text className="font-semibold">{q.item.Name}</Text>
-                        <Text className="text-xs opacity-50">{q.item.Type}</Text>
+                        <Text className="text-xs opacity-50">
+                          {q.item.Type}
+                        </Text>
                       </View>
                       <TouchableOpacity
                         onPress={() => {
@@ -121,7 +129,7 @@ export default function page() {
                           });
                         }}
                       >
-                        <Ionicons name="close" size={24} color="red"/>
+                        <Ionicons name="close" size={24} color="red" />
                       </TouchableOpacity>
                     </TouchableOpacity>
                   ))}
@@ -133,7 +141,7 @@ export default function page() {
               </View>
             )}
 
-            <ActiveDownloads/>
+            <ActiveDownloads />
           </View>
 
           {movies.length > 0 && (
@@ -148,7 +156,7 @@ export default function page() {
                 <View className="px-4 flex flex-row">
                   {movies?.map((item) => (
                     <View className="mb-2 last:mb-0" key={item.item.Id}>
-                      <MovieCard item={item.item}/>
+                      <MovieCard item={item.item} />
                     </View>
                   ))}
                 </View>
@@ -160,13 +168,18 @@ export default function page() {
               <View className="flex flex-row items-center justify-between mb-2 px-4">
                 <Text className="text-lg font-bold">{t("home.downloads.tvseries")}</Text>
                 <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
-                  <Text className="text-xs font-bold">{groupedBySeries?.length}</Text>
+                  <Text className="text-xs font-bold">
+                    {groupedBySeries?.length}
+                  </Text>
                 </View>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View className="px-4 flex flex-row">
                   {groupedBySeries?.map((items) => (
-                    <View className="mb-2 last:mb-0" key={items[0].item.SeriesId}>
+                    <View
+                      className="mb-2 last:mb-0"
+                      key={items[0].item.SeriesId}
+                    >
                       <SeriesCard
                         items={items.map((i) => i.item)}
                         key={items[0].item.SeriesId}
@@ -203,9 +216,15 @@ export default function page() {
       >
         <BottomSheetView>
           <View className="p-4 space-y-4 mb-4">
-            <Button color="purple" onPress={deleteMovies}>{t("home.downloads.delete_all_movies_button")}</Button>
-            <Button color="purple" onPress={deleteShows}>{t("home.downloads.delete_all_tvseries_button")}</Button>
-            <Button color="red" onPress={deleteAllMedia}>{t("home.downloads.delete_all_button")}</Button>
+            <Button color="purple" onPress={deleteMovies}>
+              {t("home.downloads.delete_all_movies_button")}
+            </Button>
+            <Button color="purple" onPress={deleteShows}>
+              {t("home.downloads.delete_all_tvseries_button")}
+            </Button>
+            <Button color="red" onPress={deleteAllMedia}>
+              {t("home.downloads.delete_all_button")}
+            </Button>
           </View>
         </BottomSheetView>
       </BottomSheetModal>

@@ -4,13 +4,14 @@ import {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { router } from "expo-router";
+import { router, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useMemo } from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
 import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { Text } from "../common/Text";
 import Poster from "../posters/Poster";
+import { itemRouter } from "../common/TouchableItemRouter";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -19,6 +20,8 @@ interface Props extends ViewProps {
 
 export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
+  const segments = useSegments();
+  const from = segments[2];
 
   const destinctPeople = useMemo(() => {
     const people: BaseItemPerson[] = [];
@@ -33,6 +36,8 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
     return people;
   }, [item?.People]);
 
+  if (!from) return null;
+
   return (
     <View {...props} className="flex flex-col">
       <Text className="text-lg font-bold mb-2 px-4">Cast & Crew</Text>
@@ -44,7 +49,9 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
-              router.push(`/actors/${i.Id}`);
+              const url = itemRouter(i, from);
+              // @ts-ignore
+              router.push(url);
             }}
             className="flex flex-col w-28"
           >

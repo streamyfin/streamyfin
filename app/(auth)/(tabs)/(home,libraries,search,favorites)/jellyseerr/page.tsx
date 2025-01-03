@@ -55,6 +55,7 @@ const Page: React.FC = () => {
     data: details,
     isFetching,
     isLoading,
+    refetch
   } = useQuery({
     enabled: !!jellyseerrApi && !!result && !!result.id,
     queryKey: ["jellyseerr", "detail", result.mediaType, result.id],
@@ -63,6 +64,7 @@ const Page: React.FC = () => {
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
     retryOnMount: true,
+    refetchInterval: 0,
     queryFn: async () => {
       return result.mediaType === MediaType.MOVIE
         ? jellyseerrApi?.movieDetails(result.id!!)
@@ -94,15 +96,18 @@ const Page: React.FC = () => {
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
   const request = useCallback(
-    () =>
+    async () => {
       requestMedia(mediaTitle, {
-        mediaId: Number(result.id!!),
-        mediaType: result.mediaType!!,
-        tvdbId: details?.externalIds?.tvdbId,
-        seasons: (details as TvDetails)?.seasons
-          ?.filter?.((s) => s.seasonNumber !== 0)
-          ?.map?.((s) => s.seasonNumber),
-      }),
+          mediaId: Number(result.id!!),
+          mediaType: result.mediaType!!,
+          tvdbId: details?.externalIds?.tvdbId,
+          seasons: (details as TvDetails)?.seasons
+            ?.filter?.((s) => s.seasonNumber !== 0)
+            ?.map?.((s) => s.seasonNumber),
+        },
+        refetch
+      )
+    },
     [details, result, requestMedia]
   );
 
@@ -205,6 +210,7 @@ const Page: React.FC = () => {
                 isLoading={isLoading || isFetching}
                 result={result as TvResult}
                 details={details as TvDetails}
+                refetch={refetch}
               />
             )}
           </View>

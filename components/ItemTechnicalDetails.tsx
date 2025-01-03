@@ -175,6 +175,8 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
     ) as MediaStream;
   }, [source.MediaStreams]);
 
+  if (!videoStream) return null;
+
   return (
     <View className="flex-row flex-wrap gap-2">
       <Badge

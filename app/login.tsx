@@ -1,6 +1,7 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
+import { PreviousServersList } from "@/components/PreviousServersList";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
@@ -8,7 +9,7 @@ import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -119,7 +120,7 @@ const CredentialsSchema = z.object({
    * - Sets loadingServerCheck state to true at the beginning and false at the end.
    * - Logs errors and timeout information to the console.
    */
-  async function checkUrl(url: string) {
+  const checkUrl = useCallback(async (url: string) => {
     setLoadingServerCheck(true);
 
     try {
@@ -129,6 +130,7 @@ const CredentialsSchema = z.object({
 
       if (response.ok) {
         const data = (await response.json()) as PublicSystemInfo;
+
         setServerName(data.ServerName || "");
         return url;
       }
@@ -137,7 +139,7 @@ const CredentialsSchema = z.object({
     } finally {
       setLoadingServerCheck(false);
     }
-  }
+  }, []);
 
   /**
    * Handles the connection attempt to a Jellyfin server.
@@ -155,7 +157,7 @@ const CredentialsSchema = z.object({
    * - Sets the server address using `setServer` if the connection is successful.
    *
    */
-  const handleConnect = async (url: string) => {
+  const handleConnect = useCallback(async (url: string) => {
     url = url.trim();
 
     const result = await checkUrl(url);
@@ -169,7 +171,7 @@ const CredentialsSchema = z.object({
     }
 
     setServer({ address: url });
-  };
+  }, []);
 
   const handleQuickConnect = async () => {
     try {
@@ -206,7 +208,7 @@ const CredentialsSchema = z.object({
                     ) : t("login.login_title")}
                   </>
                 </Text>
-                <Text className="text-xs text-neutral-400">{serverURL}</Text>
+                <Text className="text-xs text-neutral-400">{api.basePath}</Text>
                 <Input
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
@@ -292,9 +294,14 @@ const CredentialsSchema = z.object({
               textContentType="URL"
               maxLength={500}
             />
-            <Text className="text-xs text-neutral-500">
+            <Text className="text-xs text-neutral-500 ml-4">
               {t("server.server_url_hint")}
             </Text>
+            <PreviousServersList
+              onServerSelect={(s) => {
+                handleConnect(s.address);
+              }}
+            />
           </View>
           <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
             <Button

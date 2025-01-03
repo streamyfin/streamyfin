@@ -338,12 +338,13 @@ export const useJellyseerr = () => {
   }, []);
 
   const requestMedia = useCallback(
-    (title: string, request: MediaRequestBody) => {
+    (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
       jellyseerrApi?.request?.(request)?.then((mediaRequest) => {
         switch (mediaRequest.status) {
           case MediaRequestStatus.PENDING:
           case MediaRequestStatus.APPROVED:
             toast.success(t("jellyseerr.toasts.requested_item", {item: title}));
+            onSuccess?.()
             break;
           case MediaRequestStatus.DECLINED:
             toast.error(t("jellyseerr.toasts.you_dont_have_permission_to_request"));

@@ -106,7 +106,6 @@ export default function page() {
   } = useQuery({
     queryKey: ["item", itemId],
     queryFn: async () => {
-      console.log("Offline:", offline);
       if (offline) {
         const item = await getDownloadedItem(itemId);
         if (item) return item.item;
@@ -130,7 +129,6 @@ export default function page() {
   } = useQuery({
     queryKey: ["stream-url", itemId, mediaSourceId, bitrateValue],
     queryFn: async () => {
-      console.log("Offline:", offline);
       if (offline) {
         const data = await getDownloadedItem(itemId);
         if (!data?.mediaSource) return null;
@@ -197,8 +195,6 @@ export default function page() {
           playSessionId: stream.sessionId,
         });
       }
-
-      console.log("Actually marked as paused");
     } else {
       videoRef.current?.play();
       if (!offline && stream) {
@@ -341,7 +337,6 @@ export default function page() {
     React.useCallback(() => {
       return async () => {
         stop();
-        console.log("Unmounted");
       };
     }, [])
   );
@@ -351,10 +346,8 @@ export default function page() {
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (appState.match(/inactive|background/) && nextAppState === "active") {
-        console.log("App has come to the foreground!");
         // Handle app coming to the foreground
       } else if (nextAppState.match(/inactive|background/)) {
-        console.log("App has gone to the background!");
         // Handle app going to the background
         if (videoRef.current && videoRef.current.pause) {
           videoRef.current.pause();

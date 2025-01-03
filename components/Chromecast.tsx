@@ -34,6 +34,7 @@ export const Chromecast: React.FC<Props> = ({
   useEffect(() => {
     (async () => {
       if (!discoveryManager) {
+        console.warn("DiscoveryManager is not initialized");
         return;
       }
 
@@ -64,6 +65,7 @@ export const Chromecast: React.FC<Props> = ({
         }}
         {...props}
       >
+        <AndroidCastButton />
         <Feather name="cast" size={22} color={"white"} />
       </RoundButton>
     );
@@ -77,6 +79,7 @@ export const Chromecast: React.FC<Props> = ({
       }}
       {...props}
     >
+      <AndroidCastButton />
       <Feather name="cast" size={22} color={"white"} />
     </RoundButton>
   );

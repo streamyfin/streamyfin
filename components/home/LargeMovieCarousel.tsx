@@ -84,21 +84,27 @@ export const LargeMovieCarousel: React.FC<Props> = ({ ...props }) => {
 
   const width = Dimensions.get("screen").width;
 
+  if (settings?.usePopularPlugin === false) return null;
   if (l1 || l2) return null;
   if (!popularItems) return null;
 
   return (
-    <View className="flex flex-col items-center" {...props}>
+    <View className="flex flex-col items-center mt-2" {...props}>
       <Carousel
-        autoPlay={true}
-        autoPlayInterval={3000}
-        loop={true}
         ref={ref}
+        autoPlay={false}
+        loop={true}
+        snapEnabled={true}
+        mode="parallax"
+        modeConfig={{
+          parallaxScrollingScale: 0.86,
+          parallaxScrollingOffset: 100,
+        }}
         width={width}
         height={204}
         data={popularItems}
         onProgressChange={progress}
-        renderItem={({ item, index }) => <RenderItem item={item} />}
+        renderItem={({ item, index }) => <RenderItem key={index} item={item} />}
       />
       <Pagination.Basic
         progress={progress}

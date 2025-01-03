@@ -1,179 +1,88 @@
-import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
-import { ListItem } from "@/components/ListItem";
-import { SettingToggles } from "@/components/settings/SettingToggles";
-import {useDownload} from "@/providers/DownloadProvider";
-import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
-import { clearLogs, useLog } from "@/utils/log";
-import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
-import * as FileSystem from "expo-file-system";
+import { ListGroup } from "@/components/list/ListGroup";
+import { ListItem } from "@/components/list/ListItem";
+import { AudioToggles } from "@/components/settings/AudioToggles";
+import { DownloadSettings } from "@/components/settings/DownloadSettings";
+import { MediaProvider } from "@/components/settings/MediaContext";
+import { MediaToggles } from "@/components/settings/MediaToggles";
+import { OtherSettings } from "@/components/settings/OtherSettings";
+import { PluginSettings } from "@/components/settings/PluginSettings";
+import { QuickConnect } from "@/components/settings/QuickConnect";
+import { StorageSettings } from "@/components/settings/StorageSettings";
+import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
+import { UserInfo } from "@/components/settings/UserInfo";
+import { useJellyfin } from "@/providers/JellyfinProvider";
+import { clearLogs } from "@/utils/log";
 import * as Haptics from "expo-haptics";
-import { useAtom } from "jotai";
-import { Alert, ScrollView, View } from "react-native";
-import * as Progress from "react-native-progress";
+import { useNavigation, useRouter } from "expo-router";
+import { t } from "i18next";
+import { useEffect } from "react";
+import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { toast } from "sonner-native";
-import { useTranslation } from "react-i18next";
 
 export default function settings() {
-  const { logout } = useJellyfin();
-  const { deleteAllFiles, appSizeUsage } = useDownload();
-  const { logs } = useLog();
-
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  const { t } = useTranslation();
-
-  const { data: size, isLoading: appSizeLoading } = useQuery({
-    queryKey: ["appSize", appSizeUsage],
-    queryFn: async () => {
-      const app = await appSizeUsage;
-
-      const remaining = await FileSystem.getFreeDiskStorageAsync();
-      const total = await FileSystem.getTotalDiskCapacityAsync();
-
-      return { app, remaining, total, used: (total - remaining) / total };
-    },
-  });
-
-  const openQuickConnectAuthCodeInput = () => {
-    Alert.prompt(
-      t("home.settings.quick_connect.quick_connect_title"),
-      t("home.settings.quick_connect.enter_the_quick_connect_code"),
-      async (text) => {
-        if (text) {
-          try {
-            const res = await getQuickConnectApi(api!).authorizeQuickConnect({
-              code: text,
-              userId: user?.Id,
-            });
-            if (res.status === 200) {
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success
-              );
-              Alert.alert(t("home.settings.quick_connect.success"), t("home.settings.quick_connect.quick_connect_autorized"));
-            } else {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
-            }
-          } catch (e) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
-          }
-        }
-      }
-    );
-  };
-
-  const onDeleteClicked = async () => {
-    try {
-      await deleteAllFiles();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error(t("home.settings.toasts.error_deleting_files"));
-    }
-  };
+  const { logout } = useJellyfin();
 
   const onClearLogsClicked = async () => {
     clearLogs();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => {
+            logout();
+          }}
+        >
+          <Text className="text-red-600">{t("home.settings.log_out_button")}</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, []);
+
   return (
     <ScrollView
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
-        paddingBottom: 100,
       }}
     >
       <View className="p-4 flex flex-col gap-y-4">
-        {/* <Button
-          onPress={() => {
-            registerBackgroundFetchAsync();
-          }}
-        >
-          registerBackgroundFetchAsync
-        </Button> */}
-        <View>
-          <Text className="font-bold text-lg mb-2">{t("home.settings.user_info.user_info_title")}</Text>
+        <UserInfo />
+        <QuickConnect className="mb-4" />
 
-          <View className="flex flex-col rounded-xl overflow-hidden border-neutral-800 divide-y-2 divide-solid divide-neutral-800 ">
-            <ListItem title={t("home.settings.user_info.user")} subTitle={user?.Name} />
-            <ListItem title={t("home.settings.user_info.server")} subTitle={api?.basePath} />
-            <ListItem title={t("home.settings.user_info.token")} subTitle={api?.accessToken} />
-          </View>
-          <Button className="my-2.5" color="black" onPress={logout}>
-            {t("home.settings.user_info.log_out_button")}
-          </Button>
-        </View>
+        <MediaProvider>
+          <MediaToggles className="mb-4" />
+          <AudioToggles className="mb-4" />
+          <SubtitleToggles className="mb-4" />
+        </MediaProvider>
 
-        <View>
-          <Text className="font-bold text-lg mb-2">{t("home.settings.quick_connect.quick_connect_title")}</Text>
-          <Button onPress={openQuickConnectAuthCodeInput} color="black">
-            {t("home.settings.quick_connect.authorize_button")}
-          </Button>
-        </View>
+        <OtherSettings />
+        <DownloadSettings />
 
-        <SettingToggles />
+        <PluginSettings />
 
-        <View className="flex flex-col space-y-2">
-          <Text className="font-bold text-lg mb-2">{t("home.settings.storage.storage_title")}</Text>
-          <View className="mb-4 space-y-2">
-            {size && <Text>{t("home.settings.storage.app_usage", {usedSpace: size.app.bytesToReadable()})}</Text>}
-            <Progress.Bar
-              className="bg-gray-100/10"
-              indeterminate={appSizeLoading}
-              color="#9333ea"
-              width={null}
-              height={10}
-              borderRadius={6}
-              borderWidth={0}
-              progress={size?.used}
+        <View className="mb-4">
+          <ListGroup title={t("home.settings.logs.logs_title")}>
+            <ListItem
+              onPress={() => router.push("/settings/logs/page")}
+              showArrow
+              title={t("home.settings.logs.logs_title")}
             />
-            {size && (
-              <Text>
-                {t("home.settings.storage.available_total", {availableSpace: size.remaining?.bytesToReadable(), totalSpace: size.total?.bytesToReadable()})}
-                {}
-              </Text>
-            )}
-          </View>
-          <Button color="red" onPress={onDeleteClicked}>
-            {t("home.settings.storage.delete_all_downloaded_files")}
-          </Button>
-          <Button color="red" onPress={onClearLogsClicked}>
-            {t("home.settings.storage.delete_all_logs")}
-          </Button>
+            <ListItem
+              textColor="red"
+              onPress={onClearLogsClicked}
+              title={t("home.settings.logs.delete_all_logs")}
+            />
+          </ListGroup>
         </View>
-        <View>
-          <Text className="font-bold text-lg mb-2">{t("home.settings.logs.logs_title")}</Text>
-          <View className="flex flex-col space-y-2">
-            {logs?.map((log, index) => (
-              <View key={index} className="bg-neutral-900 rounded-xl p-3">
-                <Text
-                  className={`
-                  mb-1
-              ${log.level === "INFO" && "text-blue-500"}
-              ${log.level === "ERROR" && "text-red-500"}
-                `}
-                >
-                  {log.level}
-                </Text>
-                <Text uiTextView selectable className="text-xs">
-                  {log.message}
-                </Text>
-              </View>
-            ))}
-            {logs?.length === 0 && (
-              <Text className="opacity-50">{t("home.settings.logs.no_logs_available")}</Text>
-            )}
-          </View>
-        </View>
+
+        <StorageSettings />
       </View>
     </ScrollView>
   );

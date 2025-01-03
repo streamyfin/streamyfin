@@ -41,7 +41,6 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colletionTypeToItemType } from "@/utils/collectionTypeToItemType";
 import { useTranslation } from "react-i18next";
 
 const Page = () => {
@@ -154,6 +153,8 @@ const Page = () => {
         itemType = "Series";
       } else if (library.CollectionType === "boxsets") {
         itemType = "BoxSet";
+      } else if (library.CollectionType === "music") {
+        itemType = "MusicAlbum";
       }
 
       const response = await getItemsApi(api).getItems({

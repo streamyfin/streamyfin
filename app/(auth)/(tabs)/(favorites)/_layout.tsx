@@ -13,6 +13,9 @@ export default function SearchLayout() {
           headerShown: true,
           headerLargeTitle: true,
           headerTitle: t("favorites.favorites_title"),
+          headerLargeStyle: {
+            backgroundColor: "black",
+          },
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,

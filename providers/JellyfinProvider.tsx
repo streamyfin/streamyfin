@@ -19,6 +19,7 @@ import React, {
 import { Platform } from "react-native";
 import uuid from "react-native-uuid";
 import { getDeviceName } from "react-native-device-info";
+import { toast } from "sonner-native";
 
 interface Server {
   address: string;
@@ -178,6 +179,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       setApi(apiInstance);
       storage.set("serverUrl", server.address);
+    },
+    onSuccess: (_, server) => {
+      const previousServers = JSON.parse(
+        storage.getString("previousServers") || "[]"
+      );
+      const updatedServers = [
+        server,
+        ...previousServers.filter((s: Server) => s.address !== server.address),
+      ];
+      storage.set(
+        "previousServers",
+        JSON.stringify(updatedServers.slice(0, 5))
+      );
     },
     onError: (error) => {
       console.error("Failed to set server:", error);
