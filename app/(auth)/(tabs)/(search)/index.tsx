@@ -96,7 +96,6 @@ export default function search() {
         } else {
           if (!settings?.marlinServerUrl) return [];
 
-          console.log(settings.marlinServerUrl);
           const url = `${
             settings.marlinServerUrl
           }/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
@@ -104,8 +103,6 @@ export default function search() {
             .join("&includeItemTypes=")}`;
 
           const response1 = await axios.get(url);
-
-          console.log(response1.statusText);
 
           const ids = response1.data.ids;
 

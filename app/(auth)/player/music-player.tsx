@@ -169,18 +169,15 @@ export default function page() {
   );
 
   const play = useCallback(() => {
-    console.log("play");
     videoRef.current?.resume();
     reportPlaybackStart();
   }, [videoRef]);
 
   const pause = useCallback(() => {
-    console.log("play");
     videoRef.current?.pause();
   }, [videoRef]);
 
   const stop = useCallback(() => {
-    console.log("stop");
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     reportPlaybackStopped();

@@ -16,7 +16,7 @@ export const itemRouter = (
   item: BaseItemDto | BaseItemPerson,
   from: string
 ) => {
-  console.log(item.Type);
+  console.log(item.Type, item?.CollectionType);
 
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${from}/livetv`;

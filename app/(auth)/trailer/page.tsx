@@ -5,7 +5,6 @@ import YoutubePlayer, { PLAYER_STATES } from "react-native-youtube-iframe";
 
 export default function page() {
   const searchParams = useGlobalSearchParams();
-  console.log(searchParams);
 
   const { url } = searchParams as { url: string };
 

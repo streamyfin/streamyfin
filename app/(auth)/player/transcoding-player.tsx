@@ -260,13 +260,6 @@ const Player = () => {
       progress.value = ticks;
       cacheProgress.value = secondsToTicks(data.playableDuration);
 
-      console.log(
-        "onProgress ~",
-        ticks,
-        isPlaying,
-        `AUDIO index: ${audioIndex} SUB index" ${subtitleIndex}`
-      );
-
       // TODO: Use this when streaming with HLS url, but NOT when direct playing
       // TODO: since playable duration is always 0 then.
       setIsBuffering(data.playableDuration === 0);
@@ -339,11 +332,7 @@ const Player = () => {
 
       // Most likely the subtitle is burned in.
       if (embeddedTrackIndex === -1) return;
-      console.log(
-        "Setting selected text track",
-        subtitleIndex,
-        embeddedTrackIndex
-      );
+
       setSelectedTextTrack({
         type: SelectedTrackType.INDEX,
         value: embeddedTrackIndex,
@@ -439,7 +428,6 @@ const Player = () => {
                 setIsBuffering(e.isBuffering);
               }}
               onAudioTracks={(e) => {
-                console.log("onAudioTracks: ", e.audioTracks);
                 setAudioTracks(
                   e.audioTracks.map((t) => ({
                     index: t.index,
@@ -493,7 +481,6 @@ const Player = () => {
           }}
           getAudioTracks={getAudioTracks}
           setAudioTrack={(i) => {
-            console.log("setAudioTrack ~", i);
             setSelectedAudioTrack({
               type: SelectedTrackType.INDEX,
               value: i,
