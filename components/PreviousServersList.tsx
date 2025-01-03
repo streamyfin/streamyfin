@@ -1,16 +1,8 @@
 import React, { useMemo } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
-import { MMKV, useMMKVString } from "react-native-mmkv";
+import { View } from "react-native";
+import { useMMKVString } from "react-native-mmkv";
 import { ListGroup } from "./list/ListGroup";
 import { ListItem } from "./list/ListItem";
-
-const storage = new MMKV();
 
 interface Server {
   address: string;
@@ -37,6 +29,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
       <ListGroup title="previous servers" className="mt-4">
         {previousServers.map((s) => (
           <ListItem
+            key={s.address}
             onPress={() => onServerSelect(s)}
             title={s.address}
             showArrow
