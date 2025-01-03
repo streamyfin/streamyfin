@@ -14,7 +14,10 @@ export const UserInfo: React.FC<Props> = ({ ...props }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
-  const version = Application?.nativeApplicationVersion || "N/A";
+  const version =
+    Application?.nativeApplicationVersion ||
+    Application?.nativeBuildVersion ||
+    "N/A";
 
   return (
     <View {...props}>
