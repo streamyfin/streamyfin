@@ -10,6 +10,7 @@ import { PluginSettings } from "@/components/settings/PluginSettings";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
+import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
@@ -63,6 +64,7 @@ export default function settings() {
         </MediaProvider>
 
         <OtherSettings />
+        <AppLanguageSelector/>
         <DownloadSettings />
 
         <PluginSettings />
