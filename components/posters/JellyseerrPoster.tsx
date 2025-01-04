@@ -1,14 +1,14 @@
 import {View, ViewProps} from "react-native";
 import {Image} from "expo-image";
-import {MaterialCommunityIcons} from "@expo/vector-icons";
 import {Text} from "@/components/common/Text";
-import {useEffect, useMemo, useState} from "react";
-import {MovieResult, Results, TvResult} from "@/utils/jellyseerr/server/models/Search";
+import {useMemo} from "react";
+import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
 import {MediaStatus, MediaType} from "@/utils/jellyseerr/server/constants/media";
 import {useJellyseerr} from "@/hooks/useJellyseerr";
 import {hasPermission, Permission} from "@/utils/jellyseerr/server/lib/permissions";
 import {TouchableJellyseerrRouter} from "@/components/common/JellyseerrItemRouter";
-import JellyseerrIconStatus from "@/components/icons/JellyseerrIconStatus";
+import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
+import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
 interface Props extends ViewProps {
   item: MovieResult | TvResult;
 }
@@ -72,16 +72,20 @@ const JellyseerrPoster: React.FC<Props> = ({
               width: "100%",
             }}
           />
-          <JellyseerrIconStatus
+          <JellyseerrStatusIcon
             className="absolute bottom-1 right-1"
             showRequestIcon={canRequest}
             mediaStatus={item?.mediaInfo?.status}
           />
 
+          <JellyseerrMediaIcon
+            className="absolute top-1 left-1"
+            mediaType={item?.mediaType}
+          />
         </View>
         <View className="mt-2 flex flex-col">
           <Text numberOfLines={2}>{title}</Text>
-          <Text className="text-xs opacity-50">{releaseYear}</Text>
+          <Text className="text-xs opacity-50 align-bottom">{releaseYear}</Text>
         </View>
       </View>
     </TouchableJellyseerrRouter>
