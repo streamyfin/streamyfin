@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, {useCallback, useMemo, useRef, useState} from "react";
 import { useLocalSearchParams } from "expo-router";
 import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { Text } from "@/components/common/Text";
@@ -9,7 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OverviewText } from "@/components/OverviewText";
 import { GenreTags } from "@/components/GenreTags";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import {MediaRequestStatus, MediaStatus, MediaType} from "@/utils/jellyseerr/server/constants/media";
 import { useQuery } from "@tanstack/react-query";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { Button } from "@/components/Button";
@@ -27,6 +27,7 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
+import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -44,7 +45,6 @@ const Page: React.FC = () => {
     posterSrc: string;
   } & Partial<MovieResult | TvResult>;
 
-  const canRequest = canRequestString === "true";
   const { jellyseerrApi, requestMedia } = useJellyseerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
@@ -71,6 +71,14 @@ const Page: React.FC = () => {
         : jellyseerrApi?.tvDetails(result.id!!);
     },
   });
+
+  const canRequest = useMemo(() => {
+    const pendingRequests = details?.mediaInfo?.requests
+      ?.some((r: MediaRequest) => r.status == MediaRequestStatus.PENDING || r.status == MediaRequestStatus.APPROVED)
+
+    return (details?.mediaInfo?.status === MediaStatus.UNKNOWN && !pendingRequests) ||
+      (!details?.mediaInfo?.status && canRequestString === "true");
+  }, [canRequestString, details]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
