@@ -49,12 +49,12 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
 
   return (
     <View {...props}>
-      <Text className="px-4 text-lg font-bold mb-2">{t("series.similar_items")}</Text>
+      <Text className="px-4 text-lg font-bold mb-2">{t("item_card.similar_items")}</Text>
       <HorizontalScroll
         data={movies}
         loading={isLoading}
         height={247}
-        noItemsText={t("series.no_similar_items_found")}
+        noItemsText={t("item_card.no_similar_items_found")}
         renderItem={(item: BaseItemDto, idx: number) => (
           <TouchableItemRouter
             key={idx}

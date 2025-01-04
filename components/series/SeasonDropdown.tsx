@@ -92,7 +92,7 @@ export const SeasonDropdown: React.FC<Props> = ({
       <DropdownMenu.Trigger>
         <View className="flex flex-row">
           <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-            <Text>{t("series.season")} {seasonIndex}</Text>
+            <Text>{t("item_card.season")} {seasonIndex}</Text>
           </TouchableOpacity>
         </View>
       </DropdownMenu.Trigger>
@@ -105,7 +105,7 @@ export const SeasonDropdown: React.FC<Props> = ({
         collisionPadding={8}
         sideOffset={8}
       >
-        <DropdownMenu.Label>{t("series.seasons")}</DropdownMenu.Label>
+        <DropdownMenu.Label>{t("item_card.seasons")}</DropdownMenu.Label>
         {seasons?.sort(sortByIndex).map((season: any) => (
           <DropdownMenu.Item
             key={season[keys.title]}

@@ -51,7 +51,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           <View className="flex flex-col " {...props}>
-            <Text className="opacity-50 mb-1 text-xs">{t("series.subtitles")}</Text>
+            <Text className="opacity-50 mb-1 text-xs">{t("item_card.subtitles")}</Text>
             <TouchableOpacity className="bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
               <Text className=" ">
                 {selectedSubtitleSteam

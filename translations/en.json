@@ -257,7 +257,7 @@
     "message_from_server": "Message from server: {{message}}",
     "video_has_finished_playing": "Video has finished playing!"
   },
-  "series": {
+  "item_card": {
     "next_up": "Next up",
     "no_items_to_display": "No items to display",
     "cast_and_crew": "Cast & Crew",
@@ -274,7 +274,16 @@
     "more_details": "More details",
     "quality": "Quality",
     "audio": "Audio",
-    "subtitles": "Subtitle"
+    "subtitles": "Subtitle",
+    "show_more": "Show more",
+    "show_less": "Show less",
+    "download": {
+      "download_season": "Download Season",
+      "download_x_item": "Download {{item_count}} items",
+      "download_button": "Download",
+      "using_optimized_server": "Using optimized server",
+      "using_default_method": "Using default method",
+    }
   },
   "jellyseerr":{
     "confirm": "Confirm",
