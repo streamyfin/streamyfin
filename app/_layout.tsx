@@ -13,7 +13,7 @@ import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
 import { LogProvider, writeToLog } from "@/utils/log";
-import { storage } from "@/utils/mmkv";
+import { formatItemName, storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -385,18 +385,15 @@ function Layout() {
 function saveDownloadedItemInfo(item: BaseItemDto) {
   try {
     const downloadedItems = storage.getString("downloadedItems");
-    let items: BaseItemDto[] = downloadedItems
+    let items: { [key: string]: BaseItemDto } = downloadedItems
       ? JSON.parse(downloadedItems)
-      : [];
+      : {};
 
-    const existingItemIndex = items.findIndex((i) => i.Id === item.Id);
-    if (existingItemIndex !== -1) {
-      items[existingItemIndex] = item;
-    } else {
-      items.push(item);
+    if (item.Id) {
+      item.Path = `${FileSystem.documentDirectory}${formatItemName(item)}.mp4`;
+      items[item.Id] = item;
+      storage.set("downloadedItems", JSON.stringify(items));
     }
-
-    storage.set("downloadedItems", JSON.stringify(items));
   } catch (error) {
     writeToLog("ERROR", "Failed to save downloaded item information:", error);
     console.error("Failed to save downloaded item information:", error);

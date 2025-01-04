@@ -1,5 +1,6 @@
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { writeToLog } from "@/utils/log";
+import { getFilePathFromItemId } from "@/utils/mmkv";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
@@ -17,13 +18,13 @@ export const getDownloadedFileUrl = async (itemId: string): Promise<string> => {
   }
 
   const files = await FileSystem.readDirectoryAsync(directory);
-  const path = itemId!;
-  const matchingFile = files.find((file) => file.startsWith(path));
+  const filePath = getFilePathFromItemId(itemId);
+
+  const matchingFile = files.find((file) => file === filePath);
 
   if (!matchingFile) {
-    throw new Error(`No file found for item ${path}`);
+    throw new Error(`No file found for item ${filePath}`);
   }
-
   return `${directory}${matchingFile}`;
 };
 

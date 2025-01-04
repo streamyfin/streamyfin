@@ -19,14 +19,7 @@ import {
   download,
   setConfig,
 } from "@kesha-antonov/react-native-background-downloader";
-import MMKV from "react-native-mmkv";
-import {
-  focusManager,
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
@@ -45,7 +38,7 @@ import { apiAtom } from "./JellyfinProvider";
 import * as Notifications from "expo-notifications";
 import { getItemImage } from "@/utils/getItemImage";
 import useImageStorage from "@/hooks/useImageStorage";
-import { storage } from "@/utils/mmkv";
+import { formatItemName, saveItemMapping, storage } from "@/utils/mmkv";
 import useDownloadHelper from "@/utils/download";
 import { FileInfo } from "expo-file-system";
 import * as Haptics from "expo-haptics";
@@ -54,7 +47,10 @@ import * as Application from "expo-application";
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
   mediaSource: MediaSourceInfo;
+  fileSize: number;
 };
+
+export type DownloadedItem2 = {};
 
 export const processesAtom = atom<JobStatus[]>([]);
 
@@ -512,8 +508,10 @@ function useDownloadProvider() {
 
       const downloadedItems = storage.getString("downloadedItems");
       if (downloadedItems) {
-        let items = JSON.parse(downloadedItems) as DownloadedItem[];
-        items = items.filter((item) => item.item.Id !== id);
+        let items: { [key: string]: BaseItemDto } = downloadedItems
+          ? JSON.parse(downloadedItems)
+          : {};
+        delete items[id];
         storage.set("downloadedItems", JSON.stringify(items));
       }
 
@@ -586,7 +584,7 @@ function useDownloadProvider() {
   const appSizeUsage = useMemo(async () => {
     const sizes: number[] =
       downloadedFiles?.map((d) => {
-        return getDownloadedItemSize(d.item.Id!!);
+        return d.fileSize;
       }) || [];
 
     await forEveryDocumentDirFile(
@@ -608,8 +606,10 @@ function useDownloadProvider() {
     try {
       const downloadedItems = storage.getString("downloadedItems");
       if (downloadedItems) {
-        const items: DownloadedItem[] = JSON.parse(downloadedItems);
-        const item = items.find((i) => i.item.Id === itemId);
+        const items: { [key: string]: BaseItemDto } = downloadedItems
+          ? JSON.parse(downloadedItems)
+          : {};
+        const item = items[itemId] as DownloadedItem;
         return item || null;
       }
       return null;
@@ -623,7 +623,7 @@ function useDownloadProvider() {
     try {
       const downloadedItems = storage.getString("downloadedItems");
       if (downloadedItems) {
-        return JSON.parse(downloadedItems) as DownloadedItem[];
+        return Object.values(JSON.parse(downloadedItems)) as DownloadedItem[];
       } else {
         return [];
       }
@@ -636,11 +636,11 @@ function useDownloadProvider() {
   function saveDownloadedItemInfo(item: BaseItemDto, size: number = 0) {
     try {
       const downloadedItems = storage.getString("downloadedItems");
-      let items: DownloadedItem[] = downloadedItems
+      const items: { [key: string]: BaseItemDto } = downloadedItems
         ? JSON.parse(downloadedItems)
-        : [];
+        : {};
 
-      const existingItemIndex = items.findIndex((i) => i.item.Id === item.Id);
+      const chosenItem = items[item.Id!] || {};
 
       const data = getDownloadItemInfoFromDiskTmp(item.Id!);
 
@@ -650,12 +650,6 @@ function useDownloadProvider() {
         );
 
       const newItem = { item, mediaSource: data.mediaSource };
-
-      if (existingItemIndex !== -1) {
-        items[existingItemIndex] = newItem;
-      } else {
-        items.push(newItem);
-      }
 
       deleteDownloadItemInfoFromDiskTmp(item.Id!);
 

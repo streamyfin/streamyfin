@@ -18,6 +18,7 @@ import useDownloadHelper from "@/utils/download";
 import { Api } from "@jellyfin/sdk";
 import { useSettings } from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
+import { formatItemName } from "@/utils/mmkv";
 
 const createFFmpegCommand = (url: string, output: string) => [
   "-y", // overwrite output files without asking
@@ -53,7 +54,12 @@ export const useRemuxHlsToMp4 = () => {
   const [settings] = useSettings();
   const { saveImage } = useImageStorage();
   const { saveSeriesPrimaryImage } = useDownloadHelper();
-  const { saveDownloadedItemInfo, setProcesses, processes, APP_CACHE_DOWNLOAD_DIRECTORY } = useDownload();
+  const {
+    saveDownloadedItemInfo,
+    setProcesses,
+    processes,
+    APP_CACHE_DOWNLOAD_DIRECTORY,
+  } = useDownload();
 
   const onSaveAssets = async (api: Api, item: BaseItemDto) => {
     await saveSeriesPrimaryImage(item);
@@ -73,13 +79,12 @@ export const useRemuxHlsToMp4 = () => {
       try {
         console.log("completeCallback");
         const returnCode = await session.getReturnCode();
-
         if (returnCode.isValueSuccess()) {
           const stat = await session.getLastReceivedStatistics();
           await FileSystem.moveAsync({
-              from: `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`,
-              to: `${FileSystem.documentDirectory}${item.Id}.mp4`
-          })
+            from: `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`,
+            to: `${FileSystem.documentDirectory}${formatItemName(item)}.mp4`,
+          });
           await queryClient.invalidateQueries({
             queryKey: ["downloadedItems"],
           });
@@ -131,12 +136,16 @@ export const useRemuxHlsToMp4 = () => {
 
   const startRemuxing = useCallback(
     async (item: BaseItemDto, url: string, mediaSource: MediaSourceInfo) => {
-      const cacheDir = await FileSystem.getInfoAsync(APP_CACHE_DOWNLOAD_DIRECTORY);
+      const cacheDir = await FileSystem.getInfoAsync(
+        APP_CACHE_DOWNLOAD_DIRECTORY
+      );
       if (!cacheDir.exists) {
-        await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {intermediates: true})
+        await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {
+          intermediates: true,
+        });
       }
 
-      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`
+      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`;
 
       if (!api) throw new Error("API is not defined");
       if (!item.Id) throw new Error("Item must have an Id");
