@@ -1,4 +1,4 @@
-name: release
+name: Automatic Build and Deploy
 
 on:
   workflow_dispatch:
