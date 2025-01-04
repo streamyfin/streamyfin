@@ -423,7 +423,7 @@ export default function page() {
   if (isErrorItem || isErrorStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">Error</Text>
+        <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
 

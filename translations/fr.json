@@ -6,11 +6,11 @@
     "login_to_title": "Se connecter à",
     "username_placeholder": "Nom d'utilisateur",
     "password_placeholder": "Mot de passe",
-    "use_quick_connect": "Utiliser Quick Connect",
+    "use_quick_connect": "Utiliser Connexion Rapide",
     "login_button": "Se connecter",
-    "quick_connect": "Quick Connect",
+    "quick_connect": "Connexion Rapide",
     "enter_code_to_login": "Entrez le code {{code}} pour vous connecter",
-    "failed_to_initiate_quick_connect": "Échec de l'initialisation de Quick Connect",
+    "failed_to_initiate_quick_connect": "Échec de l'initialisation de Connexion Rapide",
     "got_it": "D'accord",
     "connection_failed": "La connection a échouée",
     "could_not_connect_to_server": "Impossible de se connecter au serveur. Veuillez vérifier l'URL et votre connection réseau."
@@ -26,6 +26,7 @@
   "home": {
     "home": "Accueil",
     "no_internet": "Pas d'Internet",
+    "no_items": "Aucun item",
     "no_internet_message": "Aucun problème, vous pouvez toujours regarder\nle contenu téléchargé.",
     "go_to_downloads": "Aller aux téléchargements",
     "oops": "Oups!",
@@ -46,11 +47,11 @@
         "app_version": "Version de l'application"
       },
       "quick_connect": {
-        "quick_connect_title": "Quick connect",
-        "authorize_button": "Autoriser Quick Connect",
-        "enter_the_quick_connect_code": "Entrez le code Quick Connect",
+        "quick_connect_title": "Connexion Rapide",
+        "authorize_button": "Autoriser Connexion Rapide",
+        "enter_the_quick_connect_code": "Entrez le code Connexion Rapide",
         "success": "Succès",
-        "quick_connect_autorized": "Quick Connect autorisé",
+        "quick_connect_autorized": "Connexion Rapide autorisé",
         "error": "Errur",
         "invalid_code": "Code invalide"
       },
@@ -63,7 +64,8 @@
         "audio_title": "Audio",
         "set_audio_track": "Configurer la piste audio à partir de l'élément précédent",
         "audio_language": "Langue audio",
-        "audio_hint": "Chosissez une langue audio par défaut."
+        "audio_hint": "Chosissez une langue audio par défaut.",
+        "none": "Aucun"
       },
       "subtitles": {
         "subtitle_title": "Sous-titres",
@@ -71,7 +73,8 @@
         "subtitle_mode": "Mode des sous-titres",
         "set_subtitle_track": "Configurer la piste de sous-titres à partir de l'élément précédent",
         "subtitle_size": "Taille des sous-titres",
-        "subtitle_hint": "Configurez les préférences des sous-titres."
+        "subtitle_hint": "Configurez les préférences des sous-titres.",
+        "none": "Aucun"
       },
       "other": {
         "other_title": "Autres",
@@ -85,7 +88,15 @@
         "download_method": "Méthode de téléchargement",
         "remux_max_download": "Téléchargement max remux",
         "auto_download": "Téléchargement automatique",
-        "optimized_versions_server": "Serveur de versions optimisées"
+        "optimized_versions_server": "Serveur de versions optimisées",
+        "save_button": "Enregistrer",
+        "optimized_server": "Serveur optimisé",
+        "optimized": "Optimisé",
+        "default": "Défaut",
+        "optimized_version_hint": "Entrez l'URL du serveur de versions optimisées. L'URL devrait inclure http ou https et optionnellement le port.",
+        "read_more_about_optimized_server": "Lisez-en plus sur le serveur de versions optimisées.",
+        "url": "URL",
+        "server_url_placeholder": "http(s)://domaine.org:port"
       },
       "plugins": {
         "plugins_title": "Plugiciels",
@@ -147,7 +158,8 @@
         "background_downloads_enabled": "Téléchargements en arrière-plan activés",
         "background_downloads_disabled": "Téléchargements en arrière-plan désactivés",
         "connected": "Connecté",
-        "could_not_connect": "Impossible de se connecter"
+        "could_not_connect": "Impossible de se connecter",
+        "invalid_url": "URL invalide"
       }
     },
     "downloads": {
@@ -170,6 +182,7 @@
       "delete": "Supprimer",
       "something_went_wrong": "Quelque chose s'est mal passé",
       "could_not_get_stream_url_from_jellyfin": "Impossible d'obtenir l'URL du flux depuis Jellyfin",
+      "eta": "ETA {{eta}}",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Vous n'êtes pas autorisé à télécharger des fichiers",
         "deleted_all_movies_successfully": "Tous les films ont été supprimés avec succès!",
@@ -197,9 +210,14 @@
     }
   },
   "search": {
+    "results_for_x": "Résultats pour ",
     "search_title": "Recherche",
     "search_here": "Rechercher ici...",
     "search": "Rechercher...",
+    "x_items": "{{count}} items",
+    "library": "Bibliothèque",
+    "discover": "Découvrir",
+    "no_results": "Aucun résultat",
     "no_results_found_for": "Aucun résultat trouvé pour",
     "movies": "Films",
     "series": "Séries",
@@ -245,6 +263,9 @@
     "playlists": "Listes de lecture",
     "music_albums": "Albums de musique",
     "audio": "Audio"
+  },  
+  "custom_links": {
+    "no_links": "Aucun lien"
   },
   "player": {
     "error": "Erreur",
@@ -253,7 +274,9 @@
     "client_error": "Erreur client",
     "could_not_create_stream_for_chromecast": "Impossible de créer un flux pour Chromecast",
     "message_from_server": "Message du serveur: {{message}}",
-    "video_has_finished_playing": "La vidéo a fini de jouer!"
+    "video_has_finished_playing": "La vidéo a fini de jouer!",
+    "no_video_source": "Aucune source vidéo...",
+    "next_episode": "Épisode suivant"
   },
   "item_card": {
     "next_up": "À suivre",
@@ -262,7 +285,6 @@
     "series": "Séries",
     "seasons": "Saisons",
     "season": "Saison",
-    "episodes": "Épisodes",
     "no_episodes_for_this_season": "Aucun épisode pour cette saison",
     "overview": "Aperçu",
     "more_with": "Plus avec {{name}}",
@@ -275,6 +297,17 @@
     "subtitles": "Sous-titres",
     "show_more": "Afficher plus",
     "show_less": "Afficher moins",
+    "appeared_in": "Apparu dans",
+    "x_songs": "{{count}} chansons",
+    "x_albums": "{{count}} albums",
+    "artists": "Artistes",
+    "could_not_load_item": "Impossible de charger l'item",
+    "refresh_tracks": "Rafraîchir les pistes",
+    "subtitle_tracks": "Pistes de sous-titres:",
+    "audio_tracks": "Pistes audio:",
+    "playback_state": "État de lecture:",
+    "no_data_available": "Aucune donnée disponible",
+    "index": "Index:",
     "download": {
       "download_season": "Télécharger la saison",
       "download_x_item": "Télécharger {{item_count}} items",
@@ -287,6 +320,14 @@
     "confirm": "Confirmer",
     "cancel": "Annuler",
     "yes": "Oui",
+    "whats_wrong": "Qu'est-ce qui ne va pas?",
+    "issue_type": "Type de problème",
+    "select_an_issue": "Sélectionnez un problème",
+    "types": "Types",
+    "describe_the_issue": "(optionnel) Décrivez le problème...",
+    "submit_button": "Soumettre",
+    "report_issue_button": "Signaler un problème",
+    "request_button": "Demander",
     "are_you_sure_you_want_to_request_all_seasons": "Êtes-vous sûr de vouloir demander toutes les saisons?",
     "failed_to_login": "Échec de la connexion",
     "toasts": {

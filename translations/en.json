@@ -26,6 +26,7 @@
   "home": {
     "home": "Home",
     "no_internet": "No Internet",
+    "no_items": "No items",
     "no_internet_message": "No worries, you can still watch\ndownloaded content.",
     "go_to_downloads": "Go to downloads",
     "oops": "Oops!",
@@ -46,7 +47,7 @@
         "app_version": "App Version"
       },
       "quick_connect": {
-        "quick_connect_title": "Quick connect",
+        "quick_connect_title": "Quick Connect",
         "authorize_button": "Authorize Quick Connect",
         "enter_the_quick_connect_code": "Enter the Quick Connect code",
         "success": "Success",
@@ -87,7 +88,15 @@
         "download_method": "Download method",
         "remux_max_download": "Remux max download",
         "auto_download": "Auto download",
-        "optimized_versions_server": "Optimized versions server"
+        "optimized_versions_server": "Optimized versions server",
+        "save_button": "Save",
+        "optimized_server": "Optimized Server",
+        "optimized": "Optimized",
+        "default": "Default",
+        "optimized_version_hint": "Enter the URL for the optimize server. The URL should include http or https and optionally the port.",
+        "read_more_about_optimized_server": "Read more about the optimize server.",
+        "url":"URL",
+        "server_url_placeholder": "http(s)://domain.org:port"
       },
       "plugins": {
         "plugins_title": "Plugins",
@@ -149,7 +158,8 @@
         "background_downloads_enabled": "Background downloads enabled",
         "background_downloads_disabled": "Background downloads disabled",
         "connected": "Connected",
-        "could_not_connect": "Could not connect"
+        "could_not_connect": "Could not connect",
+        "invalid_url": "Invalid URL"
       }
     },
     "downloads": {
@@ -172,6 +182,7 @@
       "delete": "Delete",
       "something_went_wrong": "Something went wrong",
       "could_not_get_stream_url_from_jellyfin": "Could not get stream URL from Jellyfin",
+      "eta": "ETA {{eta}}",
       "toasts": {
         "you_are_not_allowed_to_download_files": "You are not allowed to download files.",
         "deleted_all_movies_successfully": "Deleted all movies successfully!",
@@ -199,9 +210,14 @@
     }
   },
   "search": {
+    "results_for_x": "Results for ",
     "search_title": "Search",
     "search_here": "Search here...",
     "search": "Search...",
+    "x_items": "{{count}} items",
+    "library": "Library",
+    "discover": "Discover",
+    "no_results": "No results",
     "no_results_found_for": "No results found for",
     "movies": "Movies",
     "series": "Series",
@@ -248,6 +264,9 @@
     "music_albums": "Music Albums",
     "audio": "Audio"
   },
+  "custom_links": {
+    "no_links": "No links"
+  },
   "player": {
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get stream URL",
@@ -255,7 +274,9 @@
     "client_error": "Client error",
     "could_not_create_stream_for_chromecast": "Could not create stream for Chromecast",
     "message_from_server": "Message from server: {{message}}",
-    "video_has_finished_playing": "Video has finished playing!"
+    "video_has_finished_playing": "Video has finished playing!",
+    "no_video_source": "No video source...",
+    "next_episode": "Next Episode"
   },
   "item_card": {
     "next_up": "Next up",
@@ -264,7 +285,6 @@
     "series": "Series",
     "seasons": "Seasons",
     "season": "Season",
-    "episodes": "Episodes",
     "no_episodes_for_this_season": "No episodes for this season",
     "overview": "Overview",
     "more_with": "More with {{name}}",
@@ -277,18 +297,37 @@
     "subtitles": "Subtitle",
     "show_more": "Show more",
     "show_less": "Show less",
+    "appeared_in": "Appeared in",
+    "x_songs": "{{count}} songs",
+    "x_albums": "{{count}} albums",
+    "artists": "Artists",
+    "could_not_load_item": "Could not load item",
+    "refresh_tracks": "Refresh Tracks",
+    "subtitle_tracks": "Subtitle Tracks:",
+    "audio_tracks": "Audio Tracks:",
+    "playback_state": "Playback State:",
+    "no_data_available": "No data available",
+    "index": "Index:",
     "download": {
       "download_season": "Download Season",
       "download_x_item": "Download {{item_count}} items",
       "download_button": "Download",
       "using_optimized_server": "Using optimized server",
-      "using_default_method": "Using default method",
+      "using_default_method": "Using default method"
     }
   },
   "jellyseerr":{
     "confirm": "Confirm",
     "cancel": "Cancel",
     "yes": "Yes",
+    "whats_wrong": "What's wrong?",
+    "issue_type": "Issue type",
+    "select_an_issue": "Select an issue",
+    "types": "Types",
+    "describe_the_issue": "(optional) Describe the issue...",
+    "submit_button": "Submit",
+    "report_issue_button": "Report issue",
+    "request_button": "Request",
     "are_you_sure_you_want_to_request_all_seasons": "Are you sure you want to request all seasons?",
     "failed_to_login": "Failed to login",
     "toasts": {

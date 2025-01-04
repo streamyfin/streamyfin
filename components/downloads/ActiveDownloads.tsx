@@ -154,7 +154,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                 <Text className="text-xs">{process.speed?.toFixed(2)}x</Text>
               )}
               {eta(process) && (
-                <Text className="text-xs">ETA {eta(process)}</Text>
+                <Text className="text-xs">{t("home.downloads.eta", {eta: eta(process)})}</Text>
               )}
             </View>
 

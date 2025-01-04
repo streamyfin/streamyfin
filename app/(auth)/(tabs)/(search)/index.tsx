@@ -320,7 +320,7 @@ export default function search() {
             <View className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
               <TouchableOpacity onPress={() => setSearchType("Library")}>
                 <Tag
-                  text="Library"
+                  text={t("search.library")}
                   textClass="p-1"
                   className={
                     searchType === "Library" ? "bg-purple-600" : undefined
@@ -329,7 +329,7 @@ export default function search() {
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setSearchType("Discover")}>
                 <Tag
-                  text="Discover"
+                  text={t("search.discover")}
                   textClass="p-1"
                   className={
                     searchType === "Discover" ? "bg-purple-600" : undefined
@@ -341,7 +341,7 @@ export default function search() {
           {!!q && (
             <View className="px-4 flex flex-col space-y-2">
               <Text className="text-neutral-500 ">
-                Results for <Text className="text-purple-600">{q}</Text>
+                {t("search.results_for_x")} <Text className="text-purple-600">{q}</Text>
               </Text>
             </View>
           )}

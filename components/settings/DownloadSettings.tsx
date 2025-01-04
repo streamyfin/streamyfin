@@ -30,8 +30,8 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
                   {settings.downloadMethod === "remux"
-                    ? "Default"
-                    : "Optimized"}
+                    ? t("home.settings.downloads.default")
+                    : t("home.settings.downloads.optimized")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"

@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "../common/Text";
+import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   playerRef: React.RefObject<VlcPlayerViewRef>;
@@ -32,6 +33,8 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
 
   const insets = useSafeAreaInsets();
 
+  const { t } = useTranslation();
+
   return (
     <View
       style={{
@@ -42,19 +45,19 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
       }}
       {...props}
     >
-      <Text className="font-bold">Playback State:</Text>
-      <Text className="font-bold mt-2.5">Audio Tracks:</Text>
+      <Text className="font-bold">{t("item_card.playback_state")}</Text>
+      <Text className="font-bold mt-2.5">{t("item_card.audio_tracks")}</Text>
       {audioTracks &&
         audioTracks.map((track, index) => (
           <Text key={index}>
-            {track.name} (Index: {track.index})
+            {track.name} ({t("item_card.index")} {track.index})
           </Text>
         ))}
-      <Text className="font-bold mt-2.5">Subtitle Tracks:</Text>
+      <Text className="font-bold mt-2.5">{t("item_card.subtitles_tracks")}</Text>
       {subtitleTracks &&
         subtitleTracks.map((track, index) => (
           <Text key={index}>
-            {track.name} (Index: {track.index})
+            {track.name} ({t("item_card.index")} {track.index})
           </Text>
         ))}
       <TouchableOpacity
@@ -66,7 +69,7 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
           }
         }}
       >
-        <Text className="text-white text-center">Refresh Tracks</Text>
+        <Text className="text-white text-center">{t("item_card.refresh_tracks")}</Text>
       </TouchableOpacity>
     </View>
   );
