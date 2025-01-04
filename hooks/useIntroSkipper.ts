@@ -5,7 +5,6 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
 import { msToSeconds, secondsToMs } from "@/utils/time";
-import * as Haptics from "expo-haptics";
 
 interface IntroTimestamps {
   EpisodeId: string;
@@ -78,7 +77,6 @@ export const useIntroSkipper = (
   const skipIntro = useCallback(() => {
     if (!introTimestamps) return;
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       wrappedSeek(introTimestamps.IntroEnd);
       setTimeout(() => {
         play();

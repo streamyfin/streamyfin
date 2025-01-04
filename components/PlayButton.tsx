@@ -5,7 +5,6 @@ import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
@@ -65,8 +64,6 @@ export const PlayButton: React.FC<Props> = ({
 
   const onPress = useCallback(async () => {
     if (!item) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,

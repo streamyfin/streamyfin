@@ -12,7 +12,6 @@ import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
-import { useOrientation } from "@/hooks/useOrientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
 import { useSettings } from "@/utils/atoms/settings";
@@ -23,7 +22,6 @@ import {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -44,7 +42,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
   ({ item }) => {
     const [api] = useAtom(apiAtom);
     const [settings] = useSettings();
-    const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     useImageColors({ item });
@@ -94,11 +91,9 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     }, [item]);
 
     useEffect(() => {
-      if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
-        setHeaderHeight(230);
-      else if (item.Type === "Movie") setHeaderHeight(500);
+      if (item.Type === "Movie") setHeaderHeight(500);
       else setHeaderHeight(350);
-    }, [item.Type, orientation]);
+    }, [item.Type]);
 
     const logoUrl = useMemo(() => getLogoImageUrlById({ api, item }), [item]);
 

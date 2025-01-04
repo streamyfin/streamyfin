@@ -1,6 +1,5 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { FlatList, useWindowDimensions, View } from "react-native";
@@ -12,7 +11,6 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import { useOrientation } from "@/hooks/useOrientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   genreFilterAtom,
@@ -60,8 +58,6 @@ const Page = () => {
   const [sortOrderPreference, setOderByPreference] = useAtom(
     sortOrderPreferenceAtom
   );
-
-  const { orientation } = useOrientation();
 
   useEffect(() => {
     const sop = getSortOrderPreference(libraryId, sortOrderPreference);
@@ -241,14 +237,7 @@ const Page = () => {
       >
         <View
           style={{
-            alignSelf:
-              orientation === ScreenOrientation.OrientationLock.PORTRAIT_UP
-                ? index % nrOfCols === 0
-                  ? "flex-end"
-                  : (index + 1) % nrOfCols === 0
-                  ? "flex-start"
-                  : "center"
-                : "center",
+            alignSelf: "center",
             width: "89%",
           }}
         >

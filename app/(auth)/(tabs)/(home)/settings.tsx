@@ -7,7 +7,6 @@ import { clearLogs, useLog } from "@/utils/log";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
-import * as Haptics from "expo-haptics";
 import { useAtom } from "jotai";
 import { Alert, ScrollView, View } from "react-native";
 import * as Progress from "react-native-progress";
@@ -35,16 +34,11 @@ export default function settings() {
               userId: user?.Id,
             });
             if (res.status === 200) {
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success
-              );
               Alert.alert("Success", "Quick connect authorized");
             } else {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert("Error", "Invalid code");
             }
           } catch (e) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert("Error", "Invalid code");
           }
         }

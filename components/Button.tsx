@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import React, { PropsWithChildren, ReactNode, useMemo } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Loader } from "./Loader";
@@ -54,7 +53,6 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       onPress={() => {
         if (!loading && !disabled && onPress) {
           onPress();
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }}
       disabled={disabled || loading}

@@ -1,8 +1,6 @@
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
-import { useOrientation } from "@/hooks/useOrientation";
-import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -17,7 +15,6 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -124,7 +121,6 @@ export default function page() {
 
   const togglePlay = useCallback(
     async (ticks: number) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (isPlaying) {
         videoRef.current?.pause();
         await getPlaystateApi(api!).onPlaybackProgress({
@@ -260,9 +256,6 @@ export default function page() {
       };
     }, [play, stop])
   );
-
-  useOrientation();
-  useOrientationSettings();
 
   useWebSocket({
     isPlaying: isPlaying,

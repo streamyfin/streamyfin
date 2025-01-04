@@ -2,8 +2,6 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
-import { useOrientation } from "@/hooks/useOrientation";
-import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules/vlc-player";
@@ -26,7 +24,6 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
 import { useFocusEffect, useGlobalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, {
@@ -59,7 +56,6 @@ export default function page() {
 
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   const {
@@ -142,7 +138,6 @@ export default function page() {
   const togglePlay = useCallback(async () => {
     if (!api) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPlaying) {
       await videoRef.current?.pause();
 
@@ -253,9 +248,6 @@ export default function page() {
     },
     [item?.Id, isPlaying, api, isPlaybackStopped, audioIndex, subtitleIndex]
   );
-
-  useOrientation();
-  useOrientationSettings();
 
   useWebSocket({
     isPlaying: isPlaying,

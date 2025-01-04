@@ -64,12 +64,6 @@
         }
       ],
       [
-        "expo-screen-orientation",
-        {
-          "initialOrientation": "DEFAULT"
-        }
-      ],
-      [
         "expo-sensors",
         {
           "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."

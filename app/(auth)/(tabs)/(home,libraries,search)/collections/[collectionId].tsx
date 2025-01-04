@@ -29,7 +29,6 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
@@ -41,10 +40,6 @@ const page: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const navigation = useNavigation();
-  const [orientation, setOrientation] = useState(
-    ScreenOrientation.Orientation.PORTRAIT_UP
-  );
-
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
@@ -174,8 +169,7 @@ const page: React.FC = () => {
         key={item.Id}
         style={{
           width: "100%",
-          marginBottom:
-            orientation === ScreenOrientation.Orientation.PORTRAIT_UP ? 4 : 16,
+          marginBottom: 16,
         }}
         item={item}
       >
@@ -389,9 +383,7 @@ const page: React.FC = () => {
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       estimatedItemSize={255}
-      numColumns={
-        orientation === ScreenOrientation.Orientation.PORTRAIT_UP ? 3 : 5
-      }
+      numColumns={5}
       onEndReached={() => {
         if (hasNextPage) {
           fetchNextPage();

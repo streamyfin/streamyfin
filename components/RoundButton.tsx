@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from "react-native";
-import * as Haptics from "expo-haptics";
 
 interface Props extends TouchableOpacityProps {
   onPress?: () => void;
@@ -32,7 +31,6 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
 
   const handlePress = () => {
     if (hapticFeedback) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     onPress?.();
   };

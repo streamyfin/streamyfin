@@ -3,7 +3,6 @@ import { markAsNotPlayed } from "@/utils/jellyfin/playstate/markAsNotPlayed";
 import { markAsPlayed } from "@/utils/jellyfin/playstate/markAsPlayed";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
 import { useAtom } from "jotai";
 
 export const useMarkAsPlayed = (item: BaseItemDto) => {
@@ -29,8 +28,6 @@ export const useMarkAsPlayed = (item: BaseItemDto) => {
   };
 
   const markAsPlayedStatus = async (played: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     // Optimistic update
     queryClient.setQueryData(
       ["item", item.Id],

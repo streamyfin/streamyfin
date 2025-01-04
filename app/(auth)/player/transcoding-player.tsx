@@ -1,8 +1,6 @@
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
-import { useOrientation } from "@/hooks/useOrientation";
-import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { TrackInfo } from "@/modules/vlc-player";
@@ -20,7 +18,6 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, {
@@ -58,7 +55,6 @@ const Player = () => {
 
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   const progress = useSharedValue(0);
@@ -167,7 +163,6 @@ const Player = () => {
   const videoSource = useVideoSource(item, api, poster, stream?.url);
 
   const togglePlay = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPlaying) {
       videoRef.current?.pause();
       await getPlaystateApi(api!).onPlaybackProgress({
@@ -298,9 +293,6 @@ const Player = () => {
       subtitleIndex,
     ]
   );
-
-  useOrientation();
-  useOrientationSettings();
 
   useWebSocket({
     isPlaying: isPlaying,

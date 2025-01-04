@@ -22,7 +22,6 @@ import { itemRouter, TouchableItemRouter } from "../common/TouchableItemRouter";
 import { Loader } from "../Loader";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter, useSegments } from "expo-router";
-import * as Haptics from "expo-haptics";
 
 interface Props extends ViewProps {}
 
@@ -147,7 +146,6 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   const handleRoute = useCallback(() => {
     if (!from) return;
     const url = itemRouter(item, from);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // @ts-ignore
     if (url) router.push(url);
   }, [item, from]);

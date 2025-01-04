@@ -1,28 +1,11 @@
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { storage } from "../mmkv";
 import { Platform } from "react-native";
 import {
   CultureDto,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
-
-export const ScreenOrientationEnum: Record<
-  ScreenOrientation.OrientationLock,
-  string
-> = {
-  [ScreenOrientation.OrientationLock.DEFAULT]: "Default",
-  [ScreenOrientation.OrientationLock.ALL]: "All",
-  [ScreenOrientation.OrientationLock.PORTRAIT]: "Portrait",
-  [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "Portrait Up",
-  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]: "Portrait Down",
-  [ScreenOrientation.OrientationLock.LANDSCAPE]: "Landscape",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "Landscape Left",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "Landscape Right",
-  [ScreenOrientation.OrientationLock.OTHER]: "Other",
-  [ScreenOrientation.OrientationLock.UNKNOWN]: "Unknown",
-};
 
 export type LibraryOptions = {
   display: "row" | "list";
@@ -54,7 +37,6 @@ export type Settings = {
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
   showHomeTitles: boolean;
-  defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
   rewindSkipTime: number;
   optimizedVersionsServerUrl?: string | null;
@@ -89,7 +71,6 @@ const loadSettings = (): Settings => {
     subtitleMode: SubtitlePlaybackMode.Default,
     rememberSubtitleSelections: true,
     showHomeTitles: true,
-    defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
     forwardSkipTime: 30,
     rewindSkipTime: 10,
     optimizedVersionsServerUrl: null,
