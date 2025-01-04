@@ -82,7 +82,7 @@
     "react-native-google-cast": "^4.8.3",
     "react-native-image-colors": "^2.4.0",
     "react-native-ios-context-menu": "^2.5.2",
-    "react-native-ios-utilities": "^4.5.1",
+    "react-native-ios-utilities": "4.5.1",
     "react-native-mmkv": "^2.12.2",
     "react-native-pager-view": "6.3.0",
     "react-native-progress": "^5.0.1",
