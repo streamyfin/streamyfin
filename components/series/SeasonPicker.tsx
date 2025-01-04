@@ -211,7 +211,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         {(episodes?.length || 0) === 0 ? (
           <View className="flex flex-col">
             <Text className="text-neutral-500">
-              {t("item_card.no_episodes_for_this_seasonz")}
+              {t("item_card.no_episodes_for_this_season")}
             </Text>
           </View>
         ) : null}

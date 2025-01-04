@@ -27,10 +27,12 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
+import { useTranslation } from "react-i18next";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const { t } = useTranslation();
   const {
     mediaTitle,
     releaseYear,
@@ -184,7 +186,7 @@ const Page: React.FC = () => {
               </View>
               {canRequest ? (
                 <Button color="purple" onPress={request}>
-                  Request
+                  {t("jellyseerr.request_button")}
                 </Button>
               ) : (
                 <Button
@@ -199,7 +201,7 @@ const Page: React.FC = () => {
                     borderStyle: "solid",
                   }}
                 >
-                  Report issue
+                  {t("jellyseerr.report_issue_button")}
                 </Button>
               )}
               <OverviewText text={result.overview} className="mt-4" />
@@ -231,7 +233,7 @@ const Page: React.FC = () => {
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
             <View>
               <Text className="font-bold text-2xl text-neutral-100">
-                Whats wrong?
+                {t("jellyseerr.whats_wrong")}
               </Text>
             </View>
             <View className="flex flex-col space-y-2 items-start">
@@ -240,13 +242,13 @@ const Page: React.FC = () => {
                   <DropdownMenu.Trigger>
                     <View className="flex flex-col">
                       <Text className="opacity-50 mb-1 text-xs">
-                        Issue Type
+                        {t("jellyseerr.issue_type")}
                       </Text>
                       <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
                         <Text style={{}} className="" numberOfLines={1}>
                           {issueType
                             ? IssueTypeName[issueType]
-                            : "Select an issue"}
+                            : t("jellyseerr.select_an_issue")}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -260,7 +262,7 @@ const Page: React.FC = () => {
                     collisionPadding={0}
                     sideOffset={0}
                   >
-                    <DropdownMenu.Label>Types</DropdownMenu.Label>
+                    <DropdownMenu.Label>{t("jellyseerr.types")}</DropdownMenu.Label>
                     {Object.entries(IssueTypeName)
                       .reverse()
                       .map(([key, value], idx) => (
@@ -287,7 +289,7 @@ const Page: React.FC = () => {
                   maxLength={254}
                   style={{color: "white"}}
                   clearButtonMode="always"
-                  placeholder="(optional) Describe the issue..."
+                  placeholder={t("jellyseerr.describe_the_issue")}
                   placeholderTextColor="#9CA3AF"
                   // Issue with multiline + Textinput inside a portal
                   // https://github.com/callstack/react-native-paper/issues/1668
@@ -297,7 +299,7 @@ const Page: React.FC = () => {
               </View>
             </View>
             <Button className="mt-auto" onPress={submitIssue} color="purple">
-              Submit
+              {t("jellyseerr.submit_button")}
             </Button>
           </View>
         </BottomSheetView>

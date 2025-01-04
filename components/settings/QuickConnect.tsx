@@ -86,7 +86,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
             <View>
               <Text className="font-bold text-2xl text-neutral-100">
-                Quick Connect
+                {t("home.settings.quick_connect.quick_connect_title")}
               </Text>
             </View>
             <View className="flex flex-col space-y-2">

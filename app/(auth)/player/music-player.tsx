@@ -25,6 +25,7 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Video, { OnProgressData, VideoRef } from "react-native-video";
+import { useTranslation } from "react-i18next";
 
 export default function page() {
   const api = useAtomValue(apiAtom);
@@ -32,6 +33,7 @@ export default function page() {
   const [settings] = useSettings();
   const videoRef = useRef<VideoRef | null>(null);
   const windowDimensions = useWindowDimensions();
+  const { t } = useTranslation();
 
   const firstTime = useRef(true);
 
@@ -278,14 +280,14 @@ export default function page() {
   if (isErrorItem || isErrorStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">Error</Text>
+        <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
 
   if (!item || !stream)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">Error</Text>
+        <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
 

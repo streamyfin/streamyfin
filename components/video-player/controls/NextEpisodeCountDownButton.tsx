@@ -9,6 +9,7 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { Colors } from "@/constants/Colors";
+import { useTranslation } from "react-i18next";
 
 interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   onFinish?: () => void;
@@ -63,6 +64,8 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
     return null;
   }
 
+  const { t } = useTranslation();
+
   return (
     <TouchableOpacity
       className="w-32 overflow-hidden rounded-md bg-black/60 border border-neutral-900"
@@ -71,7 +74,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
     >
       <Animated.View style={animatedStyle} />
       <View className="px-3 py-3">
-        <Text className="text-center font-bold">Next Episode</Text>
+        <Text className="text-center font-bold">{t("player.next_episode")}</Text>
       </View>
     </TouchableOpacity>
   );

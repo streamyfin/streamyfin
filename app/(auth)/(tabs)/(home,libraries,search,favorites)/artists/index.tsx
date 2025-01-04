@@ -7,6 +7,7 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getArtistsApi, getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { FlatList, TouchableOpacity, View } from "react-native";
@@ -81,7 +82,7 @@ export default function page() {
       }}
       ListHeaderComponent={
         <View className="mb-4">
-          <Text className="font-bold text-3xl mb-2">Artists</Text>
+          <Text className="font-bold text-3xl mb-2">{t("item_card.artists")}</Text>
         </View>
       }
       nestedScrollEnabled

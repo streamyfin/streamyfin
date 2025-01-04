@@ -10,6 +10,7 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
@@ -112,7 +113,7 @@ export default function page() {
       <View className="px-4 mb-8">
         <Text className="font-bold text-2xl mb-2">{album?.Name}</Text>
         <Text className="text-neutral-500">
-          {songs?.TotalRecordCount} songs
+          {t("item_card.x_songs", { count: songs?.TotalRecordCount })}
         </Text>
       </View>
       <View className="px-4">

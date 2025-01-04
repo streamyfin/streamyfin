@@ -377,7 +377,7 @@ const page: React.FC = () => {
     <FlashList
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">No results</Text>
+          <Text className="font-bold text-xl text-neutral-500">{t("search.no_results")}</Text>
         </View>
       }
       extraData={[
