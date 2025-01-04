@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
+import { useTranslation } from "react-i18next";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
@@ -26,6 +27,8 @@ export const AudioTrackSelector: React.FC<Props> = ({
     [audioStreams, selected]
   );
 
+  const { t } = useTranslation();
+
   return (
     <View
       className="flex shrink"
@@ -36,7 +39,7 @@ export const AudioTrackSelector: React.FC<Props> = ({
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           <View className="flex flex-col" {...props}>
-            <Text className="opacity-50 mb-1 text-xs">Audio</Text>
+            <Text className="opacity-50 mb-1 text-xs">{t("series.audio")}</Text>
             <TouchableOpacity className="bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
               <Text className="" numberOfLines={1}>
                 {selectedAudioSteam?.DisplayTitle}

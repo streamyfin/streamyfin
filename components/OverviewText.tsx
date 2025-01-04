@@ -2,6 +2,7 @@ import { TouchableOpacity, View, ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import { tc } from "@/utils/textTools";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   text?: string | null;
@@ -14,12 +15,13 @@ export const OverviewText: React.FC<Props> = ({
   ...props
 }) => {
   const [limit, setLimit] = useState(characterLimit);
+  const { t } = useTranslation();
 
   if (!text) return null;
 
   return (
     <View className="flex flex-col" {...props}>
-      <Text className="text-lg font-bold mb-2">Overview</Text>
+      <Text className="text-lg font-bold mb-2">{t("series.overview")}</Text>
       <TouchableOpacity
         onPress={() =>
           setLimit((prev) =>

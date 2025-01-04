@@ -17,7 +17,7 @@ import {
   SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-
+import { useTranslation } from "react-i18next";
 type Props = {
   item: BaseItemDto;
   initialSeasonIndex?: number;
@@ -29,6 +29,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
+  const { t } = useTranslation();
 
   const seasonIndex = useMemo(
     () => seasonIndexState[item.Id ?? ""],
@@ -210,7 +211,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         {(episodes?.length || 0) === 0 ? (
           <View className="flex flex-col">
             <Text className="text-neutral-500">
-              No episodes for this season
+              {t("series.no_episodes_for_this_seasonz")}
             </Text>
           </View>
         ) : null}

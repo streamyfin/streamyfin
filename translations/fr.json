@@ -255,6 +255,25 @@
     "message_from_server": "Message du serveur: {{message}}",
     "video_has_finished_playing": "La vidéo a fini de jouer!"
   },
+  "series": {
+    "next_up": "À suivre",
+    "no_items_to_display": "Aucun item à afficher",
+    "cast_and_crew": "Distribution et équipe",
+    "series": "Séries",
+    "seasons": "Saisons",
+    "season": "Saison",
+    "episodes": "Épisodes",
+    "no_episodes_for_this_season": "Aucun épisode pour cette saison",
+    "overview": "Aperçu",
+    "more_with": "Plus avec {{name}}",
+    "similar_items": "Items similaires",
+    "no_similar_items_found": "Aucun item similaire trouvé",
+    "video": "Vidéo",
+    "more_details": "Plus de détails",
+    "quality": "Qualité",
+    "audio": "Audio",
+    "subtitles": "Sous-titres"    
+  },
   "jellyseerr":{
     "confirm": "Confirmer",
     "cancel": "Annuler",

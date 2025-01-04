@@ -190,7 +190,7 @@ const JellyseerrSeasons: React.FC<{
     return (
       <View>
         <View className="flex flex-row justify-between items-end px-4">
-          <Text className="text-lg font-bold mb-2">Seasons</Text>
+          <Text className="text-lg font-bold mb-2">{t("series.seasons")}</Text>
           {!allSeasonsAvailable && (
             <RoundButton className="mb-2 pa-2" onPress={promptRequestAll}>
               <Ionicons name="bag-add" color="white" size={26} />
@@ -210,7 +210,7 @@ const JellyseerrSeasons: React.FC<{
       )}
       ListHeaderComponent={() => (
         <View className="flex flex-row justify-between items-end px-4">
-          <Text className="text-lg font-bold mb-2">Seasons</Text>
+          <Text className="text-lg font-bold mb-2">{t("series.seasons")}</Text>
           {!allSeasonsAvailable && (
             <RoundButton className="mb-2 pa-2" onPress={promptRequestAll}>
               <Ionicons name="bag-add" color="white" size={26} />
