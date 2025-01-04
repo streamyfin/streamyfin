@@ -387,7 +387,6 @@ const Player = () => {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
-          opacity: showControls ? 0.5 : 1,
         }}
       >
         {videoSource ? (
