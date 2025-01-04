@@ -1,12 +1,44 @@
+import { Text } from "@/components/common/Text";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
-import { Platform } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { useState } from "react";
+import { Modal, Platform, TouchableOpacity, View } from "react-native";
 
 export default function IndexLayout() {
   const [settings, updateSettings] = useSettings();
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+
+  const MenuItem = ({
+    label,
+    selected,
+    onPress,
+    disabled = false,
+  }: {
+    label: string;
+    selected?: boolean;
+    onPress: () => void;
+    disabled?: boolean;
+  }) => (
+    <TouchableOpacity
+      className={`p-4 border-b border-neutral-800 flex-row items-center justify-between ${
+        disabled ? "opacity-50" : ""
+      }`}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <Text className="text-base">{label}</Text>
+      {selected && <Ionicons name="checkmark" size={24} color="white" />}
+    </TouchableOpacity>
+  );
+
+  const MenuSection = ({ title }: { title: string }) => (
+    <View className="p-4 border-b border-neutral-800 bg-neutral-800/30">
+      <Text className="text-sm opacity-50 font-medium">{title}</Text>
+    </View>
+  );
 
   if (!settings?.libraryOptions) return null;
 
@@ -22,163 +54,167 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
           headerRight: () => (
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Ionicons
-                  name="ellipsis-horizontal-outline"
-                  size={24}
-                  color="white"
-                />
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content
-                align={"end"}
-                alignOffset={-10}
-                avoidCollisions={false}
-                collisionPadding={0}
-                loop={false}
-                side={"bottom"}
-                sideOffset={10}
+            <Modal
+              visible={isMenuVisible}
+              transparent
+              animationType="slide"
+              onRequestClose={() => {
+                setIsMenuVisible(false);
+                setActiveSubmenu(null);
+              }}
+            >
+              <TouchableOpacity
+                className="flex-1 bg-black/50"
+                activeOpacity={1}
+                onPress={() => {
+                  setIsMenuVisible(false);
+                  setActiveSubmenu(null);
+                }}
               >
-                <DropdownMenu.Label>Display</DropdownMenu.Label>
-                <DropdownMenu.Group key="display-group">
-                  <DropdownMenu.Sub>
-                    <DropdownMenu.SubTrigger key="image-style-trigger">
-                      Display
-                    </DropdownMenu.SubTrigger>
-                    <DropdownMenu.SubContent
-                      alignOffset={-10}
-                      avoidCollisions={true}
-                      collisionPadding={0}
-                      loop={true}
-                      sideOffset={10}
-                    >
-                      <DropdownMenu.CheckboxItem
-                        key="display-option-1"
-                        value={settings.libraryOptions.display === "row"}
-                        onValueChange={() =>
+                <View className="mt-auto bg-neutral-900 rounded-t-xl">
+                  {!activeSubmenu ? (
+                    <>
+                      <MenuSection title="Display" />
+                      <MenuItem
+                        label="Display"
+                        onPress={() => setActiveSubmenu("display")}
+                      />
+                      <MenuItem
+                        label="Image style"
+                        onPress={() => setActiveSubmenu("imageStyle")}
+                      />
+                      <MenuItem
+                        label="Show titles"
+                        selected={settings.libraryOptions.showTitles}
+                        disabled={
+                          settings.libraryOptions.imageStyle === "poster"
+                        }
+                        onPress={() => {
+                          if (settings.libraryOptions.imageStyle === "poster")
+                            return;
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              showTitles: !settings.libraryOptions.showTitles,
+                            },
+                          });
+                        }}
+                      />
+                      <MenuItem
+                        label="Show stats"
+                        selected={settings.libraryOptions.showStats}
+                        onPress={() => {
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              showStats: !settings.libraryOptions.showStats,
+                            },
+                          });
+                        }}
+                      />
+                    </>
+                  ) : activeSubmenu === "display" ? (
+                    <>
+                      <View className="p-4 border-b border-neutral-800 flex-row items-center">
+                        <TouchableOpacity
+                          onPress={() => setActiveSubmenu(null)}
+                        >
+                          <Ionicons
+                            name="chevron-back"
+                            size={24}
+                            color="white"
+                          />
+                        </TouchableOpacity>
+                        <Text className="text-lg font-bold ml-2">Display</Text>
+                      </View>
+                      <MenuItem
+                        label="Row"
+                        selected={settings.libraryOptions.display === "row"}
+                        onPress={() => {
                           updateSettings({
                             libraryOptions: {
                               ...settings.libraryOptions,
                               display: "row",
                             },
-                          })
-                        }
-                      >
-                        <DropdownMenu.ItemIndicator />
-                        <DropdownMenu.ItemTitle key="display-title-1">
-                          Row
-                        </DropdownMenu.ItemTitle>
-                      </DropdownMenu.CheckboxItem>
-                      <DropdownMenu.CheckboxItem
-                        key="display-option-2"
-                        value={settings.libraryOptions.display === "list"}
-                        onValueChange={() =>
+                          });
+                          setActiveSubmenu(null);
+                        }}
+                      />
+                      <MenuItem
+                        label="List"
+                        selected={settings.libraryOptions.display === "list"}
+                        onPress={() => {
                           updateSettings({
                             libraryOptions: {
                               ...settings.libraryOptions,
                               display: "list",
                             },
-                          })
+                          });
+                          setActiveSubmenu(null);
+                        }}
+                      />
+                    </>
+                  ) : activeSubmenu === "imageStyle" ? (
+                    <>
+                      <View className="p-4 border-b border-neutral-800 flex-row items-center">
+                        <TouchableOpacity
+                          onPress={() => setActiveSubmenu(null)}
+                        >
+                          <Ionicons
+                            name="chevron-back"
+                            size={24}
+                            color="white"
+                          />
+                        </TouchableOpacity>
+                        <Text className="text-lg font-bold ml-2">
+                          Image Style
+                        </Text>
+                      </View>
+                      <MenuItem
+                        label="Poster"
+                        selected={
+                          settings.libraryOptions.imageStyle === "poster"
                         }
-                      >
-                        <DropdownMenu.ItemIndicator />
-                        <DropdownMenu.ItemTitle key="display-title-2">
-                          List
-                        </DropdownMenu.ItemTitle>
-                      </DropdownMenu.CheckboxItem>
-                    </DropdownMenu.SubContent>
-                  </DropdownMenu.Sub>
-                  <DropdownMenu.Sub>
-                    <DropdownMenu.SubTrigger key="image-style-trigger">
-                      Image style
-                    </DropdownMenu.SubTrigger>
-                    <DropdownMenu.SubContent
-                      alignOffset={-10}
-                      avoidCollisions={true}
-                      collisionPadding={0}
-                      loop={true}
-                      sideOffset={10}
-                    >
-                      <DropdownMenu.CheckboxItem
-                        key="poster-option"
-                        value={settings.libraryOptions.imageStyle === "poster"}
-                        onValueChange={() =>
+                        onPress={() => {
                           updateSettings({
                             libraryOptions: {
                               ...settings.libraryOptions,
                               imageStyle: "poster",
                             },
-                          })
+                          });
+                          setActiveSubmenu(null);
+                        }}
+                      />
+                      <MenuItem
+                        label="Cover"
+                        selected={
+                          settings.libraryOptions.imageStyle === "cover"
                         }
-                      >
-                        <DropdownMenu.ItemIndicator />
-                        <DropdownMenu.ItemTitle key="poster-title">
-                          Poster
-                        </DropdownMenu.ItemTitle>
-                      </DropdownMenu.CheckboxItem>
-                      <DropdownMenu.CheckboxItem
-                        key="cover-option"
-                        value={settings.libraryOptions.imageStyle === "cover"}
-                        onValueChange={() =>
+                        onPress={() => {
                           updateSettings({
                             libraryOptions: {
                               ...settings.libraryOptions,
                               imageStyle: "cover",
                             },
-                          })
-                        }
-                      >
-                        <DropdownMenu.ItemIndicator />
-                        <DropdownMenu.ItemTitle key="cover-title">
-                          Cover
-                        </DropdownMenu.ItemTitle>
-                      </DropdownMenu.CheckboxItem>
-                    </DropdownMenu.SubContent>
-                  </DropdownMenu.Sub>
-                </DropdownMenu.Group>
-                <DropdownMenu.Group key="show-titles-group">
-                  <DropdownMenu.CheckboxItem
-                    disabled={settings.libraryOptions.imageStyle === "poster"}
-                    key="show-titles-option"
-                    value={settings.libraryOptions.showTitles}
-                    onValueChange={(newValue) => {
-                      if (settings.libraryOptions.imageStyle === "poster")
-                        return;
-                      updateSettings({
-                        libraryOptions: {
-                          ...settings.libraryOptions,
-                          showTitles: newValue === "on" ? true : false,
-                        },
-                      });
-                    }}
-                  >
-                    <DropdownMenu.ItemIndicator />
-                    <DropdownMenu.ItemTitle key="show-titles-title">
-                      Show titles
-                    </DropdownMenu.ItemTitle>
-                  </DropdownMenu.CheckboxItem>
-                  <DropdownMenu.CheckboxItem
-                    key="show-stats-option"
-                    value={settings.libraryOptions.showStats}
-                    onValueChange={(newValue) => {
-                      updateSettings({
-                        libraryOptions: {
-                          ...settings.libraryOptions,
-                          showStats: newValue === "on" ? true : false,
-                        },
-                      });
-                    }}
-                  >
-                    <DropdownMenu.ItemIndicator />
-                    <DropdownMenu.ItemTitle key="show-stats-title">
-                      Show stats
-                    </DropdownMenu.ItemTitle>
-                  </DropdownMenu.CheckboxItem>
-                </DropdownMenu.Group>
+                          });
+                          setActiveSubmenu(null);
+                        }}
+                      />
+                    </>
+                  ) : null}
 
-                <DropdownMenu.Separator />
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
+                  <TouchableOpacity
+                    className="p-4 border-t border-neutral-800"
+                    onPress={() => {
+                      setIsMenuVisible(false);
+                      setActiveSubmenu(null);
+                    }}
+                  >
+                    <Text className="text-center text-purple-400">Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </Modal>
           ),
         }}
       />

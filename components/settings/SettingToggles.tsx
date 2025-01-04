@@ -1,17 +1,18 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { Ionicons } from "@expo/vector-icons";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { useState } from "react";
 import {
   Linking,
+  Modal,
   Switch,
   TouchableOpacity,
   View,
   ViewProps,
 } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 import { Text } from "../common/Text";
@@ -21,7 +22,6 @@ import { JellyseerrSettings } from "./Jellyseerr";
 import { MediaProvider } from "./MediaContext";
 import { MediaToggles } from "./MediaToggles";
 import { SubtitleToggles } from "./SubtitleToggles";
-
 interface Props extends ViewProps {}
 
 export const SettingToggles: React.FC<Props> = ({ ...props }) => {
@@ -31,6 +31,8 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
   const [user] = useAtom(userAtom);
   const [marlinUrl, setMarlinUrl] = useState<string>("");
   const queryClient = useQueryClient();
+  const [isSearchEngineModalVisible, setIsSearchEngineModalVisible] =
+    useState(false);
 
   const {
     data: mediaListCollections,
@@ -53,6 +55,13 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
     enabled: !!api && !!user?.Id && settings?.usePopularPlugin === true,
     staleTime: 0,
   });
+
+  type SearchEngine = "Jellyfin" | "Marlin";
+
+  const searchEngines: Array<{ id: SearchEngine; name: string }> = [
+    { id: "Jellyfin", name: "Jellyfin" },
+    { id: "Marlin", name: "Marlin" },
+  ];
 
   if (!settings) return null;
 
@@ -183,54 +192,27 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
           </View>
 
           <View className="flex flex-col">
-            <View
-              className={`
-                flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4
-              `}
-            >
+            <View className="flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4">
               <View className="flex flex-col shrink">
                 <Text className="font-semibold">Search engine</Text>
                 <Text className="text-xs opacity-50">
                   Choose the search engine you want to use.
                 </Text>
               </View>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                  <TouchableOpacity className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-                    <Text>{settings.searchEngine}</Text>
-                  </TouchableOpacity>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content
-                  loop={true}
-                  side="bottom"
-                  align="start"
-                  alignOffset={0}
-                  avoidCollisions={true}
-                  collisionPadding={8}
-                  sideOffset={8}
-                >
-                  <DropdownMenu.Label>Profiles</DropdownMenu.Label>
-                  <DropdownMenu.Item
-                    key="1"
-                    onSelect={() => {
-                      updateSettings({ searchEngine: "Jellyfin" });
-                      queryClient.invalidateQueries({ queryKey: ["search"] });
-                    }}
-                  >
-                    <DropdownMenu.ItemTitle>Jellyfin</DropdownMenu.ItemTitle>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    key="2"
-                    onSelect={() => {
-                      updateSettings({ searchEngine: "Marlin" });
-                      queryClient.invalidateQueries({ queryKey: ["search"] });
-                    }}
-                  >
-                    <DropdownMenu.ItemTitle>Marlin</DropdownMenu.ItemTitle>
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
+              <TouchableOpacity
+                className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between"
+                onPress={() => setIsSearchEngineModalVisible(true)}
+              >
+                <Text>{settings.searchEngine}</Text>
+                <Ionicons
+                  name="chevron-down"
+                  size={16}
+                  color="white"
+                  style={{ opacity: 0.5, marginLeft: 8 }}
+                />
+              </TouchableOpacity>
             </View>
+
             {settings.searchEngine === "Marlin" && (
               <View className="flex flex-col bg-neutral-900 px-4 pb-4">
                 <View className="flex flex-row items-center space-x-2">
@@ -269,6 +251,55 @@ export const SettingToggles: React.FC<Props> = ({ ...props }) => {
               </View>
             )}
           </View>
+
+          <Modal
+            visible={isSearchEngineModalVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setIsSearchEngineModalVisible(false)}
+          >
+            <TouchableOpacity
+              className="flex-1 bg-black/50"
+              activeOpacity={1}
+              onPress={() => setIsSearchEngineModalVisible(false)}
+            >
+              <View className="mt-auto bg-neutral-900 rounded-t-xl">
+                <View className="p-4 border-b border-neutral-800">
+                  <Text className="text-lg font-bold text-center">
+                    Select Search Engine
+                  </Text>
+                </View>
+
+                <View className="max-h-[50%]">
+                  {searchEngines.map((engine) => (
+                    <TouchableOpacity
+                      key={engine.id}
+                      className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                      onPress={() => {
+                        updateSettings({
+                          searchEngine: engine.id,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["search"] });
+                        setIsSearchEngineModalVisible(false);
+                      }}
+                    >
+                      <Text>{engine.name}</Text>
+                      {settings.searchEngine === engine.id && (
+                        <Ionicons name="checkmark" size={24} color="white" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  className="p-4 border-t border-neutral-800"
+                  onPress={() => setIsSearchEngineModalVisible(false)}
+                >
+                  <Text className="text-center text-purple-400">Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
         </View>
       </View>
       <JellyseerrSettings />

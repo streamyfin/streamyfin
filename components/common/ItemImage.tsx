@@ -1,4 +1,3 @@
-import { useImageColors } from "@/hooks/useImageColors";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
 import { Ionicons } from "@expo/vector-icons";

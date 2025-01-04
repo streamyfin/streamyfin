@@ -1,33 +1,32 @@
-import React, { useCallback, useRef, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
-import { Text } from "@/components/common/Text";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { Image } from "expo-image";
-import { TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { OverviewText } from "@/components/OverviewText";
-import { GenreTags } from "@/components/GenreTags";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import { useQuery } from "@tanstack/react-query";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { Button } from "@/components/Button";
+import { Input } from "@/components/common/Input";
+import { Text } from "@/components/common/Text";
+import { GenreTags } from "@/components/GenreTags";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { JellyserrRatings } from "@/components/Ratings";
+import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  IssueType,
+  IssueTypeName,
+} from "@/utils/jellyseerr/server/constants/issue";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import {
-  IssueType,
-  IssueTypeName,
-} from "@/utils/jellyseerr/server/constants/issue";
-import * as DropdownMenu from "zeego/dropdown-menu";
-import { Input } from "@/components/common/Input";
-import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
-import { JellyserrRatings } from "@/components/Ratings";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { useLocalSearchParams } from "expo-router";
+import React, { useCallback, useRef, useState } from "react";
+import { Modal, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -51,6 +50,7 @@ const Page: React.FC = () => {
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const [isIssueTypeModalVisible, setIsIssueTypeModalVisible] = useState(false);
 
   const {
     data: details,
@@ -231,47 +231,68 @@ const Page: React.FC = () => {
             </View>
             <View className="flex flex-col space-y-2 items-start">
               <View className="flex flex-col">
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <View className="flex flex-col">
-                      <Text className="opacity-50 mb-1 text-xs">
-                        Issue Type
-                      </Text>
-                      <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-                        <Text style={{}} className="" numberOfLines={1}>
-                          {issueType
-                            ? IssueTypeName[issueType]
-                            : "Select an issue"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content
-                    loop={false}
-                    side="bottom"
-                    align="center"
-                    alignOffset={0}
-                    avoidCollisions={true}
-                    collisionPadding={0}
-                    sideOffset={0}
+                <View className="flex flex-col">
+                  <Text className="opacity-50 mb-1 text-xs">Issue Type</Text>
+                  <TouchableOpacity
+                    className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between"
+                    onPress={() => setIsIssueTypeModalVisible(true)}
                   >
-                    <DropdownMenu.Label>Types</DropdownMenu.Label>
-                    {Object.entries(IssueTypeName)
-                      .reverse()
-                      .map(([key, value], idx) => (
-                        <DropdownMenu.Item
-                          key={value}
-                          onSelect={() =>
-                            setIssueType(key as unknown as IssueType)
-                          }
+                    <Text className="" numberOfLines={1}>
+                      {issueType ? IssueTypeName[issueType] : "Select an issue"}
+                    </Text>
+                    <Ionicons
+                      name="chevron-down"
+                      size={16}
+                      color="white"
+                      style={{ opacity: 0.5 }}
+                    />
+                  </TouchableOpacity>
+
+                  <Modal
+                    visible={isIssueTypeModalVisible}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setIsIssueTypeModalVisible(false)}
+                  >
+                    <TouchableOpacity
+                      className="flex-1 bg-black/50"
+                      activeOpacity={1}
+                      onPress={() => setIsIssueTypeModalVisible(false)}
+                    >
+                      <View className="mt-auto bg-neutral-900 rounded-t-xl">
+                        <View className="p-4 border-b border-neutral-800">
+                          <Text className="text-lg font-bold text-center">
+                            Select Issue Type
+                          </Text>
+                        </View>
+                        <View className="max-h-[50%]">
+                          {Object.entries(IssueTypeName)
+                            .reverse()
+                            .map(([key, value]) => (
+                              <TouchableOpacity
+                                key={key}
+                                className="p-4 border-b border-neutral-800"
+                                onPress={() => {
+                                  setIssueType(key as unknown as IssueType);
+                                  setIsIssueTypeModalVisible(false);
+                                }}
+                              >
+                                <Text className="text-center">{value}</Text>
+                              </TouchableOpacity>
+                            ))}
+                        </View>
+                        <TouchableOpacity
+                          className="p-4 border-t border-neutral-800"
+                          onPress={() => setIsIssueTypeModalVisible(false)}
                         >
-                          <DropdownMenu.ItemTitle>
-                            {value}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.Item>
-                      ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
+                          <Text className="text-center text-purple-400">
+                            Cancel
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  </Modal>
+                </View>
               </View>
 
               <Input

@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { View, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as DropdownMenu from "zeego/dropdown-menu";
 import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { EmbeddedSubtitle, ExternalSubtitle } from "../types";
 import { useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { router, useLocalSearchParams } from "expo-router";
+import { Text } from "@/components/common/Text";
 
 interface DropdownViewDirectProps {
   showControls: boolean;
@@ -16,6 +16,11 @@ interface DropdownViewDirectProps {
 const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
   showControls,
 }) => {
+  const [isMainModalVisible, setIsMainModalVisible] = useState(false);
+  const [activeSubMenu, setActiveSubMenu] = useState<
+    "subtitle" | "audio" | null
+  >(null);
+
   const api = useAtomValue(apiAtom);
   const ControlContext = useControlContext();
   const mediaSource = ControlContext?.mediaSource;
@@ -51,12 +56,10 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
         deliveryUrl: s.DeliveryUrl,
       })) || [];
 
-    // Combine embedded subs with external subs only if not offline
     return [...embeddedSubs, ...externalSubs] as (
       | EmbeddedSubtitle
       | ExternalSubtitle
     )[];
-    return embeddedSubs as EmbeddedSubtitle[];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
 
   const { subtitleIndex, audioIndex } = useLocalSearchParams<{
@@ -67,87 +70,143 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
     bitrateValue: string;
   }>();
 
+  const closeAllModals = () => {
+    setIsMainModalVisible(false);
+    setActiveSubMenu(null);
+  };
+
+  const MenuOption = ({
+    label,
+    onPress,
+  }: {
+    label: string;
+    onPress: () => void;
+  }) => (
+    <TouchableOpacity
+      className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+      onPress={onPress}
+    >
+      <Text>{label}</Text>
+      <Ionicons name="chevron-forward" size={20} color="white" />
+    </TouchableOpacity>
+  );
+
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <TouchableOpacity className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
-          <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
-        </TouchableOpacity>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content
-        loop={true}
-        side="bottom"
-        align="start"
-        alignOffset={0}
-        avoidCollisions={true}
-        collisionPadding={8}
-        sideOffset={8}
+    <>
+      <TouchableOpacity
+        className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+        onPress={() => setIsMainModalVisible(true)}
       >
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="subtitle-trigger">
-            Subtitle
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
-          >
-            {allSubtitleTracksForDirectPlay?.map((sub, idx: number) => (
-              <DropdownMenu.CheckboxItem
-                key={`subtitle-item-${idx}`}
-                value={subtitleIndex === sub.index.toString()}
-                onValueChange={() => {
-                  if ("deliveryUrl" in sub && sub.deliveryUrl) {
-                    setSubtitleURL &&
-                      setSubtitleURL(api?.basePath + sub.deliveryUrl, sub.name);
-                  } else {
-                    setSubtitleTrack && setSubtitleTrack(sub.index);
-                  }
-                  router.setParams({
-                    subtitleIndex: sub.index.toString(),
-                  });
-                }}
-              >
-                <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
-                  {sub.name}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.CheckboxItem>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="audio-trigger">
-            Audio
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
-          >
-            {audioTracks?.map((track, idx: number) => (
-              <DropdownMenu.CheckboxItem
-                key={`audio-item-${idx}`}
-                value={audioIndex === track.index.toString()}
-                onValueChange={() => {
-                  setAudioTrack && setAudioTrack(track.index);
-                  router.setParams({
-                    audioIndex: track.index.toString(),
-                  });
-                }}
-              >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                  {track.name}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.CheckboxItem>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+      </TouchableOpacity>
+
+      <Modal
+        visible={isMainModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeAllModals}
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/50"
+          activeOpacity={1}
+          onPress={closeAllModals}
+        >
+          <View className="mt-auto bg-neutral-900 rounded-t-xl">
+            {!activeSubMenu ? (
+              <>
+                <View className="p-4 border-b border-neutral-800">
+                  <Text className="text-lg font-bold text-center">
+                    Settings
+                  </Text>
+                </View>
+                <View>
+                  <MenuOption
+                    label="Subtitle"
+                    onPress={() => setActiveSubMenu("subtitle")}
+                  />
+                  <MenuOption
+                    label="Audio"
+                    onPress={() => setActiveSubMenu("audio")}
+                  />
+                </View>
+              </>
+            ) : activeSubMenu === "subtitle" ? (
+              <>
+                <View className="p-4 border-b border-neutral-800 flex-row items-center">
+                  <TouchableOpacity onPress={() => setActiveSubMenu(null)}>
+                    <Ionicons name="chevron-back" size={24} color="white" />
+                  </TouchableOpacity>
+                  <Text className="text-lg font-bold ml-2">Subtitle</Text>
+                </View>
+                <View className="max-h-[50%]">
+                  {allSubtitleTracksForDirectPlay?.map((sub, idx) => (
+                    <TouchableOpacity
+                      key={`subtitle-${idx}`}
+                      className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                      onPress={() => {
+                        if ("deliveryUrl" in sub && sub.deliveryUrl) {
+                          setSubtitleURL?.(
+                            api?.basePath + sub.deliveryUrl,
+                            sub.name
+                          );
+                        } else {
+                          setSubtitleTrack?.(sub.index);
+                        }
+                        router.setParams({
+                          subtitleIndex: sub.index.toString(),
+                        });
+                        closeAllModals();
+                      }}
+                    >
+                      <Text>{sub.name}</Text>
+                      {subtitleIndex === sub.index.toString() && (
+                        <Ionicons name="checkmark" size={24} color="white" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <>
+                <View className="p-4 border-b border-neutral-800 flex-row items-center">
+                  <TouchableOpacity onPress={() => setActiveSubMenu(null)}>
+                    <Ionicons name="chevron-back" size={24} color="white" />
+                  </TouchableOpacity>
+                  <Text className="text-lg font-bold ml-2">Audio</Text>
+                </View>
+                <View className="max-h-[50%]">
+                  {audioTracks?.map((track, idx) => (
+                    <TouchableOpacity
+                      key={`audio-${idx}`}
+                      className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                      onPress={() => {
+                        setAudioTrack?.(track.index);
+                        router.setParams({
+                          audioIndex: track.index.toString(),
+                        });
+                        closeAllModals();
+                      }}
+                    >
+                      <Text>{track.name}</Text>
+                      {audioIndex === track.index.toString() && (
+                        <Ionicons name="checkmark" size={24} color="white" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity
+              className="p-4 border-t border-neutral-800"
+              onPress={closeAllModals}
+            >
+              <Text className="text-center text-purple-400">Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 };
 

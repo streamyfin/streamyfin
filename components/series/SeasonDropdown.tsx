@@ -1,8 +1,8 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useEffect, useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { useEffect, useMemo, useState } from "react";
+import { TouchableOpacity, View, Modal } from "react-native";
 import { Text } from "../common/Text";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
   item: BaseItemDto;
@@ -29,6 +29,8 @@ export const SeasonDropdown: React.FC<Props> = ({
   state,
   onSelect,
 }) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
   const keys = useMemo<SeasonKeys>(
     () =>
       item.Type === "Episode"
@@ -55,7 +57,6 @@ export const SeasonDropdown: React.FC<Props> = ({
       let initialIndex: number | undefined;
 
       if (initialSeasonIndex !== undefined) {
-        // Use the provided initialSeasonIndex if it exists in the seasons
         const seasonExists = seasons.some(
           (season: any) => season[keys.index] === initialSeasonIndex
         );
@@ -65,7 +66,6 @@ export const SeasonDropdown: React.FC<Props> = ({
       }
 
       if (initialIndex === undefined) {
-        // Fall back to the previous logic if initialIndex is not set
         const season1 = seasons.find((season: any) => season[keys.index] === 1);
         const season0 = seasons.find((season: any) => season[keys.index] === 0);
         const firstSeason = season1 || season0 || seasons[0];
@@ -87,35 +87,65 @@ export const SeasonDropdown: React.FC<Props> = ({
     Number(a[keys.index]) - Number(b[keys.index]);
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <View className="flex flex-row">
-          <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-            <Text>Season {seasonIndex}</Text>
-          </TouchableOpacity>
-        </View>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content
-        loop={true}
-        side="bottom"
-        align="start"
-        alignOffset={0}
-        avoidCollisions={true}
-        collisionPadding={8}
-        sideOffset={8}
+    <>
+      <TouchableOpacity
+        className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between"
+        onPress={() => setIsModalVisible(true)}
       >
-        <DropdownMenu.Label>Seasons</DropdownMenu.Label>
-        {seasons?.sort(sortByIndex).map((season: any) => (
-          <DropdownMenu.Item
-            key={season[keys.title]}
-            onSelect={() => onSelect(season)}
-          >
-            <DropdownMenu.ItemTitle>
-              {season[keys.title]}
-            </DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-        ))}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        <Text>Season {seasonIndex}</Text>
+        <Ionicons
+          name="chevron-down"
+          size={16}
+          color="white"
+          style={{ opacity: 0.5, marginLeft: 8 }}
+        />
+      </TouchableOpacity>
+
+      <Modal
+        visible={isModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/50"
+          activeOpacity={1}
+          onPress={() => setIsModalVisible(false)}
+        >
+          <View className="mt-auto bg-neutral-900 rounded-t-xl">
+            <View className="p-4 border-b border-neutral-800">
+              <Text className="text-lg font-bold text-center">
+                Select Season
+              </Text>
+            </View>
+
+            <View className="max-h-[50%]">
+              {seasons?.sort(sortByIndex).map((season: any) => (
+                <TouchableOpacity
+                  key={season[keys.title]}
+                  className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                  onPress={() => {
+                    onSelect(season);
+                    setIsModalVisible(false);
+                  }}
+                >
+                  <Text>{season[keys.title]}</Text>
+                  {Number(season[keys.index]) === Number(seasonIndex) && (
+                    <Ionicons name="checkmark" size={24} color="white" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              className="p-4 border-t border-neutral-800"
+              onPress={() => setIsModalVisible(false)}
+            >
+              <Text className="text-center text-purple-400">Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 };

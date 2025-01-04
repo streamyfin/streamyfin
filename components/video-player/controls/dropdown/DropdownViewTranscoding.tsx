@@ -1,20 +1,25 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { View, TouchableOpacity } from "react-native";
+import { Text } from "@/components/common/Text";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { SubtitleHelper } from "@/utils/SubtitleHelper";
 import { Ionicons } from "@expo/vector-icons";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useAtomValue } from "jotai";
+import React, { useCallback, useMemo, useState } from "react";
+import { Modal, TouchableOpacity, View } from "react-native";
 import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { TranscodedSubtitle } from "../types";
-import { useAtomValue } from "jotai";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { SubtitleHelper } from "@/utils/SubtitleHelper";
 
 interface DropdownViewProps {
   showControls: boolean;
 }
 
 const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
+  const [isMainModalVisible, setIsMainModalVisible] = useState(false);
+  const [activeSubMenu, setActiveSubMenu] = useState<
+    "subtitle" | "audio" | null
+  >(null);
+
   const router = useRouter();
   const api = useAtomValue(apiAtom);
   const ControlContext = useControlContext();
@@ -116,6 +121,27 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
     [mediaSource, subtitleIndex, audioIndex]
   );
 
+  const closeAllModals = () => {
+    setIsMainModalVisible(false);
+    setActiveSubMenu(null);
+  };
+
+  const MenuOption = ({
+    label,
+    onPress,
+  }: {
+    label: string;
+    onPress: () => void;
+  }) => (
+    <TouchableOpacity
+      className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+      onPress={onPress}
+    >
+      <Text>{label}</Text>
+      <Ionicons name="chevron-forward" size={20} color="white" />
+    </TouchableOpacity>
+  );
+
   return (
     <View
       style={{
@@ -125,108 +151,135 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       }}
       className="p-4"
     >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <TouchableOpacity className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
-            <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
-          </TouchableOpacity>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          loop={true}
-          side="bottom"
-          align="start"
-          alignOffset={0}
-          avoidCollisions={true}
-          collisionPadding={8}
-          sideOffset={8}
+      <TouchableOpacity
+        className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+        onPress={() => setIsMainModalVisible(true)}
+      >
+        <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+      </TouchableOpacity>
+
+      <Modal
+        visible={isMainModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeAllModals}
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/50"
+          activeOpacity={1}
+          onPress={closeAllModals}
         >
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger key="subtitle-trigger">
-              Subtitle
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.SubContent
-              alignOffset={-10}
-              avoidCollisions={true}
-              collisionPadding={0}
-              loop={true}
-              sideOffset={10}
-            >
-              {allSubtitleTracksForTranscodingStream?.map(
-                (sub, idx: number) => (
-                  <DropdownMenu.CheckboxItem
-                    value={
-                      subtitleIndex ===
-                      (isOnTextSubtitle && sub.IsTextSubtitleStream
-                        ? subtitleHelper
+          <View className="mt-auto bg-neutral-900 rounded-t-xl">
+            {!activeSubMenu ? (
+              <>
+                <View className="p-4 border-b border-neutral-800">
+                  <Text className="text-lg font-bold text-center">
+                    Settings
+                  </Text>
+                </View>
+                <View>
+                  <MenuOption
+                    label="Subtitle"
+                    onPress={() => setActiveSubMenu("subtitle")}
+                  />
+                  <MenuOption
+                    label="Audio"
+                    onPress={() => setActiveSubMenu("audio")}
+                  />
+                </View>
+              </>
+            ) : activeSubMenu === "subtitle" ? (
+              <>
+                <View className="p-4 border-b border-neutral-800 flex-row items-center">
+                  <TouchableOpacity onPress={() => setActiveSubMenu(null)}>
+                    <Ionicons name="chevron-back" size={24} color="white" />
+                  </TouchableOpacity>
+                  <Text className="text-lg font-bold ml-2">Subtitle</Text>
+                </View>
+                <View className="max-h-[50%]">
+                  {allSubtitleTracksForTranscodingStream?.map((sub, idx) => (
+                    <TouchableOpacity
+                      key={`subtitle-${idx}`}
+                      className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                      onPress={() => {
+                        if (
+                          subtitleIndex ===
+                          (isOnTextSubtitle && sub.IsTextSubtitleStream
+                            ? subtitleHelper
+                                .getSourceSubtitleIndex(sub.index)
+                                .toString()
+                            : sub?.index.toString())
+                        )
+                          return;
+
+                        router.setParams({
+                          subtitleIndex: subtitleHelper
                             .getSourceSubtitleIndex(sub.index)
-                            .toString()
-                        : sub?.index.toString())
-                    }
-                    key={`subtitle-item-${idx}`}
-                    onValueChange={() => {
-                      if (
-                        subtitleIndex ===
+                            .toString(),
+                        });
+
+                        if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
+                          setSubtitleTrack && setSubtitleTrack(sub.index);
+                        } else {
+                          changeToImageBasedSub(sub.index);
+                        }
+                        closeAllModals();
+                      }}
+                    >
+                      <Text>{sub.name}</Text>
+                      {subtitleIndex ===
                         (isOnTextSubtitle && sub.IsTextSubtitleStream
                           ? subtitleHelper
                               .getSourceSubtitleIndex(sub.index)
                               .toString()
-                          : sub?.index.toString())
-                      )
-                        return;
+                          : sub?.index.toString()) && (
+                        <Ionicons name="checkmark" size={24} color="white" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <>
+                <View className="p-4 border-b border-neutral-800 flex-row items-center">
+                  <TouchableOpacity onPress={() => setActiveSubMenu(null)}>
+                    <Ionicons name="chevron-back" size={24} color="white" />
+                  </TouchableOpacity>
+                  <Text className="text-lg font-bold ml-2">Audio</Text>
+                </View>
+                <View className="max-h-[50%]">
+                  {allAudio?.map((track, idx) => (
+                    <TouchableOpacity
+                      key={`audio-${idx}`}
+                      className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                      onPress={() => {
+                        if (audioIndex === track.index.toString()) return;
+                        router.setParams({
+                          audioIndex: track.index.toString(),
+                        });
+                        ChangeTranscodingAudio(track.index);
+                        closeAllModals();
+                      }}
+                    >
+                      <Text>{track.name}</Text>
+                      {audioIndex === track.index.toString() && (
+                        <Ionicons name="checkmark" size={24} color="white" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
 
-                      router.setParams({
-                        subtitleIndex: subtitleHelper
-                          .getSourceSubtitleIndex(sub.index)
-                          .toString(),
-                      });
-
-                      if (sub.IsTextSubtitleStream && isOnTextSubtitle) {
-                        setSubtitleTrack && setSubtitleTrack(sub.index);
-                        return;
-                      }
-                      changeToImageBasedSub(sub.index);
-                    }}
-                  >
-                    <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
-                      {sub.name}
-                    </DropdownMenu.ItemTitle>
-                  </DropdownMenu.CheckboxItem>
-                )
-              )}
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Sub>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger key="audio-trigger">
-              Audio
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.SubContent
-              alignOffset={-10}
-              avoidCollisions={true}
-              collisionPadding={0}
-              loop={true}
-              sideOffset={10}
+            <TouchableOpacity
+              className="p-4 border-t border-neutral-800"
+              onPress={closeAllModals}
             >
-              {allAudio?.map((track, idx: number) => (
-                <DropdownMenu.CheckboxItem
-                  key={`audio-item-${idx}`}
-                  value={audioIndex === track.index.toString()}
-                  onValueChange={() => {
-                    if (audioIndex === track.index.toString()) return;
-                    router.setParams({
-                      audioIndex: track.index.toString(),
-                    });
-                    ChangeTranscodingAudio(track.index);
-                  }}
-                >
-                  <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                    {track.name}
-                  </DropdownMenu.ItemTitle>
-                </DropdownMenu.CheckboxItem>
-              ))}
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Sub>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
+              <Text className="text-center text-purple-400">Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };

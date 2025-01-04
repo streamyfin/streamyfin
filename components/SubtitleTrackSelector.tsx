@@ -1,10 +1,10 @@
 import { tc } from "@/utils/textTools";
 import { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
-import { useMemo } from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { useMemo, useState } from "react";
+import { Platform, TouchableOpacity, View, Modal } from "react-native";
 import { Text } from "./common/Text";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
+import { Ionicons } from "@expo/vector-icons";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
@@ -20,6 +20,8 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   isTranscoding,
   ...props
 }) => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
   const subtitleStreams = useMemo(() => {
     const subtitleHelper = new SubtitleHelper(source?.MediaStreams ?? []);
 
@@ -38,59 +40,98 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   if (subtitleStreams.length === 0) return null;
 
   return (
-    <View
-      className="flex col shrink justify-start place-self-start items-start"
-      style={{
-        minWidth: 60,
-        maxWidth: 200,
-      }}
-    >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <View className="flex flex-col " {...props}>
-            <Text className="opacity-50 mb-1 text-xs">Subtitle</Text>
-            <TouchableOpacity className="bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-              <Text className=" ">
-                {selectedSubtitleSteam
-                  ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
-                  : "None"}
+    <>
+      <View
+        className="flex col shrink justify-start place-self-start items-start"
+        style={{
+          minWidth: 60,
+          maxWidth: 200,
+        }}
+      >
+        <View className="flex flex-col" {...props}>
+          <Text className="opacity-50 mb-1 text-xs">Subtitle</Text>
+          <TouchableOpacity
+            className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between"
+            onPress={() => setIsModalVisible(true)}
+          >
+            <Text>
+              {selectedSubtitleSteam
+                ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
+                : "None"}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color="white"
+              style={{ opacity: 0.5 }}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Modal
+        visible={isModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <TouchableOpacity
+          className="flex-1 bg-black/50"
+          activeOpacity={1}
+          onPress={() => setIsModalVisible(false)}
+        >
+          <View className="mt-auto bg-neutral-900 rounded-t-xl">
+            <View className="p-4 border-b border-neutral-800">
+              <Text className="text-lg font-bold text-center">
+                Subtitle Tracks
               </Text>
+            </View>
+
+            <View className="max-h-[50%]">
+              <TouchableOpacity
+                className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                onPress={() => {
+                  onChange(-1);
+                  setIsModalVisible(false);
+                }}
+              >
+                <Text>None</Text>
+                {selected === -1 && (
+                  <Ionicons name="checkmark" size={24} color="white" />
+                )}
+              </TouchableOpacity>
+
+              {subtitleStreams?.map((subtitle, idx: number) => (
+                <TouchableOpacity
+                  key={idx.toString()}
+                  className="p-4 border-b border-neutral-800 flex-row items-center justify-between"
+                  onPress={() => {
+                    if (
+                      subtitle.Index !== undefined &&
+                      subtitle.Index !== null
+                    ) {
+                      onChange(subtitle.Index);
+                      setIsModalVisible(false);
+                    }
+                  }}
+                >
+                  <Text>{subtitle.DisplayTitle}</Text>
+                  {subtitle.Index === selected && (
+                    <Ionicons name="checkmark" size={24} color="white" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              className="p-4 border-t border-neutral-800"
+              onPress={() => setIsModalVisible(false)}
+            >
+              <Text className="text-center text-purple-400">Cancel</Text>
             </TouchableOpacity>
           </View>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          loop={true}
-          side="bottom"
-          align="start"
-          alignOffset={0}
-          avoidCollisions={true}
-          collisionPadding={8}
-          sideOffset={8}
-        >
-          <DropdownMenu.Label>Subtitle tracks</DropdownMenu.Label>
-          <DropdownMenu.Item
-            key={"-1"}
-            onSelect={() => {
-              onChange(-1);
-            }}
-          >
-            <DropdownMenu.ItemTitle>None</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-          {subtitleStreams?.map((subtitle, idx: number) => (
-            <DropdownMenu.Item
-              key={idx.toString()}
-              onSelect={() => {
-                if (subtitle.Index !== undefined && subtitle.Index !== null)
-                  onChange(subtitle.Index);
-              }}
-            >
-              <DropdownMenu.ItemTitle>
-                {subtitle.DisplayTitle}
-              </DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 };

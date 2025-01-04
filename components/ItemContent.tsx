@@ -11,7 +11,6 @@ import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useImageColors } from "@/hooks/useImageColors";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
 import { useSettings } from "@/utils/atoms/settings";
@@ -44,7 +43,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     const [settings] = useSettings();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
-    useImageColors({ item });
 
     const [loadingLogo, setLoadingLogo] = useState(true);
     const [headerHeight, setHeaderHeight] = useState(350);
