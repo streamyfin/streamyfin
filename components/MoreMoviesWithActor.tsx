@@ -78,7 +78,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
   return (
     <View {...props}>
       <Text className="text-lg font-bold mb-2 px-4">
-        {t("series.more_with", {name: actor?.Name})}
+        {t("item_card.more_with", {name: actor?.Name})}
       </Text>
       <HorizontalScroll
         data={items}

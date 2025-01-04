@@ -21,7 +21,7 @@ export const OverviewText: React.FC<Props> = ({
 
   return (
     <View className="flex flex-col" {...props}>
-      <Text className="text-lg font-bold mb-2">{t("series.overview")}</Text>
+      <Text className="text-lg font-bold mb-2">{t("item_card.overview")}</Text>
       <TouchableOpacity
         onPress={() =>
           setLimit((prev) =>
@@ -33,7 +33,7 @@ export const OverviewText: React.FC<Props> = ({
           <Text>{tc(text, limit)}</Text>
           {text.length > characterLimit && (
             <Text className="text-purple-600 mt-1">
-              {limit === characterLimit ? "Show more" : "Show less"}
+              {limit === characterLimit ? t("item_card.show_more") : t("item_card.show_less")}
             </Text>
           )}
         </View>

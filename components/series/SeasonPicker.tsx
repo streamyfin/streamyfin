@@ -146,7 +146,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         />
         {episodes?.length || 0 > 0 ? (
           <DownloadItems
-            title="Download Season"
+            title={t("item_card.download.download_season")}
             className="ml-2"
             items={episodes || []}
             MissingDownloadIconComponent={() => (
@@ -211,7 +211,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         {(episodes?.length || 0) === 0 ? (
           <View className="flex flex-col">
             <Text className="text-neutral-500">
-              {t("series.no_episodes_for_this_seasonz")}
+              {t("item_card.no_episodes_for_this_seasonz")}
             </Text>
           </View>
         ) : null}

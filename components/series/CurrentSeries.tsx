@@ -20,7 +20,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
 
   return (
     <View {...props}>
-      <Text className="text-lg font-bold mb-2 px-4">{t("series.series")}</Text>
+      <Text className="text-lg font-bold mb-2 px-4">{t("item_card.series")}</Text>
       <HorizontalScroll
         data={[item]}
         height={247}

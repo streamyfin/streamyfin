@@ -42,7 +42,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
 
   return (
     <View {...props} className="flex flex-col">
-      <Text className="text-lg font-bold mb-2 px-4">{t("series.cast_and_crew")}</Text>
+      <Text className="text-lg font-bold mb-2 px-4">{t("item_card.cast_and_crew")}</Text>
       <HorizontalScroll
         loading={loading}
         keyExtractor={(i, idx) => i.Id.toString()}

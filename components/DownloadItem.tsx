@@ -332,7 +332,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 {title}
               </Text>
               <Text className="text-neutral-300">
-                {subtitle || `Download ${itemsNotDownloaded.length} items`}
+                {subtitle || t("item_card.download.download_x_item", {item_count: itemsNotDownloaded.length})}
               </Text>
             </View>
             <View className="flex flex-col space-y-2 w-full items-start">
@@ -370,13 +370,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               onPress={acceptDownloadOptions}
               color="purple"
             >
-              Download
+              {t("item_card.download.download_button")}
             </Button>
             <View className="opacity-70 text-center w-full flex items-center">
               <Text className="text-xs">
                 {usingOptimizedServer
-                  ? "Using optimized server"
-                  : "Using default method"}
+                  ? t("item_card.download.using_optimized_server")
+                  : t("item_card.download.using_default_method")}
               </Text>
             </View>
           </View>

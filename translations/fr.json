@@ -255,7 +255,7 @@
     "message_from_server": "Message du serveur: {{message}}",
     "video_has_finished_playing": "La vidéo a fini de jouer!"
   },
-  "series": {
+  "item_card": {
     "next_up": "À suivre",
     "no_items_to_display": "Aucun item à afficher",
     "cast_and_crew": "Distribution et équipe",
@@ -272,7 +272,16 @@
     "more_details": "Plus de détails",
     "quality": "Qualité",
     "audio": "Audio",
-    "subtitles": "Sous-titres"    
+    "subtitles": "Sous-titres",
+    "show_more": "Afficher plus",
+    "show_less": "Afficher moins",
+    "download": {
+      "download_season": "Télécharger la saison",
+      "download_x_item": "Télécharger {{item_count}} items",
+      "download_button": "Télécharger",
+      "using_optimized_server": "Avec le serveur de versions optimisées",
+      "using_default_method": "Avec la méthode par défaut"
+    } 
   },
   "jellyseerr":{
     "confirm": "Confirmer",
@@ -294,7 +303,7 @@
     "home": "Accueil",
     "search": "Recherche",
     "library": "Bibliothèque",
-    "custom_links": "Liens personalisés",
+    "custom_links": "Liens personnalisés",
     "favorites": "Favoris"
   }
 }

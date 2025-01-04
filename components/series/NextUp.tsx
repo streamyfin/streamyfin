@@ -39,14 +39,14 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
   if (!items?.length)
     return (
       <View className="px-4">
-        <Text className="text-lg font-bold mb-2">{t("series.next_up")}</Text>
-        <Text className="opacity-50">{t("series.no_items_to_display")}</Text>
+        <Text className="text-lg font-bold mb-2">{t("item_card.next_up")}</Text>
+        <Text className="opacity-50">{t("item_card.no_items_to_display")}</Text>
       </View>
     );
 
   return (
     <View>
-      <Text className="text-lg font-bold px-4 mb-2">{t("series.next_up")}</Text>
+      <Text className="text-lg font-bold px-4 mb-2">{t("item_card.next_up")}</Text>
       <FlashList
         contentContainerStyle={{ paddingLeft: 16 }}
         horizontal
