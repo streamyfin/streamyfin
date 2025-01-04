@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15-large
+    runs-on: macos-15
     name: Build IOS
     steps:
       - uses: actions/checkout@v2
