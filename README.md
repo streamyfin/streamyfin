@@ -13,7 +13,7 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
 
 ## 🌟 Features
 
-- 🚀 **Skp intro / credits support**
+- 🚀 **Skip Intro / Credits Support**
 - 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking.
 - 🔊 **Background audio**: Stream music in the background, even when locking the phone.
 - 📥 **Download media** (Experimental): Save your media locally and watch it offline.

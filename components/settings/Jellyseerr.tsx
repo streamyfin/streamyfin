@@ -1,18 +1,17 @@
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { View } from "react-native";
-import { Text } from "../common/Text";
-import { useCallback, useRef, useState } from "react";
-import { Input } from "../common/Input";
-import { ListItem } from "../list/ListItem";
-import { Loader } from "../Loader";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { Button } from "../Button";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useAtom } from "jotai";
-import { toast } from "sonner-native";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useAtom } from "jotai";
+import { useState } from "react";
+import { View } from "react-native";
+import { toast } from "sonner-native";
+import { Button } from "../Button";
+import { Input } from "../common/Input";
+import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
 
 export const JellyseerrSettings = () => {
   const {
