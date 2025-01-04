@@ -69,7 +69,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                   });
                 }}
               >
-                <DropdownMenu.ItemTitle>None</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("home.settings.subtitles.none")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               {cultures?.map((l) => (
                 <DropdownMenu.Item

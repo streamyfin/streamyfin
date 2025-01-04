@@ -68,7 +68,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
                   });
                 }}
               >
-                <DropdownMenu.ItemTitle>None</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>t("home.settings.audio.none")</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               {cultures?.map((l) => (
                 <DropdownMenu.Item

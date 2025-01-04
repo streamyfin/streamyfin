@@ -63,7 +63,8 @@
         "audio_title": "Audio",
         "set_audio_track": "Set Audio Track From Previous Item",
         "audio_language": "Audio language",
-        "audio_hint": "Choose a default audio language."
+        "audio_hint": "Choose a default audio language.",
+        "none": "None"
       },
       "subtitles": {
         "subtitle_title": "Subtitles",
@@ -71,7 +72,8 @@
         "subtitle_mode": "Subtitle Mode",
         "set_subtitle_track": "Set Subtitle Track From Previous Item",
         "subtitle_size": "Subtitle Size",
-        "subtitle_hint": "Configure subtitle preference."
+        "subtitle_hint": "Configure subtitle preference.",
+        "none": "None"
       },
       "other": {
         "other_title": "Other",
@@ -254,6 +256,25 @@
     "could_not_create_stream_for_chromecast": "Could not create stream for Chromecast",
     "message_from_server": "Message from server: {{message}}",
     "video_has_finished_playing": "Video has finished playing!"
+  },
+  "series": {
+    "next_up": "Next up",
+    "no_items_to_display": "No items to display",
+    "cast_and_crew": "Cast & Crew",
+    "series": "Series",
+    "seasons": "Seasons",
+    "season": "Season",
+    "episodes": "Episodes",
+    "no_episodes_for_this_season": "No episodes for this season",
+    "overview": "Overview",
+    "more_with": "More with {{name}}",
+    "similar_items": "Similar items",
+    "no_similar_items_found": "No similar items found",
+    "video": "Video",
+    "more_details": "More details",
+    "quality": "Quality",
+    "audio": "Audio",
+    "subtitles": "Subtitle"
   },
   "jellyseerr":{
     "confirm": "Confirm",
