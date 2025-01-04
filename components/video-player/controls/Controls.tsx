@@ -497,33 +497,6 @@ export const Controls: React.FC<Props> = ({
         />
       ) : (
         <>
-          <VideoProvider
-            getAudioTracks={getAudioTracks}
-            getSubtitleTracks={getSubtitleTracks}
-            setAudioTrack={setAudioTrack}
-            setSubtitleTrack={setSubtitleTrack}
-            setSubtitleURL={setSubtitleURL}
-          >
-            <View
-              style={[
-                {
-                  position: "absolute",
-                  top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
-                  left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-                  opacity: showControls ? 1 : 0,
-                  zIndex: 1000,
-                },
-              ]}
-              className={`flex flex-row items-center space-x-2 z-10 p-4 `}
-            >
-              {!mediaSource?.TranscodingUrl ? (
-                <DropdownViewDirect showControls={showControls} />
-              ) : (
-                <DropdownViewTranscoding showControls={showControls} />
-              )}
-            </View>
-          </VideoProvider>
-
           <Pressable
             onPressIn={() => {
               toggleControls();
@@ -532,6 +505,8 @@ export const Controls: React.FC<Props> = ({
               position: "absolute",
               width: Dimensions.get("window").width,
               height: Dimensions.get("window").height,
+              backgroundColor: "black",
+              opacity: showControls ? 0.5 : 0,
             }}
           ></Pressable>
 
@@ -541,61 +516,82 @@ export const Controls: React.FC<Props> = ({
                 position: "absolute",
                 top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
                 right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
+                width: settings?.safeAreaInControlsEnabled
+                  ? Dimensions.get("window").width - insets.left - insets.right
+                  : Dimensions.get("window").width,
                 opacity: showControls ? 1 : 0,
               },
             ]}
             pointerEvents={showControls ? "auto" : "none"}
-            className={`flex flex-row items-center space-x-2 z-10 p-4 `}
+            className={`flex flex-row w-full p-4 `}
           >
-            {item?.Type === "Episode" && !offline && (
+            <View className="mr-auto">
+              <VideoProvider
+                getAudioTracks={getAudioTracks}
+                getSubtitleTracks={getSubtitleTracks}
+                setAudioTrack={setAudioTrack}
+                setSubtitleTrack={setSubtitleTrack}
+                setSubtitleURL={setSubtitleURL}
+              >
+                {!mediaSource?.TranscodingUrl ? (
+                  <DropdownViewDirect showControls={showControls} />
+                ) : (
+                  <DropdownViewTranscoding showControls={showControls} />
+                )}
+              </VideoProvider>
+            </View>
+
+            <View className="flex flex-row items-center space-x-2 ">
+              {item?.Type === "Episode" && !offline && (
+                <TouchableOpacity
+                  onPress={() => {
+                    switchOnEpisodeMode();
+                  }}
+                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                >
+                  <Ionicons name="list" size={24} color="white" />
+                </TouchableOpacity>
+              )}
+              {previousItem && !offline && (
+                <TouchableOpacity
+                  onPress={goToPreviousItem}
+                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                >
+                  <Ionicons name="play-skip-back" size={24} color="white" />
+                </TouchableOpacity>
+              )}
+
+              {nextItem && !offline && (
+                <TouchableOpacity
+                  onPress={goToNextItem}
+                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                >
+                  <Ionicons name="play-skip-forward" size={24} color="white" />
+                </TouchableOpacity>
+              )}
+
+              {mediaSource?.TranscodingUrl && (
+                <TouchableOpacity
+                  onPress={toggleIgnoreSafeAreas}
+                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                >
+                  <Ionicons
+                    name={ignoreSafeAreas ? "contract-outline" : "expand"}
+                    size={24}
+                    color="white"
+                  />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                onPress={() => {
-                  switchOnEpisodeMode();
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.back();
                 }}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
               >
-                <Ionicons name="list" size={24} color="white" />
+                <Ionicons name="close" size={24} color="white" />
               </TouchableOpacity>
-            )}
-            {previousItem && !offline && (
-              <TouchableOpacity
-                onPress={goToPreviousItem}
-                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-              >
-                <Ionicons name="play-skip-back" size={24} color="white" />
-              </TouchableOpacity>
-            )}
-
-            {nextItem && !offline && (
-              <TouchableOpacity
-                onPress={goToNextItem}
-                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-              >
-                <Ionicons name="play-skip-forward" size={24} color="white" />
-              </TouchableOpacity>
-            )}
-
-            {mediaSource?.TranscodingUrl && (
-              <TouchableOpacity
-                onPress={toggleIgnoreSafeAreas}
-                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-              >
-                <Ionicons
-                  name={ignoreSafeAreas ? "contract-outline" : "expand"}
-                  size={24}
-                  color="white"
-                />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={async () => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.back();
-              }}
-              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-            >
-              <Ionicons name="close" size={24} color="white" />
-            </TouchableOpacity>
+            </View>
           </View>
 
           <View
