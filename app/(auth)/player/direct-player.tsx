@@ -435,7 +435,6 @@ export default function page() {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
-          opacity: showControls ? (Platform.OS === "android" ? 0.7 : 0.5) : 1,
         }}
       >
         <VlcPlayerView
