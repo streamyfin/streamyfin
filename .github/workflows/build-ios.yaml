@@ -27,7 +27,7 @@ jobs:
           pods-path: "ios/Podfile"
           configuration: Release
           # Change later to app-store if wanted
-          export-method: app-store
+          export-method: appstore
           #export-method: ad-hoc
           workspace-path: "ios/Streamyfin.xcodeproj/project.xcworkspace/"
           project-path: "ios/Streamyfin.xcodeproj"
