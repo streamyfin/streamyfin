@@ -1,31 +1,26 @@
 import * as DropdownMenu from "zeego/dropdown-menu";
-import { TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View, ViewProps } from "react-native";
 import { Text } from "../common/Text";
 import { useSettings } from "@/utils/atoms/settings";
-import { t } from "i18next";
+import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
+import { useTranslation } from "react-i18next";
 import { APP_LANGUAGES } from "@/i18n";
 
-export const AppLanguageSelector = () => {
+interface Props extends ViewProps {}
+
+export const AppLanguageSelector: React.FC<Props> = ({ ...props }) => {
   const [settings, updateSettings] = useSettings();
+  const { t } = useTranslation();
+
+  if (!settings) return null;
 
   return (
-    <View className="mb-4">
-      <Text className="text-lg font-bold mb-2">
-        {t("home.settings.languages.title")}
-      </Text>
-      <View
-        className={`
-        flex flex-row items-center space-x-2 justify-between bg-neutral-900 p-4 rounded-xl
-      `}
+    <View>
+      <ListGroup
+        title={t("home.settings.languages.title")}
       >
-        <View className="flex flex-col shrink">
-          <Text className="font-semibold">
-            {t("home.settings.languages.app_language")}
-          </Text>
-          <Text className="text-xs opacity-50">
-            {t("home.settings.languages.app_language_description")}
-          </Text>
-        </View>
+        <ListItem title={t("home.settings.languages.app_language")}>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
             <TouchableOpacity className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
@@ -74,7 +69,8 @@ export const AppLanguageSelector = () => {
             ))}
           </DropdownMenu.Content>
         </DropdownMenu.Root>
-      </View>
-    </View>
+      </ListItem>
+    </ListGroup>
+  </View>
   );
 };
