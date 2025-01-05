@@ -31,12 +31,13 @@ import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import {MovieResult, PersonResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Tag } from "@/components/GenreTags";
 import DiscoverSlide from "@/components/jellyseerr/DiscoverSlide";
 import { sortBy } from "lodash";
+import PersonPoster from "@/components/jellyseerr/PersonPoster";
 
 type SearchType = "Library" | "Discover";
 
@@ -188,6 +189,14 @@ export default function search() {
       jellyseerrResults?.filter(
         (r) => r.mediaType === MediaType.TV
       ) as TvResult[],
+    [jellyseerrResults]
+  );
+
+  const jellyseerrPersonResults: PersonResult[] | undefined = useMemo(
+    () =>
+      jellyseerrResults?.filter(
+        (r) => r.mediaType === "person"
+      ) as PersonResult[],
     [jellyseerrResults]
   );
 
@@ -484,6 +493,19 @@ export default function search() {
                 items={jellyseerrTvResults}
                 renderItem={(item: TvResult) => (
                   <JellyseerrPoster item={item} key={item.id} />
+                )}
+              />
+              <SearchItemWrapper
+                header="Actors"
+                items={jellyseerrPersonResults}
+                renderItem={(item: PersonResult) => (
+                  <PersonPoster
+                    className="mr-2"
+                    key={item.id}
+                    id={item.id.toString()}
+                    name={item.name}
+                    posterPath={item.profilePath}
+                  />
                 )}
               />
             </>
