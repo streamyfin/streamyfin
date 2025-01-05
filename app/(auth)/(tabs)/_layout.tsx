@@ -13,14 +13,13 @@ const { Navigator } = createNativeBottomTabNavigator();
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 
 import { Colors } from "@/constants/Colors";
+import { useSettings } from "@/utils/atoms/settings";
+import { storage } from "@/utils/mmkv";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
-import { useSettings } from "@/utils/atoms/settings";
-import { useAtom, useAtomValue } from "jotai";
-import { storage } from "@/utils/mmkv";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -32,16 +31,13 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const [settings] = useSettings();
   const router = useRouter();
-  const hasNavigated = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       const hasShownIntro = storage.getBoolean("hasShownIntro");
-      if (hasShownIntro === false && !hasNavigated.current) {
+      if (!hasShownIntro) {
         const timer = setTimeout(() => {
-          hasNavigated.current = true;
           router.push("/intro/page");
-          storage.set("hasShownIntro", true);
         }, 1000);
 
         return () => {

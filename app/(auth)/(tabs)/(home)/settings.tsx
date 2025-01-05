@@ -75,6 +75,13 @@ export default function settings() {
             }}
             title={"Show intro"}
           />
+          <ListItem
+            textColor="red"
+            onPress={() => {
+              storage.set("hasShownIntro", false);
+            }}
+            title={"Reset intro"}
+          />
         </ListGroup>
 
         <View className="mb-4">
