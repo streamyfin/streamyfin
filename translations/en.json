@@ -24,7 +24,6 @@
     "clear_button": "Clear"
   },
   "home": {
-    "home": "Home",
     "no_internet": "No Internet",
     "no_items": "No items",
     "no_internet_message": "No worries, you can still watch\ndownloaded content.",
@@ -211,7 +210,6 @@
   },
   "search": {
     "results_for_x": "Results for ",
-    "search_title": "Search",
     "search_here": "Search here...",
     "search": "Search...",
     "x_items": "{{count}} items",
@@ -231,7 +229,6 @@
     "requested_series": "Requested Series"
   },
   "library": {
-    "library_title": "Library",
     "no_items_found": "No items found",
     "no_results": "No results",
     "no_libraries_found": "No libraries found",
@@ -254,7 +251,6 @@
     }
   },
   "favorites": {
-    "favorites_title": "Favorites",
     "series": "Series",
     "movies": "Movies",
     "episodes": "Episodes",

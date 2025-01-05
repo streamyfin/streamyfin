@@ -211,7 +211,6 @@
   },
   "search": {
     "results_for_x": "Résultats pour ",
-    "search_title": "Recherche",
     "search_here": "Rechercher ici...",
     "search": "Rechercher...",
     "x_items": "{{count}} items",
@@ -231,7 +230,6 @@
     "requested_series": "Séries demandées"
   },
   "library": {
-    "library_title": "Bibliothèque",
     "no_items_found": "Aucun item trouvé",
     "no_results": "Aucun résultat",
     "no_libraries_found": "Aucune bibliothèque trouvée",
@@ -254,7 +252,6 @@
     }
   },
   "favorites": {
-    "favorites_title": "Favoris",
     "series": "Séries",
     "movies": "Films",
     "episodes": "Épisodes",

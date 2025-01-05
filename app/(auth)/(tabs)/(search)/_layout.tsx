@@ -15,7 +15,7 @@ export default function SearchLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: t("search.search_title"),
+          headerTitle: t("tabs.search"),
           headerLargeStyle: {
             backgroundColor: "black",
           },

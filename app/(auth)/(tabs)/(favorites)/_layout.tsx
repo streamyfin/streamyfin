@@ -12,7 +12,7 @@ export default function SearchLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: t("favorites.favorites_title"),
+          headerTitle: t("tabs.favorites"),
           headerLargeStyle: {
             backgroundColor: "black",
           },

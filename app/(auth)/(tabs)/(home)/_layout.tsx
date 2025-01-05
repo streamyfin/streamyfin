@@ -16,7 +16,7 @@ export default function IndexLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: t("home.home"),
+          headerTitle: t("tabs.home"),
           headerBlurEffect: "prominent",
           headerLargeStyle: {
             backgroundColor: "black",
