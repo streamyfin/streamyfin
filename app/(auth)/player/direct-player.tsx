@@ -27,7 +27,7 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import { useFocusEffect, useGlobalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, {
@@ -68,11 +68,9 @@ export default function page() {
   const { getDownloadedItem } = useDownload();
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
-  const lightHapticFeedback = useHaptic("light");
-
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   const {
@@ -177,7 +175,7 @@ export default function page() {
   const togglePlay = useCallback(async () => {
     if (!api) return;
 
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPlaying) {
       await videoRef.current?.pause();
 

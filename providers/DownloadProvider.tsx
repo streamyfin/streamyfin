@@ -48,7 +48,7 @@ import useImageStorage from "@/hooks/useImageStorage";
 import { storage } from "@/utils/mmkv";
 import useDownloadHelper from "@/utils/download";
 import { FileInfo } from "expo-file-system";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import * as Application from "expo-application";
 
 export type DownloadedItem = {
@@ -77,8 +77,6 @@ function useDownloadProvider() {
   const { saveImage } = useImageStorage();
 
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-
-  const successHapticFeedback = useHaptic("success");
 
   const authHeader = useMemo(() => {
     return api?.accessToken;
@@ -534,7 +532,9 @@ function useDownloadProvider() {
         if (i.Id) return deleteFile(i.Id);
         return;
       })
-    ).then(() => successHapticFeedback());
+    ).then(() =>
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    );
   };
 
   const cleanCacheDirectory = async () => {

@@ -3,7 +3,7 @@ import {
   useActionSheet,
 } from "@expo/react-native-action-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 
@@ -28,7 +28,6 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
   const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
-  const successHapticFeedback = useHaptic("success");
 
   const handleOpenFile = useCallback(() => {
     openFile(item);
@@ -44,7 +43,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
       deleteFile(item.Id);
-      successHapticFeedback();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [deleteFile, item.Id]);
 

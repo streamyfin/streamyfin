@@ -1,5 +1,5 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, TouchableOpacityProps, View } from "react-native";
 import {
@@ -26,7 +26,6 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
   const { deleteFile } = useDownload();
   const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
-  const successHapticFeedback = useHaptic("success");
 
   const base64Image = useMemo(() => {
     return storage.getString(item.Id!);
@@ -42,7 +41,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
       deleteFile(item.Id);
-      successHapticFeedback();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [deleteFile, item.Id]);
 

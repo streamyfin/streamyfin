@@ -7,7 +7,7 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import { useAtom } from "jotai";
 import React, { useCallback, useRef, useState } from "react";
 import { Alert, View, ViewProps } from "react-native";
@@ -23,8 +23,6 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const [user] = useAtom(userAtom);
   const [quickConnectCode, setQuickConnectCode] = useState<string>();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const successHapticFeedback = useHaptic("success");
-  const errorHapticFeedback = useHaptic("error");
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -45,16 +43,16 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           userId: user?.Id,
         });
         if (res.status === 200) {
-          successHapticFeedback();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           Alert.alert("Success", "Quick connect authorized");
           setQuickConnectCode(undefined);
           bottomSheetModalRef?.current?.close();
         } else {
-          errorHapticFeedback();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
           Alert.alert("Error", "Invalid code");
         }
       } catch (e) {
-        errorHapticFeedback();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert("Error", "Invalid code");
       }
     }

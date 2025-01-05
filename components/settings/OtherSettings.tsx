@@ -178,15 +178,6 @@ export const OtherSettings: React.FC = () => {
           }
         />
       </ListItem>
-
-      <ListItem title="Disable Haptic Feedback">
-        <Switch
-          value={settings.disableHapticFeedback}
-          onValueChange={(value) =>
-            updateSettings({ disableHapticFeedback: value })
-          }
-        />
-      </ListItem>
     </ListGroup>
   );
 };
