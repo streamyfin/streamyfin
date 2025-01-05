@@ -30,9 +30,8 @@ export default function page() {
       <View>
         <Text className="text-lg font-bold">Features</Text>
         <Text className="text-xs">
-          Streamyfin has a bunch of features and integrates with a
-          wide array of software which you can find in the settings menu, these
-          include:
+          Streamyfin has a bunch of features and integrates with a wide array of
+          software which you can find in the settings menu, these include:
         </Text>
         <View className="flex flex-row items-center mt-4">
           <Image
