@@ -15,10 +15,12 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { useRouter } from "expo-router";
 
 interface Props extends ViewProps {}
 
 export const OtherSettings: React.FC = () => {
+  const router = useRouter();
   const [settings, updateSettings] = useSettings();
 
   /********************
@@ -54,7 +56,7 @@ export const OtherSettings: React.FC = () => {
   if (!settings) return null;
 
   return (
-    <ListGroup title="Other" className="mb-4">
+    <ListGroup title="Other" className="">
       <ListItem title="Auto rotate">
         <Switch
           value={settings.autoRotate}
@@ -178,6 +180,11 @@ export const OtherSettings: React.FC = () => {
           }
         />
       </ListItem>
+      <ListItem
+        onPress={() => router.push("/settings/hide-libraries/page")}
+        title="Hide Libraries"
+        showArrow
+      />
     </ListGroup>
   );
 };
