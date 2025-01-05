@@ -1,4 +1,4 @@
-name: release
+name: Automatic Build and Deploy
 
 on:
   workflow_dispatch:
@@ -27,8 +27,8 @@ jobs:
           pods-path: "ios/Podfile"
           configuration: Release
           # Change later to app-store if wanted
-          #export-method: app-store
-          export-method: ad-hoc
+          export-method: appstore
+          #export-method: ad-hoc
           workspace-path: "ios/Streamyfin.xcodeproj/project.xcworkspace/"
           project-path: "ios/Streamyfin.xcodeproj"
           scheme: Streamyfin
