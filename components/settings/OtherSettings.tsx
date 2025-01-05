@@ -185,6 +185,14 @@ export const OtherSettings: React.FC = () => {
         title="Hide Libraries"
         showArrow
       />
+      <ListItem title="Disable Haptic Feedback">
+        <Switch
+          value={settings.disableHapticFeedback}
+          onValueChange={(value) =>
+            updateSettings({ disableHapticFeedback: value })
+          }
+        />
+      </ListItem>
     </ListGroup>
   );
 };

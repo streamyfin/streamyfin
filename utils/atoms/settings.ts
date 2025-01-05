@@ -84,6 +84,7 @@ export type Settings = {
   downloadMethod: "optimized" | "remux";
   autoDownload: boolean;
   showCustomMenuLinks: boolean;
+  disableHapticFeedback: boolean;
   subtitleSize: number;
   remuxConcurrentLimit: 1 | 2 | 3 | 4;
   safeAreaInControlsEnabled: boolean;
@@ -123,6 +124,7 @@ const loadSettings = (): Settings => {
     downloadMethod: "remux",
     autoDownload: false,
     showCustomMenuLinks: false,
+    disableHapticFeedback: false,
     subtitleSize: Platform.OS === "ios" ? 60 : 100,
     remuxConcurrentLimit: 1,
     safeAreaInControlsEnabled: true,
