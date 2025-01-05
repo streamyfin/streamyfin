@@ -61,7 +61,7 @@ const RenderItem = ({ item, index }: any) => {
             key={item.id}
             id={item.id}
             source={{
-              uri: jellyseerrApi?.tvStillImageProxy(item.stillPath),
+              uri: jellyseerrApi?.imageProxy(item.stillPath),
             }}
             cachePolicy={"memory-disk"}
             contentFit="cover"
