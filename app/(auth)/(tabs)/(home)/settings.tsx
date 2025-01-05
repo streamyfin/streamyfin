@@ -13,7 +13,7 @@ import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
-import * as Haptics from "expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
@@ -23,10 +23,11 @@ export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { logout } = useJellyfin();
+  const successHapticFeedback = useHaptic("success");
 
   const onClearLogsClicked = async () => {
     clearLogs();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    successHapticFeedback();
   };
 
   const navigation = useNavigation();
