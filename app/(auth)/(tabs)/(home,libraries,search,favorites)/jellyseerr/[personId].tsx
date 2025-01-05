@@ -223,12 +223,14 @@ export default function page() {
                     mediaType={item.mediaType as "movie" | "tv"}
                   />
                   {/*<Text numberOfLines={1}>{item.title}</Text>*/}
-                  <Text
-                    className="text-xs opacity-50 align-bottom"
-                    numberOfLines={1}
-                  >
-                    as {item.character}
-                  </Text>
+                  {item.character && (
+                    <Text
+                      className="text-xs opacity-50 align-bottom mt-1"
+                      numberOfLines={1}
+                    >
+                      as {item.character}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               )}
               keyExtractor={(item) => item.id.toString()}
