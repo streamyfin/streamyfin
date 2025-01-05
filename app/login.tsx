@@ -2,8 +2,13 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { PreviousServersList } from "@/components/PreviousServersList";
+import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
@@ -39,7 +44,6 @@ const Login: React.FC = () => {
 
   const [serverURL, setServerURL] = useState<string>(_apiUrl);
   const [serverName, setServerName] = useState<string>("");
-  const [error, setError] = useState<string>("");
   const [credentials, setCredentials] = useState<{
     username: string;
     password: string;
@@ -77,8 +81,10 @@ const Login: React.FC = () => {
             onPress={() => {
               removeServer();
             }}
+            className="flex flex-row items-center"
           >
-            <Ionicons name="chevron-back" size={24} color="white" />
+            <Ionicons name="chevron-back" size={18} color={Colors.primary} />
+            <Text className="ml-2 text-purple-600">Change server</Text>
           </TouchableOpacity>
         ) : null,
     });
@@ -95,9 +101,9 @@ const Login: React.FC = () => {
       }
     } catch (error) {
       if (error instanceof Error) {
-        setError(error.message);
+        Alert.alert("Connection failed", error.message);
       } else {
-        setError("An unexpected error occurred");
+        Alert.alert("Connection failed", "An unexpected error occurred");
       }
     } finally {
       setLoading(false);
@@ -136,6 +142,8 @@ const Login: React.FC = () => {
         return url;
       }
 
+      return undefined;
+    } catch {
       return undefined;
     } finally {
       setLoadingServerCheck(false);
@@ -230,7 +238,6 @@ const Login: React.FC = () => {
                   />
 
                   <Input
-                    className="mb-2"
                     placeholder="Password"
                     onChangeText={(text) =>
                       setCredentials({ ...credentials, password: text })
@@ -244,28 +251,34 @@ const Login: React.FC = () => {
                     clearButtonMode="while-editing"
                     maxLength={500}
                   />
+                  <View className="flex flex-row items-center justify-between">
+                    <Button
+                      onPress={handleLogin}
+                      loading={loading}
+                      className="flex-1 mr-2"
+                    >
+                      Log in
+                    </Button>
+                    <TouchableOpacity
+                      onPress={handleQuickConnect}
+                      className="p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center"
+                    >
+                      <MaterialCommunityIcons
+                        name="cellphone-lock"
+                        size={24}
+                        color="white"
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-
-                <Text className="text-red-600 mb-2">{error}</Text>
               </View>
 
-              <View className="absolute bottom-0 left-0 w-full px-4 mb-2">
-                <Button
-                  color="black"
-                  onPress={handleQuickConnect}
-                  className="w-full mb-2"
-                >
-                  Use Quick Connect
-                </Button>
-                <Button onPress={handleLogin} loading={loading}>
-                  Log in
-                </Button>
-              </View>
+              <View className="absolute bottom-0 left-0 w-full px-4 mb-2"></View>
             </View>
           </>
         ) : (
           <>
-            <View className="flex flex-col h-full relative items-center justify-center w-full">
+            <View className="flex flex-col h-full items-center justify-center w-full">
               <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">
                 <Image
                   style={{
@@ -281,7 +294,8 @@ const Login: React.FC = () => {
                   Enter the URL to your Jellyfin server
                 </Text>
                 <Input
-                  placeholder="Server URL"
+                  aria-label="Server URL"
+                  placeholder="http(s)://your-server.com"
                   onChangeText={setServerURL}
                   value={serverURL}
                   keyboardType="url"
@@ -290,16 +304,7 @@ const Login: React.FC = () => {
                   textContentType="URL"
                   maxLength={500}
                 />
-                <Text className="text-xs text-neutral-500 ml-4">
-                  Make sure to include http or https
-                </Text>
-                <PreviousServersList
-                  onServerSelect={(s) => {
-                    handleConnect(s.address);
-                  }}
-                />
-              </View>
-              <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
+
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
@@ -308,6 +313,11 @@ const Login: React.FC = () => {
                 >
                   Connect
                 </Button>
+                <PreviousServersList
+                  onServerSelect={(s) => {
+                    handleConnect(s.address);
+                  }}
+                />
               </View>
             </View>
           </>
