@@ -4,9 +4,7 @@ title: "[Bug]: "
 labels:
   - ["❌ bug"]
 projects:
-  - ["fredrikburmester/5"]
-assignees:
-  - fredrikburmester
+  - ["streamyfin/3"]
 
 body:
   - type: textarea
