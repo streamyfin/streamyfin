@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useCallback, useRef } from "react";
 import { Platform } from "react-native";
 
-import { withLayoutContext } from "expo-router";
+import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
 
 import {
   createNativeBottomTabNavigator,
@@ -19,6 +19,8 @@ import type {
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSettings } from "@/utils/atoms/settings";
+import { useAtom, useAtomValue } from "jotai";
+import { storage } from "@/utils/mmkv";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -29,6 +31,26 @@ export const NativeTabs = withLayoutContext<
 
 export default function TabLayout() {
   const [settings] = useSettings();
+  const router = useRouter();
+  const hasNavigated = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const hasShownIntro = storage.getBoolean("hasShownIntro");
+      if (hasShownIntro === false && !hasNavigated.current) {
+        const timer = setTimeout(() => {
+          hasNavigated.current = true;
+          router.push("/intro/page");
+          storage.set("hasShownIntro", true);
+        }, 1000);
+
+        return () => {
+          clearTimeout(timer);
+        };
+      }
+    }, [])
+  );
+
   return (
     <>
       <SystemBars hidden={false} style="light" />
