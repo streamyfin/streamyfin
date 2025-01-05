@@ -7,8 +7,8 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
-import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useAtom } from "jotai";
 import React, { useCallback, useRef, useState } from "react";
 import { Alert, View, ViewProps } from "react-native";
@@ -24,6 +24,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const [user] = useAtom(userAtom);
   const [quickConnectCode, setQuickConnectCode] = useState<string>();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const successHapticFeedback = useHaptic("success");
+  const errorHapticFeedback = useHaptic("error");
 
   const { t } = useTranslation();
 
@@ -46,16 +48,16 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           userId: user?.Id,
         });
         if (res.status === 200) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          successHapticFeedback();
           Alert.alert(t("home.settings.quick_connect.success"), t("home.settings.quick_connect.quick_connect_autorized"));
           setQuickConnectCode(undefined);
           bottomSheetModalRef?.current?.close();
         } else {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          errorHapticFeedback();
           Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
         }
       } catch (e) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        errorHapticFeedback();
         Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
       }
     }

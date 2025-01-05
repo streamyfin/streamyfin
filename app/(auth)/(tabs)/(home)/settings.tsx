@@ -14,7 +14,7 @@ import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
-import * as Haptics from "expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
 import { useEffect } from "react";
@@ -25,10 +25,11 @@ export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { logout } = useJellyfin();
+  const successHapticFeedback = useHaptic("success");
 
   const onClearLogsClicked = async () => {
     clearLogs();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    successHapticFeedback();
   };
 
   const navigation = useNavigation();
