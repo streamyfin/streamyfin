@@ -315,7 +315,7 @@ export default function search() {
           paddingRight: insets.right,
         }}
       >
-        <View className="flex flex-col pt-2">
+        <View className="flex flex-col">
           {Platform.OS === "android" && (
             <View className="mb-4 px-4">
               <Input
