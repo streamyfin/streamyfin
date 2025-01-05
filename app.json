@@ -13,13 +13,18 @@
       "backgroundColor": "#2E2E2E"
     },
     "jsEngine": "hermes",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "requireFullScreen": true,
       "infoPlist": {
         "NSCameraUsageDescription": "The app needs access to your camera to scan barcodes.",
         "NSMicrophoneUsageDescription": "The app needs access to your microphone.",
-        "UIBackgroundModes": ["audio", "fetch"],
+        "UIBackgroundModes": [
+          "audio",
+          "fetch"
+        ],
         "NSLocalNetworkUsageDescription": "The app needs access to your local network to connect to your Jellyfin server.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -48,6 +53,7 @@
       ]
     },
     "plugins": [
+      "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
       "@config-plugins/ffmpeg-kit-react-native",
@@ -108,10 +114,18 @@
       "expo-asset",
       [
         "react-native-edge-to-edge",
-        { "android": { "parentTheme": "Material3" } }
+        {
+          "android": {
+            "parentTheme": "Material3"
+          }
+        }
       ],
-      ["react-native-bottom-tabs"],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"]
+      [
+        "react-native-bottom-tabs"
+      ],
+      [
+        "./plugins/withChangeNativeAndroidTextToWhite.js"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
