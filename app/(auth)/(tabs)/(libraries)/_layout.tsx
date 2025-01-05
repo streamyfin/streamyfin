@@ -20,7 +20,7 @@ export default function IndexLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: t("library.library_title"),
+          headerTitle: t("tabs.library"),
           headerBlurEffect: "prominent",
           headerLargeStyle: {
             backgroundColor: "black",
