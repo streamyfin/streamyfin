@@ -1,22 +1,33 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useLocalSearchParams, useNavigation} from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { Image } from "expo-image";
-import { TouchableOpacity, View} from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OverviewText } from "@/components/OverviewText";
 import { GenreTags } from "@/components/GenreTags";
-import {MediaRequestStatus, MediaStatus, MediaType} from "@/utils/jellyseerr/server/constants/media";
+import {
+  MediaRequestStatus,
+  MediaStatus,
+  MediaType,
+} from "@/utils/jellyseerr/server/constants/media";
 import { useQuery } from "@tanstack/react-query";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { Button } from "@/components/Button";
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
-  BottomSheetModal, BottomSheetTextInput,
+  BottomSheetModal,
+  BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import {
@@ -29,7 +40,7 @@ import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import DetailFacts from "@/components/jellyseerr/DetailFacts";
-import {ItemActions} from "@/components/series/SeriesActions";
+import { ItemActions } from "@/components/series/SeriesActions";
 import Cast from "@/components/jellyseerr/Cast";
 
 const Page: React.FC = () => {
@@ -59,7 +70,7 @@ const Page: React.FC = () => {
     data: details,
     isFetching,
     isLoading,
-    refetch
+    refetch,
   } = useQuery({
     enabled: !!jellyseerrApi && !!result && !!result.id,
     queryKey: ["jellyseerr", "detail", result.mediaType, result.id],
@@ -77,11 +88,17 @@ const Page: React.FC = () => {
   });
 
   const canRequest = useMemo(() => {
-    const pendingRequests = details?.mediaInfo?.requests
-      ?.some((r: MediaRequest) => r.status == MediaRequestStatus.PENDING || r.status == MediaRequestStatus.APPROVED)
+    const pendingRequests = details?.mediaInfo?.requests?.some(
+      (r: MediaRequest) =>
+        r.status == MediaRequestStatus.PENDING ||
+        r.status == MediaRequestStatus.APPROVED
+    );
 
-    return (details?.mediaInfo?.status === MediaStatus.UNKNOWN && !pendingRequests) ||
-      (!details?.mediaInfo?.status && canRequestString === "true");
+    return (
+      (details?.mediaInfo?.status === MediaStatus.UNKNOWN &&
+        !pendingRequests) ||
+      (!details?.mediaInfo?.status && canRequestString === "true")
+    );
   }, [canRequestString, details]);
 
   const renderBackdrop = useCallback(
@@ -107,32 +124,31 @@ const Page: React.FC = () => {
     }
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
-  const request = useCallback(
-    async () => {
-      requestMedia(mediaTitle, {
-          mediaId: Number(result.id!!),
-          mediaType: result.mediaType!!,
-          tvdbId: details?.externalIds?.tvdbId,
-          seasons: (details as TvDetails)?.seasons
-            ?.filter?.((s) => s.seasonNumber !== 0)
-            ?.map?.((s) => s.seasonNumber),
-        },
-        refetch
-      )
-    },
-    [details, result, requestMedia]
-  );
+  const request = useCallback(async () => {
+    requestMedia(
+      mediaTitle,
+      {
+        mediaId: Number(result.id!!),
+        mediaType: result.mediaType!!,
+        tvdbId: details?.externalIds?.tvdbId,
+        seasons: (details as TvDetails)?.seasons
+          ?.filter?.((s) => s.seasonNumber !== 0)
+          ?.map?.((s) => s.seasonNumber),
+      },
+      refetch
+    );
+  }, [details, result, requestMedia]);
 
   useEffect(() => {
     if (details) {
       navigation.setOptions({
-        headerRight: () =>
-        <TouchableOpacity className="rounded-full p-1.5 bg-neutral-800/80">
-          <ItemActions item={details} />
-        </TouchableOpacity>
+        headerRight: () => (
+          <TouchableOpacity className="rounded-full p-2 bg-neutral-800/80">
+            <ItemActions item={details} />
+          </TouchableOpacity>
+        ),
       });
     }
-
   }, [details]);
 
   return (
@@ -157,7 +173,10 @@ const Page: React.FC = () => {
                   height: "100%",
                 }}
                 source={{
-                  uri: jellyseerrApi?.imageProxy(result.backdropPath, 'w1920_and_h800_multi_faces'),
+                  uri: jellyseerrApi?.imageProxy(
+                    result.backdropPath,
+                    "w1920_and_h800_multi_faces"
+                  ),
                 }}
               />
             ) : (
@@ -241,10 +260,7 @@ const Page: React.FC = () => {
               className="p-2 border border-neutral-800 bg-neutral-900 rounded-xl"
               details={details}
             />
-            <Cast
-              className="px-4"
-              details={details}
-            />
+            <Cast className="px-4" details={details} />
           </View>
         </View>
       </ParallaxScrollView>
@@ -311,13 +327,11 @@ const Page: React.FC = () => {
                 </DropdownMenu.Root>
               </View>
 
-              <View
-                className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full"
-              >
+              <View className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full">
                 <BottomSheetTextInput
                   multiline
                   maxLength={254}
-                  style={{color: "white"}}
+                  style={{ color: "white" }}
                   clearButtonMode="always"
                   placeholder="(optional) Describe the issue..."
                   placeholderTextColor="#9CA3AF"
