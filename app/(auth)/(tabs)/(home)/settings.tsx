@@ -18,6 +18,7 @@ import { useNavigation, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { storage } from "@/utils/mmkv";
 
 export default function settings() {
   const router = useRouter();
@@ -66,6 +67,15 @@ export default function settings() {
         <DownloadSettings />
 
         <PluginSettings />
+
+        <ListGroup title={"Intro"}>
+          <ListItem
+            onPress={() => {
+              router.push("/intro/page");
+            }}
+            title={"Show intro"}
+          />
+        </ListGroup>
 
         <View className="mb-4">
           <ListGroup title={"Logs"}>
