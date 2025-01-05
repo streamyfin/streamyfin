@@ -337,14 +337,6 @@ function Layout() {
                               }}
                             />
                             <Stack.Screen
-                              name="(auth)/trailer/page"
-                              options={{
-                                headerShown: false,
-                                presentation: "modal",
-                                title: "",
-                              }}
-                            />
-                            <Stack.Screen
                               name="login"
                               options={{
                                 headerShown: true,
