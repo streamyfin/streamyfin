@@ -45,19 +45,19 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
       }}
       {...props}
     >
-      <Text className="font-bold">{t("item_card.playback_state")}</Text>
-      <Text className="font-bold mt-2.5">{t("item_card.audio_tracks")}</Text>
+      <Text className="font-bold">{t("player.playback_state")}</Text>
+      <Text className="font-bold mt-2.5">{t("player.audio_tracks")}</Text>
       {audioTracks &&
         audioTracks.map((track, index) => (
           <Text key={index}>
-            {track.name} ({t("item_card.index")} {track.index})
+            {track.name} ({t("player.index")} {track.index})
           </Text>
         ))}
-      <Text className="font-bold mt-2.5">{t("item_card.subtitles_tracks")}</Text>
+      <Text className="font-bold mt-2.5">{t("player.subtitles_tracks")}</Text>
       {subtitleTracks &&
         subtitleTracks.map((track, index) => (
           <Text key={index}>
-            {track.name} ({t("item_card.index")} {track.index})
+            {track.name} ({t("player.index")} {track.index})
           </Text>
         ))}
       <TouchableOpacity
@@ -69,7 +69,7 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
           }
         }}
       >
-        <Text className="text-white text-center">{t("item_card.refresh_tracks")}</Text>
+        <Text className="text-white text-center">{t("player.refresh_tracks")}</Text>
       </TouchableOpacity>
     </View>
   );
