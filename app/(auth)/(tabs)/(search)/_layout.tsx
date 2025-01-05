@@ -36,6 +36,7 @@ export default function SearchLayout() {
         }}
       />
       <Stack.Screen name="jellyseerr/page" options={commonScreenOptions} />
+      <Stack.Screen name="jellyseerr/[personId]" options={commonScreenOptions} />
     </Stack>
   );
 }

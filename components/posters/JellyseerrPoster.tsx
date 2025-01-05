@@ -20,10 +20,8 @@ const JellyseerrPoster: React.FC<Props> = ({
   const {jellyseerrUser, jellyseerrApi} = useJellyseerr();
   // const imageSource =
 
-  const imageSrc = useMemo(() =>
-      item.posterPath ?
-        `https://image.tmdb.org/t/p/w300_and_h450_face${item.posterPath}`
-        : jellyseerrApi?.axios?.defaults.baseURL + `/images/overseerr_poster_not_found_logo_top.png`,
+  const imageSrc = useMemo(
+    () => jellyseerrApi?.imageProxy(item.posterPath, 'w300_and_h450_face'),
     [item, jellyseerrApi]
   )
   const title = useMemo(() => item.mediaType === MediaType.MOVIE ? item.title : item.name, [item])
@@ -57,7 +55,7 @@ const JellyseerrPoster: React.FC<Props> = ({
       mediaTitle={title}
       releaseYear={releaseYear}
       canRequest={canRequest}
-      posterSrc={imageSrc}
+      posterSrc={imageSrc!!}
     >
       <View className="flex flex-col w-28 mr-2">
         <View className="relative rounded-lg overflow-hidden border border-neutral-900 w-28 aspect-[10/15]">

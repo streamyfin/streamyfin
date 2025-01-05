@@ -30,6 +30,7 @@ import { JellyserrRatings } from "@/components/Ratings";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import DetailFacts from "@/components/jellyseerr/DetailFacts";
 import {ItemActions} from "@/components/series/SeriesActions";
+import Cast from "@/components/jellyseerr/Cast";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -156,7 +157,7 @@ const Page: React.FC = () => {
                   height: "100%",
                 }}
                 source={{
-                  uri: `https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/${result.backdropPath}`,
+                  uri: jellyseerrApi?.imageProxy(result.backdropPath, 'w1920_and_h800_multi_faces'),
                 }}
               />
             ) : (
@@ -238,6 +239,10 @@ const Page: React.FC = () => {
             )}
             <DetailFacts
               className="p-2 border border-neutral-800 bg-neutral-900 rounded-xl"
+              details={details}
+            />
+            <Cast
+              className="px-4"
               details={details}
             />
           </View>
