@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 const HOUR_HEIGHT = 30;
 const ITEMS_PER_PAGE = 20;
@@ -177,6 +178,7 @@ const PageButtons: React.FC<PageButtonsProps> = ({
   onNextPage,
   isNextDisabled,
 }) => {
+  const { t } = useTranslation();
   return (
     <View className="flex flex-row justify-between items-center bg-neutral-800 w-full px-4 py-2">
       <TouchableOpacity
@@ -194,7 +196,7 @@ const PageButtons: React.FC<PageButtonsProps> = ({
             currentPage === 1 ? "text-gray-500" : "text-white"
           }`}
         >
-          Previous
+          {t("live_tv.previous")}
         </Text>
       </TouchableOpacity>
       <Text className="text-white">Page {currentPage}</Text>
@@ -206,7 +208,7 @@ const PageButtons: React.FC<PageButtonsProps> = ({
         <Text
           className={`mr-1 ${isNextDisabled ? "text-gray-500" : "text-white"}`}
         >
-          Next
+          {t("live_tv.next")}
         </Text>
         <Ionicons
           name="chevron-forward"

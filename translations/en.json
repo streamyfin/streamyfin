@@ -242,7 +242,7 @@
       "show_titles": "Show titles",
       "show_stats": "Show stats"
     },
-    "headers": {
+    "filters": {
       "genres": "Genres",
       "years": "Years",
       "sort_by": "Sort By",
@@ -272,7 +272,13 @@
     "message_from_server": "Message from server: {{message}}",
     "video_has_finished_playing": "Video has finished playing!",
     "no_video_source": "No video source...",
-    "next_episode": "Next Episode"
+    "next_episode": "Next Episode",
+    "refresh_tracks": "Refresh Tracks",
+    "subtitle_tracks": "Subtitle Tracks:",
+    "audio_tracks": "Audio Tracks:",
+    "playback_state": "Playback State:",
+    "no_data_available": "No data available",
+    "index": "Index:"
   },
   "item_card": {
     "next_up": "Next up",
@@ -298,12 +304,6 @@
     "x_albums": "{{count}} albums",
     "artists": "Artists",
     "could_not_load_item": "Could not load item",
-    "refresh_tracks": "Refresh Tracks",
-    "subtitle_tracks": "Subtitle Tracks:",
-    "audio_tracks": "Audio Tracks:",
-    "playback_state": "Playback State:",
-    "no_data_available": "No data available",
-    "index": "Index:",
     "download": {
       "download_season": "Download Season",
       "download_x_item": "Download {{item_count}} items",
@@ -311,6 +311,18 @@
       "using_optimized_server": "Using optimized server",
       "using_default_method": "Using default method"
     }
+  },
+  "live_tv": {
+    "next": "Next",
+    "previous": "Previous",
+    "live_tv": "Live TV",
+    "coming_soon": "Coming soon",
+    "on_now": "On now",
+    "shows": "Shows",
+    "movies": "Movies",
+    "sports": "Sports",
+    "for_kids": "For Kids",
+    "news": "News"
   },
   "jellyseerr":{
     "confirm": "Confirm",

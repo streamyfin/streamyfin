@@ -24,7 +24,6 @@
     "clear_button": "Effacer"
   },
   "home": {
-    "home": "Accueil",
     "no_internet": "Pas d'Internet",
     "no_items": "Aucun item",
     "no_internet_message": "Aucun problème, vous pouvez toujours regarder\nle contenu téléchargé.",
@@ -243,7 +242,7 @@
       "show_titles": "Afficher les titres",
       "show_stats": "Afficher les statistiques"
     },
-    "headers": {
+    "filters": {
       "genres": "Genres",
       "years": "Années",
       "sort_by": "Trier par",
@@ -273,7 +272,13 @@
     "message_from_server": "Message du serveur: {{message}}",
     "video_has_finished_playing": "La vidéo a fini de jouer!",
     "no_video_source": "Aucune source vidéo...",
-    "next_episode": "Épisode suivant"
+    "next_episode": "Épisode suivant",
+    "refresh_tracks": "Rafraîchir les pistes",
+    "subtitle_tracks": "Pistes de sous-titres:",
+    "audio_tracks": "Pistes audio:",
+    "playback_state": "État de lecture:",
+    "no_data_available": "Aucune donnée disponible",
+    "index": "Index:"
   },
   "item_card": {
     "next_up": "À suivre",
@@ -299,12 +304,6 @@
     "x_albums": "{{count}} albums",
     "artists": "Artistes",
     "could_not_load_item": "Impossible de charger l'item",
-    "refresh_tracks": "Rafraîchir les pistes",
-    "subtitle_tracks": "Pistes de sous-titres:",
-    "audio_tracks": "Pistes audio:",
-    "playback_state": "État de lecture:",
-    "no_data_available": "Aucune donnée disponible",
-    "index": "Index:",
     "download": {
       "download_season": "Télécharger la saison",
       "download_x_item": "Télécharger {{item_count}} items",
@@ -312,6 +311,18 @@
       "using_optimized_server": "Avec le serveur de versions optimisées",
       "using_default_method": "Avec la méthode par défaut"
     } 
+  },
+  "live_tv": {
+    "next": "Suivant",
+    "previous": "Précédent",
+    "live_tv": "TV en direct",
+    "coming_soon": "Bientôt",
+    "on_now": "En ce moment",
+    "shows": "Émissions",
+    "movies": "Films",
+    "sports": "Sports",
+    "for_kids": "Pour enfants",
+    "news": "Actualités"
   },
   "jellyseerr":{
     "confirm": "Confirmer",

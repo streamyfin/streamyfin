@@ -303,7 +303,7 @@ const Page = () => {
                   }}
                   set={setSelectedGenres}
                   values={selectedGenres}
-                  title={t("library.headers.genres")}
+                  title={t("library.filters.genres")}
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -330,7 +330,7 @@ const Page = () => {
                   }}
                   set={setSelectedYears}
                   values={selectedYears}
-                  title={t("library.headers.years")}
+                  title={t("library.filters.years")}
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) => item.includes(search)}
                 />
@@ -355,7 +355,7 @@ const Page = () => {
                   }}
                   set={setSelectedTags}
                   values={selectedTags}
-                  title={t("library.headers.tags")}
+                  title={t("library.filters.tags")}
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -373,7 +373,7 @@ const Page = () => {
                   queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
                   values={sortBy}
-                  title={t("library.headers.sort_by")}
+                  title={t("library.filters.sort_by")}
                   renderItemLabel={(item) =>
                     sortOptions.find((i) => i.key === item)?.value || ""
                   }
@@ -393,7 +393,7 @@ const Page = () => {
                   queryFn={async () => sortOrderOptions.map((s) => s.key)}
                   set={setSortOrder}
                   values={sortOrder}
-                  title={t("library.headers.sort_order")}
+                  title={t("library.filters.sort_order")}
                   renderItemLabel={(item) =>
                     sortOrderOptions.find((i) => i.key === item)?.value || ""
                   }
