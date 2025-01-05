@@ -1,53 +1,47 @@
-import {View, ViewProps} from "react-native";
-import {Image} from "expo-image";
-import {Text} from "@/components/common/Text";
-import {useMemo} from "react";
-import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
-import {MediaStatus, MediaType} from "@/utils/jellyseerr/server/constants/media";
-import {useJellyseerr} from "@/hooks/useJellyseerr";
-import {hasPermission, Permission} from "@/utils/jellyseerr/server/lib/permissions";
-import {TouchableJellyseerrRouter} from "@/components/common/JellyseerrItemRouter";
+import { View, ViewProps } from "react-native";
+import { Image } from "expo-image";
+import { Text } from "@/components/common/Text";
+import { useMemo } from "react";
+import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import {
+  MediaStatus,
+  MediaType,
+} from "@/utils/jellyseerr/server/constants/media";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  hasPermission,
+  Permission,
+} from "@/utils/jellyseerr/server/lib/permissions";
+import { TouchableJellyseerrRouter } from "@/components/common/JellyseerrItemRouter";
 import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
 import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
+import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
 interface Props extends ViewProps {
   item: MovieResult | TvResult;
 }
 
-const JellyseerrPoster: React.FC<Props> = ({
-  item,
-  ...props
-}) => {
-  const {jellyseerrUser, jellyseerrApi} = useJellyseerr();
-  // const imageSource =
+const JellyseerrPoster: React.FC<Props> = ({ item, ...props }) => {
+  const { jellyseerrApi } = useJellyseerr();
 
   const imageSrc = useMemo(
-    () => jellyseerrApi?.imageProxy(item.posterPath, 'w300_and_h450_face'),
+    () => jellyseerrApi?.imageProxy(item.posterPath, "w300_and_h450_face"),
     [item, jellyseerrApi]
-  )
-  const title = useMemo(() => item.mediaType === MediaType.MOVIE ? item.title : item.name, [item])
-  const releaseYear = useMemo(() =>
-    new Date(item.mediaType === MediaType.MOVIE ? item.releaseDate : item.firstAirDate).getFullYear(),
+  );
+  const title = useMemo(
+    () => (item.mediaType === MediaType.MOVIE ? item.title : item.name),
     [item]
-  )
+  );
+  const releaseYear = useMemo(
+    () =>
+      new Date(
+        item.mediaType === MediaType.MOVIE
+          ? item.releaseDate
+          : item.firstAirDate
+      ).getFullYear(),
+    [item]
+  );
 
-  const showRequestButton = useMemo(() =>
-    jellyseerrUser && hasPermission(
-      [
-        Permission.REQUEST,
-        item.mediaType === 'movie'
-          ? Permission.REQUEST_MOVIE
-          : Permission.REQUEST_TV,
-      ],
-      jellyseerrUser.permissions,
-      {type: 'or'}
-    ),
-    [item, jellyseerrUser]
-  )
-
-  const canRequest = useMemo(() => {
-    const status = item?.mediaInfo?.status
-    return showRequestButton && !status || status === MediaStatus.UNKNOWN
-  }, [item])
+  const canRequest = useJellyseerrCanRequest(item);
 
   return (
     <TouchableJellyseerrRouter
@@ -62,7 +56,7 @@ const JellyseerrPoster: React.FC<Props> = ({
           <Image
             key={item.id}
             id={item.id.toString()}
-            source={{uri: imageSrc}}
+            source={{ uri: imageSrc }}
             cachePolicy={"memory-disk"}
             contentFit="cover"
             style={{
@@ -87,8 +81,7 @@ const JellyseerrPoster: React.FC<Props> = ({
         </View>
       </View>
     </TouchableJellyseerrRouter>
-  )
-}
-
+  );
+};
 
 export default JellyseerrPoster;

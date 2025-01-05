@@ -30,8 +30,9 @@ import { writeErrorLog } from "@/utils/log";
 import DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 import {
   CombinedCredit,
-  PersonDetails
+  PersonDetails,
 } from "@/utils/jellyseerr/server/models/Person";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface SearchParams {
   query: string;
@@ -220,7 +221,12 @@ export class JellyseerrApi {
 
   async personCombinedCredits(id: number | string): Promise<CombinedCredit> {
     return this.axios
-      ?.get<CombinedCredit>(Endpoints.API_V1 + Endpoints.PERSON + `/${id}` + Endpoints.COMBINED_CREDITS)
+      ?.get<CombinedCredit>(
+        Endpoints.API_V1 +
+          Endpoints.PERSON +
+          `/${id}` +
+          Endpoints.COMBINED_CREDITS
+      )
       .then((response) => {
         return response?.data;
       });
@@ -260,15 +266,20 @@ export class JellyseerrApi {
       });
   }
 
-  imageProxy(path?: string, tmdbPath: string = 'original', width: number = 1920, quality: number = 75) {
-    return path ? (
-        this.axios.defaults.baseURL +
-        `/_next/image?` +
-        new URLSearchParams(
-          `url=https://image.tmdb.org/t/p/${tmdbPath}/${path}&w=${width}&q=${quality}`
-        ).toString()
-      ) :
-      this.axios?.defaults.baseURL + `/images/overseerr_poster_not_found_logo_top.png`;
+  imageProxy(
+    path?: string,
+    tmdbPath: string = "original",
+    width: number = 1920,
+    quality: number = 75
+  ) {
+    return path
+      ? this.axios.defaults.baseURL +
+          `/_next/image?` +
+          new URLSearchParams(
+            `url=https://image.tmdb.org/t/p/${tmdbPath}/${path}&w=${width}&q=${quality}`
+          ).toString()
+      : this.axios?.defaults.baseURL +
+          `/images/overseerr_poster_not_found_logo_top.png`;
   }
 
   async submitIssue(mediaId: number, issueType: IssueType, message: string) {
@@ -344,6 +355,7 @@ const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 export const useJellyseerr = () => {
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
   const [settings, updateSettings] = useSettings();
+  const queryClient = useQueryClient();
 
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
@@ -361,12 +373,16 @@ export const useJellyseerr = () => {
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
-      jellyseerrApi?.request?.(request)?.then((mediaRequest) => {
+      jellyseerrApi?.request?.(request)?.then(async (mediaRequest) => {
+        await queryClient.invalidateQueries({
+          queryKey: ["search", "jellyseerr"],
+        });
+
         switch (mediaRequest.status) {
           case MediaRequestStatus.PENDING:
           case MediaRequestStatus.APPROVED:
             toast.success(`Requested ${title}!`);
-            onSuccess?.()
+            onSuccess?.();
             break;
           case MediaRequestStatus.DECLINED:
             toast.error(`You don't have permission to request!`);
