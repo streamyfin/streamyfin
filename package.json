@@ -6,9 +6,13 @@
     "submodule-reload": "git submodule update --init --remote --recursive",
     "start": "bun run submodule-reload && expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "bun run submodule-reload && expo run:android",
     "ios": "bun run submodule-reload && expo run:ios",
+    "tvos": "EXPO_TV=1 expo run:ios",
+    "android": "bun run submodule-reload && expo run:android",
+    "androidtv": "EXPO_TV=1 expo run:android",
     "web": "bun run submodule-reload && expo start --web",
+    "prebuild": "expo prebuild --clean",
+    "prebuild-tv": "EXPO_TV=1 expo prebuild --clean",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "postinstall": "patch-package"
@@ -70,7 +74,7 @@
     "nativewind": "^2.0.11",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-native": "0.74.5",
+    "react-native": "npm:react-native-tvos@0.74.5-0",
     "react-native-awesome-slider": "^2.5.6",
     "react-native-bottom-tabs": "0.7.1",
     "react-native-circular-progress": "^1.4.1",
@@ -108,6 +112,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@react-native-tvos/config-tv": "^0.1.1",
     "@babel/core": "^7.26.0",
     "@types/jest": "^29.5.14",
     "@types/react": "~18.2.79",
@@ -119,5 +124,12 @@
     "react-test-renderer": "18.2.0",
     "typescript": "~5.3.3"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native"
+      ]
+    }
+  }
 }

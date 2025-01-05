@@ -1,12 +1,14 @@
+import { Platform } from "react-native";
 import { FlatList, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useCallback, useEffect, useState } from "react";
 import { useAtom } from "jotai/index";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { ListItem } from "@/components/list/ListItem";
-import * as WebBrowser from "expo-web-browser";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Text } from "@/components/common/Text";
+
+const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
 
 export interface MenuLink {
   name: string;
@@ -50,7 +52,13 @@ export default function menuLinks() {
       }}
       data={menuLinks}
       renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(item.url)}>
+        <TouchableOpacity
+          onPress={() => {
+            if (!Platform.isTV) {
+              WebBrowser.openBrowserAsync(item.url);
+            }
+          }}
+        >
           <ListItem
             title={item.name}
             iconAfter={<Ionicons name="link" size={24} color="white" />}
