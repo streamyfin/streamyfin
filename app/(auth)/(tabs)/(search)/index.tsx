@@ -31,13 +31,18 @@ import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import {MovieResult, PersonResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
+import {
+  MovieResult,
+  PersonResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Tag } from "@/components/GenreTags";
 import DiscoverSlide from "@/components/jellyseerr/DiscoverSlide";
 import { sortBy } from "lodash";
 import PersonPoster from "@/components/jellyseerr/PersonPoster";
+import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
 
 type SearchType = "Library" | "Discover";
 
@@ -150,8 +155,8 @@ export default function search() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: jellyseerrResults, isFetching: j1 } = useQuery({
-    queryKey: ["search", "jellyseerrResults", debouncedSearch],
+  const { data: jellyseerrResults, isFetching: j1 } = useReactNavigationQuery({
+    queryKey: ["search", "jellyseerr", "results", debouncedSearch],
     queryFn: async () => {
       const response = await jellyseerrApi?.search({
         query: new URLSearchParams(debouncedSearch).toString(),
@@ -167,14 +172,15 @@ export default function search() {
       debouncedSearch.length > 0,
   });
 
-  const { data: jellyseerrDiscoverSettings, isFetching: j2 } = useQuery({
-    queryKey: ["search", "jellyseerrDiscoverSettings", debouncedSearch],
-    queryFn: async () => jellyseerrApi?.discoverSettings(),
-    enabled:
-      !!jellyseerrApi &&
-      searchType === "Discover" &&
-      debouncedSearch.length == 0,
-  });
+  const { data: jellyseerrDiscoverSettings, isFetching: j2 } =
+    useReactNavigationQuery({
+      queryKey: ["search", "jellyseerr", "discoverSettings", debouncedSearch],
+      queryFn: async () => jellyseerrApi?.discoverSettings(),
+      enabled:
+        !!jellyseerrApi &&
+        searchType === "Discover" &&
+        debouncedSearch.length == 0,
+    });
 
   const jellyseerrMovieResults: MovieResult[] | undefined = useMemo(
     () =>
