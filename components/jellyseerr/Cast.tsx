@@ -13,7 +13,7 @@ const CastSlide: React.FC<
     details?.credits?.cast?.length &&
     details?.credits?.cast?.length > 0 && (
       <View {...props}>
-        <Text className="text-lg font-bold mb-2">Cast</Text>
+        <Text className="text-lg font-bold mb-2 px-4">Cast</Text>
         <FlashList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -21,6 +21,7 @@ const CastSlide: React.FC<
           ItemSeparatorComponent={() => <View className="w-2" />}
           estimatedItemSize={15}
           keyExtractor={(item) => item?.id?.toString()}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
           renderItem={({ item }) => (
             <PersonPoster
               id={item.id.toString()}
