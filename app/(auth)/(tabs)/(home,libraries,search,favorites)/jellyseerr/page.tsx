@@ -28,6 +28,7 @@ import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
+import DetailFacts from "@/components/jellyseerr/DetailFacts";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -221,6 +222,10 @@ const Page: React.FC = () => {
                 refetch={refetch}
               />
             )}
+            <DetailFacts
+              className="p-2 border border-neutral-800 bg-neutral-900 rounded-xl"
+              details={details}
+            />
           </View>
         </View>
       </ParallaxScrollView>
