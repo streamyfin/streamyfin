@@ -246,7 +246,7 @@ const Page: React.FC = () => {
               className="p-2 border border-neutral-800 bg-neutral-900 rounded-xl"
               details={details}
             />
-            <Cast className="px-4" details={details} />
+            <Cast details={details} />
           </View>
         </View>
       </ParallaxScrollView>
