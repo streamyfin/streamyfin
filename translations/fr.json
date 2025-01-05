@@ -1,6 +1,6 @@
 {
   "login": {
-    "username_required": "Le nom d'utilisateur est requis",
+    "username_required": "Nom d'utilisateur requis",
     "error_title": "Erreur",
     "login_title": "Se connecter",
     "login_to_title": "Se connecter à",
