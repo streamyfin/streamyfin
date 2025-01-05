@@ -53,7 +53,8 @@ export default function page() {
         ))}
       </ListGroup>
       <Text className="px-4 text-xs text-neutral-500 mt-1">
-        Select the libraries you want to hide from the Library tab.
+        Select the libraries you want to hide from the Library tab and home page
+        sections.
       </Text>
     </View>
   );

@@ -116,7 +116,7 @@ export default function index() {
   }, []);
 
   const {
-    data: userViews,
+    data,
     isError: e1,
     isLoading: l1,
   } = useQuery({
@@ -135,6 +135,11 @@ export default function index() {
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
   });
+
+  const userViews = useMemo(
+    () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
+    [data, settings?.hiddenLibraries]
+  );
 
   const {
     data: mediaListCollections,
