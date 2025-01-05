@@ -3,15 +3,22 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
+import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
+import {TvDetails} from "@/utils/jellyseerr/server/models/Tv";
 
 interface Props extends ViewProps {
-  item: BaseItemDto;
+  item: BaseItemDto | MovieDetails | TvDetails;
 }
 
 export const ItemActions = ({ item, ...props }: Props) => {
   const router = useRouter();
 
-  const trailerLink = useMemo(() => item.RemoteTrailers?.[0]?.Url, [item]);
+  const trailerLink = useMemo(() => {
+    const url = (item as BaseItemDto).RemoteTrailers?.[0]?.Url
+    if (url)
+      return url
+    return (item as MovieDetails | TvDetails)?.relatedVideos?.find(v => v.type === "Trailer")?.url
+  }, [item]);
 
   const openTrailer = useCallback(async () => {
     if (!trailerLink) return;

@@ -1,5 +1,5 @@
-import React, {useCallback, useMemo, useRef, useState} from "react";
-import { useLocalSearchParams } from "expo-router";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useLocalSearchParams, useNavigation} from "expo-router";
 import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
@@ -29,6 +29,7 @@ import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import DetailFacts from "@/components/jellyseerr/DetailFacts";
+import {ItemActions} from "@/components/series/SeriesActions";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -46,6 +47,7 @@ const Page: React.FC = () => {
     posterSrc: string;
   } & Partial<MovieResult | TvResult>;
 
+  const navigation = useNavigation();
   const { jellyseerrApi, requestMedia } = useJellyseerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
@@ -119,6 +121,18 @@ const Page: React.FC = () => {
     },
     [details, result, requestMedia]
   );
+
+  useEffect(() => {
+    if (details) {
+      navigation.setOptions({
+        headerRight: () =>
+        <TouchableOpacity className="rounded-full p-1.5 bg-neutral-800/80">
+          <ItemActions item={details} />
+        </TouchableOpacity>
+      });
+    }
+
+  }, [details]);
 
   return (
     <View
