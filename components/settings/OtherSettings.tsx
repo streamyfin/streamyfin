@@ -6,6 +6,7 @@ import {
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
 import * as BackgroundFetch from "expo-background-fetch";
+import { useRouter } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import React, { useEffect } from "react";
@@ -15,7 +16,6 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { useRouter } from "expo-router";
 
 interface Props extends ViewProps {}
 
