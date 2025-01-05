@@ -42,22 +42,18 @@ import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import DetailFacts from "@/components/jellyseerr/DetailFacts";
 import { ItemActions } from "@/components/series/SeriesActions";
 import Cast from "@/components/jellyseerr/Cast";
+import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const {
-    mediaTitle,
-    releaseYear,
-    canRequest: canRequestString,
-    posterSrc,
-    ...result
-  } = params as unknown as {
-    mediaTitle: string;
-    releaseYear: number;
-    canRequest: string;
-    posterSrc: string;
-  } & Partial<MovieResult | TvResult>;
+  const { mediaTitle, releaseYear, posterSrc, ...result } =
+    params as unknown as {
+      mediaTitle: string;
+      releaseYear: number;
+      canRequest: string;
+      posterSrc: string;
+    } & Partial<MovieResult | TvResult>;
 
   const navigation = useNavigation();
   const { jellyseerrApi, requestMedia } = useJellyseerr();
@@ -87,19 +83,7 @@ const Page: React.FC = () => {
     },
   });
 
-  const canRequest = useMemo(() => {
-    const pendingRequests = details?.mediaInfo?.requests?.some(
-      (r: MediaRequest) =>
-        r.status == MediaRequestStatus.PENDING ||
-        r.status == MediaRequestStatus.APPROVED
-    );
-
-    return (
-      (details?.mediaInfo?.status === MediaStatus.UNKNOWN &&
-        !pendingRequests) ||
-      (!details?.mediaInfo?.status && canRequestString === "true")
-    );
-  }, [canRequestString, details]);
+  const canRequest = useJellyseerrCanRequest(details);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -225,7 +209,9 @@ const Page: React.FC = () => {
               <View className="mb-4">
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
-              {canRequest ? (
+              {isLoading || isFetching ? (
+                <Button loading={true} disabled={true} color="purple"></Button>
+              ) : canRequest ? (
                 <Button color="purple" onPress={request}>
                   Request
                 </Button>
@@ -260,7 +246,7 @@ const Page: React.FC = () => {
               className="p-2 border border-neutral-800 bg-neutral-900 rounded-xl"
               details={details}
             />
-            <Cast className="px-4" details={details} />
+            <Cast details={details} />
           </View>
         </View>
       </ParallaxScrollView>
