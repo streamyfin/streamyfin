@@ -61,7 +61,9 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       {...props}
     >
       {loading ? (
-        <Loader />
+        <View className="p-0.5">
+          <Loader />
+        </View>
       ) : (
         <View
           className={`
