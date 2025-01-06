@@ -1,7 +1,7 @@
 import { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import * as DropdownMenu from "@/components/DropdownMenu";
 import { Text } from "./common/Text";
 
 interface Props extends React.ComponentProps<typeof View> {

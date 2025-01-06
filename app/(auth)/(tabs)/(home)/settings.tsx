@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -13,7 +14,8 @@ import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
-import * as Haptics from "expo-haptics";
+// const Haptics = !Platform.isTV ? require("expo-haptics") : null;
+import * as Haptics from "@/packages/expo-haptics";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
@@ -26,7 +28,9 @@ export default function settings() {
 
   const onClearLogsClicked = async () => {
     clearLogs();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!Platform.isTV) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   };
 
   const navigation = useNavigation();

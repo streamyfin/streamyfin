@@ -2,7 +2,7 @@ import { tc } from "@/utils/textTools";
 import { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import * as DropdownMenu from "@/components/DropdownMenu";
 import { Text } from "./common/Text";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
 

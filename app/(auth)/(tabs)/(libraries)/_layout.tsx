@@ -3,7 +3,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import * as DropdownMenu from "@/components/DropdownMenu";
 
 export default function IndexLayout() {
   const [settings, updateSettings] = useSettings();

@@ -1,5 +1,5 @@
 import { TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import * as DropdownMenu from "@/components/DropdownMenu";
 import { Text } from "./common/Text";
 import { useMemo } from "react";
 

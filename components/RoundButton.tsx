@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from "react-native";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 
 interface Props extends TouchableOpacityProps {
   onPress?: () => void;

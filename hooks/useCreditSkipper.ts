@@ -5,7 +5,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
 import { msToSeconds, secondsToMs } from "@/utils/time";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 
 interface CreditTimestamps {
   Introduction: {

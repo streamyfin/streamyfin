@@ -32,7 +32,7 @@ import Animated, {
 import { Button } from "./Button";
 import { SelectedOptions } from "./ItemContent";
 import { chromecastProfile } from "@/utils/profiles/chromecast";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;

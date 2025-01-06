@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Platform } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Slider } from "react-native-awesome-slider";
-import { VolumeManager } from "react-native-volume-manager";
+// import { VolumeManager } from "react-native-volume-manager";
+const VolumeManager = !Platform.isTV
+  ? require("react-native-volume-manager")
+  : null;
 import { Ionicons } from "@expo/vector-icons";
 
 interface AudioSliderProps {
@@ -10,6 +13,8 @@ interface AudioSliderProps {
 }
 
 const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
+  if (Platform.isTV) return;
+
   const volume = useSharedValue<number>(50); // Explicitly type as number
   const min = useSharedValue<number>(0); // Explicitly type as number
   const max = useSharedValue<number>(100); // Explicitly type as number

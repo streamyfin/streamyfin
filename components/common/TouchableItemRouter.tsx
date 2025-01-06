@@ -6,7 +6,7 @@ import {
 import { useRouter, useSegments } from "expo-router";
 import { PropsWithChildren } from "react";
 import { TouchableOpacity, TouchableOpacityProps } from "react-native";
-import * as ContextMenu from "zeego/context-menu";
+import * as ContextMenu from "@/components/ContextMenu";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
