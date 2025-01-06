@@ -1,5 +1,3 @@
-// export { Orientation, OrientationLock } from "expo-screen-orientation";
-console.log("NOT");
 export enum Orientation {
   /**
    * An unknown screen orientation. For example, the device is flat, perhaps on a table.
