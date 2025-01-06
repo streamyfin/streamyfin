@@ -12,7 +12,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useMemo } from "react";
 import { Platform } from "react-native";
 // import { getColors } from "react-native-image-colors";
-const getColors = !Platform.isTV ? require("react-native-image-colors") : null;
+const Colors = !Platform.isTV ? require("react-native-image-colors") : null;
 
 /**
  * Custom hook to extract and manage image colors for a given item.
@@ -66,7 +66,7 @@ export const useImageColors = ({
       }
 
       // Extract colors from the image
-      getColors(source.uri, {
+      Colors.getColors(source.uri, {
         fallback: "#fff",
         cache: false,
       })

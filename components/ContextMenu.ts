@@ -1,1 +1,1 @@
-export * as ContextMenu from "zeego/context-menu";
+export * from "zeego/context-menu";
