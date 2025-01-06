@@ -1,11 +1,11 @@
 #!/bin/bash
 [[ -z $(git status --porcelain) ]] &&
-git checkout main &&
+git checkout master &&
 git pull --ff-only &&
 git checkout develop &&
-git merge main &&
+git merge master &&
 git push --follow-tags &&
-git checkout main &&
+git checkout master &&
 git merge develop --ff-only &&
 git push &&
 git checkout develop ||
