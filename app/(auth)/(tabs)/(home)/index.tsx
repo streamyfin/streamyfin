@@ -69,9 +69,9 @@ export default function index() {
 
   const insets = useSafeAreaInsets();
 
-  if (!Platform.isTV) {
-    const { downloadedFiles, cleanCacheDirectory } = useDownload();
+  const { downloadedFiles, cleanCacheDirectory } = useDownload();
 
+  if (!Platform.isTV) {
     useEffect(() => {
       const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
       navigation.setOptions({
@@ -91,6 +91,12 @@ export default function index() {
         ),
       });
     }, [downloadedFiles, navigation, router]);
+
+    useEffect(() => {
+      cleanCacheDirectory().catch((e) =>
+        console.error("Something went wrong cleaning cache directory")
+      );
+    }, []);
   }
 
   const checkConnection = useCallback(async () => {
@@ -111,11 +117,6 @@ export default function index() {
       setIsConnected(state.isConnected);
     });
 
-    if (!Platform.isTV) {
-      cleanCacheDirectory().catch((e) =>
-        console.error("Something went wrong cleaning cache directory")
-      );
-    }
     return () => {
       unsubscribe();
     };
