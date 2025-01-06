@@ -2,14 +2,17 @@ import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { Tag } from "@/components/GenreTags";
 import { ItemCardText } from "@/components/ItemCardText";
-import { Loader } from "@/components/Loader";
+import { JellyserrIndexPage } from "@/components/jellyseerr/JellyseerrIndexPage";
 import AlbumCover from "@/components/posters/AlbumCover";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
+import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
+import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import {
   BaseItemDto,
   BaseItemKind,
@@ -20,7 +23,6 @@ import axios from "axios";
 import { Href, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, {
-  PropsWithChildren,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -30,22 +32,6 @@ import React, {
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  MovieResult,
-  PersonResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import { Tag } from "@/components/GenreTags";
-import DiscoverSlide from "@/components/jellyseerr/DiscoverSlide";
-import { sortBy } from "lodash";
-import PersonPoster from "@/components/jellyseerr/PersonPoster";
-import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
-import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
-import { JellyserrIndexPage } from "@/components/jellyseerr/JellyseerrIndexPage";
-import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 
 type SearchType = "Library" | "Discover";
 
@@ -423,9 +409,7 @@ export default function search() {
               />
             </View>
           ) : (
-            <>
-              <JellyserrIndexPage searchQuery={debouncedSearch} />
-            </>
+            <JellyserrIndexPage searchQuery={debouncedSearch} />
           )}
 
           {searchType === "Library" && (
