@@ -1,3 +1,4 @@
+import Discover from "@/components/jellyseerr/discover/Discover";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import {
@@ -19,7 +20,6 @@ import JellyseerrPoster from "../posters/JellyseerrPoster";
 import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
-import Discover from "@/components/jellyseerr/discover/Discover";
 
 interface Props extends ViewProps {
   searchQuery: string;
