@@ -1,28 +1,19 @@
-import { View, ViewProps } from "react-native";
-import { Image } from "expo-image";
-import { Text } from "@/components/common/Text";
-import { useMemo, useRef, useState } from "react";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
-import {
-  MediaStatus,
-  MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  hasPermission,
-  Permission,
-} from "@/utils/jellyseerr/server/lib/permissions";
 import { TouchableJellyseerrRouter } from "@/components/common/JellyseerrItemRouter";
-import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
+import { Text } from "@/components/common/Text";
 import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
+import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import { Image } from "expo-image";
+import { useMemo } from "react";
+import { View, ViewProps } from "react-native";
 import Animated, {
-  FadeIn,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
 
 interface Props extends ViewProps {
   item: MovieResult | TvResult;
