@@ -33,6 +33,7 @@ import {
   PersonDetails,
 } from "@/utils/jellyseerr/server/models/Person";
 import { useQueryClient } from "@tanstack/react-query";
+import {GenreSliderItem} from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
 
 interface SearchParams {
   query: string;
@@ -67,14 +68,20 @@ export enum Endpoints {
   ISSUE = "/issue",
   TV = "/tv",
   SETTINGS = "/settings",
+  NETWORK = "/network",
+  STUDIO = "/studio",
+  GENRE_SLIDER = "/genreslider",
   DISCOVER = "/discover",
   DISCOVER_TRENDING = DISCOVER + "/trending",
   DISCOVER_MOVIES = DISCOVER + "/movies",
   DISCOVER_TV = DISCOVER + TV,
+  DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
+  DISCOVER_MOVIES_STUDIO = DISCOVER + `${MOVIE}s` + STUDIO,
   AUTH_JELLYFIN = "/auth/jellyfin",
 }
 
 export type DiscoverEndpoint =
+  | Endpoints.DISCOVER_TV_NETWORK
   | Endpoints.DISCOVER_TRENDING
   | Endpoints.DISCOVER_MOVIES
   | Endpoints.DISCOVER_TV;
@@ -181,11 +188,20 @@ export class JellyseerrApi {
   }
 
   async discover(
-    endpoint: DiscoverEndpoint,
+    endpoint: DiscoverEndpoint | string,
     params: any
   ): Promise<SearchResults> {
     return this.axios
       ?.get<SearchResults>(Endpoints.API_V1 + endpoint, { params })
+      .then(({ data }) => data);
+  }
+
+  async getGenreSliders(
+    endpoint: Endpoints.TV | Endpoints.MOVIE,
+    params: any = undefined
+  ): Promise<GenreSliderItem[]> {
+    return this.axios
+      ?.get<GenreSliderItem[]>(Endpoints.API_V1 + Endpoints.DISCOVER + Endpoints.GENRE_SLIDER + endpoint, { params })
       .then(({ data }) => data);
   }
 
@@ -268,7 +284,7 @@ export class JellyseerrApi {
 
   imageProxy(
     path?: string,
-    tmdbPath: string = "original",
+    filter: string = "original",
     width: number = 1920,
     quality: number = 75
   ) {
@@ -276,7 +292,7 @@ export class JellyseerrApi {
       ? this.axios.defaults.baseURL +
           `/_next/image?` +
           new URLSearchParams(
-            `url=https://image.tmdb.org/t/p/${tmdbPath}/${path}&w=${width}&q=${quality}`
+            `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`
           ).toString()
       : this.axios?.defaults.baseURL +
           `/images/overseerr_poster_not_found_logo_top.png`;

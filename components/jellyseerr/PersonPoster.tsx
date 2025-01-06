@@ -26,7 +26,7 @@ const PersonPoster: React.FC<Props & ViewProps> = ({
 
   if (from === "(home)" || from === "(search)" || from === "(libraries)")
     return (
-      <TouchableOpacity onPress={() => router.push(`/(auth)/(tabs)/${from}/jellyseerr/${id}`)}>
+      <TouchableOpacity onPress={() => router.push(`/(auth)/(tabs)/${from}/jellyseerr/person/${id}`)}>
         <View className="flex flex-col w-28" {...props}>
           <Poster
             id={id}
