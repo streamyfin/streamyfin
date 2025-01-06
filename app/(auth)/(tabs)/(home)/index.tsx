@@ -69,9 +69,8 @@ export default function index() {
 
   const insets = useSafeAreaInsets();
 
-  const { downloadedFiles, cleanCacheDirectory } = useDownload();
-
   if (!Platform.isTV) {
+    const { downloadedFiles, cleanCacheDirectory } = useDownload();
     useEffect(() => {
       const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
       navigation.setOptions({
