@@ -8,7 +8,7 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
   <img width=150 src="./assets/images/screenshots/screenshot1.png" />
   <img width=150 src="./assets/images/screenshots/screenshot3.png" />
   <img width=150 src="./assets/images/screenshots/screenshot2.png" />
-  
+  <img width=150 src="./assets/images/jellyseerr.PNG"/>
 </div>
 
 ## 🌟 Features
