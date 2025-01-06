@@ -572,18 +572,18 @@ export const Controls: React.FC<Props> = ({
                 </TouchableOpacity>
               )}
 
-              {mediaSource?.TranscodingUrl && (
-                <TouchableOpacity
-                  onPress={toggleIgnoreSafeAreas}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-                >
-                  <Ionicons
-                    name={ignoreSafeAreas ? "contract-outline" : "expand"}
-                    size={24}
-                    color="white"
-                  />
-                </TouchableOpacity>
-              )}
+              {/* {mediaSource?.TranscodingUrl && ( */}
+              <TouchableOpacity
+                onPress={toggleIgnoreSafeAreas}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons
+                  name={ignoreSafeAreas ? "contract-outline" : "expand"}
+                  size={24}
+                  color="white"
+                />
+              </TouchableOpacity>
+              {/* )} */}
               <TouchableOpacity
                 onPress={async () => {
                   lightHapticFeedback();
