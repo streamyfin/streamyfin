@@ -6,6 +6,7 @@ import {
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
 import * as BackgroundFetch from "expo-background-fetch";
+import { useRouter } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import React, { useEffect } from "react";
@@ -19,6 +20,7 @@ import { ListItem } from "../list/ListItem";
 interface Props extends ViewProps {}
 
 export const OtherSettings: React.FC = () => {
+  const router = useRouter();
   const [settings, updateSettings] = useSettings();
 
   /********************
@@ -54,7 +56,7 @@ export const OtherSettings: React.FC = () => {
   if (!settings) return null;
 
   return (
-    <ListGroup title="Other" className="mb-4">
+    <ListGroup title="Other" className="">
       <ListItem title="Auto rotate">
         <Switch
           value={settings.autoRotate}
@@ -175,6 +177,19 @@ export const OtherSettings: React.FC = () => {
           value={settings.showCustomMenuLinks}
           onValueChange={(value) =>
             updateSettings({ showCustomMenuLinks: value })
+          }
+        />
+      </ListItem>
+      <ListItem
+        onPress={() => router.push("/settings/hide-libraries/page")}
+        title="Hide Libraries"
+        showArrow
+      />
+      <ListItem title="Disable Haptic Feedback">
+        <Switch
+          value={settings.disableHapticFeedback}
+          onValueChange={(value) =>
+            updateSettings({ disableHapticFeedback: value })
           }
         />
       </ListItem>

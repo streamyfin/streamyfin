@@ -5,7 +5,7 @@ import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { FlashList } from "@shopify/flash-list";
 import { orderBy } from "lodash";
 import { Tags } from "@/components/GenreTags";
-import JellyseerrIconStatus from "@/components/icons/JellyseerrIconStatus";
+import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
 import Season from "@/utils/jellyseerr/server/entity/Season";
 import {
   MediaStatus,
@@ -61,7 +61,7 @@ const RenderItem = ({ item, index }: any) => {
             key={item.id}
             id={item.id}
             source={{
-              uri: jellyseerrApi?.tvStillImageProxy(item.stillPath),
+              uri: jellyseerrApi?.imageProxy(item.stillPath),
             }}
             cachePolicy={"memory-disk"}
             contentFit="cover"
@@ -246,7 +246,7 @@ const JellyseerrSeasons: React.FC<{
                   seasons?.find((s) => s.seasonNumber === season.seasonNumber)
                     ?.status === MediaStatus.UNKNOWN;
                 return (
-                  <JellyseerrIconStatus
+                  <JellyseerrStatusIcon
                     key={0}
                     onPress={() => requestSeason(canRequest, season.seasonNumber)}
                     className={canRequest ? "bg-gray-700/40" : undefined}
