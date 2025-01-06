@@ -6,8 +6,7 @@ import {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
-import { sortBy } from "lodash";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { View, ViewProps } from "react-native";
 import {
   useAnimatedReaction,
@@ -19,8 +18,8 @@ import { Text } from "../common/Text";
 import JellyseerrPoster from "../posters/JellyseerrPoster";
 import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
-import DiscoverSlide from "./DiscoverSlide";
 import PersonPoster from "./PersonPoster";
+import Discover from "@/components/jellyseerr/discover/Discover";
 
 interface Props extends ViewProps {
   searchQuery: string;
@@ -101,12 +100,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
   if (!searchQuery.length)
     return (
       <View className="flex flex-col">
-        {sortBy?.(
-          jellyseerrDiscoverSettings?.filter((s) => s.enabled),
-          "order"
-        ).map((slide) => (
-          <DiscoverSlide key={slide.id} slide={slide} />
-        ))}
+        <Discover sliders={jellyseerrDiscoverSettings} />
       </View>
     );
 
