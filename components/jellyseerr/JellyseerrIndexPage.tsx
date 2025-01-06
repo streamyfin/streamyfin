@@ -1,6 +1,4 @@
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import {
   MovieResult,
@@ -8,26 +6,21 @@ import {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
-import { PropsWithChildren, useMemo } from "react";
-import { ScrollView, View, ViewProps } from "react-native";
+import { sortBy } from "lodash";
+import { useMemo } from "react";
+import { View, ViewProps } from "react-native";
+import {
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { Text } from "../common/Text";
 import JellyseerrPoster from "../posters/JellyseerrPoster";
-import PersonPoster from "./PersonPoster";
+import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import DiscoverSlide from "./DiscoverSlide";
-import { sortBy } from "lodash";
-import { Loader } from "../Loader";
-import Animated, {
-  withTiming,
-  useAnimatedStyle,
-  withSequence,
-  useSharedValue,
-  useAnimatedReaction,
-} from "react-native-reanimated";
-import { LoadingSkeleton } from "../search/LoadingSkeleton";
+import PersonPoster from "./PersonPoster";
 
 interface Props extends ViewProps {
   searchQuery: string;
