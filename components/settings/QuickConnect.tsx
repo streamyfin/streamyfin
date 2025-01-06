@@ -7,7 +7,7 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 import { useAtom } from "jotai";
 import React, { useCallback, useRef, useState } from "react";
 import { Alert, View, ViewProps } from "react-native";

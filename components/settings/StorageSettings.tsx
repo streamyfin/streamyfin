@@ -4,7 +4,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { clearLogs } from "@/utils/log";
 import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 import { View } from "react-native";
 import * as Progress from "react-native-progress";
 import { toast } from "sonner-native";

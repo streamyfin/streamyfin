@@ -5,13 +5,18 @@ import { useSettings } from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
 import { formatTimeString } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-import { checkForExistingDownloads } from "@kesha-antonov/react-native-background-downloader";
+// import { checkForExistingDownloads } from "@kesha-antonov/react-native-background-downloader";
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { FFmpegKit } from "ffmpeg-kit-react-native";
+// import { FFmpegKit } from "ffmpeg-kit-react-native";
+const FFmpegKit = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
 import { useAtom } from "jotai";
 import {
   ActivityIndicator,
+  Platform,
   TouchableOpacity,
   TouchableOpacityProps,
   View,
@@ -64,7 +69,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
       if (settings?.downloadMethod === "optimized") {
         try {
-          const tasks = await checkForExistingDownloads();
+          const tasks = await BackGroundDownloader.checkForExistingDownloads();
           for (const task of tasks) {
             if (task.id === id) {
               task.stop();

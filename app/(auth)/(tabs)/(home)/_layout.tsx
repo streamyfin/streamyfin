@@ -23,7 +23,7 @@ export default function IndexLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View className="flex flex-row items-center space-x-2">
-              <Chromecast />
+              {!Platform.isTV && <Chromecast />}
               <TouchableOpacity
                 onPress={() => {
                   router.push("/(auth)/settings");

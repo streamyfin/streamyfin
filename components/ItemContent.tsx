@@ -24,10 +24,10 @@ import {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
@@ -81,23 +81,25 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultMediaSource,
     ]);
 
-    useEffect(() => {
-      navigation.setOptions({
-        headerRight: () =>
-          item && (
-            <View className="flex flex-row items-center space-x-2">
-              <Chromecast background="blur" width={22} height={22} />
-              {item.Type !== "Program" && (
-                <View className="flex flex-row items-center space-x-2">
-                  <DownloadSingleItem item={item} size="large" />
-                  <PlayedStatus item={item} />
-                  <AddToFavorites item={item} type="item" />
-                </View>
-              )}
-            </View>
-          ),
-      });
-    }, [item]);
+    if (!Platform.isTV) {
+      useEffect(() => {
+        navigation.setOptions({
+          headerRight: () =>
+            item && (
+              <View className="flex flex-row items-center space-x-2">
+                <Chromecast background="blur" width={22} height={22} />
+                {item.Type !== "Program" && (
+                  <View className="flex flex-row items-center space-x-2">
+                    <DownloadSingleItem item={item} size="large" />
+                    <PlayedStatus item={item} />
+                    <AddToFavorites item={item} type="item" />
+                  </View>
+                )}
+              </View>
+            ),
+        });
+      }, [item]);
+    }
 
     useEffect(() => {
       if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)

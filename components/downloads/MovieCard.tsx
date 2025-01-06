@@ -3,7 +3,7 @@ import {
   useActionSheet,
 } from "@expo/react-native-action-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 

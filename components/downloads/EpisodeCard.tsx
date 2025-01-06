@@ -1,5 +1,5 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, TouchableOpacityProps, View } from "react-native";
 import {

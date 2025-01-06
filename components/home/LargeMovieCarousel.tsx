@@ -22,7 +22,7 @@ import { itemRouter, TouchableItemRouter } from "../common/TouchableItemRouter";
 import { Loader } from "../Loader";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter, useSegments } from "expo-router";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 
 interface Props extends ViewProps {}
 

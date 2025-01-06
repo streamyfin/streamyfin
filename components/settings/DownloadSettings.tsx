@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Switch, TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import * as DropdownMenu from "@/components/DropdownMenu";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";

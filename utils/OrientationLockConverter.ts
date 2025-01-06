@@ -1,4 +1,7 @@
-import { Orientation, OrientationLock } from "expo-screen-orientation";
+import {
+  Orientation,
+  OrientationLock,
+} from "@/packages/expo-screen-orientation";
 
 function orientationToOrientationLock(
   orientation: Orientation

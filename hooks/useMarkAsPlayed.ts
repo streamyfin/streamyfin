@@ -3,7 +3,7 @@ import { markAsNotPlayed } from "@/utils/jellyfin/playstate/markAsNotPlayed";
 import { markAsPlayed } from "@/utils/jellyfin/playstate/markAsPlayed";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/packages/expo-haptics";
 import { useAtom } from "jotai";
 
 export const useMarkAsPlayed = (item: BaseItemDto) => {

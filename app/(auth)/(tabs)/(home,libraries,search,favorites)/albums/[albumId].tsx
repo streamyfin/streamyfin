@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
@@ -28,15 +28,17 @@ export default function page() {
 
   const navigation = useNavigation();
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View className="">
-          <Chromecast />
-        </View>
-      ),
+  if (!Platform.isTV) {
+    useEffect(() => {
+      navigation.setOptions({
+        headerRight: () => (
+          <View className="">
+            <Chromecast />
+          </View>
+        ),
+      });
     });
-  });
+  }
 
   const { data: album } = useQuery({
     queryKey: ["album", albumId, artistId],

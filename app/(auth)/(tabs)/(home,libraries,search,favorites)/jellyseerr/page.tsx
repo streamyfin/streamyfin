@@ -34,7 +34,7 @@ import {
   IssueType,
   IssueTypeName,
 } from "@/utils/jellyseerr/server/constants/issue";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import * as DropdownMenu from "@/components/DropdownMenu";
 import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
