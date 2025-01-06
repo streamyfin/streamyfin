@@ -4,7 +4,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { clearLogs } from "@/utils/log";
 import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
-import * as Haptics from "expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import { View } from "react-native";
 import * as Progress from "react-native-progress";
 import { toast } from "sonner-native";
@@ -13,6 +13,8 @@ import { ListItem } from "../list/ListItem";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
+  const successHapticFeedback = useHaptic("success");
+  const errorHapticFeedback = useHaptic("error");
 
   const { data: size, isLoading: appSizeLoading } = useQuery({
     queryKey: ["appSize", appSizeUsage],
@@ -29,9 +31,9 @@ export const StorageSettings = () => {
   const onDeleteClicked = async () => {
     try {
       await deleteAllFiles();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      successHapticFeedback();
     } catch (e) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      errorHapticFeedback();
       toast.error("Error deleting files");
     }
   };

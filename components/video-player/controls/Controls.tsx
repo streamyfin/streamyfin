@@ -29,7 +29,7 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import * as Haptics from "expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAtom } from "jotai";
@@ -157,10 +157,12 @@ export const Controls: React.FC<Props> = ({
     isVlc
   );
 
+  const lightHapticFeedback = useHaptic("light");
+
   const goToPreviousItem = useCallback(() => {
     if (!previousItem || !settings) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
 
     const previousIndexes: previousIndexes = {
       subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
@@ -198,7 +200,7 @@ export const Controls: React.FC<Props> = ({
   const goToNextItem = useCallback(() => {
     if (!nextItem || !settings) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
 
     const previousIndexes: previousIndexes = {
       subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
@@ -326,7 +328,7 @@ export const Controls: React.FC<Props> = ({
   const handleSkipBackward = useCallback(async () => {
     if (!settings?.rewindSkipTime) return;
     wasPlayingRef.current = isPlaying;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
     try {
       const curr = progress.value;
       if (curr !== undefined) {
@@ -344,7 +346,7 @@ export const Controls: React.FC<Props> = ({
   const handleSkipForward = useCallback(async () => {
     if (!settings?.forwardSkipTime) return;
     wasPlayingRef.current = isPlaying;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
     try {
       const curr = progress.value;
       if (curr !== undefined) {
@@ -361,7 +363,7 @@ export const Controls: React.FC<Props> = ({
 
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
   }, []);
 
   const memoizedRenderBubble = useCallback(() => {
@@ -440,7 +442,7 @@ export const Controls: React.FC<Props> = ({
         const gotoItem = await getItemById(api, itemId);
         if (!settings || !gotoItem) return;
 
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        lightHapticFeedback();
 
         const previousIndexes: previousIndexes = {
           subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
@@ -584,7 +586,7 @@ export const Controls: React.FC<Props> = ({
               )}
               <TouchableOpacity
                 onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  lightHapticFeedback();
                   router.back();
                 }}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"

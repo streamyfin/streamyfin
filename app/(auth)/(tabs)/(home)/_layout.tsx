@@ -77,6 +77,20 @@ export default function IndexLayout() {
           title: "",
         }}
       />
+      <Stack.Screen
+        name="settings/hide-libraries/page"
+        options={{
+          title: "",
+        }}
+      />
+      <Stack.Screen
+        name="intro/page"
+        options={{
+          headerShown: false,
+          title: "",
+          presentation: "modal",
+        }}
+      />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
         <Stack.Screen key={name} name={name} options={options} />
       ))}

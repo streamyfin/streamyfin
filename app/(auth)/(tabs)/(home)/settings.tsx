@@ -13,20 +13,22 @@ import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
-import * as Haptics from "expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { storage } from "@/utils/mmkv";
 
 export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { logout } = useJellyfin();
+  const successHapticFeedback = useHaptic("success");
 
   const onClearLogsClicked = async () => {
     clearLogs();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    successHapticFeedback();
   };
 
   const navigation = useNavigation();
@@ -65,6 +67,22 @@ export default function settings() {
         <DownloadSettings />
 
         <PluginSettings />
+
+        <ListGroup title={"Intro"}>
+          <ListItem
+            onPress={() => {
+              router.push("/intro/page");
+            }}
+            title={"Show intro"}
+          />
+          <ListItem
+            textColor="red"
+            onPress={() => {
+              storage.set("hasShownIntro", false);
+            }}
+            title={"Reset intro"}
+          />
+        </ListGroup>
 
         <View className="mb-4">
           <ListGroup title={"Logs"}>

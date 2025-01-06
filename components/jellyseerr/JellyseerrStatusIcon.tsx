@@ -2,7 +2,6 @@ import {useEffect, useState} from "react";
 import {MediaStatus} from "@/utils/jellyseerr/server/constants/media";
 import {MaterialCommunityIcons} from "@expo/vector-icons";
 import {TouchableOpacity, View, ViewProps} from "react-native";
-import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
 
 interface Props {
   mediaStatus?: MediaStatus;
@@ -10,7 +9,7 @@ interface Props {
   onPress?: () => void;
 }
 
-const JellyseerrIconStatus: React.FC<Props & ViewProps> = ({
+const JellyseerrStatusIcon: React.FC<Props & ViewProps> = ({
   mediaStatus,
   showRequestIcon,
   onPress,
@@ -69,4 +68,4 @@ const JellyseerrIconStatus: React.FC<Props & ViewProps> = ({
   )
 }
 
-export default JellyseerrIconStatus;
+export default JellyseerrStatusIcon;

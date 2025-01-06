@@ -1,22 +1,33 @@
-import React, { useCallback, useRef, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { Image } from "expo-image";
-import { TouchableOpacity, View} from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OverviewText } from "@/components/OverviewText";
 import { GenreTags } from "@/components/GenreTags";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import {
+  MediaRequestStatus,
+  MediaStatus,
+  MediaType,
+} from "@/utils/jellyseerr/server/constants/media";
 import { useQuery } from "@tanstack/react-query";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { Button } from "@/components/Button";
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
-  BottomSheetModal, BottomSheetTextInput,
+  BottomSheetModal,
+  BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import {
@@ -27,24 +38,24 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { JellyserrRatings } from "@/components/Ratings";
+import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
+import DetailFacts from "@/components/jellyseerr/DetailFacts";
+import { ItemActions } from "@/components/series/SeriesActions";
+import Cast from "@/components/jellyseerr/Cast";
+import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const {
-    mediaTitle,
-    releaseYear,
-    canRequest: canRequestString,
-    posterSrc,
-    ...result
-  } = params as unknown as {
-    mediaTitle: string;
-    releaseYear: number;
-    canRequest: string;
-    posterSrc: string;
-  } & Partial<MovieResult | TvResult>;
+  const { mediaTitle, releaseYear, posterSrc, ...result } =
+    params as unknown as {
+      mediaTitle: string;
+      releaseYear: number;
+      canRequest: string;
+      posterSrc: string;
+    } & Partial<MovieResult | TvResult>;
 
-  const canRequest = canRequestString === "true";
+  const navigation = useNavigation();
   const { jellyseerrApi, requestMedia } = useJellyseerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
@@ -55,7 +66,7 @@ const Page: React.FC = () => {
     data: details,
     isFetching,
     isLoading,
-    refetch
+    refetch,
   } = useQuery({
     enabled: !!jellyseerrApi && !!result && !!result.id,
     queryKey: ["jellyseerr", "detail", result.mediaType, result.id],
@@ -71,6 +82,8 @@ const Page: React.FC = () => {
         : jellyseerrApi?.tvDetails(result.id!!);
     },
   });
+
+  const canRequest = useJellyseerrCanRequest(details);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -95,21 +108,32 @@ const Page: React.FC = () => {
     }
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
-  const request = useCallback(
-    async () => {
-      requestMedia(mediaTitle, {
-          mediaId: Number(result.id!!),
-          mediaType: result.mediaType!!,
-          tvdbId: details?.externalIds?.tvdbId,
-          seasons: (details as TvDetails)?.seasons
-            ?.filter?.((s) => s.seasonNumber !== 0)
-            ?.map?.((s) => s.seasonNumber),
-        },
-        refetch
-      )
-    },
-    [details, result, requestMedia]
-  );
+  const request = useCallback(async () => {
+    requestMedia(
+      mediaTitle,
+      {
+        mediaId: Number(result.id!!),
+        mediaType: result.mediaType!!,
+        tvdbId: details?.externalIds?.tvdbId,
+        seasons: (details as TvDetails)?.seasons
+          ?.filter?.((s) => s.seasonNumber !== 0)
+          ?.map?.((s) => s.seasonNumber),
+      },
+      refetch
+    );
+  }, [details, result, requestMedia]);
+
+  useEffect(() => {
+    if (details) {
+      navigation.setOptions({
+        headerRight: () => (
+          <TouchableOpacity className="rounded-full p-2 bg-neutral-800/80">
+            <ItemActions item={details} />
+          </TouchableOpacity>
+        ),
+      });
+    }
+  }, [details]);
 
   return (
     <View
@@ -133,7 +157,10 @@ const Page: React.FC = () => {
                   height: "100%",
                 }}
                 source={{
-                  uri: `https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/${result.backdropPath}`,
+                  uri: jellyseerrApi?.imageProxy(
+                    result.backdropPath,
+                    "w1920_and_h800_multi_faces"
+                  ),
                 }}
               />
             ) : (
@@ -182,7 +209,9 @@ const Page: React.FC = () => {
               <View className="mb-4">
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
-              {canRequest ? (
+              {isLoading || isFetching ? (
+                <Button loading={true} disabled={true} color="purple"></Button>
+              ) : canRequest ? (
                 <Button color="purple" onPress={request}>
                   Request
                 </Button>
@@ -213,6 +242,11 @@ const Page: React.FC = () => {
                 refetch={refetch}
               />
             )}
+            <DetailFacts
+              className="p-2 border border-neutral-800 bg-neutral-900 rounded-xl"
+              details={details}
+            />
+            <Cast details={details} />
           </View>
         </View>
       </ParallaxScrollView>
@@ -279,13 +313,11 @@ const Page: React.FC = () => {
                 </DropdownMenu.Root>
               </View>
 
-              <View
-                className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full"
-              >
+              <View className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full">
                 <BottomSheetTextInput
                   multiline
                   maxLength={254}
-                  style={{color: "white"}}
+                  style={{ color: "white" }}
                   clearButtonMode="always"
                   placeholder="(optional) Describe the issue..."
                   placeholderTextColor="#9CA3AF"
