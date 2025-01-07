@@ -51,7 +51,7 @@ export default function TabLayout() {
     <>
       <SystemBars hidden={false} style="light" />
       <NativeTabs
-        sidebarAdaptable
+        sidebarAdaptable={false}
         ignoresTopSafeArea
         barTintColor={Platform.OS === "android" ? "#121212" : undefined}
         tabBarActiveTintColor={Colors.primary}
