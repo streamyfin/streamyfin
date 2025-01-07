@@ -10,11 +10,13 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { Text } from "@/components/common/Text";
 import { Image } from "expo-image";
 import { OverviewText } from "@/components/OverviewText";
-import { orderBy } from "lodash";
+import {orderBy, uniqBy} from "lodash";
 import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 import Poster from "@/components/posters/Poster";
 import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
+import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
+import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
 
 export default function page() {
   const local = useLocalSearchParams();
@@ -44,11 +46,11 @@ export default function page() {
 
   const castedRoles: PersonCreditCast[] = useMemo(
     () =>
-      orderBy(
+      uniqBy(orderBy(
         data?.combinedCredits?.cast,
         ["voteCount", "voteAverage"],
         "desc"
-      ),
+      ), 'id'),
     [data?.combinedCredits]
   );
   const backdrops = useMemo(
@@ -123,29 +125,7 @@ export default function page() {
       MainContent={() => (
         <OverviewText text={data?.details?.biography} className="mt-4" />
       )}
-      renderItem={(item, index) => (
-        <TouchableOpacity
-          className="w-full flex flex-col pr-2"
-          onPress={() => viewDetails(item)}
-        >
-          <Poster
-            id={item.id.toString()}
-            url={jellyseerrApi?.imageProxy(item.posterPath)}
-          />
-          <JellyseerrMediaIcon
-            className="absolute top-1 left-1"
-            mediaType={item.mediaType as "movie" | "tv"}
-          />
-          {item.character && (
-            <Text
-              className="text-xs opacity-50 align-bottom mt-1"
-              numberOfLines={1}
-            >
-              as {item.character}
-            </Text>
-          )}
-        </TouchableOpacity>
-      )}
+      renderItem={(item, index) => <JellyseerrPoster item={item as MovieResult | TvResult} />}
     />
   );
 }
