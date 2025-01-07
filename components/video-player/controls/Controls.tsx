@@ -36,7 +36,6 @@ import { useAtom } from "jotai";
 import { debounce } from "lodash";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Dimensions,
   Pressable,
   TouchableOpacity,
   useWindowDimensions,
@@ -60,7 +59,6 @@ import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
-import { useOrientation } from "@/hooks/useOrientation";
 
 interface Props {
   item: BaseItemDto;
