@@ -56,6 +56,7 @@ import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
+import * as ScreenOrientation from "expo-screen-orientation";
 
 interface Props {
   item: BaseItemDto;
@@ -587,6 +588,9 @@ export const Controls: React.FC<Props> = ({
               <TouchableOpacity
                 onPress={async () => {
                   lightHapticFeedback();
+                  await ScreenOrientation.lockAsync(
+                    ScreenOrientation.OrientationLock.PORTRAIT_UP
+                  );
                   router.back();
                 }}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
