@@ -50,7 +50,6 @@ const ParallaxSlideShow = <T extends unknown>({
   const insets = useSafeAreaInsets();
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [onEnd, setOnEnd] = useState<boolean>(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const enterAnimation = useCallback(
@@ -76,16 +75,22 @@ const ParallaxSlideShow = <T extends unknown>({
   useEffect(() => {
     if (images?.length) {
       enterAnimation().start();
+
       const intervalId = setInterval(() => {
-        exitAnimation().start((end) => {
-          if (end.finished)
-            setCurrentIndex((prevIndex) => (prevIndex + 1) % images?.length);
-        });
+        Animated.sequence([
+          enterAnimation(),
+          exitAnimation()
+        ]).start(() => {
+          fadeAnim.setValue(0);
+          setCurrentIndex((prevIndex) => (prevIndex + 1) % images?.length);
+        })
       }, BACKDROP_DURATION);
 
-      return () => clearInterval(intervalId);
+      return () => {
+        clearInterval(intervalId)
+      };
     }
-  }, [images, enterAnimation, exitAnimation, setCurrentIndex, currentIndex]);
+  }, [fadeAnim, images, enterAnimation, exitAnimation, setCurrentIndex, currentIndex]);
 
   return (
     <View
