@@ -1,10 +1,8 @@
 import {
-  router,
   useLocalSearchParams,
   useSegments,
 } from "expo-router";
 import React, { useMemo } from "react";
-import { TouchableOpacity } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { Text } from "@/components/common/Text";
@@ -12,19 +10,15 @@ import { Image } from "expo-image";
 import { OverviewText } from "@/components/OverviewText";
 import {orderBy, uniqBy} from "lodash";
 import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
-import Poster from "@/components/posters/Poster";
-import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
 
 export default function page() {
   const local = useLocalSearchParams();
-  const segments = useSegments();
   const { jellyseerrApi, jellyseerrUser } = useJellyseerr();
 
   const { personId } = local as { personId: string };
-  const from = segments[2];
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["jellyseerr", "person", personId],
@@ -59,24 +53,6 @@ export default function page() {
       : [],
     [jellyseerrApi, data?.combinedCredits]
   );
-
-  const viewDetails = (credit: PersonCreditCast) => {
-    router.push({
-      //@ts-ignore
-      pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
-      //@ts-ignore
-      params: {
-        ...credit,
-        mediaTitle: credit.title,
-        releaseYear: new Date(credit.releaseDate).getFullYear(),
-        canRequest: "false",
-        posterSrc: jellyseerrApi?.imageProxy(
-          credit.posterPath,
-          "w300_and_h450_face"
-        ),
-      },
-    });
-  };
 
   return (
     <ParallaxSlideShow
