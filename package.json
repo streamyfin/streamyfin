@@ -5,7 +5,6 @@
   "scripts": {
     "submodule-reload": "git submodule update --init --remote --recursive",
     "start": "bun run submodule-reload && expo start",
-    "reset-project": "node ./scripts/reset-project.js",
     "ios": "EXPO_TV=0 expo run:ios",
     "ios:tv": "EXPO_TV=1 expo run:ios",
     "android": "EXPO_TV=0 expo run:android",
