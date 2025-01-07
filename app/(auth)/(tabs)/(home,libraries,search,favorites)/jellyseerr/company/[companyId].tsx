@@ -12,13 +12,12 @@ import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import {MovieResult, Results, TvResult} from "@/utils/jellyseerr/server/models/Search";
 import {COMPANY_LOGO_IMAGE_FILTER} from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 import {uniqBy} from "lodash";
+import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 
 export default function page() {
   const local = useLocalSearchParams();
-  const segments = useSegments();
   const {jellyseerrApi} = useJellyseerr();
 
-  const from = segments[2];
   const {companyId, name, image, type} = local as unknown as {
     companyId: string,
     name: string,
@@ -62,32 +61,6 @@ export default function page() {
     [jellyseerrApi, flatData]
   );
 
-  const viewDetails = (result: Results) => {
-    router.push({
-      //@ts-ignore
-      pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
-      //@ts-ignore
-      params: {
-        ...result,
-        mediaTitle: getName(result),
-        releaseYear: getYear(result),
-        canRequest: "false",
-        posterSrc: jellyseerrApi?.imageProxy(
-          (result as MovieResult | TvResult).posterPath,
-          "w300_and_h450_face"
-        ),
-      },
-    });
-  };
-
-  const getName = (result: Results) => {
-    return (result as TvResult).name || (result as MovieResult).title
-  }
-
-  const getYear = (result: Results) => {
-    return new Date((result as TvResult).firstAirDate || (result as MovieResult).releaseDate).getFullYear()
-  }
-
   return (
     <ParallaxSlideShow
       data={flatData}
@@ -114,23 +87,9 @@ export default function page() {
           }}
         />
       }
-      renderItem={(item, index) => (
-        <TouchableOpacity
-          className="w-full flex flex-col pr-2"
-          onPress={() => viewDetails(item)}
-        >
-          <Poster
-            id={item.id.toString()}
-            url={jellyseerrApi?.imageProxy((item as MovieResult | TvResult).posterPath)}
-          />
-          <JellyseerrMediaIcon
-            className="absolute top-1 left-1"
-            mediaType={item.mediaType as "movie" | "tv"}
-          />
-          <Text className="mt-2" numberOfLines={1}>{getName(item)}</Text>
-          <Text className="text-xs opacity-50">{getYear(item)}</Text>
-        </TouchableOpacity>
-      )}
+      renderItem={(item, index) =>
+        <JellyseerrPoster item={item as MovieResult | TvResult} />
+      }
     />
   );
 }
