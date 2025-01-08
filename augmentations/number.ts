@@ -1,25 +1,23 @@
 declare global {
   interface Number {
-    bytesToReadable(): string;
+    bytesToReadable(decimals?: number): string;
     secondsToMilliseconds(): number;
     minutesToMilliseconds(): number;
     hoursToMilliseconds(): number;
   }
 }
 
-Number.prototype.bytesToReadable = function () {
+Number.prototype.bytesToReadable = function (decimals: number = 2) {
   const bytes = this.valueOf();
-  const gb = bytes / 1e9;
+  if (bytes === 0) return '0 Bytes';
 
-  if (gb >= 1) return `${gb.toFixed(0)} GB`;
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
-  const mb = bytes / 1024.0 / 1024.0;
-  if (mb >= 1) return `${mb.toFixed(0)} MB`;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  const kb = bytes / 1024.0;
-  if (kb >= 1) return `${kb.toFixed(0)} KB`;
-
-  return `${bytes.toFixed(2)} B`;
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
 Number.prototype.secondsToMilliseconds = function () {
