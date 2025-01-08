@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "submodule-reload": "git submodule update --init --remote --recursive",
+    "clean": "echo y | expo prebuild --clean",
     "start": "bun run submodule-reload && expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "bun run submodule-reload && expo run:android",
