@@ -6,7 +6,6 @@
     "login_to_title": "Se connecter à",
     "username_placeholder": "Nom d'utilisateur",
     "password_placeholder": "Mot de passe",
-    "use_quick_connect": "Utiliser Connexion Rapide",
     "login_button": "Se connecter",
     "quick_connect": "Connexion Rapide",
     "enter_code_to_login": "Entrez le code {{code}} pour vous connecter",
@@ -17,8 +16,7 @@
   },
   "server": {
     "enter_url_to_jellyfin_server": "Entrez l'URL de votre serveur Jellyfin",
-    "server_url_placeholder": "URL du serveur",
-    "server_url_hint": "Assurez-vous d'inclure http ou https",
+    "server_url_placeholder": "http(s)://votre-serveur.com",
     "connect_button": "Connexion",
     "previous_servers": "Serveurs précédents",
     "clear_button": "Effacer"
@@ -209,7 +207,6 @@
     }
   },
   "search": {
-    "results_for_x": "Résultats pour ",
     "search_here": "Rechercher ici...",
     "search": "Rechercher...",
     "x_items": "{{count}} items",
@@ -225,8 +222,8 @@
     "artists": "Artistes",
     "albums": "Albums",
     "songs": "Chansons",
-    "requested_movies": "Films demandés",
-    "requested_series": "Séries demandées"
+    "request_movies": "Demander un film",
+    "request_series": "Demander une série"
   },
   "library": {
     "no_items_found": "Aucun item trouvé",

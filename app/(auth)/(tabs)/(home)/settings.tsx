@@ -20,6 +20,7 @@ import { t } from "i18next";
 import { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { storage } from "@/utils/mmkv";
 
 export default function settings() {
   const router = useRouter();
@@ -69,6 +70,22 @@ export default function settings() {
         <DownloadSettings />
 
         <PluginSettings />
+
+        <ListGroup title={"Intro"}>
+          <ListItem
+            onPress={() => {
+              router.push("/intro/page");
+            }}
+            title={"Show intro"}
+          />
+          <ListItem
+            textColor="red"
+            onPress={() => {
+              storage.set("hasShownIntro", false);
+            }}
+            title={"Reset intro"}
+          />
+        </ListGroup>
 
         <View className="mb-4">
           <ListGroup title={t("home.settings.logs.logs_title")}>

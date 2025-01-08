@@ -9,7 +9,6 @@
   },
   "server": {
     "server_url_placeholder": "Server URL",
-    "server_url_hint": "Server URL kräver http eller https",
     "connect_button": "Anslut"
   },
   "home": {

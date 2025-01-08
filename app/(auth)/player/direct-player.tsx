@@ -49,6 +49,7 @@ import { useSharedValue } from "react-native-reanimated";
 import settings from "../(tabs)/(home)/settings";
 import { useSettings } from "@/utils/atoms/settings";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -415,6 +416,8 @@ export default function page() {
     }
   }
 
+  const insets = useSafeAreaInsets();
+
   if (!item || isLoadingItem || isLoadingStreamUrl || !stream)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
@@ -439,6 +442,8 @@ export default function page() {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
+          paddingLeft: ignoreSafeAreas ? 0 : insets.left,
+          paddingRight: ignoreSafeAreas ? 0 : insets.right,
         }}
       >
         <VlcPlayerView

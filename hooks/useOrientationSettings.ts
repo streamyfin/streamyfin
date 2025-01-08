@@ -7,7 +7,9 @@ export const useOrientationSettings = () => {
 
   useEffect(() => {
     if (settings?.autoRotate) {
-      // Don't need to do anything
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
+      );
     } else if (settings?.defaultVideoOrientation) {
       ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
     }

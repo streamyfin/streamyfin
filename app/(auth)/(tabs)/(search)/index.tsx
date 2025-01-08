@@ -2,14 +2,17 @@ import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { Tag } from "@/components/GenreTags";
 import { ItemCardText } from "@/components/ItemCardText";
-import { Loader } from "@/components/Loader";
+import { JellyserrIndexPage } from "@/components/jellyseerr/JellyseerrIndexPage";
 import AlbumCover from "@/components/posters/AlbumCover";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
+import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
+import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import {
   BaseItemDto,
   BaseItemKind,
@@ -20,7 +23,6 @@ import axios from "axios";
 import { Href, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, {
-  PropsWithChildren,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -30,14 +32,7 @@ import React, {
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import { Tag } from "@/components/GenreTags";
-import DiscoverSlide from "@/components/jellyseerr/DiscoverSlide";
 import { useTranslation } from "react-i18next";
-import {sortBy} from "lodash";
 
 type SearchType = "Library" | "Discover";
 
@@ -152,48 +147,6 @@ export default function search() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: jellyseerrResults, isFetching: j1 } = useQuery({
-    queryKey: ["search", "jellyseerrResults", debouncedSearch],
-    queryFn: async () => {
-      const response = await jellyseerrApi?.search({
-        query: new URLSearchParams(debouncedSearch).toString(),
-        page: 1, // todo: maybe rework page & page-size if first results are not enough...
-        language: "en",
-      });
-
-      return response?.results;
-    },
-    enabled:
-      !!jellyseerrApi &&
-      searchType === "Discover" &&
-      debouncedSearch.length > 0,
-  });
-
-  const { data: jellyseerrDiscoverSettings, isFetching: j2 } = useQuery({
-    queryKey: ["search", "jellyseerrDiscoverSettings", debouncedSearch],
-    queryFn: async () => jellyseerrApi?.discoverSettings(),
-    enabled:
-      !!jellyseerrApi &&
-      searchType === "Discover" &&
-      debouncedSearch.length == 0,
-  });
-
-  const jellyseerrMovieResults: MovieResult[] | undefined = useMemo(
-    () =>
-      jellyseerrResults?.filter(
-        (r) => r.mediaType === MediaType.MOVIE
-      ) as MovieResult[],
-    [jellyseerrResults]
-  );
-
-  const jellyseerrTvResults: TvResult[] | undefined = useMemo(
-    () =>
-      jellyseerrResults?.filter(
-        (r) => r.mediaType === MediaType.TV
-      ) as TvResult[],
-    [jellyseerrResults]
-  );
-
   const { data: series, isFetching: l2 } = useQuery({
     queryKey: ["search", "series", debouncedSearch],
     queryFn: () =>
@@ -273,25 +226,13 @@ export default function search() {
       episodes?.length ||
       series?.length ||
       collections?.length ||
-      actors?.length ||
-      jellyseerrMovieResults?.length ||
-      jellyseerrTvResults?.length
+      actors?.length
     );
-  }, [
-    artists,
-    episodes,
-    albums,
-    songs,
-    movies,
-    series,
-    collections,
-    actors,
-    jellyseerrResults,
-  ]);
+  }, [artists, episodes, albums, songs, movies, series, collections, actors]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || j1 || j2;
-  }, [l1, l2, l3, l4, l5, l6, l7, l8, j1, j2]);
+    return l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8;
+  }, [l1, l2, l3, l4, l5, l6, l7, l8]);
 
   return (
     <>
@@ -303,7 +244,7 @@ export default function search() {
           paddingRight: insets.right,
         }}
       >
-        <View className="flex flex-col pt-2">
+        <View className="flex flex-col">
           {Platform.OS === "android" && (
             <View className="mb-4 px-4">
               <Input
@@ -338,15 +279,13 @@ export default function search() {
               </TouchableOpacity>
             </View>
           )}
-          {!!q && (
-            <View className="px-4 flex flex-col space-y-2">
-              <Text className="text-neutral-500 ">
-                {t("search.results_for_x")} <Text className="text-purple-600">{q}</Text>
-              </Text>
-            </View>
-          )}
-          {searchType === "Library" && (
-            <>
+
+          <View className="mt-2">
+            <LoadingSkeleton isLoading={loading} />
+          </View>
+
+          {searchType === "Library" ? (
+            <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
               <SearchItemWrapper
                 header={t("search.movies")}
                 ids={movies?.map((m) => m.Id!)}
@@ -471,126 +410,39 @@ export default function search() {
                   </TouchableItemRouter>
                 )}
               />
-            </>
-          )}
-          {searchType === "Discover" && (
-            <>
-              <SearchItemWrapper
-                header={t("search.requested_movies")}
-                items={jellyseerrMovieResults}
-                renderItem={(item: MovieResult) => (
-                  <JellyseerrPoster item={item} key={item.id} />
-                )}
-              />
-              <SearchItemWrapper
-                header={t("search.requested_series")}
-                items={jellyseerrTvResults}
-                renderItem={(item: TvResult) => (
-                  <JellyseerrPoster item={item} key={item.id} />
-                )}
-              />
-            </>
+            </View>
+          ) : (
+            <JellyserrIndexPage searchQuery={debouncedSearch} />
           )}
 
-          {loading ? (
-            <View className="mt-4 flex justify-center items-center">
-              <Loader />
-            </View>
-          ) : noResults && debouncedSearch.length > 0 ? (
-            <View>
-              <Text className="text-center text-lg font-bold mt-4">
-                {t("search.no_results_found_for")}
-              </Text>
-              <Text className="text-xs text-purple-600 text-center">
-                "{debouncedSearch}"
-              </Text>
-            </View>
-          ) : debouncedSearch.length === 0 && searchType === "Library" ? (
-            <View className="mt-4 flex flex-col items-center space-y-2">
-              {exampleSearches.map((e) => (
-                <TouchableOpacity
-                  onPress={() => setSearch(e)}
-                  key={e}
-                  className="mb-2"
-                >
-                  <Text className="text-purple-600">{e}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : debouncedSearch.length === 0 && searchType === "Discover" ? (
-            <View className="flex flex-col">
-              {sortBy?.(
-                jellyseerrDiscoverSettings?.filter((s) => s.enabled),
-                "order"
-              ).map((slide) => (
-                <DiscoverSlide key={slide.id} slide={slide} />
-              ))}
-            </View>
-          ) : null}
+          {searchType === "Library" && (
+            <>
+              {!loading && noResults && debouncedSearch.length > 0 ? (
+                <View>
+                  <Text className="text-center text-lg font-bold mt-4">
+                    {t("search.no_results_found_for")}
+                  </Text>
+                  <Text className="text-xs text-purple-600 text-center">
+                    "{debouncedSearch}"
+                  </Text>
+                </View>
+              ) : debouncedSearch.length === 0 ? (
+                <View className="mt-4 flex flex-col items-center space-y-2">
+                  {exampleSearches.map((e) => (
+                    <TouchableOpacity
+                      onPress={() => setSearch(e)}
+                      key={e}
+                      className="mb-2"
+                    >
+                      <Text className="text-purple-600">{e}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+            </>
+          )}
         </View>
       </ScrollView>
     </>
   );
 }
-
-type Props<T> = {
-  ids?: string[] | null;
-  items?: T[];
-  renderItem: (item: any) => React.ReactNode;
-  header?: string;
-};
-
-const SearchItemWrapper = <T extends unknown>({
-  ids,
-  items,
-  renderItem,
-  header,
-}: PropsWithChildren<Props<T>>) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-
-  const { data, isLoading: l1 } = useQuery({
-    queryKey: ["items", ids],
-    queryFn: async () => {
-      if (!user?.Id || !api || !ids || ids.length === 0) {
-        return [];
-      }
-
-      const itemPromises = ids.map((id) =>
-        getUserItemData({
-          api,
-          userId: user.Id,
-          itemId: id,
-        })
-      );
-
-      const results = await Promise.all(itemPromises);
-
-      // Filter out null items
-      return results.filter(
-        (item) => item !== null
-      ) as unknown as BaseItemDto[];
-    },
-    enabled: !!ids && ids.length > 0 && !!api && !!user?.Id,
-    staleTime: Infinity,
-  });
-
-  if (!data && (!items || items.length === 0)) return null;
-
-  return (
-    <>
-      <Text className="font-bold text-lg px-4 mb-2">{header}</Text>
-      <ScrollView
-        horizontal
-        className="px-4 mb-2"
-        showsHorizontalScrollIndicator={false}
-      >
-        {data && data?.length > 0
-          ? data.map((item) => renderItem(item))
-          : items && items?.length > 0
-          ? items.map((i) => renderItem(i))
-          : undefined}
-      </ScrollView>
-    </>
-  );
-};

@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import {
@@ -29,12 +29,18 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { useHaptic } from "@/hooks/useHaptic";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Pressable,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -42,10 +48,7 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
@@ -118,6 +121,7 @@ export const Controls: React.FC<Props> = ({
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
 
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const {
     trickPlayUrl,
@@ -505,9 +509,13 @@ export const Controls: React.FC<Props> = ({
             }}
             style={{
               position: "absolute",
-              width: Dimensions.get("window").width,
-              height: Dimensions.get("window").height,
+              width: screenWidth,
+              height: screenHeight,
               backgroundColor: "black",
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
               opacity: showControls ? 0.5 : 0,
             }}
           ></Pressable>
@@ -519,8 +527,8 @@ export const Controls: React.FC<Props> = ({
                 top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
                 right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
                 width: settings?.safeAreaInControlsEnabled
-                  ? Dimensions.get("window").width - insets.left - insets.right
-                  : Dimensions.get("window").width,
+                  ? screenWidth - insets.left - insets.right
+                  : screenWidth,
                 opacity: showControls ? 1 : 0,
               },
             ]}
@@ -572,21 +580,24 @@ export const Controls: React.FC<Props> = ({
                 </TouchableOpacity>
               )}
 
-              {mediaSource?.TranscodingUrl && (
-                <TouchableOpacity
-                  onPress={toggleIgnoreSafeAreas}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
-                >
-                  <Ionicons
-                    name={ignoreSafeAreas ? "contract-outline" : "expand"}
-                    size={24}
-                    color="white"
-                  />
-                </TouchableOpacity>
-              )}
+              {/* {mediaSource?.TranscodingUrl && ( */}
+              <TouchableOpacity
+                onPress={toggleIgnoreSafeAreas}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons
+                  name={ignoreSafeAreas ? "contract-outline" : "expand"}
+                  size={24}
+                  color="white"
+                />
+              </TouchableOpacity>
+              {/* )} */}
               <TouchableOpacity
                 onPress={async () => {
                   lightHapticFeedback();
+                  await ScreenOrientation.lockAsync(
+                    ScreenOrientation.OrientationLock.PORTRAIT_UP
+                  );
                   router.back();
                 }}
                 className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"

@@ -10,7 +10,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -26,19 +26,19 @@ export default function index() {
   const { data, isLoading: isLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
-      if (!api || !user?.Id) {
-        return null;
-      }
-
-      const response = await getUserViewsApi(api).getUserViews({
-        userId: user.Id,
+      const response = await getUserViewsApi(api!).getUserViews({
+        userId: user?.Id,
       });
 
       return response.data.Items || null;
     },
-    enabled: !!api && !!user?.Id,
-    staleTime: 60 * 1000 * 60,
+    staleTime: 60,
   });
+
+  const libraries = useMemo(
+    () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
+    [data, settings?.hiddenLibraries]
+  );
 
   useEffect(() => {
     for (const item of data || []) {
@@ -66,7 +66,7 @@ export default function index() {
       </View>
     );
 
-  if (!data)
+  if (!libraries)
     return (
       <View className="h-full w-full flex justify-center items-center">
         <Text className="text-lg text-neutral-500">{t("library.no_libraries_found")}</Text>
@@ -84,7 +84,7 @@ export default function index() {
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }}
-      data={data}
+      data={libraries}
       renderItem={({ item }) => <LibraryItemCard library={item} />}
       keyExtractor={(item) => item.Id || ""}
       ItemSeparatorComponent={() =>

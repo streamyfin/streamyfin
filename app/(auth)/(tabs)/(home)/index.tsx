@@ -23,7 +23,7 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import NetInfo from "@react-native-community/netinfo";
-import { QueryFunction, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -119,7 +119,7 @@ export default function index() {
   }, []);
 
   const {
-    data: userViews,
+    data,
     isError: e1,
     isLoading: l1,
   } = useQuery({
@@ -138,6 +138,11 @@ export default function index() {
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
   });
+
+  const userViews = useMemo(
+    () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
+    [data, settings?.hiddenLibraries]
+  );
 
   const {
     data: mediaListCollections,

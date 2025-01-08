@@ -2,8 +2,13 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { PreviousServersList } from "@/components/PreviousServersList";
+import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
@@ -38,7 +43,6 @@ const CredentialsSchema = z.object({
 
   const [serverURL, setServerURL] = useState<string>(_apiUrl);
   const [serverName, setServerName] = useState<string>("");
-  const [error, setError] = useState<string>("");
   const [credentials, setCredentials] = useState<{
     username: string;
     password: string;
@@ -76,8 +80,10 @@ const CredentialsSchema = z.object({
             onPress={() => {
               removeServer();
             }}
+            className="flex flex-row items-center"
           >
-            <Ionicons name="chevron-back" size={24} color="white" />
+            <Ionicons name="chevron-back" size={18} color={Colors.primary} />
+            <Text className="ml-2 text-purple-600">Change server</Text>
           </TouchableOpacity>
         ) : null,
     });
@@ -94,9 +100,9 @@ const CredentialsSchema = z.object({
       }
     } catch (error) {
       if (error instanceof Error) {
-        setError(error.message);
+        Alert.alert("Connection failed", error.message);
       } else {
-        setError("An unexpected error occurred");
+        Alert.alert("Connection failed", "An unexpected error occurred");
       }
     } finally {
       setLoading(false);
@@ -135,6 +141,8 @@ const CredentialsSchema = z.object({
         return url;
       }
 
+      return undefined;
+    } catch {
       return undefined;
     } finally {
       setLoadingServerCheck(false);
@@ -228,7 +236,6 @@ const CredentialsSchema = z.object({
                   />
 
                   <Input
-                    className="mb-2"
                     placeholder={t("login.password_placeholder")}
                     onChangeText={(text) =>
                       setCredentials({ ...credentials, password: text })
@@ -242,28 +249,34 @@ const CredentialsSchema = z.object({
                     clearButtonMode="while-editing"
                     maxLength={500}
                   />
+                  <View className="flex flex-row items-center justify-between">
+                    <Button
+                      onPress={handleLogin}
+                      loading={loading}
+                      className="flex-1 mr-2"
+                    >
+                      {t("login.login_button")}
+                    </Button>
+                    <TouchableOpacity
+                      onPress={handleQuickConnect}
+                      className="p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center"
+                    >
+                      <MaterialCommunityIcons
+                        name="cellphone-lock"
+                        size={24}
+                        color="white"
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-
-                <Text className="text-red-600 mb-2">{error}</Text>
               </View>
 
-              <View className="absolute bottom-0 left-0 w-full px-4 mb-2">
-                <Button
-                  color="black"
-                  onPress={handleQuickConnect}
-                  className="w-full mb-2"
-                >
-                  {t("login.use_quick_connect")}
-                </Button>
-                <Button onPress={handleLogin} loading={loading}>
-                  {t("login.login_button")}
-                </Button>
-              </View>
+              <View className="absolute bottom-0 left-0 w-full px-4 mb-2"></View>
             </View>
           </>
         ) : (
           <>
-            <View className="flex flex-col h-full relative items-center justify-center w-full">
+            <View className="flex flex-col h-full items-center justify-center w-full">
               <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">
                 <Image
                   style={{
@@ -279,6 +292,7 @@ const CredentialsSchema = z.object({
                   {t("server.enter_url_to_jellyfin_server")}
                 </Text>
                 <Input
+                  aria-label="Server URL"
                   placeholder={t("server.server_url_placeholder")}
                   onChangeText={setServerURL}
                   value={serverURL}
@@ -288,16 +302,6 @@ const CredentialsSchema = z.object({
                   textContentType="URL"
                   maxLength={500}
                 />
-                <Text className="text-xs text-neutral-500 ml-4">
-                  {t("server.server_url_hint")}
-                </Text>
-                <PreviousServersList
-                  onServerSelect={(s) => {
-                    handleConnect(s.address);
-                  }}
-                />
-              </View>
-              <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
@@ -306,6 +310,11 @@ const CredentialsSchema = z.object({
                 >
                   {t("server.connect_button")}
                 </Button>
+                <PreviousServersList
+                  onServerSelect={(s) => {
+                    handleConnect(s.address);
+                  }}
+                />
               </View>
             </View>
           </>
