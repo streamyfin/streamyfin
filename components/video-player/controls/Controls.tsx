@@ -280,12 +280,54 @@ export const Controls: React.FC<Props> = ({
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, []);
+
+  const CONTROLS_TIMEOUT = 5000;
+  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    const resetControlsTimeout = () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+
+      if (showControls && !isSliding && !EpisodeView) {
+        controlsTimeoutRef.current = setTimeout(() => {
+          setShowControls(false);
+          setShowAudioSlider(false);
+        }, CONTROLS_TIMEOUT);
+      }
+    };
+
+    resetControlsTimeout();
+
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [showControls, isSliding, EpisodeView]);
+
   const toggleControls = () => {
     if (showControls) {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
       setShowAudioSlider(false);
       setShowControls(false);
     } else {
       setShowControls(true);
+    }
+  };
+
+  const handleControlsInteraction = () => {
+    if (showControls) {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+        setShowAudioSlider(false);
+      }, CONTROLS_TIMEOUT);
     }
   };
 
@@ -731,6 +773,7 @@ export const Controls: React.FC<Props> = ({
               },
             ]}
             className={`flex flex-col p-4`}
+            onTouchStart={handleControlsInteraction}
           >
             <View
               className="shrink flex flex-col justify-center h-full mb-2"
