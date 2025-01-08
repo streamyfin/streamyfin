@@ -57,7 +57,7 @@ const JellyseerrPoster: React.FC<Props> = ({ item, ...props }) => {
     [item]
   );
 
-  const canRequest = useJellyseerrCanRequest(item);
+  const [canRequest] = useJellyseerrCanRequest(item);
 
   return (
     <TouchableJellyseerrRouter

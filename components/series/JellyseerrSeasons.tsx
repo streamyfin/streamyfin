@@ -21,6 +21,7 @@ import { Image } from "expo-image";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import { Loader } from "../Loader";
 import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
+import {MediaRequestBody} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
 
 const JellyseerrSeasonEpisodes: React.FC<{
   details: TvDetails;
@@ -101,8 +102,17 @@ const JellyseerrSeasons: React.FC<{
   isLoading: boolean;
   result?: TvResult;
   details?: TvDetails;
+  hasAdvancedRequest?: boolean,
+  onAdvancedRequest?: (data: MediaRequestBody) => void;
   refetch:  (options?: (RefetchOptions | undefined)) => Promise<QueryObserverResult<TvDetails | MovieDetails | undefined, Error>>;
-}> = ({ isLoading, result, details, refetch }) => {
+}> = ({
+  isLoading,
+  result,
+  details,
+  refetch,
+  hasAdvancedRequest,
+  onAdvancedRequest,
+}) => {
   if (!details) return null;
 
   const { jellyseerrApi, requestMedia } = useJellyseerr();
@@ -142,7 +152,7 @@ const JellyseerrSeasons: React.FC<{
 
   const requestAll = useCallback(() => {
     if (details && jellyseerrApi) {
-      requestMedia(result?.name!!, {
+      const body: MediaRequestBody = {
         mediaId: details.id,
         mediaType: MediaType.TV,
         tvdbId: details.externalIds?.tvdbId,
@@ -151,9 +161,15 @@ const JellyseerrSeasons: React.FC<{
             (s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0
           )
           .map((s) => s.seasonNumber),
-      });
+      }
+
+      if (hasAdvancedRequest) {
+        return onAdvancedRequest?.(body)
+      }
+
+      requestMedia(result?.name!!, body, refetch);
     }
-  }, [jellyseerrApi, seasons, details]);
+  }, [jellyseerrApi, seasons, details, hasAdvancedRequest, onAdvancedRequest]);
 
   const promptRequestAll = useCallback(
     () =>
@@ -172,18 +188,20 @@ const JellyseerrSeasons: React.FC<{
 
   const requestSeason = useCallback(async (canRequest: Boolean, seasonNumber: number) => {
     if (canRequest) {
-      requestMedia(
-        `${result?.name!!}, Season ${seasonNumber}`,
-        {
-          mediaId: details.id,
-          mediaType: MediaType.TV,
-          tvdbId: details.externalIds?.tvdbId,
-          seasons: [seasonNumber],
-        },
-        refetch
-      )
+      const body: MediaRequestBody = {
+        mediaId: details.id,
+        mediaType: MediaType.TV,
+        tvdbId: details.externalIds?.tvdbId,
+        seasons: [seasonNumber],
+      }
+
+      if (hasAdvancedRequest) {
+        return onAdvancedRequest?.(body)
+      }
+
+      requestMedia(`${result?.name!!}, Season ${seasonNumber}`, body, refetch);
     }
-  }, [requestMedia]);
+  }, [requestMedia, hasAdvancedRequest, onAdvancedRequest]);
 
   if (isLoading)
     return (
