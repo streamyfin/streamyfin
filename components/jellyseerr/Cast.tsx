@@ -10,7 +10,7 @@ const CastSlide: React.FC<
   { details?: MovieDetails | TvDetails } & ViewProps
 > = ({ details, ...props }) => {
   return (
-    details?.credits?.cast?.length &&
+    details?.credits?.cast &&
     details?.credits?.cast?.length > 0 && (
       <View {...props}>
         <Text className="text-lg font-bold mb-2 px-4">Cast</Text>
