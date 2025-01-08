@@ -12,7 +12,15 @@
     "failed_to_initiate_quick_connect": "Failed to initiate Quick Connect",
     "got_it": "Got it",
     "connection_failed": "Connection failed",
-    "could_not_connect_to_server": "Could not connect to the server. Please check the URL and your network connection."
+    "could_not_connect_to_server": "Could not connect to the server. Please check the URL and your network connection.",
+    "an_unexpected_error_occured": "An unexpected error occurred",
+    "change_server": "Change server",
+    "invalid_username_or_password": "Invalid username or password",
+    "user_does_not_have_permission_to_log_in": "User does not have permission to log in",
+    "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",
+    "server_received_too_many_requests_try_again_later": "Server received too many requests, try again late.",
+    "there_is_a_server_error": "There is a server error",
+    "an_unexpected_error_occured_did_you_enter_the_correct_url":  "An unexpected error occurred. Did you enter the server URL correctly?"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
@@ -33,6 +41,18 @@
     "recently_added_in": "Recently Added in {{libraryName}}",
     "suggested_movies": "Suggested Movies",
     "suggested_episodes": "Suggested Episodes",
+    "intro": {
+      "welcome_to_streamyfin": "Welcome to Streamyfin",
+      "a_free_and_open_source_client_for_jellyfin": "A free and open-source client for Jellyfin.",
+      "features_title": "Features",
+      "features_description": "Streamyfin has a bunch of features and integrates with a wide array of software which you can find in the settings menu, these include:",
+      "jellyseerr_feature_description": "Connect to your Jellyseerr instance and request movies directly in the app.",
+      "downloads_feature_title": "Downloads",
+      "downloads_feature_description": "Download movies and tv-shows to view offline. Use either the default method or install the optimize server to download files in the background.",
+      "chromecast_feature_description": "Cast movies and tv-shows to your Chromecast devices.",
+      "done_button": "Done",
+      "go_to_settings_button": "Go to settings"
+    },
     "settings": {
       "settings_title": "Settings",
       "log_out_button": "Log out",
@@ -121,7 +141,10 @@
           "server_url_placeholder": "http(s)://domain.org:port",
           "marlin_search_hint": "Enter the URL for the Marlin server. The URL should include http or https and optionally the port.",
           "read_more_about_marlin": "Read more about Marlin.",
-          "save_button": "Save"
+          "save_button": "Save",
+          "toasts": {
+            "saved": "Saved"
+          }
         },
         "popular_lists": {
           "enable_plugin": "Enable plugin",
@@ -223,7 +246,28 @@
     "albums": "Albums",
     "songs": "Songs",
     "request_movies": "Request Movies",
-    "request_series": "Request Series"
+    "request_series": "Request Series",
+    "recently_added": "Recently Added",
+    "recent_requests": "Recent Requests",
+    "plex_watchlist": "Plex Watchlist",
+    "trending": "Trending",
+    "popular_movies": "Popular Movies",
+    "movie_genres": "Movie Genres",
+    "upcoming_movies": "Upcoming Movies",
+    "studios": "Studios",
+    "popular_tv": "Popular TV",
+    "tv_genres": "TV Genres",
+    "upcoming_tv": "Upcoming TV",
+    "networks": "Networks",
+    "tmdb_movie_keyword": "TMDB Movie Keyword",
+    "tmdb_movie_genre": "TMDB Movie Genre",
+    "tmdb_tv_keyword": "TMDB TV Keyword",
+    "tmdb_tv_genre": "TMDB TV Genre",
+    "tmdb_search": "TMDB Search",
+    "tmdb_studio": "TMDB Studio",
+    "tmdb_network": "TMDB Network",
+    "tmdb_movie_streaming_services": "TMDB Movie Streaming Services",
+    "tmdb_tv_streaming_services": "TMDB TV Streaming Services"
   },
   "library": {
     "no_items_found": "No items found",
@@ -301,6 +345,7 @@
     "x_albums": "{{count}} albums",
     "artists": "Artists",
     "could_not_load_item": "Could not load item",
+    "none": "None",
     "download": {
       "download_season": "Download Season",
       "download_x_item": "Download {{item_count}} items",

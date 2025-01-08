@@ -12,7 +12,15 @@
     "failed_to_initiate_quick_connect": "Échec de l'initialisation de Connexion Rapide",
     "got_it": "D'accord",
     "connection_failed": "La connection a échouée",
-    "could_not_connect_to_server": "Impossible de se connecter au serveur. Veuillez vérifier l'URL et votre connection réseau."
+    "could_not_connect_to_server": "Impossible de se connecter au serveur. Veuillez vérifier l'URL et votre connection réseau.",
+    "an_unexpected_error_occured": "Une erreur inattendue s'est produite",
+    "change_server": "Changer de serveur",
+    "invalid_username_or_password": "Nom d'utilisateur ou mot de passe invalide",
+    "user_does_not_have_permission_to_log_in": "L'utilisateur n'a pas la permission de se connecter",
+    "server_is_taking_too_long_to_respond_try_again_later": "Le serveur met trop de temps à répondre, réessayez plus tard",
+    "server_received_too_many_requests_try_again_later": "Le serveur a reçu trop de demandes, réessayez plus tard",
+    "there_is_a_server_error": "Il y a une erreur de serveur",
+    "an_unexpected_error_occured_did_you_enter_the_correct_url":  "Une erreur inattendue s'est produite. Avez-vous entré la bonne URL?"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Entrez l'URL de votre serveur Jellyfin",
@@ -33,6 +41,18 @@
     "recently_added_in": "Ajoutés récemment dans {{libraryName}}",
     "suggested_movies": "Films suggérés",
     "suggested_episodes": "Épisodes suggérés",
+    "intro": {
+      "welcome_to_streamyfin": "Bienvenue sur Streamyfin",
+      "a_free_and_open_source_client_for_jellyfin": "Un client gratuit et open source pour Jellyfin",
+      "features_title": "Fonctionnalités",
+      "features_description": "Streamyfin possède de nombreuses fonctionnalités et s'intègre à un large éventail de logiciels que vous pouvez trouver dans le menu des paramètres, notamment:",
+      "jellyseerr_feature_description": "Connectez-vous à votre instance Jellyseerr et demandez des films directement dans l'application.",
+      "downloads_feature_title": "Téléchargements",
+      "downloads_feature_description": "Téléchargez des films et des émissions de télévision pour les regarder hors ligne. Utilisez la méthode par défaut ou installez le serveur d'optimisation pour télécharger les fichiers en arrière-plan.",
+      "chromecast_feature_description": "Diffusez des films et des émissions de télévision sur vos appareils Chromecast.",
+      "done_button": "Fait",
+      "go_to_settings_button": "Allez dans les paramètres"
+    },
     "settings": {
       "settings_title": "Paramètres",
       "log_out_button": "Déconnexion",
@@ -62,7 +82,7 @@
         "set_audio_track": "Configurer la piste audio à partir de l'élément précédent",
         "audio_language": "Langue audio",
         "audio_hint": "Chosissez une langue audio par défaut.",
-        "none": "Aucun"
+        "none": "Aucune"
       },
       "subtitles": {
         "subtitle_title": "Sous-titres",
@@ -71,7 +91,7 @@
         "set_subtitle_track": "Configurer la piste de sous-titres à partir de l'élément précédent",
         "subtitle_size": "Taille des sous-titres",
         "subtitle_hint": "Configurez les préférences des sous-titres.",
-        "none": "Aucun"
+        "none": "Aucune"
       },
       "other": {
         "other_title": "Autres",
@@ -121,7 +141,10 @@
           "server_url_placeholder": "http(s)://domaine.org:port",
           "marlin_search_hint": "Entrez l'URL du serveur Marlin. L'URL devrait inclure http ou https et optionnellement le port.",
           "read_more_about_marlin": "Lisez-en plus sur Marlin.",
-          "save_button": "Enregistrer"
+          "save_button": "Enregistrer",
+          "toasts": {
+            "saved": "Enregistré"
+          }
         },
         "popular_lists": {
           "enable_plugin": "Activer le plugiciel",
@@ -223,7 +246,28 @@
     "albums": "Albums",
     "songs": "Chansons",
     "request_movies": "Demander un film",
-    "request_series": "Demander une série"
+    "request_series": "Demander une série",
+    "recently_added": "Ajoutés récemment",
+    "recent_requests": "Demandes récentes",
+    "plex_watchlist": "Liste de lecture Plex",
+    "trending": "Tendance",
+    "popular_movies": "Films populaires",
+    "movie_genres": "Genres de films",
+    "upcoming_movies": "Films à venir",
+    "studios": "Studios",
+    "popular_tv": "TV populaire",
+    "tv_genres": "Genres TV",
+    "upcoming_tv": "TV à venir",
+    "networks": "Réseaux",
+    "tmdb_movie_keyword": "Mot-clé Films TMDB",
+    "tmdb_movie_genre": "Genre de film TMDB",
+    "tmdb_tv_keyword": "Mot-clé TV TMDB",
+    "tmdb_tv_genre": "Genre TV TMDB",
+    "tmdb_search": "Recherche TMDB",
+    "tmdb_studio": "Studio TMDB",
+    "tmdb_network": "Réseau TMDB",
+    "tmdb_movie_streaming_services": "Services de streaming de films TMDB",
+    "tmdb_tv_streaming_services": "Services de streaming TV TMDB"
   },
   "library": {
     "no_items_found": "Aucun item trouvé",
@@ -301,6 +345,7 @@
     "x_albums": "{{count}} albums",
     "artists": "Artistes",
     "could_not_load_item": "Impossible de charger l'item",
+    "none": "Aucun",
     "download": {
       "download_season": "Télécharger la saison",
       "download_x_item": "Télécharger {{item_count}} items",

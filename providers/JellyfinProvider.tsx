@@ -20,6 +20,7 @@ import { Platform } from "react-native";
 import uuid from "react-native-uuid";
 import { getDeviceName } from "react-native-device-info";
 import { toast } from "sonner-native";
+import { useTranslation } from "react-i18next";
 
 interface Server {
   address: string;
@@ -47,6 +48,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [jellyfin, setJellyfin] = useState<Jellyfin | undefined>(undefined);
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
+
+  const { t } = useTranslation();
 
   useEffect(() => {
     (async () => {
@@ -231,22 +234,22 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         if (axios.isAxiosError(error)) {
           switch (error.response?.status) {
             case 401:
-              throw new Error("Invalid username or password");
+              throw new Error(t("login.invalid_username_or_password"));
             case 403:
-              throw new Error("User does not have permission to log in");
+              throw new Error(t("login.user_does_not_have_permission_to_log_in"));
             case 408:
               throw new Error(
-                "Server is taking too long to respond, try again later"
+                t("login.server_is_taking_too_long_to_respond_try_again_later")
               );
             case 429:
               throw new Error(
-                "Server received too many requests, try again later"
+                t("login.server_received_too_many_requests_try_again_later")
               );
             case 500:
-              throw new Error("There is a server error");
+              throw new Error(t("login.there_is_a_server_error"));
             default:
               throw new Error(
-                "An unexpected error occurred. Did you enter the server URL correctly?"
+                t("login.an_unexpected_error_occured_did_you_enter_the_correct_url")
               );
           }
         }

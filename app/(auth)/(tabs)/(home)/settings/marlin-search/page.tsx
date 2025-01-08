@@ -30,7 +30,7 @@ export default function page() {
     updateSettings({
       marlinServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
     });
-    toast.success("Saved");
+    toast.success(t("home.settings.plugins.marlin_search.toasts.saved"));
   };
 
   const handleOpenLink = () => {
@@ -82,7 +82,7 @@ export default function page() {
             <TextInput
               editable={settings.searchEngine === "Marlin"}
               className="text-white"
-              placeholder={t("home.settings.plugins.marlin_search.url")}
+              placeholder={t("home.settings.plugins.marlin_search.server_url_placeholder")}
               value={value}
               keyboardType="url"
               returnKeyType="done"
