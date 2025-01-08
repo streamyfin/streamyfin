@@ -31,7 +31,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
             className="flex flex-col space-y-2 w-28"
           >
             <Poster
-              item={item}
+              id={item.id}
               url={getPrimaryImageUrlById({ api, id: item.ParentId })}
             />
             <Text>{item.SeriesName}</Text>

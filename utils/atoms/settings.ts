@@ -91,6 +91,7 @@ export type Settings = {
   remuxConcurrentLimit: 1 | 2 | 3 | 4;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  hiddenLibraries?: string[];
 };
 
 const loadSettings = (): Settings => {
@@ -131,6 +132,7 @@ const loadSettings = (): Settings => {
     remuxConcurrentLimit: 1,
     safeAreaInControlsEnabled: true,
     jellyseerrServerUrl: undefined,
+    hiddenLibraries: [],
   };
 
   try {

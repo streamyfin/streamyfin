@@ -1,5 +1,4 @@
-import React, { useMemo } from "react";
-import DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import React, {useMemo} from "react";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import {
   DiscoverEndpoint,
@@ -9,17 +8,13 @@ import {
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import { Text } from "@/components/common/Text";
-import { FlashList } from "@shopify/flash-list";
-import { View } from "react-native";
+import Slide, {SlideProps} from "@/components/jellyseerr/discover/Slide";
+import {ViewProps} from "react-native";
 
-interface Props {
-  slide: DiscoverSlider;
-}
-const DiscoverSlide: React.FC<Props> = ({ slide }) => {
+const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const { jellyseerrApi } = useJellyseerr();
 
-  const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey: ["jellyseerr", "discover", slide.id],
     queryFn: async ({ pageParam }) => {
       let endpoint: DiscoverEndpoint | undefined = undefined;
@@ -62,42 +57,28 @@ const DiscoverSlide: React.FC<Props> = ({ slide }) => {
   });
 
   const flatData = useMemo(
-    () =>
-      data?.pages?.filter((p) => p?.results.length).flatMap((p) => p?.results),
+    () => data?.pages?.filter((p) => p?.results.length).flatMap((p) => p?.results),
     [data]
   );
 
   return (
     flatData &&
     flatData?.length > 0 && (
-      <View className="mb-4">
-        <Text className="font-bold text-lg mb-2 px-4">
-          {DiscoverSliderType[slide.type].toString().toTitle()}
-        </Text>
-        <FlashList
-          horizontal
-          contentContainerStyle={{
-            paddingLeft: 16,
-          }}
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item!!.id.toString()}
-          estimatedItemSize={250}
-          data={flatData}
-          onEndReachedThreshold={1}
-          onEndReached={() => {
-            if (hasNextPage) fetchNextPage();
-          }}
-          renderItem={({ item }) =>
-            item ? (
-              <JellyseerrPoster item={item as MovieResult | TvResult} />
-            ) : (
-              <></>
-            )
-          }
-        />
-      </View>
+      <Slide
+        {...props}
+        slide={slide}
+        data={flatData}
+        keyExtractor={(item) => item!!.id.toString()}
+        onEndReached={() => {
+          if (hasNextPage)
+            fetchNextPage()
+        }}
+        renderItem={(item) =>
+          <JellyseerrPoster item={item as MovieResult | TvResult} />
+      }
+      />
     )
   );
 };
 
-export default DiscoverSlide;
+export default MovieTvSlide;

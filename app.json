@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.24.0",
+    "version": "0.25.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -112,7 +112,8 @@
         { "android": { "parentTheme": "Material3" } }
       ],
       ["react-native-bottom-tabs"],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"]
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
+      ["./plugins/withGoogleCastActivity.js"]
     ],
     "experiments": {
       "typedRoutes": true

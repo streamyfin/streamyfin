@@ -6,6 +6,7 @@ import {
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
 import * as BackgroundFetch from "expo-background-fetch";
+import { useRouter } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
 import React, { useEffect } from "react";
@@ -20,6 +21,7 @@ import { useTranslation } from "react-i18next";
 interface Props extends ViewProps {}
 
 export const OtherSettings: React.FC = () => {
+  const router = useRouter();
   const [settings, updateSettings] = useSettings();
 
   const { t } = useTranslation();
@@ -57,7 +59,7 @@ export const OtherSettings: React.FC = () => {
   if (!settings) return null;
 
   return (
-    <ListGroup title={t("home.settings.other.other_title")} className="mb-4">
+    <ListGroup title={t("home.settings.other.other_title")} className="">
       <ListItem title={t("home.settings.other.auto_rotate")}>
         <Switch
           value={settings.autoRotate}
@@ -181,7 +183,11 @@ export const OtherSettings: React.FC = () => {
           }
         />
       </ListItem>
-
+      <ListItem
+        onPress={() => router.push("/settings/hide-libraries/page")}
+        title="Hide Libraries"
+        showArrow
+      />
       <ListItem title="Disable Haptic Feedback">
         <Switch
           value={settings.disableHapticFeedback}
