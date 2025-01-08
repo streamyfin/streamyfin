@@ -56,7 +56,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
               <Text className=" ">
                 {selectedSubtitleSteam
                   ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
-                  : "None"}
+                  : t("item_card.none")}
               </Text>
             </TouchableOpacity>
           </View>

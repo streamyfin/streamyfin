@@ -4,6 +4,7 @@ import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover
 import { Text } from "@/components/common/Text";
 import { FlashList } from "@shopify/flash-list";
 import {View, ViewProps} from "react-native";
+import { t } from "i18next";
 
 export interface SlideProps {
   slide: DiscoverSlider;
@@ -32,7 +33,7 @@ const Slide = <T extends unknown>({
   return (
     <View {...props}>
       <Text className="font-bold text-lg mb-2 px-4">
-        {DiscoverSliderType[slide.type].toString().toTitle()}
+        {t("search." + DiscoverSliderType[slide.type].toString().toLowerCase())}
       </Text>
       <FlashList
         horizontal

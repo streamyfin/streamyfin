@@ -83,7 +83,7 @@ const CredentialsSchema = z.object({
             className="flex flex-row items-center"
           >
             <Ionicons name="chevron-back" size={18} color={Colors.primary} />
-            <Text className="ml-2 text-purple-600">Change server</Text>
+            <Text className="ml-2 text-purple-600">{t("login.change_server")}</Text>
           </TouchableOpacity>
         ) : null,
     });
@@ -100,9 +100,9 @@ const CredentialsSchema = z.object({
       }
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert("Connection failed", error.message);
+        Alert.alert(t("login.connection_failed"), error.message);
       } else {
-        Alert.alert("Connection failed", "An unexpected error occurred");
+        Alert.alert(t("login.connection_failed"), t("login.an_unexpeted_error_occured"));
       }
     } finally {
       setLoading(false);
