@@ -1,12 +1,19 @@
 import { atom, useAtom } from "jotai";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { storage } from "../mmkv";
 import { Platform } from "react-native";
 import {
   CultureDto,
+  PluginStatus,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import {apiAtom} from "@/providers/JellyfinProvider";
+import {getPluginsApi} from "@jellyfin/sdk/lib/utils/api";
+import {writeErrorLog} from "@/utils/log";
+import {AUTHORIZATION_HEADER} from "@jellyfin/sdk";
+
+const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS"
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -92,6 +99,13 @@ export type Settings = {
   hiddenLibraries?: string[];
 };
 
+export interface Lockable<T> {
+  lockable: boolean;
+  value: T
+}
+
+export type PluginLockableSettings = { [K in keyof Settings]: Lockable<Settings[K]> };
+
 const loadSettings = (): Settings => {
   const defaultValues: Settings = {
     autoRotate: true,
@@ -150,9 +164,12 @@ const saveSettings = (settings: Settings) => {
 };
 
 export const settingsAtom = atom<Settings | null>(null);
+export const pluginSettingsAtom = atom(storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS));
 
 export const useSettings = () => {
+  const [api] = useAtom(apiAtom);
   const [settings, setSettings] = useAtom(settingsAtom);
+  const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
   useEffect(() => {
     if (settings === null) {
@@ -160,6 +177,45 @@ export const useSettings = () => {
       setSettings(loadedSettings);
     }
   }, [settings, setSettings]);
+
+  const setPluginSettings = useCallback((settings: PluginLockableSettings | undefined) => {
+    storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, settings)
+      _setPluginSettings(settings)
+    },
+    [_setPluginSettings]
+  )
+
+  const refreshStreamyfinPluginSettings = useCallback(
+    async () => {
+      if (!api)
+        return
+
+      const plugins = await getPluginsApi(api).getPlugins().then(({data}) => data);
+
+      if (plugins && plugins.length > 0) {
+        const streamyfinPlugin = plugins.find(plugin => plugin.Name === "Streamyfin");
+
+        if (streamyfinPlugin?.Status != PluginStatus.Active) {
+          writeErrorLog(
+            "Streamyfin plugin is currently not active.\n" +
+            `Current status is: ${streamyfinPlugin?.Status}`
+          );
+          setPluginSettings(undefined);
+          return;
+        }
+
+        const settings = await api.axiosInstance
+          .get(`${api.basePath}/Streamyfin/config`, { headers: { [AUTHORIZATION_HEADER]: api.authorizationHeader } })
+          .then(response => {
+            return response.data['settings'] as PluginLockableSettings
+          })
+
+        setPluginSettings(settings);
+        return settings;
+      }
+    },
+    [api]
+  )
 
   const updateSettings = (update: Partial<Settings>) => {
     if (settings) {
@@ -170,5 +226,5 @@ export const useSettings = () => {
     }
   };
 
-  return [settings, updateSettings] as const;
+  return [settings, updateSettings, pluginSettings, setPluginSettings, refreshStreamyfinPluginSettings] as const;
 };

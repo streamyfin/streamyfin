@@ -1,3 +1,4 @@
+import "@/augmentations";
 import { useInterval } from "@/hooks/useInterval";
 import { storage } from "@/utils/mmkv";
 import { Api, Jellyfin } from "@jellyfin/sdk";
@@ -19,7 +20,8 @@ import React, {
 import { Platform } from "react-native";
 import uuid from "react-native-uuid";
 import { getDeviceName } from "react-native-device-info";
-import { toast } from "sonner-native";
+import { useSettings } from "@/utils/atoms/settings";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 
 interface Server {
   address: string;
@@ -70,6 +72,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useAtom(userAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
+  const [settings, updateSettings, pluginSettings, setPluginSettings, refreshStreamyfinPluginSettings] = useSettings();
+  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
 
   useQuery({
     queryKey: ["user", api],
@@ -226,6 +230,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           storage.set("user", JSON.stringify(auth.data.User));
           setApi(jellyfin.createApi(api?.basePath, auth.data?.AccessToken));
           storage.set("token", auth.data?.AccessToken);
+
+          const recentPluginSettings = await refreshStreamyfinPluginSettings();
+          if (recentPluginSettings?.jellyseerrServerUrl?.value) {
+            const jellyseerrApi = new JellyseerrApi(recentPluginSettings.jellyseerrServerUrl.value);
+            await jellyseerrApi.test().then((result) => {
+              if (result.isValid && result.requiresPass) {
+                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+              }
+            })
+          }
         }
       } catch (error) {
         if (axios.isAxiosError(error)) {
@@ -262,6 +276,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async () => {
       storage.delete("token");
       setUser(null);
+      setPluginSettings(undefined);
+      await clearAllJellyseerData();
     },
     onError: (error) => {
       console.error("Logout failed:", error);
