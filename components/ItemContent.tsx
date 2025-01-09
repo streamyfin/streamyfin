@@ -27,7 +27,7 @@ import { useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Chromecast } from "./Chromecast";
 import { ItemHeader } from "./ItemHeader";
@@ -35,6 +35,7 @@ import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { AddToFavorites } from "./AddToFavorites";
+import { AirplayButton } from "./AirplayButton";
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -87,6 +88,21 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           item && (
             <View className="flex flex-row items-center space-x-2">
               <Chromecast background="blur" width={22} height={22} />
+              {Platform.OS === "ios" && (
+                <AirplayButton
+                  audioIndexStr={selectedOptions?.audioIndex?.toString() ?? "0"}
+                  bitrateValueStr={
+                    selectedOptions?.bitrate?.value?.toString() ?? "250000"
+                  }
+                  itemId={item.Id!}
+                  mediaSourceId={
+                    selectedOptions?.mediaSource?.Id!.toString() ?? "0"
+                  }
+                  subtitleIndexStr={
+                    selectedOptions?.subtitleIndex?.toString() ?? "0"
+                  }
+                />
+              )}
               {item.Type !== "Program" && (
                 <View className="flex flex-row items-center space-x-2">
                   <DownloadSingleItem item={item} size="large" />

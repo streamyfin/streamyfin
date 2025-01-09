@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { PropsWithChildren } from "react";
+import React, { PropsWithChildren } from "react";
 import {
   Platform,
   TouchableOpacity,
@@ -11,6 +11,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 interface Props extends TouchableOpacityProps {
   onPress?: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
+  iconComponent?: React.ComponentType<any>;
   background?: boolean;
   size?: "default" | "large";
   fillColor?: "primary";
@@ -20,6 +21,7 @@ interface Props extends TouchableOpacityProps {
 export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   background = true,
   icon,
+  iconComponent: IconComponent,
   onPress,
   children,
   size = "default",
@@ -52,6 +54,9 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
             color={"white"}
           />
         ) : null}
+        {IconComponent ? (
+          <IconComponent size={size === "large" ? 22 : 18} color="white" />
+        ) : null}
         {children ? children : null}
       </TouchableOpacity>
     );
@@ -69,6 +74,9 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
             size={size === "large" ? 22 : 18}
             color={"white"}
           />
+        ) : null}
+        {IconComponent ? (
+          <IconComponent size={size === "large" ? 22 : 18} color="white" />
         ) : null}
         {children ? children : null}
       </TouchableOpacity>
@@ -90,6 +98,9 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
             color={"white"}
           />
         ) : null}
+        {IconComponent ? (
+          <IconComponent size={size === "large" ? 22 : 18} color="white" />
+        ) : null}
         {children ? children : null}
       </TouchableOpacity>
     );
@@ -107,6 +118,9 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
             size={size === "large" ? 22 : 18}
             color={"white"}
           />
+        ) : null}
+        {IconComponent ? (
+          <IconComponent size={size === "large" ? 22 : 18} color="white" />
         ) : null}
         {children ? children : null}
       </BlurView>
