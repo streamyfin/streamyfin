@@ -11,8 +11,8 @@ import {
 import {apiAtom} from "@/providers/JellyfinProvider";
 import {getPluginsApi} from "@jellyfin/sdk/lib/utils/api";
 import {writeErrorLog} from "@/utils/log";
-import {AUTHORIZATION_HEADER} from "@jellyfin/sdk";
 
+const STREAMYFIN_PLUGIN_ID = "1e9e5d38-6e67-4615-8719-e98a5c34f004"
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS"
 
 export type DownloadQuality = "original" | "high" | "low";
@@ -105,6 +105,9 @@ export interface Lockable<T> {
 }
 
 export type PluginLockableSettings = { [K in keyof Settings]: Lockable<Settings[K]> };
+export type StreamyfinPluginConfig = {
+  settings: PluginLockableSettings
+}
 
 const loadSettings = (): Settings => {
   const defaultValues: Settings = {
@@ -193,9 +196,9 @@ export const useSettings = () => {
       const plugins = await getPluginsApi(api).getPlugins().then(({data}) => data);
 
       if (plugins && plugins.length > 0) {
-        const streamyfinPlugin = plugins.find(plugin => plugin.Name === "Streamyfin");
+        const streamyfinPlugin = plugins.find(plugin => plugin.Id === STREAMYFIN_PLUGIN_ID);
 
-        if (streamyfinPlugin?.Status != PluginStatus.Active) {
+        if (!streamyfinPlugin || streamyfinPlugin.Status != PluginStatus.Active) {
           writeErrorLog(
             "Streamyfin plugin is currently not active.\n" +
             `Current status is: ${streamyfinPlugin?.Status}`
@@ -204,11 +207,8 @@ export const useSettings = () => {
           return;
         }
 
-        const settings = await api.axiosInstance
-          .get(`${api.basePath}/Streamyfin/config`, { headers: { [AUTHORIZATION_HEADER]: api.authorizationHeader } })
-          .then(response => {
-            return response.data['settings'] as PluginLockableSettings
-          })
+        const settings = await api.getStreamyfinPluginConfig()
+          .then(({data}) => data.settings)
 
         setPluginSettings(settings);
         return settings;
