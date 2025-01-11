@@ -1,7 +1,6 @@
 import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
 import { formatTimeString } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +8,6 @@ import { checkForExistingDownloads } from "@kesha-antonov/react-native-backgroun
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { FFmpegKit } from "ffmpeg-kit-react-native";
-import { useAtom } from "jotai";
 import {
   ActivityIndicator,
   TouchableOpacity,
@@ -62,7 +60,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     mutationFn: async (id: string) => {
       if (!process) throw new Error("No active download");
 
-      if (settings?.downloadMethod === "optimized") {
+      if (settings?.downloadMethod === DownloadMethod.Optimized) {
         try {
           const tasks = await checkForExistingDownloads();
           for (const task of tasks) {

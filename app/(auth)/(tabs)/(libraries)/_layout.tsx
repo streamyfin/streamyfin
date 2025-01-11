@@ -6,7 +6,7 @@ import { Platform } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 
 export default function IndexLayout() {
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings();
 
   if (!settings?.libraryOptions) return null;
 
@@ -25,6 +25,7 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
           headerRight: () => (
+            !pluginSettings?.libraryOptions?.locked &&
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
                 <Ionicons
