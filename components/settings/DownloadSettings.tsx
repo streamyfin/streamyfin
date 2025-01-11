@@ -1,15 +1,15 @@
-import {Stepper} from "@/components/inputs/Stepper";
-import {useDownload} from "@/providers/DownloadProvider";
-import {DownloadMethod, Settings, useSettings} from "@/utils/atoms/settings";
-import {Ionicons} from "@expo/vector-icons";
-import {useQueryClient} from "@tanstack/react-query";
-import {useRouter} from "expo-router";
-import React, {useMemo} from "react";
-import {Switch, TouchableOpacity} from "react-native";
+import { Stepper } from "@/components/inputs/Stepper";
+import { useDownload } from "@/providers/DownloadProvider";
+import { DownloadMethod, Settings, useSettings } from "@/utils/atoms/settings";
+import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import React, { useMemo } from "react";
+import { Switch, TouchableOpacity } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
-import {Text} from "../common/Text";
-import {ListGroup} from "../list/ListGroup";
-import {ListItem} from "../list/ListItem";
+import { Text } from "../common/Text";
+import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export const DownloadSettings: React.FC = ({ ...props }) => {
@@ -18,20 +18,18 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const disabled = useMemo(() => (
-    pluginSettings?.downloadMethod?.locked === true &&
-    pluginSettings?.remuxConcurrentLimit?.locked === true &&
-    pluginSettings?.autoDownload.locked === true
-  ), [pluginSettings])
+  const allDisabled = useMemo(
+    () =>
+      pluginSettings?.downloadMethod?.locked === true &&
+      pluginSettings?.remuxConcurrentLimit?.locked === true &&
+      pluginSettings?.autoDownload.locked === true,
+    [pluginSettings]
+  );
 
   if (!settings) return null;
 
   return (
-    <DisabledSetting
-      disabled={disabled}
-      {...props}
-      className="mb-4"
-    >
+    <DisabledSetting disabled={allDisabled} {...props} className="mb-4">
       <ListGroup title="Downloads">
         <ListItem
           title="Download method"
@@ -87,7 +85,10 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
 
         <ListItem
           title="Remux max download"
-          disabled={pluginSettings?.remuxConcurrentLimit?.locked || settings.downloadMethod !== DownloadMethod.Remux}
+          disabled={
+            pluginSettings?.remuxConcurrentLimit?.locked ||
+            settings.downloadMethod !== DownloadMethod.Remux
+          }
         >
           <Stepper
             value={settings.remuxConcurrentLimit}
@@ -104,17 +105,26 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
 
         <ListItem
           title="Auto download"
-          disabled={pluginSettings?.autoDownload?.locked || settings.downloadMethod !== DownloadMethod.Optimized}
+          disabled={
+            pluginSettings?.autoDownload?.locked ||
+            settings.downloadMethod !== DownloadMethod.Optimized
+          }
         >
           <Switch
-            disabled={pluginSettings?.autoDownload?.locked || settings.downloadMethod !== DownloadMethod.Optimized}
+            disabled={
+              pluginSettings?.autoDownload?.locked ||
+              settings.downloadMethod !== DownloadMethod.Optimized
+            }
             value={settings.autoDownload}
             onValueChange={(value) => updateSettings({ autoDownload: value })}
           />
         </ListItem>
 
         <ListItem
-          disabled={pluginSettings?.optimizedVersionsServerUrl?.locked || settings.downloadMethod !== DownloadMethod.Optimized}
+          disabled={
+            pluginSettings?.optimizedVersionsServerUrl?.locked ||
+            settings.downloadMethod !== DownloadMethod.Optimized
+          }
           onPress={() => router.push("/settings/optimized-server/page")}
           showArrow
           title="Optimized Versions Server"
