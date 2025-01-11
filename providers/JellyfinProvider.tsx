@@ -51,6 +51,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
+    async () => {
+      const servers = jellyfin?.discovery.getRecommendedServerCandidates(
+        "demo.jellyfin.org/stable"
+      );
+      console.log(servers);
+    };
+  }, [jellyfin]);
+
+  useEffect(() => {
     (async () => {
       const id = getOrSetDeviceId();
       const deviceName = await getDeviceName();
@@ -72,7 +81,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useAtom(userAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
-  const [settings, updateSettings, pluginSettings, setPluginSettings, refreshStreamyfinPluginSettings] = useSettings();
+  const [
+    settings,
+    updateSettings,
+    pluginSettings,
+    setPluginSettings,
+    refreshStreamyfinPluginSettings,
+  ] = useSettings();
   const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
 
   useQuery({
@@ -233,12 +248,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           if (recentPluginSettings?.jellyseerrServerUrl?.value) {
-            const jellyseerrApi = new JellyseerrApi(recentPluginSettings.jellyseerrServerUrl.value);
+            const jellyseerrApi = new JellyseerrApi(
+              recentPluginSettings.jellyseerrServerUrl.value
+            );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
                 jellyseerrApi.login(username, password).then(setJellyseerrUser);
               }
-            })
+            });
           }
         }
       } catch (error) {
