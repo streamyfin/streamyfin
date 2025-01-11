@@ -2,7 +2,7 @@ import { useRemuxHlsToMp4 } from "@/hooks/useRemuxHlsToMp4";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
+import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
@@ -74,7 +74,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     [user]
   );
   const usingOptimizedServer = useMemo(
-    () => settings?.downloadMethod === "optimized",
+    () => settings?.downloadMethod === DownloadMethod.Optimized,
     [settings]
   );
 

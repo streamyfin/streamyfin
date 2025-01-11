@@ -1,5 +1,5 @@
 import { atom, useAtom } from "jotai";
-import { useCallback, useEffect } from "react";
+import {useCallback, useEffect, useMemo} from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { storage } from "../mmkv";
 import { Platform } from "react-native";
@@ -12,7 +12,7 @@ import {apiAtom} from "@/providers/JellyfinProvider";
 import {getPluginsApi} from "@jellyfin/sdk/lib/utils/api";
 import {writeErrorLog} from "@/utils/log";
 
-const STREAMYFIN_PLUGIN_ID = "1e9e5d38-6e67-4615-8719-e98a5c34f004"
+const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004"
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS"
 
 export type DownloadQuality = "original" | "high" | "low";
@@ -66,6 +66,11 @@ export type DefaultLanguageOption = {
   label: string;
 };
 
+export enum DownloadMethod {
+  Remux = "remux",
+  Optimized = "optimized"
+}
+
 export type Settings = {
   autoRotate?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
@@ -88,7 +93,7 @@ export type Settings = {
   forwardSkipTime: number;
   rewindSkipTime: number;
   optimizedVersionsServerUrl?: string | null;
-  downloadMethod: "optimized" | "remux";
+  downloadMethod: DownloadMethod;
   autoDownload: boolean;
   showCustomMenuLinks: boolean;
   disableHapticFeedback: boolean;
@@ -100,7 +105,7 @@ export type Settings = {
 };
 
 export interface Lockable<T> {
-  lockable: boolean;
+  locked: boolean;
   value: T
 }
 
@@ -138,7 +143,7 @@ const loadSettings = (): Settings => {
     forwardSkipTime: 30,
     rewindSkipTime: 10,
     optimizedVersionsServerUrl: null,
-    downloadMethod: "remux",
+    downloadMethod: DownloadMethod.Remux,
     autoDownload: false,
     showCustomMenuLinks: false,
     disableHapticFeedback: false,
@@ -171,15 +176,15 @@ export const pluginSettingsAtom = atom(storage.get<PluginLockableSettings>(STREA
 
 export const useSettings = () => {
   const [api] = useAtom(apiAtom);
-  const [settings, setSettings] = useAtom(settingsAtom);
+  const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
   useEffect(() => {
-    if (settings === null) {
+    if (_settings === null) {
       const loadedSettings = loadSettings();
       setSettings(loadedSettings);
     }
-  }, [settings, setSettings]);
+  }, [_settings, setSettings]);
 
   const setPluginSettings = useCallback((settings: PluginLockableSettings | undefined) => {
     storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, settings)
@@ -216,6 +221,22 @@ export const useSettings = () => {
     },
     [api]
   )
+
+  // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
+  const settings: Settings = useMemo(() => {
+    const overrideSettings = Object.entries(pluginSettings || {})
+      .reduce((acc, [key, value]) => {
+        if (value) {
+          acc = Object.assign(acc, {[key]: value.value})
+        }
+        return acc
+      }, {} as Settings)
+
+    return {
+      ..._settings,
+      ...overrideSettings
+    }
+  }, [_settings, setSettings, pluginSettings, _setPluginSettings, setPluginSettings])
 
   const updateSettings = (update: Partial<Settings>) => {
     if (settings) {
