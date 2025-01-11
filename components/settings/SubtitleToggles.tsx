@@ -7,11 +7,15 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import {useSettings} from "@/utils/atoms/settings";
+import {Stepper} from "@/components/inputs/Stepper";
+import Dropdown from "@/components/common/Dropdown";
 
 interface Props extends ViewProps {}
 
 export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const media = useMedia();
+  const [_, __, pluginSettings] = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
 
@@ -36,8 +40,11 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         }
       >
         <ListItem title="Subtitle language">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
+          <Dropdown
+            data={[{DisplayName: "None", ThreeLetterISOLanguageName: "none-subs" },...(cultures ?? [])]}
+            keyExtractor={(item) => item?.ThreeLetterISOLanguageName ?? "unknown"}
+            titleExtractor={(item) => item?.DisplayName}
+            title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
                   {settings?.defaultSubtitleLanguage?.DisplayName || "None"}
@@ -48,48 +55,28 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                   color="#5A5960"
                 />
               </TouchableOpacity>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content
-              loop={true}
-              side="bottom"
-              align="start"
-              alignOffset={0}
-              avoidCollisions={true}
-              collisionPadding={8}
-              sideOffset={8}
-            >
-              <DropdownMenu.Label>Languages</DropdownMenu.Label>
-              <DropdownMenu.Item
-                key={"none-subs"}
-                onSelect={() => {
-                  updateSettings({
-                    defaultSubtitleLanguage: null,
-                  });
-                }}
-              >
-                <DropdownMenu.ItemTitle>None</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              {cultures?.map((l) => (
-                <DropdownMenu.Item
-                  key={l?.ThreeLetterISOLanguageName ?? "unknown"}
-                  onSelect={() => {
-                    updateSettings({
-                      defaultSubtitleLanguage: l,
-                    });
-                  }}
-                >
-                  <DropdownMenu.ItemTitle>
-                    {l.DisplayName}
-                  </DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+            }
+            label="Languages"
+            onSelected={(defaultSubtitleLanguage) =>
+              updateSettings({
+                defaultSubtitleLanguage: defaultSubtitleLanguage.DisplayName === "None"
+                  ? null
+                  : defaultSubtitleLanguage
+              })
+          }
+          />
         </ListItem>
 
-        <ListItem title="Subtitle Mode">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
+        <ListItem
+          title="Subtitle Mode"
+          disabled={pluginSettings?.subtitleMode?.locked}
+        >
+          <Dropdown
+            data={subtitleModes}
+            disabled={pluginSettings?.subtitleMode?.locked}
+            keyExtractor={String}
+            titleExtractor={String}
+            title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
                   {settings?.subtitleMode || "Loading"}
@@ -100,68 +87,39 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                   color="#5A5960"
                 />
               </TouchableOpacity>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content
-              loop={true}
-              side="bottom"
-              align="start"
-              alignOffset={0}
-              avoidCollisions={true}
-              collisionPadding={8}
-              sideOffset={8}
-            >
-              <DropdownMenu.Label>Subtitle Mode</DropdownMenu.Label>
-              {subtitleModes?.map((l) => (
-                <DropdownMenu.Item
-                  key={l}
-                  onSelect={() => {
-                    updateSettings({
-                      subtitleMode: l,
-                    });
-                  }}
-                >
-                  <DropdownMenu.ItemTitle>{l}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+            }
+            label="Subtitle Mode"
+            onSelected={(subtitleMode) =>
+              updateSettings({subtitleMode})
+            }
+          />
         </ListItem>
 
-        <ListItem title="Set Subtitle Track From Previous Item">
+        <ListItem
+          title="Set Subtitle Track From Previous Item"
+          disabled={pluginSettings?.rememberSubtitleSelections?.locked}
+        >
           <Switch
             value={settings.rememberSubtitleSelections}
+            disabled={pluginSettings?.rememberSubtitleSelections?.locked}
             onValueChange={(value) =>
               updateSettings({ rememberSubtitleSelections: value })
             }
           />
         </ListItem>
 
-        <ListItem title="Subtitle Size">
-          <View className="flex flex-row items-center">
-            <TouchableOpacity
-              onPress={() =>
-                updateSettings({
-                  subtitleSize: Math.max(0, settings.subtitleSize - 5),
-                })
-              }
-              className="w-8 h-8 bg-neutral-800 rounded-l-lg flex items-center justify-center"
-            >
-              <Text>-</Text>
-            </TouchableOpacity>
-            <Text className="w-12 h-8 bg-neutral-800 px-3 py-2 flex items-center justify-center">
-              {settings.subtitleSize}
-            </Text>
-            <TouchableOpacity
-              className="w-8 h-8 bg-neutral-800 rounded-r-lg flex items-center justify-center"
-              onPress={() =>
-                updateSettings({
-                  subtitleSize: Math.min(120, settings.subtitleSize + 5),
-                })
-              }
-            >
-              <Text>+</Text>
-            </TouchableOpacity>
-          </View>
+        <ListItem
+          title="Subtitle Size"
+          disabled={pluginSettings?.subtitleSize?.locked}
+        >
+          <Stepper
+            value={settings.subtitleSize}
+            disabled={pluginSettings?.subtitleSize?.locked}
+            step={5}
+            min={0}
+            max={120}
+            onUpdate={(subtitleSize) => updateSettings({subtitleSize})}
+          />
         </ListItem>
       </ListGroup>
     </View>
