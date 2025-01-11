@@ -78,18 +78,16 @@
             "useFrameworks": "static"
           },
           "android": {
-            "android": {
-              "compileSdkVersion": 34,
-              "targetSdkVersion": 34,
-              "buildToolsVersion": "34.0.0"
-            },
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
             "minSdkVersion": 24,
             "usesCleartextTraffic": true,
-            "packagingOptions": {
-              "jniLibs": {
-                "useLegacyPackaging": true
-              }
-            }
+            "extraMavenRepos": [
+              "https://repo.maven.apache.org/maven2",
+              "https://uk.maven.org/maven2"
+            ],
+            "useLegacyPackaging": true
           }
         }
       ],
