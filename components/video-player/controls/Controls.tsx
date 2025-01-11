@@ -40,6 +40,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
+  GestureResponderEvent,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
@@ -531,6 +532,36 @@ export const Controls: React.FC<Props> = ({
   // Used when user changes audio through audio button on device.
   const [showAudioSlider, setShowAudioSlider] = useState(false);
 
+  // Prevent opening controls when user swipes on the screen.
+  const touchStartTime = useRef(0);
+  const touchStartPosition = useRef({ x: 0, y: 0 });
+
+  const handleTouchStart = (event: GestureResponderEvent) => {
+    touchStartTime.current = Date.now();
+    touchStartPosition.current = {
+      x: event.nativeEvent.pageX,
+      y: event.nativeEvent.pageY,
+    };
+  };
+
+  const handleTouchEnd = (event: GestureResponderEvent) => {
+    const touchEndTime = Date.now();
+    const touchEndPosition = {
+      x: event.nativeEvent.pageX,
+      y: event.nativeEvent.pageY,
+    };
+
+    const touchDuration = touchEndTime - touchStartTime.current;
+    const touchDistance = Math.sqrt(
+      Math.pow(touchEndPosition.x - touchStartPosition.current.x, 2) +
+        Math.pow(touchEndPosition.y - touchStartPosition.current.y, 2)
+    );
+
+    if (touchDuration < 200 && touchDistance < 10) {
+      toggleControls();
+    }
+  };
+
   return (
     <ControlProvider
       item={item}
@@ -546,9 +577,8 @@ export const Controls: React.FC<Props> = ({
       ) : (
         <>
           <Pressable
-            onPressIn={() => {
-              toggleControls();
-            }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
             style={{
               position: "absolute",
               width: screenWidth,
@@ -560,7 +590,7 @@ export const Controls: React.FC<Props> = ({
               bottom: 0,
               opacity: showControls ? 0.5 : 0,
             }}
-          ></Pressable>
+          />
 
           <View
             style={[
