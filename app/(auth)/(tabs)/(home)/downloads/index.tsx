@@ -4,7 +4,7 @@ import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
 import { DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
+import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtom } from "jotai";
@@ -96,7 +96,7 @@ export default function page() {
       >
         <View className="py-4">
           <View className="mb-4 flex flex-col space-y-4 px-4">
-            {settings?.downloadMethod === "remux" && (
+            {settings?.downloadMethod === DownloadMethod.Remux && (
               <View className="bg-neutral-900 p-4 rounded-2xl">
                 <Text className="text-lg font-bold">Queue</Text>
                 <Text className="text-xs opacity-70 text-red-600">
