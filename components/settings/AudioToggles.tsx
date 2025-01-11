@@ -6,11 +6,13 @@ import { Switch } from "react-native-gesture-handler";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { Ionicons } from "@expo/vector-icons";
+import {useSettings} from "@/utils/atoms/settings";
 
 interface Props extends ViewProps {}
 
 export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   const media = useMedia();
+  const [_, __, pluginSettings] = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
 
@@ -26,9 +28,13 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
           </Text>
         }
       >
-        <ListItem title={"Set Audio Track From Previous Item"}>
+        <ListItem
+          title={"Set Audio Track From Previous Item"}
+          disabled={pluginSettings?.rememberAudioSelections?.locked}
+        >
           <Switch
             value={settings.rememberAudioSelections}
+            disabled={pluginSettings?.rememberAudioSelections?.locked}
             onValueChange={(value) =>
               updateSettings({ rememberAudioSelections: value })
             }
