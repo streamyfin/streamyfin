@@ -8,9 +8,10 @@ import { getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { Switch, View } from "react-native";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export default function page() {
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings();
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
 
@@ -35,7 +36,10 @@ export default function page() {
     );
 
   return (
-    <View className="px-4">
+    <DisabledSetting
+      disabled={pluginSettings?.hiddenLibraries?.locked === true}
+      className="px-4"
+    >
       <ListGroup>
         {data?.map((view) => (
           <ListItem key={view.Id} title={view.Name} onPress={() => {}}>
@@ -56,6 +60,6 @@ export default function page() {
         Select the libraries you want to hide from the Library tab and home page
         sections.
       </Text>
-    </View>
+    </DisabledSetting>
   );
 }
