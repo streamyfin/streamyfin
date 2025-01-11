@@ -25,7 +25,7 @@
     "@futurejj/react-native-visibility-sensor": "^1.3.5",
     "@gorhom/bottom-sheet": "^4.6.4",
     "@jellyfin/sdk": "^0.11.0",
-    "@kesha-antonov/react-native-background-downloader": "3.1.2",
+    "@kesha-antonov/react-native-background-downloader": "3.2.6",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "11.3.1",
     "@react-native-menu/menu": "^1.1.6",
