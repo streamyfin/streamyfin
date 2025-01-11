@@ -1,14 +1,16 @@
 import * as DropdownMenu from "zeego/dropdown-menu";
 import {TouchableOpacity, View, ViewProps} from "react-native";
 import {Text} from "@/components/common/Text";
-import React, {PropsWithChildren, useEffect, useState} from "react";
+import React, {PropsWithChildren, ReactNode, useEffect, useState} from "react";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 
 interface Props<T> {
   data: T[]
+  disabled?: boolean
   placeholderText?: string,
   keyExtractor: (item: T) => string
-  titleExtractor: (item: T) => string
-  title: string,
+  titleExtractor: (item: T) => string | undefined
+  title: string | ReactNode,
   label: string,
   onSelected: (...item: T[]) => void
   multi?: boolean
@@ -16,6 +18,7 @@ interface Props<T> {
 
 const Dropdown =  <T extends unknown>({
   data,
+  disabled,
   placeholderText,
   keyExtractor,
   titleExtractor,
@@ -34,20 +37,30 @@ const Dropdown =  <T extends unknown>({
   }, [selected]);
 
   return (
-    <View {...props}>
+    <DisabledSetting
+      disabled={disabled === true}
+      showText={false}
+      {...props}
+    >
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
-          <View className="flex flex-col">
-            <Text className="opacity-50 mb-1 text-xs">
-              {title}
-            </Text>
-            <TouchableOpacity
-              className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-              <Text style={{}} className="" numberOfLines={1}>
-                {selected?.length !== undefined ? selected.map(titleExtractor).join(",") : placeholderText}
+          {typeof title === 'string' ? (
+            <View className="flex flex-col">
+              <Text className="opacity-50 mb-1 text-xs">
+                {title}
               </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
+                <Text style={{}} className="" numberOfLines={1}>
+                  {selected?.length !== undefined ? selected.map(titleExtractor).join(",") : placeholderText}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {title}
+            </>
+          )}
         </DropdownMenu.Trigger>
         <DropdownMenu.Content
           loop={false}
@@ -88,7 +101,7 @@ const Dropdown =  <T extends unknown>({
           ))}
         </DropdownMenu.Content>
       </DropdownMenu.Root>
-    </View>
+    </DisabledSetting>
   )
 };
 
