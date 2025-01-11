@@ -223,11 +223,16 @@ export const useSettings = () => {
   )
 
   // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
+  // If admin sets locked to false but provides a value,
+  //  use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
     const overrideSettings = Object.entries(pluginSettings || {})
-      .reduce((acc, [key, value]) => {
-        if (value) {
-          acc = Object.assign(acc, {[key]: value.value})
+      .reduce((acc, [key, setting]) => {
+        if (setting) {
+          const {value, locked} = setting
+          acc = Object.assign(acc, {
+            [key]: locked ? value : _settings?.[key as keyof Settings] ?? value
+          })
         }
         return acc
       }, {} as Settings)
