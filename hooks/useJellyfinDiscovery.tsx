@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import dgram from "react-native-udp";
 
 const JELLYFIN_DISCOVERY_PORT = 7359;
@@ -11,23 +11,16 @@ interface ServerInfo {
   serverName?: string;
 }
 
-const stringToUint8Array = (str: string): Uint8Array => {
-  const arr = new Uint8Array(str.length);
-  for (let i = 0; i < str.length; i++) {
-    arr[i] = str.charCodeAt(i);
-  }
-  return arr;
-};
-
 export const useJellyfinDiscovery = () => {
   const [servers, setServers] = useState<ServerInfo[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  const startDiscovery = () => {
+  const startDiscovery = useCallback(() => {
     setIsSearching(true);
     setServers([]);
 
     const discoveredServers = new Set<string>();
+    let discoveryTimeout: NodeJS.Timeout;
 
     const socket = dgram.createSocket({
       type: "udp4",
@@ -46,7 +39,7 @@ export const useJellyfinDiscovery = () => {
 
       try {
         socket.setBroadcast(true);
-        const messageBuffer = stringToUint8Array(DISCOVERY_MESSAGE);
+        const messageBuffer = new TextEncoder().encode(DISCOVERY_MESSAGE);
 
         socket.send(
           messageBuffer,
@@ -63,7 +56,7 @@ export const useJellyfinDiscovery = () => {
           }
         );
 
-        setTimeout(() => {
+        discoveryTimeout = setTimeout(() => {
           setIsSearching(false);
           socket.close();
         }, 5000);
@@ -79,7 +72,7 @@ export const useJellyfinDiscovery = () => {
       }
 
       try {
-        const response = String.fromCharCode(...new Uint8Array(msg));
+        const response = new TextDecoder().decode(msg);
         const serverInfo = JSON.parse(response);
         discoveredServers.add(rinfo.address);
 
@@ -97,9 +90,13 @@ export const useJellyfinDiscovery = () => {
     });
 
     return () => {
+      clearTimeout(discoveryTimeout);
+      if (isSearching) {
+        setIsSearching(false);
+      }
       socket.close();
     };
-  };
+  }, []);
 
   return {
     servers,
