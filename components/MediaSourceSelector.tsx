@@ -1,13 +1,11 @@
-import { tc } from "@/utils/textTools";
 import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
-import { convertBitsToMegabitsOrGigabits } from "@/utils/bToMb";
 
 interface Props extends React.ComponentProps<typeof View> {
   item: BaseItemDto;
@@ -34,9 +32,9 @@ export const MediaSourceSelector: React.FC<Props> = ({
     if (!mediaSources.length) return "";
 
     let commonPrefix = "";
-    for (let i = 0; i < mediaSources[0].Name.length; i++) {
-      const char = mediaSources[0].Name[i];
-      if (mediaSources.every((source) => source.Name[i] === char)) {
+    for (let i = 0; i < mediaSources[0].Name!.length; i++) {
+      const char = mediaSources[0].Name![i];
+      if (mediaSources.every((source) => source.Name![i] === char)) {
         commonPrefix += char;
       } else {
         commonPrefix = commonPrefix.slice(0, -1);

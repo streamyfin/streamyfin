@@ -1,23 +1,30 @@
-import React, {useCallback} from "react";
-import {
-  useJellyseerr,
-} from "@/hooks/useJellyseerr";
-import {TouchableOpacity, ViewProps} from "react-native";
-import Slide, {SlideProps} from "@/components/jellyseerr/discover/Slide";
-import {COMPANY_LOGO_IMAGE_FILTER, Network} from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard";
-import {Studio} from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
-import {router, useSegments} from "expo-router";
+import Slide, { SlideProps } from "@/components/jellyseerr/discover/Slide";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  COMPANY_LOGO_IMAGE_FILTER,
+  Network,
+} from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
+import { Studio } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
+import { router, useSegments } from "expo-router";
+import React, { useCallback } from "react";
+import { TouchableOpacity, ViewProps } from "react-native";
 
-const CompanySlide: React.FC<{data: Network[] | Studio[]} & SlideProps & ViewProps> = ({ slide, data, ...props }) => {
+const CompanySlide: React.FC<
+  { data: Network[] | Studio[] } & SlideProps & ViewProps
+> = ({ slide, data, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
   const from = segments[2];
 
-  const navigate = useCallback(({id, image, name}: Network | Studio) => router.push({
-    pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}`,
-    params: {id, image, name, type: slide.type }
-  }), [slide]);
+  const navigate = useCallback(
+    ({ id, image, name }: Network | Studio) =>
+      router.push({
+        pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}`,
+        params: { id, image, name, type: slide.type },
+      }),
+    [slide]
+  );
 
   return (
     <Slide
@@ -30,7 +37,10 @@ const CompanySlide: React.FC<{data: Network[] | Studio[]} & SlideProps & ViewPro
           <GenericSlideCard
             className="w-28 rounded-lg overflow-hidden border border-neutral-900 p-4"
             id={item.id.toString()}
-            url={jellyseerrApi?.imageProxy(item.image, COMPANY_LOGO_IMAGE_FILTER)}
+            url={jellyseerrApi?.imageProxy(
+              item.image,
+              COMPANY_LOGO_IMAGE_FILTER
+            )}
           />
         </TouchableOpacity>
       )}
