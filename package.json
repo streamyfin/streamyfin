@@ -94,6 +94,7 @@
     "react-native-screens": "3.31.1",
     "react-native-svg": "15.2.0",
     "react-native-tab-view": "^3.5.2",
+    "react-native-udp": "^4.1.7",
     "react-native-uitextview": "^1.4.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-uuid": "^2.0.2",
