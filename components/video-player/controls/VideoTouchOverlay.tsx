@@ -31,7 +31,7 @@ export const VideoTouchOverlay = ({
         right: 0,
         top: 0,
         bottom: 0,
-        opacity: showControls ? 0.5 : 0,
+        opacity: showControls ? 0.75 : 0,
       }}
     />
   );
