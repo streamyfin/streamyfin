@@ -51,15 +51,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    async () => {
-      const servers = jellyfin?.discovery.getRecommendedServerCandidates(
-        "demo.jellyfin.org/stable"
-      );
-      console.log(servers);
-    };
-  }, [jellyfin]);
-
-  useEffect(() => {
     (async () => {
       const id = getOrSetDeviceId();
       const deviceName = await getDeviceName();
