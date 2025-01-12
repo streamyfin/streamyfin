@@ -2,19 +2,16 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { Loader } from "@/components/Loader";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import { Linking, Switch, View } from "react-native";
-import {useMemo} from "react";
-import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useMemo } from "react";
+import { Linking, Switch } from "react-native";
 
 export default function page() {
-  const navigation = useNavigation();
-
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
@@ -50,18 +47,17 @@ export default function page() {
     staleTime: 0,
   });
 
-  const disabled = useMemo(() => (
-    pluginSettings?.usePopularPlugin?.locked === true &&
-    pluginSettings?.mediaListCollectionIds?.locked === true
-  ), [pluginSettings]);
+  const disabled = useMemo(
+    () =>
+      pluginSettings?.usePopularPlugin?.locked === true &&
+      pluginSettings?.mediaListCollectionIds?.locked === true,
+    [pluginSettings]
+  );
 
   if (!settings) return null;
 
   return (
-    <DisabledSetting
-      disabled={disabled}
-      className="px-4 pt-4"
-    >
+    <DisabledSetting disabled={disabled} className="px-4 pt-4">
       <ListGroup title={"Enable plugin"} className="">
         <ListItem
           title={"Enable Popular Lists"}
@@ -76,7 +72,7 @@ export default function page() {
             disabled={pluginSettings?.usePopularPlugin?.locked}
             onValueChange={(usePopularPlugin) =>
               updateSettings({ usePopularPlugin })
-          }
+            }
           />
         </ListItem>
       </ListGroup>
@@ -103,11 +99,17 @@ export default function page() {
                       <ListItem
                         key={mlc.Id}
                         title={mlc.Name}
-                        disabled={pluginSettings?.mediaListCollectionIds?.locked}
+                        disabled={
+                          pluginSettings?.mediaListCollectionIds?.locked
+                        }
                       >
                         <Switch
-                          disabled={pluginSettings?.mediaListCollectionIds?.locked}
-                          value={settings.mediaListCollectionIds?.includes(mlc.Id!)}
+                          disabled={
+                            pluginSettings?.mediaListCollectionIds?.locked
+                          }
+                          value={settings.mediaListCollectionIds?.includes(
+                            mlc.Id!
+                          )}
                           onValueChange={(value) => {
                             if (!settings.mediaListCollectionIds) {
                               updateSettings({
