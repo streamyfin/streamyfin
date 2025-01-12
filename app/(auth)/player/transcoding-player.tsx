@@ -414,7 +414,6 @@ const Player = () => {
               playWhenInactive={true}
               allowsExternalPlayback={true}
               playInBackground={true}
-              pictureInPicture={true}
               showNotificationControls={true}
               ignoreSilentSwitch="ignore"
               fullscreen={false}
@@ -532,7 +531,6 @@ export function useVideoSource(
       startPosition,
       headers: getAuthHeaders(api),
       metadata: {
-        artist: item?.AlbumArtist ?? undefined,
         title: item?.Name || "Unknown",
         description: item?.Overview ?? undefined,
         imageUri: poster,

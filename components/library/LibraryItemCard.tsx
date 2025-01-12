@@ -60,8 +60,6 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
       _itemType = "Series";
     } else if (library.CollectionType === "boxsets") {
       _itemType = "BoxSet";
-    } else if (library.CollectionType === "music") {
-      _itemType = "MusicAlbum";
     }
 
     return _itemType;
@@ -76,8 +74,6 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
       nameStr = "series";
     } else if (library.CollectionType === "boxsets") {
       nameStr = "box sets";
-    } else if (library.CollectionType === "music") {
-      nameStr = "albums";
     } else {
       nameStr = "items";
     }

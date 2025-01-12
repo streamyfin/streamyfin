@@ -449,12 +449,11 @@ export const Controls: React.FC<Props> = ({
       <View
         style={{
           position: "absolute",
-          left: -57,
-          bottom: 15,
+          left: -62,
+          bottom: 0,
           paddingTop: 30,
           paddingBottom: 5,
           width: tileWidth * 1.5,
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -533,7 +532,7 @@ export const Controls: React.FC<Props> = ({
               },
             ]}
             pointerEvents={showControls ? "auto" : "none"}
-            className={`flex flex-row w-full p-4 `}
+            className={`flex flex-row w-full pt-2`}
           >
             <View className="mr-auto">
               <VideoProvider
@@ -557,7 +556,7 @@ export const Controls: React.FC<Props> = ({
                   onPress={() => {
                     switchOnEpisodeMode();
                   }}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
                 >
                   <Ionicons name="list" size={24} color="white" />
                 </TouchableOpacity>
@@ -565,7 +564,7 @@ export const Controls: React.FC<Props> = ({
               {previousItem && !offline && (
                 <TouchableOpacity
                   onPress={goToPreviousItem}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
                 >
                   <Ionicons name="play-skip-back" size={24} color="white" />
                 </TouchableOpacity>
@@ -574,7 +573,7 @@ export const Controls: React.FC<Props> = ({
               {nextItem && !offline && (
                 <TouchableOpacity
                   onPress={goToNextItem}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
                 >
                   <Ionicons name="play-skip-forward" size={24} color="white" />
                 </TouchableOpacity>
@@ -583,7 +582,7 @@ export const Controls: React.FC<Props> = ({
               {/* {mediaSource?.TranscodingUrl && ( */}
               <TouchableOpacity
                 onPress={toggleIgnoreSafeAreas}
-                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
               >
                 <Ionicons
                   name={ignoreSafeAreas ? "contract-outline" : "expand"}
@@ -600,7 +599,7 @@ export const Controls: React.FC<Props> = ({
                   );
                   router.back();
                 }}
-                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
               >
                 <Ionicons name="close" size={24} color="white" />
               </TouchableOpacity>
@@ -730,11 +729,11 @@ export const Controls: React.FC<Props> = ({
                 bottom: settings?.safeAreaInControlsEnabled ? insets.bottom : 0,
               },
             ]}
-            className={`flex flex-col p-4`}
+            className={`flex flex-col px-2`}
             onTouchStart={handleControlsInteraction}
           >
             <View
-              className="shrink flex flex-col justify-center h-full mb-2"
+              className="shrink flex flex-col justify-center h-full"
               style={{
                 flexDirection: "row",
                 justifyContent: "space-between",
@@ -748,10 +747,12 @@ export const Controls: React.FC<Props> = ({
                 }}
                 pointerEvents={showControls ? "box-none" : "none"}
               >
-                <Text className="font-bold">{item?.Name}</Text>
                 {item?.Type === "Episode" && (
-                  <Text className="opacity-50">{item.SeriesName}</Text>
+                  <Text className="opacity-50">
+                    {`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}
+                  </Text>
                 )}
+                <Text className="font-bold text-xl">{item?.Name}</Text>
                 {item?.Type === "Movie" && (
                   <Text className="text-xs opacity-50">
                     {item?.ProductionYear}
@@ -786,7 +787,7 @@ export const Controls: React.FC<Props> = ({
               </View>
             </View>
             <View
-              className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
+              className={`flex flex-col-reverse rounded-lg items-center my-2`}
               style={{
                 opacity: showControls ? 1 : 0,
               }}
@@ -802,19 +803,7 @@ export const Controls: React.FC<Props> = ({
                     bubbleTextColor: "#666",
                     heartbeatColor: "#999",
                   }}
-                  renderThumb={() => (
-                    <View
-                      style={{
-                        width: 18,
-                        height: 18,
-                        left: -2,
-                        borderRadius: 10,
-                        backgroundColor: "#fff",
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    />
-                  )}
+                  renderThumb={() => null}
                   cache={cacheProgress}
                   onSlidingStart={handleSliderStart}
                   onSlidingComplete={handleSliderComplete}
@@ -829,7 +818,7 @@ export const Controls: React.FC<Props> = ({
                   minimumValue={min}
                   maximumValue={max}
                 />
-                <View className="flex flex-row items-center justify-between mt-0.5">
+                <View className="flex flex-row items-center justify-between mt-2">
                   <Text className="text-[12px] text-neutral-400">
                     {formatTimeString(currentTime, isVlc ? "ms" : "s")}
                   </Text>
