@@ -8,7 +8,7 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
   <img width=150 src="./assets/images/screenshots/screenshot1.png" />
   <img width=150 src="./assets/images/screenshots/screenshot3.png" />
   <img width=150 src="./assets/images/screenshots/screenshot2.png" />
-  <img width=150 src="./assets/images/jellyseerr.PNG"/>
+  <img width=159 src="./assets/images/jellyseerr.PNG"/>
 </div>
 
 ## 🌟 Features
@@ -70,7 +70,7 @@ Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/r
 
 ### Beta testing
 
-To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where i'll post APKs and IPAs. This won't give automatic access to the TestFlight however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
+To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
 
  **Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
 
@@ -90,7 +90,7 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
 3. Make sure you have xcode and/or android studio installed.
-4. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`. This will open a simulator on you computer and run the app.
+4. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`. This will open a simulator on your computer and run the app.
 
 ## 📄 License
 
