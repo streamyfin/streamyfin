@@ -10,8 +10,6 @@ import {
  *  readonly Unknown: "unknown";
     readonly Movies: "movies";
     readonly Tvshows: "tvshows";
-    readonly Music: "music";
-    readonly Musicvideos: "musicvideos";
     readonly Trailers: "trailers";
     readonly Homevideos: "homevideos";
     readonly Boxsets: "boxsets";
@@ -33,8 +31,6 @@ export const colletionTypeToItemType = (
       return BaseItemKind.Series;
     case CollectionType.Homevideos:
       return BaseItemKind.Video;
-    case CollectionType.Musicvideos:
-      return BaseItemKind.MusicVideo;
     case CollectionType.Books:
       return BaseItemKind.Book;
     case CollectionType.Playlists:
