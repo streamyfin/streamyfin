@@ -161,7 +161,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   const tap = Gesture.Tap()
     .maxDuration(2000)
     .onBegin(() => {
-      opacity.value = withTiming(0.5, { duration: 100 });
+      opacity.value = withTiming(0.8, { duration: 100 });
     })
     .onEnd(() => {
       runOnJS(handleRoute)();
