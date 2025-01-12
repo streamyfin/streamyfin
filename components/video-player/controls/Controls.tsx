@@ -35,12 +35,7 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Pressable,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -59,6 +54,8 @@ import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
+import { useControlsTimeout } from "./useControlsTimeout";
+import { VideoTouchOverlay } from "./VideoTouchOverlay";
 
 interface Props {
   item: BaseItemDto;
@@ -88,6 +85,8 @@ interface Props {
   stop: (() => Promise<void>) | (() => void);
   isVlc?: boolean;
 }
+
+const CONTROLS_TIMEOUT = 4000;
 
 export const Controls: React.FC<Props> = ({
   item,
@@ -121,6 +120,12 @@ export const Controls: React.FC<Props> = ({
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
 
+  const [episodeView, setEpisodeView] = useState(false);
+  const [isSliding, setIsSliding] = useState(false);
+
+  // Used when user changes audio through audio button on device.
+  const [showAudioSlider, setShowAudioSlider] = useState(false);
+
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const {
@@ -138,6 +143,23 @@ export const Controls: React.FC<Props> = ({
 
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
+
+  const lightHapticFeedback = useHaptic("light");
+
+  useEffect(() => {
+    prefetchAllTrickplayImages();
+  }, []);
+
+  useEffect(() => {
+    if (item) {
+      progress.value = isVlc
+        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
+        : item?.UserData?.PlaybackPositionTicks || 0;
+      max.value = isVlc
+        ? ticksToMs(item.RunTimeTicks || 0)
+        : item.RunTimeTicks || 0;
+    }
+  }, [item, isVlc]);
 
   const { bitrateValue, subtitleIndex, audioIndex } = useLocalSearchParams<{
     bitrateValue: string;
@@ -160,8 +182,6 @@ export const Controls: React.FC<Props> = ({
     play,
     isVlc
   );
-
-  const lightHapticFeedback = useHaptic("light");
 
   const goToPreviousItem = useCallback(() => {
     if (!previousItem || !settings) return;
@@ -266,20 +286,19 @@ export const Controls: React.FC<Props> = ({
     [updateTimes]
   );
 
-  useEffect(() => {
-    if (item) {
-      progress.value = isVlc
-        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
-        : item?.UserData?.PlaybackPositionTicks || 0;
-      max.value = isVlc
-        ? ticksToMs(item.RunTimeTicks || 0)
-        : item.RunTimeTicks || 0;
-    }
-  }, [item, isVlc]);
-
-  useEffect(() => {
-    prefetchAllTrickplayImages();
+  const hideControls = useCallback(() => {
+    setShowControls(false);
+    setShowAudioSlider(false);
   }, []);
+
+  const { handleControlsInteraction } = useControlsTimeout({
+    showControls,
+    isSliding,
+    episodeView,
+    onHideControls: hideControls,
+    timeout: CONTROLS_TIMEOUT,
+  });
+
   const toggleControls = () => {
     if (showControls) {
       setShowAudioSlider(false);
@@ -300,16 +319,13 @@ export const Controls: React.FC<Props> = ({
     isSeeking.value = true;
   }, [showControls, isPlaying]);
 
-  const [isSliding, setIsSliding] = useState(false);
   const handleSliderComplete = useCallback(
     async (value: number) => {
       isSeeking.value = false;
       progress.value = value;
       setIsSliding(false);
 
-      await seek(
-        Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value)))
-      );
+      seek(Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value))));
       if (wasPlayingRef.current === true) play();
     },
     [isVlc]
@@ -339,7 +355,7 @@ export const Controls: React.FC<Props> = ({
         const newTime = isVlc
           ? Math.max(0, curr - secondsToMs(settings.rewindSkipTime))
           : Math.max(0, ticksToSeconds(curr) - settings.rewindSkipTime);
-        await seek(newTime);
+        seek(newTime);
         if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
@@ -357,7 +373,7 @@ export const Controls: React.FC<Props> = ({
         const newTime = isVlc
           ? curr + secondsToMs(settings.forwardSkipTime)
           : ticksToSeconds(curr) + settings.forwardSkipTime;
-        await seek(Math.max(0, newTime));
+        seek(Math.max(0, newTime));
         if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
@@ -365,10 +381,61 @@ export const Controls: React.FC<Props> = ({
     }
   }, [settings, isPlaying, isVlc]);
 
+  const goToItem = useCallback(
+    async (itemId: string) => {
+      try {
+        const gotoItem = await getItemById(api, itemId);
+        if (!settings || !gotoItem) return;
+
+        lightHapticFeedback();
+
+        const previousIndexes: previousIndexes = {
+          subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
+          audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
+        };
+
+        const {
+          mediaSource: newMediaSource,
+          audioIndex: defaultAudioIndex,
+          subtitleIndex: defaultSubtitleIndex,
+        } = getDefaultPlaySettings(
+          gotoItem,
+          settings,
+          previousIndexes,
+          mediaSource ?? undefined
+        );
+
+        const queryParams = new URLSearchParams({
+          itemId: gotoItem.Id ?? "", // Ensure itemId is a string
+          audioIndex: defaultAudioIndex?.toString() ?? "",
+          subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+          mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+          bitrateValue: bitrateValue.toString(),
+        }).toString();
+
+        if (!bitrateValue) {
+          // @ts-expect-error
+          router.replace(`player/direct-player?${queryParams}`);
+          return;
+        }
+        // @ts-expect-error
+        router.replace(`player/transcoding-player?${queryParams}`);
+      } catch (error) {
+        console.error("Error in gotoEpisode:", error);
+      }
+    },
+    [settings, subtitleIndex, audioIndex]
+  );
+
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
     lightHapticFeedback();
   }, []);
+
+  const switchOnEpisodeMode = useCallback(() => {
+    setEpisodeView(true);
+    if (isPlaying) togglePlay();
+  }, [isPlaying, togglePlay]);
 
   const memoizedRenderBubble = useCallback(() => {
     if (!trickPlayUrl || !trickplayInfo) {
@@ -433,69 +500,13 @@ export const Controls: React.FC<Props> = ({
     );
   }, [trickPlayUrl, trickplayInfo, time]);
 
-  const [EpisodeView, setEpisodeView] = useState(false);
-
-  const switchOnEpisodeMode = () => {
-    setEpisodeView(true);
-    if (isPlaying) togglePlay();
-  };
-
-  const goToItem = useCallback(
-    async (itemId: string) => {
-      try {
-        const gotoItem = await getItemById(api, itemId);
-        if (!settings || !gotoItem) return;
-
-        lightHapticFeedback();
-
-        const previousIndexes: previousIndexes = {
-          subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
-          audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
-        };
-
-        const {
-          mediaSource: newMediaSource,
-          audioIndex: defaultAudioIndex,
-          subtitleIndex: defaultSubtitleIndex,
-        } = getDefaultPlaySettings(
-          gotoItem,
-          settings,
-          previousIndexes,
-          mediaSource ?? undefined
-        );
-
-        const queryParams = new URLSearchParams({
-          itemId: gotoItem.Id ?? "", // Ensure itemId is a string
-          audioIndex: defaultAudioIndex?.toString() ?? "",
-          subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-          mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-          bitrateValue: bitrateValue.toString(),
-        }).toString();
-
-        if (!bitrateValue) {
-          // @ts-expect-error
-          router.replace(`player/direct-player?${queryParams}`);
-          return;
-        }
-        // @ts-expect-error
-        router.replace(`player/transcoding-player?${queryParams}`);
-      } catch (error) {
-        console.error("Error in gotoEpisode:", error);
-      }
-    },
-    [settings, subtitleIndex, audioIndex]
-  );
-
-  // Used when user changes audio through audio button on device.
-  const [showAudioSlider, setShowAudioSlider] = useState(false);
-
   return (
     <ControlProvider
       item={item}
       mediaSource={mediaSource}
       isVideoLoaded={isVideoLoaded}
     >
-      {EpisodeView ? (
+      {episodeView ? (
         <EpisodeList
           item={item}
           close={() => setEpisodeView(false)}
@@ -503,23 +514,12 @@ export const Controls: React.FC<Props> = ({
         />
       ) : (
         <>
-          <Pressable
-            onPressIn={() => {
-              toggleControls();
-            }}
-            style={{
-              position: "absolute",
-              width: screenWidth,
-              height: screenHeight,
-              backgroundColor: "black",
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              opacity: showControls ? 0.5 : 0,
-            }}
-          ></Pressable>
-
+          <VideoTouchOverlay
+            screenWidth={screenWidth}
+            screenHeight={screenHeight}
+            showControls={showControls}
+            onToggleControls={toggleControls}
+          />
           <View
             style={[
               {
@@ -731,6 +731,7 @@ export const Controls: React.FC<Props> = ({
               },
             ]}
             className={`flex flex-col p-4`}
+            onTouchStart={handleControlsInteraction}
           >
             <View
               className="shrink flex flex-col justify-center h-full mb-2"
