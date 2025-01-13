@@ -10,6 +10,7 @@ import {
   ItemSortBy,
   SortOrder,
   BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPluginsApi } from "@jellyfin/sdk/lib/utils/api";
@@ -91,6 +92,7 @@ export type HomeSectionItemResolver = {
   genres?: Array<string>;
   parentId?: string;
   limit?: number;
+  filters?: Array<ItemFilter>;
 };
 
 export enum HomeSectionType {
