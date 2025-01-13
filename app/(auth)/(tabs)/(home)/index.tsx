@@ -8,7 +8,7 @@ import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import { HomeSectionStyle, useSettings } from "@/utils/atoms/settings";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Api } from "@jellyfin/sdk";
 import {
@@ -211,107 +211,130 @@ export default function index() {
     [api, user?.Id]
   );
 
-  const sections = useMemo(() => {
-    if (!api || !user?.Id) return [];
+  let sections: Section[] = [];
+  if (settings?.home === null) {
+    sections = useMemo(() => {
+      if (!api || !user?.Id) return [];
 
-    const latestMediaViews = collections.map((c) => {
-      const includeItemTypes: BaseItemKind[] =
-        c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-      const title = "Recently Added in " + c.Name;
-      const queryKey = [
-        "home",
-        "recentlyAddedIn" + c.CollectionType,
-        user?.Id!,
-        c.Id!,
-      ];
-      return createCollectionConfig(
-        title || "",
-        queryKey,
-        includeItemTypes,
-        c.Id
-      );
-    });
+      const latestMediaViews = collections.map((c) => {
+        const includeItemTypes: BaseItemKind[] =
+          c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
+        const title = "Recently Added in " + c.Name;
+        const queryKey = [
+          "home",
+          "recentlyAddedIn" + c.CollectionType,
+          user?.Id!,
+          c.Id!,
+        ];
+        return createCollectionConfig(
+          title || "",
+          queryKey,
+          includeItemTypes,
+          c.Id
+        );
+      });
 
-    const ss: Section[] = [
-      {
-        title: "Continue Watching",
-        queryKey: ["home", "resumeItems"],
-        queryFn: async () =>
-          (
-            await getItemsApi(api).getResumeItems({
-              userId: user.Id,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              includeItemTypes: ["Movie", "Series", "Episode"],
-            })
-          ).data.Items || [],
-        type: "ScrollingCollectionList",
-        orientation: "horizontal",
-      },
-      {
-        title: "Next Up",
-        queryKey: ["home", "nextUp-all"],
-        queryFn: async () =>
-          (
-            await getTvShowsApi(api).getNextUp({
-              userId: user?.Id,
-              fields: ["MediaSourceCount"],
-              limit: 20,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              enableResumable: false,
-            })
-          ).data.Items || [],
-        type: "ScrollingCollectionList",
-        orientation: "horizontal",
-      },
-      ...latestMediaViews,
-      ...(mediaListCollections?.map(
-        (ml) =>
-          ({
-            title: ml.Name,
-            queryKey: ["home", "mediaList", ml.Id!],
-            queryFn: async () => ml,
-            type: "MediaListSection",
-            orientation: "vertical",
-          } as Section)
-      ) || []),
-      {
-        title: "Suggested Movies",
-        queryKey: ["home", "suggestedMovies", user?.Id],
-        queryFn: async () =>
-          (
-            await getSuggestionsApi(api).getSuggestions({
-              userId: user?.Id,
-              limit: 10,
-              mediaType: ["Video"],
-              type: ["Movie"],
-            })
-          ).data.Items || [],
-        type: "ScrollingCollectionList",
-        orientation: "vertical",
-      },
-      {
-        title: "Suggested Episodes",
-        queryKey: ["home", "suggestedEpisodes", user?.Id],
-        queryFn: async () => {
-          try {
-            const suggestions = await getSuggestions(api, user.Id);
-            const nextUpPromises = suggestions.map((series) =>
-              getNextUp(api, user.Id, series.Id)
-            );
-            const nextUpResults = await Promise.all(nextUpPromises);
-
-            return nextUpResults.filter((item) => item !== null) || [];
-          } catch (error) {
-            console.error("Error fetching data:", error);
-            return [];
-          }
+      const ss: Section[] = [
+        {
+          title: "Continue Watching",
+          queryKey: ["home", "resumeItems"],
+          queryFn: async () =>
+            (
+              await getItemsApi(api).getResumeItems({
+                userId: user.Id,
+                enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                includeItemTypes: ["Movie", "Series", "Episode"],
+              })
+            ).data.Items || [],
+          type: "ScrollingCollectionList",
+          orientation: "horizontal",
         },
+        {
+          title: "Next Up",
+          queryKey: ["home", "nextUp-all"],
+          queryFn: async () =>
+            (
+              await getTvShowsApi(api).getNextUp({
+                userId: user?.Id,
+                fields: ["MediaSourceCount"],
+                limit: 20,
+                enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                enableResumable: false,
+              })
+            ).data.Items || [],
+          type: "ScrollingCollectionList",
+          orientation: "horizontal",
+        },
+        ...latestMediaViews,
+        ...(mediaListCollections?.map(
+          (ml) =>
+            ({
+              title: ml.Name,
+              queryKey: ["home", "mediaList", ml.Id!],
+              queryFn: async () => ml,
+              type: "MediaListSection",
+              orientation: "vertical",
+            } as Section)
+        ) || []),
+        {
+          title: "Suggested Movies",
+          queryKey: ["home", "suggestedMovies", user?.Id],
+          queryFn: async () =>
+            (
+              await getSuggestionsApi(api).getSuggestions({
+                userId: user?.Id,
+                limit: 10,
+                mediaType: ["Video"],
+                type: ["Movie"],
+              })
+            ).data.Items || [],
+          type: "ScrollingCollectionList",
+          orientation: "vertical",
+        },
+        {
+          title: "Suggested Episodes",
+          queryKey: ["home", "suggestedEpisodes", user?.Id],
+          queryFn: async () => {
+            try {
+              const suggestions = await getSuggestions(api, user.Id);
+              const nextUpPromises = suggestions.map((series) =>
+                getNextUp(api, user.Id, series.Id)
+              );
+              const nextUpResults = await Promise.all(nextUpPromises);
+
+              return nextUpResults.filter((item) => item !== null) || [];
+            } catch (error) {
+              console.error("Error fetching data:", error);
+              return [];
+            }
+          },
+          type: "ScrollingCollectionList",
+          orientation: "horizontal",
+        },
+      ];
+      return ss;
+    }, [api, user?.Id, collections, mediaListCollections]);
+  } else {
+    settings.home?.sections.forEach((section, key) => {
+      sections.push({
+        title: key,
+        queryKey: ["home", key, user?.Id],
+        queryFn: async () =>
+          (
+            await getItemsApi(api).getItems({
+              userId: user?.Id,
+              limit: section.items?.limit || 20,
+              recursive: true,
+              includeItemTypes: section.items?.includeItemTypes,
+              sortBy: section.items?.sortBy,
+              sortOrder: section.items?.sortOrder,
+            })
+          ).data.Items || [],
         type: "ScrollingCollectionList",
-        orientation: "horizontal",
-      },
-    ];
-    return ss;
-  }, [api, user?.Id, collections, mediaListCollections]);
+        orientation: section?.orientation || "vertical",
+      });
+    });
+  }
 
   if (isConnected === false) {
     return (
