@@ -222,27 +222,6 @@ export const useSettings = () => {
     [api]
   )
 
-  // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
-  // If admin sets locked to false but provides a value,
-  //  use user settings first and fallback on admin setting if required.
-  const settings: Settings = useMemo(() => {
-    const overrideSettings = Object.entries(pluginSettings || {})
-      .reduce((acc, [key, setting]) => {
-        if (setting) {
-          const {value, locked} = setting
-          acc = Object.assign(acc, {
-            [key]: locked ? value : _settings?.[key as keyof Settings] ?? value
-          })
-        }
-        return acc
-      }, {} as Settings)
-
-    return {
-      ..._settings,
-      ...overrideSettings
-    }
-  }, [_settings, setSettings, pluginSettings, _setPluginSettings, setPluginSettings])
-
   const updateSettings = (update: Partial<Settings>) => {
     if (settings) {
       const newSettings = { ...settings, ...update };
@@ -251,6 +230,39 @@ export const useSettings = () => {
       saveSettings(newSettings);
     }
   };
+
+  // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
+  // If admin sets locked to false but provides a value,
+  //  use user settings first and fallback on admin setting if required.
+  const settings: Settings = useMemo(() => {
+    let unlockedPluginDefaults = {} as Settings;
+    const overrideSettings = Object.entries(pluginSettings || {})
+      .reduce((acc, [key, setting]) => {
+        if (setting) {
+          const {value, locked} = setting
+
+          // Make sure we override default settings with plugin settings when they are not locked.
+          //  Admin decided what users defaults should be and grants them the ability to change them too.
+          if (!locked && value && _settings?.[key as keyof Settings] !== value) {
+            unlockedPluginDefaults = Object.assign(unlockedPluginDefaults, {[key as keyof Settings]: value})
+          }
+
+          acc = Object.assign(acc, {
+            [key]: locked ? value : _settings?.[key as keyof Settings] ?? value
+          })
+        }
+        return acc
+      }, {} as Settings)
+
+    // Update settings with plugin defined defaults
+    if (Object.keys(unlockedPluginDefaults).length > 0) {
+      updateSettings(unlockedPluginDefaults)
+    }
+    return {
+      ..._settings,
+      ...overrideSettings
+    }
+  }, [_settings, pluginSettings])
 
   return [settings, updateSettings, pluginSettings, setPluginSettings, refreshStreamyfinPluginSettings] as const;
 };
