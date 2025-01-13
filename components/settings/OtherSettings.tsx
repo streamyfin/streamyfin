@@ -147,11 +147,11 @@ export const OtherSettings: React.FC = () => {
         </ListItem>
         <ListItem
           onPress={() => router.push("/settings/hide-libraries/page")}
-          title="Hide Libraries"
+          title={t("home.settings.other.hide_libraries")}
           showArrow
         />
         <ListItem
-          title="Disable Haptic Feedback"
+          title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
         >
           <Switch

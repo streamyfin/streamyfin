@@ -43,7 +43,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
       >
         <ListItem title={t("home.settings.subtitles.subtitle_language")}>
           <Dropdown
-            data={[{DisplayName: "None", ThreeLetterISOLanguageName: "none-subs" },...(cultures ?? [])]}
+            data={[{DisplayName: t("home.settings.subtitles.none"), ThreeLetterISOLanguageName: "none-subs" },...(cultures ?? [])]}
             keyExtractor={(item) => item?.ThreeLetterISOLanguageName ?? "unknown"}
             titleExtractor={(item) => item?.DisplayName}
             title={
@@ -58,7 +58,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                 />
               </TouchableOpacity>
             }
-            label="Languages"
+            label={t("home.settings.subtitles.language")}
             onSelected={(defaultSubtitleLanguage) =>
               updateSettings({
                 defaultSubtitleLanguage: defaultSubtitleLanguage.DisplayName === t("home.settings.subtitles.none")
@@ -81,7 +81,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings?.subtitleMode || "Loading"}
+                  {settings?.subtitleMode || t("home.settings.subtitles.loading")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -90,7 +90,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                 />
               </TouchableOpacity>
             }
-            label="Subtitle Mode"
+            label={t("home.settings.subtitles.subtitle_mode")}
             onSelected={(subtitleMode) =>
               updateSettings({subtitleMode})
             }

@@ -61,7 +61,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
               collisionPadding={8}
               sideOffset={8}
             >
-              <DropdownMenu.Label>Methods</DropdownMenu.Label>
+              <DropdownMenu.Label>{t("home.settings.downloads.methods")}</DropdownMenu.Label>
               <DropdownMenu.Item
                 key="1"
                 onSelect={() => {
@@ -69,7 +69,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
                   setProcesses([]);
                 }}
               >
-                <DropdownMenu.ItemTitle>Default</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("home.settings.downloads.default")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 key="2"
@@ -79,7 +79,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
                   queryClient.invalidateQueries({ queryKey: ["search"] });
                 }}
               >
-                <DropdownMenu.ItemTitle>Optimized</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("home.settings.downloads.optimized")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>

@@ -1,10 +1,9 @@
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
-import { useTranslation } from "react-i18next";
+import { t } from "i18next";
 
 export default function SearchLayout() {
-  const { t } = useTranslation();
   return (
     <Stack>
       <Stack.Screen
