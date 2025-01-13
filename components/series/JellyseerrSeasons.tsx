@@ -256,8 +256,8 @@ const JellyseerrSeasons: React.FC<{
               <Tags
                 textClass=""
                 tags={[
-                  `Season ${season.seasonNumber}`,
-                  `${season.episodeCount} Episodes`,
+                  t("jellyseerr.season_number", {season_number: season.seasonNumber}),
+                  t("jellyseerr.number_episodes", {episode_number: season.episodeCount}),
                 ]}
               />
               {[0].map(() => {

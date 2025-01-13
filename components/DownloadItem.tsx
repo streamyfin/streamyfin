@@ -32,7 +32,7 @@ import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { useTranslation } from "react-i18next";
+import { t } from "i18next";
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
@@ -56,7 +56,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [user] = useAtom(userAtom);
   const [queue, setQueue] = useAtom(queueAtom);
   const [settings] = useSettings();
-  const { t } = useTranslation();
+
   const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
   const { startRemuxing } = useRemuxHlsToMp4();
 
@@ -393,7 +393,9 @@ export const DownloadSingleItem: React.FC<{
   return (
     <DownloadItems
       size={size}
-      title="Download Episode"
+      title={item.Type == "Episode"
+        ? t("item_card.download.download_episode")
+        : t("item_card.download.download_movie")}
       subtitle={item.Name!}
       items={[item]}
       MissingDownloadIconComponent={() => (
