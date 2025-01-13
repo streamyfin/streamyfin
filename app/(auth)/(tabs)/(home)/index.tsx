@@ -336,6 +336,7 @@ export default function index() {
                 sortBy: section.items?.sortBy,
                 sortOrder: section.items?.sortOrder,
                 filters: section.items?.filters,
+                parentId: section.items?.parentId,
               })
             ).data.Items || [],
           type: "ScrollingCollectionList",
