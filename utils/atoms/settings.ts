@@ -6,8 +6,13 @@ import { Platform } from "react-native";
 import {
   CultureDto,
   SubtitlePlaybackMode,
+  ItemSortBy,
+  SortOrder,
+  BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { writeInfoLog } from "@/utils/log";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -68,10 +73,29 @@ export enum DownloadMethod {
   Optimized = "optimized",
 }
 
+export type Home = {
+  sections: [Object];
+};
+
+export type HomeSection = {
+  orientation?: "horizontal" | "vertical";
+  items?: HomeSectionItemResolver;
+};
+
+export type HomeSectionItemResolver = {
+  sortBy?: Array<ItemSortBy>;
+  sortOrder?: Array<SortOrder>;
+  includeItemTypes?: Array<BaseItemKind>;
+  genres?: Array<string>;
+  parentId?: string;
+  limit?: number;
+  filters?: Array<ItemFilter>;
+};
+
 export type Settings = {
+  home?: Home | null;
   autoRotate?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
-  usePopularPlugin?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
   searchEngine: "Marlin" | "Jellyfin";
@@ -115,9 +139,9 @@ export type StreamyfinPluginConfig = {
 
 const loadSettings = (): Settings => {
   const defaultValues: Settings = {
+    home: null,
     autoRotate: true,
     forceLandscapeInVideoPlayer: false,
-    usePopularPlugin: false,
     deviceProfile: "Expo",
     mediaListCollectionIds: [],
     searchEngine: "Jellyfin",
@@ -200,6 +224,8 @@ export const useSettings = () => {
     const settings = await api
       .getStreamyfinPluginConfig()
       .then(({ data }) => data?.settings);
+
+    writeInfoLog(`Got remote settings: ${JSON.stringify(settings)}`);
 
     setPluginSettings(settings);
     return settings;
