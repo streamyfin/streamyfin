@@ -65,7 +65,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
 
   return (
     <View {...props}>
-      <ListGroup title={"Quick Connect"}>
+      <ListGroup title={t("home.settings.quick_connect.quick_connect_title")}>
         <ListItem
           onPress={() => bottomSheetModalRef?.current?.present()}
           title={t("home.settings.quick_connect.authorize_button")}
@@ -96,7 +96,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                 <BottomSheetTextInput
                   style={{ color: "white" }}
                   clearButtonMode="always"
-                  placeholder="Enter the quick connect code..."
+                  placeholder={t("home.settings.quick_connect.enter_the_quick_connect_code")}
                   placeholderTextColor="#9CA3AF"
                   value={quickConnectCode}
                   onChangeText={setQuickConnectCode}
@@ -108,7 +108,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
               onPress={authorizeQuickConnect}
               color="purple"
             >
-              Authorize
+              {t("home.settings.quick_connect.authorize")}
             </Button>
           </View>
         </BottomSheetView>

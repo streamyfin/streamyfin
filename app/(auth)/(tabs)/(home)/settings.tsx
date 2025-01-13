@@ -66,24 +66,25 @@ export default function settings() {
         </MediaProvider>
 
         <OtherSettings />
-        <AppLanguageSelector/>
         <DownloadSettings />
 
         <PluginSettings />
+
+        <AppLanguageSelector/>
 
         <ListGroup title={"Intro"}>
           <ListItem
             onPress={() => {
               router.push("/intro/page");
             }}
-            title={"Show intro"}
+            title={t("home.settings.intro.show_intro")}
           />
           <ListItem
             textColor="red"
             onPress={() => {
               storage.set("hasShownIntro", false);
             }}
-            title={"Reset intro"}
+            title={t("home.settings.intro.reset_intro")}
           />
         </ListGroup>
 

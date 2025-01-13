@@ -47,7 +47,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             <DropdownMenu.Trigger>
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3 ">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings?.defaultAudioLanguage?.DisplayName || "None"}
+                  {settings?.defaultAudioLanguage?.DisplayName || t("home.settings.audio.none")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -65,7 +65,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
               collisionPadding={8}
               sideOffset={8}
             >
-              <DropdownMenu.Label>Languages</DropdownMenu.Label>
+              <DropdownMenu.Label>{t("home.settings.audio.language")}</DropdownMenu.Label>
               <DropdownMenu.Item
                 key={"none-audio"}
                 onSelect={() => {

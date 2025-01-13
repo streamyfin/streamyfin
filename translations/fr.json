@@ -27,7 +27,10 @@
     "server_url_placeholder": "http(s)://votre-serveur.com",
     "connect_button": "Connexion",
     "previous_servers": "Serveurs précédents",
-    "clear_button": "Effacer"
+    "clear_button": "Effacer",
+    "search_for_local_servers": "Rechercher des serveurs locaux",
+    "searching": "Recherche...",
+    "servers": "Serveurs"
   },
   "home": {
     "no_internet": "Pas d'Internet",
@@ -50,8 +53,11 @@
       "downloads_feature_title": "Téléchargements",
       "downloads_feature_description": "Téléchargez des films et des émissions de télévision pour les regarder hors ligne. Utilisez la méthode par défaut ou installez le serveur d'optimisation pour télécharger les fichiers en arrière-plan.",
       "chromecast_feature_description": "Diffusez des films et des émissions de télévision sur vos appareils Chromecast.",
+      "centralised_settings_plugin_title": "Plugin de paramètres centralisés",
+      "centralised_settings_plugin_description": "Configuration des paramètres d'un emplacement centralisé sur votre serveur Jellyfin. Tous les paramètres clients pour tous les utilisateurs seront synchronisés automatiquement.",
       "done_button": "Fait",
-      "go_to_settings_button": "Allez dans les paramètres"
+      "go_to_settings_button": "Allez dans les paramètres",
+      "read_more": "Lisez-en plus"
     },
     "settings": {
       "settings_title": "Paramètres",
@@ -66,23 +72,26 @@
       "quick_connect": {
         "quick_connect_title": "Connexion Rapide",
         "authorize_button": "Autoriser Connexion Rapide",
-        "enter_the_quick_connect_code": "Entrez le code Connexion Rapide",
+        "enter_the_quick_connect_code": "Entrez le code Connexion Rapide...",
         "success": "Succès",
         "quick_connect_autorized": "Connexion Rapide autorisé",
-        "error": "Errur",
-        "invalid_code": "Code invalide"
+        "error": "Erreur",
+        "invalid_code": "Code invalide",
+        "authorize": "Autoriser"
       },
       "media_controls": {
         "media_controls_title": "Contrôles Média",
         "forward_skip_length": "Durée de saut en avant",
-        "rewind_length": "Durée de retour arrière"
+        "rewind_length": "Durée de retour arrière",
+        "seconds_unit": "s"
       },
       "audio": {
         "audio_title": "Audio",
         "set_audio_track": "Configurer la piste audio à partir de l'élément précédent",
         "audio_language": "Langue audio",
         "audio_hint": "Chosissez une langue audio par défaut.",
-        "none": "Aucune"
+        "none": "Aucune",
+        "language": "Langage"
       },
       "subtitles": {
         "subtitle_title": "Sous-titres",
@@ -91,14 +100,19 @@
         "set_subtitle_track": "Configurer la piste de sous-titres à partir de l'élément précédent",
         "subtitle_size": "Taille des sous-titres",
         "subtitle_hint": "Configurez les préférences des sous-titres.",
-        "none": "Aucune"
+        "none": "Aucune",
+        "language": "Langage",
+        "loading": "Chargement"
       },
       "other": {
         "other_title": "Autres",
         "auto_rotate": "Rotation automatique",
         "video_orientation": "Orientation vidéo",
         "safe_area_in_controls": "Zone de sécurité dans les contrôles",
-        "show_custom_menu_links": "Afficher les liens personnalisés"
+        "show_custom_menu_links": "Afficher les liens personnalisés",
+        "hide_libraries": "Cacher des bibliothèques",
+        "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez obtenir de la table de bibliothèque et de la page d'accueil des sections.",
+        "disable_haptic_feedback": "Désactiver le retour haptique"
       },
       "downloads": {
         "downloads_title": "Téléchargements",
@@ -109,7 +123,7 @@
         "save_button": "Enregistrer",
         "optimized_server": "Serveur optimisé",
         "optimized": "Optimisé",
-        "default": "Défaut",
+        "default": "Par défaut",
         "optimized_version_hint": "Entrez l'URL du serveur de versions optimisées. L'URL devrait inclure http ou https et optionnellement le port.",
         "read_more_about_optimized_server": "Lisez-en plus sur le serveur de versions optimisées.",
         "url": "URL",
@@ -121,7 +135,7 @@
           "jellyseerr_warning": "Cette intégration est dans ses débuts. Attendez-vous à ce que des choses changent.",
           "server_url": "URL du serveur",
           "server_url_hint": "Exemple: http(s)://votre-domaine.url\n(ajouter le port si nécessaire)",
-          "server_url_placeholder": "URL Jellyseerr...",
+          "server_url_placeholder": "URL de Jellyseerr...",
           "password": "Mot de passe",
           "password_placeholder": "Entrez le mot de passe pour l'utilisateur Jellyfin {{username}}",
           "save_button": "Enregistrer",
@@ -159,8 +173,12 @@
         "storage_title": "Stockage",
         "app_usage": "App {{usedSpace}}%",
         "phone_usage": "Téléphone {{availableSpace}}%",
-        "size_used": "{{used}} de {{total}} utilisé",
+        "size_used": "{{used}} de {{total}} utilisés",
         "delete_all_downloaded_files": "Supprimer tous les fichiers téléchargés"
+      },
+      "intro": {
+        "show_intro": "Afficher l'intro",
+        "reset_intro": "Réinitialiser l'intro"
       },
       "logs": {
         "logs_title": "Journaux",
@@ -203,6 +221,7 @@
       "something_went_wrong": "Quelque chose s'est mal passé",
       "could_not_get_stream_url_from_jellyfin": "Impossible d'obtenir l'URL du flux depuis Jellyfin",
       "eta": "ETA {{eta}}",
+      "methods": "Méthodes",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Vous n'êtes pas autorisé à télécharger des fichiers",
         "deleted_all_movies_successfully": "Tous les films ont été supprimés avec succès!",
@@ -270,6 +289,12 @@
     "no_items_found": "Aucun item trouvé",
     "no_results": "Aucun résultat",
     "no_libraries_found": "Aucune bibliothèque trouvée",
+    "item_types": {
+      "movies": "films",
+      "series": "séries",
+      "boxsets": "coffrets",
+      "items": "items"
+    },
     "options": {
       "display": "Affichage",
       "row": "Rangée",

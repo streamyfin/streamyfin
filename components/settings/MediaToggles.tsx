@@ -37,7 +37,7 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
             value={settings.forwardSkipTime}
             disabled={pluginSettings?.forwardSkipTime?.locked}
             step={5}
-            appendValue="s"
+            appendValue={t("home.settings.media_controls.seconds_unit")}
             min={0}
             max={60}
             onUpdate={(forwardSkipTime) => updateSettings({forwardSkipTime})}
@@ -52,7 +52,7 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
             value={settings.rewindSkipTime}
             disabled={pluginSettings?.rewindSkipTime?.locked}
             step={5}
-            appendValue="s"
+            appendValue={t("home.settings.media_controls.seconds_unit")}
             min={0}
             max={60}
             onUpdate={(rewindSkipTime) => updateSettings({rewindSkipTime})}

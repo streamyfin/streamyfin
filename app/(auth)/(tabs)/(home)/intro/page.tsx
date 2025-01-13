@@ -94,11 +94,9 @@ export default function page() {
             <Feather name="settings" size={28} color={"white"} />
           </View>
           <View className="shrink ml-2">
-            <Text className="font-bold mb-1">Centralised Settings Plugin</Text>
+            <Text className="font-bold mb-1">{t("home.intro.centralised_settings_plugin_title")}</Text>
             <Text className="shrink text-xs">
-              Configure settings from a centralised location on your Jellyfin
-              server. All client settings for all users will be synced
-              automatically.{" "}
+              {t("home.intro.centralised_settings_plugin_description")}{" "}
               <Text
                 className="text-purple-600"
                 onPress={() => {
@@ -107,7 +105,7 @@ export default function page() {
                   );
                 }}
               >
-                Read more
+                {t("home.intro.read_more")}
               </Text>
             </Text>
           </View>

@@ -16,7 +16,7 @@ export const PluginSettings = () => {
   if (!settings) return null;
   return (
     <View>
-      <ListGroup title={t("home.settings.plugins.plugins_title")}>
+      <ListGroup title={t("home.settings.plugins.plugins_title")} className="mb-4">
         <ListItem
           onPress={() => router.push("/settings/jellyseerr/page")}
           title={"Jellyseerr"}
