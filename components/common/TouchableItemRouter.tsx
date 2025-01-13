@@ -26,18 +26,6 @@ export const itemRouter = (
     return `/(auth)/(tabs)/${from}/series/${item.Id}`;
   }
 
-  if (item.Type === "MusicAlbum") {
-    return `/(auth)/(tabs)/${from}/albums/${item.Id}`;
-  }
-
-  if (item.Type === "Audio") {
-    return `/(auth)/(tabs)/${from}/albums/${item.AlbumId}`;
-  }
-
-  if (item.Type === "MusicArtist") {
-    return `/(auth)/(tabs)/${from}/artists/${item.Id}`;
-  }
-
   if (item.Type === "Person" || item.Type === "Actor") {
     return `/(auth)/(tabs)/${from}/actors/${item.Id}`;
   }

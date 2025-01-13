@@ -55,14 +55,6 @@ export const Favorites = () => {
     () => fetchFavoritesByType("Playlist"),
     [fetchFavoritesByType]
   );
-  const fetchFavoriteMusicAlbum = useCallback(
-    () => fetchFavoritesByType("MusicAlbum"),
-    [fetchFavoritesByType]
-  );
-  const fetchFavoriteAudio = useCallback(
-    () => fetchFavoritesByType("Audio"),
-    [fetchFavoritesByType]
-  );
 
   return (
     <View className="flex flex-co gap-y-4">
@@ -101,18 +93,6 @@ export const Favorites = () => {
         queryFn={fetchFavoritePlaylists}
         queryKey={["home", "favorites", "playlists"]}
         title={t("favorites.playlists")}
-        hideIfEmpty
-      />
-      <ScrollingCollectionList
-        queryFn={fetchFavoriteMusicAlbum}
-        queryKey={["home", "favorites", "musicAlbums"]}
-        title={t("favorites.music_albums")}
-        hideIfEmpty
-      />
-      <ScrollingCollectionList
-        queryFn={fetchFavoriteAudio}
-        queryKey={["home", "favorites", "audio"]}
-        title={t("favorites.audio")}
         hideIfEmpty
       />
     </View>

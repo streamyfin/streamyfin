@@ -1,3 +1,4 @@
+import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
@@ -6,9 +7,11 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import { useRouter, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
-import { Dimensions, TouchableOpacity, View, ViewProps } from "react-native";
+import { Dimensions, View, ViewProps } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   useSharedValue,
@@ -18,11 +21,7 @@ import Carousel, {
   ICarouselInstance,
   Pagination,
 } from "react-native-reanimated-carousel";
-import { itemRouter, TouchableItemRouter } from "../common/TouchableItemRouter";
-import { Loader } from "../Loader";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { useRouter, useSegments } from "expo-router";
-import { useHaptic } from "@/hooks/useHaptic";
+import { itemRouter } from "../common/TouchableItemRouter";
 
 interface Props extends ViewProps {}
 
@@ -162,7 +161,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   const tap = Gesture.Tap()
     .maxDuration(2000)
     .onBegin(() => {
-      opacity.value = withTiming(0.5, { duration: 100 });
+      opacity.value = withTiming(0.8, { duration: 100 });
     })
     .onEnd(() => {
       runOnJS(handleRoute)();

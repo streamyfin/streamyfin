@@ -7,7 +7,7 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { useTranslation } from "react-i18next";
 
 export default function IndexLayout() {
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings();
 
   const { t } = useTranslation();
 
@@ -28,6 +28,7 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
           headerRight: () => (
+            !pluginSettings?.libraryOptions?.locked &&
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
                 <Ionicons

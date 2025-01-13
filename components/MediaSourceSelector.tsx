@@ -1,13 +1,11 @@
-import { tc } from "@/utils/textTools";
 import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
-import { convertBitsToMegabitsOrGigabits } from "@/utils/bToMb";
 import { useTranslation } from "react-i18next";
 
 interface Props extends React.ComponentProps<typeof View> {
@@ -31,6 +29,27 @@ export const MediaSourceSelector: React.FC<Props> = ({
   );
 
   const { t } = useTranslation();
+
+  const commonPrefix = useMemo(() => {
+    const mediaSources = item.MediaSources || [];
+    if (!mediaSources.length) return "";
+
+    let commonPrefix = "";
+    for (let i = 0; i < mediaSources[0].Name!.length; i++) {
+      const char = mediaSources[0].Name![i];
+      if (mediaSources.every((source) => source.Name![i] === char)) {
+        commonPrefix += char;
+      } else {
+        commonPrefix = commonPrefix.slice(0, -1);
+        break;
+      }
+    }
+    return commonPrefix;
+  }, [item.MediaSources]);
+
+  const name = (name?: string | null) => {
+    return name?.replace(commonPrefix, "").toLowerCase();
+  };
 
   return (
     <View
@@ -66,9 +85,7 @@ export const MediaSourceSelector: React.FC<Props> = ({
               }}
             >
               <DropdownMenu.ItemTitle>
-                {`${name(source.Name)} - ${convertBitsToMegabitsOrGigabits(
-                  source.Size
-                )}`}
+                {`${name(source.Name)}`}
               </DropdownMenu.ItemTitle>
             </DropdownMenu.Item>
           ))}
@@ -76,10 +93,4 @@ export const MediaSourceSelector: React.FC<Props> = ({
       </DropdownMenu.Root>
     </View>
   );
-};
-
-const name = (name?: string | null) => {
-  if (name && name.length > 40)
-    return name.substring(0, 20) + " [...] " + name.substring(name.length - 20);
-  return name;
 };

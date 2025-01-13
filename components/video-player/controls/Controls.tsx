@@ -35,12 +35,7 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Pressable,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -59,6 +54,8 @@ import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
+import { useControlsTimeout } from "./useControlsTimeout";
+import { VideoTouchOverlay } from "./VideoTouchOverlay";
 
 interface Props {
   item: BaseItemDto;
@@ -88,6 +85,8 @@ interface Props {
   stop: (() => Promise<void>) | (() => void);
   isVlc?: boolean;
 }
+
+const CONTROLS_TIMEOUT = 4000;
 
 export const Controls: React.FC<Props> = ({
   item,
@@ -121,6 +120,12 @@ export const Controls: React.FC<Props> = ({
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
 
+  const [episodeView, setEpisodeView] = useState(false);
+  const [isSliding, setIsSliding] = useState(false);
+
+  // Used when user changes audio through audio button on device.
+  const [showAudioSlider, setShowAudioSlider] = useState(false);
+
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const {
@@ -138,6 +143,23 @@ export const Controls: React.FC<Props> = ({
 
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
+
+  const lightHapticFeedback = useHaptic("light");
+
+  useEffect(() => {
+    prefetchAllTrickplayImages();
+  }, []);
+
+  useEffect(() => {
+    if (item) {
+      progress.value = isVlc
+        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
+        : item?.UserData?.PlaybackPositionTicks || 0;
+      max.value = isVlc
+        ? ticksToMs(item.RunTimeTicks || 0)
+        : item.RunTimeTicks || 0;
+    }
+  }, [item, isVlc]);
 
   const { bitrateValue, subtitleIndex, audioIndex } = useLocalSearchParams<{
     bitrateValue: string;
@@ -160,8 +182,6 @@ export const Controls: React.FC<Props> = ({
     play,
     isVlc
   );
-
-  const lightHapticFeedback = useHaptic("light");
 
   const goToPreviousItem = useCallback(() => {
     if (!previousItem || !settings) return;
@@ -266,20 +286,19 @@ export const Controls: React.FC<Props> = ({
     [updateTimes]
   );
 
-  useEffect(() => {
-    if (item) {
-      progress.value = isVlc
-        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
-        : item?.UserData?.PlaybackPositionTicks || 0;
-      max.value = isVlc
-        ? ticksToMs(item.RunTimeTicks || 0)
-        : item.RunTimeTicks || 0;
-    }
-  }, [item, isVlc]);
-
-  useEffect(() => {
-    prefetchAllTrickplayImages();
+  const hideControls = useCallback(() => {
+    setShowControls(false);
+    setShowAudioSlider(false);
   }, []);
+
+  const { handleControlsInteraction } = useControlsTimeout({
+    showControls,
+    isSliding,
+    episodeView,
+    onHideControls: hideControls,
+    timeout: CONTROLS_TIMEOUT,
+  });
+
   const toggleControls = () => {
     if (showControls) {
       setShowAudioSlider(false);
@@ -300,16 +319,13 @@ export const Controls: React.FC<Props> = ({
     isSeeking.value = true;
   }, [showControls, isPlaying]);
 
-  const [isSliding, setIsSliding] = useState(false);
   const handleSliderComplete = useCallback(
     async (value: number) => {
       isSeeking.value = false;
       progress.value = value;
       setIsSliding(false);
 
-      await seek(
-        Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value)))
-      );
+      seek(Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value))));
       if (wasPlayingRef.current === true) play();
     },
     [isVlc]
@@ -339,7 +355,7 @@ export const Controls: React.FC<Props> = ({
         const newTime = isVlc
           ? Math.max(0, curr - secondsToMs(settings.rewindSkipTime))
           : Math.max(0, ticksToSeconds(curr) - settings.rewindSkipTime);
-        await seek(newTime);
+        seek(newTime);
         if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
@@ -357,88 +373,13 @@ export const Controls: React.FC<Props> = ({
         const newTime = isVlc
           ? curr + secondsToMs(settings.forwardSkipTime)
           : ticksToSeconds(curr) + settings.forwardSkipTime;
-        await seek(Math.max(0, newTime));
+        seek(Math.max(0, newTime));
         if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
     }
   }, [settings, isPlaying, isVlc]);
-
-  const toggleIgnoreSafeAreas = useCallback(() => {
-    setIgnoreSafeAreas((prev) => !prev);
-    lightHapticFeedback();
-  }, []);
-
-  const memoizedRenderBubble = useCallback(() => {
-    if (!trickPlayUrl || !trickplayInfo) {
-      return null;
-    }
-    const { x, y, url } = trickPlayUrl;
-    const tileWidth = 150;
-    const tileHeight = 150 / trickplayInfo.aspectRatio!;
-
-    return (
-      <View
-        style={{
-          position: "absolute",
-          left: -57,
-          bottom: 15,
-          paddingTop: 30,
-          paddingBottom: 5,
-          width: tileWidth * 1.5,
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <View
-          style={{
-            width: tileWidth,
-            height: tileHeight,
-            alignSelf: "center",
-            transform: [{ scale: 1.4 }],
-            borderRadius: 5,
-          }}
-          className="bg-neutral-800 overflow-hidden"
-        >
-          <Image
-            cachePolicy={"memory-disk"}
-            style={{
-              width: 150 * trickplayInfo?.data.TileWidth!,
-              height:
-                (150 / trickplayInfo.aspectRatio!) *
-                trickplayInfo?.data.TileHeight!,
-              transform: [
-                { translateX: -x * tileWidth },
-                { translateY: -y * tileHeight },
-              ],
-              resizeMode: "cover",
-            }}
-            source={{ uri: url }}
-            contentFit="cover"
-          />
-        </View>
-        <Text
-          style={{
-            marginTop: 30,
-            fontSize: 16,
-          }}
-        >
-          {`${time.hours > 0 ? `${time.hours}:` : ""}${
-            time.minutes < 10 ? `0${time.minutes}` : time.minutes
-          }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
-        </Text>
-      </View>
-    );
-  }, [trickPlayUrl, trickplayInfo, time]);
-
-  const [EpisodeView, setEpisodeView] = useState(false);
-
-  const switchOnEpisodeMode = () => {
-    setEpisodeView(true);
-    if (isPlaying) togglePlay();
-  };
 
   const goToItem = useCallback(
     async (itemId: string) => {
@@ -486,8 +427,77 @@ export const Controls: React.FC<Props> = ({
     [settings, subtitleIndex, audioIndex]
   );
 
-  // Used when user changes audio through audio button on device.
-  const [showAudioSlider, setShowAudioSlider] = useState(false);
+  const toggleIgnoreSafeAreas = useCallback(() => {
+    setIgnoreSafeAreas((prev) => !prev);
+    lightHapticFeedback();
+  }, []);
+
+  const switchOnEpisodeMode = useCallback(() => {
+    setEpisodeView(true);
+    if (isPlaying) togglePlay();
+  }, [isPlaying, togglePlay]);
+
+  const memoizedRenderBubble = useCallback(() => {
+    if (!trickPlayUrl || !trickplayInfo) {
+      return null;
+    }
+    const { x, y, url } = trickPlayUrl;
+    const tileWidth = 150;
+    const tileHeight = 150 / trickplayInfo.aspectRatio!;
+
+    return (
+      <View
+        style={{
+          position: "absolute",
+          left: -62,
+          bottom: 0,
+          paddingTop: 30,
+          paddingBottom: 5,
+          width: tileWidth * 1.5,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            width: tileWidth,
+            height: tileHeight,
+            alignSelf: "center",
+            transform: [{ scale: 1.4 }],
+            borderRadius: 5,
+          }}
+          className="bg-neutral-800 overflow-hidden"
+        >
+          <Image
+            cachePolicy={"memory-disk"}
+            style={{
+              width: 150 * trickplayInfo?.data.TileWidth!,
+              height:
+                (150 / trickplayInfo.aspectRatio!) *
+                trickplayInfo?.data.TileHeight!,
+              transform: [
+                { translateX: -x * tileWidth },
+                { translateY: -y * tileHeight },
+              ],
+              resizeMode: "cover",
+            }}
+            source={{ uri: url }}
+            contentFit="cover"
+          />
+        </View>
+        <Text
+          style={{
+            marginTop: 30,
+            fontSize: 16,
+          }}
+        >
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${
+            time.minutes < 10 ? `0${time.minutes}` : time.minutes
+          }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
+        </Text>
+      </View>
+    );
+  }, [trickPlayUrl, trickplayInfo, time]);
 
   return (
     <ControlProvider
@@ -495,7 +505,7 @@ export const Controls: React.FC<Props> = ({
       mediaSource={mediaSource}
       isVideoLoaded={isVideoLoaded}
     >
-      {EpisodeView ? (
+      {episodeView ? (
         <EpisodeList
           item={item}
           close={() => setEpisodeView(false)}
@@ -503,23 +513,12 @@ export const Controls: React.FC<Props> = ({
         />
       ) : (
         <>
-          <Pressable
-            onPressIn={() => {
-              toggleControls();
-            }}
-            style={{
-              position: "absolute",
-              width: screenWidth,
-              height: screenHeight,
-              backgroundColor: "black",
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              opacity: showControls ? 0.5 : 0,
-            }}
-          ></Pressable>
-
+          <VideoTouchOverlay
+            screenWidth={screenWidth}
+            screenHeight={screenHeight}
+            showControls={showControls}
+            onToggleControls={toggleControls}
+          />
           <View
             style={[
               {
@@ -533,7 +532,7 @@ export const Controls: React.FC<Props> = ({
               },
             ]}
             pointerEvents={showControls ? "auto" : "none"}
-            className={`flex flex-row w-full p-4 `}
+            className={`flex flex-row w-full pt-2`}
           >
             <View className="mr-auto">
               <VideoProvider
@@ -557,7 +556,7 @@ export const Controls: React.FC<Props> = ({
                   onPress={() => {
                     switchOnEpisodeMode();
                   }}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
                 >
                   <Ionicons name="list" size={24} color="white" />
                 </TouchableOpacity>
@@ -565,7 +564,7 @@ export const Controls: React.FC<Props> = ({
               {previousItem && !offline && (
                 <TouchableOpacity
                   onPress={goToPreviousItem}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
                 >
                   <Ionicons name="play-skip-back" size={24} color="white" />
                 </TouchableOpacity>
@@ -574,7 +573,7 @@ export const Controls: React.FC<Props> = ({
               {nextItem && !offline && (
                 <TouchableOpacity
                   onPress={goToNextItem}
-                  className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
                 >
                   <Ionicons name="play-skip-forward" size={24} color="white" />
                 </TouchableOpacity>
@@ -583,7 +582,7 @@ export const Controls: React.FC<Props> = ({
               {/* {mediaSource?.TranscodingUrl && ( */}
               <TouchableOpacity
                 onPress={toggleIgnoreSafeAreas}
-                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
               >
                 <Ionicons
                   name={ignoreSafeAreas ? "contract-outline" : "expand"}
@@ -600,7 +599,7 @@ export const Controls: React.FC<Props> = ({
                   );
                   router.back();
                 }}
-                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+                className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
               >
                 <Ionicons name="close" size={24} color="white" />
               </TouchableOpacity>
@@ -730,10 +729,11 @@ export const Controls: React.FC<Props> = ({
                 bottom: settings?.safeAreaInControlsEnabled ? insets.bottom : 0,
               },
             ]}
-            className={`flex flex-col p-4`}
+            className={`flex flex-col px-2`}
+            onTouchStart={handleControlsInteraction}
           >
             <View
-              className="shrink flex flex-col justify-center h-full mb-2"
+              className="shrink flex flex-col justify-center h-full"
               style={{
                 flexDirection: "row",
                 justifyContent: "space-between",
@@ -747,10 +747,12 @@ export const Controls: React.FC<Props> = ({
                 }}
                 pointerEvents={showControls ? "box-none" : "none"}
               >
-                <Text className="font-bold">{item?.Name}</Text>
                 {item?.Type === "Episode" && (
-                  <Text className="opacity-50">{item.SeriesName}</Text>
+                  <Text className="opacity-50">
+                    {`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}
+                  </Text>
                 )}
+                <Text className="font-bold text-xl">{item?.Name}</Text>
                 {item?.Type === "Movie" && (
                   <Text className="text-xs opacity-50">
                     {item?.ProductionYear}
@@ -785,7 +787,7 @@ export const Controls: React.FC<Props> = ({
               </View>
             </View>
             <View
-              className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
+              className={`flex flex-col-reverse rounded-lg items-center my-2`}
               style={{
                 opacity: showControls ? 1 : 0,
               }}
@@ -801,19 +803,7 @@ export const Controls: React.FC<Props> = ({
                     bubbleTextColor: "#666",
                     heartbeatColor: "#999",
                   }}
-                  renderThumb={() => (
-                    <View
-                      style={{
-                        width: 18,
-                        height: 18,
-                        left: -2,
-                        borderRadius: 10,
-                        backgroundColor: "#fff",
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    />
-                  )}
+                  renderThumb={() => null}
                   cache={cacheProgress}
                   onSlidingStart={handleSliderStart}
                   onSlidingComplete={handleSliderComplete}
@@ -828,7 +818,7 @@ export const Controls: React.FC<Props> = ({
                   minimumValue={min}
                   maximumValue={max}
                 />
-                <View className="flex flex-row items-center justify-between mt-0.5">
+                <View className="flex flex-row items-center justify-between mt-2">
                   <Text className="text-[12px] text-neutral-400">
                     {formatTimeString(currentTime, isVlc ? "ms" : "s")}
                   </Text>

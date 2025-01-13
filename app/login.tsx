@@ -1,16 +1,12 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
+import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { PreviousServersList } from "@/components/PreviousServersList";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-  MaterialIcons,
-} from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
-import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
@@ -310,6 +306,15 @@ const CredentialsSchema = z.object({
                 >
                   {t("server.connect_button")}
                 </Button>
+                <JellyfinServerDiscovery
+                  onServerSelect={(server) => {
+                    setServerURL(server.address);
+                    if (server.serverName) {
+                      setServerName(server.serverName);
+                    }
+                    handleConnect(server.address);
+                  }}
+                />
                 <PreviousServersList
                   onServerSelect={(s) => {
                     handleConnect(s.address);

@@ -36,7 +36,11 @@ export default function index() {
   });
 
   const libraries = useMemo(
-    () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
+    () =>
+      data
+        ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
+        .filter((l) => l.CollectionType !== "music")
+        .filter((l) => l.CollectionType !== "books") || [],
     [data, settings?.hiddenLibraries]
   );
 
