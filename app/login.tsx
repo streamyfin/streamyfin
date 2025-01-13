@@ -102,7 +102,7 @@ const CredentialsSchema = z.object({
       if (error instanceof Error) {
         Alert.alert(t("login.connection_failed"), error.message);
       } else {
-        Alert.alert(t("login.connection_failed"), t("login.an_unexpeted_error_occured"));
+        Alert.alert(t("login.connection_failed"), t("login.an_unexpected_error_occured"));
       }
     } finally {
       setLoading(false);
