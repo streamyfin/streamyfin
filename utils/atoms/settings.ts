@@ -71,7 +71,27 @@ export enum DownloadMethod {
   Optimized = "optimized",
 }
 
+export type Home = {
+  sections: [Object];
+};
+
+export type HomeSection = {
+  orientation?: "horizontal" | "vertical";
+  items?: HomeSectionItemResolver;
+};
+
+export type HomeSectionItemResolver = {
+  sortBy?: Array<ItemSortBy>;
+  sortOrder?: Array<SortOrder>;
+  includeItemTypes?: Array<BaseItemKind>;
+  genres?: Array<string>;
+  parentId?: string;
+  limit?: number;
+  filters?: Array<ItemFilter>;
+};
+
 export type Settings = {
+  home?: Home | null;
   autoRotate?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
   usePopularPlugin?: boolean;
@@ -118,6 +138,7 @@ export type StreamyfinPluginConfig = {
 
 const loadSettings = (): Settings => {
   const defaultValues: Settings = {
+    home: null,
     autoRotate: true,
     forceLandscapeInVideoPlayer: false,
     usePopularPlugin: false,
