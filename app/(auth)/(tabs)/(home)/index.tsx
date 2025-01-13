@@ -315,26 +315,39 @@ export default function index() {
       return ss;
     }, [api, user?.Id, collections, mediaListCollections]);
   } else {
-    settings.home?.sections.forEach((section, key) => {
-      sections.push({
-        title: key,
-        queryKey: ["home", key, user?.Id],
-        queryFn: async () =>
-          (
-            await getItemsApi(api).getItems({
-              userId: user?.Id,
-              limit: section.items?.limit || 20,
-              recursive: true,
-              includeItemTypes: section.items?.includeItemTypes,
-              sortBy: section.items?.sortBy,
-              sortOrder: section.items?.sortOrder,
-              filters: section.items?.filters,
-            })
-          ).data.Items || [],
-        type: "ScrollingCollectionList",
-        orientation: section?.orientation || "vertical",
+    sections = useMemo(() => {
+      if (!api || !user?.Id) return [];
+      settings.home?.sections.forEach((section, key) => {
+        sections.push({
+          title: key,
+          queryKey: ["home", key, user?.Id],
+          /*************  ✨ Codeium Command ⭐  *************/
+          /**
+           * Asynchronously fetches items for a section based on the user's ID and the section's configuration.
+           * Retrieves a list of items from the API with various optional parameters such as limit, item types,
+           * sorting, and filters. If no items are found, returns an empty array.
+           *
+           * @returns {Promise<BaseItemDto[]>} A promise that resolves to an array of items.
+           */
+
+          /******  1a7ada22-65bd-43b6-b955-e21e88595f14  *******/
+          queryFn: async () =>
+            (
+              await getItemsApi(api).getItems({
+                userId: user?.Id,
+                limit: section.items?.limit || 20,
+                recursive: true,
+                includeItemTypes: section.items?.includeItemTypes,
+                sortBy: section.items?.sortBy,
+                sortOrder: section.items?.sortOrder,
+                filters: section.items?.filters,
+              })
+            ).data.Items || [],
+          type: "ScrollingCollectionList",
+          orientation: section?.orientation || "vertical",
+        });
       });
-    });
+    }, [api, user?.Id]);
   }
 
   if (isConnected === false) {

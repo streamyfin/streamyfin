@@ -204,7 +204,7 @@ const loadSettings = (): Settings => {
      * - `hiddenLibraries`: An array of hidden library IDs.
      */
 
-    home: HomeExample,
+    home: null,
     autoRotate: true,
     forceLandscapeInVideoPlayer: false,
     usePopularPlugin: false,
