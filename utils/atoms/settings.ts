@@ -272,7 +272,6 @@ export const useSettings = () => {
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
   useEffect(() => {
-    refreshStreamyfinPluginSettings({});
     if (_settings === null) {
       const loadedSettings = loadSettings();
       setSettings(loadedSettings);
