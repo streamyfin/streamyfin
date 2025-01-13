@@ -5,12 +5,9 @@ import { storage } from "../mmkv";
 import { Platform } from "react-native";
 import {
   CultureDto,
-  PluginStatus,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPluginsApi } from "@jellyfin/sdk/lib/utils/api";
-import { writeErrorLog } from "@/utils/log";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -200,32 +197,12 @@ export const useSettings = () => {
 
   const refreshStreamyfinPluginSettings = useCallback(async () => {
     if (!api) return;
+    const settings = await api
+      .getStreamyfinPluginConfig()
+      .then(({ data }) => data?.settings);
 
-    const plugins = await getPluginsApi(api)
-      .getPlugins()
-      .then(({ data }) => data);
-
-    if (plugins && plugins.length > 0) {
-      const streamyfinPlugin = plugins.find(
-        (plugin) => plugin.Id === STREAMYFIN_PLUGIN_ID
-      );
-
-      if (!streamyfinPlugin || streamyfinPlugin.Status != PluginStatus.Active) {
-        writeErrorLog(
-          "Streamyfin plugin is currently not active.\n" +
-            `Current status is: ${streamyfinPlugin?.Status}`
-        );
-        setPluginSettings(undefined);
-        return;
-      }
-
-      const settings = await api
-        .getStreamyfinPluginConfig()
-        .then(({ data }) => data.settings);
-
-      setPluginSettings(settings);
-      return settings;
-    }
+    setPluginSettings(settings);
+    return settings;
   }, [api]);
 
   const updateSettings = (update: Partial<Settings>) => {
@@ -250,7 +227,7 @@ export const useSettings = () => {
           // Make sure we override default settings with plugin settings when they are not locked.
           //  Admin decided what users defaults should be and grants them the ability to change them too.
           if (
-            !locked &&
+            locked === false &&
             value &&
             _settings?.[key as keyof Settings] !== value
           ) {
