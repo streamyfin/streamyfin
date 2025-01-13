@@ -7,10 +7,14 @@ import {
   CultureDto,
   PluginStatus,
   SubtitlePlaybackMode,
+  ItemSortBy,
+  SortOrder,
+  BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPluginsApi } from "@jellyfin/sdk/lib/utils/api";
-import { writeErrorLog } from "@/utils/log";
+import { writeErrorLog, writeInfoLog } from "@/utils/log";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -71,7 +75,27 @@ export enum DownloadMethod {
   Optimized = "optimized",
 }
 
+export type Home = {
+  sections: [Object];
+};
+
+export type HomeSection = {
+  orientation?: "horizontal" | "vertical";
+  items?: HomeSectionItemResolver;
+};
+
+export type HomeSectionItemResolver = {
+  sortBy?: Array<ItemSortBy>;
+  sortOrder?: Array<SortOrder>;
+  includeItemTypes?: Array<BaseItemKind>;
+  genres?: Array<string>;
+  parentId?: string;
+  limit?: number;
+  filters?: Array<ItemFilter>;
+};
+
 export type Settings = {
+  home?: Home | null;
   autoRotate?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
   usePopularPlugin?: boolean;
@@ -118,6 +142,47 @@ export type StreamyfinPluginConfig = {
 
 const loadSettings = (): Settings => {
   const defaultValues: Settings = {
+    /**
+     * Loads the application settings from persistent storage.
+     * If no settings are found or loading fails, returns a set of default settings.
+     *
+     * @returns {Settings} The loaded settings merged with default values.
+     *
+     * The default settings include:
+     * - `home`: Example configuration for home sections.
+     * - `autoRotate`: Enables auto-rotation of the interface.
+     * - `forceLandscapeInVideoPlayer`: Forces landscape orientation in the video player.
+     * - `usePopularPlugin`: Indicates whether a popular plugin is used.
+     * - `deviceProfile`: The profile of the device, such as "Expo".
+     * - `mediaListCollectionIds`: An empty array for media list collection IDs.
+     * - `searchEngine`: The search engine to use, defaulting to "Jellyfin".
+     * - `marlinServerUrl`: The URL for the Marlin server, if any.
+     * - `openInVLC`: Determines if media should open in VLC by default.
+     * - `downloadQuality`: The default download quality setting.
+     * - `libraryOptions`: Options for displaying the library.
+     * - `defaultAudioLanguage`: The default audio language, if any.
+     * - `playDefaultAudioTrack`: Whether to play the default audio track.
+     * - `rememberAudioSelections`: Whether to remember audio selections.
+     * - `defaultSubtitleLanguage`: The default subtitle language, if any.
+     * - `subtitleMode`: The mode for subtitle playback.
+     * - `rememberSubtitleSelections`: Whether to remember subtitle selections.
+     * - `showHomeTitles`: Controls the display of home section titles.
+     * - `defaultVideoOrientation`: The default video orientation setting.
+     * - `forwardSkipTime`: The time in seconds to skip forward.
+     * - `rewindSkipTime`: The time in seconds to skip backward.
+     * - `optimizedVersionsServerUrl`: URL for optimized versions server, if any.
+     * - `downloadMethod`: The default download method, such as "Remux".
+     * - `autoDownload`: Whether to enable automatic downloading.
+     * - `showCustomMenuLinks`: Whether to show custom menu links.
+     * - `disableHapticFeedback`: Whether to disable haptic feedback.
+     * - `subtitleSize`: The size of subtitles, varying by platform.
+     * - `remuxConcurrentLimit`: Limit for concurrent remux processes.
+     * - `safeAreaInControlsEnabled`: Whether safe area in controls is enabled.
+     * - `jellyseerrServerUrl`: URL for the Jellyseerr server, if any.
+     * - `hiddenLibraries`: An array of hidden library IDs.
+     */
+
+    home: null,
     autoRotate: true,
     forceLandscapeInVideoPlayer: false,
     usePopularPlugin: false,
@@ -223,42 +288,20 @@ export const useSettings = () => {
         .getStreamyfinPluginConfig()
         .then(({ data }) => data.settings);
 
+      writeInfoLog(`Got remote settings: ${JSON.stringify(settings)}`);
       setPluginSettings(settings);
       return settings;
     }
   }, [api]);
 
-  const updateSettings = (update: Partial<Settings>) => {
-    if (settings) {
-      const newSettings = { ...settings, ...update };
-
-      setSettings(newSettings);
-      saveSettings(newSettings);
-    }
-  };
-
   // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
   // If admin sets locked to false but provides a value,
   //  use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
-    let unlockedPluginDefaults = {} as Settings;
     const overrideSettings = Object.entries(pluginSettings || {}).reduce(
       (acc, [key, setting]) => {
         if (setting) {
           const { value, locked } = setting;
-
-          // Make sure we override default settings with plugin settings when they are not locked.
-          //  Admin decided what users defaults should be and grants them the ability to change them too.
-          if (
-            !locked &&
-            value &&
-            _settings?.[key as keyof Settings] !== value
-          ) {
-            unlockedPluginDefaults = Object.assign(unlockedPluginDefaults, {
-              [key as keyof Settings]: value,
-            });
-          }
-
           acc = Object.assign(acc, {
             [key]: locked ? value : _settings?.[key as keyof Settings] ?? value,
           });
@@ -268,15 +311,26 @@ export const useSettings = () => {
       {} as Settings
     );
 
-    // Update settings with plugin defined defaults
-    if (Object.keys(unlockedPluginDefaults).length > 0) {
-      updateSettings(unlockedPluginDefaults);
-    }
     return {
       ..._settings,
       ...overrideSettings,
     };
-  }, [_settings, pluginSettings]);
+  }, [
+    _settings,
+    setSettings,
+    pluginSettings,
+    _setPluginSettings,
+    setPluginSettings,
+  ]);
+
+  const updateSettings = (update: Partial<Settings>) => {
+    if (settings) {
+      const newSettings = { ...settings, ...update };
+
+      setSettings(newSettings);
+      saveSettings(newSettings);
+    }
+  };
 
   return [
     settings,
