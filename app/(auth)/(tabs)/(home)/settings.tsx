@@ -17,7 +17,7 @@ import { clearLogs } from "@/utils/log";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { storage } from "@/utils/mmkv";

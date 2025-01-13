@@ -1,4 +1,4 @@
-import { useSettings } from "@/utils/atoms/settings";
+import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import { useLog, writeToLog } from "@/utils/log";
 import {
@@ -108,7 +108,7 @@ function useDownloadProvider() {
       const url = settings?.optimizedVersionsServerUrl;
 
       if (
-        settings?.downloadMethod !== "optimized" ||
+        settings?.downloadMethod !== DownloadMethod.Optimized ||
         !url ||
         !deviceId ||
         !authHeader
@@ -168,7 +168,7 @@ function useDownloadProvider() {
     },
     staleTime: 0,
     refetchInterval: 2000,
-    enabled: settings?.downloadMethod === "optimized",
+    enabled: settings?.downloadMethod === DownloadMethod.Optimized,
   });
 
   useEffect(() => {

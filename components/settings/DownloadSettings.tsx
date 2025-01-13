@@ -1,35 +1,47 @@
 import { Stepper } from "@/components/inputs/Stepper";
 import { useDownload } from "@/providers/DownloadProvider";
-import { Settings, useSettings } from "@/utils/atoms/settings";
+import { DownloadMethod, Settings, useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React from "react";
-import { Switch, TouchableOpacity, View } from "react-native";
+import React, { useMemo } from "react";
+import { Switch, TouchableOpacity } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export const DownloadSettings: React.FC = ({ ...props }) => {
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings();
   const { setProcesses } = useDownload();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
+  const allDisabled = useMemo(
+    () =>
+      pluginSettings?.downloadMethod?.locked === true &&
+      pluginSettings?.remuxConcurrentLimit?.locked === true &&
+      pluginSettings?.autoDownload.locked === true,
+    [pluginSettings]
+  );
+
   if (!settings) return null;
 
   return (
-    <View {...props} className="mb-4">
+    <DisabledSetting disabled={allDisabled} {...props} className="mb-4">
       <ListGroup title={t("home.settings.downloads.downloads_title")}>
-        <ListItem title={t("home.settings.downloads.download_method")}>
+        <ListItem
+          title={t("home.settings.downloads.download_method")}
+          disabled={pluginSettings?.downloadMethod?.locked}
+        >
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings.downloadMethod === "remux"
+                  {settings.downloadMethod === DownloadMethod.Remux
                     ? t("home.settings.downloads.default")
                     : t("home.settings.downloads.optimized")}
                 </Text>
@@ -53,7 +65,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
               <DropdownMenu.Item
                 key="1"
                 onSelect={() => {
-                  updateSettings({ downloadMethod: "remux" });
+                  updateSettings({ downloadMethod: DownloadMethod.Remux });
                   setProcesses([]);
                 }}
               >
@@ -62,7 +74,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
               <DropdownMenu.Item
                 key="2"
                 onSelect={() => {
-                  updateSettings({ downloadMethod: "optimized" });
+                  updateSettings({ downloadMethod: DownloadMethod.Optimized });
                   setProcesses([]);
                   queryClient.invalidateQueries({ queryKey: ["search"] });
                 }}
@@ -75,7 +87,10 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
 
         <ListItem
           title={t("home.settings.downloads.remux_max_download")}
-          disabled={settings.downloadMethod !== "remux"}
+          disabled={
+            pluginSettings?.remuxConcurrentLimit?.locked ||
+            settings.downloadMethod !== DownloadMethod.Remux
+          }
         >
           <Stepper
             value={settings.remuxConcurrentLimit}
@@ -92,22 +107,31 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
 
         <ListItem
           title={t("home.settings.downloads.auto_download")}
-          disabled={settings.downloadMethod !== "optimized"}
+          disabled={
+            pluginSettings?.autoDownload?.locked ||
+            settings.downloadMethod !== DownloadMethod.Optimized
+          }
         >
           <Switch
-            disabled={settings.downloadMethod !== "optimized"}
+            disabled={
+              pluginSettings?.autoDownload?.locked ||
+              settings.downloadMethod !== DownloadMethod.Optimized
+            }
             value={settings.autoDownload}
             onValueChange={(value) => updateSettings({ autoDownload: value })}
           />
         </ListItem>
 
         <ListItem
-          disabled={settings.downloadMethod !== "optimized"}
+          disabled={
+            pluginSettings?.optimizedVersionsServerUrl?.locked ||
+            settings.downloadMethod !== DownloadMethod.Optimized
+          }
           onPress={() => router.push("/settings/optimized-server/page")}
           showArrow
           title={t("home.settings.downloads.optimized_versions_server")}
         ></ListItem>
       </ListGroup>
-    </View>
+    </DisabledSetting>
   );
 };

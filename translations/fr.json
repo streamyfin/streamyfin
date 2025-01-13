@@ -242,9 +242,6 @@
     "episodes": "Épisodes",
     "collections": "Collections",
     "actors": "Acteurs",
-    "artists": "Artistes",
-    "albums": "Albums",
-    "songs": "Chansons",
     "request_movies": "Demander un film",
     "request_series": "Demander une série",
     "recently_added": "Ajoutés récemment",
@@ -297,9 +294,7 @@
     "episodes": "Épisodes",
     "videos": "Vidéos",
     "boxsets": "Coffrets",
-    "playlists": "Listes de lecture",
-    "music_albums": "Albums de musique",
-    "audio": "Audio"
+    "playlists": "Listes de lecture"
   },  
   "custom_links": {
     "no_links": "Aucun lien"
@@ -341,9 +336,6 @@
     "show_more": "Afficher plus",
     "show_less": "Afficher moins",
     "appeared_in": "Apparu dans",
-    "x_songs": "{{count}} chansons",
-    "x_albums": "{{count}} albums",
-    "artists": "Artistes",
     "could_not_load_item": "Impossible de charger l'item",
     "none": "Aucun",
     "download": {

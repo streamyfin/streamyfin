@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { PropsWithChildren, ReactNode } from "react";
 import {
   TouchableOpacity,
@@ -6,7 +7,6 @@ import {
   ViewProps,
 } from "react-native";
 import { Text } from "../common/Text";
-import { Ionicons } from "@expo/vector-icons";
 
 interface Props extends TouchableOpacityProps, ViewProps {
   title?: string | null | undefined;

@@ -48,5 +48,20 @@ export const useJellyseerrCanRequest = (
     return userHasPermission && !canNotRequest;
   }, [item, jellyseerrUser]);
 
-  return canRequest;
+  const hasAdvancedRequestPermission = useMemo(() => {
+      if (!jellyseerrUser) return false;
+
+      return hasPermission(
+        [
+          Permission.REQUEST_ADVANCED,
+          Permission.MANAGE_REQUESTS
+        ],
+        jellyseerrUser.permissions,
+        {type: 'or'}
+      )
+    },
+    [jellyseerrUser]
+  );
+
+  return [canRequest, hasAdvancedRequestPermission];
 };

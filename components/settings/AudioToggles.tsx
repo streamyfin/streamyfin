@@ -7,11 +7,13 @@ import { useTranslation } from "react-i18next";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { Ionicons } from "@expo/vector-icons";
+import {useSettings} from "@/utils/atoms/settings";
 
 interface Props extends ViewProps {}
 
 export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   const media = useMedia();
+  const [_, __, pluginSettings] = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
@@ -28,9 +30,13 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
           </Text>
         }
       >
-        <ListItem title={t("home.settings.audio.set_audio_track")}>
+        <ListItem
+          title={t("home.settings.audio.set_audio_track")}
+          disabled={pluginSettings?.rememberAudioSelections?.locked}
+        >
           <Switch
             value={settings.rememberAudioSelections}
+            disabled={pluginSettings?.rememberAudioSelections?.locked}
             onValueChange={(value) =>
               updateSettings({ rememberAudioSelections: value })
             }

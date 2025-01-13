@@ -112,7 +112,7 @@ const page: React.FC = () => {
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => parseInt(year)),
-        includeItemTypes: ["Movie", "Series", "MusicAlbum"],
+        includeItemTypes: ["Movie", "Series"],
       });
 
       return response.data || null;

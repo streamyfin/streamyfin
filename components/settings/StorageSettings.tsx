@@ -1,12 +1,9 @@
-import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
-import { clearLogs } from "@/utils/log";
 import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
-import { useHaptic } from "@/hooks/useHaptic";
 import { View } from "react-native";
-import * as Progress from "react-native-progress";
 import { toast } from "sonner-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";

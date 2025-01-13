@@ -29,6 +29,10 @@ export const BITRATES: Bitrate[] = [
     value: 2000000,
   },
   {
+    key: "1 Mb/s",
+    value: 1000000,
+  },
+  {
     key: "500 Kb/s",
     value: 500000,
   },

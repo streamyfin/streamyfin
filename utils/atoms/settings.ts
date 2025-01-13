@@ -1,13 +1,19 @@
 import { atom, useAtom } from "jotai";
-import { useEffect } from "react";
-import { getLocales } from "expo-localization";
+import {useCallback, useEffect, useMemo} from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { storage } from "../mmkv";
 import { Platform } from "react-native";
 import {
   CultureDto,
+  PluginStatus,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import {apiAtom} from "@/providers/JellyfinProvider";
+import {getPluginsApi} from "@jellyfin/sdk/lib/utils/api";
+import {writeErrorLog} from "@/utils/log";
+
+const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004"
+const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS"
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -60,6 +66,11 @@ export type DefaultLanguageOption = {
   label: string;
 };
 
+export enum DownloadMethod {
+  Remux = "remux",
+  Optimized = "optimized"
+}
+
 export type Settings = {
   autoRotate?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
@@ -83,7 +94,7 @@ export type Settings = {
   forwardSkipTime: number;
   rewindSkipTime: number;
   optimizedVersionsServerUrl?: string | null;
-  downloadMethod: "optimized" | "remux";
+  downloadMethod: DownloadMethod;
   autoDownload: boolean;
   showCustomMenuLinks: boolean;
   disableHapticFeedback: boolean;
@@ -93,6 +104,16 @@ export type Settings = {
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
 };
+
+export interface Lockable<T> {
+  locked: boolean;
+  value: T
+}
+
+export type PluginLockableSettings = { [K in keyof Settings]: Lockable<Settings[K]> };
+export type StreamyfinPluginConfig = {
+  settings: PluginLockableSettings
+}
 
 const loadSettings = (): Settings => {
   const defaultValues: Settings = {
@@ -124,7 +145,7 @@ const loadSettings = (): Settings => {
     forwardSkipTime: 30,
     rewindSkipTime: 10,
     optimizedVersionsServerUrl: null,
-    downloadMethod: "remux",
+    downloadMethod: DownloadMethod.Remux,
     autoDownload: false,
     showCustomMenuLinks: false,
     disableHapticFeedback: false,
@@ -153,16 +174,76 @@ const saveSettings = (settings: Settings) => {
 };
 
 export const settingsAtom = atom<Settings | null>(null);
+export const pluginSettingsAtom = atom(storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS));
 
 export const useSettings = () => {
-  const [settings, setSettings] = useAtom(settingsAtom);
+  const [api] = useAtom(apiAtom);
+  const [_settings, setSettings] = useAtom(settingsAtom);
+  const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
   useEffect(() => {
-    if (settings === null) {
+    if (_settings === null) {
       const loadedSettings = loadSettings();
       setSettings(loadedSettings);
     }
-  }, [settings, setSettings]);
+  }, [_settings, setSettings]);
+
+  const setPluginSettings = useCallback((settings: PluginLockableSettings | undefined) => {
+    storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, settings)
+      _setPluginSettings(settings)
+    },
+    [_setPluginSettings]
+  )
+
+  const refreshStreamyfinPluginSettings = useCallback(
+    async () => {
+      if (!api)
+        return
+
+      const plugins = await getPluginsApi(api).getPlugins().then(({data}) => data);
+
+      if (plugins && plugins.length > 0) {
+        const streamyfinPlugin = plugins.find(plugin => plugin.Id === STREAMYFIN_PLUGIN_ID);
+
+        if (!streamyfinPlugin || streamyfinPlugin.Status != PluginStatus.Active) {
+          writeErrorLog(
+            "Streamyfin plugin is currently not active.\n" +
+            `Current status is: ${streamyfinPlugin?.Status}`
+          );
+          setPluginSettings(undefined);
+          return;
+        }
+
+        const settings = await api.getStreamyfinPluginConfig()
+          .then(({data}) => data.settings)
+
+        setPluginSettings(settings);
+        return settings;
+      }
+    },
+    [api]
+  )
+
+  // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
+  // If admin sets locked to false but provides a value,
+  //  use user settings first and fallback on admin setting if required.
+  const settings: Settings = useMemo(() => {
+    const overrideSettings = Object.entries(pluginSettings || {})
+      .reduce((acc, [key, setting]) => {
+        if (setting) {
+          const {value, locked} = setting
+          acc = Object.assign(acc, {
+            [key]: locked ? value : _settings?.[key as keyof Settings] ?? value
+          })
+        }
+        return acc
+      }, {} as Settings)
+
+    return {
+      ..._settings,
+      ...overrideSettings
+    }
+  }, [_settings, setSettings, pluginSettings, _setPluginSettings, setPluginSettings])
 
   const updateSettings = (update: Partial<Settings>) => {
     if (settings) {
@@ -173,5 +254,5 @@ export const useSettings = () => {
     }
   };
 
-  return [settings, updateSettings] as const;
+  return [settings, updateSettings, pluginSettings, setPluginSettings, refreshStreamyfinPluginSettings] as const;
 };

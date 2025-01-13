@@ -5,7 +5,6 @@ import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Tag } from "@/components/GenreTags";
 import { ItemCardText } from "@/components/ItemCardText";
 import { JellyserrIndexPage } from "@/components/jellyseerr/JellyseerrIndexPage";
-import AlbumCover from "@/components/posters/AlbumCover";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
@@ -187,52 +186,19 @@ export default function search() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: artists, isFetching: l4 } = useQuery({
-    queryKey: ["search", "artists", debouncedSearch],
-    queryFn: () =>
-      searchFn({
-        query: debouncedSearch,
-        types: ["MusicArtist"],
-      }),
-    enabled: searchType === "Library" && debouncedSearch.length > 0,
-  });
-
-  const { data: albums, isFetching: l5 } = useQuery({
-    queryKey: ["search", "albums", debouncedSearch],
-    queryFn: () =>
-      searchFn({
-        query: debouncedSearch,
-        types: ["MusicAlbum"],
-      }),
-    enabled: searchType === "Library" && debouncedSearch.length > 0,
-  });
-
-  const { data: songs, isFetching: l6 } = useQuery({
-    queryKey: ["search", "songs", debouncedSearch],
-    queryFn: () =>
-      searchFn({
-        query: debouncedSearch,
-        types: ["Audio"],
-      }),
-    enabled: searchType === "Library" && debouncedSearch.length > 0,
-  });
-
   const noResults = useMemo(() => {
     return !(
-      artists?.length ||
-      albums?.length ||
-      songs?.length ||
       movies?.length ||
       episodes?.length ||
       series?.length ||
       collections?.length ||
       actors?.length
     );
-  }, [artists, episodes, albums, songs, movies, series, collections, actors]);
+  }, [episodes, movies, series, collections, actors]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8;
-  }, [l1, l2, l3, l4, l5, l6, l7, l8]);
+    return l1 || l2 || l3 || l7 || l8;
+  }, [l1, l2, l3, l7, l8]);
 
   return (
     <>
@@ -364,48 +330,6 @@ export default function search() {
                     className="flex flex-col w-28 mr-2"
                   >
                     <MoviePoster item={item} />
-                    <ItemCardText item={item} />
-                  </TouchableItemRouter>
-                )}
-              />
-              <SearchItemWrapper
-                ids={artists?.map((m) => m.Id!)}
-                header={t("search.artists")}
-                renderItem={(item: BaseItemDto) => (
-                  <TouchableItemRouter
-                    item={item}
-                    key={item.Id}
-                    className="flex flex-col w-28 mr-2"
-                  >
-                    <AlbumCover id={item.Id} />
-                    <ItemCardText item={item} />
-                  </TouchableItemRouter>
-                )}
-              />
-              <SearchItemWrapper
-                ids={albums?.map((m) => m.Id!)}
-                header={t("search.albums")}
-                renderItem={(item: BaseItemDto) => (
-                  <TouchableItemRouter
-                    item={item}
-                    key={item.Id}
-                    className="flex flex-col w-28 mr-2"
-                  >
-                    <AlbumCover id={item.Id} />
-                    <ItemCardText item={item} />
-                  </TouchableItemRouter>
-                )}
-              />
-              <SearchItemWrapper
-                ids={songs?.map((m) => m.Id!)}
-                header={t("search.songs")}
-                renderItem={(item: BaseItemDto) => (
-                  <TouchableItemRouter
-                    item={item}
-                    key={item.Id}
-                    className="flex flex-col w-28 mr-2"
-                  >
-                    <AlbumCover id={item.AlbumId} />
                     <ItemCardText item={item} />
                   </TouchableItemRouter>
                 )}

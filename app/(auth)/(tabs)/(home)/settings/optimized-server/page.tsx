@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
 import { useTranslation } from "react-i18next";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export default function page() {
   const navigation = useNavigation();
@@ -18,7 +19,7 @@ export default function page() {
   const { t } = useTranslation();
 
   const [api] = useAtom(apiAtom);
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings();
 
   const [optimizedVersionsServerUrl, setOptimizedVersionsServerUrl] =
     useState<string>(settings?.optimizedVersionsServerUrl || "");
@@ -59,25 +60,30 @@ export default function page() {
   };
 
   useEffect(() => {
-    navigation.setOptions({
-      title: t("home.settings.downloads.optimized_server"),
-      headerRight: () =>
-        saveMutation.isPending ? (
-          <ActivityIndicator size={"small"} color={"white"} />
-        ) : (
-          <TouchableOpacity onPress={() => onSave(optimizedVersionsServerUrl)}>
-            <Text className="text-blue-500">{t("home.settings.downloads.save_button")}</Text>
-          </TouchableOpacity>
-        ),
-    });
+    if (!pluginSettings?.optimizedVersionsServerUrl?.locked) {
+      navigation.setOptions({
+        title: t("home.settings.downloads.optimized_server"),
+        headerRight: () =>
+          saveMutation.isPending ? (
+            <ActivityIndicator size={"small"} color={"white"} />
+          ) : (
+            <TouchableOpacity onPress={() => onSave(optimizedVersionsServerUrl)}>
+              <Text className="text-blue-500">{t("home.settings.downloads.save_button")}</Text>
+            </TouchableOpacity>
+          ),
+      });
+    }
   }, [navigation, optimizedVersionsServerUrl, saveMutation.isPending]);
 
   return (
-    <View className="p-4">
+    <DisabledSetting
+      disabled={pluginSettings?.optimizedVersionsServerUrl?.locked === true}
+      className="p-4"
+    >
       <OptimizedServerForm
         value={optimizedVersionsServerUrl}
         onChangeValue={setOptimizedVersionsServerUrl}
       />
-    </View>
+    </DisabledSetting>
   );
 }

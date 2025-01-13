@@ -35,6 +35,11 @@ import {
 } from "@/utils/jellyseerr/server/models/Person";
 import { useQueryClient } from "@tanstack/react-query";
 import {GenreSliderItem} from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
+import {UserResultsResponse} from "@/utils/jellyseerr/server/interfaces/api/userInterfaces";
+import {
+  ServiceCommonServer,
+  ServiceCommonServerWithDetails
+} from "@/utils/jellyseerr/server/interfaces/api/serviceInterfaces";
 
 interface SearchParams {
   query: string;
@@ -67,6 +72,8 @@ export enum Endpoints {
   MOVIE = "/movie",
   RATINGS = "/ratings",
   ISSUE = "/issue",
+  USER = "/user",
+  SERVICE = "/service",
   TV = "/tv",
   SETTINGS = "/settings",
   NETWORK = "/network",
@@ -283,6 +290,12 @@ export class JellyseerrApi {
       });
   }
 
+  async user(params: any) {
+    return this.axios
+      ?.get<UserResultsResponse>(`${Endpoints.API_V1}${Endpoints.USER}`, { params })
+      .then(({data}) =>  data.results)
+  }
+
   imageProxy(
     path?: string,
     filter: string = "original",
@@ -314,6 +327,18 @@ export class JellyseerrApi {
         }
         return issue;
       });
+  }
+
+  async service(type: 'radarr' | 'sonarr') {
+    return this.axios
+      ?.get<ServiceCommonServer[]>(Endpoints.API_V1 + Endpoints.SERVICE + `/${type}`)
+      .then(({data}) => data);
+  }
+
+  async serviceDetails(type: 'radarr' | 'sonarr', id: number) {
+    return this.axios
+      ?.get<ServiceCommonServerWithDetails>(Endpoints.API_V1 + Endpoints.SERVICE + `/${type}` + `/${id}`)
+      .then(({data}) => data);
   }
 
   private setInterceptors() {

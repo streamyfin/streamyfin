@@ -44,8 +44,13 @@ body:
       description: What version of Streamyfin are you running?
       options:
         - 0.25.0
+        - 0.24.0
+        - 0.23.0
+<<<<<<< Updated upstream
+=======
         - 0.22.0
         - 0.21.0
+>>>>>>> Stashed changes
         - older
     validations:
       required: true

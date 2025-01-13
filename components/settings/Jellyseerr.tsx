@@ -24,7 +24,7 @@ export const JellyseerrSettings = () => {
   const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings();
 
   const [promptForJellyseerrPass, setPromptForJellyseerrPass] =
     useState<boolean>(false);

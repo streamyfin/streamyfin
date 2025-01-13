@@ -29,8 +29,8 @@ const Facts: React.FC<
 > = ({ title, facts, ...props }) =>
   facts &&
   facts?.length > 0 && (
-    <View className="flex flex-row justify-between py-2" {...props}>
-      <Text className="font-bold">{title}</Text>
+    <View className="flex flex-col justify-between py-2" {...props}>
+      <Text className="font-bold text-start">{title}</Text>
 
       <View className="flex flex-col items-end">
         {facts.map((f, idx) =>

@@ -2,23 +2,23 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { Loader } from "@/components/Loader";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import { Linking, Switch, View } from "react-native";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Linking, Switch } from "react-native";
 
 export default function page() {
-  const navigation = useNavigation();
-  const { t } = useTranslation();
-
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
-  const [settings, updateSettings] = useSettings();
+  const { t } = useTranslation();
+
+  const [settings, updateSettings, pluginSettings] = useSettings();
 
   const handleOpenLink = () => {
     Linking.openURL(
@@ -50,13 +50,21 @@ export default function page() {
     staleTime: 0,
   });
 
+  const disabled = useMemo(
+    () =>
+      pluginSettings?.usePopularPlugin?.locked === true &&
+      pluginSettings?.mediaListCollectionIds?.locked === true,
+    [pluginSettings]
+  );
+
   if (!settings) return null;
 
   return (
-    <View className="px-4 pt-4">
+    <DisabledSetting disabled={disabled} className="px-4 pt-4">
       <ListGroup title={t("home.settings.plugins.popular_lists.enable_plugin")} className="">
         <ListItem
           title={t("home.settings.plugins.popular_lists.enable_popular_lists")}
+          disabled={pluginSettings?.usePopularPlugin?.locked}
           onPress={() => {
             updateSettings({ usePopularPlugin: true });
             queryClient.invalidateQueries({ queryKey: ["search"] });
@@ -64,9 +72,10 @@ export default function page() {
         >
           <Switch
             value={settings.usePopularPlugin}
-            onValueChange={(value) => {
-              updateSettings({ usePopularPlugin: value });
-            }}
+            disabled={pluginSettings?.usePopularPlugin?.locked}
+            onValueChange={(usePopularPlugin) =>
+              updateSettings({ usePopularPlugin })
+            }
           />
         </ListItem>
       </ListGroup>
@@ -89,8 +98,17 @@ export default function page() {
                 <>
                   <ListGroup title="Media List Collections" className="mt-4">
                     {mediaListCollections?.map((mlc) => (
-                      <ListItem key={mlc.Id} title={mlc.Name}>
+                      <ListItem
+                        key={mlc.Id}
+                        title={mlc.Name}
+                        disabled={
+                          pluginSettings?.mediaListCollectionIds?.locked
+                        }
+                      >
                         <Switch
+                          disabled={
+                            pluginSettings?.mediaListCollectionIds?.locked
+                          }
                           value={settings.mediaListCollectionIds?.includes(
                             mlc.Id!
                           )}
@@ -131,6 +149,6 @@ export default function page() {
           )}
         </>
       )}
-    </View>
+    </DisabledSetting>
   );
 }
