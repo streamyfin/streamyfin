@@ -14,7 +14,7 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPluginsApi } from "@jellyfin/sdk/lib/utils/api";
-import { writeErrorLog } from "@/utils/log";
+import { writeErrorLog, writeInfoLog } from "@/utils/log";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -76,7 +76,8 @@ export enum DownloadMethod {
 }
 
 export type Home = {
-  sections: Map<string, HomeSection>;
+  // sections: Map<string, HomeSection>;
+  sections: [Object];
 };
 
 export type HomeSection = {
@@ -271,6 +272,7 @@ export const useSettings = () => {
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
   useEffect(() => {
+    // refreshStreamyfinPluginSettings({});
     if (_settings === null) {
       const loadedSettings = loadSettings();
       setSettings(loadedSettings);
@@ -310,6 +312,7 @@ export const useSettings = () => {
         .getStreamyfinPluginConfig()
         .then(({ data }) => data.settings);
 
+      writeInfoLog(`Got remote settings: ${JSON.stringify(settings)}`);
       setPluginSettings(settings);
       return settings;
     }

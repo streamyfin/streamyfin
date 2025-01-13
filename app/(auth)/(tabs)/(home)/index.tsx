@@ -97,6 +97,8 @@ export default function index() {
   }, []);
 
   useEffect(() => {
+    // console.log("YO");
+
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected == false || state.isInternetReachable === false)
         setIsConnected(false);
@@ -212,7 +214,7 @@ export default function index() {
   );
 
   let sections: Section[] = [];
-  if (settings?.home === null) {
+  if (settings?.home === null || settings?.home?.sections === null) {
     sections = useMemo(() => {
       if (!api || !user?.Id) return [];
 
@@ -317,20 +319,13 @@ export default function index() {
   } else {
     sections = useMemo(() => {
       if (!api || !user?.Id) return [];
-      settings.home?.sections.forEach((section, key) => {
-        sections.push({
+      const ss: Section[] = [];
+
+      for (const key in settings.home?.sections) {
+        const section = settings.home?.sections[key];
+        ss.push({
           title: key,
           queryKey: ["home", key, user?.Id],
-          /*************  ✨ Codeium Command ⭐  *************/
-          /**
-           * Asynchronously fetches items for a section based on the user's ID and the section's configuration.
-           * Retrieves a list of items from the API with various optional parameters such as limit, item types,
-           * sorting, and filters. If no items are found, returns an empty array.
-           *
-           * @returns {Promise<BaseItemDto[]>} A promise that resolves to an array of items.
-           */
-
-          /******  1a7ada22-65bd-43b6-b955-e21e88595f14  *******/
           queryFn: async () =>
             (
               await getItemsApi(api).getItems({
@@ -346,8 +341,10 @@ export default function index() {
           type: "ScrollingCollectionList",
           orientation: section?.orientation || "vertical",
         });
-      });
-    }, [api, user?.Id]);
+      }
+      console.log(ss);
+      return ss;
+    }, [api, user?.Id, settings.home?.sections]);
   }
 
   if (isConnected === false) {
