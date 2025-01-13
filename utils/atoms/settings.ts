@@ -7,6 +7,10 @@ import {
   CultureDto,
   PluginStatus,
   SubtitlePlaybackMode,
+  ItemSortBy,
+  SortOrder,
+  BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPluginsApi } from "@jellyfin/sdk/lib/utils/api";
@@ -205,6 +209,7 @@ export const useSettings = () => {
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
   useEffect(() => {
+    // refreshStreamyfinPluginSettings({});
     if (_settings === null) {
       const loadedSettings = loadSettings();
       setSettings(loadedSettings);
@@ -244,6 +249,7 @@ export const useSettings = () => {
         .getStreamyfinPluginConfig()
         .then(({ data }) => data.settings);
 
+      writeErrorLog(`Got remote settings: ${JSON.stringify(settings)}`);
       setPluginSettings(settings);
       return settings;
     }
