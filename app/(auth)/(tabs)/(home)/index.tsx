@@ -97,8 +97,6 @@ export default function index() {
   }, []);
 
   useEffect(() => {
-    // console.log("YO");
-
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected == false || state.isInternetReachable === false)
         setIsConnected(false);
@@ -343,7 +341,6 @@ export default function index() {
           orientation: section?.orientation || "vertical",
         });
       }
-      console.log(ss);
       return ss;
     }, [api, user?.Id, settings.home?.sections]);
   }
