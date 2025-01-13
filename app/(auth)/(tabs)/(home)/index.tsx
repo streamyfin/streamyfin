@@ -141,29 +141,6 @@ export default function index() {
     [data, settings?.hiddenLibraries]
   );
 
-  const {
-    data: mediaListCollections,
-    isError: e2,
-    isLoading: l2,
-  } = useQuery({
-    queryKey: ["home", "sf_promoted", user?.Id, settings?.usePopularPlugin],
-    queryFn: async () => {
-      if (!api || !user?.Id) return [];
-
-      const response = await getItemsApi(api).getItems({
-        userId: user.Id,
-        tags: ["sf_promoted"],
-        recursive: true,
-        fields: ["Tags"],
-        includeItemTypes: ["BoxSet"],
-      });
-
-      return response.data.Items || [];
-    },
-    enabled: !!api && !!user?.Id && settings?.usePopularPlugin === true,
-    staleTime: 60 * 1000,
-  });
-
   const collections = useMemo(() => {
     const allow = ["movies", "tvshows"];
     return (
@@ -266,16 +243,16 @@ export default function index() {
           orientation: "horizontal",
         },
         ...latestMediaViews,
-        ...(mediaListCollections?.map(
-          (ml) =>
-            ({
-              title: ml.Name,
-              queryKey: ["home", "mediaList", ml.Id!],
-              queryFn: async () => ml,
-              type: "MediaListSection",
-              orientation: "vertical",
-            } as Section)
-        ) || []),
+        // ...(mediaListCollections?.map(
+        //   (ml) =>
+        //     ({
+        //       title: ml.Name,
+        //       queryKey: ["home", "mediaList", ml.Id!],
+        //       queryFn: async () => ml,
+        //       type: "MediaListSection",
+        //       orientation: "vertical",
+        //     } as Section)
+        // ) || []),
         {
           title: "Suggested Movies",
           queryKey: ["home", "suggestedMovies", user?.Id],
@@ -313,7 +290,7 @@ export default function index() {
         },
       ];
       return ss;
-    }, [api, user?.Id, collections, mediaListCollections]);
+    }, [api, user?.Id, collections]);
   } else {
     sections = useMemo(() => {
       if (!api || !user?.Id) return [];
@@ -387,7 +364,7 @@ export default function index() {
     );
   }
 
-  if (e1 || e2)
+  if (e1)
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
         <Text className="text-3xl font-bold mb-2">Oops!</Text>
@@ -397,7 +374,7 @@ export default function index() {
       </View>
     );
 
-  if (l1 || l2)
+  if (l1)
     return (
       <View className="justify-center items-center h-full">
         <Loader />

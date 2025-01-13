@@ -98,7 +98,6 @@ export type Settings = {
   home?: Home | null;
   autoRotate?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
-  usePopularPlugin?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
   searchEngine: "Marlin" | "Jellyfin";
@@ -145,7 +144,6 @@ const loadSettings = (): Settings => {
     home: null,
     autoRotate: true,
     forceLandscapeInVideoPlayer: false,
-    usePopularPlugin: false,
     deviceProfile: "Expo",
     mediaListCollectionIds: [],
     searchEngine: "Jellyfin",
@@ -209,7 +207,6 @@ export const useSettings = () => {
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
   useEffect(() => {
-    refreshStreamyfinPluginSettings({});
     if (_settings === null) {
       const loadedSettings = loadSettings();
       setSettings(loadedSettings);
