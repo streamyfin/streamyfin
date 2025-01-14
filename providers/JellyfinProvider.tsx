@@ -174,6 +174,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
+  useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
+
+  /*************  ✨ Codeium Command ⭐  *************/
+  /**
+   * Discovers and retrieves a list of recommended Jellyfin server candidates based on the provided URL.
+   *
+   * @param url - The URL used to discover server candidates.
+   * @returns A promise that resolves to an array of servers with their addresses.
+   */
+
+  /******  c70f9dcb-e9fa-4929-8ff2-39aba2e996c8  *******/
   const discoverServers = async (url: string): Promise<Server[]> => {
     const servers = await jellyfin?.discovery.getRecommendedServerCandidates(
       url

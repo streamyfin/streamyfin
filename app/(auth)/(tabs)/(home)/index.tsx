@@ -76,14 +76,6 @@ export default function index() {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      await refreshStreamyfinPluginSettings();
-    }, 60 * 10 * 1000); // 10 min
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
     navigation.setOptions({
       headerLeft: () => (
