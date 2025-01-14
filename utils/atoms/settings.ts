@@ -189,7 +189,14 @@ const loadSettings = (): Settings => {
   }
 };
 
+const EXCLUDE_FROM_SAVE = ["home"];
+
 const saveSettings = (settings: Settings) => {
+  Object.keys(settings).forEach((key) => {
+    if (EXCLUDE_FROM_SAVE.includes(key)) {
+      delete settings[key as keyof Settings];
+    }
+  });
   const jsonValue = JSON.stringify(settings);
   storage.set("settings", jsonValue);
 };
@@ -221,11 +228,13 @@ export const useSettings = () => {
 
   const refreshStreamyfinPluginSettings = useCallback(async () => {
     if (!api) return;
-    const settings = await api
-      .getStreamyfinPluginConfig()
-      .then(({ data }) => data?.settings);
-
-    writeInfoLog(`Got remote settings: ${JSON.stringify(settings)}`);
+    const settings = await api.getStreamyfinPluginConfig().then(
+      ({ data }) => {
+        writeInfoLog(`Got remote settings`);
+        return data?.settings;
+      },
+      (err) => undefined
+    );
 
     setPluginSettings(settings);
     return settings;
@@ -275,6 +284,7 @@ export const useSettings = () => {
     if (Object.keys(unlockedPluginDefaults).length > 0) {
       updateSettings(unlockedPluginDefaults);
     }
+
     return {
       ..._settings,
       ...overrideSettings,
