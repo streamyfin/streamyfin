@@ -98,17 +98,17 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.autoRotate}
             keyExtractor={String}
             titleExtractor={(item) =>
-              ScreenOrientationEnum[item]
+              t(ScreenOrientationEnum[item])
             }
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {ScreenOrientationEnum[settings.defaultVideoOrientation]}
+                  {t(ScreenOrientationEnum[settings.defaultVideoOrientation])}
                 </Text>
                 <Ionicons name="chevron-expand-sharp" size={18} color="#5A5960"/>
               </TouchableOpacity>
             }
-            label="Orientation"
+            label={t("home.settings.other.orientation")}
             onSelected={(defaultVideoOrientation) =>
               updateSettings({defaultVideoOrientation})
             }

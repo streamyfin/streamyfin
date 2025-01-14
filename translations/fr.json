@@ -102,12 +102,32 @@
         "subtitle_hint": "Configurez les préférences des sous-titres.",
         "none": "Aucune",
         "language": "Langage",
-        "loading": "Chargement"
+        "loading": "Chargement",
+        "modes": {
+          "Default": "Par défaut",
+          "Smart": "Intelligent",
+          "Always": "Toujours",
+          "None": "Aucun",
+          "OnlyForced": "Forcés seulement" 
+        }
       },
       "other": {
         "other_title": "Autres",
         "auto_rotate": "Rotation automatique",
         "video_orientation": "Orientation vidéo",
+        "orientation": "Orientation",
+        "orientations": {
+          "DEFAULT": "Par défaut",
+          "ALL": "Toutes",
+          "PORTRAIT": "Portrait",
+          "PORTRAIT_UP": "Portrait Haut",
+          "PORTRAIT_DOWN": "Portrait Bas",
+          "LANDSCAPE": "Paysage",
+          "LANDSCAPE_LEFT": "Paysage Gauche",
+          "LANDSCAPE_RIGHT": "Paysage Droite",
+          "OTHER": "Autre",
+          "UNKNOWN": "Inconnu"
+        },
         "safe_area_in_controls": "Zone de sécurité dans les contrôles",
         "show_custom_menu_links": "Afficher les liens personnalisés",
         "hide_libraries": "Cacher des bibliothèques",
