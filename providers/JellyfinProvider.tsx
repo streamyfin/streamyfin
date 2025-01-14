@@ -174,6 +174,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
+  useEffect(() => {
+    (async () => {
+      await refreshStreamyfinPluginSettings();
+    })();
+  }, []);
+
   useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
 
   /*************  ✨ Codeium Command ⭐  *************/
