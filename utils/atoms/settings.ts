@@ -221,11 +221,13 @@ export const useSettings = () => {
 
   const refreshStreamyfinPluginSettings = useCallback(async () => {
     if (!api) return;
-    const settings = await api
-      .getStreamyfinPluginConfig()
-      .then(({ data }) => data?.settings);
-
-    writeInfoLog(`Got remote settings: ${JSON.stringify(settings)}`);
+    const settings = await api.getStreamyfinPluginConfig().then(
+      ({ data }) => {
+        writeInfoLog(`Got remote settings`);
+        return data?.settings;
+      },
+      (err) => undefined
+    );
 
     setPluginSettings(settings);
     return settings;
