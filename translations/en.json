@@ -18,7 +18,7 @@
     "invalid_username_or_password": "Invalid username or password",
     "user_does_not_have_permission_to_log_in": "User does not have permission to log in",
     "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",
-    "server_received_too_many_requests_try_again_later": "Server received too many requests, try again late.",
+    "server_received_too_many_requests_try_again_later": "Server received too many requests, try again later.",
     "there_is_a_server_error": "There is a server error",
     "an_unexpected_error_occured_did_you_enter_the_correct_url":  "An unexpected error occurred. Did you enter the server URL correctly?"
   },
@@ -108,7 +108,7 @@
           "Smart": "Smart",
           "Always": "Always",
           "None": "None",
-          "OnlyForced": "OnlyForced" 
+          "OnlyForced": "OnlyForced"
         }
       },
       "other": {
@@ -227,11 +227,11 @@
       "no_active_downloads": "No active downloads",
       "active_downloads": "Active downloads",
       "new_app_version_requires_re_download": "New app version requires re-download",
-      "new_app_version_requires_re_download_description": "The new update reqires content to be downloaded again. Please remove all downloaded content and try again.",
+      "new_app_version_requires_re_download_description": "The new update requires content to be downloaded again. Please remove all downloaded content and try again.",
       "back": "Back",
       "delete": "Delete",
       "something_went_wrong": "Something went wrong",
-      "could_not_get_stream_url_from_jellyfin": "Could not get stream URL from Jellyfin",
+      "could_not_get_stream_url_from_jellyfin": "Could not get the stream URL from Jellyfin",
       "eta": "ETA {{eta}}",
       "methods": "Methods",
       "toasts": {
@@ -249,12 +249,12 @@
         "download_failed_for_item": "Download failed for {{item}} - {{error}}",
         "download_completed_for_item": "Download completed for {{item}}",
         "queued_item_for_optimization": "Queued {{item}} for optimization",
-        "failed_to_start_download_for_item": "Failed to start download for {{item}}: {{message}}",
+        "failed_to_start_download_for_item": "Failed to start downloading for {{item}}: {{message}}",
         "server_responded_with_status_code": "Server responded with status {{statusCode}}",
-        "no_response_received_from_server": "No response received from server",
+        "no_response_received_from_server": "No response received from the server",
         "error_setting_up_the_request": "Error setting up the request",
-        "failed_to_start_download_for_item_unexpected_error": "Failed to start download for {{item}}: Unexpected error",
-        "all_files_folders_and_jobs_deleted_successfully": "All files, folders and jobs deleted successfully",
+        "failed_to_start_download_for_item_unexpected_error": "Failed to start downloading for {{item}}: Unexpected error",
+        "all_files_folders_and_jobs_deleted_successfully": "All files, folders, and jobs deleted successfully",
         "an_error_occured_while_deleting_files_and_jobs": "An error occurred while deleting files and jobs",
         "go_to_downloads": "Go to downloads"
       }
@@ -338,10 +338,10 @@
   },
   "player": {
     "error": "Error",
-    "failed_to_get_stream_url": "Failed to get stream URL",
+    "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
     "client_error": "Client error",
-    "could_not_create_stream_for_chromecast": "Could not create stream for Chromecast",
+    "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
     "message_from_server": "Message from server: {{message}}",
     "video_has_finished_playing": "Video has finished playing!",
     "no_video_source": "No video source...",
