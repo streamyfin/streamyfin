@@ -59,7 +59,13 @@ export default function index() {
   const user = useAtomValue(userAtom);
 
   const [loading, setLoading] = useState(false);
-  const [settings, _] = useSettings();
+  const [
+    settings,
+    updateSettings,
+    pluginSettings,
+    setPluginSettings,
+    refreshStreamyfinPluginSettings,
+  ] = useSettings();
 
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [loadingRetry, setLoadingRetry] = useState(false);
@@ -68,6 +74,14 @@ export default function index() {
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      await refreshStreamyfinPluginSettings();
+    }, 60 * 10 * 1000); // 10 min
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
@@ -110,6 +124,7 @@ export default function index() {
     cleanCacheDirectory().catch((e) =>
       console.error("Something went wrong cleaning cache directory")
     );
+
     return () => {
       unsubscribe();
     };
@@ -154,6 +169,7 @@ export default function index() {
 
   const refetch = useCallback(async () => {
     setLoading(true);
+    await refreshStreamyfinPluginSettings();
     await invalidateCache();
     setLoading(false);
   }, []);
