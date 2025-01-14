@@ -28,16 +28,16 @@ export const ScreenOrientationEnum: Record<
   ScreenOrientation.OrientationLock,
   string
 > = {
-  [ScreenOrientation.OrientationLock.DEFAULT]: "Default",
-  [ScreenOrientation.OrientationLock.ALL]: "All",
-  [ScreenOrientation.OrientationLock.PORTRAIT]: "Portrait",
-  [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "Portrait Up",
-  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]: "Portrait Down",
-  [ScreenOrientation.OrientationLock.LANDSCAPE]: "Landscape",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "Landscape Left",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "Landscape Right",
-  [ScreenOrientation.OrientationLock.OTHER]: "Other",
-  [ScreenOrientation.OrientationLock.UNKNOWN]: "Unknown",
+  [ScreenOrientation.OrientationLock.DEFAULT]: "home.settings.other.orientations.DEFAULT",
+  [ScreenOrientation.OrientationLock.ALL]: "home.settings.other.orientations.ALL",
+  [ScreenOrientation.OrientationLock.PORTRAIT]: "home.settings.other.orientations.PORTRAIT",
+  [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "home.settings.other.orientations.PORTRAIT_UP",
+  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]: "home.settings.other.orientations.PORTRAIT_DOWN",
+  [ScreenOrientation.OrientationLock.LANDSCAPE]: "home.settings.other.orientations.LANDSCAPE",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "home.settings.other.orientations.LANDSCAPE_LEFT",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "home.settings.other.orientations.LANDSCAPE_RIGHT",
+  [ScreenOrientation.OrientationLock.OTHER]: "home.settings.other.orientations.OTHER",
+  [ScreenOrientation.OrientationLock.UNKNOWN]: "home.settings.other.orientations.UNKNOWN",
 };
 
 export const DownloadOptions: DownloadOption[] = [

@@ -31,6 +31,14 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
     SubtitlePlaybackMode.None,
   ];
 
+  const subtitleModeKeys = {
+    [SubtitlePlaybackMode.Default]: "home.settings.subtitles.modes.Default",
+    [SubtitlePlaybackMode.Smart]: "home.settings.subtitles.modes.Smart",
+    [SubtitlePlaybackMode.OnlyForced]: "home.settings.subtitles.modes.OnlyForced",
+    [SubtitlePlaybackMode.Always]: "home.settings.subtitles.modes.Always",
+    [SubtitlePlaybackMode.None]: "home.settings.subtitles.modes.None",
+  };
+
   return (
     <View {...props}>
       <ListGroup
@@ -77,11 +85,11 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             data={subtitleModes}
             disabled={pluginSettings?.subtitleMode?.locked}
             keyExtractor={String}
-            titleExtractor={String}
+            titleExtractor={(item) => t(subtitleModeKeys[item]) || String(item)}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings?.subtitleMode || t("home.settings.subtitles.loading")}
+                  {t(subtitleModeKeys[settings?.subtitleMode]) || t("home.settings.subtitles.loading")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
