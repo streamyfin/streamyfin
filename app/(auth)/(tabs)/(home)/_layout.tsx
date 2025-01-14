@@ -86,6 +86,12 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name="settings/logs/page"
+        options={{
+          title: "",
+        }}
+      />
+      <Stack.Screen
         name="intro/page"
         options={{
           headerShown: false,

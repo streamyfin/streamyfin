@@ -159,14 +159,6 @@
           "toasts": {
             "saved": "Enregistré"
           }
-        },
-        "popular_lists": {
-          "enable_plugin": "Activer le plugiciel",
-          "enable_popular_lists": "Activer Popular Lists",
-          "enable_popular_hint": "Popular Lists est un plugiciel qui affiche des listes populaires sur l'écran d'accueil.",
-          "read_more_about_popular_lists": "Lisez-en plus sur Popular Lists.",
-          "no_collections_found": "Aucune collection trouvée. Ajoutez-en dans Jellyfin.",
-          "select_the_lists_you_want_to_display": "Sélectionnez les listes que vous voulez afficher sur l'écran d'accueil."
         }
       },
       "storage": {

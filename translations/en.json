@@ -159,14 +159,6 @@
           "toasts": {
             "saved": "Saved"
           }
-        },
-        "popular_lists": {
-          "enable_plugin": "Enable plugin",
-          "enable_popular_lists": "Enable Popular Lists",
-          "enable_popular_hint": "Popular Lists is a plugin that enables you to show custom Jellyfin lists on the Streamyfin home page.",
-          "read_more_about_popular_lists": "Read more about Popular Lists.",
-          "no_collections_found": "No collections found. Add some in Jellyfin.",
-          "select_the_lists_you_want_to_display": "Select the lists you want displayed on the home screen."
         }
       },
       "storage": {
