@@ -205,7 +205,7 @@ export default function index() {
   );
 
   let sections: Section[] = [];
-  if (settings?.home === null || settings?.home?.sections === null) {
+  if (!settings?.home || !settings?.home?.sections) {
     sections = useMemo(() => {
       if (!api || !user?.Id) return [];
 

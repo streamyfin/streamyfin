@@ -189,7 +189,14 @@ const loadSettings = (): Settings => {
   }
 };
 
+const EXCLUDE_FROM_SAVE = ["home"];
+
 const saveSettings = (settings: Settings) => {
+  Object.keys(settings).forEach((key) => {
+    if (EXCLUDE_FROM_SAVE.includes(key)) {
+      delete settings[key as keyof Settings];
+    }
+  });
   const jsonValue = JSON.stringify(settings);
   storage.set("settings", jsonValue);
 };
@@ -277,6 +284,7 @@ export const useSettings = () => {
     if (Object.keys(unlockedPluginDefaults).length > 0) {
       updateSettings(unlockedPluginDefaults);
     }
+
     return {
       ..._settings,
       ...overrideSettings,
