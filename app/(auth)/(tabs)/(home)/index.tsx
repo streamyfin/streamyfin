@@ -321,7 +321,7 @@ export default function index() {
             (
               await getItemsApi(api).getItems({
                 userId: user?.Id,
-                limit: section.items?.limit || 20,
+                limit: section.items?.limit || 25,
                 recursive: true,
                 includeItemTypes: section.items?.includeItemTypes,
                 sortBy: section.items?.sortBy,
