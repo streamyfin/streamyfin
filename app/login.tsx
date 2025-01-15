@@ -223,7 +223,8 @@ const Login: React.FC = () => {
                       setCredentials({ ...credentials, username: text })
                     }
                     value={credentials.username}
-                    autoFocus
+                    // use auto focus with small delay so keyboard only shows up when not logged in
+                    autoFocusDelay={500}
                     secureTextEntry={false}
                     keyboardType="default"
                     returnKeyType="done"
