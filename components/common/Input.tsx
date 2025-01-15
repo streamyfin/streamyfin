@@ -13,13 +13,13 @@ export function Input(props: TextInputProps & AutoFocusDelayProps) {
   const { style, ...otherProps } = props;
   const inputRef = React.useRef<TextInput>(null);
 
-  if(props.autoFocus && props.autoFocusDelay) {
-    console.warn('autoFocusDelay is obsolete when using autoFocus');
-  }
-
   // focus the input after the given amount of ms
   useEffect(() => {
     if(!props.autoFocusDelay) return;
+    if(props.autoFocus) {
+      console.warn('autoFocusDelay has no effect when autoFocus is true');
+      return
+    }
     const timer = setTimeout(() => {
       if(inputRef.current) {
         inputRef.current.focus();
