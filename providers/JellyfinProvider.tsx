@@ -341,11 +341,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     initiateQuickConnect,
   };
 
-  useProtectedRoute(user, isLoading || isFetching);
+  let isLoadingOrFetching = isLoading || isFetching;
+  useProtectedRoute(user, isLoadingOrFetching);
 
   return (
     <JellyfinContext.Provider value={contextValue}>
-      {children}
+      {isLoadingOrFetching ? undefined : children}
     </JellyfinContext.Provider>
   );
 };
