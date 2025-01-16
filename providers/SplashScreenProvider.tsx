@@ -10,7 +10,7 @@ class ChangeListenerMap<K, V> extends Map<K, V> {
     public set(key: K, value: V): this {
         const oldValue = this.get(key);
         super.set(key, value);
-        if(oldValue != value) {
+        if(oldValue !== value) {
             this.onChange({ self: this, key, oldValue, newValue: value })
         }
         return this;
