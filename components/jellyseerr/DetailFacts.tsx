@@ -29,10 +29,10 @@ const Facts: React.FC<
 > = ({ title, facts, ...props }) =>
   facts &&
   facts?.length > 0 && (
-    <View className="flex flex-col justify-between py-2" {...props}>
-      <Text className="font-bold text-start">{title}</Text>
+    <View className="flex flex-row justify-between py-2 flex-wrap" {...props}>
+      <Text className="font-bold max-w-fit">{title}</Text>
 
-      <View className="flex flex-col items-end">
+      <View className="flex flex-col items-end flex-grow">
         {facts.map((f, idx) =>
           typeof f === "string" ? <Text key={idx}>{f}</Text> : f
         )}
