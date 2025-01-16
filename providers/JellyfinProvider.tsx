@@ -22,7 +22,7 @@ import uuid from "react-native-uuid";
 import { getDeviceName } from "react-native-device-info";
 import { useSettings } from "@/utils/atoms/settings";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { useSplashScreenLoading } from "./SplashScreenProvider";
+import { useSplashScreenLoading, useSplashScreenVisible } from "./SplashScreenProvider";
 
 interface Server {
   address: string;
@@ -344,11 +344,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   
   // show splash screen until everything loaded
   useSplashScreenLoading(isLoadingOrFetching)
+  const splashScreenVisible = useSplashScreenVisible()
 
   return (
     <JellyfinContext.Provider value={contextValue}>
-      {/* the blank page only appears when clicking Logout, maybe replace with loading spinner */}
-      {isLoadingOrFetching ? undefined : children}
+      {/* don't render login page when loading and splash screen visible */}
+      {isLoadingOrFetching && splashScreenVisible ? undefined : children}
     </JellyfinContext.Provider>
   );
 };
