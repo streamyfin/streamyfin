@@ -8,6 +8,7 @@ import {
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
+import { SplashScreenProvider } from "@/providers/SplashScreenProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
@@ -33,7 +34,6 @@ import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
-import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useEffect, useRef } from "react";
@@ -42,8 +42,6 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-
-SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -228,7 +226,9 @@ export default function RootLayout() {
 
   return (
     <JotaiProvider>
-      <Layout />
+      <SplashScreenProvider>
+        <Layout />
+      </SplashScreenProvider>
     </JotaiProvider>
   );
 }
