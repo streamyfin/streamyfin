@@ -8,7 +8,7 @@ import {
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
-import { SplashScreenProvider } from "@/providers/SplashScreenProvider";
+import { SplashScreenProvider, useSplashScreenLoading } from "@/providers/SplashScreenProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
@@ -211,21 +211,7 @@ const checkAndRequestPermissions = async () => {
 };
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
   Appearance.setColorScheme("dark");
-
-  if (!loaded) {
-    return null;
-  }
 
   return (
     <JotaiProvider>
@@ -317,6 +303,17 @@ function Layout() {
 
   if (url) {
     const { hostname, path, queryParams } = Linking.parse(url);
+  }
+
+  const [loaded] = useFonts({
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  });
+
+  // show splash screen until everything loaded
+  useSplashScreenLoading(!loaded)
+
+  if (!loaded) {
+    return null;
   }
 
   return (
