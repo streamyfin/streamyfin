@@ -13,9 +13,12 @@ import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
+import { useTranslation } from "react-i18next";
 
 export default function page() {
   const local = useLocalSearchParams();
+  const { t } = useTranslation();
+
   const { jellyseerrApi, jellyseerrUser } = useJellyseerr();
 
   const { personId } = local as { personId: string };
@@ -58,7 +61,7 @@ export default function page() {
     <ParallaxSlideShow
       data={castedRoles}
       images={backdrops}
-      listHeader="Appearances"
+      listHeader={t("jellyseerr.appearances")}
       keyExtractor={(item) => item.id.toString()}
       logo={
         <Image
@@ -85,7 +88,7 @@ export default function page() {
             {data?.details?.name}
           </Text>
           <Text className="opacity-50">
-            Born{" "}
+            {t("jellyseerr.born")}{" "}
             {new Date(data?.details?.birthday!!).toLocaleDateString(
               `${locale}-${region}`,
               {

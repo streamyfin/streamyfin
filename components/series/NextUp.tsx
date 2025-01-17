@@ -12,10 +12,12 @@ import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { FlashList } from "@shopify/flash-list";
+import { useTranslation } from "react-i18next";
 
 export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
+  const { t } = useTranslation();
 
   const { data: items } = useQuery({
     queryKey: ["nextUp", seriesId],
@@ -37,14 +39,14 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
   if (!items?.length)
     return (
       <View className="px-4">
-        <Text className="text-lg font-bold mb-2">Next up</Text>
-        <Text className="opacity-50">No items to display</Text>
+        <Text className="text-lg font-bold mb-2">{t("item_card.next_up")}</Text>
+        <Text className="opacity-50">{t("item_card.no_items_to_display")}</Text>
       </View>
     );
 
   return (
     <View>
-      <Text className="text-lg font-bold px-4 mb-2">Next up</Text>
+      <Text className="text-lg font-bold px-4 mb-2">{t("item_card.next_up")}</Text>
       <FlashList
         contentContainerStyle={{ paddingLeft: 16 }}
         horizontal

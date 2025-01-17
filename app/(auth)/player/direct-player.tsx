@@ -48,12 +48,14 @@ import {
 import { useSharedValue } from "react-native-reanimated";
 import settings from "../(tabs)/(home)/settings";
 import { useSettings } from "@/utils/atoms/settings";
+import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
+  const { t } = useTranslation();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -161,7 +163,7 @@ export default function page() {
       const { mediaSource, sessionId, url } = res;
 
       if (!sessionId || !mediaSource || !url) {
-        Alert.alert("Error", "Failed to get stream url");
+        Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
         return null;
       }
 
@@ -426,7 +428,7 @@ export default function page() {
   if (isErrorItem || isErrorStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">Error</Text>
+        <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
 
@@ -465,8 +467,8 @@ export default function page() {
           onVideoError={(e) => {
             console.error("Video Error:", e.nativeEvent);
             Alert.alert(
-              "Error",
-              "An error occurred while playing the video. Check logs in settings."
+              t("player.error"),
+              t("player.an_error_occured_while_playing_the_video")
             );
             writeToLog("ERROR", "Video Error", e.nativeEvent);
           }}

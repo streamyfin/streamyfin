@@ -8,12 +8,15 @@ import { getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { Switch, View } from "react-native";
+import { useTranslation } from "react-i18next"; 
 import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export default function page() {
   const [settings, updateSettings, pluginSettings] = useSettings();
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
+
+  const { t } = useTranslation();
 
   const { data, isLoading: isLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
@@ -57,8 +60,7 @@ export default function page() {
         ))}
       </ListGroup>
       <Text className="px-4 text-xs text-neutral-500 mt-1">
-        Select the libraries you want to hide from the Library tab and home page
-        sections.
+      {t("home.settings.other.select_liraries_you_want_to_hide")}
       </Text>
     </DisabledSetting>
   );

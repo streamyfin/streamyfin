@@ -5,6 +5,7 @@ import { View } from "react-native";
 import { ScrollingCollectionList } from "./ScrollingCollectionList";
 import { useCallback } from "react";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
+import { t } from "i18next";
 
 export const Favorites = () => {
   const [api] = useAtom(apiAtom);
@@ -60,38 +61,38 @@ export const Favorites = () => {
       <ScrollingCollectionList
         queryFn={fetchFavoriteSeries}
         queryKey={["home", "favorites", "series"]}
-        title="Series"
+        title={t("favorites.series")}
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteMovies}
         queryKey={["home", "favorites", "movies"]}
-        title="Movies"
+        title={t("favorites.movies")}
         hideIfEmpty
         orientation="vertical"
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
         queryKey={["home", "favorites", "episodes"]}
-        title="Episodes"
+        title={t("favorites.episodes")}
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteVideos}
         queryKey={["home", "favorites", "videos"]}
-        title="Videos"
+        title={t("favorites.videos")}
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
         queryKey={["home", "favorites", "boxsets"]}
-        title="Boxsets"
+        title={t("favorites.boxsets")}
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
         queryKey={["home", "favorites", "playlists"]}
-        title="Playlists"
+        title={t("favorites.playlists")}
         hideIfEmpty
       />
     </View>

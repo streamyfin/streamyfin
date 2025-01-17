@@ -15,12 +15,15 @@ import { toast } from "sonner-native";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import Dropdown from "@/components/common/Dropdown";
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
   const [settings, updateSettings, pluginSettings] = useSettings();
+
+  const { t } = useTranslation();
 
   /********************
    * Background task
@@ -74,9 +77,9 @@ export const OtherSettings: React.FC = () => {
 
   return (
     <DisabledSetting disabled={disabled}>
-      <ListGroup title="Other" className="">
+      <ListGroup title={t("home.settings.other.other_title")} className="">
         <ListItem
-          title="Auto rotate"
+          title={t("home.settings.other.auto_rotate")}
           disabled={pluginSettings?.autoRotate?.locked}
         >
           <Switch
@@ -87,7 +90,7 @@ export const OtherSettings: React.FC = () => {
         </ListItem>
 
         <ListItem
-          title="Video orientation"
+          title={t("home.settings.other.video_orientation")}
           disabled={
             pluginSettings?.defaultVideoOrientation?.locked ||
             settings.autoRotate
@@ -104,7 +107,7 @@ export const OtherSettings: React.FC = () => {
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {ScreenOrientationEnum[settings.defaultVideoOrientation]}
+                  {t(ScreenOrientationEnum[settings.defaultVideoOrientation])}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -113,7 +116,7 @@ export const OtherSettings: React.FC = () => {
                 />
               </TouchableOpacity>
             }
-            label="Orientation"
+            label={t("home.settings.other.orientation")}
             onSelected={(defaultVideoOrientation) =>
               updateSettings({ defaultVideoOrientation })
             }
@@ -121,7 +124,7 @@ export const OtherSettings: React.FC = () => {
         </ListItem>
 
         <ListItem
-          title="Safe area in controls"
+          title={t("home.settings.other.safe_area_in_controls")}
           disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
         >
           <Switch
@@ -134,7 +137,7 @@ export const OtherSettings: React.FC = () => {
         </ListItem>
 
         <ListItem
-          title="Show Custom Menu Links"
+          title={t("home.settings.other.show_custom_menu_links")}
           disabled={pluginSettings?.showCustomMenuLinks?.locked}
           onPress={() =>
             Linking.openURL(
@@ -152,11 +155,11 @@ export const OtherSettings: React.FC = () => {
         </ListItem>
         <ListItem
           onPress={() => router.push("/settings/hide-libraries/page")}
-          title="Hide Libraries"
+          title={t("home.settings.other.hide_libraries")}
           showArrow
         />
         <ListItem
-          title="Disable Haptic Feedback"
+          title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
         >
           <Switch

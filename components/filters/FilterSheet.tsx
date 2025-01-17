@@ -19,6 +19,7 @@ import { StyleSheet, TouchableOpacity, View, ViewProps } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
+import { useTranslation } from "react-i18next";
 
 interface Props<T> extends ViewProps {
   open: boolean;
@@ -76,6 +77,7 @@ export const FilterSheet = <T,>({
 }: Props<T>) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["80%"], []);
+  const { t } = useTranslation();
 
   const [data, setData] = useState<T[]>([]);
   const [offset, setOffset] = useState<number>(0);
@@ -153,10 +155,10 @@ export const FilterSheet = <T,>({
       >
         <View className="px-4 mt-2 mb-8">
           <Text className="font-bold text-2xl">{title}</Text>
-          <Text className="mb-2 text-neutral-500">{_data?.length} items</Text>
+          <Text className="mb-2 text-neutral-500">{t("search.items", {count: _data?.length})}</Text>
           {showSearch && (
             <Input
-              placeholder="Search..."
+              placeholder={t("search.search")}
               className="my-2"
               value={search}
               onChangeText={(text) => {

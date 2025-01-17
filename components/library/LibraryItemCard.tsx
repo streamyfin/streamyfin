@@ -15,6 +15,7 @@ import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { TouchableOpacityProps, View } from "react-native";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import { useTranslation } from "react-i18next"; 
 
 interface Props extends TouchableOpacityProps {
   library: BaseItemDto;
@@ -41,6 +42,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [settings] = useSettings();
+
+  const { t } = useTranslation();
 
   const url = useMemo(
     () =>
@@ -69,13 +72,13 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     let nameStr: string;
 
     if (library.CollectionType === "movies") {
-      nameStr = "movies";
+      nameStr = t("library.item_types.movies");
     } else if (library.CollectionType === "tvshows") {
-      nameStr = "series";
+      nameStr = t("library.item_types.series");
     } else if (library.CollectionType === "boxsets") {
-      nameStr = "box sets";
+      nameStr = t("library.item_types.boxsets");
     } else {
-      nameStr = "items";
+      nameStr = t("library.item_types.items");
     }
 
     return nameStr;
