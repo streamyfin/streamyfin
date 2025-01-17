@@ -9,7 +9,7 @@ import * as BackgroundFetch from "expo-background-fetch";
 import { useRouter } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as TaskManager from "expo-task-manager";
-import React, {useEffect, useMemo} from "react";
+import React, { useEffect, useMemo } from "react";
 import { Linking, Switch, TouchableOpacity } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "../common/Text";
@@ -55,28 +55,28 @@ export const OtherSettings: React.FC = () => {
   /**********************
    *********************/
 
-  const disabled = useMemo(() => (
-    pluginSettings?.autoRotate?.locked === true &&
-    pluginSettings?.defaultVideoOrientation?.locked === true &&
-    pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
-    pluginSettings?.showCustomMenuLinks?.locked === true &&
-    pluginSettings?.hiddenLibraries?.locked === true &&
-    pluginSettings?.disableHapticFeedback?.locked === true
-  ), [pluginSettings]);
+  const disabled = useMemo(
+    () =>
+      pluginSettings?.autoRotate?.locked === true &&
+      pluginSettings?.defaultVideoOrientation?.locked === true &&
+      pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
+      pluginSettings?.showCustomMenuLinks?.locked === true &&
+      pluginSettings?.hiddenLibraries?.locked === true &&
+      pluginSettings?.disableHapticFeedback?.locked === true,
+    [pluginSettings]
+  );
 
   const orientations = [
     ScreenOrientation.OrientationLock.DEFAULT,
     ScreenOrientation.OrientationLock.PORTRAIT_UP,
     ScreenOrientation.OrientationLock.LANDSCAPE_LEFT,
-    ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
-  ]
+    ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT,
+  ];
 
   if (!settings) return null;
 
   return (
-    <DisabledSetting
-      disabled={disabled}
-    >
+    <DisabledSetting disabled={disabled}>
       <ListGroup title={t("home.settings.other.other_title")} className="">
         <ListItem
           title={t("home.settings.other.auto_rotate")}
@@ -85,32 +85,40 @@ export const OtherSettings: React.FC = () => {
           <Switch
             value={settings.autoRotate}
             disabled={pluginSettings?.autoRotate?.locked}
-            onValueChange={(value) => updateSettings({autoRotate: value})}
+            onValueChange={(value) => updateSettings({ autoRotate: value })}
           />
         </ListItem>
 
         <ListItem
           title={t("home.settings.other.video_orientation")}
-          disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.autoRotate}
+          disabled={
+            pluginSettings?.defaultVideoOrientation?.locked ||
+            settings.autoRotate
+          }
         >
           <Dropdown
             data={orientations}
-            disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.autoRotate}
-            keyExtractor={String}
-            titleExtractor={(item) =>
-              t(ScreenOrientationEnum[item])
+            disabled={
+              pluginSettings?.defaultVideoOrientation?.locked ||
+              settings.autoRotate
             }
+            keyExtractor={String}
+            titleExtractor={(item) => ScreenOrientationEnum[item]}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
                   {t(ScreenOrientationEnum[settings.defaultVideoOrientation])}
                 </Text>
-                <Ionicons name="chevron-expand-sharp" size={18} color="#5A5960"/>
+                <Ionicons
+                  name="chevron-expand-sharp"
+                  size={18}
+                  color="#5A5960"
+                />
               </TouchableOpacity>
             }
             label={t("home.settings.other.orientation")}
             onSelected={(defaultVideoOrientation) =>
-              updateSettings({defaultVideoOrientation})
+              updateSettings({ defaultVideoOrientation })
             }
           />
         </ListItem>
@@ -123,7 +131,7 @@ export const OtherSettings: React.FC = () => {
             value={settings.safeAreaInControlsEnabled}
             disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
             onValueChange={(value) =>
-              updateSettings({safeAreaInControlsEnabled: value})
+              updateSettings({ safeAreaInControlsEnabled: value })
             }
           />
         </ListItem>
@@ -141,7 +149,7 @@ export const OtherSettings: React.FC = () => {
             value={settings.showCustomMenuLinks}
             disabled={pluginSettings?.showCustomMenuLinks?.locked}
             onValueChange={(value) =>
-              updateSettings({showCustomMenuLinks: value})
+              updateSettings({ showCustomMenuLinks: value })
             }
           />
         </ListItem>
@@ -158,7 +166,7 @@ export const OtherSettings: React.FC = () => {
             value={settings.disableHapticFeedback}
             disabled={pluginSettings?.disableHapticFeedback?.locked}
             onValueChange={(disableHapticFeedback) =>
-              updateSettings({disableHapticFeedback})
+              updateSettings({ disableHapticFeedback })
             }
           />
         </ListItem>

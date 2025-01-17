@@ -62,7 +62,13 @@ export default function index() {
   const user = useAtomValue(userAtom);
 
   const [loading, setLoading] = useState(false);
-  const [settings, _] = useSettings();
+  const [
+    settings,
+    updateSettings,
+    pluginSettings,
+    setPluginSettings,
+    refreshStreamyfinPluginSettings,
+  ] = useSettings();
 
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [loadingRetry, setLoadingRetry] = useState(false);
@@ -113,6 +119,7 @@ export default function index() {
     cleanCacheDirectory().catch((e) =>
       console.error("Something went wrong cleaning cache directory")
     );
+
     return () => {
       unsubscribe();
     };
@@ -157,6 +164,7 @@ export default function index() {
 
   const refetch = useCallback(async () => {
     setLoading(true);
+    await refreshStreamyfinPluginSettings();
     await invalidateCache();
     setLoading(false);
   }, []);
@@ -192,7 +200,7 @@ export default function index() {
   );
 
   let sections: Section[] = [];
-  if (settings?.home === null || settings?.home?.sections === null) {
+  if (!settings?.home || !settings?.home?.sections) {
     sections = useMemo(() => {
       if (!api || !user?.Id) return [];
 
@@ -303,20 +311,33 @@ export default function index() {
         const section = settings.home?.sections[key];
         ss.push({
           title: key,
-          queryKey: ["home", key, user?.Id],
-          queryFn: async () =>
-            (
-              await getItemsApi(api).getItems({
+          queryKey: ["home", key],
+          queryFn: async () => {
+            if (section.items) {
+              const response = await getItemsApi(api).getItems({
                 userId: user?.Id,
-                limit: section.items?.limit || 20,
+                limit: section.items?.limit || 25,
                 recursive: true,
                 includeItemTypes: section.items?.includeItemTypes,
                 sortBy: section.items?.sortBy,
                 sortOrder: section.items?.sortOrder,
                 filters: section.items?.filters,
                 parentId: section.items?.parentId,
-              })
-            ).data.Items || [],
+              });
+              return response.data.Items || [];
+            } else if (section.nextUp) {
+              const response = await getTvShowsApi(api).getNextUp({
+                userId: user?.Id,
+                fields: ["MediaSourceCount"],
+                limit: section.items?.limit || 25,
+                enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                enableResumable: section.items?.enableResumable || false,
+                enableRewatching: section.items?.enableRewatching || false,
+              });
+              return response.data.Items || [];
+            }
+            return [];
+          },
           type: "ScrollingCollectionList",
           orientation: section?.orientation || "vertical",
         });
