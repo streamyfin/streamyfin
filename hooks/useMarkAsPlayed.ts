@@ -51,17 +51,17 @@ export const useMarkAsPlayed = (item: BaseItemDto) => {
 
     try {
       if (played) {
-        await markAsNotPlayed({
-          api: api,
-          itemId: item?.Id,
-          userId: user?.Id,
-        });
+		await markAsPlayed({
+			api: api,
+			item: item,
+			userId: user?.Id,
+		  });
       } else {
-        await markAsPlayed({
-          api: api,
-          item: item,
-          userId: user?.Id,
-        });
+        await markAsNotPlayed({
+			api: api,
+			itemId: item?.Id,
+			userId: user?.Id,
+		});
       }
       invalidateQueries();
     } catch (error) {
