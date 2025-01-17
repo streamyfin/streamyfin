@@ -46,7 +46,7 @@ export const PlayedStatus: React.FC<Props> = ({ item, ...props }) => {
       <RoundButton
         fillColor={item.UserData?.Played ? "primary" : undefined}
         icon={item.UserData?.Played ? "checkmark" : "checkmark"}
-        onPress={() => markAsPlayedStatus(!item.UserData?.Played || true)}
+        onPress={() => markAsPlayedStatus(!item.UserData?.Played)}
         size="large"
       />
     </View>
