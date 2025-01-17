@@ -72,12 +72,6 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name="settings/popular-lists/page"
-        options={{
-          title: "",
-        }}
-      />
-      <Stack.Screen
         name="settings/hide-libraries/page"
         options={{
           title: "",
