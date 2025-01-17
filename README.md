@@ -32,22 +32,17 @@ Downloading works by using ffmpeg to convert an HLS stream into a video file on 
 
 Chromecast support is still in development, and we're working on improving it. Currently, it supports casting videos and audio, but we're working on adding support for subtitles and other features.
 
-## Plugins
+### Streamyfin Plugin
 
-In Streamyfin we have built-in support for a few plugins. These plugins are not required to use Streamyfin, but they add some extra functionality.
+The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that hold all settings for the client Streamyfin. This allows you to syncronize settings accross all your users, like:
 
-### Collection rows
+- Auto log in to Jellyseerr without the user having to do anythin
+- Choose the default languages 
+- Set download method and search provider
+- Customize homescreen
+- And more...
 
-Jellyfin collections can be shown as rows or carousel on the home screen.
-The following tags can be added to a collection to provide this functionality.
-
-Available tags:
-
-- sf_promoted: will make the collection a row at home
-- sf_carousel: will make the collection a carousel on home.
-
-A plugin exists to create collections based on external sources like mdblist. This make the automatic process of managing collections such as trending, most watched, etc.
-See [Collection Import Plugin](https://github.com/lostb1t/jellyfin-plugin-collection-import) for more info.
+[Streamyfin Plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin)
 
 ### Jellysearch
 
