@@ -80,6 +80,7 @@ export type Home = {
 export type HomeSection = {
   orientation?: "horizontal" | "vertical";
   items?: HomeSectionItemResolver;
+  nextUp?: HomeSectionNextUpResolver;
 };
 
 export type HomeSectionItemResolver = {
@@ -90,6 +91,13 @@ export type HomeSectionItemResolver = {
   parentId?: string;
   limit?: number;
   filters?: Array<ItemFilter>;
+};
+
+export type HomeSectionNextUpResolver = {
+  parentId?: string;
+  limit?: number;
+  enableResumable?: boolean;
+  enableRewatching?: boolean;
 };
 
 export type Settings = {

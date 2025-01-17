@@ -308,10 +308,10 @@ export default function index() {
         const section = settings.home?.sections[key];
         ss.push({
           title: key,
-          queryKey: ["home", key, user?.Id],
-          queryFn: async () =>
-            (
-              await getItemsApi(api).getItems({
+          queryKey: ["home", key],
+          queryFn: async () => {
+            if (section.items) {
+              const response = await getItemsApi(api).getItems({
                 userId: user?.Id,
                 limit: section.items?.limit || 25,
                 recursive: true,
@@ -320,8 +320,21 @@ export default function index() {
                 sortOrder: section.items?.sortOrder,
                 filters: section.items?.filters,
                 parentId: section.items?.parentId,
-              })
-            ).data.Items || [],
+              });
+              return response.data.Items || [];
+            } else if (section.nextUp) {
+              const response = await getTvShowsApi(api).getNextUp({
+                userId: user?.Id,
+                fields: ["MediaSourceCount"],
+                limit: section.items?.limit || 25,
+                enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                enableResumable: section.items?.enableResumable || false,
+                enableRewatching: section.items?.enableRewatching || false,
+              });
+              return response.data.Items || [];
+            }
+            return [];
+          },
           type: "ScrollingCollectionList",
           orientation: section?.orientation || "vertical",
         });
