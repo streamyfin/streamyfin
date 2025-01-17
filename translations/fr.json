@@ -89,7 +89,7 @@
         "audio_title": "Audio",
         "set_audio_track": "Piste audio de l'élément précédent",
         "audio_language": "Langue audio",
-        "audio_hint": "Chosissez une langue audio par défaut.",
+        "audio_hint": "Choisissez une langue audio par défaut.",
         "none": "Aucune",
         "language": "Langage"
       },
