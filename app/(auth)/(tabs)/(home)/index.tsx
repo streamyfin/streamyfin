@@ -35,6 +35,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSplashScreenLoading, useSplashScreenVisible } from "@/providers/SplashScreenProvider";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -142,6 +143,10 @@ export default function index() {
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
   });
+
+  // show splash screen until query loaded
+  useSplashScreenLoading(l1)
+  const splashScreenVisible = useSplashScreenVisible()
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
@@ -395,7 +400,9 @@ export default function index() {
       </View>
     );
 
-  if (l1)
+  // this spinner should only show up, when user navigates here
+  // on launch the splash screen is used for loading
+  if (l1 && !splashScreenVisible)
     return (
       <View className="justify-center items-center h-full">
         <Loader />

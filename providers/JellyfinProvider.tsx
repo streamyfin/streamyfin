@@ -22,6 +22,7 @@ import uuid from "react-native-uuid";
 import { getDeviceName } from "react-native-device-info";
 import { useSettings } from "@/utils/atoms/settings";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSplashScreenLoading, useSplashScreenVisible } from "./SplashScreenProvider";
 
 interface Server {
   address: string;
@@ -338,11 +339,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     initiateQuickConnect,
   };
 
-  useProtectedRoute(user, isLoading || isFetching);
+  let isLoadingOrFetching = isLoading || isFetching;
+  useProtectedRoute(user, isLoadingOrFetching);
+  
+  // show splash screen until everything loaded
+  useSplashScreenLoading(isLoadingOrFetching)
+  const splashScreenVisible = useSplashScreenVisible()
 
   return (
     <JellyfinContext.Provider value={contextValue}>
-      {children}
+      {/* don't render login page when loading and splash screen visible */}
+      {isLoadingOrFetching && splashScreenVisible ? undefined : children}
     </JellyfinContext.Provider>
   );
 };
