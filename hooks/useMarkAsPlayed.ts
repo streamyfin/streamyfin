@@ -33,40 +33,11 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
     });
   };
 
-  const changeStatus = async (played: boolean, item: BaseItemDto) => {
-    // Optimistic update
-    queryClient.setQueryData(
-      ["item", item.Id],
-      (oldData: BaseItemDto | undefined) => {
-        if (oldData) {
-          return {
-            ...oldData,
-            UserData: {
-              ...oldData.UserData,
-              Played: played,
-            },
-          };
-        }
-        return oldData;
-      }
-    );
+  const markAsPlayedStatus = async (played: boolean) => {
+    lightHapticFeedback();
 
-    try {
-      if (played) {
-        await markAsPlayed({
-          api: api,
-          item: item,
-          userId: user?.Id,
-        });
-      } else {
-        await markAsNotPlayed({
-          api: api,
-          itemId: item?.Id,
-          userId: user?.Id,
-        });
-      }
-    } catch (error) {
-      // Revert optimistic update on error
+    items.forEach((item) => {
+       // Optimistic update
       queryClient.setQueryData(
         ["item", item.Id],
         (oldData: BaseItemDto | undefined) => {
@@ -82,17 +53,42 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
           return oldData;
         }
       );
+    })
+
+    try {
+      // Process all items
+      await Promise.all(items.map(item => 
+        played 
+          ? markAsPlayed({ api, item, userId: user?.Id })
+          : markAsNotPlayed({ api, itemId: item?.Id, userId: user?.Id })
+      ));
+
+      // Bulk invalidate
+      queryClient.invalidateQueries({
+        queryKey: [
+          "resumeItems",
+          "continueWatching",
+          "nextUp-all",
+          "nextUp",
+          "episodes",
+          "seasons",
+          "home",
+          ...items.map(item => ["item", item.Id])
+        ].flat()
+      });
+    } catch (error) {
+      // Revert all optimistic updates on any failure
+      items.forEach(item => {
+        queryClient.setQueryData(
+          ["item", item.Id],
+          (oldData: BaseItemDto | undefined) =>
+            oldData ? {
+              ...oldData,
+              UserData: { ...oldData.UserData, Played: played }
+            } : oldData
+        );
+      });
       console.error("Error updating played status:", error);
-    }
-
-  }
-
-  const markAsPlayedStatus = async (played: boolean) => {
-    lightHapticFeedback();
-
-    for (let index = 0; index < items.length; index++) {
-      const item = items[index];
-      await changeStatus(played, item);
     }
 
     invalidateQueries();
