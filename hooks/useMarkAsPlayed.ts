@@ -65,7 +65,6 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
           userId: user?.Id,
         });
       }
-      invalidateQueries();
     } catch (error) {
       // Revert optimistic update on error
       queryClient.setQueryData(
@@ -96,6 +95,7 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
       await changeStatus(played, item);
     }
 
+    invalidateQueries();
   };
 
   return markAsPlayedStatus;
