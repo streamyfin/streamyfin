@@ -43,7 +43,7 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
             ...oldData,
             UserData: {
               ...oldData.UserData,
-              Played: !played,
+              Played: played,
             },
           };
         }
