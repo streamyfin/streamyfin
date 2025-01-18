@@ -44,7 +44,7 @@ export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
 
   const allPlayed = items.every((item) => item.UserData?.Played);
 
-  const markAsPlayedStatus = useMarkAsPlayed([...items]);
+  const markAsPlayedStatus = useMarkAsPlayed(items);
 
   return (
     <View {...props}>
