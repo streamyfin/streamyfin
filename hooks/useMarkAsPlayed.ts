@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useHaptic } from "./useHaptic";
 import { useAtom } from "jotai";
 
-export const useMarkAsPlayed = (item: BaseItemDto) => {
+export const useMarkAsPlayed = (items: BaseItemDto[]) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const queryClient = useQueryClient();
@@ -14,7 +14,6 @@ export const useMarkAsPlayed = (item: BaseItemDto) => {
 
   const invalidateQueries = () => {
     const queriesToInvalidate = [
-      ["item", item.Id],
       ["resumeItems"],
       ["continueWatching"],
       ["nextUp-all"],
@@ -24,14 +23,17 @@ export const useMarkAsPlayed = (item: BaseItemDto) => {
       ["home"],
     ];
 
+    items.forEach((item) => {
+      if(!item.Id) return;
+      queriesToInvalidate.push(["item", item.Id]);
+    });
+    
     queriesToInvalidate.forEach((queryKey) => {
       queryClient.invalidateQueries({ queryKey });
     });
   };
 
-  const markAsPlayedStatus = async (played: boolean) => {
-    lightHapticFeedback();
-
+  const changeStatus = async (played: boolean, item: BaseItemDto) => {
     // Optimistic update
     queryClient.setQueryData(
       ["item", item.Id],
@@ -51,17 +53,17 @@ export const useMarkAsPlayed = (item: BaseItemDto) => {
 
     try {
       if (played) {
-		await markAsPlayed({
-			api: api,
-			item: item,
-			userId: user?.Id,
-		  });
+        await markAsPlayed({
+          api: api,
+          item: item,
+          userId: user?.Id,
+        });
       } else {
         await markAsNotPlayed({
-			api: api,
-			itemId: item?.Id,
-			userId: user?.Id,
-		});
+          api: api,
+          itemId: item?.Id,
+          userId: user?.Id,
+        });
       }
       invalidateQueries();
     } catch (error) {
@@ -83,6 +85,17 @@ export const useMarkAsPlayed = (item: BaseItemDto) => {
       );
       console.error("Error updating played status:", error);
     }
+
+  }
+
+  const markAsPlayedStatus = async (played: boolean) => {
+    lightHapticFeedback();
+
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
+      await changeStatus(played, item);
+    }
+
   };
 
   return markAsPlayedStatus;
