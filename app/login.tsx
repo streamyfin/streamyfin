@@ -163,8 +163,7 @@ const Login: React.FC = () => {
    *
    */
   const handleConnect = useCallback(async (url: string) => {
-    url = url.trim();
-
+    url = url.trim().replace(/\/$/, "");
     const result = await checkUrl(url);
 
     if (result === undefined) {
