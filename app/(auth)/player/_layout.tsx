@@ -25,6 +25,15 @@ export default function Layout() {
             animation: "fade",
           }}
         />
+        <Stack.Screen
+          name="google-cast-player"
+          options={{
+            headerShown: false,
+            autoHideHomeIndicator: true,
+            title: "",
+            animation: "fade",
+          }}
+        />
       </Stack>
     </>
   );
