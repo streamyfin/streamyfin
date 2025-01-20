@@ -203,7 +203,7 @@ export const PlayButton: React.FC<Props> = ({
                     if (isOpeningCurrentlyPlayingMedia) {
                       return;
                     }
-                    CastContext.showExpandedControls();
+                    router.push('/player/google-cast-player')
                   });
               }
             });

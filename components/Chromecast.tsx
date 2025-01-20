@@ -11,6 +11,7 @@ import GoogleCast, {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import { RoundButton } from "./RoundButton";
+import { useRouter } from "expo-router";
 
 interface Props extends ViewProps {
   width?: number;
@@ -30,6 +31,8 @@ export const Chromecast: React.FC<Props> = ({
   const sessionManager = GoogleCast.getSessionManager();
   const discoveryManager = GoogleCast.getDiscoveryManager();
   const mediaStatus = useMediaStatus();
+
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
@@ -60,7 +63,7 @@ export const Chromecast: React.FC<Props> = ({
         className="mr-2"
         background={false}
         onPress={() => {
-          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+          if (mediaStatus?.currentItemId) router.push('/player/google-cast-player');
           else CastContext.showCastDialog();
         }}
         {...props}
@@ -74,7 +77,7 @@ export const Chromecast: React.FC<Props> = ({
     <RoundButton
       size="large"
       onPress={() => {
-        if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+        if (mediaStatus?.currentItemId) router.push('/player/google-cast-player');
         else CastContext.showCastDialog();
       }}
       {...props}
