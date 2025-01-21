@@ -146,6 +146,7 @@ export const PlayButton: React.FC<Props> = ({
                       contentId: item.Id,
                       contentUrl: data?.url,
                       contentType: "video/mp4",
+                      customData: item,
                       metadata:
                         item.Type === "Episode"
                           ? {
@@ -204,7 +205,7 @@ export const PlayButton: React.FC<Props> = ({
                     if (isOpeningCurrentlyPlayingMedia) {
                       return;
                     }
-                    router.push('/player/google-cast-player')
+                    router.push("/player/google-cast-player");
                   });
               }
             });
