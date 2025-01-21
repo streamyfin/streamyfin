@@ -41,6 +41,7 @@ import NextEpisodeCountDownButton from "@/components/video-player/controls/NextE
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
+import { useTrickplay } from "@/hooks/useTrickplay";
 import { secondsToTicks } from "@/utils/secondsToTicks";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 
@@ -276,7 +277,7 @@ function ChromecastControls({
   const handleSliderChange = useCallback(
     debounce((value: number) => {
       // TODO check if something must be done here
-
+      calculateTrickplayUrl(secondsToTicks(value));
       const progressInSeconds = Math.floor(value);
       const hours = Math.floor(progressInSeconds / 3600);
       const minutes = Math.floor((progressInSeconds % 3600) / 60);
@@ -334,6 +335,24 @@ function ChromecastControls({
     },
   });
 
+  const {
+    trickPlayUrl,
+    calculateTrickplayUrl,
+    trickplayInfo,
+    prefetchAllTrickplayImages,
+  } = useTrickplay(
+    {
+      Id: itemId,
+      RunTimeTicks: secondsToTicks(progress.value),
+      Trickplay: item?.Trickplay,
+    },
+    true
+  );
+
+  useEffect(() => {
+    prefetchAllTrickplayImages();
+  }, []);
+
   const goToNextItem = () => {
     console.warn("go to next item not implemented yet");
   };
@@ -356,6 +375,68 @@ function ChromecastControls({
     play,
     false
   );
+
+  const memoizedRenderBubble = useCallback(() => {
+    if (!trickPlayUrl || !trickplayInfo) {
+      return null;
+    }
+    const { x, y, url } = trickPlayUrl;
+    const tileWidth = 150;
+    const tileHeight = 150 / trickplayInfo.aspectRatio!;
+
+    return (
+      <View
+        style={{
+          position: "absolute",
+          left: -62,
+          bottom: 0,
+          paddingTop: 30,
+          paddingBottom: 5,
+          width: tileWidth * 1.5,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            width: tileWidth,
+            height: tileHeight,
+            alignSelf: "center",
+            transform: [{ scale: 1.4 }],
+            borderRadius: 5,
+          }}
+          className="bg-neutral-800 overflow-hidden"
+        >
+          <Image
+            cachePolicy={"memory-disk"}
+            style={{
+              width: 150 * trickplayInfo?.data.TileWidth!,
+              height:
+                (150 / trickplayInfo.aspectRatio!) *
+                trickplayInfo?.data.TileHeight!,
+              transform: [
+                { translateX: -x * tileWidth },
+                { translateY: -y * tileHeight },
+              ],
+              resizeMode: "cover",
+            }}
+            source={{ uri: url }}
+            contentFit="cover"
+          />
+        </View>
+        <Text
+          style={{
+            marginTop: 30,
+            fontSize: 16,
+          }}
+        >
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${
+            time.minutes < 10 ? `0${time.minutes}` : time.minutes
+          }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
+        </Text>
+      </View>
+    );
+  }, [trickPlayUrl, trickplayInfo, time]);
 
   const blurhash =
     "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
@@ -456,7 +537,7 @@ function ChromecastControls({
                 containerStyle={{
                   borderRadius: 100,
                 }}
-                renderBubble={() => isSliding}
+                renderBubble={() => isSliding && memoizedRenderBubble()}
                 sliderHeight={10}
                 thumbWidth={0}
                 progress={progress}
