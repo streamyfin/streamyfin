@@ -19,6 +19,9 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { writeToLog } from "@/utils/log";
 import { formatTimeString } from "@/utils/time";
 import { BlurView } from "expo-blur";
+import SkipButton from "@/components/video-player/controls/SkipButton";
+import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 
 export default function Player() {
 
@@ -286,9 +289,26 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
     }, [settings, isPlaying]);
 
     const mediaMetadata = mediaStatus.mediaInfo?.metadata;
+    const itemId = mediaStatus.mediaInfo?.contentId
 
     const type = mediaMetadata?.type || 'generic'
     const images = mediaMetadata?.images || []
+    
+    const { showSkipButton, skipIntro } = useIntroSkipper(
+        itemId,
+        currentTime,
+        seek,
+        play,
+        false
+    );
+
+    const { showSkipCreditButton, skipCredit } = useCreditSkipper(
+        itemId,
+        currentTime,
+        seek,
+        play,
+        false
+    );
 
     const blurhash = '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
 
@@ -346,6 +366,19 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                     contentFit="cover"
                     transition={1000}
                 />
+                <View className="flex flex-col w-full" >
+                    <View className="flex flex-row w-full justify-end px-6 pb-6">
+                        <SkipButton
+                            showButton={showSkipButton}
+                            onPress={skipIntro}
+                            buttonText="Skip Intro"
+                        />
+                        <SkipButton
+                            showButton={showSkipCreditButton}
+                            onPress={skipCredit}
+                            buttonText="Skip Credits"
+                        />
+                    </View>
                 <BlurView
                     intensity={5}
                     tint='dark'
@@ -431,6 +464,7 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                         </View>
                     </View>
                 </BlurView>
+                </View>
             </View>
         </View>
     )
