@@ -272,11 +272,19 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
 
     const mediaMetadata = mediaStatus.mediaInfo?.metadata;
 
-    const title = mediaMetadata?.title || 'Title not found!'
     const type = mediaMetadata?.type || 'generic'
     const images = mediaMetadata?.images || []
 
     const blurhash = '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
+
+    const ItemInfo = useMemo(() => {
+        switch(type) {
+            case 'generic': return <GenericInfo mediaMetadata={mediaMetadata} />
+            case 'movie': return <MovieInfo mediaMetadata={mediaMetadata} />
+            case 'tvShow': return <TvShowInfo mediaMetadata={mediaMetadata} />
+            default: return <Text>{type} not implemented yet!</Text>
+        }
+    }, [type])
 
     return (
         <View className="w-screen h-screen flex flex-col items-center justify-center bg-black" >
@@ -286,11 +294,12 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                     tint='dark'
                     experimentalBlurMethod='dimezisBlurView'
                 >
-                    <View
-                        className="mt-8 py-2 px-4 w-fit"
-                    >
-                        <Text className="text-white font-bold text-3xl">{title}</Text>
-                        <Text>{mediaStatus.playerState}</Text>
+                    <View className="flex flex-row items-baseline justify-between w-full" >
+                        <View
+                            className="mt-8 py-2 px-4 w-fit"
+                        >
+                            {ItemInfo}
+                        </View>
                     </View>
                 </BlurView>
                 <Image
@@ -387,5 +396,62 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                 </BlurView>
             </View>
         </View>
+    )
+}
+
+type MetadataInfoProps = { mediaMetadata: MediaInfo['metadata'] }
+
+function GenericInfo({ mediaMetadata }: MetadataInfoProps) {
+
+    const title = mediaMetadata?.title || 'Title not found!'
+
+    return (
+        <>
+            <Text className="text-white font-bold text-3xl">{title}</Text>
+            {
+                // @ts-expect-error The metadata type doesn't have subtitle, but the object has
+                mediaMetadata?.subtitle && <Text>{mediaMetadata?.subtitle}</Text>
+            }
+        </>
+    )
+}
+
+function MovieInfo({ mediaMetadata }: MetadataInfoProps) {
+
+    const title = mediaMetadata?.title || 'Title not found!'
+
+    return (
+        <>
+            <Text className="text-white font-bold text-3xl">{title}</Text>
+            {
+                // @ts-expect-error The metadata type doesn't have subtitle, but the object has
+                mediaMetadata?.subtitle && <Text>{mediaMetadata?.subtitle}</Text>
+            }
+        </>
+    )
+}
+
+function TvShowInfo({ mediaMetadata }: MetadataInfoProps) {
+
+    const itemTitle: string = mediaMetadata?.title || 'Title not found!'
+    // @ts-expect-error
+    const seriesTitle: string = mediaMetadata?.seriesTitle || 'Title not found!'
+
+    // @ts-expect-error
+    const episodeNumber: number = mediaMetadata?.episodeNumber || 0
+    // @ts-expect-error
+    const seasonNumber: number = mediaMetadata?.seasonNumber || 0
+
+    return (
+        <>
+            <View className="flex w-full" >
+                <Text className="text-gray-300 font-bold text-2xl">{seriesTitle}</Text>
+                <Text className="text-white font-bold text-3xl">{itemTitle}</Text>
+            </View>
+            <Text>
+                Season {seasonNumber.toLocaleString()} {' '}
+                Episode {episodeNumber.toLocaleString()}
+            </Text>
+        </>
     )
 }
