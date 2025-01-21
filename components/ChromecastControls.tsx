@@ -378,7 +378,7 @@ export default function ChromecastControls({
               buttonText="Skip Credits"
             />
             <NextEpisodeCountDownButton
-              show={!nextItem ? false : remainingTime < 10}
+              show={!nextItem && max.value === 0 ? false : remainingTime < 10}
               onFinish={goToNextItem}
               onPress={goToNextItem}
             />
