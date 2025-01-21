@@ -347,7 +347,7 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                     transition={1000}
                 />
                 <BlurView
-                    intensity={20}
+                    intensity={5}
                     tint='dark'
                     // blurs buttons too. not wanted
                     experimentalBlurMethod='dimezisBlurView'
