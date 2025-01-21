@@ -164,9 +164,24 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
     const isPlaying = mediaStatus.playerState === 'playing'
     const isBufferingOrLoading = mediaStatus.playerState === 'buffering' || mediaStatus.playerState === 'loading'
 
+    // request update of media status every player state change
+    useEffect(() => {
+        client?.requestStatus()
+    }, [mediaStatus.playerState])
+
+    // update progess on stream position change
+    useEffect(() => {
+        if(streamPosition) progress.value = streamPosition
+    }, [streamPosition])
+
+    // update max progress
+    useEffect(() => {
+        if(mediaStatus.mediaInfo?.streamDuration) max.value = mediaStatus.mediaInfo?.streamDuration
+    }, [mediaStatus.mediaInfo?.streamDuration])
+
     const updateTimes = useCallback((currentProgress: number, maxValue: number) => {
         setCurrentTime(progress.value);
-        setRemainingTime(progress.value - max.value);
+        setRemainingTime(max.value - progress.value);
     }, []);
 
     useAnimatedReaction(
