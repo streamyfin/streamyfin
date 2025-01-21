@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -301,8 +301,19 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
         }
     }, [type])
 
+    // Android requires the cast button to be present for startDiscovery to work
+    const AndroidCastButton = useCallback(
+        () =>
+            Platform.OS === "android" ? (
+            <CastButton tintColor="transparent" />
+            ) : (
+            <></>
+            ),
+        [Platform.OS]
+    );
+
     return (
-        <View className="w-screen h-screen flex flex-col items-center justify-center bg-black" >
+        <View className="w-full h-full flex flex-col items-center justify-center bg-black" >
             <View className="w-full h-full flex flex-col justify-between bg-black" >
                 <BlurView
                     intensity={60}
@@ -315,6 +326,17 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                         >
                             {ItemInfo}
                         </View>
+                        <RoundButton
+                            size="large"
+                            className="mr-4 mb-4"
+                            background={false}
+                            onPress={() => {
+                                CastContext.showCastDialog();
+                            }}
+                        >
+                            <AndroidCastButton />
+                            <Feather name="cast" size={30} color={"white"} />
+                        </RoundButton>
                     </View>
                 </BlurView>
                 <Image
