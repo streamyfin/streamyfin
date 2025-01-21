@@ -86,8 +86,8 @@ export default function ChromecastControls({
 
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
-      setCurrentTime(progress.value);
-      setRemainingTime(max.value - progress.value);
+      setCurrentTime(currentProgress);
+      setRemainingTime(maxValue - currentProgress);
     },
     []
   );
