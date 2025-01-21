@@ -143,6 +143,7 @@ export const PlayButton: React.FC<Props> = ({
                 client
                   .loadMedia({
                     mediaInfo: {
+                      contentId: item.Id,
                       contentUrl: data?.url,
                       contentType: "video/mp4",
                       metadata:
