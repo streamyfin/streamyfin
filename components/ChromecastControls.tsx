@@ -335,6 +335,8 @@ export default function ChromecastControls({
     [Platform.OS]
   );
 
+  const title = mediaMetadata?.title || "Title not found!";
+
   return (
     <View className="w-full h-full flex flex-col items-center justify-center bg-black">
       <View className="w-full h-full flex flex-col justify-between bg-black">
@@ -343,19 +345,22 @@ export default function ChromecastControls({
           tint="dark"
           experimentalBlurMethod="dimezisBlurView"
         >
-          <View className="flex flex-row items-baseline justify-between w-full">
-            <View className="mt-8 py-2 px-4 w-fit">{ItemInfo}</View>
-            <RoundButton
-              size="large"
-              className="mr-4 mb-4"
-              background={false}
-              onPress={() => {
-                CastContext.showCastDialog();
-              }}
-            >
-              <AndroidCastButton />
-              <Feather name="cast" size={30} color={"white"} />
-            </RoundButton>
+          <View className="pt-6 pb-4 px-4">
+            <View className="flex flex-row flex-wrap justify-between w-full pb-1">
+              <Text className="text-white font-bold text-3xl">{title}</Text>
+              <RoundButton
+                size="large"
+                className="mr-4"
+                background={false}
+                onPress={() => {
+                  CastContext.showCastDialog();
+                }}
+              >
+                <AndroidCastButton />
+                <Feather name="cast" size={30} color={"white"} />
+              </RoundButton>
+            </View>
+            {ItemInfo}
           </View>
         </BlurView>
         <Image
@@ -476,46 +481,29 @@ export default function ChromecastControls({
 type MetadataInfoProps = { mediaMetadata: MediaInfo["metadata"] };
 
 function GenericInfo({ mediaMetadata }: MetadataInfoProps) {
-  const title = mediaMetadata?.title || "Title not found!";
+  // @ts-expect-error The metadata type doesn't have subtitle, but the object has
+  const subtitle = mediaMetadata?.subtitle;
 
-  return (
-    <>
-      <Text className="text-white font-bold text-3xl">{title}</Text>
-      {
-        // @ts-expect-error The metadata type doesn't have subtitle, but the object has
-        mediaMetadata?.subtitle && <Text>{mediaMetadata?.subtitle}</Text>
-      }
-    </>
-  );
+  return <>{subtitle && <Text className="opacity-50">{subtitle}</Text>}</>;
 }
 
 function MovieInfo({ mediaMetadata }: MetadataInfoProps) {
-  const title = mediaMetadata?.title || "Title not found!";
+  // @ts-expect-error The metadata type doesn't have subtitle, but the object has
+  const subtitle = mediaMetadata?.subtitle;
 
-  return (
-    <>
-      <Text className="text-white font-bold text-3xl">{title}</Text>
-      {
-        // @ts-expect-error The metadata type doesn't have subtitle, but the object has
-        mediaMetadata?.subtitle && <Text>{mediaMetadata?.subtitle}</Text>
-      }
-    </>
-  );
+  return <>{subtitle && <Text className="opacity-50">{subtitle}</Text>}</>;
 }
 
 function TvShowInfo({
   mediaMetadata,
   item,
 }: MetadataInfoProps & { item?: BaseItemDto }) {
-  const itemTitle: string =
-    mediaMetadata?.title || item?.Name || "Title not found!";
   const seriesTitle: string =
     // @ts-expect-error
     mediaMetadata?.seriesTitle || item?.SeriesName || "Title not found!";
 
   return (
     <>
-      <Text className="text-white font-bold text-3xl">{itemTitle}</Text>
       <Text className="opacity-50">
         {`${seriesTitle} - ${item?.SeasonName} Episode ${item?.IndexNumber}`}
       </Text>
