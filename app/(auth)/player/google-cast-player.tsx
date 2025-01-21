@@ -6,7 +6,7 @@ import { Button } from "@/components/Button";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { RoundButton } from "@/components/RoundButton";
 
-import GoogleCast, { CastButton, CastContext, CastState, MediaStatus, RemoteMediaClient, useCastDevice, useCastState, useDevices, useMediaStatus, useRemoteMediaClient, useStreamPosition } from "react-native-google-cast";
+import GoogleCast, { CastButton, CastContext, CastState, MediaInfo, MediaStatus, RemoteMediaClient, useCastDevice, useCastState, useDevices, useMediaStatus, useRemoteMediaClient, useStreamPosition } from "react-native-google-cast";
 import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { Image } from "expo-image";
@@ -328,10 +328,10 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                     intensity={20}
                     tint='dark'
                     // blurs buttons too. not wanted
-                    // experimentalBlurMethod='dimezisBlurView'
+                    experimentalBlurMethod='dimezisBlurView'
                     className="pt-1"
                 >
-                    <View className={`flex flex-col w-full shrink`}>
+                    <View className={`flex flex-col w-full shrink px-2`}>
                         <Slider
                             theme={{
                                 maximumTrackTintColor: "rgba(255,255,255,0.2)",
