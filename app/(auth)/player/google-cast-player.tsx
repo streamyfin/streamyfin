@@ -319,7 +319,7 @@ function ChromecastControls({ mediaStatus, client }: { mediaStatus: MediaStatus,
                 </BlurView>
                 <Image
                     className="flex h-full w-full bg-[#0553] absolute -z-50"
-                    source={images[0]}
+                    source={images[0].url}
                     placeholder={{ blurhash }}
                     contentFit="cover"
                     transition={1000}
