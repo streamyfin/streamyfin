@@ -318,7 +318,7 @@ export default function ChromecastControls({
       case "movie":
         return <MovieInfo mediaMetadata={mediaMetadata} />;
       case "tvShow":
-        return <TvShowInfo mediaMetadata={mediaMetadata} />;
+        return <TvShowInfo mediaMetadata={mediaMetadata} item={item} />;
       default:
         return <Text>{type} not implemented yet!</Text>;
     }
@@ -503,25 +503,21 @@ function MovieInfo({ mediaMetadata }: MetadataInfoProps) {
   );
 }
 
-function TvShowInfo({ mediaMetadata }: MetadataInfoProps) {
-  const itemTitle: string = mediaMetadata?.title || "Title not found!";
-  // @ts-expect-error
-  const seriesTitle: string = mediaMetadata?.seriesTitle || "Title not found!";
-
-  // @ts-expect-error
-  const episodeNumber: number = mediaMetadata?.episodeNumber || 0;
-  // @ts-expect-error
-  const seasonNumber: number = mediaMetadata?.seasonNumber || 0;
+function TvShowInfo({
+  mediaMetadata,
+  item,
+}: MetadataInfoProps & { item?: BaseItemDto }) {
+  const itemTitle: string =
+    mediaMetadata?.title || item?.Name || "Title not found!";
+  const seriesTitle: string =
+    // @ts-expect-error
+    mediaMetadata?.seriesTitle || item?.SeriesName || "Title not found!";
 
   return (
     <>
-      <View className="flex w-full">
-        <Text className="text-gray-300 font-bold text-2xl">{seriesTitle}</Text>
-        <Text className="text-white font-bold text-3xl">{itemTitle}</Text>
-      </View>
-      <Text>
-        Season {seasonNumber.toLocaleString()} Episode{" "}
-        {episodeNumber.toLocaleString()}
+      <Text className="text-white font-bold text-3xl">{itemTitle}</Text>
+      <Text className="opacity-50">
+        {`${seriesTitle} - ${item?.SeasonName} Episode ${item?.IndexNumber}`}
       </Text>
     </>
   );
