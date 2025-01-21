@@ -40,6 +40,9 @@ import SkipButton from "@/components/video-player/controls/SkipButton";
 import NextEpisodeCountDownButton from "@/components/video-player/controls/NextEpisodeCountDownButton";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
+import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
+import { secondsToTicks } from "@/utils/secondsToTicks";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 
 export default function Player() {
   const castState = useCastState();
@@ -321,6 +324,23 @@ function ChromecastControls({
   const type = mediaMetadata?.type || "generic";
   const images = mediaMetadata?.images || [];
 
+  const item: BaseItemDto | undefined = mediaStatus.mediaInfo?.customData;
+
+  const { previousItem, nextItem } = useAdjacentItems({
+    item: {
+      Id: itemId,
+      SeriesId: item?.SeriesId,
+      Type: item?.Type,
+    },
+  });
+
+  const goToNextItem = () => {
+    console.warn("go to next item not implemented yet");
+  };
+  const goToPreviousItem = () => {
+    console.warn("go to previous item not implemented yet");
+  };
+
   const { showSkipButton, skipIntro } = useIntroSkipper(
     itemId,
     currentTime,
@@ -406,6 +426,11 @@ function ChromecastControls({
               onPress={skipCredit}
               buttonText="Skip Credits"
             />
+            <NextEpisodeCountDownButton
+              show={!nextItem ? false : remainingTime < 10}
+              onFinish={goToNextItem}
+              onPress={goToNextItem}
+            />
           </View>
           <BlurView
             intensity={5}
@@ -447,11 +472,14 @@ function ChromecastControls({
                 </Text>
               </View>
               <View className="flex flex-row w-full items-center justify-evenly mt-2 mb-10">
-                <TouchableOpacity onPress={() => {}}>
+                <TouchableOpacity
+                  onPress={goToPreviousItem}
+                  disabled={!previousItem}
+                >
                   <Ionicons
                     name="play-skip-back-outline"
                     size={30}
-                    color="white"
+                    color={previousItem ? "white" : "gray"}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSkipBackward}>
@@ -478,11 +506,11 @@ function ChromecastControls({
                     color="white"
                   />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => {}}>
+                <TouchableOpacity onPress={goToNextItem} disabled={!nextItem}>
                   <Ionicons
                     name="play-skip-forward-outline"
                     size={30}
-                    color="white"
+                    color={nextItem ? "white" : "gray"}
                   />
                 </TouchableOpacity>
               </View>
