@@ -1,3 +1,4 @@
+import { SelectedOptions } from "@/components/ItemContent";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { RemoteMediaClient, WebImage } from "react-native-google-cast";
 
@@ -6,18 +7,23 @@ export function chromecastLoadMedia({
   item,
   contentUrl,
   images,
+  playbackOptions,
 }: {
   client: RemoteMediaClient;
   item: BaseItemDto;
   contentUrl: string;
   images: WebImage[];
+  playbackOptions: SelectedOptions;
 }) {
   return client.loadMedia({
     mediaInfo: {
       contentId: item.Id,
       contentUrl,
       contentType: "video/mp4",
-      customData: item,
+      customData: {
+        item,
+        playbackOptions,
+      },
       metadata:
         item.Type === "Episode"
           ? {

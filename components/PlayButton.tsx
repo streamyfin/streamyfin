@@ -145,6 +145,7 @@ export const PlayButton: React.FC<Props> = ({
                   client,
                   item,
                   contentUrl: data.url,
+                  playbackOptions: selectedOptions,
                   images: [
                     {
                       url: getParentBackdropImageUrl({
