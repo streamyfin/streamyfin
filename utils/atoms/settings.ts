@@ -74,7 +74,7 @@ export enum DownloadMethod {
 }
 
 export type Home = {
-  sections: [Object];
+  sections: Array<HomeSection>;
 };
 
 export type HomeSection = {
@@ -84,6 +84,7 @@ export type HomeSection = {
 };
 
 export type HomeSectionItemResolver = {
+  title?: string;
   sortBy?: Array<ItemSortBy>;
   sortOrder?: Array<SortOrder>;
   includeItemTypes?: Array<BaseItemKind>;

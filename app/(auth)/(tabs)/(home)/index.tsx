@@ -306,9 +306,10 @@ export default function index() {
 
       for (const key in settings.home?.sections) {
         const section = settings.home?.sections[key];
+        const id = section.title || key;
         ss.push({
-          title: key,
-          queryKey: ["home", key],
+          title: id,
+          queryKey: ["home", id],
           queryFn: async () => {
             if (section.items) {
               const response = await getItemsApi(api).getItems({
