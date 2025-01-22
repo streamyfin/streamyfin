@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { Alert, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -36,6 +36,13 @@ import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { secondsToTicks } from "@/utils/secondsToTicks";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { chromecastLoadMedia } from "@/utils/chromecastLoadMedia";
+import { useAtomValue } from "jotai";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { chromecastProfile } from "@/utils/profiles/chromecast";
+import { SelectedOptions } from "./ItemContent";
 
 export default function ChromecastControls({
   mediaStatus,
@@ -44,6 +51,9 @@ export default function ChromecastControls({
   mediaStatus: MediaStatus;
   client: RemoteMediaClient | null;
 }) {
+  const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
+
   const lightHapticFeedback = useHaptic("light");
 
   const streamPosition = useStreamPosition();
@@ -195,7 +205,13 @@ export default function ChromecastControls({
   const type = mediaMetadata?.type || "generic";
   const images = mediaMetadata?.images || [];
 
-  const item: BaseItemDto | undefined = mediaStatus.mediaInfo?.customData;
+  const mediaCustomData = mediaStatus.mediaInfo?.customData as
+    | { item: BaseItemDto; playbackOptions: SelectedOptions }
+    | undefined;
+  const { item, playbackOptions } = mediaCustomData || {
+    item: undefined,
+    playbackOptions: undefined,
+  };
 
   const { previousItem, nextItem } = useAdjacentItems({
     item: {
@@ -223,12 +239,78 @@ export default function ChromecastControls({
     prefetchAllTrickplayImages();
   }, []);
 
-  const goToNextItem = () => {
-    console.warn("go to next item not implemented yet");
-  };
-  const goToPreviousItem = () => {
-    console.warn("go to previous item not implemented yet");
-  };
+  const goToItem = useCallback(
+    async (item: BaseItemDto) => {
+      if (!client) {
+        console.warn("Failed to go to item: No remote client!");
+        return;
+      }
+      if (!api) {
+        console.warn("Failed to go to item: No api!");
+        return;
+      }
+      if (!playbackOptions) {
+        console.warn("Failed to go to item: No playback options selected!");
+        return;
+      }
+
+      // Get a new URL with the Chromecast device profile:
+      // TODO this function does not finish somehow. don't know what is wrong as there are no errors :/
+      const data = await getStreamUrl({
+        api,
+        item,
+        deviceProfile: chromecastProfile,
+        startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+        userId: user?.Id,
+        audioStreamIndex: playbackOptions.audioIndex,
+        maxStreamingBitrate: playbackOptions.bitrate?.value,
+        mediaSourceId: playbackOptions.mediaSource?.Id,
+        subtitleStreamIndex: playbackOptions.subtitleIndex,
+      });
+
+      if (!data?.url) {
+        console.warn("No URL returned from getStreamUrl", data);
+        Alert.alert("Client error", "Could not create stream for Chromecast");
+        return;
+      }
+
+      await chromecastLoadMedia({
+        client,
+        item,
+        contentUrl: data.url,
+        playbackOptions,
+        images: [
+          {
+            url: getParentBackdropImageUrl({
+              api,
+              item,
+              quality: 90,
+              width: 2000,
+            })!,
+          },
+        ],
+      });
+
+      await client.requestStatus();
+    },
+    [client, api]
+  );
+
+  const goToNextItem = useCallback(() => {
+    if (!nextItem) {
+      console.warn("Failed to skip to next item: No next item!");
+      return;
+    }
+    goToItem(nextItem);
+  }, [nextItem]);
+
+  const goToPreviousItem = useCallback(() => {
+    if (!previousItem) {
+      console.warn("Failed to skip to next item: No next item!");
+      return;
+    }
+    goToItem(previousItem);
+  }, [previousItem]);
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
     itemId,
