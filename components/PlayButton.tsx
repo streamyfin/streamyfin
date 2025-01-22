@@ -34,6 +34,7 @@ import { SelectedOptions } from "./ItemContent";
 import { chromecastProfile } from "@/utils/profiles/chromecast";
 import { useTranslation } from "react-i18next";
 import { useHaptic } from "@/hooks/useHaptic";
+import { chromecastLoadMedia } from "@/utils/chromecastLoadMedia";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -140,73 +141,27 @@ export const PlayButton: React.FC<Props> = ({
                   return;
                 }
 
-                client
-                  .loadMedia({
-                    mediaInfo: {
-                      contentId: item.Id,
-                      contentUrl: data?.url,
-                      contentType: "video/mp4",
-                      customData: item,
-                      metadata:
-                        item.Type === "Episode"
-                          ? {
-                              type: "tvShow",
-                              title: item.Name || "",
-                              episodeNumber: item.IndexNumber || 0,
-                              seasonNumber: item.ParentIndexNumber || 0,
-                              seriesTitle: item.SeriesName || "",
-                              images: [
-                                {
-                                  url: getParentBackdropImageUrl({
-                                    api,
-                                    item,
-                                    quality: 90,
-                                    width: 2000,
-                                  })!,
-                                },
-                              ],
-                            }
-                          : item.Type === "Movie"
-                          ? {
-                              type: "movie",
-                              title: item.Name || "",
-                              subtitle: item.Overview || "",
-                              images: [
-                                {
-                                  url: getPrimaryImageUrl({
-                                    api,
-                                    item,
-                                    quality: 90,
-                                    width: 2000,
-                                  })!,
-                                },
-                              ],
-                            }
-                          : {
-                              type: "generic",
-                              title: item.Name || "",
-                              subtitle: item.Overview || "",
-                              images: [
-                                {
-                                  url: getPrimaryImageUrl({
-                                    api,
-                                    item,
-                                    quality: 90,
-                                    width: 2000,
-                                  })!,
-                                },
-                              ],
-                            },
+                chromecastLoadMedia({
+                  client,
+                  item,
+                  contentUrl: data.url,
+                  images: [
+                    {
+                      url: getParentBackdropImageUrl({
+                        api,
+                        item,
+                        quality: 90,
+                        width: 2000,
+                      })!,
                     },
-                    startTime: 0,
-                  })
-                  .then(() => {
-                    // state is already set when reopening current media, so skip it here.
-                    if (isOpeningCurrentlyPlayingMedia) {
-                      return;
-                    }
-                    router.push("/player/google-cast-player");
-                  });
+                  ],
+                }).then(() => {
+                  // state is already set when reopening current media, so skip it here.
+                  if (isOpeningCurrentlyPlayingMedia) {
+                    return;
+                  }
+                  router.push("/player/google-cast-player");
+                });
               }
             });
             break;
