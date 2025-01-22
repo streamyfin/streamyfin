@@ -112,7 +112,8 @@
       ],
       ["react-native-bottom-tabs"],
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withGoogleCastActivity.js"]
+      ["./plugins/withGoogleCastActivity.js"],
+      ["./plugins/withTrustLocalCerts.js"]
     ],
     "experiments": {
       "typedRoutes": true
