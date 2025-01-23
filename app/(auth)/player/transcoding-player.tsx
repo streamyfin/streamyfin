@@ -39,12 +39,14 @@ import Video, {
   VideoRef,
 } from "react-native-video";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
+import { useTranslation } from "react-i18next";
 
 const Player = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const [settings] = useSettings();
   const videoRef = useRef<VideoRef | null>(null);
+  const { t } = useTranslation();
 
   const firstTime = useRef(true);
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
@@ -374,7 +376,7 @@ const Player = () => {
   if (isErrorItem || isErrorStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">Error</Text>
+        <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
 
@@ -440,7 +442,7 @@ const Player = () => {
             />
           </>
         ) : (
-          <Text>No video source...</Text>
+          <Text>{t("player.no_video_source")}</Text>
         )}
       </View>
 

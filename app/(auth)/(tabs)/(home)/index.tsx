@@ -27,6 +27,7 @@ import { QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -54,6 +55,8 @@ type Section = ScrollingCollectionListSection | MediaListSection;
 
 export default function index() {
   const router = useRouter();
+
+  const { t } = useTranslation();
 
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
@@ -204,7 +207,7 @@ export default function index() {
       const latestMediaViews = collections.map((c) => {
         const includeItemTypes: BaseItemKind[] =
           c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-        const title = "Recently Added in " + c.Name;
+        const title = t("home.recently_added_in", {libraryName: c.Name});
         const queryKey = [
           "home",
           "recentlyAddedIn" + c.CollectionType,
@@ -221,7 +224,7 @@ export default function index() {
 
       const ss: Section[] = [
         {
-          title: "Continue Watching",
+          title: t("home.continue_watching"),
           queryKey: ["home", "resumeItems"],
           queryFn: async () =>
             (
@@ -235,7 +238,7 @@ export default function index() {
           orientation: "horizontal",
         },
         {
-          title: "Next Up",
+          title: t("home.next_up"),
           queryKey: ["home", "nextUp-all"],
           queryFn: async () =>
             (
@@ -262,7 +265,7 @@ export default function index() {
         //     } as Section)
         // ) || []),
         {
-          title: "Suggested Movies",
+          title: t("home.suggested_movies"),
           queryKey: ["home", "suggestedMovies", user?.Id],
           queryFn: async () =>
             (
@@ -277,7 +280,7 @@ export default function index() {
           orientation: "vertical",
         },
         {
-          title: "Suggested Episodes",
+          title: t("home.suggested_episodes"),
           queryKey: ["home", "suggestedEpisodes", user?.Id],
           queryFn: async () => {
             try {
@@ -347,9 +350,9 @@ export default function index() {
   if (isConnected === false) {
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6 px-8">
-        <Text className="text-3xl font-bold mb-2">No Internet</Text>
+        <Text className="text-3xl font-bold mb-2">{t("home.no_internet")}</Text>
         <Text className="text-center opacity-70">
-          No worries, you can still watch{"\n"}downloaded content.
+        {t("home.no_internet_message")}
         </Text>
         <View className="mt-4">
           <Button
@@ -360,7 +363,7 @@ export default function index() {
               <Ionicons name="arrow-forward" size={20} color="white" />
             }
           >
-            Go to downloads
+            {t("home.go_to_downloads")}
           </Button>
           <Button
             color="black"
@@ -389,10 +392,8 @@ export default function index() {
   if (e1)
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
-        <Text className="text-3xl font-bold mb-2">Oops!</Text>
-        <Text className="text-center opacity-70">
-          Something went wrong.{"\n"}Please log out and in again.
-        </Text>
+        <Text className="text-3xl font-bold mb-2">{t("home.oops")}</Text>
+        <Text className="text-center opacity-70">{t("home.error_message")}</Text>
       </View>
     );
 

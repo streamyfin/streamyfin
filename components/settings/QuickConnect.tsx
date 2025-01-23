@@ -7,6 +7,7 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
+import { useTranslation } from "react-i18next";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useAtom } from "jotai";
 import React, { useCallback, useRef, useState } from "react";
@@ -25,6 +26,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
+
+  const { t } = useTranslation();
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -46,26 +49,26 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         });
         if (res.status === 200) {
           successHapticFeedback();
-          Alert.alert("Success", "Quick connect authorized");
+          Alert.alert(t("home.settings.quick_connect.success"), t("home.settings.quick_connect.quick_connect_autorized"));
           setQuickConnectCode(undefined);
           bottomSheetModalRef?.current?.close();
         } else {
           errorHapticFeedback();
-          Alert.alert("Error", "Invalid code");
+          Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
         }
       } catch (e) {
         errorHapticFeedback();
-        Alert.alert("Error", "Invalid code");
+        Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
       }
     }
   }, [api, user, quickConnectCode]);
 
   return (
     <View {...props}>
-      <ListGroup title={"Quick Connect"}>
+      <ListGroup title={t("home.settings.quick_connect.quick_connect_title")}>
         <ListItem
           onPress={() => bottomSheetModalRef?.current?.present()}
-          title="Authorize Quick Connect"
+          title={t("home.settings.quick_connect.authorize_button")}
           textColor="blue"
         />
       </ListGroup>
@@ -85,7 +88,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
             <View>
               <Text className="font-bold text-2xl text-neutral-100">
-                Quick Connect
+                {t("home.settings.quick_connect.quick_connect_title")}
               </Text>
             </View>
             <View className="flex flex-col space-y-2">
@@ -93,7 +96,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                 <BottomSheetTextInput
                   style={{ color: "white" }}
                   clearButtonMode="always"
-                  placeholder="Enter the quick connect code..."
+                  placeholder={t("home.settings.quick_connect.enter_the_quick_connect_code")}
                   placeholderTextColor="#9CA3AF"
                   value={quickConnectCode}
                   onChangeText={setQuickConnectCode}
@@ -105,7 +108,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
               onPress={authorizeQuickConnect}
               color="purple"
             >
-              Authorize
+              {t("home.settings.quick_connect.authorize")}
             </Button>
           </View>
         </BottomSheetView>
