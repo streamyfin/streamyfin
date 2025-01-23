@@ -319,7 +319,7 @@ function Layout() {
                       <BottomSheetModalProvider>
                         <SystemBars style="light" hidden={false} />
                         <ThemeProvider value={DarkTheme}>
-                          <Stack initialRouteName="/home">
+                          <Stack>
                             <Stack.Screen
                               name="(auth)/(tabs)"
                               options={{
@@ -334,14 +334,6 @@ function Layout() {
                                 headerShown: false,
                                 title: "",
                                 header: () => null,
-                              }}
-                            />
-                            <Stack.Screen
-                              name="(auth)/trailer/page"
-                              options={{
-                                headerShown: false,
-                                presentation: "modal",
-                                title: "",
                               }}
                             />
                             <Stack.Screen
