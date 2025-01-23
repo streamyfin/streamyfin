@@ -306,16 +306,18 @@ export default function ChromecastControls({
       console.warn("Failed to skip to next item: No next item!");
       return;
     }
+    lightHapticFeedback();
     goToItem(nextItem);
-  }, [nextItem]);
+  }, [nextItem, lightHapticFeedback]);
 
   const goToPreviousItem = useCallback(() => {
     if (!previousItem) {
       console.warn("Failed to skip to next item: No next item!");
       return;
     }
+    lightHapticFeedback();
     goToItem(previousItem);
-  }, [previousItem]);
+  }, [previousItem, lightHapticFeedback]);
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
     itemId,
