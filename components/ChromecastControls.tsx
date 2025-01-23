@@ -129,6 +129,12 @@ export default function ChromecastControls({
   }
 
   function seek(time: number) {
+    // skip to next episode if seeking to end (for credit skipping)
+    // with 1 second room to react
+    if (nextItem && time >= max.value - 1) {
+      goToNextItem();
+      return;
+    }
     client?.seek({
       position: time,
     });
