@@ -199,8 +199,13 @@ export default function ChromecastControls({
     }
   }, [settings, isPlaying]);
 
-  const mediaMetadata = mediaStatus.mediaInfo?.metadata;
-  const itemId = mediaStatus.mediaInfo?.contentId;
+  const { mediaMetadata, itemId } = useMemo(
+    () => ({
+      mediaMetadata: mediaStatus.mediaInfo?.metadata,
+      itemId: mediaStatus.mediaInfo?.contentId,
+    }),
+    [mediaStatus]
+  );
 
   const type = mediaMetadata?.type || "generic";
   const images = mediaMetadata?.images || [];
