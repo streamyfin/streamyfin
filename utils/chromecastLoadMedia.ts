@@ -13,7 +13,7 @@ export function chromecastLoadMedia({
   item: BaseItemDto;
   contentUrl: string;
   images: WebImage[];
-  playbackOptions: SelectedOptions;
+  playbackOptions?: SelectedOptions;
 }) {
   return client.loadMedia({
     mediaInfo: {
