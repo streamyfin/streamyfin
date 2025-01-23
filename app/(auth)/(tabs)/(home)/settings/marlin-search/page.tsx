@@ -4,6 +4,8 @@ import { ListItem } from "@/components/list/ListItem";
 import { useSettings } from "@/utils/atoms/settings";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
+import { useTranslation } from "react-i18next";
+
 import React, {useEffect, useMemo, useState} from "react";
 import {
   Linking,
@@ -18,6 +20,8 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 export default function page() {
   const navigation = useNavigation();
 
+  const { t } = useTranslation();
+
   const [settings, updateSettings, pluginSettings] = useSettings();
   const queryClient = useQueryClient();
 
@@ -27,7 +31,7 @@ export default function page() {
     updateSettings({
       marlinServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
     });
-    toast.success("Saved");
+    toast.success(t("home.settings.plugins.marlin_search.toasts.saved"));
   };
 
   const handleOpenLink = () => {
@@ -43,7 +47,7 @@ export default function page() {
       navigation.setOptions({
         headerRight: () => (
           <TouchableOpacity onPress={() => onSave(value)}>
-            <Text className="text-blue-500">Save</Text>
+            <Text className="text-blue-500">{t("home.settings.plugins.marlin_search.save_button")}</Text>
           </TouchableOpacity>
         ),
       });
@@ -63,7 +67,7 @@ export default function page() {
           showText={!pluginSettings?.marlinServerUrl?.locked}
         >
           <ListItem
-            title={"Enable Marlin Search"}
+            title={t("home.settings.plugins.marlin_search.enable_marlin_search")}
             onPress={() => {
               updateSettings({ searchEngine: "Jellyfin" });
               queryClient.invalidateQueries({ queryKey: ["search"] });
@@ -88,11 +92,11 @@ export default function page() {
         <View
           className={`flex flex-row items-center bg-neutral-900 h-11 pr-4`}
         >
-          <Text className="mr-4">URL</Text>
+          <Text className="mr-4">{t("home.settings.plugins.marlin_search.url")}</Text>
           <TextInput
             editable={settings.searchEngine === "Marlin"}
             className="text-white"
-            placeholder="http(s)://domain.org:port"
+            placeholder={t("home.settings.plugins.marlin_search.server_url_placeholder")}
             value={value}
             keyboardType="url"
             returnKeyType="done"
@@ -103,10 +107,9 @@ export default function page() {
         </View>
       </DisabledSetting>
       <Text className="px-4 text-xs text-neutral-500 mt-1">
-        Enter the URL for the Marlin server. The URL should include http or
-        https and optionally the port.{" "}
+        {t("home.settings.plugins.marlin_search.marlin_search_hint")}{" "}
         <Text className="text-blue-500" onPress={handleOpenLink}>
-          Read more about Marlin.
+          {t("home.settings.plugins.marlin_search.read_more_about_marlin")}
         </Text>
       </Text>
     </DisabledSetting>

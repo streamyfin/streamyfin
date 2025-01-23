@@ -20,6 +20,7 @@ import JellyseerrPoster from "../posters/JellyseerrPoster";
 import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
+import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   searchQuery: string;
@@ -28,6 +29,7 @@ interface Props extends ViewProps {
 export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
   const { jellyseerrApi } = useJellyseerr();
   const opacity = useSharedValue(1);
+  const { t } = useTranslation();
 
   const {
     data: jellyseerrDiscoverSettings,
@@ -117,7 +119,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
         !l2 && (
           <View>
             <Text className="text-center text-lg font-bold mt-4">
-              No results found for
+              {t("search.no_results_found_for")}
             </Text>
             <Text className="text-xs text-purple-600 text-center">
               "{searchQuery}"
@@ -127,21 +129,21 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
 
       <View className={f1 || f2 || l1 || l2 ? "opacity-0" : "opacity-100"}>
         <SearchItemWrapper
-          header="Request Movies"
+          header={t("search.request_movies")}
           items={jellyseerrMovieResults}
           renderItem={(item: MovieResult) => (
             <JellyseerrPoster item={item} key={item.id} />
           )}
         />
         <SearchItemWrapper
-          header="Request Series"
+          header={t("search.request_series")}
           items={jellyseerrTvResults}
           renderItem={(item: TvResult) => (
             <JellyseerrPoster item={item} key={item.id} />
           )}
         />
         <SearchItemWrapper
-          header="Actors"
+          header={t("search.actors")}
           items={jellyseerrPersonResults}
           renderItem={(item: PersonResult) => (
             <PersonPoster

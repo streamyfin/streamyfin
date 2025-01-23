@@ -10,10 +10,13 @@ import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
+import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export default function page() {
   const navigation = useNavigation();
+
+  const { t } = useTranslation();
 
   const [api] = useAtom(apiAtom);
   const [settings, updateSettings, pluginSettings] = useSettings();
@@ -24,7 +27,7 @@ export default function page() {
   const saveMutation = useMutation({
     mutationFn: async (newVal: string) => {
       if (newVal.length === 0 || !newVal.startsWith("http")) {
-        toast.error("Invalid URL");
+        toast.error(t("home.settings.toasts.invalid_url"));
         return;
       }
 
@@ -42,13 +45,13 @@ export default function page() {
     },
     onSuccess: (data) => {
       if (data) {
-        toast.success("Connected");
+        toast.success(t("home.settings.toasts.connected"));
       } else {
-        toast.error("Could not connect");
+        toast.error(t("home.settings.toasts.could_not_connect"));
       }
     },
     onError: () => {
-      toast.error("Could not connect");
+      toast.error(t("home.settings.toasts.could_not_connect"));
     },
   });
 
@@ -59,13 +62,13 @@ export default function page() {
   useEffect(() => {
     if (!pluginSettings?.optimizedVersionsServerUrl?.locked) {
       navigation.setOptions({
-        title: "Optimized Server",
+        title: t("home.settings.downloads.optimized_server"),
         headerRight: () =>
           saveMutation.isPending ? (
             <ActivityIndicator size={"small"} color={"white"} />
           ) : (
             <TouchableOpacity onPress={() => onSave(optimizedVersionsServerUrl)}>
-              <Text className="text-blue-500">Save</Text>
+              <Text className="text-blue-500">{t("home.settings.downloads.save_button")}</Text>
             </TouchableOpacity>
           ),
       });

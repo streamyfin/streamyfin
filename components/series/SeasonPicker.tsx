@@ -17,7 +17,7 @@ import {
   SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-
+import { useTranslation } from "react-i18next";
 type Props = {
   item: BaseItemDto;
   initialSeasonIndex?: number;
@@ -29,6 +29,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
+  const { t } = useTranslation();
 
   const seasonIndex = useMemo(
     () => seasonIndexState[item.Id ?? ""],
@@ -145,7 +146,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         />
         {episodes?.length || 0 > 0 ? (
           <DownloadItems
-            title="Download Season"
+            title={t("item_card.download.download_season")}
             className="ml-2"
             items={episodes || []}
             MissingDownloadIconComponent={() => (
@@ -210,7 +211,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         {(episodes?.length || 0) === 0 ? (
           <View className="flex flex-col">
             <Text className="text-neutral-500">
-              No episodes for this season
+              {t("item_card.no_episodes_for_this_season")}
             </Text>
           </View>
         ) : null}

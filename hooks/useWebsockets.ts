@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
+import { useTranslation } from "react-i18next";
 
 interface UseWebSocketProps {
   isPlaying: boolean;
@@ -18,6 +19,7 @@ export const useWebSocket = ({
 }: UseWebSocketProps) => {
   const router = useRouter();
   const { ws } = useWebSocketContext();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!ws) return;
@@ -40,7 +42,7 @@ export const useWebSocket = ({
         console.log("Command ~ DisplayMessage");
         const title = json?.Data?.Arguments?.Header;
         const body = json?.Data?.Arguments?.Text;
-        Alert.alert("Message from server: " + title, body);
+        Alert.alert(t("player.message_from_server", {message: title}), body);
       }
     };
 

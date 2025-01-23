@@ -31,6 +31,7 @@ import React, {
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
+import { useTranslation } from "react-i18next";
 
 type SearchType = "Library" | "Discover";
 
@@ -46,6 +47,8 @@ const exampleSearches = [
 export default function search() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+
+  const { t } = useTranslation();
 
   const { q, prev } = params as { q: string; prev: Href<string> };
 
@@ -122,7 +125,7 @@ export default function search() {
     if (Platform.OS === "ios")
       navigation.setOptions({
         headerSearchBarOptions: {
-          placeholder: "Search...",
+          placeholder: t("search.search"),
           onChangeText: (e: any) => {
             router.setParams({ q: "" });
             setSearch(e.nativeEvent.text);
@@ -214,7 +217,7 @@ export default function search() {
                 autoCorrect={false}
                 returnKeyType="done"
                 keyboardType="web-search"
-                placeholder="Search here..."
+                placeholder={t("search.search_here")}
                 value={search}
                 onChangeText={(text) => setSearch(text)}
               />
@@ -224,7 +227,7 @@ export default function search() {
             <View className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
               <TouchableOpacity onPress={() => setSearchType("Library")}>
                 <Tag
-                  text="Library"
+                  text={t("search.library")}
                   textClass="p-1"
                   className={
                     searchType === "Library" ? "bg-purple-600" : undefined
@@ -233,7 +236,7 @@ export default function search() {
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setSearchType("Discover")}>
                 <Tag
-                  text="Discover"
+                  text={t("search.discover")}
                   textClass="p-1"
                   className={
                     searchType === "Discover" ? "bg-purple-600" : undefined
@@ -250,7 +253,7 @@ export default function search() {
           {searchType === "Library" ? (
             <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
               <SearchItemWrapper
-                header="Movies"
+                header={t("search.movies")}
                 ids={movies?.map((m) => m.Id!)}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
@@ -270,7 +273,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={series?.map((m) => m.Id!)}
-                header="Series"
+                header={t("search.series")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     key={item.Id}
@@ -289,7 +292,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={episodes?.map((m) => m.Id!)}
-                header="Episodes"
+                header={t("search.episodes")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     item={item}
@@ -303,7 +306,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={collections?.map((m) => m.Id!)}
-                header="Collections"
+                header={t("search.collections")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     key={item.Id}
@@ -319,7 +322,7 @@ export default function search() {
               />
               <SearchItemWrapper
                 ids={actors?.map((m) => m.Id!)}
-                header="Actors"
+                header={t("search.actors")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     item={item}
@@ -341,7 +344,7 @@ export default function search() {
               {!loading && noResults && debouncedSearch.length > 0 ? (
                 <View>
                   <Text className="text-center text-lg font-bold mt-4">
-                    No results found for
+                    {t("search.no_results_found_for")}
                   </Text>
                   <Text className="text-xs text-purple-600 text-center">
                     "{debouncedSearch}"

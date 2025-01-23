@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from "react";
 import { Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
 
@@ -30,6 +31,7 @@ export const NativeTabs = withLayoutContext<
 
 export default function TabLayout() {
   const [settings] = useSettings();
+  const { t } = useTranslation();
   const router = useRouter();
 
   useFocusEffect(
@@ -61,7 +63,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(home)"
           options={{
-            title: "Home",
+            title: t("tabs.home"),
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -75,7 +77,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(search)"
           options={{
-            title: "Search",
+            title: t("tabs.search"),
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -89,7 +91,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(favorites)"
           options={{
-            title: "Favorites",
+            title: t("tabs.favorites"),
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -105,7 +107,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(libraries)"
           options={{
-            title: "Library",
+            title: t("tabs.library"),
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -119,7 +121,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(custom-links)"
           options={{
-            title: "Custom Links",
+            title: t("tabs.custom_links"),
             // @ts-expect-error
             tabBarItemHidden: settings?.showCustomMenuLinks ? false : true,
             tabBarIcon:

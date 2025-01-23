@@ -3,6 +3,7 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
+import { useTranslation } from "react-i18next";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,21 +16,22 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   const [_, __, pluginSettings] = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
+  const { t } = useTranslation();
 
   if (!settings) return null;
 
   return (
     <View {...props}>
       <ListGroup
-        title={"Audio"}
+        title={t("home.settings.audio.audio_title")}
         description={
           <Text className="text-[#8E8D91] text-xs">
-            Choose a default audio language.
+            {t("home.settings.audio.audio_hint")}
           </Text>
         }
       >
         <ListItem
-          title={"Set Audio Track From Previous Item"}
+          title={t("home.settings.audio.set_audio_track")}
           disabled={pluginSettings?.rememberAudioSelections?.locked}
         >
           <Switch
@@ -40,12 +42,12 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             }
           />
         </ListItem>
-        <ListItem title="Audio language">
+        <ListItem title={t("home.settings.audio.audio_language")}>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3 ">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings?.defaultAudioLanguage?.DisplayName || "None"}
+                  {settings?.defaultAudioLanguage?.DisplayName || t("home.settings.audio.none")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -63,7 +65,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
               collisionPadding={8}
               sideOffset={8}
             >
-              <DropdownMenu.Label>Languages</DropdownMenu.Label>
+              <DropdownMenu.Label>{t("home.settings.audio.language")}</DropdownMenu.Label>
               <DropdownMenu.Item
                 key={"none-audio"}
                 onSelect={() => {
@@ -72,7 +74,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
                   });
                 }}
               >
-                <DropdownMenu.ItemTitle>None</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("home.settings.audio.none")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               {cultures?.map((l) => (
                 <DropdownMenu.Item
