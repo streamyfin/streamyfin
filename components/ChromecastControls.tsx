@@ -465,7 +465,7 @@ export default function ChromecastControls({
         </BlurView>
         <Image
           className="flex h-full w-full bg-[#0553] absolute -z-50"
-          source={images[0].url}
+          source={images[0]?.url}
           placeholder={{ blurhash }}
           contentFit="cover"
           transition={1000}
