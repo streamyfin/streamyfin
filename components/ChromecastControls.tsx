@@ -43,6 +43,10 @@ import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackd
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecastProfile } from "@/utils/profiles/chromecast";
 import { SelectedOptions } from "./ItemContent";
+import {
+  getDefaultPlaySettings,
+  previousIndexes,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 
 export default function ChromecastControls({
   mediaStatus,
@@ -254,10 +258,17 @@ export default function ChromecastControls({
         console.warn("Failed to go to item: No api!");
         return;
       }
-      if (!playbackOptions) {
-        console.warn("Failed to go to item: No playback options selected!");
-        return;
-      }
+
+      const previousIndexes: previousIndexes = {
+        subtitleIndex: playbackOptions?.subtitleIndex || undefined,
+        audioIndex: playbackOptions?.audioIndex || undefined,
+      };
+
+      const {
+        mediaSource,
+        audioIndex: defaultAudioIndex,
+        subtitleIndex: defaultSubtitleIndex,
+      } = getDefaultPlaySettings(item, settings, previousIndexes, undefined);
 
       // Get a new URL with the Chromecast device profile:
       // TODO this function does not finish somehow. don't know what is wrong as there are no errors :/
@@ -267,10 +278,10 @@ export default function ChromecastControls({
         deviceProfile: chromecastProfile,
         startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
         userId: user?.Id,
-        audioStreamIndex: playbackOptions.audioIndex,
-        maxStreamingBitrate: playbackOptions.bitrate?.value,
-        mediaSourceId: playbackOptions.mediaSource?.Id,
-        subtitleStreamIndex: playbackOptions.subtitleIndex,
+        audioStreamIndex: defaultAudioIndex,
+        // maxStreamingBitrate: playbackOptions.bitrate?.value,
+        subtitleStreamIndex: defaultSubtitleIndex,
+        mediaSourceId: mediaSource?.Id,
       });
 
       if (!data?.url) {
