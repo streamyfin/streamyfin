@@ -15,7 +15,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { Loader } from "../Loader";
 import { Text } from "./Text";
-import { t } from "i18next";
 
 interface HorizontalScrollProps
   extends Omit<FlashListProps<BaseItemDto>, "renderItem" | "data" | "style"> {
@@ -137,7 +136,7 @@ export function InfiniteHorizontalScroll({
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center">
-            <Text className="text-center text-gray-500">{t("item_card.no_data_available")}</Text>
+            <Text className="text-center text-gray-500">No data available</Text>
           </View>
         }
         {...props}

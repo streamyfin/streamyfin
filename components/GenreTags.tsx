@@ -1,6 +1,6 @@
 // GenreTags.tsx
 import React from "react";
-import {StyleProp, TextStyle, View, ViewProps} from "react-native";
+import {View, ViewProps} from "react-native";
 import { Text } from "./common/Text";
 
 interface TagProps {
@@ -8,15 +8,14 @@ interface TagProps {
   textClass?: ViewProps["className"]
 }
 
-export const Tag: React.FC<{ text: string, textClass?: ViewProps["className"], textStyle?: StyleProp<TextStyle>} & ViewProps> = ({
+export const Tag: React.FC<{ text: string, textClass?: ViewProps["className"]} & ViewProps> = ({
   text,
   textClass,
-  textStyle,
   ...props
 }) => {
   return (
     <View className="bg-neutral-800 rounded-full px-2 py-1" {...props}>
-      <Text className={textClass} style={textStyle}>{text}</Text>
+      <Text className={textClass}>{text}</Text>
     </View>
   );
 };

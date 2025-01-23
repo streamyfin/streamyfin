@@ -4,7 +4,7 @@ import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
 import { DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtom } from "jotai";
@@ -12,8 +12,6 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { Button } from "@/components/Button";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
-import { t } from 'i18next';
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import {
   BottomSheetBackdrop,
@@ -26,7 +24,6 @@ import { writeToLog } from "@/utils/log";
 
 export default function page() {
   const navigation = useNavigation();
-  const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
   const { removeProcess, downloadedFiles, deleteFileByType } = useDownload();
   const router = useRouter();
@@ -73,17 +70,17 @@ export default function page() {
 
   const deleteMovies = () =>
     deleteFileByType("Movie")
-      .then(() => toast.success(t("home.downloads.toasts.deleted_all_movies_successfully")))
+      .then(() => toast.success("Deleted all movies successfully!"))
       .catch((reason) => {
         writeToLog("ERROR", reason);
-        toast.error(t("home.downloads.toasts.failed_to_delete_all_movies"));
+        toast.error("Failed to delete all movies");
       });
   const deleteShows = () =>
     deleteFileByType("Episode")
-      .then(() => toast.success(t("home.downloads.toasts.deleted_all_tvseries_successfully")))
+      .then(() => toast.success("Deleted all TV-Series successfully!"))
       .catch((reason) => {
         writeToLog("ERROR", reason);
-        toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
+        toast.error("Failed to delete all TV-Series");
       });
   const deleteAllMedia = async () =>
     await Promise.all([deleteMovies(), deleteShows()]);
@@ -99,11 +96,11 @@ export default function page() {
       >
         <View className="py-4">
           <View className="mb-4 flex flex-col space-y-4 px-4">
-            {settings?.downloadMethod === DownloadMethod.Remux && (
+            {settings?.downloadMethod === "remux" && (
               <View className="bg-neutral-900 p-4 rounded-2xl">
-                <Text className="text-lg font-bold">{t("home.downloads.queue")}</Text>
+                <Text className="text-lg font-bold">Queue</Text>
                 <Text className="text-xs opacity-70 text-red-600">
-                  {t("home.downloads.queue_hint")}
+                  Queue and active downloads will be lost on app restart
                 </Text>
                 <View className="flex flex-col space-y-2 mt-2">
                   {queue.map((q, index) => (
@@ -136,7 +133,7 @@ export default function page() {
                 </View>
 
                 {queue.length === 0 && (
-                  <Text className="opacity-50">{t("home.downloads.no_items_in_queue")}</Text>
+                  <Text className="opacity-50">No items in queue</Text>
                 )}
               </View>
             )}
@@ -147,7 +144,7 @@ export default function page() {
           {movies.length > 0 && (
             <View className="mb-4">
               <View className="flex flex-row items-center justify-between mb-2 px-4">
-                <Text className="text-lg font-bold">{t("home.downloads.movies")}</Text>
+                <Text className="text-lg font-bold">Movies</Text>
                 <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
                   <Text className="text-xs font-bold">{movies?.length}</Text>
                 </View>
@@ -166,7 +163,7 @@ export default function page() {
           {groupedBySeries.length > 0 && (
             <View className="mb-4">
               <View className="flex flex-row items-center justify-between mb-2 px-4">
-                <Text className="text-lg font-bold">{t("home.downloads.tvseries")}</Text>
+                <Text className="text-lg font-bold">TV-Series</Text>
                 <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
                   <Text className="text-xs font-bold">
                     {groupedBySeries?.length}
@@ -192,7 +189,7 @@ export default function page() {
           )}
           {downloadedFiles?.length === 0 && (
             <View className="flex px-4">
-              <Text className="opacity-50">{t("home.downloads.no_downloaded_items")}</Text>
+              <Text className="opacity-50">No downloaded items</Text>
             </View>
           )}
         </View>
@@ -217,13 +214,13 @@ export default function page() {
         <BottomSheetView>
           <View className="p-4 space-y-4 mb-4">
             <Button color="purple" onPress={deleteMovies}>
-              {t("home.downloads.delete_all_movies_button")}
+              Delete all Movies
             </Button>
             <Button color="purple" onPress={deleteShows}>
-              {t("home.downloads.delete_all_tvseries_button")}
+              Delete all TV-Series
             </Button>
             <Button color="red" onPress={deleteAllMedia}>
-              {t("home.downloads.delete_all_button")}
+              Delete all
             </Button>
           </View>
         </BottomSheetView>
@@ -236,15 +233,15 @@ function migration_20241124() {
   const router = useRouter();
   const { deleteAllFiles } = useDownload();
   Alert.alert(
-    t("home.downloads.new_app_version_requires_re_download"),
-    t("home.downloads.new_app_version_requires_re_download_description"),
+    "New app version requires re-download",
+    "The new update reqires content to be downloaded again. Please remove all downloaded content and try again.",
     [
       {
-        text: t("home.downloads.back"),
+        text: "Back",
         onPress: () => router.back(),
       },
       {
-        text: t("home.downloads.delete"),
+        text: "Delete",
         style: "destructive",
         onPress: async () => await deleteAllFiles(),
       },

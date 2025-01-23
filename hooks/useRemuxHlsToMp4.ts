@@ -18,7 +18,6 @@ import useDownloadHelper from "@/utils/download";
 import { Api } from "@jellyfin/sdk";
 import { useSettings } from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
-import { useTranslation } from "react-i18next";
 
 const createFFmpegCommand = (url: string, output: string) => [
   "-y", // overwrite output files without asking
@@ -50,7 +49,6 @@ export const useRemuxHlsToMp4 = () => {
   const api = useAtomValue(apiAtom);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { t } = useTranslation();
 
   const [settings] = useSettings();
   const { saveImage } = useImageStorage();
@@ -86,7 +84,7 @@ export const useRemuxHlsToMp4 = () => {
             queryKey: ["downloadedItems"],
           });
           saveDownloadedItemInfo(item, stat.getSize());
-          toast.success(t("home.downloads.toasts.download_completed"));
+          toast.success("Download completed");
         }
 
         setProcesses((prev) => {
@@ -146,7 +144,7 @@ export const useRemuxHlsToMp4 = () => {
       // First lets save any important assets we want to present to the user offline
       await onSaveAssets(api, item);
 
-      toast.success(t("home.downloads.toasts.download_started_for", {item: item.Name}), {
+      toast.success(`Download started for ${item.Name}`, {
         action: {
           label: "Go to download",
           onClick: () => {

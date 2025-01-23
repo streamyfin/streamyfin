@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.25.0",
+    "version": "0.23.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -36,7 +36,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 50,
+      "versionCode": 49,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive_icon.png"
       },
@@ -105,16 +105,13 @@
           "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."
         }
       ],
-      "expo-localization",
       "expo-asset",
       [
         "react-native-edge-to-edge",
         { "android": { "parentTheme": "Material3" } }
       ],
       ["react-native-bottom-tabs"],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withGoogleCastActivity.js"],
-      ["./plugins/withTrustLocalCerts.js"]
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"]
     ],
     "experiments": {
       "typedRoutes": true

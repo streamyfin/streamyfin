@@ -12,7 +12,6 @@ import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { Text } from "../common/Text";
 import Poster from "../posters/Poster";
 import { itemRouter } from "../common/TouchableItemRouter";
-import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -22,7 +21,6 @@ interface Props extends ViewProps {
 export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
   const segments = useSegments();
-  const { t } = useTranslation();
   const from = segments[2];
 
   const destinctPeople = useMemo(() => {
@@ -42,7 +40,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
 
   return (
     <View {...props} className="flex flex-col">
-      <Text className="text-lg font-bold mb-2 px-4">{t("item_card.cast_and_crew")}</Text>
+      <Text className="text-lg font-bold mb-2 px-4">Cast & Crew</Text>
       <HorizontalScroll
         loading={loading}
         keyExtractor={(i, idx) => i.Id.toString()}
@@ -57,7 +55,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
             }}
             className="flex flex-col w-28"
           >
-            <Poster id={i.id} url={getPrimaryImageUrl({ api, item: i })} />
+            <Poster item={i} url={getPrimaryImageUrl({ api, item: i })} />
             <Text className="mt-2">{i.Name}</Text>
             <Text className="text-xs opacity-50">{i.Role}</Text>
           </TouchableOpacity>

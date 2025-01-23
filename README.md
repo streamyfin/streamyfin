@@ -8,12 +8,12 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
   <img width=150 src="./assets/images/screenshots/screenshot1.png" />
   <img width=150 src="./assets/images/screenshots/screenshot3.png" />
   <img width=150 src="./assets/images/screenshots/screenshot2.png" />
-  <img width=159 src="./assets/images/jellyseerr.PNG"/>
+  
 </div>
 
 ## 🌟 Features
 
-- 🚀 **Skip Intro / Credits Support**
+- 🚀 **Skp intro / credits support**
 - 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking.
 - 🔊 **Background audio**: Stream music in the background, even when locking the phone.
 - 📥 **Download media** (Experimental): Save your media locally and watch it offline.
@@ -32,17 +32,22 @@ Downloading works by using ffmpeg to convert an HLS stream into a video file on 
 
 Chromecast support is still in development, and we're working on improving it. Currently, it supports casting videos and audio, but we're working on adding support for subtitles and other features.
 
-### Streamyfin Plugin
+## Plugins
 
-The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that hold all settings for the client Streamyfin. This allows you to syncronize settings accross all your users, like:
+In Streamyfin we have built-in support for a few plugins. These plugins are not required to use Streamyfin, but they add some extra functionality.
 
-- Auto log in to Jellyseerr without the user having to do anythin
-- Choose the default languages 
-- Set download method and search provider
-- Customize homescreen
-- And more...
+### Collection rows
 
-[Streamyfin Plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin)
+Jellyfin collections can be shown as rows or carousel on the home screen.
+The following tags can be added to a collection to provide this functionality.
+
+Available tags:
+
+- sf_promoted: will make the collection a row at home
+- sf_carousel: will make the collection a carousel on home.
+
+A plugin exists to create collections based on external sources like mdblist. This make the automatic process of managing collections such as trending, most watched, etc.
+See [Collection Import Plugin](https://github.com/lostb1t/jellyfin-plugin-collection-import) for more info.
 
 ### Jellysearch
 
@@ -65,7 +70,7 @@ Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/r
 
 ### Beta testing
 
-To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
+To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where i'll post APKs and IPAs. This won't give automatic access to the TestFlight however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
 
  **Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
 
@@ -85,7 +90,7 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
 3. Make sure you have xcode and/or android studio installed.
-4. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`. This will open a simulator on your computer and run the app.
+4. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`. This will open a simulator on you computer and run the app.
 
 ## 📄 License
 

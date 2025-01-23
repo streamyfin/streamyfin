@@ -20,7 +20,7 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, {
@@ -39,18 +39,15 @@ import Video, {
   VideoRef,
 } from "react-native-video";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
-import { useTranslation } from "react-i18next";
 
 const Player = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const [settings] = useSettings();
   const videoRef = useRef<VideoRef | null>(null);
-  const { t } = useTranslation();
 
   const firstTime = useRef(true);
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
-  const lightHapticFeedback = useHaptic("light");
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -61,7 +58,7 @@ const Player = () => {
 
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   const progress = useSharedValue(0);
@@ -170,7 +167,7 @@ const Player = () => {
   const videoSource = useVideoSource(item, api, poster, stream?.url);
 
   const togglePlay = useCallback(async () => {
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPlaying) {
       videoRef.current?.pause();
       await getPlaystateApi(api!).onPlaybackProgress({
@@ -376,7 +373,7 @@ const Player = () => {
   if (isErrorItem || isErrorStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">{t("player.error")}</Text>
+        <Text className="text-white">Error</Text>
       </View>
     );
 
@@ -390,6 +387,7 @@ const Player = () => {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
+          opacity: showControls ? 0.5 : 1,
         }}
       >
         {videoSource ? (
@@ -416,6 +414,7 @@ const Player = () => {
               playWhenInactive={true}
               allowsExternalPlayback={true}
               playInBackground={true}
+              pictureInPicture={true}
               showNotificationControls={true}
               ignoreSilentSwitch="ignore"
               fullscreen={false}
@@ -442,7 +441,7 @@ const Player = () => {
             />
           </>
         ) : (
-          <Text>{t("player.no_video_source")}</Text>
+          <Text>No video source...</Text>
         )}
       </View>
 
@@ -533,6 +532,7 @@ export function useVideoSource(
       startPosition,
       headers: getAuthHeaders(api),
       metadata: {
+        artist: item?.AlbumArtist ?? undefined,
         title: item?.Name || "Unknown",
         description: item?.Overview ?? undefined,
         imageUri: poster,

@@ -5,7 +5,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
 import { msToSeconds, secondsToMs } from "@/utils/time";
-import { useHaptic } from "./useHaptic";
+import * as Haptics from "expo-haptics";
 
 interface CreditTimestamps {
   Introduction: {
@@ -29,7 +29,6 @@ export const useCreditSkipper = (
 ) => {
   const [api] = useAtom(apiAtom);
   const [showSkipCreditButton, setShowSkipCreditButton] = useState(false);
-  const lightHapticFeedback = useHaptic("light");
 
   if (isVlc) {
     currentTime = msToSeconds(currentTime);
@@ -80,7 +79,7 @@ export const useCreditSkipper = (
     if (!creditTimestamps) return;
     console.log(`Skipping credits to ${creditTimestamps.Credits.End}`);
     try {
-      lightHapticFeedback();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       wrappedSeek(creditTimestamps.Credits.End);
       setTimeout(() => {
         play();

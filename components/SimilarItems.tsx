@@ -12,7 +12,6 @@ import { ItemCardText } from "./ItemCardText";
 import { Loader } from "./Loader";
 import { HorizontalScroll } from "./common/HorrizontalScroll";
 import { TouchableItemRouter } from "./common/TouchableItemRouter";
-import { useTranslation } from "react-i18next";
 
 interface SimilarItemsProps extends ViewProps {
   itemId?: string | null;
@@ -24,7 +23,6 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { t } = useTranslation();
 
   const { data: similarItems, isLoading } = useQuery<BaseItemDto[]>({
     queryKey: ["similarItems", itemId],
@@ -49,12 +47,12 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
 
   return (
     <View {...props}>
-      <Text className="px-4 text-lg font-bold mb-2">{t("item_card.similar_items")}</Text>
+      <Text className="px-4 text-lg font-bold mb-2">Similar items</Text>
       <HorizontalScroll
         data={movies}
         loading={isLoading}
         height={247}
-        noItemsText={t("item_card.no_similar_items_found")}
+        noItemsText="No similar items found"
         renderItem={(item: BaseItemDto, idx: number) => (
           <TouchableItemRouter
             key={idx}

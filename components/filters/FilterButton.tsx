@@ -1,7 +1,7 @@
 import { Text } from "@/components/common/Text";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
 import { FilterSheet } from "./FilterSheet";
 

@@ -18,12 +18,10 @@ import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { View } from "react-native";
-import { useTranslation } from "react-i18next";
 
 const page: React.FC = () => {
   const local = useLocalSearchParams();
   const { actorId } = local as { actorId: string };
-  const { t } = useTranslation();
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -112,7 +110,7 @@ const page: React.FC = () => {
         </View>
 
         <Text className="px-4 text-2xl font-bold mb-2 text-neutral-100">
-          {t("item_card.appeared_in")}
+          Appeared In
         </Text>
         <InfiniteHorizontalScroll
           height={247}

@@ -4,12 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
-import { useTranslation } from "react-i18next";
 
 export default function IndexLayout() {
-  const [settings, updateSettings, pluginSettings] = useSettings();
-
-  const { t } = useTranslation();
+  const [settings, updateSettings] = useSettings();
 
   if (!settings?.libraryOptions) return null;
 
@@ -20,7 +17,7 @@ export default function IndexLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: t("tabs.library"),
+          headerTitle: "Library",
           headerBlurEffect: "prominent",
           headerLargeStyle: {
             backgroundColor: "black",
@@ -28,7 +25,6 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios" ? true : false,
           headerShadowVisible: false,
           headerRight: () => (
-            !pluginSettings?.libraryOptions?.locked &&
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
                 <Ionicons
@@ -46,11 +42,11 @@ export default function IndexLayout() {
                 side={"bottom"}
                 sideOffset={10}
               >
-                <DropdownMenu.Label>{t("library.options.display")}</DropdownMenu.Label>
+                <DropdownMenu.Label>Display</DropdownMenu.Label>
                 <DropdownMenu.Group key="display-group">
                   <DropdownMenu.Sub>
                     <DropdownMenu.SubTrigger key="image-style-trigger">
-                      {t("library.options.display")}
+                      Display
                     </DropdownMenu.SubTrigger>
                     <DropdownMenu.SubContent
                       alignOffset={-10}
@@ -73,7 +69,7 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="display-title-1">
-                          {t("library.options.row")}
+                          Row
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                       <DropdownMenu.CheckboxItem
@@ -90,14 +86,14 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="display-title-2">
-                          {t("library.options.list")}
+                          List
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                     </DropdownMenu.SubContent>
                   </DropdownMenu.Sub>
                   <DropdownMenu.Sub>
                     <DropdownMenu.SubTrigger key="image-style-trigger">
-                      {t("library.options.image_style")}
+                      Image style
                     </DropdownMenu.SubTrigger>
                     <DropdownMenu.SubContent
                       alignOffset={-10}
@@ -120,7 +116,7 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="poster-title">
-                          {t("library.options.poster")}
+                          Poster
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                       <DropdownMenu.CheckboxItem
@@ -137,7 +133,7 @@ export default function IndexLayout() {
                       >
                         <DropdownMenu.ItemIndicator />
                         <DropdownMenu.ItemTitle key="cover-title">
-                          {t("library.options.cover")}
+                          Cover
                         </DropdownMenu.ItemTitle>
                       </DropdownMenu.CheckboxItem>
                     </DropdownMenu.SubContent>
@@ -161,7 +157,7 @@ export default function IndexLayout() {
                   >
                     <DropdownMenu.ItemIndicator />
                     <DropdownMenu.ItemTitle key="show-titles-title">
-                      {t("library.options.show_titles")}
+                      Show titles
                     </DropdownMenu.ItemTitle>
                   </DropdownMenu.CheckboxItem>
                   <DropdownMenu.CheckboxItem
@@ -178,7 +174,7 @@ export default function IndexLayout() {
                   >
                     <DropdownMenu.ItemIndicator />
                     <DropdownMenu.ItemTitle key="show-stats-title">
-                      {t("library.options.show_stats")}
+                      Show stats
                     </DropdownMenu.ItemTitle>
                   </DropdownMenu.CheckboxItem>
                 </DropdownMenu.Group>

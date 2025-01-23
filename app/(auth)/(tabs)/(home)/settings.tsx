@@ -10,27 +10,23 @@ import { PluginSettings } from "@/components/settings/PluginSettings";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
-import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import { useNavigation, useRouter } from "expo-router";
-import { t } from "i18next";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { storage } from "@/utils/mmkv";
 
 export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { logout } = useJellyfin();
-  const successHapticFeedback = useHaptic("success");
 
   const onClearLogsClicked = async () => {
     clearLogs();
-    successHapticFeedback();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const navigation = useNavigation();
@@ -42,7 +38,7 @@ export default function settings() {
             logout();
           }}
         >
-          <Text className="text-red-600">{t("home.settings.log_out_button")}</Text>
+          <Text className="text-red-600">Log out</Text>
         </TouchableOpacity>
       ),
     });
@@ -70,35 +66,17 @@ export default function settings() {
 
         <PluginSettings />
 
-        <AppLanguageSelector/>
-
-        <ListGroup title={"Intro"}>
-          <ListItem
-            onPress={() => {
-              router.push("/intro/page");
-            }}
-            title={t("home.settings.intro.show_intro")}
-          />
-          <ListItem
-            textColor="red"
-            onPress={() => {
-              storage.set("hasShownIntro", false);
-            }}
-            title={t("home.settings.intro.reset_intro")}
-          />
-        </ListGroup>
-
         <View className="mb-4">
-          <ListGroup title={t("home.settings.logs.logs_title")}>
+          <ListGroup title={"Logs"}>
             <ListItem
               onPress={() => router.push("/settings/logs/page")}
               showArrow
-              title={t("home.settings.logs.logs_title")}
+              title={"Logs"}
             />
             <ListItem
               textColor="red"
               onPress={onClearLogsClicked}
-              title={t("home.settings.logs.delete_all_logs")}
+              title={"Delete All Logs"}
             />
           </ListGroup>
         </View>

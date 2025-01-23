@@ -1,8 +1,7 @@
-import React, { useCallback, useRef } from "react";
+import React from "react";
 import { Platform } from "react-native";
-import { useTranslation } from "react-i18next";
 
-import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
+import { withLayoutContext } from "expo-router";
 
 import {
   createNativeBottomTabNavigator,
@@ -14,13 +13,12 @@ const { Navigator } = createNativeBottomTabNavigator();
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 
 import { Colors } from "@/constants/Colors";
-import { useSettings } from "@/utils/atoms/settings";
-import { storage } from "@/utils/mmkv";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { useSettings } from "@/utils/atoms/settings";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -31,29 +29,11 @@ export const NativeTabs = withLayoutContext<
 
 export default function TabLayout() {
   const [settings] = useSettings();
-  const { t } = useTranslation();
-  const router = useRouter();
-
-  useFocusEffect(
-    useCallback(() => {
-      const hasShownIntro = storage.getBoolean("hasShownIntro");
-      if (!hasShownIntro) {
-        const timer = setTimeout(() => {
-          router.push("/intro/page");
-        }, 1000);
-
-        return () => {
-          clearTimeout(timer);
-        };
-      }
-    }, [])
-  );
-
   return (
     <>
       <SystemBars hidden={false} style="light" />
       <NativeTabs
-        sidebarAdaptable={false}
+        sidebarAdaptable
         ignoresTopSafeArea
         barTintColor={Platform.OS === "android" ? "#121212" : undefined}
         tabBarActiveTintColor={Colors.primary}
@@ -63,7 +43,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(home)"
           options={{
-            title: t("tabs.home"),
+            title: "Home",
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -77,7 +57,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(search)"
           options={{
-            title: t("tabs.search"),
+            title: "Search",
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -91,7 +71,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(favorites)"
           options={{
-            title: t("tabs.favorites"),
+            title: "Favorites",
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -107,7 +87,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(libraries)"
           options={{
-            title: t("tabs.library"),
+            title: "Library",
             tabBarIcon:
               Platform.OS == "android"
                 ? ({ color, focused, size }) =>
@@ -121,7 +101,7 @@ export default function TabLayout() {
         <NativeTabs.Screen
           name="(custom-links)"
           options={{
-            title: t("tabs.custom_links"),
+            title: "Custom Links",
             // @ts-expect-error
             tabBarItemHidden: settings?.showCustomMenuLinks ? false : true,
             tabBarIcon:

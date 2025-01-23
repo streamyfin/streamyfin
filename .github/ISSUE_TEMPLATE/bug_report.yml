@@ -4,7 +4,9 @@ title: "[Bug]: "
 labels:
   - ["❌ bug"]
 projects:
-  - ["streamyfin/3"]
+  - ["fredrikburmester/5"]
+assignees:
+  - fredrikburmester
 
 body:
   - type: textarea
@@ -43,8 +45,6 @@ body:
       label: Version
       description: What version of Streamyfin are you running?
       options:
-        - 0.25.0
-        - 0.24.0
         - 0.23.0
         - 0.22.0
         - 0.21.0

@@ -15,7 +15,6 @@ import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { TouchableOpacityProps, View } from "react-native";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { useTranslation } from "react-i18next"; 
 
 interface Props extends TouchableOpacityProps {
   library: BaseItemDto;
@@ -43,8 +42,6 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const [user] = useAtom(userAtom);
   const [settings] = useSettings();
 
-  const { t } = useTranslation();
-
   const url = useMemo(
     () =>
       getPrimaryImageUrl({
@@ -63,6 +60,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
       _itemType = "Series";
     } else if (library.CollectionType === "boxsets") {
       _itemType = "BoxSet";
+    } else if (library.CollectionType === "music") {
+      _itemType = "MusicAlbum";
     }
 
     return _itemType;
@@ -72,13 +71,15 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     let nameStr: string;
 
     if (library.CollectionType === "movies") {
-      nameStr = t("library.item_types.movies");
+      nameStr = "movies";
     } else if (library.CollectionType === "tvshows") {
-      nameStr = t("library.item_types.series");
+      nameStr = "series";
     } else if (library.CollectionType === "boxsets") {
-      nameStr = t("library.item_types.boxsets");
+      nameStr = "box sets";
+    } else if (library.CollectionType === "music") {
+      nameStr = "albums";
     } else {
-      nameStr = t("library.item_types.items");
+      nameStr = "items";
     }
 
     return nameStr;

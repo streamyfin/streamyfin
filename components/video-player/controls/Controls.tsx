@@ -1,8 +1,8 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
-import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import {
@@ -29,13 +29,12 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -43,7 +42,10 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { VideoRef } from "react-native-video";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
@@ -54,8 +56,6 @@ import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
-import { useControlsTimeout } from "./useControlsTimeout";
-import { VideoTouchOverlay } from "./VideoTouchOverlay";
 
 interface Props {
   item: BaseItemDto;
@@ -85,8 +85,6 @@ interface Props {
   stop: (() => Promise<void>) | (() => void);
   isVlc?: boolean;
 }
-
-const CONTROLS_TIMEOUT = 4000;
 
 export const Controls: React.FC<Props> = ({
   item,
@@ -120,13 +118,6 @@ export const Controls: React.FC<Props> = ({
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
 
-  const [episodeView, setEpisodeView] = useState(false);
-  const [isSliding, setIsSliding] = useState(false);
-
-  // Used when user changes audio through audio button on device.
-  const [showAudioSlider, setShowAudioSlider] = useState(false);
-
-  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = useAdjacentItems({ item });
   const {
     trickPlayUrl,
@@ -143,23 +134,6 @@ export const Controls: React.FC<Props> = ({
 
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
-
-  const lightHapticFeedback = useHaptic("light");
-
-  useEffect(() => {
-    prefetchAllTrickplayImages();
-  }, []);
-
-  useEffect(() => {
-    if (item) {
-      progress.value = isVlc
-        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
-        : item?.UserData?.PlaybackPositionTicks || 0;
-      max.value = isVlc
-        ? ticksToMs(item.RunTimeTicks || 0)
-        : item.RunTimeTicks || 0;
-    }
-  }, [item, isVlc]);
 
   const { bitrateValue, subtitleIndex, audioIndex } = useLocalSearchParams<{
     bitrateValue: string;
@@ -186,7 +160,7 @@ export const Controls: React.FC<Props> = ({
   const goToPreviousItem = useCallback(() => {
     if (!previousItem || !settings) return;
 
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const previousIndexes: previousIndexes = {
       subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
@@ -224,7 +198,7 @@ export const Controls: React.FC<Props> = ({
   const goToNextItem = useCallback(() => {
     if (!nextItem || !settings) return;
 
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const previousIndexes: previousIndexes = {
       subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
@@ -286,19 +260,20 @@ export const Controls: React.FC<Props> = ({
     [updateTimes]
   );
 
-  const hideControls = useCallback(() => {
-    setShowControls(false);
-    setShowAudioSlider(false);
+  useEffect(() => {
+    if (item) {
+      progress.value = isVlc
+        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
+        : item?.UserData?.PlaybackPositionTicks || 0;
+      max.value = isVlc
+        ? ticksToMs(item.RunTimeTicks || 0)
+        : item.RunTimeTicks || 0;
+    }
+  }, [item, isVlc]);
+
+  useEffect(() => {
+    prefetchAllTrickplayImages();
   }, []);
-
-  const { handleControlsInteraction } = useControlsTimeout({
-    showControls,
-    isSliding,
-    episodeView,
-    onHideControls: hideControls,
-    timeout: CONTROLS_TIMEOUT,
-  });
-
   const toggleControls = () => {
     if (showControls) {
       setShowAudioSlider(false);
@@ -319,13 +294,16 @@ export const Controls: React.FC<Props> = ({
     isSeeking.value = true;
   }, [showControls, isPlaying]);
 
+  const [isSliding, setIsSliding] = useState(false);
   const handleSliderComplete = useCallback(
     async (value: number) => {
       isSeeking.value = false;
       progress.value = value;
       setIsSliding(false);
 
-      seek(Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value))));
+      await seek(
+        Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value)))
+      );
       if (wasPlayingRef.current === true) play();
     },
     [isVlc]
@@ -348,14 +326,14 @@ export const Controls: React.FC<Props> = ({
   const handleSkipBackward = useCallback(async () => {
     if (!settings?.rewindSkipTime) return;
     wasPlayingRef.current = isPlaying;
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const curr = progress.value;
       if (curr !== undefined) {
         const newTime = isVlc
           ? Math.max(0, curr - secondsToMs(settings.rewindSkipTime))
           : Math.max(0, ticksToSeconds(curr) - settings.rewindSkipTime);
-        seek(newTime);
+        await seek(newTime);
         if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
@@ -366,14 +344,14 @@ export const Controls: React.FC<Props> = ({
   const handleSkipForward = useCallback(async () => {
     if (!settings?.forwardSkipTime) return;
     wasPlayingRef.current = isPlaying;
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const curr = progress.value;
       if (curr !== undefined) {
         const newTime = isVlc
           ? curr + secondsToMs(settings.forwardSkipTime)
           : ticksToSeconds(curr) + settings.forwardSkipTime;
-        seek(Math.max(0, newTime));
+        await seek(Math.max(0, newTime));
         if (wasPlayingRef.current === true) play();
       }
     } catch (error) {
@@ -381,61 +359,10 @@ export const Controls: React.FC<Props> = ({
     }
   }, [settings, isPlaying, isVlc]);
 
-  const goToItem = useCallback(
-    async (itemId: string) => {
-      try {
-        const gotoItem = await getItemById(api, itemId);
-        if (!settings || !gotoItem) return;
-
-        lightHapticFeedback();
-
-        const previousIndexes: previousIndexes = {
-          subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
-          audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
-        };
-
-        const {
-          mediaSource: newMediaSource,
-          audioIndex: defaultAudioIndex,
-          subtitleIndex: defaultSubtitleIndex,
-        } = getDefaultPlaySettings(
-          gotoItem,
-          settings,
-          previousIndexes,
-          mediaSource ?? undefined
-        );
-
-        const queryParams = new URLSearchParams({
-          itemId: gotoItem.Id ?? "", // Ensure itemId is a string
-          audioIndex: defaultAudioIndex?.toString() ?? "",
-          subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-          mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-          bitrateValue: bitrateValue.toString(),
-        }).toString();
-
-        if (!bitrateValue) {
-          // @ts-expect-error
-          router.replace(`player/direct-player?${queryParams}`);
-          return;
-        }
-        // @ts-expect-error
-        router.replace(`player/transcoding-player?${queryParams}`);
-      } catch (error) {
-        console.error("Error in gotoEpisode:", error);
-      }
-    },
-    [settings, subtitleIndex, audioIndex]
-  );
-
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
-
-  const switchOnEpisodeMode = useCallback(() => {
-    setEpisodeView(true);
-    if (isPlaying) togglePlay();
-  }, [isPlaying, togglePlay]);
 
   const memoizedRenderBubble = useCallback(() => {
     if (!trickPlayUrl || !trickplayInfo) {
@@ -449,11 +376,12 @@ export const Controls: React.FC<Props> = ({
       <View
         style={{
           position: "absolute",
-          left: -62,
-          bottom: 0,
+          left: -57,
+          bottom: 15,
           paddingTop: 30,
           paddingBottom: 5,
           width: tileWidth * 1.5,
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
           justifyContent: "center",
           alignItems: "center",
         }}
@@ -499,13 +427,69 @@ export const Controls: React.FC<Props> = ({
     );
   }, [trickPlayUrl, trickplayInfo, time]);
 
+  const [EpisodeView, setEpisodeView] = useState(false);
+
+  const switchOnEpisodeMode = () => {
+    setEpisodeView(true);
+    if (isPlaying) togglePlay();
+  };
+
+  const goToItem = useCallback(
+    async (itemId: string) => {
+      try {
+        const gotoItem = await getItemById(api, itemId);
+        if (!settings || !gotoItem) return;
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        const previousIndexes: previousIndexes = {
+          subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
+          audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
+        };
+
+        const {
+          mediaSource: newMediaSource,
+          audioIndex: defaultAudioIndex,
+          subtitleIndex: defaultSubtitleIndex,
+        } = getDefaultPlaySettings(
+          gotoItem,
+          settings,
+          previousIndexes,
+          mediaSource ?? undefined
+        );
+
+        const queryParams = new URLSearchParams({
+          itemId: gotoItem.Id ?? "", // Ensure itemId is a string
+          audioIndex: defaultAudioIndex?.toString() ?? "",
+          subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+          mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
+          bitrateValue: bitrateValue.toString(),
+        }).toString();
+
+        if (!bitrateValue) {
+          // @ts-expect-error
+          router.replace(`player/direct-player?${queryParams}`);
+          return;
+        }
+        // @ts-expect-error
+        router.replace(`player/transcoding-player?${queryParams}`);
+      } catch (error) {
+        console.error("Error in gotoEpisode:", error);
+      }
+    },
+    [settings, subtitleIndex, audioIndex]
+  );
+
+  // Used when user changes audio through audio button on device.
+  const [showAudioSlider, setShowAudioSlider] = useState(false);
+
   return (
     <ControlProvider
       item={item}
       mediaSource={mediaSource}
       isVideoLoaded={isVideoLoaded}
     >
-      {episodeView ? (
+      {EpisodeView ? (
         <EpisodeList
           item={item}
           close={() => setEpisodeView(false)}
@@ -513,76 +497,88 @@ export const Controls: React.FC<Props> = ({
         />
       ) : (
         <>
-          <VideoTouchOverlay
-            screenWidth={screenWidth}
-            screenHeight={screenHeight}
-            showControls={showControls}
-            onToggleControls={toggleControls}
-          />
+          <VideoProvider
+            getAudioTracks={getAudioTracks}
+            getSubtitleTracks={getSubtitleTracks}
+            setAudioTrack={setAudioTrack}
+            setSubtitleTrack={setSubtitleTrack}
+            setSubtitleURL={setSubtitleURL}
+          >
+            <View
+              style={[
+                {
+                  position: "absolute",
+                  top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
+                  left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
+                  opacity: showControls ? 1 : 0,
+                  zIndex: 1000,
+                },
+              ]}
+              className={`flex flex-row items-center space-x-2 z-10 p-4 `}
+            >
+              {!mediaSource?.TranscodingUrl ? (
+                <DropdownViewDirect showControls={showControls} />
+              ) : (
+                <DropdownViewTranscoding showControls={showControls} />
+              )}
+            </View>
+          </VideoProvider>
+
+          <Pressable
+            onPressIn={() => {
+              toggleControls();
+            }}
+            style={{
+              position: "absolute",
+              width: Dimensions.get("window").width,
+              height: Dimensions.get("window").height,
+            }}
+          ></Pressable>
+
           <View
             style={[
               {
                 position: "absolute",
                 top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
                 right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
-                width: settings?.safeAreaInControlsEnabled
-                  ? screenWidth - insets.left - insets.right
-                  : screenWidth,
                 opacity: showControls ? 1 : 0,
               },
             ]}
             pointerEvents={showControls ? "auto" : "none"}
-            className={`flex flex-row w-full pt-2`}
+            className={`flex flex-row items-center space-x-2 z-10 p-4 `}
           >
-            <View className="mr-auto">
-              <VideoProvider
-                getAudioTracks={getAudioTracks}
-                getSubtitleTracks={getSubtitleTracks}
-                setAudioTrack={setAudioTrack}
-                setSubtitleTrack={setSubtitleTrack}
-                setSubtitleURL={setSubtitleURL}
+            {item?.Type === "Episode" && !offline && (
+              <TouchableOpacity
+                onPress={() => {
+                  switchOnEpisodeMode();
+                }}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
               >
-                {!mediaSource?.TranscodingUrl ? (
-                  <DropdownViewDirect showControls={showControls} />
-                ) : (
-                  <DropdownViewTranscoding showControls={showControls} />
-                )}
-              </VideoProvider>
-            </View>
+                <Ionicons name="list" size={24} color="white" />
+              </TouchableOpacity>
+            )}
+            {previousItem && !offline && (
+              <TouchableOpacity
+                onPress={goToPreviousItem}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons name="play-skip-back" size={24} color="white" />
+              </TouchableOpacity>
+            )}
 
-            <View className="flex flex-row items-center space-x-2 ">
-              {item?.Type === "Episode" && !offline && (
-                <TouchableOpacity
-                  onPress={() => {
-                    switchOnEpisodeMode();
-                  }}
-                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
-                >
-                  <Ionicons name="list" size={24} color="white" />
-                </TouchableOpacity>
-              )}
-              {previousItem && !offline && (
-                <TouchableOpacity
-                  onPress={goToPreviousItem}
-                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
-                >
-                  <Ionicons name="play-skip-back" size={24} color="white" />
-                </TouchableOpacity>
-              )}
+            {nextItem && !offline && (
+              <TouchableOpacity
+                onPress={goToNextItem}
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+              >
+                <Ionicons name="play-skip-forward" size={24} color="white" />
+              </TouchableOpacity>
+            )}
 
-              {nextItem && !offline && (
-                <TouchableOpacity
-                  onPress={goToNextItem}
-                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
-                >
-                  <Ionicons name="play-skip-forward" size={24} color="white" />
-                </TouchableOpacity>
-              )}
-
-              {/* {mediaSource?.TranscodingUrl && ( */}
+            {mediaSource?.TranscodingUrl && (
               <TouchableOpacity
                 onPress={toggleIgnoreSafeAreas}
-                className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
+                className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
               >
                 <Ionicons
                   name={ignoreSafeAreas ? "contract-outline" : "expand"}
@@ -590,20 +586,16 @@ export const Controls: React.FC<Props> = ({
                   color="white"
                 />
               </TouchableOpacity>
-              {/* )} */}
-              <TouchableOpacity
-                onPress={async () => {
-                  lightHapticFeedback();
-                  await ScreenOrientation.lockAsync(
-                    ScreenOrientation.OrientationLock.PORTRAIT_UP
-                  );
-                  router.back();
-                }}
-                className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
-              >
-                <Ionicons name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
+            )}
+            <TouchableOpacity
+              onPress={async () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.back();
+              }}
+              className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+            >
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
           </View>
 
           <View
@@ -729,11 +721,10 @@ export const Controls: React.FC<Props> = ({
                 bottom: settings?.safeAreaInControlsEnabled ? insets.bottom : 0,
               },
             ]}
-            className={`flex flex-col px-2`}
-            onTouchStart={handleControlsInteraction}
+            className={`flex flex-col p-4`}
           >
             <View
-              className="shrink flex flex-col justify-center h-full"
+              className="shrink flex flex-col justify-center h-full mb-2"
               style={{
                 flexDirection: "row",
                 justifyContent: "space-between",
@@ -747,12 +738,10 @@ export const Controls: React.FC<Props> = ({
                 }}
                 pointerEvents={showControls ? "box-none" : "none"}
               >
+                <Text className="font-bold">{item?.Name}</Text>
                 {item?.Type === "Episode" && (
-                  <Text className="opacity-50">
-                    {`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}
-                  </Text>
+                  <Text className="opacity-50">{item.SeriesName}</Text>
                 )}
-                <Text className="font-bold text-xl">{item?.Name}</Text>
                 {item?.Type === "Movie" && (
                   <Text className="text-xs opacity-50">
                     {item?.ProductionYear}
@@ -787,7 +776,7 @@ export const Controls: React.FC<Props> = ({
               </View>
             </View>
             <View
-              className={`flex flex-col-reverse rounded-lg items-center my-2`}
+              className={`flex flex-col-reverse py-4 pb-1 px-4 rounded-lg items-center  bg-neutral-800`}
               style={{
                 opacity: showControls ? 1 : 0,
               }}
@@ -803,7 +792,19 @@ export const Controls: React.FC<Props> = ({
                     bubbleTextColor: "#666",
                     heartbeatColor: "#999",
                   }}
-                  renderThumb={() => null}
+                  renderThumb={() => (
+                    <View
+                      style={{
+                        width: 18,
+                        height: 18,
+                        left: -2,
+                        borderRadius: 10,
+                        backgroundColor: "#fff",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    />
+                  )}
                   cache={cacheProgress}
                   onSlidingStart={handleSliderStart}
                   onSlidingComplete={handleSliderComplete}
@@ -818,7 +819,7 @@ export const Controls: React.FC<Props> = ({
                   minimumValue={min}
                   maximumValue={max}
                 />
-                <View className="flex flex-row items-center justify-between mt-2">
+                <View className="flex flex-row items-center justify-between mt-0.5">
                   <Text className="text-[12px] text-neutral-400">
                     {formatTimeString(currentTime, isVlc ? "ms" : "s")}
                   </Text>

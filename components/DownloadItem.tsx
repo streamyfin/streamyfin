@@ -2,7 +2,7 @@ import { useRemuxHlsToMp4 } from "@/hooks/useRemuxHlsToMp4";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
@@ -32,7 +32,6 @@ import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { t } from "i18next";
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
@@ -56,7 +55,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [user] = useAtom(userAtom);
   const [queue, setQueue] = useAtom(queueAtom);
   const [settings] = useSettings();
-
   const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
   const { startRemuxing } = useRemuxHlsToMp4();
 
@@ -76,7 +74,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     [user]
   );
   const usingOptimizedServer = useMemo(
-    () => settings?.downloadMethod === DownloadMethod.Optimized,
+    () => settings?.downloadMethod === "optimized",
     [settings]
   );
 
@@ -162,7 +160,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         );
       }
     } else {
-      toast.error(t("home.downloads.toasts.you_are_not_allowed_to_download_files"));
+      toast.error("You are not allowed to download files.");
     }
   }, [
     queue,
@@ -214,8 +212,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         if (!res) {
           Alert.alert(
-            t("home.downloads.something_went_wrong"),
-            t("home.downloads.could_not_get_stream_url_from_jellyfin")
+            "Something went wrong",
+            "Could not get stream url from Jellyfin"
           );
           continue;
         }
@@ -332,7 +330,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 {title}
               </Text>
               <Text className="text-neutral-300">
-                {subtitle || t("item_card.download.download_x_item", {item_count: itemsNotDownloaded.length})}
+                {subtitle || `Download ${itemsNotDownloaded.length} items`}
               </Text>
             </View>
             <View className="flex flex-col space-y-2 w-full items-start">
@@ -370,13 +368,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               onPress={acceptDownloadOptions}
               color="purple"
             >
-              {t("item_card.download.download_button")}
+              Download
             </Button>
             <View className="opacity-70 text-center w-full flex items-center">
               <Text className="text-xs">
                 {usingOptimizedServer
-                  ? t("item_card.download.using_optimized_server")
-                  : t("item_card.download.using_default_method")}
+                  ? "Using optimized server"
+                  : "Using default method"}
               </Text>
             </View>
           </View>
@@ -393,9 +391,7 @@ export const DownloadSingleItem: React.FC<{
   return (
     <DownloadItems
       size={size}
-      title={item.Type == "Episode"
-        ? t("item_card.download.download_episode")
-        : t("item_card.download.download_movie")}
+      title="Download Episode"
       subtitle={item.Name!}
       items={[item]}
       MissingDownloadIconComponent={() => (

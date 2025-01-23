@@ -1,9 +1,7 @@
 import {Stack} from "expo-router";
 import { Platform } from "react-native";
-import { useTranslation } from "react-i18next";
 
 export default function CustomMenuLayout() {
-  const { t } = useTranslation();
   return (
     <Stack>
       <Stack.Screen
@@ -11,7 +9,7 @@ export default function CustomMenuLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: t("tabs.custom_links"),
+          headerTitle: "Custom Links",
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,

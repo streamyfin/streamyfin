@@ -40,9 +40,6 @@ import { useEffect, useRef } from "react";
 import { Appearance, AppState, TouchableOpacity } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { I18nextProvider, useTranslation } from "react-i18next";
-import i18n from "@/i18n";
-import { getLocales } from "expo-localization";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
 
@@ -231,9 +228,7 @@ export default function RootLayout() {
 
   return (
     <JotaiProvider>
-      <I18nextProvider i18n={i18n}>
-        <Layout />
-      </I18nextProvider>
+      <Layout />
     </JotaiProvider>
   );
 }
@@ -257,8 +252,6 @@ function Layout() {
   useKeepAwake();
   useNotificationObserver();
 
-  const { i18n } = useTranslation();
-
   useEffect(() => {
     checkAndRequestPermissions();
   }, []);
@@ -271,12 +264,6 @@ function Layout() {
         ScreenOrientation.OrientationLock.PORTRAIT_UP
       );
   }, [settings]);
-
-  useEffect(() => {
-    i18n.changeLanguage(
-      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en"
-    );
-  }, [settings?.preferedLanguage, i18n]);
 
   const appState = useRef(AppState.currentState);
 
@@ -347,6 +334,14 @@ function Layout() {
                                 headerShown: false,
                                 title: "",
                                 header: () => null,
+                              }}
+                            />
+                            <Stack.Screen
+                              name="(auth)/trailer/page"
+                              options={{
+                                headerShown: false,
+                                presentation: "modal",
+                                title: "",
                               }}
                             />
                             <Stack.Screen

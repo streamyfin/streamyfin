@@ -36,5 +36,3 @@ credentials.json
 .continuerc.json
 
 .vscode/
-.idea/
-.ruby-lsp

@@ -11,7 +11,6 @@ import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import SeriesPoster from "../posters/SeriesPoster";
-import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -40,10 +39,9 @@ export const ScrollingCollectionList: React.FC<Props> = ({
     refetchOnReconnect: true,
   });
 
-  const { t } = useTranslation();
+  if (disabled || !title) return null;
 
   if (hideIfEmpty === true && data?.length === 0) return null;
-  if (disabled || !title) return null;
 
   return (
     <View {...props}>
@@ -52,7 +50,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
       </Text>
       {isLoading === false && data?.length === 0 && (
         <View className="px-4">
-          <Text className="text-neutral-500">{t("home.no_items")}</Text>
+          <Text className="text-neutral-500">No items</Text>
         </View>
       )}
       {isLoading ? (
@@ -106,12 +104,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
                 {item.Type === "Movie" && orientation === "vertical" && (
                   <MoviePoster item={item} />
                 )}
-                {item.Type === "Series" && orientation === "vertical" && (
-                  <SeriesPoster item={item} />
-                )}
-                {item.Type === "Series" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
-                )}
+                {item.Type === "Series" && <SeriesPoster item={item} />}
                 {item.Type === "Program" && (
                   <ContinueWatchingPoster item={item} />
                 )}

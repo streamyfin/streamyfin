@@ -13,10 +13,5 @@ MMKV.prototype.get = function <T> (key: string): T | undefined {
 }
 
 MMKV.prototype.setAny = function (key: string, value: any | undefined): void {
-  if (value === undefined) {
-    this.delete(key)
-  }
-  else {
-    this.set(key, JSON.stringify(value));
-  }
+  this.set(key, JSON.stringify(value));
 }

@@ -4,8 +4,7 @@ about: Suggest an idea for this project
 title: ''
 labels: '✨ enhancement'
 assignees: ''
-projects:
- - streamyfin/3
+
 ---
 
 **Describe the solution you'd like**

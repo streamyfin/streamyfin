@@ -49,11 +49,6 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       else
         return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
-
-    if (item.ImageTags?.["Thumb"])
-      return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.["Thumb"]}`;
-    else
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
   }, [item]);
 
   const progress = useMemo(() => {

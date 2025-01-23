@@ -3,7 +3,6 @@ import { View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { ListGroup } from "./list/ListGroup";
 import { ListItem } from "./list/ListItem";
-import { useTranslation } from "react-i18next";
 
 interface Server {
   address: string;
@@ -23,13 +22,11 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
     return JSON.parse(_previousServers || "[]") as Server[];
   }, [_previousServers]);
 
-  const { t } = useTranslation();
-
   if (!previousServers.length) return null;
 
   return (
     <View>
-      <ListGroup title={t("server.previous_servers")} className="mt-4">
+      <ListGroup title="previous servers" className="mt-4">
         {previousServers.map((s) => (
           <ListItem
             key={s.address}
@@ -42,7 +39,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
           onPress={() => {
             setPreviousServers("[]");
           }}
-          title={t("server.clear_button")}
+          title={"Clear"}
           textColor="red"
         />
       </ListGroup>

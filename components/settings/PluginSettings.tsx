@@ -4,19 +4,16 @@ import React from "react";
 import { View } from "react-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { useTranslation } from "react-i18next";
 
 export const PluginSettings = () => {
   const [settings, updateSettings] = useSettings();
 
   const router = useRouter();
 
-  const { t } = useTranslation();
-
   if (!settings) return null;
   return (
     <View>
-      <ListGroup title={t("home.settings.plugins.plugins_title")} className="mb-4">
+      <ListGroup title="Plugins">
         <ListItem
           onPress={() => router.push("/settings/jellyseerr/page")}
           title={"Jellyseerr"}
@@ -25,6 +22,11 @@ export const PluginSettings = () => {
         <ListItem
           onPress={() => router.push("/settings/marlin-search/page")}
           title="Marlin Search"
+          showArrow
+        />
+        <ListItem
+          onPress={() => router.push("/settings/popular-lists/page")}
+          title="Popular Lists"
           showArrow
         />
       </ListGroup>

@@ -1,10 +1,8 @@
 import {TouchableOpacity, View} from "react-native";
 import {Text} from "@/components/common/Text";
-import DisabledSetting from "@/components/settings/DisabledSetting";
 
 interface StepperProps {
   value: number,
-  disabled?: boolean,
   step: number,
   min: number,
   max: number,
@@ -14,7 +12,6 @@ interface StepperProps {
 
 export const Stepper: React.FC<StepperProps> = ({
   value,
-  disabled,
   step,
   min,
   max,
@@ -22,11 +19,7 @@ export const Stepper: React.FC<StepperProps> = ({
   appendValue
 }) => {
   return (
-    <DisabledSetting
-      disabled={disabled === true}
-      showText={false}
-      className="flex flex-row items-center"
-    >
+    <View className="flex flex-row items-center">
       <TouchableOpacity
         onPress={() => onUpdate(Math.max(min, value - step))}
         className="w-8 h-8 bg-neutral-800 rounded-l-lg flex items-center justify-center"
@@ -46,6 +39,6 @@ export const Stepper: React.FC<StepperProps> = ({
       >
         <Text>+</Text>
       </TouchableOpacity>
-    </DisabledSetting>
+    </View>
   )
 }

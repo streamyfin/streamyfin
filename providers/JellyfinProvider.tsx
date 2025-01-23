@@ -1,4 +1,3 @@
-import "@/augmentations";
 import { useInterval } from "@/hooks/useInterval";
 import { storage } from "@/utils/mmkv";
 import { Api, Jellyfin } from "@jellyfin/sdk";
@@ -20,9 +19,7 @@ import React, {
 import { Platform } from "react-native";
 import uuid from "react-native-uuid";
 import { getDeviceName } from "react-native-device-info";
-import { useTranslation } from "react-i18next";
-import { useSettings } from "@/utils/atoms/settings";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { toast } from "sonner-native";
 
 interface Server {
   address: string;
@@ -51,8 +48,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [jellyfin, setJellyfin] = useState<Jellyfin | undefined>(undefined);
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
 
-  const { t } = useTranslation();
-
   useEffect(() => {
     (async () => {
       const id = getOrSetDeviceId();
@@ -60,7 +55,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.25.0" },
+            clientInfo: { name: "Streamyfin", version: "0.23.0" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -75,14 +70,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useAtom(userAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
-  const [
-    settings,
-    updateSettings,
-    pluginSettings,
-    setPluginSettings,
-    refreshStreamyfinPluginSettings,
-  ] = useSettings();
-  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
 
   useQuery({
     queryKey: ["user", api],
@@ -105,7 +92,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.25.0"`,
+      }, DeviceId="${deviceId}", Version="0.23.0"`,
     };
   }, [deviceId]);
 
@@ -177,14 +164,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
-  useEffect(() => {
-    (async () => {
-      await refreshStreamyfinPluginSettings();
-    })();
-  }, []);
-
-  useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
-
   const discoverServers = async (url: string): Promise<Server[]> => {
     const servers = await jellyfin?.discovery.getRecommendedServerCandidates(
       url
@@ -247,39 +226,27 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           storage.set("user", JSON.stringify(auth.data.User));
           setApi(jellyfin.createApi(api?.basePath, auth.data?.AccessToken));
           storage.set("token", auth.data?.AccessToken);
-
-          const recentPluginSettings = await refreshStreamyfinPluginSettings();
-          if (recentPluginSettings?.jellyseerrServerUrl?.value) {
-            const jellyseerrApi = new JellyseerrApi(
-              recentPluginSettings.jellyseerrServerUrl.value
-            );
-            await jellyseerrApi.test().then((result) => {
-              if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
-              }
-            });
-          }
         }
       } catch (error) {
         if (axios.isAxiosError(error)) {
           switch (error.response?.status) {
             case 401:
-              throw new Error(t("login.invalid_username_or_password"));
+              throw new Error("Invalid username or password");
             case 403:
-              throw new Error(t("login.user_does_not_have_permission_to_log_in"));
+              throw new Error("User does not have permission to log in");
             case 408:
               throw new Error(
-                t("login.server_is_taking_too_long_to_respond_try_again_later")
+                "Server is taking too long to respond, try again later"
               );
             case 429:
               throw new Error(
-                t("login.server_received_too_many_requests_try_again_later")
+                "Server received too many requests, try again later"
               );
             case 500:
-              throw new Error(t("login.there_is_a_server_error"));
+              throw new Error("There is a server error");
             default:
               throw new Error(
-                t("login.an_unexpected_error_occured_did_you_enter_the_correct_url")
+                "An unexpected error occurred. Did you enter the server URL correctly?"
               );
           }
         }
@@ -295,8 +262,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async () => {
       storage.delete("token");
       setUser(null);
-      setPluginSettings(undefined);
-      await clearAllJellyseerData();
     },
     onError: (error) => {
       console.error("Logout failed:", error);

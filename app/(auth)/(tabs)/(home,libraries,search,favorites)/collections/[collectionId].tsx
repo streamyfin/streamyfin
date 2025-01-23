@@ -33,7 +33,6 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
-import { useTranslation } from "react-i18next";
 
 const page: React.FC = () => {
   const searchParams = useLocalSearchParams();
@@ -45,8 +44,6 @@ const page: React.FC = () => {
   const [orientation, setOrientation] = useState(
     ScreenOrientation.Orientation.PORTRAIT_UP
   );
-
-  const { t } = useTranslation();
 
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
@@ -112,7 +109,7 @@ const page: React.FC = () => {
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => parseInt(year)),
-        includeItemTypes: ["Movie", "Series"],
+        includeItemTypes: ["Movie", "Series", "MusicAlbum"],
       });
 
       return response.data || null;
@@ -247,7 +244,7 @@ const page: React.FC = () => {
                   }}
                   set={setSelectedGenres}
                   values={selectedGenres}
-                  title={t("library.filters.genres")}
+                  title="Genres"
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -274,7 +271,7 @@ const page: React.FC = () => {
                   }}
                   set={setSelectedYears}
                   values={selectedYears}
-                  title={t("library.filters.years")}
+                  title="Years"
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) => item.includes(search)}
                 />
@@ -299,7 +296,7 @@ const page: React.FC = () => {
                   }}
                   set={setSelectedTags}
                   values={selectedTags}
-                  title={t("library.filters.tags")}
+                  title="Tags"
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -317,7 +314,7 @@ const page: React.FC = () => {
                   queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
                   values={sortBy}
-                  title={t("library.filters.sort_by")}
+                  title="Sort By"
                   renderItemLabel={(item) =>
                     sortOptions.find((i) => i.key === item)?.value || ""
                   }
@@ -337,7 +334,7 @@ const page: React.FC = () => {
                   queryFn={async () => sortOrderOptions.map((s) => s.key)}
                   set={setSortOrder}
                   values={sortOrder}
-                  title={t("library.filters.sort_order")}
+                  title="Sort Order"
                   renderItemLabel={(item) =>
                     sortOrderOptions.find((i) => i.key === item)?.value || ""
                   }
@@ -377,7 +374,7 @@ const page: React.FC = () => {
     <FlashList
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("search.no_results")}</Text>
+          <Text className="font-bold text-xl text-neutral-500">No results</Text>
         </View>
       }
       extraData={[

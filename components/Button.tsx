@@ -1,4 +1,4 @@
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 import React, { PropsWithChildren, ReactNode, useMemo } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Loader } from "./Loader";
@@ -37,13 +37,11 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       case "red":
         return "bg-red-600";
       case "black":
-        return "bg-neutral-900";
+        return "bg-neutral-900 border border-neutral-800";
       case "transparent":
         return "bg-transparent";
     }
   }, [color]);
-
-  const lightHapticFeedback = useHaptic("light");
 
   return (
     <TouchableOpacity
@@ -56,16 +54,14 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       onPress={() => {
         if (!loading && !disabled && onPress) {
           onPress();
-          lightHapticFeedback();
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }}
       disabled={disabled || loading}
       {...props}
     >
       {loading ? (
-        <View className="p-0.5">
-          <Loader />
-        </View>
+        <Loader />
       ) : (
         <View
           className={`

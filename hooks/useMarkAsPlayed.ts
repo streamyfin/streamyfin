@@ -3,14 +3,13 @@ import { markAsNotPlayed } from "@/utils/jellyfin/playstate/markAsNotPlayed";
 import { markAsPlayed } from "@/utils/jellyfin/playstate/markAsPlayed";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
-import { useHaptic } from "./useHaptic";
+import * as Haptics from "expo-haptics";
 import { useAtom } from "jotai";
 
 export const useMarkAsPlayed = (item: BaseItemDto) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const queryClient = useQueryClient();
-  const lightHapticFeedback = useHaptic("light");
 
   const invalidateQueries = () => {
     const queriesToInvalidate = [
@@ -30,7 +29,7 @@ export const useMarkAsPlayed = (item: BaseItemDto) => {
   };
 
   const markAsPlayedStatus = async (played: boolean) => {
-    lightHapticFeedback();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Optimistic update
     queryClient.setQueryData(

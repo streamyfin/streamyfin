@@ -5,7 +5,7 @@ import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { FlashList } from "@shopify/flash-list";
 import { orderBy } from "lodash";
 import { Tags } from "@/components/GenreTags";
-import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
+import JellyseerrIconStatus from "@/components/icons/JellyseerrIconStatus";
 import Season from "@/utils/jellyseerr/server/entity/Season";
 import {
   MediaStatus,
@@ -20,9 +20,7 @@ import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
 import { Image } from "expo-image";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import { Loader } from "../Loader";
-import { t } from "i18next";
 import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
-import {MediaRequestBody} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
 
 const JellyseerrSeasonEpisodes: React.FC<{
   details: TvDetails;
@@ -63,7 +61,7 @@ const RenderItem = ({ item, index }: any) => {
             key={item.id}
             id={item.id}
             source={{
-              uri: jellyseerrApi?.imageProxy(item.stillPath),
+              uri: jellyseerrApi?.tvStillImageProxy(item.stillPath),
             }}
             cachePolicy={"memory-disk"}
             contentFit="cover"
@@ -103,17 +101,8 @@ const JellyseerrSeasons: React.FC<{
   isLoading: boolean;
   result?: TvResult;
   details?: TvDetails;
-  hasAdvancedRequest?: boolean,
-  onAdvancedRequest?: (data: MediaRequestBody) => void;
   refetch:  (options?: (RefetchOptions | undefined)) => Promise<QueryObserverResult<TvDetails | MovieDetails | undefined, Error>>;
-}> = ({
-  isLoading,
-  result,
-  details,
-  refetch,
-  hasAdvancedRequest,
-  onAdvancedRequest,
-}) => {
+}> = ({ isLoading, result, details, refetch }) => {
   if (!details) return null;
 
   const { jellyseerrApi, requestMedia } = useJellyseerr();
@@ -153,7 +142,7 @@ const JellyseerrSeasons: React.FC<{
 
   const requestAll = useCallback(() => {
     if (details && jellyseerrApi) {
-      const body: MediaRequestBody = {
+      requestMedia(result?.name!!, {
         mediaId: details.id,
         mediaType: MediaType.TV,
         tvdbId: details.externalIds?.tvdbId,
@@ -162,25 +151,19 @@ const JellyseerrSeasons: React.FC<{
             (s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0
           )
           .map((s) => s.seasonNumber),
-      }
-
-      if (hasAdvancedRequest) {
-        return onAdvancedRequest?.(body)
-      }
-
-      requestMedia(result?.name!!, body, refetch);
+      });
     }
-  }, [jellyseerrApi, seasons, details, hasAdvancedRequest, onAdvancedRequest]);
+  }, [jellyseerrApi, seasons, details]);
 
   const promptRequestAll = useCallback(
     () =>
-      Alert.alert(t("jellyseerr.confirm"), t("jellyseerr.are_you_sure_you_want_to_request_all_seasons"), [
+      Alert.alert("Confirm", "Are you sure you want to request all seasons?", [
         {
-          text: t("jellyseerr.cancel"),
+          text: "Cancel",
           style: "cancel",
         },
         {
-          text: t("jellyseerr.yes"),
+          text: "Yes",
           onPress: requestAll,
         },
       ]),
@@ -189,26 +172,24 @@ const JellyseerrSeasons: React.FC<{
 
   const requestSeason = useCallback(async (canRequest: Boolean, seasonNumber: number) => {
     if (canRequest) {
-      const body: MediaRequestBody = {
-        mediaId: details.id,
-        mediaType: MediaType.TV,
-        tvdbId: details.externalIds?.tvdbId,
-        seasons: [seasonNumber],
-      }
-
-      if (hasAdvancedRequest) {
-        return onAdvancedRequest?.(body)
-      }
-
-      requestMedia(`${result?.name!!}, Season ${seasonNumber}`, body, refetch);
+      requestMedia(
+        `${result?.name!!}, Season ${seasonNumber}`,
+        {
+          mediaId: details.id,
+          mediaType: MediaType.TV,
+          tvdbId: details.externalIds?.tvdbId,
+          seasons: [seasonNumber],
+        },
+        refetch
+      )
     }
-  }, [requestMedia, hasAdvancedRequest, onAdvancedRequest]);
+  }, [requestMedia]);
 
   if (isLoading)
     return (
       <View>
         <View className="flex flex-row justify-between items-end px-4">
-          <Text className="text-lg font-bold mb-2">{t("item_card.seasons")}</Text>
+          <Text className="text-lg font-bold mb-2">Seasons</Text>
           {!allSeasonsAvailable && (
             <RoundButton className="mb-2 pa-2" onPress={promptRequestAll}>
               <Ionicons name="bag-add" color="white" size={26} />
@@ -228,7 +209,7 @@ const JellyseerrSeasons: React.FC<{
       )}
       ListHeaderComponent={() => (
         <View className="flex flex-row justify-between items-end px-4">
-          <Text className="text-lg font-bold mb-2">{t("item_card.seasons")}</Text>
+          <Text className="text-lg font-bold mb-2">Seasons</Text>
           {!allSeasonsAvailable && (
             <RoundButton className="mb-2 pa-2" onPress={promptRequestAll}>
               <Ionicons name="bag-add" color="white" size={26} />
@@ -256,8 +237,8 @@ const JellyseerrSeasons: React.FC<{
               <Tags
                 textClass=""
                 tags={[
-                  t("jellyseerr.season_number", {season_number: season.seasonNumber}),
-                  t("jellyseerr.number_episodes", {episode_number: season.episodeCount}),
+                  `Season ${season.seasonNumber}`,
+                  `${season.episodeCount} Episodes`,
                 ]}
               />
               {[0].map(() => {
@@ -265,7 +246,7 @@ const JellyseerrSeasons: React.FC<{
                   seasons?.find((s) => s.seasonNumber === season.seasonNumber)
                     ?.status === MediaStatus.UNKNOWN;
                 return (
-                  <JellyseerrStatusIcon
+                  <JellyseerrIconStatus
                     key={0}
                     onPress={() => requestSeason(canRequest, season.seasonNumber)}
                     className={canRequest ? "bg-gray-700/40" : undefined}

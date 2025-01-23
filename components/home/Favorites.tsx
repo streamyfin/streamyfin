@@ -5,7 +5,6 @@ import { View } from "react-native";
 import { ScrollingCollectionList } from "./ScrollingCollectionList";
 import { useCallback } from "react";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
-import { t } from "i18next";
 
 export const Favorites = () => {
   const [api] = useAtom(apiAtom);
@@ -55,44 +54,64 @@ export const Favorites = () => {
     () => fetchFavoritesByType("Playlist"),
     [fetchFavoritesByType]
   );
+  const fetchFavoriteMusicAlbum = useCallback(
+    () => fetchFavoritesByType("MusicAlbum"),
+    [fetchFavoritesByType]
+  );
+  const fetchFavoriteAudio = useCallback(
+    () => fetchFavoritesByType("Audio"),
+    [fetchFavoritesByType]
+  );
 
   return (
     <View className="flex flex-co gap-y-4">
       <ScrollingCollectionList
         queryFn={fetchFavoriteSeries}
         queryKey={["home", "favorites", "series"]}
-        title={t("favorites.series")}
+        title="Series"
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteMovies}
         queryKey={["home", "favorites", "movies"]}
-        title={t("favorites.movies")}
+        title="Movies"
         hideIfEmpty
         orientation="vertical"
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
         queryKey={["home", "favorites", "episodes"]}
-        title={t("favorites.episodes")}
+        title="Episodes"
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteVideos}
         queryKey={["home", "favorites", "videos"]}
-        title={t("favorites.videos")}
+        title="Videos"
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
         queryKey={["home", "favorites", "boxsets"]}
-        title={t("favorites.boxsets")}
+        title="Boxsets"
         hideIfEmpty
       />
       <ScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
         queryKey={["home", "favorites", "playlists"]}
-        title={t("favorites.playlists")}
+        title="Playlists"
+        hideIfEmpty
+      />
+      <ScrollingCollectionList
+        queryFn={fetchFavoriteMusicAlbum}
+        queryKey={["home", "favorites", "musicAlbums"]}
+        title="Music Albums"
+        hideIfEmpty
+      />
+      <ScrollingCollectionList
+        queryFn={fetchFavoriteAudio}
+        queryKey={["home", "favorites", "audio"]}
+        title="Audio"
         hideIfEmpty
       />
     </View>

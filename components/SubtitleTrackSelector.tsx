@@ -5,7 +5,6 @@ import { Platform, TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
-import { useTranslation } from "react-i18next";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
@@ -38,8 +37,6 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
 
   if (subtitleStreams.length === 0) return null;
 
-  const { t } = useTranslation();
-
   return (
     <View
       className="flex col shrink justify-start place-self-start items-start"
@@ -51,12 +48,12 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           <View className="flex flex-col " {...props}>
-            <Text className="opacity-50 mb-1 text-xs">{t("item_card.subtitles")}</Text>
+            <Text className="opacity-50 mb-1 text-xs">Subtitle</Text>
             <TouchableOpacity className="bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
               <Text className=" ">
                 {selectedSubtitleSteam
                   ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
-                  : t("item_card.none")}
+                  : "None"}
               </Text>
             </TouchableOpacity>
           </View>

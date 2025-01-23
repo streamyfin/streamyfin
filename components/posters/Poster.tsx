@@ -1,15 +1,19 @@
+import {
+  BaseItemDto,
+  BaseItemPerson,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { View } from "react-native";
 
 type PosterProps = {
-  id?: string | null;
+  item?: BaseItemDto | BaseItemPerson | null;
   url?: string | null;
   showProgress?: boolean;
   blurhash?: string | null;
 };
 
-const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
-  if (!id && !url)
+const Poster: React.FC<PosterProps> = ({ item, url, blurhash }) => {
+  if (!item)
     return (
       <View
         className="border border-neutral-900"
@@ -29,8 +33,8 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
               }
             : null
         }
-        key={id}
-        id={id!!}
+        key={item.Id}
+        id={item.Id}
         source={
           url
             ? {

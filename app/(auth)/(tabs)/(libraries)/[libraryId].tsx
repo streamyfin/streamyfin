@@ -41,7 +41,6 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 const Page = () => {
   const searchParams = useLocalSearchParams();
@@ -62,8 +61,6 @@ const Page = () => {
   );
 
   const { orientation } = useOrientation();
-
-  const { t } = useTranslation();
 
   useEffect(() => {
     const sop = getSortOrderPreference(libraryId, sortOrderPreference);
@@ -153,6 +150,8 @@ const Page = () => {
         itemType = "Series";
       } else if (library.CollectionType === "boxsets") {
         itemType = "BoxSet";
+      } else if (library.CollectionType === "music") {
+        itemType = "MusicAlbum";
       }
 
       const response = await getItemsApi(api).getItems({
@@ -301,7 +300,7 @@ const Page = () => {
                   }}
                   set={setSelectedGenres}
                   values={selectedGenres}
-                  title={t("library.filters.genres")}
+                  title="Genres"
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -328,7 +327,7 @@ const Page = () => {
                   }}
                   set={setSelectedYears}
                   values={selectedYears}
-                  title={t("library.filters.years")}
+                  title="Years"
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) => item.includes(search)}
                 />
@@ -353,7 +352,7 @@ const Page = () => {
                   }}
                   set={setSelectedTags}
                   values={selectedTags}
-                  title={t("library.filters.tags")}
+                  title="Tags"
                   renderItemLabel={(item) => item.toString()}
                   searchFilter={(item, search) =>
                     item.toLowerCase().includes(search.toLowerCase())
@@ -371,7 +370,7 @@ const Page = () => {
                   queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
                   values={sortBy}
-                  title={t("library.filters.sort_by")}
+                  title="Sort By"
                   renderItemLabel={(item) =>
                     sortOptions.find((i) => i.key === item)?.value || ""
                   }
@@ -391,7 +390,7 @@ const Page = () => {
                   queryFn={async () => sortOrderOptions.map((s) => s.key)}
                   set={setSortOrder}
                   values={sortOrder}
-                  title={t("library.filters.sort_order")}
+                  title="Sort Order"
                   renderItemLabel={(item) =>
                     sortOrderOptions.find((i) => i.key === item)?.value || ""
                   }
@@ -437,7 +436,7 @@ const Page = () => {
   if (flatData.length === 0)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">{t("library.no_items_found")}</Text>
+        <Text className="text-lg text-neutral-500">No items found</Text>
       </View>
     );
 
@@ -446,7 +445,7 @@ const Page = () => {
       key={orientation}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("library.no_results")}</Text>
+          <Text className="font-bold text-xl text-neutral-500">No results</Text>
         </View>
       }
       contentInsetAdjustmentBehavior="automatic"

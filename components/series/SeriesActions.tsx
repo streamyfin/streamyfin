@@ -1,45 +1,24 @@
-import { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Ionicons } from "@expo/vector-icons";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
-import {
-  Alert,
-  Linking,
-  TouchableOpacity,
-  View,
-  ViewProps,
-} from "react-native";
+import { TouchableOpacity, View, ViewProps } from "react-native";
 
 interface Props extends ViewProps {
-  item: BaseItemDto | MovieDetails | TvDetails;
+  item: BaseItemDto;
 }
 
 export const ItemActions = ({ item, ...props }: Props) => {
-  const trailerLink = useMemo(() => {
-    if ("RemoteTrailers" in item && item.RemoteTrailers?.[0]?.Url) {
-      return item.RemoteTrailers[0].Url;
-    }
+  const router = useRouter();
 
-    if ("relatedVideos" in item) {
-      return item.relatedVideos?.find((v) => v.type === "Trailer")?.url;
-    }
-
-    return undefined;
-  }, [item]);
+  const trailerLink = useMemo(() => item.RemoteTrailers?.[0]?.Url, [item]);
 
   const openTrailer = useCallback(async () => {
-    if (!trailerLink) {
-      Alert.alert("No trailer available");
-      return;
-    }
+    if (!trailerLink) return;
 
-    try {
-      await Linking.openURL(trailerLink);
-    } catch (err) {
-      console.error("Failed to open trailer link:", err);
-    }
-  }, [trailerLink]);
+    const encodedTrailerLink = encodeURIComponent(trailerLink);
+    router.push(`/trailer/page?url=${encodedTrailerLink}`);
+  }, [router, trailerLink]);
 
   return (
     <View className="" {...props}>

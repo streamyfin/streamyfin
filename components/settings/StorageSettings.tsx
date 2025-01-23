@@ -1,19 +1,18 @@
+import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
-import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
+import { clearLogs } from "@/utils/log";
 import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
+import * as Haptics from "expo-haptics";
 import { View } from "react-native";
+import * as Progress from "react-native-progress";
 import { toast } from "sonner-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { useTranslation } from "react-i18next";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
-  const { t } = useTranslation();
-  const successHapticFeedback = useHaptic("success");
-  const errorHapticFeedback = useHaptic("error");
 
   const { data: size, isLoading: appSizeLoading } = useQuery({
     queryKey: ["appSize", appSizeUsage],
@@ -30,10 +29,10 @@ export const StorageSettings = () => {
   const onDeleteClicked = async () => {
     try {
       await deleteAllFiles();
-      successHapticFeedback();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
-      errorHapticFeedback();
-      toast.error(t("home.settings.toasts.error_deleting_files"));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.error("Error deleting files");
     }
   };
 
@@ -45,10 +44,11 @@ export const StorageSettings = () => {
     <View>
       <View className="flex flex-col gap-y-1">
         <View className="flex flex-row items-center justify-between">
-          <Text className="">{t("home.settings.storage.storage_title")}</Text>
+          <Text className="">Storage</Text>
           {size && (
             <Text className="text-neutral-500">
-              {t("home.settings.storage.size_used", {used: Number(size.total - size.remaining).bytesToReadable(), total: size.total?.bytesToReadable()})}
+              {Number(size.total - size.remaining).bytesToReadable()} of{" "}
+              {size.total?.bytesToReadable()} used
             </Text>
           )}
         </View>
@@ -79,13 +79,18 @@ export const StorageSettings = () => {
               <View className="flex flex-row items-center">
                 <View className="w-3 h-3 rounded-full bg-purple-600 mr-1"></View>
                 <Text className="text-white text-xs">
-                  {t("home.settings.storage.app_usage", {usedSpace: calculatePercentage(size.app, size.total)})}
+                  App {calculatePercentage(size.app, size.total)}%
                 </Text>
               </View>
               <View className="flex flex-row items-center">
                 <View className="w-3 h-3 rounded-full bg-purple-400 mr-1"></View>
                 <Text className="text-white text-xs">
-                  {t("home.settings.storage.phone_usage", {availableSpace: calculatePercentage(size.total - size.remaining - size.app, size.total)})}
+                  Phone{" "}
+                  {calculatePercentage(
+                    size.total - size.remaining - size.app,
+                    size.total
+                  )}
+                  %
                 </Text>
               </View>
             </>
@@ -96,7 +101,7 @@ export const StorageSettings = () => {
         <ListItem
           textColor="red"
           onPress={onDeleteClicked}
-          title={t("home.settings.storage.delete_all_downloaded_files")}
+          title="Delete All Downloaded Files"
         />
       </ListGroup>
     </View>

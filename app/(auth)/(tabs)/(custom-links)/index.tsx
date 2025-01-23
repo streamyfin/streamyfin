@@ -7,7 +7,6 @@ import { ListItem } from "@/components/list/ListItem";
 import * as WebBrowser from "expo-web-browser";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Text } from "@/components/common/Text";
-import { useTranslation } from "react-i18next";
 
 export interface MenuLink {
   name: string;
@@ -19,7 +18,6 @@ export default function menuLinks() {
   const [api] = useAtom(apiAtom);
   const insets = useSafeAreaInsets();
   const [menuLinks, setMenuLinks] = useState<MenuLink[]>([]);
-  const { t } = useTranslation();
 
   const getMenuLinks = useCallback(async () => {
     try {
@@ -69,7 +67,7 @@ export default function menuLinks() {
       )}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("custom_links.no_links")}</Text>
+          <Text className="font-bold text-xl text-neutral-500">No links</Text>
         </View>
       }
     />

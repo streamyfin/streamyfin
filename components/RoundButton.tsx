@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from "react-native";
-import { useHaptic } from "@/hooks/useHaptic";
+import * as Haptics from "expo-haptics";
 
 interface Props extends TouchableOpacityProps {
   onPress?: () => void;
@@ -29,11 +29,10 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
 }) => {
   const buttonSize = size === "large" ? "h-10 w-10" : "h-9 w-9";
   const fillColorClass = fillColor === "primary" ? "bg-purple-600" : "";
-  const lightHapticFeedback = useHaptic("light");
 
   const handlePress = () => {
     if (hapticFeedback) {
-      lightHapticFeedback();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     onPress?.();
   };

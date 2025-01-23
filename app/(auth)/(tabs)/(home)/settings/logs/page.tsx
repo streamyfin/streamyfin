@@ -1,11 +1,9 @@
 import { Text } from "@/components/common/Text";
 import { useLog } from "@/utils/log";
 import { ScrollView, View } from "react-native";
-import { useTranslation } from "react-i18next";
 
 export default function page() {
   const { logs } = useLog();
-  const { t } = useTranslation();
 
   return (
     <ScrollView className="p-4">
@@ -27,7 +25,7 @@ export default function page() {
           </View>
         ))}
         {logs?.length === 0 && (
-          <Text className="opacity-50">{t("home.settings.logs.no_logs_available")}</Text>
+          <Text className="opacity-50">No logs available</Text>
         )}
       </View>
     </ScrollView>

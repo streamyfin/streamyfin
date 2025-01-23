@@ -1,12 +1,11 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
-import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { PreviousServersList } from "@/components/PreviousServersList";
-import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
+import { getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
@@ -21,11 +20,12 @@ import {
 } from "react-native";
 
 import { z } from "zod";
-import { t } from 'i18next';
-const CredentialsSchema = z.object({
-  username: z.string().min(1, t("login.username_required")),});
 
-  const Login: React.FC = () => {
+const CredentialsSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+});
+
+const Login: React.FC = () => {
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
   const [api] = useAtom(apiAtom);
@@ -39,6 +39,7 @@ const CredentialsSchema = z.object({
 
   const [serverURL, setServerURL] = useState<string>(_apiUrl);
   const [serverName, setServerName] = useState<string>("");
+  const [error, setError] = useState<string>("");
   const [credentials, setCredentials] = useState<{
     username: string;
     password: string;
@@ -76,10 +77,8 @@ const CredentialsSchema = z.object({
             onPress={() => {
               removeServer();
             }}
-            className="flex flex-row items-center"
           >
-            <Ionicons name="chevron-back" size={18} color={Colors.primary} />
-            <Text className="ml-2 text-purple-600">{t("login.change_server")}</Text>
+            <Ionicons name="chevron-back" size={24} color="white" />
           </TouchableOpacity>
         ) : null,
     });
@@ -96,9 +95,9 @@ const CredentialsSchema = z.object({
       }
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert(t("login.connection_failed"), error.message);
+        setError(error.message);
       } else {
-        Alert.alert(t("login.connection_failed"), t("login.an_unexpected_error_occured"));
+        setError("An unexpected error occurred");
       }
     } finally {
       setLoading(false);
@@ -138,8 +137,6 @@ const CredentialsSchema = z.object({
       }
 
       return undefined;
-    } catch {
-      return undefined;
     } finally {
       setLoadingServerCheck(false);
     }
@@ -162,13 +159,14 @@ const CredentialsSchema = z.object({
    *
    */
   const handleConnect = useCallback(async (url: string) => {
-    url = url.trim().replace(/\/$/, "");
+    url = url.trim();
+
     const result = await checkUrl(url);
 
     if (result === undefined) {
       Alert.alert(
-        t("login.connection_failed"),
-        t("login.could_not_connect_to_server")
+        "Connection failed",
+        "Could not connect to the server. Please check the URL and your network connection."
       );
       return;
     }
@@ -180,149 +178,144 @@ const CredentialsSchema = z.object({
     try {
       const code = await initiateQuickConnect();
       if (code) {
-        Alert.alert(t("login.quick_connect"), t("login.enter_code_to_login", {code: code}), [
+        Alert.alert("Quick Connect", `Enter code ${code} to login`, [
           {
-            text: t("login.got_it"),
+            text: "Got It",
           },
         ]);
       }
     } catch (error) {
-      Alert.alert(t("login.error_title"), t("login.failed_to_initiate_quick_connect"));
+      Alert.alert("Error", "Failed to initiate Quick Connect");
     }
   };
 
-  return (
-    <SafeAreaView style={{ flex: 1, paddingBottom: 16 }}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        {api?.basePath ? (
-          <>
-            <View className="flex flex-col h-full relative items-center justify-center">
-              <View className="px-4 -mt-20 w-full">
-                <View className="flex flex-col space-y-2">
+  if (api?.basePath) {
+    return (
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1, height: "100%" }}
+        >
+          <View className="flex flex-col h-full relative items-center justify-center">
+            <View className="px-4 -mt-20 w-full">
+              <View className="flex flex-col space-y-2">
                 <Text className="text-2xl font-bold -mb-2">
+                  Log in
                   <>
                     {serverName ? (
                       <>
-                        {t("login.login_to_title") + " "}
+                        {" to "}
                         <Text className="text-purple-600">{serverName}</Text>
                       </>
-                    ) : t("login.login_title")}
+                    ) : null}
                   </>
                 </Text>
-                  <Text className="text-xs text-neutral-400">
-                    {api.basePath}
-                  </Text>
-                  <Input
-                    placeholder={t("login.username_placeholder")}
-                    onChangeText={(text) =>
-                      setCredentials({ ...credentials, username: text })
-                    }
-                    value={credentials.username}
-                    autoFocus
-                    secureTextEntry={false}
-                    keyboardType="default"
-                    returnKeyType="done"
-                    autoCapitalize="none"
-                    textContentType="username"
-                    clearButtonMode="while-editing"
-                    maxLength={500}
-                  />
-
-                  <Input
-                    placeholder={t("login.password_placeholder")}
-                    onChangeText={(text) =>
-                      setCredentials({ ...credentials, password: text })
-                    }
-                    value={credentials.password}
-                    secureTextEntry
-                    keyboardType="default"
-                    returnKeyType="done"
-                    autoCapitalize="none"
-                    textContentType="password"
-                    clearButtonMode="while-editing"
-                    maxLength={500}
-                  />
-                  <View className="flex flex-row items-center justify-between">
-                    <Button
-                      onPress={handleLogin}
-                      loading={loading}
-                      className="flex-1 mr-2"
-                    >
-                      {t("login.login_button")}
-                    </Button>
-                    <TouchableOpacity
-                      onPress={handleQuickConnect}
-                      className="p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center"
-                    >
-                      <MaterialCommunityIcons
-                        name="cellphone-lock"
-                        size={24}
-                        color="white"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-
-              <View className="absolute bottom-0 left-0 w-full px-4 mb-2"></View>
-            </View>
-          </>
-        ) : (
-          <>
-            <View className="flex flex-col h-full items-center justify-center w-full">
-              <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">
-                <Image
-                  style={{
-                    width: 100,
-                    height: 100,
-                    marginLeft: -23,
-                    marginBottom: -20,
-                  }}
-                  source={require("@/assets/images/StreamyFinFinal.png")}
-                />
-                <Text className="text-3xl font-bold">Streamyfin</Text>
-                <Text className="text-neutral-500">
-                  {t("server.enter_url_to_jellyfin_server")}
-                </Text>
+                <Text className="text-xs text-neutral-400">{api.basePath}</Text>
                 <Input
-                  aria-label="Server URL"
-                  placeholder={t("server.server_url_placeholder")}
-                  onChangeText={setServerURL}
-                  value={serverURL}
-                  keyboardType="url"
+                  placeholder="Username"
+                  onChangeText={(text) =>
+                    setCredentials({ ...credentials, username: text })
+                  }
+                  value={credentials.username}
+                  autoFocus
+                  secureTextEntry={false}
+                  keyboardType="default"
                   returnKeyType="done"
                   autoCapitalize="none"
-                  textContentType="URL"
+                  textContentType="username"
+                  clearButtonMode="while-editing"
                   maxLength={500}
                 />
-                <Button
-                  loading={loadingServerCheck}
-                  disabled={loadingServerCheck}
-                  onPress={async () => await handleConnect(serverURL)}
-                  className="w-full grow"
-                >
-                  {t("server.connect_button")}
-                </Button>
-                <JellyfinServerDiscovery
-                  onServerSelect={(server) => {
-                    setServerURL(server.address);
-                    if (server.serverName) {
-                      setServerName(server.serverName);
-                    }
-                    handleConnect(server.address);
-                  }}
-                />
-                <PreviousServersList
-                  onServerSelect={(s) => {
-                    handleConnect(s.address);
-                  }}
+
+                <Input
+                  className="mb-2"
+                  placeholder="Password"
+                  onChangeText={(text) =>
+                    setCredentials({ ...credentials, password: text })
+                  }
+                  value={credentials.password}
+                  secureTextEntry
+                  keyboardType="default"
+                  returnKeyType="done"
+                  autoCapitalize="none"
+                  textContentType="password"
+                  clearButtonMode="while-editing"
+                  maxLength={500}
                 />
               </View>
+
+              <Text className="text-red-600 mb-2">{error}</Text>
             </View>
-          </>
-        )}
+
+            <View className="absolute bottom-0 left-0 w-full px-4 mb-2">
+              <Button
+                color="black"
+                onPress={handleQuickConnect}
+                className="w-full mb-2"
+              >
+                Use Quick Connect
+              </Button>
+              <Button onPress={handleLogin} loading={loading}>
+                Log in
+              </Button>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1, height: "100%" }}
+      >
+        <View className="flex flex-col h-full relative items-center justify-center w-full">
+          <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">
+            <Image
+              style={{
+                width: 100,
+                height: 100,
+                marginLeft: -23,
+                marginBottom: -20,
+              }}
+              source={require("@/assets/images/StreamyFinFinal.png")}
+            />
+            <Text className="text-3xl font-bold">Streamyfin</Text>
+            <Text className="text-neutral-500">
+              Enter the URL to your Jellyfin server
+            </Text>
+            <Input
+              placeholder="Server URL"
+              onChangeText={setServerURL}
+              value={serverURL}
+              keyboardType="url"
+              returnKeyType="done"
+              autoCapitalize="none"
+              textContentType="URL"
+              maxLength={500}
+            />
+            <Text className="text-xs text-neutral-500 ml-4">
+              Make sure to include http or https
+            </Text>
+            <PreviousServersList
+              onServerSelect={(s) => {
+                handleConnect(s.address);
+              }}
+            />
+          </View>
+          <View className="mb-2 absolute bottom-0 left-0 w-full px-4">
+            <Button
+              loading={loadingServerCheck}
+              disabled={loadingServerCheck}
+              onPress={async () => await handleConnect(serverURL)}
+              className="w-full grow"
+            >
+              Connect
+            </Button>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

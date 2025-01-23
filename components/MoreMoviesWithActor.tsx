@@ -11,7 +11,6 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery } from "@tanstack/react-query";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   actorId: string;
@@ -25,7 +24,6 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { t } = useTranslation();
 
   const { data: actor } = useQuery({
     queryKey: ["actor", actorId],
@@ -78,7 +76,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
   return (
     <View {...props}>
       <Text className="text-lg font-bold mb-2 px-4">
-        {t("item_card.more_with", {name: actor?.Name})}
+        More with {actor?.Name}
       </Text>
       <HorizontalScroll
         data={items}

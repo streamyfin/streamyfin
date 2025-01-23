@@ -13,13 +13,11 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useTranslation } from "react-i18next";
 
 const Page: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { id } = useLocalSearchParams() as { id: string };
-  const { t } = useTranslation();
 
   const { data: item, isError } = useQuery({
     queryKey: ["item", id],
@@ -76,7 +74,7 @@ const Page: React.FC = () => {
   if (isError)
     return (
       <View className="flex flex-col items-center justify-center h-screen w-screen">
-        <Text>{t("item_card.could_not_load_item")}</Text>
+        <Text>Could not load item</Text>
       </View>
     );
 
