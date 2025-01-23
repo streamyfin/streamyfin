@@ -2,6 +2,7 @@ import { TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "./common/Text";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 export type Bitrate = {
   key: string;
@@ -26,6 +27,10 @@ export const BITRATES: Bitrate[] = [
   {
     key: "2 Mb/s",
     value: 2000000,
+  },
+  {
+    key: "1 Mb/s",
+    value: 1000000,
   },
   {
     key: "500 Kb/s",
@@ -59,6 +64,8 @@ export const BitrateSelector: React.FC<Props> = ({
     );
   }, []);
 
+  const { t } = useTranslation();
+
   return (
     <View
       className="flex shrink"
@@ -70,7 +77,7 @@ export const BitrateSelector: React.FC<Props> = ({
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           <View className="flex flex-col" {...props}>
-            <Text className="opacity-50 mb-1 text-xs">Quality</Text>
+            <Text className="opacity-50 mb-1 text-xs">{t("item_card.quality")}</Text>
             <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
               <Text style={{}} className="" numberOfLines={1}>
                 {BITRATES.find((b) => b.value === selected?.value)?.key}

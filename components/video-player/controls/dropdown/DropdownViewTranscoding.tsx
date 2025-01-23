@@ -118,17 +118,10 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
   );
 
   return (
-    <View
-      style={{
-        position: "absolute",
-        zIndex: 1000,
-        opacity: showControls ? 1 : 0,
-      }}
-      className="p-4"
-    >
+    <View>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
-          <TouchableOpacity className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2">
+          <TouchableOpacity className="aspect-square flex flex-col rounded-xl items-center justify-center p-2">
             <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
           </TouchableOpacity>
         </DropdownMenu.Trigger>

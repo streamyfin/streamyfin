@@ -4,8 +4,10 @@ import {
 } from "@/components/stacks/NestedTabPageStack";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 
 export default function SearchLayout() {
+  const { t } = useTranslation();
   return (
     <Stack>
       <Stack.Screen
@@ -13,7 +15,7 @@ export default function SearchLayout() {
         options={{
           headerShown: true,
           headerLargeTitle: true,
-          headerTitle: "Search",
+          headerTitle: t("tabs.search"),
           headerLargeStyle: {
             backgroundColor: "black",
           },
@@ -36,6 +38,9 @@ export default function SearchLayout() {
         }}
       />
       <Stack.Screen name="jellyseerr/page" options={commonScreenOptions} />
+      <Stack.Screen name="jellyseerr/person/[personId]" options={commonScreenOptions} />
+      <Stack.Screen name="jellyseerr/company/[companyId]" options={commonScreenOptions} />
+      <Stack.Screen name="jellyseerr/genre/[genreId]" options={commonScreenOptions} />
     </Stack>
   );
 }

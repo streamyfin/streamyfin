@@ -1,17 +1,17 @@
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { View } from "react-native";
-import { Text } from "../common/Text";
-import { useCallback, useRef, useState } from "react";
-import { Input } from "../common/Input";
-import { ListItem } from "../list/ListItem";
-import { Loader } from "../Loader";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { Button } from "../Button";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useAtom } from "jotai";
-import { toast } from "sonner-native";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { useAtom } from "jotai";
+import { useState } from "react";
+import { View } from "react-native";
+import { toast } from "sonner-native";
+import { Button } from "../Button";
+import { Input } from "../common/Input";
+import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
 
 export const JellyseerrSettings = () => {
   const {
@@ -21,8 +21,10 @@ export const JellyseerrSettings = () => {
     clearAllJellyseerData,
   } = useJellyseerr();
 
+  const { t } = useTranslation();
+
   const [user] = useAtom(userAtom);
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings();
 
   const [promptForJellyseerrPass, setPromptForJellyseerrPass] =
     useState<boolean>(false);
@@ -48,7 +50,7 @@ export const JellyseerrSettings = () => {
       updateSettings({ jellyseerrServerUrl });
     },
     onError: () => {
-      toast.error("Failed to login");
+      toast.error(t("jellyseerr.failed_to_login"));
     },
     onSettled: () => {
       setJellyseerrPassword(undefined);
@@ -90,53 +92,50 @@ export const JellyseerrSettings = () => {
           <>
             <ListGroup title={"Jellyseerr"}>
               <ListItem
-                title="Total media requests"
+                title={t("home.settings.plugins.jellyseerr.total_media_requests")}
                 value={jellyseerrUser?.requestCount?.toString()}
               />
               <ListItem
-                title="Movie quota limit"
+                title={t("home.settings.plugins.jellyseerr.movie_quota_limit")}
                 value={
-                  jellyseerrUser?.movieQuotaLimit?.toString() ?? "Unlimited"
+                  jellyseerrUser?.movieQuotaLimit?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")
                 }
               />
               <ListItem
-                title="Movie quota days"
+                title={t("home.settings.plugins.jellyseerr.movie_quota_days")}
                 value={
-                  jellyseerrUser?.movieQuotaDays?.toString() ?? "Unlimited"
+                  jellyseerrUser?.movieQuotaDays?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")
                 }
               />
               <ListItem
-                title="TV quota limit"
-                value={jellyseerrUser?.tvQuotaLimit?.toString() ?? "Unlimited"}
+                title={t("home.settings.plugins.jellyseerr.tv_quota_limit")}
+                value={jellyseerrUser?.tvQuotaLimit?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")}
               />
               <ListItem
-                title="TV quota days"
-                value={jellyseerrUser?.tvQuotaDays?.toString() ?? "Unlimited"}
+                title={t("home.settings.plugins.jellyseerr.tv_quota_days")}
+                value={jellyseerrUser?.tvQuotaDays?.toString() ?? t("home.settings.plugins.jellyseerr.unlimited")}
               />
             </ListGroup>
 
             <View className="p-4">
               <Button color="red" onPress={clearData}>
-                Reset Jellyseerr config
+                {t("home.settings.plugins.jellyseerr.reset_jellyseerr_config_button")}
               </Button>
             </View>
           </>
         ) : (
           <View className="flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900">
             <Text className="text-xs text-red-600 mb-2">
-              This integration is in its early stages. Expect things to change.
+              {t("home.settings.plugins.jellyseerr.jellyseerr_warning")}
             </Text>
-            <Text className="font-bold mb-1">Server URL</Text>
+            <Text className="font-bold mb-1">{t("home.settings.plugins.jellyseerr.server_url")}</Text>
             <View className="flex flex-col shrink mb-2">
               <Text className="text-xs text-gray-600">
-                Example: http(s)://your-host.url
-              </Text>
-              <Text className="text-xs text-gray-600">
-                (add port if required)
+                {t("home.settings.plugins.jellyseerr.server_url_hint")}
               </Text>
             </View>
             <Input
-              placeholder="Jellyseerr URL..."
+              placeholder={t("home.settings.plugins.jellyseerr.server_url_placeholder")}
               value={settings?.jellyseerrServerUrl ?? jellyseerrServerUrl}
               defaultValue={
                 settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
@@ -166,7 +165,7 @@ export const JellyseerrSettings = () => {
                 marginBottom: 8,
               }}
             >
-              {promptForJellyseerrPass ? "Clear" : "Save"}
+              {promptForJellyseerrPass ? t("home.settings.plugins.jellyseerr.clear_button") : t("home.settings.plugins.jellyseerr.save_button")}
             </Button>
 
             <View
@@ -175,11 +174,11 @@ export const JellyseerrSettings = () => {
                 opacity: promptForJellyseerrPass ? 1 : 0.5,
               }}
             >
-              <Text className="font-bold mb-2">Password</Text>
+              <Text className="font-bold mb-2">{t("home.settings.plugins.jellyseerr.password")}</Text>
               <Input
                 autoFocus={true}
                 focusable={true}
-                placeholder={`Enter password for Jellyfin user ${user?.Name}`}
+                placeholder={t("home.settings.plugins.jellyseerr.password_placeholder", {username: user?.Name})}
                 value={jellyseerrPassword}
                 keyboardType="default"
                 secureTextEntry={true}
@@ -199,7 +198,7 @@ export const JellyseerrSettings = () => {
                 className="h-12 mt-2"
                 onPress={() => loginToJellyseerrMutation.mutate()}
               >
-                Login
+                {t("home.settings.plugins.jellyseerr.login_button")}
               </Button>
             </View>
           </View>

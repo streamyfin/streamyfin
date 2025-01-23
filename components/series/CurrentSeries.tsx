@@ -8,6 +8,7 @@ import Poster from "../posters/Poster";
 import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { Text } from "../common/Text";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -15,10 +16,11 @@ interface Props extends ViewProps {
 
 export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
   const [api] = useAtom(apiAtom);
+  const { t } = useTranslation();
 
   return (
     <View {...props}>
-      <Text className="text-lg font-bold mb-2 px-4">Series</Text>
+      <Text className="text-lg font-bold mb-2 px-4">{t("item_card.series")}</Text>
       <HorizontalScroll
         data={[item]}
         height={247}
@@ -29,7 +31,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
             className="flex flex-col space-y-2 w-28"
           >
             <Poster
-              item={item}
+              id={item.id}
               url={getPrimaryImageUrlById({ api, id: item.ParentId })}
             />
             <Text>{item.SeriesName}</Text>

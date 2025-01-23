@@ -28,6 +28,18 @@ import Issue from "@/utils/jellyseerr/server/entity/Issue";
 import { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import { writeErrorLog } from "@/utils/log";
 import DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import { t } from "i18next";
+import {
+  CombinedCredit,
+  PersonDetails,
+} from "@/utils/jellyseerr/server/models/Person";
+import { useQueryClient } from "@tanstack/react-query";
+import {GenreSliderItem} from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
+import {UserResultsResponse} from "@/utils/jellyseerr/server/interfaces/api/userInterfaces";
+import {
+  ServiceCommonServer,
+  ServiceCommonServerWithDetails
+} from "@/utils/jellyseerr/server/interfaces/api/serviceInterfaces";
 
 interface SearchParams {
   query: string;
@@ -55,19 +67,29 @@ export enum Endpoints {
   API_V1 = "/api/v1",
   SEARCH = "/search",
   REQUEST = "/request",
+  PERSON = "/person",
+  COMBINED_CREDITS = "/combined_credits",
   MOVIE = "/movie",
   RATINGS = "/ratings",
   ISSUE = "/issue",
+  USER = "/user",
+  SERVICE = "/service",
   TV = "/tv",
   SETTINGS = "/settings",
+  NETWORK = "/network",
+  STUDIO = "/studio",
+  GENRE_SLIDER = "/genreslider",
   DISCOVER = "/discover",
   DISCOVER_TRENDING = DISCOVER + "/trending",
   DISCOVER_MOVIES = DISCOVER + "/movies",
   DISCOVER_TV = DISCOVER + TV,
+  DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
+  DISCOVER_MOVIES_STUDIO = DISCOVER + `${MOVIE}s` + STUDIO,
   AUTH_JELLYFIN = "/auth/jellyfin",
 }
 
 export type DiscoverEndpoint =
+  | Endpoints.DISCOVER_TV_NETWORK
   | Endpoints.DISCOVER_TRENDING
   | Endpoints.DISCOVER_MOVIES
   | Endpoints.DISCOVER_TV;
@@ -113,7 +135,7 @@ export class JellyseerrApi {
         if (inRange(status, 200, 299)) {
           if (data.version < "2.0.0") {
             const error =
-              "Jellyseerr server does not meet minimum version requirements! Please update to at least 2.0.0";
+              t("jellyseerr.toasts.jellyseer_does_not_meet_requirements");
             toast.error(error);
             throw Error(error);
           }
@@ -127,7 +149,7 @@ export class JellyseerrApi {
             requiresPass: true,
           };
         }
-        toast.error(`Jellyseerr test failed. Please try again.`);
+        toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
         writeErrorLog(
           `Jellyseerr returned a ${status} for url:\n` +
             response.config.url +
@@ -140,7 +162,7 @@ export class JellyseerrApi {
         };
       })
       .catch((e) => {
-        const msg = "Failed to test jellyseerr server url";
+        const msg = t("jellyseerr.toasts.failed_to_test_jellyseerr_server_url");
         toast.error(msg);
         console.error(msg, e);
         return {
@@ -174,11 +196,20 @@ export class JellyseerrApi {
   }
 
   async discover(
-    endpoint: DiscoverEndpoint,
+    endpoint: DiscoverEndpoint | string,
     params: any
   ): Promise<SearchResults> {
     return this.axios
       ?.get<SearchResults>(Endpoints.API_V1 + endpoint, { params })
+      .then(({ data }) => data);
+  }
+
+  async getGenreSliders(
+    endpoint: Endpoints.TV | Endpoints.MOVIE,
+    params: any = undefined
+  ): Promise<GenreSliderItem[]> {
+    return this.axios
+      ?.get<GenreSliderItem[]>(Endpoints.API_V1 + Endpoints.DISCOVER + Endpoints.GENRE_SLIDER + endpoint, { params })
       .then(({ data }) => data);
   }
 
@@ -199,6 +230,27 @@ export class JellyseerrApi {
   async movieDetails(id: number) {
     return this.axios
       ?.get<MovieDetails>(Endpoints.API_V1 + Endpoints.MOVIE + `/${id}`)
+      .then((response) => {
+        return response?.data;
+      });
+  }
+
+  async personDetails(id: number | string): Promise<PersonDetails> {
+    return this.axios
+      ?.get<PersonDetails>(Endpoints.API_V1 + Endpoints.PERSON + `/${id}`)
+      .then((response) => {
+        return response?.data;
+      });
+  }
+
+  async personCombinedCredits(id: number | string): Promise<CombinedCredit> {
+    return this.axios
+      ?.get<CombinedCredit>(
+        Endpoints.API_V1 +
+          Endpoints.PERSON +
+          `/${id}` +
+          Endpoints.COMBINED_CREDITS
+      )
       .then((response) => {
         return response?.data;
       });
@@ -238,14 +290,26 @@ export class JellyseerrApi {
       });
   }
 
-  tvStillImageProxy(path: string, width: number = 1920, quality: number = 75) {
-    return (
-      this.axios.defaults.baseURL +
-      `/_next/image?` +
-      new URLSearchParams(
-        `url=https://image.tmdb.org/t/p/original/${path}&w=${width}&q=${quality}`
-      ).toString()
-    );
+  async user(params: any) {
+    return this.axios
+      ?.get<UserResultsResponse>(`${Endpoints.API_V1}${Endpoints.USER}`, { params })
+      .then(({data}) =>  data.results)
+  }
+
+  imageProxy(
+    path?: string,
+    filter: string = "original",
+    width: number = 1920,
+    quality: number = 75
+  ) {
+    return path
+      ? this.axios.defaults.baseURL +
+          `/_next/image?` +
+          new URLSearchParams(
+            `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`
+          ).toString()
+      : this.axios?.defaults.baseURL +
+          `/images/overseerr_poster_not_found_logo_top.png`;
   }
 
   async submitIssue(mediaId: number, issueType: IssueType, message: string) {
@@ -259,10 +323,22 @@ export class JellyseerrApi {
         const issue = response.data;
 
         if (issue.status === IssueStatus.OPEN) {
-          toast.success("Issue submitted!");
+          toast.success(t("jellyseerr.toasts.issue_submitted"));
         }
         return issue;
       });
+  }
+
+  async service(type: 'radarr' | 'sonarr') {
+    return this.axios
+      ?.get<ServiceCommonServer[]>(Endpoints.API_V1 + Endpoints.SERVICE + `/${type}`)
+      .then(({data}) => data);
+  }
+
+  async serviceDetails(type: 'radarr' | 'sonarr', id: number) {
+    return this.axios
+      ?.get<ServiceCommonServerWithDetails>(Endpoints.API_V1 + Endpoints.SERVICE + `/${type}` + `/${id}`)
+      .then(({data}) => data);
   }
 
   private setInterceptors() {
@@ -321,6 +397,7 @@ const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 export const useJellyseerr = () => {
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
   const [settings, updateSettings] = useSettings();
+  const queryClient = useQueryClient();
 
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
@@ -338,18 +415,22 @@ export const useJellyseerr = () => {
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
-      jellyseerrApi?.request?.(request)?.then((mediaRequest) => {
+      jellyseerrApi?.request?.(request)?.then(async (mediaRequest) => {
+        await queryClient.invalidateQueries({
+          queryKey: ["search", "jellyseerr"],
+        });
+
         switch (mediaRequest.status) {
           case MediaRequestStatus.PENDING:
           case MediaRequestStatus.APPROVED:
-            toast.success(`Requested ${title}!`);
+            toast.success(t("jellyseerr.toasts.requested_item", {item: title}));
             onSuccess?.()
             break;
           case MediaRequestStatus.DECLINED:
-            toast.error(`You don't have permission to request!`);
+            toast.error(t("jellyseerr.toasts.you_dont_have_permission_to_request"));
             break;
           case MediaRequestStatus.FAILED:
-            toast.error(`Something went wrong requesting media!`);
+            toast.error(t("jellyseerr.toasts.something_went_wrong_requesting_media"));
             break;
         }
       });
