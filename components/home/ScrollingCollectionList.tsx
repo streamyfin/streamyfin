@@ -40,11 +40,10 @@ export const ScrollingCollectionList: React.FC<Props> = ({
     refetchOnReconnect: true,
   });
 
-  if (disabled || !title) return null;
+  const { t } = useTranslation();
 
   if (hideIfEmpty === true && data?.length === 0) return null;
-
-  const { t } = useTranslation();
+  if (disabled || !title) return null;
 
   return (
     <View {...props}>
