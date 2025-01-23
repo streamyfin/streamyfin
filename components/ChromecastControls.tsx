@@ -79,6 +79,7 @@ export default function ChromecastControls({
 
   const isPlaying = mediaStatus.playerState === "playing";
   const isBufferingOrLoading =
+    mediaStatus.playerState === null ||
     mediaStatus.playerState === "buffering" ||
     mediaStatus.playerState === "loading";
 
