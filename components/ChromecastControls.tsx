@@ -422,7 +422,7 @@ export default function ChromecastControls({
       default:
         return <Text>{type} not implemented yet!</Text>;
     }
-  }, [type]);
+  }, [type, mediaMetadata, item]);
 
   // Android requires the cast button to be present for startDiscovery to work
   const AndroidCastButton = useCallback(
