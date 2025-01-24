@@ -431,6 +431,7 @@ export default function index() {
                 queryKey={section.queryKey}
                 queryFn={section.queryFn}
                 orientation={section.orientation}
+                hideIfEmpty
               />
             );
           } else if (section.type === "MediaListSection") {

@@ -28,7 +28,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   disabled = false,
   queryFn,
   queryKey,
-  hideIfEmpty = false,
+  hideIfEmpty = true,
   ...props
 }) => {
   const { data, isLoading } = useQuery({
@@ -42,8 +42,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
 
   const { t } = useTranslation();
 
-  // hideIfEmpty is deprecated, we always hide when there is no data
-  if (hideIfEmpty === true || data?.length === 0) return null;
+  if (hideIfEmpty === true && data?.length === 0) return null;
   if (disabled || !title) return null;
 
   return (
