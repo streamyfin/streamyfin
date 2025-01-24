@@ -207,7 +207,7 @@ export default function index() {
       const latestMediaViews = collections.map((c) => {
         const includeItemTypes: BaseItemKind[] =
           c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-        const title = t("home.recently_added_in", {libraryName: c.Name});
+        const title = t("home.recently_added_in", { libraryName: c.Name });
         const queryKey = [
           "home",
           "recentlyAddedIn" + c.CollectionType,
@@ -352,7 +352,7 @@ export default function index() {
       <View className="flex flex-col items-center justify-center h-full -mt-6 px-8">
         <Text className="text-3xl font-bold mb-2">{t("home.no_internet")}</Text>
         <Text className="text-center opacity-70">
-        {t("home.no_internet_message")}
+          {t("home.no_internet_message")}
         </Text>
         <View className="mt-4">
           <Button
@@ -393,7 +393,9 @@ export default function index() {
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
         <Text className="text-3xl font-bold mb-2">{t("home.oops")}</Text>
-        <Text className="text-center opacity-70">{t("home.error_message")}</Text>
+        <Text className="text-center opacity-70">
+          {t("home.error_message")}
+        </Text>
       </View>
     );
 

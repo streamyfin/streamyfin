@@ -42,7 +42,8 @@ export const ScrollingCollectionList: React.FC<Props> = ({
 
   const { t } = useTranslation();
 
-  if (hideIfEmpty === true && data?.length === 0) return null;
+  // hideIfEmpty is deprecated, we always hide when there is no data
+  if (hideIfEmpty === true || data?.length === 0) return null;
   if (disabled || !title) return null;
 
   return (

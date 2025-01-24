@@ -28,16 +28,26 @@ export const ScreenOrientationEnum: Record<
   ScreenOrientation.OrientationLock,
   string
 > = {
-  [ScreenOrientation.OrientationLock.DEFAULT]: "home.settings.other.orientations.DEFAULT",
-  [ScreenOrientation.OrientationLock.ALL]: "home.settings.other.orientations.ALL",
-  [ScreenOrientation.OrientationLock.PORTRAIT]: "home.settings.other.orientations.PORTRAIT",
-  [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "home.settings.other.orientations.PORTRAIT_UP",
-  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]: "home.settings.other.orientations.PORTRAIT_DOWN",
-  [ScreenOrientation.OrientationLock.LANDSCAPE]: "home.settings.other.orientations.LANDSCAPE",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "home.settings.other.orientations.LANDSCAPE_LEFT",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "home.settings.other.orientations.LANDSCAPE_RIGHT",
-  [ScreenOrientation.OrientationLock.OTHER]: "home.settings.other.orientations.OTHER",
-  [ScreenOrientation.OrientationLock.UNKNOWN]: "home.settings.other.orientations.UNKNOWN",
+  [ScreenOrientation.OrientationLock.DEFAULT]:
+    "home.settings.other.orientations.DEFAULT",
+  [ScreenOrientation.OrientationLock.ALL]:
+    "home.settings.other.orientations.ALL",
+  [ScreenOrientation.OrientationLock.PORTRAIT]:
+    "home.settings.other.orientations.PORTRAIT",
+  [ScreenOrientation.OrientationLock.PORTRAIT_UP]:
+    "home.settings.other.orientations.PORTRAIT_UP",
+  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]:
+    "home.settings.other.orientations.PORTRAIT_DOWN",
+  [ScreenOrientation.OrientationLock.LANDSCAPE]:
+    "home.settings.other.orientations.LANDSCAPE",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]:
+    "home.settings.other.orientations.LANDSCAPE_LEFT",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]:
+    "home.settings.other.orientations.LANDSCAPE_RIGHT",
+  [ScreenOrientation.OrientationLock.OTHER]:
+    "home.settings.other.orientations.OTHER",
+  [ScreenOrientation.OrientationLock.UNKNOWN]:
+    "home.settings.other.orientations.UNKNOWN",
 };
 
 export const DownloadOptions: DownloadOption[] = [
@@ -241,12 +251,11 @@ export const useSettings = () => {
     if (!api) return;
     const settings = await api.getStreamyfinPluginConfig().then(
       ({ data }) => {
-        writeInfoLog(`Got remote settings`);
+        writeInfoLog(`Got remote settings: ${data?.settings}`);
         return data?.settings;
       },
       (err) => undefined
     );
-
     setPluginSettings(settings);
     return settings;
   }, [api]);
