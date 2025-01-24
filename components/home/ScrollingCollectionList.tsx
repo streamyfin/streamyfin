@@ -28,7 +28,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   disabled = false,
   queryFn,
   queryKey,
-  hideIfEmpty = true,
+  hideIfEmpty = false,
   ...props
 }) => {
   const { data, isLoading } = useQuery({
