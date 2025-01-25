@@ -16,9 +16,11 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo } from "react";
 import { View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const page: React.FC = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const { id: seriesId, seasonIndex } = params as {
     id: string;
@@ -85,7 +87,7 @@ const page: React.FC = () => {
             <AddToFavorites item={item} type="series" />
             <DownloadItems
               size="large"
-              title="Download Series"
+              title={t("item_card.download.download_series")}
               items={allEpisodes || []}
               MissingDownloadIconComponent={() => (
                 <Ionicons name="download" size={22} color="white" />

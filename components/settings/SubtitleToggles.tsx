@@ -7,6 +7,7 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import { useTranslation } from "react-i18next";
 import {useSettings} from "@/utils/atoms/settings";
 import {Stepper} from "@/components/inputs/Stepper";
 import Dropdown from "@/components/common/Dropdown";
@@ -18,6 +19,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const [_, __, pluginSettings] = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
+  const { t } = useTranslation();
 
   if (!settings) return null;
 
@@ -29,25 +31,33 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
     SubtitlePlaybackMode.None,
   ];
 
+  const subtitleModeKeys = {
+    [SubtitlePlaybackMode.Default]: "home.settings.subtitles.modes.Default",
+    [SubtitlePlaybackMode.Smart]: "home.settings.subtitles.modes.Smart",
+    [SubtitlePlaybackMode.OnlyForced]: "home.settings.subtitles.modes.OnlyForced",
+    [SubtitlePlaybackMode.Always]: "home.settings.subtitles.modes.Always",
+    [SubtitlePlaybackMode.None]: "home.settings.subtitles.modes.None",
+  };
+
   return (
     <View {...props}>
       <ListGroup
-        title={"Subtitles"}
+        title={t("home.settings.subtitles.subtitle_title")}
         description={
           <Text className="text-[#8E8D91] text-xs">
-            Configure subtitle preferences.
+            {t("home.settings.subtitles.subtitle_hint")}
           </Text>
         }
       >
-        <ListItem title="Subtitle language">
+        <ListItem title={t("home.settings.subtitles.subtitle_language")}>
           <Dropdown
-            data={[{DisplayName: "None", ThreeLetterISOLanguageName: "none-subs" },...(cultures ?? [])]}
+            data={[{DisplayName: t("home.settings.subtitles.none"), ThreeLetterISOLanguageName: "none-subs" },...(cultures ?? [])]}
             keyExtractor={(item) => item?.ThreeLetterISOLanguageName ?? "unknown"}
             titleExtractor={(item) => item?.DisplayName}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings?.defaultSubtitleLanguage?.DisplayName || "None"}
+                  {settings?.defaultSubtitleLanguage?.DisplayName || t("home.settings.subtitles.none")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -56,10 +66,10 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                 />
               </TouchableOpacity>
             }
-            label="Languages"
+            label={t("home.settings.subtitles.language")}
             onSelected={(defaultSubtitleLanguage) =>
               updateSettings({
-                defaultSubtitleLanguage: defaultSubtitleLanguage.DisplayName === "None"
+                defaultSubtitleLanguage: defaultSubtitleLanguage.DisplayName === t("home.settings.subtitles.none")
                   ? null
                   : defaultSubtitleLanguage
               })
@@ -68,18 +78,18 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          title="Subtitle Mode"
+          title={t("home.settings.subtitles.subtitle_mode")}
           disabled={pluginSettings?.subtitleMode?.locked}
         >
           <Dropdown
             data={subtitleModes}
             disabled={pluginSettings?.subtitleMode?.locked}
             keyExtractor={String}
-            titleExtractor={String}
+            titleExtractor={(item) => t(subtitleModeKeys[item]) || String(item)}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings?.subtitleMode || "Loading"}
+                  {t(subtitleModeKeys[settings?.subtitleMode]) || t("home.settings.subtitles.loading")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -88,7 +98,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                 />
               </TouchableOpacity>
             }
-            label="Subtitle Mode"
+            label={t("home.settings.subtitles.subtitle_mode")}
             onSelected={(subtitleMode) =>
               updateSettings({subtitleMode})
             }
@@ -96,7 +106,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          title="Set Subtitle Track From Previous Item"
+          title={t("home.settings.subtitles.set_subtitle_track")}
           disabled={pluginSettings?.rememberSubtitleSelections?.locked}
         >
           <Switch
@@ -109,7 +119,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          title="Subtitle Size"
+          title={t("home.settings.subtitles.subtitle_size")}
           disabled={pluginSettings?.subtitleSize?.locked}
         >
           <Stepper

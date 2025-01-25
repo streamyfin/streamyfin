@@ -10,6 +10,7 @@ import {MediaRequestBody} from "@/utils/jellyseerr/server/interfaces/api/request
 import {BottomSheetModalMethods} from "@gorhom/bottom-sheet/lib/typescript/types";
 import {Button} from "@/components/Button";
 import {Text} from "@/components/common/Text";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   id: number;
@@ -35,6 +36,8 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
       mediaType: type,
       userId: jellyseerrUser?.id
     });
+
+  const { t } = useTranslation();
 
   const [modalRequestProps, setModalRequestProps] = useState<MediaRequestBody>();
 
@@ -103,7 +106,7 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
   );
 
   const seasonTitle = useMemo(
-    () => modalRequestProps?.seasons?.length ? `Season (${modalRequestProps?.seasons})` : undefined,
+    () => modalRequestProps?.seasons?.length ? t("jellyseerr.season_x", {seasons: modalRequestProps?.seasons}) : undefined,
     [modalRequestProps?.seasons]
   );
 
@@ -148,7 +151,7 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
         return <BottomSheetView>
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
             <View>
-              <Text className="font-bold text-2xl text-neutral-100">Advanced</Text>
+              <Text className="font-bold text-2xl text-neutral-100">{t("jellyseerr.advanced")}</Text>
               {seasonTitle &&
                   <Text className="text-neutral-300">{seasonTitle}</Text>
               }
@@ -161,27 +164,27 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
                     titleExtractor={(item) => item.name}
                     placeholderText={defaultProfile.name}
                     keyExtractor={(item) => item.id.toString()}
-                    label={"Quality Profile"}
+                    label={t("jellyseerr.quality_profile")}
                     onSelected={(item) =>
                       item && setRequestOverrides((prev) => ({
                         ...prev,
                         profileId: item?.id
                       }))
                     }
-                    title={"Quality Profile"}
+                    title={t("jellyseerr.quality_profile")}
                   />
                   <Dropdown
                     data={defaultServiceDetails.rootFolders}
                     titleExtractor={pathTitleExtractor}
                     placeholderText={defaultFolder ? pathTitleExtractor(defaultFolder) : ""}
                     keyExtractor={(item) => item.id.toString()}
-                    label={"Root Folder"}
+                    label={t("jellyseerr.root_folder")}
                     onSelected={(item) =>
                       item && setRequestOverrides((prev) => ({
                         ...prev,
                         rootFolder: item.path
                       }))}
-                    title={"Root Folder"}
+                    title={t("jellyseerr.root_folder")}
                   />
                   <Dropdown
                     multi={true}
@@ -189,28 +192,28 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
                     titleExtractor={(item) => item.label}
                     placeholderText={defaultTags.map(t => t.label).join(",")}
                     keyExtractor={(item) => item.id.toString()}
-                    label={"Tags"}
+                    label={t("jellyseerr.tags")}
                     onSelected={(...item) =>
                       item && setRequestOverrides((prev) => ({
                         ...prev,
                         tags: item.map(i => i.id)
                       }))
                     }
-                    title={"Tags"}
+                    title={t("jellyseerr.tags")}
                   />
                   <Dropdown
                     data={users}
                     titleExtractor={(item) => item.displayName}
                     placeholderText={jellyseerrUser!!.displayName}
                     keyExtractor={(item) => item.id.toString() || ""}
-                    label={"Request As"}
+                    label={t("jellyseerr.request_as")}
                     onSelected={(item) =>
                       item && setRequestOverrides((prev) => ({
                         ...prev,
                         userId: item?.id
                       }))
                     }
-                    title={"Request As"}
+                    title={t("jellyseerr.request_as")}
                   />
                 </>
               )
@@ -221,7 +224,7 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
               onPress={request}
               color="purple"
             >
-              Request
+              {t("jellyseerr.request_button")}
             </Button>
           </View>
         </BottomSheetView>

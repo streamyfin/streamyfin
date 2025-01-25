@@ -21,12 +21,11 @@ import {
 } from "react-native";
 
 import { z } from "zod";
-
+import { t } from 'i18next';
 const CredentialsSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-});
+  username: z.string().min(1, t("login.username_required")),});
 
-const Login: React.FC = () => {
+  const Login: React.FC = () => {
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
   const [api] = useAtom(apiAtom);
@@ -80,7 +79,7 @@ const Login: React.FC = () => {
             className="flex flex-row items-center"
           >
             <Ionicons name="chevron-back" size={18} color={Colors.primary} />
-            <Text className="ml-2 text-purple-600">Change server</Text>
+            <Text className="ml-2 text-purple-600">{t("login.change_server")}</Text>
           </TouchableOpacity>
         ) : null,
     });
@@ -97,9 +96,9 @@ const Login: React.FC = () => {
       }
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert("Connection failed", error.message);
+        Alert.alert(t("login.connection_failed"), error.message);
       } else {
-        Alert.alert("Connection failed", "An unexpected error occurred");
+        Alert.alert(t("login.connection_failed"), t("login.an_unexpected_error_occured"));
       }
     } finally {
       setLoading(false);
@@ -163,14 +162,13 @@ const Login: React.FC = () => {
    *
    */
   const handleConnect = useCallback(async (url: string) => {
-    url = url.trim();
-
+    url = url.trim().replace(/\/$/, "");
     const result = await checkUrl(url);
 
     if (result === undefined) {
       Alert.alert(
-        "Connection failed",
-        "Could not connect to the server. Please check the URL and your network connection."
+        t("login.connection_failed"),
+        t("login.could_not_connect_to_server")
       );
       return;
     }
@@ -182,14 +180,14 @@ const Login: React.FC = () => {
     try {
       const code = await initiateQuickConnect();
       if (code) {
-        Alert.alert("Quick Connect", `Enter code ${code} to login`, [
+        Alert.alert(t("login.quick_connect"), t("login.enter_code_to_login", {code: code}), [
           {
-            text: "Got It",
+            text: t("login.got_it"),
           },
         ]);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to initiate Quick Connect");
+      Alert.alert(t("login.error_title"), t("login.failed_to_initiate_quick_connect"));
     }
   };
 
@@ -203,22 +201,21 @@ const Login: React.FC = () => {
             <View className="flex flex-col h-full relative items-center justify-center">
               <View className="px-4 -mt-20 w-full">
                 <View className="flex flex-col space-y-2">
-                  <Text className="text-2xl font-bold -mb-2">
-                    Log in
-                    <>
-                      {serverName ? (
-                        <>
-                          {" to "}
-                          <Text className="text-purple-600">{serverName}</Text>
-                        </>
-                      ) : null}
-                    </>
-                  </Text>
+                <Text className="text-2xl font-bold -mb-2">
+                  <>
+                    {serverName ? (
+                      <>
+                        {t("login.login_to_title") + " "}
+                        <Text className="text-purple-600">{serverName}</Text>
+                      </>
+                    ) : t("login.login_title")}
+                  </>
+                </Text>
                   <Text className="text-xs text-neutral-400">
                     {api.basePath}
                   </Text>
                   <Input
-                    placeholder="Username"
+                    placeholder={t("login.username_placeholder")}
                     onChangeText={(text) =>
                       setCredentials({ ...credentials, username: text })
                     }
@@ -234,7 +231,7 @@ const Login: React.FC = () => {
                   />
 
                   <Input
-                    placeholder="Password"
+                    placeholder={t("login.password_placeholder")}
                     onChangeText={(text) =>
                       setCredentials({ ...credentials, password: text })
                     }
@@ -253,7 +250,7 @@ const Login: React.FC = () => {
                       loading={loading}
                       className="flex-1 mr-2"
                     >
-                      Log in
+                      {t("login.login_button")}
                     </Button>
                     <TouchableOpacity
                       onPress={handleQuickConnect}
@@ -287,11 +284,11 @@ const Login: React.FC = () => {
                 />
                 <Text className="text-3xl font-bold">Streamyfin</Text>
                 <Text className="text-neutral-500">
-                  Enter the URL to your Jellyfin server
+                  {t("server.enter_url_to_jellyfin_server")}
                 </Text>
                 <Input
                   aria-label="Server URL"
-                  placeholder="http(s)://your-server.com"
+                  placeholder={t("server.server_url_placeholder")}
                   onChangeText={setServerURL}
                   value={serverURL}
                   keyboardType="url"
@@ -300,14 +297,13 @@ const Login: React.FC = () => {
                   textContentType="URL"
                   maxLength={500}
                 />
-
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
                   onPress={async () => await handleConnect(serverURL)}
                   className="w-full grow"
                 >
-                  Connect
+                  {t("server.connect_button")}
                 </Button>
                 <JellyfinServerDiscovery
                   onServerSelect={(server) => {

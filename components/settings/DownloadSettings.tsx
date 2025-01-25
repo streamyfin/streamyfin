@@ -10,6 +10,7 @@ import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export const DownloadSettings: React.FC = ({ ...props }) => {
@@ -17,6 +18,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
   const { setProcesses } = useDownload();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const allDisabled = useMemo(
     () =>
@@ -30,9 +32,9 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
 
   return (
     <DisabledSetting disabled={allDisabled} {...props} className="mb-4">
-      <ListGroup title="Downloads">
+      <ListGroup title={t("home.settings.downloads.downloads_title")}>
         <ListItem
-          title="Download method"
+          title={t("home.settings.downloads.download_method")}
           disabled={pluginSettings?.downloadMethod?.locked}
         >
           <DropdownMenu.Root>
@@ -40,8 +42,8 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
                   {settings.downloadMethod === DownloadMethod.Remux
-                    ? "Default"
-                    : "Optimized"}
+                    ? t("home.settings.downloads.default")
+                    : t("home.settings.downloads.optimized")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -59,7 +61,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
               collisionPadding={8}
               sideOffset={8}
             >
-              <DropdownMenu.Label>Methods</DropdownMenu.Label>
+              <DropdownMenu.Label>{t("home.settings.downloads.methods")}</DropdownMenu.Label>
               <DropdownMenu.Item
                 key="1"
                 onSelect={() => {
@@ -67,7 +69,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
                   setProcesses([]);
                 }}
               >
-                <DropdownMenu.ItemTitle>Default</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("home.settings.downloads.default")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 key="2"
@@ -77,14 +79,14 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
                   queryClient.invalidateQueries({ queryKey: ["search"] });
                 }}
               >
-                <DropdownMenu.ItemTitle>Optimized</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("home.settings.downloads.optimized")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </ListItem>
 
         <ListItem
-          title="Remux max download"
+          title={t("home.settings.downloads.remux_max_download")}
           disabled={
             pluginSettings?.remuxConcurrentLimit?.locked ||
             settings.downloadMethod !== DownloadMethod.Remux
@@ -104,7 +106,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          title="Auto download"
+          title={t("home.settings.downloads.auto_download")}
           disabled={
             pluginSettings?.autoDownload?.locked ||
             settings.downloadMethod !== DownloadMethod.Optimized
@@ -127,7 +129,7 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
           }
           onPress={() => router.push("/settings/optimized-server/page")}
           showArrow
-          title="Optimized Versions Server"
+          title={t("home.settings.downloads.optimized_versions_server")}
         ></ListItem>
       </ListGroup>
     </DisabledSetting>
