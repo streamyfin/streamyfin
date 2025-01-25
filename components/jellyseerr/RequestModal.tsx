@@ -122,7 +122,7 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
       },
       onRequested
     )
-  }, [requestOverrides, defaultProfile, defaultFolder, defaultTags]);
+  }, [modalRequestProps, requestOverrides, defaultProfile, defaultFolder, defaultTags]);
 
   const pathTitleExtractor = (item: RootFolder) => `${item.path} (${item.freeSpace.bytesToReadable()})`;
 
