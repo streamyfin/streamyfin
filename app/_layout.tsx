@@ -8,6 +8,7 @@ import {
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
+import { SplashScreenProvider, useSplashScreenLoading } from "@/providers/SplashScreenProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
@@ -33,7 +34,6 @@ import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
-import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useEffect, useRef } from "react";
@@ -45,8 +45,6 @@ import i18n from "@/i18n";
 import { getLocales } from "expo-localization";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-
-SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -213,27 +211,15 @@ const checkAndRequestPermissions = async () => {
 };
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
   Appearance.setColorScheme("dark");
-
-  if (!loaded) {
-    return null;
-  }
 
   return (
     <JotaiProvider>
-      <I18nextProvider i18n={i18n}>
-        <Layout />
-      </I18nextProvider>
+      <SplashScreenProvider>
+        <I18nextProvider i18n={i18n}>
+          <Layout />
+        </I18nextProvider>
+      </SplashScreenProvider>
     </JotaiProvider>
   );
 }
@@ -317,6 +303,17 @@ function Layout() {
 
   if (url) {
     const { hostname, path, queryParams } = Linking.parse(url);
+  }
+
+  const [loaded] = useFonts({
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  });
+
+  // show splash screen until everything loaded
+  useSplashScreenLoading(!loaded)
+
+  if (!loaded) {
+    return null;
   }
 
   return (
