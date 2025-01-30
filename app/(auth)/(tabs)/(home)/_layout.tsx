@@ -1,4 +1,4 @@
-import { Chromecast } from "@/components/Chromecast";
+const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
 import { Text } from "@/components/common/Text";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Feather } from "@expo/vector-icons";
