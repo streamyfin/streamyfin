@@ -3,7 +3,7 @@ import { Bitrate, BitrateSelector } from "@/components/BitrateSelector";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { PlayButton } from "@/components/PlayButton";
+const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
 import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
 import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
@@ -29,7 +29,7 @@ import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Chromecast } from "./Chromecast";
+const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
@@ -248,12 +248,13 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                   />
                 </View>
               )}
-
-              <PlayButton
-                className="grow"
-                selectedOptions={selectedOptions}
-                item={item}
-              />
+              {!Platform.isTV && (
+                <PlayButton
+                  className="grow"
+                  selectedOptions={selectedOptions}
+                  item={item}
+                />
+              )}
             </View>
 
             {item.Type === "Episode" && (

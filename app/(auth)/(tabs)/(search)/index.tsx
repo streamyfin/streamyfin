@@ -441,48 +441,6 @@ export default function search() {
                   </TouchableItemRouter>
                 )}
               />
-              <SearchItemWrapper
-                ids={artists?.map((m) => m.Id!)}
-                header="Artists"
-                renderItem={(item: BaseItemDto) => (
-                  <TouchableItemRouter
-                    item={item}
-                    key={item.Id}
-                    className="flex flex-col w-28 mr-2"
-                  >
-                    <AlbumCover id={item.Id} />
-                    <ItemCardText item={item} />
-                  </TouchableItemRouter>
-                )}
-              />
-              <SearchItemWrapper
-                ids={albums?.map((m) => m.Id!)}
-                header="Albums"
-                renderItem={(item: BaseItemDto) => (
-                  <TouchableItemRouter
-                    item={item}
-                    key={item.Id}
-                    className="flex flex-col w-28 mr-2"
-                  >
-                    <AlbumCover id={item.Id} />
-                    <ItemCardText item={item} />
-                  </TouchableItemRouter>
-                )}
-              />
-              <SearchItemWrapper
-                ids={songs?.map((m) => m.Id!)}
-                header="Songs"
-                renderItem={(item: BaseItemDto) => (
-                  <TouchableItemRouter
-                    item={item}
-                    key={item.Id}
-                    className="flex flex-col w-28 mr-2"
-                  >
-                    <AlbumCover id={item.AlbumId} />
-                    <ItemCardText item={item} />
-                  </TouchableItemRouter>
-                )}
-              />
             </>
           )}
           {searchType === "Discover" && (
