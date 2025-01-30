@@ -11,14 +11,14 @@
     "enter_code_to_login": "Introduce el código {{code}} para iniciar sesión",
     "failed_to_initiate_quick_connect": "Error al iniciar la conexión rápida",
     "got_it": "Entendido",
-    "connection_failed": "Conexción fallida",
+    "connection_failed": "Conexión fallida",
     "could_not_connect_to_server": "No se pudo conectar al servidor. Por favor comprueba la URL y tu conexión de red.",
     "an_unexpected_error_occured": "Ha ocurrido un error inesperado",
     "change_server": "Cambiar servidor",
     "invalid_username_or_password": "Usuario o contraseña inválidos",
     "user_does_not_have_permission_to_log_in": "El usuario no tiene permiso para iniciar sesión",
     "server_is_taking_too_long_to_respond_try_again_later": "El servidor está tardando mucho en responder, inténtalo de nuevo más tarde.",
-    "server_received_too_many_requests_try_again_later": "El servidor está reciviendo muchas peticiones, inténtalo de nuevo más tarde.",
+    "server_received_too_many_requests_try_again_later": "El servidor está recibiendo muchas peticiones, inténtalo de nuevo más tarde.",
     "there_is_a_server_error": "Hay un error en el servidor",
     "an_unexpected_error_occured_did_you_enter_the_correct_url":  "Ha ocurrido un error inesperado. ¿Has introducido la URL correcta?"
   },
@@ -51,7 +51,7 @@
       "features_description": "Streamyfin tiene una amplia gama de características y se integra con una variedad de software que puedes encontrar en el menú de configuración, esto incluye:",
       "jellyseerr_feature_description": "Conéctate a tu servidor de Jellyseer y pide películas directamente desde la app.",
       "downloads_feature_title": "Descargas",
-      "downloads_feature_description": "Descargar películas y series para ver sin conexión. Usa el método por defecto o el servidor optimizado para descargar archivos en segundo plano.",
+      "downloads_feature_description": "Descarga películas y series para ver sin conexión. Usa el método por defecto o el servidor optimizado para descargar archivos en segundo plano.",
       "chromecast_feature_description": "Envía pelícuas y series a tus dispositivos Chromecast.",
       "centralised_settings_plugin_title": "Plugin de configuración centralizada",
       "centralised_settings_plugin_description": "Crea configuraciones desde una ubicación centralizada en tu servidor de Jellyfin. Todas las configuraciones para todos los usuarios se sincronizarán automáticamente.",
@@ -60,7 +60,7 @@
       "read_more": "Leer más"
     },
     "settings": {
-      "settings_title": "configuración",
+      "settings_title": "Configuración",
       "log_out_button": "Cerrar sesión",
       "user_info": {
         "user_info_title": "Información de usuario",
@@ -80,7 +80,7 @@
         "authorize": "Autorizar"
       },
       "media_controls": {
-        "media_controls_title": "Controles de medios",
+        "media_controls_title": "Controles de reproducción",
         "forward_skip_length": "Longitud de avance",
         "rewind_length": "Longitud de retroceso",
         "seconds_unit": "s"
@@ -152,7 +152,7 @@
       "plugins": {
         "plugins_title": "Plugins",
         "jellyseerr": {
-          "jellyseerr_warning": "Esta integración está en sus primeras etapas. Espera que las cosas cambien.",
+          "jellyseerr_warning": "Esta integración está en sus primeras etapas. Cuenta con posibles cambios.",
           "server_url": "URL del servidor",
           "server_url_hint": "Ejemplo: http(s)://tu-dominio.url\n(añade el puerto si es necesario)",
           "server_url_placeholder": "URL de Jellyseerr...",
