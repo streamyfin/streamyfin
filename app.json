@@ -58,12 +58,6 @@
       "expo-font",
       "@config-plugins/ffmpeg-kit-react-native",
       [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ],
-      [
         "react-native-video",
         {
           "enableNotificationControls": true,
