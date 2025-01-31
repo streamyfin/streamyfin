@@ -60,7 +60,7 @@ export default function ChromecastControls({
   client,
 }: {
   mediaStatus: MediaStatus;
-  client: RemoteMediaClient | null;
+  client: RemoteMediaClient;
 }) {
   const lightHapticFeedback = useHaptic("light");
 
@@ -93,7 +93,7 @@ export default function ChromecastControls({
 
   // request update of media status every player state change
   useEffect(() => {
-    client?.requestStatus();
+    client.requestStatus();
   }, [mediaStatus.playerState]);
 
   // update progess on stream position change
@@ -169,10 +169,6 @@ export default function ChromecastControls({
 
   const goToItem = useCallback(
     async (item: BaseItemDto) => {
-      if (!client) {
-        console.warn("Failed to go to item: No remote client!");
-        return;
-      }
       if (!api) {
         console.warn("Failed to go to item: No api!");
         return;
@@ -250,18 +246,10 @@ export default function ChromecastControls({
   }, [previousItem, lightHapticFeedback]);
 
   const pause = useCallback(() => {
-    if (!client) {
-      console.error("Failed to pause: No Client!");
-      return;
-    }
     client.pause();
   }, [client]);
 
   const play = useCallback(() => {
-    if (!client) {
-      console.error("Failed to play: No Client!");
-      return;
-    }
     client.play();
   }, [client]);
 
@@ -273,7 +261,7 @@ export default function ChromecastControls({
         goToNextItem();
         return;
       }
-      client?.seek({
+      client.seek({
         position: time,
       });
     },
