@@ -21,7 +21,6 @@ export function chromecastLoadMedia({
       contentUrl,
       contentType: "video/mp4",
       customData: {
-        item,
         playbackOptions,
       },
       metadata:

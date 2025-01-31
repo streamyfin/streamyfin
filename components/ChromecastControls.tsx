@@ -48,6 +48,8 @@ import {
   getDefaultPlaySettings,
   previousIndexes,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { useQuery } from "@tanstack/react-query";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 
 const ANDROID_EXPERIMENTAL_BLUR: boolean =
   process.env.ANDROID_EXPERIMENTAL_BLUR === "true";
@@ -146,18 +148,39 @@ export default function ChromecastControls({
     [mediaMetadata?.images]
   );
 
-  const { item, playbackOptions } = useMemo(() => {
+  const { playbackOptions } = useMemo(() => {
     const mediaCustomData = mediaStatus.mediaInfo?.customData as
-      | { item: BaseItemDto; playbackOptions: SelectedOptions }
+      | { playbackOptions: SelectedOptions }
       | undefined;
 
     return (
       mediaCustomData || {
-        item: undefined,
         playbackOptions: undefined,
       }
     );
   }, [mediaStatus.mediaInfo?.customData]);
+
+  const {
+    data: item,
+    // currently nothing is indicating that item is loading, because most of the time it loads very fast
+    isLoading: isLoadingItem,
+    isError: isErrorItem,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["item", itemId],
+    queryFn: async () => {
+      if (!itemId) return;
+      const res = await getUserLibraryApi(api!).getItem({
+        itemId,
+        userId: user?.Id,
+      });
+
+      return res.data;
+    },
+    enabled: !!itemId,
+    staleTime: 0,
+  });
 
   const { previousItem, nextItem } = useAdjacentItems({
     item: {
