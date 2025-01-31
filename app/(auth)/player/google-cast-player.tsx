@@ -21,6 +21,7 @@ import { Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useHaptic } from "@/hooks/useHaptic";
 import ChromecastControls from "@/components/ChromecastControls";
+import { useTranslation } from "react-i18next";
 
 export default function Player() {
   const castState = useCastState();
@@ -35,6 +36,8 @@ export default function Player() {
   const router = useRouter();
 
   const lightHapticFeedback = useHaptic("light");
+
+  const { t } = useTranslation();
 
   useEffect(() => {
     (async () => {
@@ -65,7 +68,7 @@ export default function Player() {
           router.push("/(auth)/(home)/");
         }}
       >
-        Go Home
+        {t("chromecast.go_home")}
       </Button>
     ),
     [router]
@@ -87,9 +90,11 @@ export default function Player() {
           <AndroidCastButton />
           <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
             <Text className="text-white text-lg">
-              No Google Cast devices available.
+              {t("chromecast.no_devices_available")}
             </Text>
-            <Text className="text-gray-400">Are you on the same network?</Text>
+            <Text className="text-gray-400">
+              {t("chromecast.are_you_on_same_network")}
+            </Text>
           </View>
           <View className="px-10">
             <GoHomeButton />
@@ -113,8 +118,12 @@ export default function Player() {
             <AndroidCastButton />
             <Feather name="cast" size={42} color={"white"} />
           </RoundButton>
-          <Text className="text-white text-xl mt-2">No device selected</Text>
-          <Text className="text-gray-400">Click icon to connect.</Text>
+          <Text className="text-white text-xl mt-2">
+            {t("chromecast.no_device_selected")}
+          </Text>
+          <Text className="text-gray-400">
+            {t("chromecast.click_icon_to_connect")}
+          </Text>
         </View>
         <View className="px-10">
           <GoHomeButton />
@@ -127,7 +136,7 @@ export default function Player() {
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
         <Text className="text-white font-semibold lg mb-2">
-          Establishing connection...
+          {t("chromecast.establishing_connection")}
         </Text>
         <Loader />
       </View>
@@ -139,8 +148,10 @@ export default function Player() {
     return (
       <View className="w-screen h-screen flex flex-col ">
         <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-          <Text className="text-white text-lg">No media selected.</Text>
-          <Text className="text-gray-400">Start playing any media</Text>
+          <Text className="text-white text-lg">
+            {t("chromecast.no_media_selected")}
+          </Text>
+          <Text className="text-gray-400">{t("chromecast.start_playing")}</Text>
         </View>
         <View className="px-10">
           <GoHomeButton />

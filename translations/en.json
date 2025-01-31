@@ -20,7 +20,7 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",
     "server_received_too_many_requests_try_again_later": "Server received too many requests, try again later.",
     "there_is_a_server_error": "There is a server error",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url":  "An unexpected error occurred. Did you enter the server URL correctly?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
@@ -146,7 +146,7 @@
         "default": "Default",
         "optimized_version_hint": "Enter the URL for the optimize server. The URL should include http or https and optionally the port.",
         "read_more_about_optimized_server": "Read more about the optimize server.",
-        "url":"URL",
+        "url": "URL",
         "server_url_placeholder": "http(s)://domain.org:port"
       },
       "plugins": {
@@ -203,7 +203,7 @@
         "app_language_description": "Select the language for the app.",
         "system": "System"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Error deleting files",
         "background_downloads_enabled": "Background downloads enabled",
         "background_downloads_disabled": "Background downloads disabled",
@@ -398,7 +398,7 @@
     "for_kids": "For Kids",
     "news": "News"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Confirm",
     "cancel": "Cancel",
     "yes": "Yes",
@@ -453,5 +453,15 @@
     "library": "Library",
     "custom_links": "Custom Links",
     "favorites": "Favorites"
+  },
+  "chromecast": {
+    "no_devices_available": "No Google Cast devices available.",
+    "are_you_on_same_network": "Are you on the same network?",
+    "no_device_selected": "No device selected",
+    "click_icon_to_connect": "Click icon to connect.",
+    "establishing_connection": "Establishing connection...",
+    "no_media_selected": "No media selected.",
+    "start_playing": "Start playing any media",
+    "go_home": "Go Home"
   }
 }
