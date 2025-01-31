@@ -60,11 +60,11 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
     }
   };
 
+  const { t } = useTranslation();
+
   if (!show) {
     return null;
   }
-
-  const { t } = useTranslation();
 
   return (
     <TouchableOpacity
