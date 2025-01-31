@@ -9,8 +9,7 @@
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#2E2E2E"
+      "resizeMode": "contain"
     },
     "jsEngine": "hermes",
     "assetBundlePatterns": ["**/*"],
@@ -89,7 +88,9 @@
               "jniLibs": {
                 "useLegacyPackaging": true
               }
-            }
+            },
+            "useAndroidX": true,
+            "enableJetifier": true
           }
         }
       ],
