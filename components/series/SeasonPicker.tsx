@@ -17,7 +17,9 @@ import {
   SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { PlayedStatus } from "../PlayedStatus";
 import { useTranslation } from "react-i18next";
+
 type Props = {
   item: BaseItemDto;
   initialSeasonIndex?: number;
@@ -145,17 +147,20 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
           }}
         />
         {episodes?.length || 0 > 0 ? (
-          <DownloadItems
-            title={t("item_card.download.download_season")}
-            className="ml-2"
-            items={episodes || []}
-            MissingDownloadIconComponent={() => (
-              <Ionicons name="download" size={20} color="white" />
-            )}
-            DownloadedIconComponent={() => (
-              <Ionicons name="download" size={20} color="#9333ea" />
-            )}
-          />
+          <View className="flex flex-row items-center space-x-2">
+            <DownloadItems
+              title={t("item_card.download.download_season")}
+              className="ml-2"
+              items={episodes || []}
+              MissingDownloadIconComponent={() => (
+                <Ionicons name="download" size={20} color="white" />
+              )}
+              DownloadedIconComponent={() => (
+                <Ionicons name="download" size={20} color="#9333ea" />
+              )}
+            />
+            <PlayedStatus items={episodes || []} />
+          </View>
         ) : null}
       </View>
       <View className="px-4 flex flex-col mt-4">
