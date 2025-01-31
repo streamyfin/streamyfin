@@ -50,6 +50,9 @@ import {
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { useQuery } from "@tanstack/react-query";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { useTranslation } from "react-i18next";
+import { Colors } from "@/constants/Colors";
+import { useRouter } from "expo-router";
 
 const ANDROID_EXPERIMENTAL_BLUR: boolean =
   process.env.ANDROID_EXPERIMENTAL_BLUR === "true";
@@ -410,6 +413,46 @@ export default function ChromecastControls({
     ),
     [nextItem, max, remainingTime, goToNextItem]
   );
+
+  const { t } = useTranslation();
+  const router = useRouter();
+
+  if (isErrorItem) {
+    return (
+      <View className="w-full h-full flex flex-col items-center justify-center bg-black">
+        <View className="p-12 flex gap-4">
+          <Text className="text-center font-semibold text-red-500 text-lg">
+            {t("chromecast.error_loading_item")}
+          </Text>
+          {error && (
+            <Text className="text-center opacity-80">{error.message}</Text>
+          )}
+        </View>
+        <View className="flex gap-2 mt-auto mb-20">
+          <TouchableOpacity
+            className="flex flex-row items-center justify-center gap-2"
+            onPress={() => refetch()}
+          >
+            <Ionicons name="reload" size={24} color={Colors.primary} />
+            <Text className="ml-2 text-purple-600 text-lg">
+              {t("chromecast.retry_load_item")}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex flex-row items-center justify-center gap-2"
+            onPress={() => {
+              router.push("/(auth)/(home)/");
+            }}
+          >
+            <Ionicons name="home" size={16} color={Colors.text} />
+            <Text className="ml-2 text-white text-sm underline">
+              {t("chromecast.go_home")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View className="w-full h-full flex flex-col items-center justify-center bg-black">

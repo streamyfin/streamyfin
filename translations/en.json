@@ -462,6 +462,8 @@
     "establishing_connection": "Establishing connection...",
     "no_media_selected": "No media selected.",
     "start_playing": "Start playing any media",
-    "go_home": "Go Home"
+    "go_home": "Go Home",
+    "error_loading_item": "An unexpected error occurred while loading the media.",
+    "retry_load_item": "Retry"
   }
 }
