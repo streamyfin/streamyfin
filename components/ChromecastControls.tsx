@@ -48,6 +48,9 @@ import {
   previousIndexes,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 
+const ANDROID_EXPERIMENTAL_BLUR: boolean =
+  process.env.ANDROID_EXPERIMENTAL_BLUR === "true";
+
 export default function ChromecastControls({
   mediaStatus,
   client,
@@ -450,7 +453,9 @@ export default function ChromecastControls({
         <BlurView
           intensity={60}
           tint="dark"
-          experimentalBlurMethod="dimezisBlurView"
+          experimentalBlurMethod={
+            ANDROID_EXPERIMENTAL_BLUR ? "dimezisBlurView" : "none"
+          }
         >
           <View className="pt-6 pb-4 px-4">
             <View className="flex flex-row flex-wrap justify-between w-full pb-1">
@@ -499,7 +504,9 @@ export default function ChromecastControls({
             intensity={5}
             tint="dark"
             // blurs buttons too. not wanted
-            experimentalBlurMethod="dimezisBlurView"
+            experimentalBlurMethod={
+              ANDROID_EXPERIMENTAL_BLUR ? "dimezisBlurView" : "none"
+            }
             className="pt-1"
           >
             <View className={`flex flex-col w-full shrink px-2`}>
