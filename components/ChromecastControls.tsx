@@ -52,6 +52,9 @@ import {
 const ANDROID_EXPERIMENTAL_BLUR: boolean =
   process.env.ANDROID_EXPERIMENTAL_BLUR === "true";
 
+const BLURHASH =
+  "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
+
 export default function ChromecastControls({
   mediaStatus,
   client,
@@ -76,11 +79,17 @@ export default function ChromecastControls({
   const wasPlayingRef = useRef(false);
 
   const isSeeking = useSharedValue(false);
-  const isPlaying = mediaStatus.playerState === "playing";
-  const isBufferingOrLoading =
-    mediaStatus.playerState === null ||
-    mediaStatus.playerState === "buffering" ||
-    mediaStatus.playerState === "loading";
+  const isPlaying = useMemo(
+    () => mediaStatus.playerState === "playing",
+    [mediaStatus.playerState]
+  );
+  const isBufferingOrLoading = useMemo(
+    () =>
+      mediaStatus.playerState === null ||
+      mediaStatus.playerState === "buffering" ||
+      mediaStatus.playerState === "loading",
+    [mediaStatus.playerState]
+  );
 
   // request update of media status every player state change
   useEffect(() => {
@@ -120,63 +129,6 @@ export default function ChromecastControls({
     [updateTimes]
   );
 
-  function pause() {
-    client?.pause();
-  }
-
-  function play() {
-    client?.play();
-  }
-
-  function seek(time: number) {
-    // skip to next episode if seeking to end (for credit skipping)
-    // with 1 second room to react
-    if (nextItem && time >= max.value - 1) {
-      goToNextItem();
-      return;
-    }
-    client?.seek({
-      position: time,
-    });
-  }
-
-  function togglePlay() {
-    if (isPlaying) pause();
-    else play();
-  }
-
-  const handleSkipBackward = useCallback(async () => {
-    if (!settings?.rewindSkipTime) return;
-    wasPlayingRef.current = isPlaying;
-    lightHapticFeedback();
-    try {
-      const curr = progress.value;
-      if (curr !== undefined) {
-        const newTime = Math.max(0, curr - settings.rewindSkipTime);
-        seek(newTime);
-        if (wasPlayingRef.current === true) play();
-      }
-    } catch (error) {
-      writeToLog("ERROR", "Error seeking video backwards", error);
-    }
-  }, [settings, isPlaying]);
-
-  const handleSkipForward = useCallback(async () => {
-    if (!settings?.forwardSkipTime) return;
-    wasPlayingRef.current = isPlaying;
-    lightHapticFeedback();
-    try {
-      const curr = progress.value;
-      if (curr !== undefined) {
-        const newTime = curr + settings.forwardSkipTime;
-        seek(Math.max(0, newTime));
-        if (wasPlayingRef.current === true) play();
-      }
-    } catch (error) {
-      writeToLog("ERROR", "Error seeking video forwards", error);
-    }
-  }, [settings, isPlaying]);
-
   const { mediaMetadata, itemId } = useMemo(
     () => ({
       mediaMetadata: mediaStatus.mediaInfo?.metadata,
@@ -185,16 +137,27 @@ export default function ChromecastControls({
     [mediaStatus]
   );
 
-  const type = mediaMetadata?.type || "generic";
-  const images = mediaMetadata?.images || [];
+  const type = useMemo(
+    () => mediaMetadata?.type || "generic",
+    [mediaMetadata?.type]
+  );
+  const images = useMemo(
+    () => mediaMetadata?.images || [],
+    [mediaMetadata?.images]
+  );
 
-  const mediaCustomData = mediaStatus.mediaInfo?.customData as
-    | { item: BaseItemDto; playbackOptions: SelectedOptions }
-    | undefined;
-  const { item, playbackOptions } = mediaCustomData || {
-    item: undefined,
-    playbackOptions: undefined,
-  };
+  const { item, playbackOptions } = useMemo(() => {
+    const mediaCustomData = mediaStatus.mediaInfo?.customData as
+      | { item: BaseItemDto; playbackOptions: SelectedOptions }
+      | undefined;
+
+    return (
+      mediaCustomData || {
+        item: undefined,
+        playbackOptions: undefined,
+      }
+    );
+  }, [mediaStatus.mediaInfo?.customData]);
 
   const { previousItem, nextItem } = useAdjacentItems({
     item: {
@@ -286,6 +249,74 @@ export default function ChromecastControls({
     goToItem(previousItem);
   }, [previousItem, lightHapticFeedback]);
 
+  const pause = useCallback(() => {
+    if (!client) {
+      console.error("Failed to pause: No Client!");
+      return;
+    }
+    client.pause();
+  }, [client]);
+
+  const play = useCallback(() => {
+    if (!client) {
+      console.error("Failed to play: No Client!");
+      return;
+    }
+    client.play();
+  }, [client]);
+
+  const seek = useCallback(
+    (time: number) => {
+      // skip to next episode if seeking to end (for credit skipping)
+      // with 1 second room to react
+      if (nextItem && time >= max.value - 1) {
+        goToNextItem();
+        return;
+      }
+      client?.seek({
+        position: time,
+      });
+    },
+    [client, goToNextItem, nextItem, max]
+  );
+
+  const togglePlay = useCallback(() => {
+    if (isPlaying) pause();
+    else play();
+  }, [isPlaying, play, pause]);
+
+  const handleSkipBackward = useCallback(async () => {
+    if (!settings?.rewindSkipTime) return;
+    wasPlayingRef.current = isPlaying;
+    lightHapticFeedback();
+    try {
+      const curr = progress.value;
+      if (curr !== undefined) {
+        const newTime = Math.max(0, curr - settings.rewindSkipTime);
+        seek(newTime);
+        if (wasPlayingRef.current === true) play();
+      }
+    } catch (error) {
+      writeToLog("ERROR", "Error seeking video backwards", error);
+    }
+  }, [settings, isPlaying]);
+
+  const handleSkipForward = useCallback(async () => {
+    if (!settings?.forwardSkipTime) return;
+    wasPlayingRef.current = isPlaying;
+    lightHapticFeedback();
+    try {
+      const curr = progress.value;
+      if (curr !== undefined) {
+        const newTime = curr + settings.forwardSkipTime;
+        seek(Math.max(0, newTime));
+        if (wasPlayingRef.current === true) play();
+      }
+    } catch (error) {
+      writeToLog("ERROR", "Error seeking video forwards", error);
+    }
+  }, [settings, isPlaying]);
+
   const { showSkipButton, skipIntro } = useIntroSkipper(
     itemId,
     currentTime,
@@ -301,9 +332,6 @@ export default function ChromecastControls({
     play,
     false
   );
-
-  const blurhash =
-    "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
 
   const ItemInfo = useMemo(() => {
     switch (type) {
@@ -329,7 +357,48 @@ export default function ChromecastControls({
     [Platform.OS]
   );
 
-  const title = mediaMetadata?.title || "Title not found!";
+  const title = useMemo(
+    () => mediaMetadata?.title || "Title not found!",
+    [mediaMetadata?.title]
+  );
+
+  const TrickplaySliderMemoized = useMemo(
+    () => (
+      <TrickplaySlider
+        item={item}
+        progress={progress}
+        wasPlayingRef={wasPlayingRef}
+        isPlaying={isPlaying}
+        isSeeking={isSeeking}
+        range={{ max }}
+        play={play}
+        pause={pause}
+        seek={seek}
+      />
+    ),
+    [
+      item,
+      progress,
+      wasPlayingRef,
+      isPlaying,
+      isSeeking,
+      max,
+      play,
+      pause,
+      seek,
+    ]
+  );
+
+  const NextEpisodeButtonMemoized = useMemo(
+    () => (
+      <NextEpisodeCountDownButton
+        show={!nextItem && max.value === 0 ? false : remainingTime < 10}
+        onFinish={goToNextItem}
+        onPress={goToNextItem}
+      />
+    ),
+    [nextItem, max, remainingTime, goToNextItem]
+  );
 
   return (
     <View className="w-full h-full flex flex-col items-center justify-center bg-black">
@@ -362,7 +431,7 @@ export default function ChromecastControls({
         <Image
           className="flex h-full w-full bg-[#0553] absolute -z-50"
           source={images[0]?.url}
-          placeholder={{ blurhash }}
+          placeholder={{ blurhash: BLURHASH }}
           contentFit="cover"
           transition={1000}
         />
@@ -378,11 +447,7 @@ export default function ChromecastControls({
               onPress={skipCredit}
               buttonText="Skip Credits"
             />
-            <NextEpisodeCountDownButton
-              show={!nextItem && max.value === 0 ? false : remainingTime < 10}
-              onFinish={goToNextItem}
-              onPress={goToNextItem}
-            />
+            {NextEpisodeButtonMemoized}
           </View>
           <BlurView
             intensity={5}
@@ -394,17 +459,7 @@ export default function ChromecastControls({
             className="pt-1"
           >
             <View className={`flex flex-col w-full shrink px-2`}>
-              <TrickplaySlider
-                item={item}
-                progress={progress}
-                wasPlayingRef={wasPlayingRef}
-                isPlaying={isPlaying}
-                isSeeking={isSeeking}
-                range={{ max }}
-                play={play}
-                pause={pause}
-                seek={seek}
-              />
+              {TrickplaySliderMemoized}
               <View className="flex flex-row items-center justify-between mt-2">
                 <Text className="text-[12px] text-neutral-400">
                   {formatTimeString(currentTime, "s")}

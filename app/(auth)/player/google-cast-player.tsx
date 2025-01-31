@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -58,15 +58,23 @@ export default function Player() {
     [Platform.OS]
   );
 
-  const GoHomeButton = () => (
-    <Button
-      onPress={() => {
-        router.push("/(auth)/(home)/");
-      }}
-    >
-      Go Home
-    </Button>
+  const GoHomeButton = useCallback(
+    () => (
+      <Button
+        onPress={() => {
+          router.push("/(auth)/(home)/");
+        }}
+      >
+        Go Home
+      </Button>
+    ),
+    [router]
   );
+
+  const ChromecastControlsMemoized = useMemo(() => {
+    if (!mediaStatus || !client) return undefined;
+    return <ChromecastControls mediaStatus={mediaStatus} client={client} />;
+  }, [mediaStatus, client]);
 
   if (
     castState === CastState.NO_DEVICES_AVAILABLE ||
@@ -141,5 +149,5 @@ export default function Player() {
     );
   }
 
-  return <ChromecastControls mediaStatus={mediaStatus} client={client} />;
+  return ChromecastControlsMemoized;
 }
