@@ -6610,10 +6610,10 @@ react-native-helmet-async@2.0.4:
     react-fast-compare "^3.2.2"
     shallowequal "^1.1.0"
 
-react-native-image-colors@^1.3.1:
-  version "1.5.2"
-  resolved "https://registry.yarnpkg.com/react-native-image-colors/-/react-native-image-colors-1.5.2.tgz#b3aaa42fb5c57c0accaa6922b8412f1a68b315f9"
-  integrity sha512-yGsxwjQZFL5fthNc/F8//sSH1WZtC0OmxN7HQhXE1gSH0ApldOMkl5njTTMnWSUT/t1iCCBZrANSj3gnw1UaOg==
+react-native-image-colors@^2.4.0:
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/react-native-image-colors/-/react-native-image-colors-2.4.0.tgz#6af1d5fe0e994331de789c1fa33788971f755aec"
+  integrity sha512-qlC31+UNVthByNLVuYSEQeZghOXn3uy1GLF6lHKlvT1HM1GGFH/LXNhU8iXAoQvUyzNa1bEAOTo09Hwinvp/rA==
   dependencies:
     node-vibrant "3.1.6"
 
