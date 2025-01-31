@@ -212,7 +212,6 @@ export default function ChromecastControls({
       } = getDefaultPlaySettings(item, settings, previousIndexes, undefined);
 
       // Get a new URL with the Chromecast device profile:
-      // TODO this function does not finish somehow. don't know what is wrong as there are no errors :/
       const data = await getStreamUrl({
         api,
         item,
@@ -220,7 +219,7 @@ export default function ChromecastControls({
         startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
         userId: user?.Id,
         audioStreamIndex: defaultAudioIndex,
-        // maxStreamingBitrate: playbackOptions.bitrate?.value,
+        // maxStreamingBitrate: playbackOptions.bitrate?.value,   // TODO handle bitrate limit
         subtitleStreamIndex: defaultSubtitleIndex,
         mediaSourceId: mediaSource?.Id,
       });
@@ -673,7 +672,6 @@ function TrickplaySlider({
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const handleSliderChange = useCallback(
     debounce((value: number) => {
-      // TODO check if something must be done here
       calculateTrickplayUrl(secondsToTicks(value));
       const progressInSeconds = Math.floor(value);
       const hours = Math.floor(progressInSeconds / 3600);
