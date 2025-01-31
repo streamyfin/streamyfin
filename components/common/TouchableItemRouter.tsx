@@ -57,7 +57,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const router = useRouter();
   const segments = useSegments();
   const { showActionSheetWithOptions } = useActionSheet();
-  const markAsPlayedStatus = useMarkAsPlayed(item);
+  const markAsPlayedStatus = useMarkAsPlayed([item]);
 
   const from = segments[2];
 
