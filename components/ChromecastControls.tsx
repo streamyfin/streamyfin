@@ -19,6 +19,7 @@ import { Image } from "expo-image";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
+  SharedValue,
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
@@ -58,28 +59,23 @@ export default function ChromecastControls({
   mediaStatus: MediaStatus;
   client: RemoteMediaClient | null;
 }) {
+  const lightHapticFeedback = useHaptic("light");
+
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
-  const lightHapticFeedback = useHaptic("light");
-
-  const streamPosition = useStreamPosition();
-
   const [settings] = useSettings();
-
-  const [isSliding, setIsSliding] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(Infinity);
-
-  const min = useSharedValue(0);
   const max = useSharedValue(mediaStatus.mediaInfo?.streamDuration || 0);
+
+  const streamPosition = useStreamPosition();
   const progress = useSharedValue(streamPosition || 0);
-  const isSeeking = useSharedValue(false);
 
   const wasPlayingRef = useRef(false);
-  const lastProgressRef = useRef<number>(0);
 
+  const isSeeking = useSharedValue(false);
   const isPlaying = mediaStatus.playerState === "playing";
   const isBufferingOrLoading =
     mediaStatus.playerState === null ||
@@ -149,38 +145,6 @@ export default function ChromecastControls({
     else play();
   }
 
-  const handleSliderStart = useCallback(() => {
-    setIsSliding(true);
-    wasPlayingRef.current = isPlaying;
-    lastProgressRef.current = progress.value;
-
-    pause();
-    isSeeking.value = true;
-  }, [isPlaying]);
-
-  const handleSliderComplete = useCallback(async (value: number) => {
-    isSeeking.value = false;
-    progress.value = value;
-    setIsSliding(false);
-
-    seek(Math.max(0, Math.floor(value)));
-    if (wasPlayingRef.current === true) play();
-  }, []);
-
-  const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const handleSliderChange = useCallback(
-    debounce((value: number) => {
-      // TODO check if something must be done here
-      calculateTrickplayUrl(secondsToTicks(value));
-      const progressInSeconds = Math.floor(value);
-      const hours = Math.floor(progressInSeconds / 3600);
-      const minutes = Math.floor((progressInSeconds % 3600) / 60);
-      const seconds = progressInSeconds % 60;
-      setTime({ hours, minutes, seconds });
-    }, 3),
-    []
-  );
-
   const handleSkipBackward = useCallback(async () => {
     if (!settings?.rewindSkipTime) return;
     wasPlayingRef.current = isPlaying;
@@ -239,24 +203,6 @@ export default function ChromecastControls({
       Type: item?.Type,
     },
   });
-
-  const {
-    trickPlayUrl,
-    calculateTrickplayUrl,
-    trickplayInfo,
-    prefetchAllTrickplayImages,
-  } = useTrickplay(
-    {
-      Id: itemId,
-      RunTimeTicks: secondsToTicks(progress.value),
-      Trickplay: item?.Trickplay,
-    },
-    true
-  );
-
-  useEffect(() => {
-    prefetchAllTrickplayImages();
-  }, []);
 
   const goToItem = useCallback(
     async (item: BaseItemDto) => {
@@ -356,68 +302,6 @@ export default function ChromecastControls({
     false
   );
 
-  const memoizedRenderBubble = useCallback(() => {
-    if (!trickPlayUrl || !trickplayInfo) {
-      return null;
-    }
-    const { x, y, url } = trickPlayUrl;
-    const tileWidth = 150;
-    const tileHeight = 150 / trickplayInfo.aspectRatio!;
-
-    return (
-      <View
-        style={{
-          position: "absolute",
-          left: -62,
-          bottom: 0,
-          paddingTop: 30,
-          paddingBottom: 5,
-          width: tileWidth * 1.5,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <View
-          style={{
-            width: tileWidth,
-            height: tileHeight,
-            alignSelf: "center",
-            transform: [{ scale: 1.4 }],
-            borderRadius: 5,
-          }}
-          className="bg-neutral-800 overflow-hidden"
-        >
-          <Image
-            cachePolicy={"memory-disk"}
-            style={{
-              width: 150 * trickplayInfo?.data.TileWidth!,
-              height:
-                (150 / trickplayInfo.aspectRatio!) *
-                trickplayInfo?.data.TileHeight!,
-              transform: [
-                { translateX: -x * tileWidth },
-                { translateY: -y * tileHeight },
-              ],
-              resizeMode: "cover",
-            }}
-            source={{ uri: url }}
-            contentFit="cover"
-          />
-        </View>
-        <Text
-          style={{
-            marginTop: 30,
-            fontSize: 16,
-          }}
-        >
-          {`${time.hours > 0 ? `${time.hours}:` : ""}${
-            time.minutes < 10 ? `0${time.minutes}` : time.minutes
-          }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
-        </Text>
-      </View>
-    );
-  }, [trickPlayUrl, trickplayInfo, time]);
-
   const blurhash =
     "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
 
@@ -510,28 +394,16 @@ export default function ChromecastControls({
             className="pt-1"
           >
             <View className={`flex flex-col w-full shrink px-2`}>
-              <Slider
-                theme={{
-                  maximumTrackTintColor: "rgba(255,255,255,0.2)",
-                  minimumTrackTintColor: "#fff",
-                  cacheTrackTintColor: "rgba(255,255,255,0.3)",
-                  bubbleBackgroundColor: "#fff",
-                  bubbleTextColor: "#666",
-                  heartbeatColor: "#999",
-                }}
-                renderThumb={() => null}
-                onSlidingStart={handleSliderStart}
-                onSlidingComplete={handleSliderComplete}
-                onValueChange={handleSliderChange}
-                containerStyle={{
-                  borderRadius: 100,
-                }}
-                renderBubble={() => isSliding && memoizedRenderBubble()}
-                sliderHeight={10}
-                thumbWidth={0}
+              <TrickplaySlider
+                item={item}
                 progress={progress}
-                minimumValue={min}
-                maximumValue={max}
+                wasPlayingRef={wasPlayingRef}
+                isPlaying={isPlaying}
+                isSeeking={isSeeking}
+                range={{ max }}
+                play={play}
+                pause={pause}
+                seek={seek}
               />
               <View className="flex flex-row items-center justify-between mt-2">
                 <Text className="text-[12px] text-neutral-400">
@@ -622,5 +494,172 @@ function TvShowInfo({
         {`${seriesTitle} - ${item?.SeasonName} Episode ${item?.IndexNumber}`}
       </Text>
     </>
+  );
+}
+
+type TrickplaySliderProps = {
+  item?: BaseItemDto;
+  progress: SharedValue<number>;
+  wasPlayingRef: React.MutableRefObject<boolean>;
+  isPlaying: boolean;
+  isSeeking: SharedValue<boolean>;
+  range: { min?: SharedValue<number>; max: SharedValue<number> };
+  play: () => void;
+  pause: () => void;
+  seek: (time: number) => void;
+};
+
+function TrickplaySlider({
+  item,
+  progress,
+  wasPlayingRef,
+  isPlaying,
+  isSeeking,
+  range,
+  play,
+  pause,
+  seek,
+}: TrickplaySliderProps) {
+  const [isSliding, setIsSliding] = useState(false);
+  const lastProgressRef = useRef<number>(0);
+
+  const min = useSharedValue(range.min?.value || 0);
+
+  const {
+    trickPlayUrl,
+    calculateTrickplayUrl,
+    trickplayInfo,
+    prefetchAllTrickplayImages,
+  } = useTrickplay(
+    {
+      Id: item?.Id,
+      RunTimeTicks: secondsToTicks(progress.value),
+      Trickplay: item?.Trickplay,
+    },
+    true
+  );
+
+  useEffect(() => {
+    prefetchAllTrickplayImages();
+  }, []);
+
+  const handleSliderStart = useCallback(() => {
+    setIsSliding(true);
+    wasPlayingRef.current = isPlaying;
+    lastProgressRef.current = progress.value;
+
+    pause();
+    isSeeking.value = true;
+  }, [isPlaying]);
+
+  const handleSliderComplete = useCallback(async (value: number) => {
+    isSeeking.value = false;
+    progress.value = value;
+    setIsSliding(false);
+
+    seek(Math.max(0, Math.floor(value)));
+    if (wasPlayingRef.current === true) play();
+  }, []);
+
+  const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const handleSliderChange = useCallback(
+    debounce((value: number) => {
+      // TODO check if something must be done here
+      calculateTrickplayUrl(secondsToTicks(value));
+      const progressInSeconds = Math.floor(value);
+      const hours = Math.floor(progressInSeconds / 3600);
+      const minutes = Math.floor((progressInSeconds % 3600) / 60);
+      const seconds = progressInSeconds % 60;
+      setTime({ hours, minutes, seconds });
+    }, 3),
+    []
+  );
+
+  const memoizedRenderBubble = useCallback(() => {
+    if (!trickPlayUrl || !trickplayInfo) {
+      return null;
+    }
+    const { x, y, url } = trickPlayUrl;
+    const tileWidth = 150;
+    const tileHeight = 150 / trickplayInfo.aspectRatio!;
+
+    return (
+      <View
+        style={{
+          position: "absolute",
+          left: -62,
+          bottom: 0,
+          paddingTop: 30,
+          paddingBottom: 5,
+          width: tileWidth * 1.5,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <View
+          style={{
+            width: tileWidth,
+            height: tileHeight,
+            alignSelf: "center",
+            transform: [{ scale: 1.4 }],
+            borderRadius: 5,
+          }}
+          className="bg-neutral-800 overflow-hidden"
+        >
+          <Image
+            cachePolicy={"memory-disk"}
+            style={{
+              width: 150 * trickplayInfo?.data.TileWidth!,
+              height:
+                (150 / trickplayInfo.aspectRatio!) *
+                trickplayInfo?.data.TileHeight!,
+              transform: [
+                { translateX: -x * tileWidth },
+                { translateY: -y * tileHeight },
+              ],
+              resizeMode: "cover",
+            }}
+            source={{ uri: url }}
+            contentFit="cover"
+          />
+        </View>
+        <Text
+          style={{
+            marginTop: 30,
+            fontSize: 16,
+          }}
+        >
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${
+            time.minutes < 10 ? `0${time.minutes}` : time.minutes
+          }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
+        </Text>
+      </View>
+    );
+  }, [trickPlayUrl, trickplayInfo, time]);
+
+  return (
+    <Slider
+      theme={{
+        maximumTrackTintColor: "rgba(255,255,255,0.2)",
+        minimumTrackTintColor: "#fff",
+        cacheTrackTintColor: "rgba(255,255,255,0.3)",
+        bubbleBackgroundColor: "#fff",
+        bubbleTextColor: "#666",
+        heartbeatColor: "#999",
+      }}
+      renderThumb={() => null}
+      onSlidingStart={handleSliderStart}
+      onSlidingComplete={handleSliderComplete}
+      onValueChange={handleSliderChange}
+      containerStyle={{
+        borderRadius: 100,
+      }}
+      renderBubble={() => isSliding && memoizedRenderBubble()}
+      sliderHeight={10}
+      thumbWidth={0}
+      progress={progress}
+      minimumValue={min}
+      maximumValue={range.max}
+    />
   );
 }
