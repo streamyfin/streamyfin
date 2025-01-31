@@ -1,6 +1,7 @@
 import { SelectedOptions } from "@/components/ItemContent";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { RemoteMediaClient, WebImage } from "react-native-google-cast";
+import { ticksToSeconds } from "./time";
 
 export function chromecastLoadMedia({
   client,
@@ -47,6 +48,6 @@ export function chromecastLoadMedia({
               images,
             },
     },
-    startTime: 0,
+    startTime: ticksToSeconds(item.UserData?.PlaybackPositionTicks) || 0,
   });
 }
