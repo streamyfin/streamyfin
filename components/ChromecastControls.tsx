@@ -380,7 +380,7 @@ export default function ChromecastControls({
   const NextEpisodeButtonMemoized = useMemo(
     () => (
       <NextEpisodeCountDownButton
-        show={!nextItem && max.value === 0 ? false : remainingTime < 10}
+        show={nextItem !== null && max.value > 0 && remainingTime < 10}
         onFinish={goToNextItem}
         onPress={goToNextItem}
       />
