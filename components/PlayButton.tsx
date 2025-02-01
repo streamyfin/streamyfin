@@ -145,6 +145,8 @@ export const PlayButton: React.FC<Props> = ({
                   client,
                   item,
                   contentUrl: data.url,
+                  sessionId: data.sessionId || undefined,
+                  mediaSourceId: data.mediaSource?.Id || undefined,
                   playbackOptions: selectedOptions,
                   images: [
                     {

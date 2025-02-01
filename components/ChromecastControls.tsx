@@ -151,14 +151,20 @@ export default function ChromecastControls({
     [mediaMetadata?.images]
   );
 
-  const { playbackOptions } = useMemo(() => {
+  const { playbackOptions, sessionId, mediaSourceId } = useMemo(() => {
     const mediaCustomData = mediaStatus.mediaInfo?.customData as
-      | { playbackOptions: SelectedOptions }
+      | {
+          playbackOptions: SelectedOptions;
+          sessionId?: string;
+          mediaSourceId?: string;
+        }
       | undefined;
 
     return (
       mediaCustomData || {
         playbackOptions: undefined,
+        sessionId: undefined,
+        mediaSourceId: undefined,
       }
     );
   }, [mediaStatus.mediaInfo?.customData]);
@@ -234,6 +240,8 @@ export default function ChromecastControls({
         client,
         item,
         contentUrl: data.url,
+        sessionId: data.sessionId || undefined,
+        mediaSourceId: data.mediaSource?.Id || undefined,
         playbackOptions,
         images: [
           {
