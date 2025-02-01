@@ -170,7 +170,7 @@
           "unlimited": "Unlimitiert"
         },
         "marlin_search": {
-          "enable_marlin_search": "Aktiviere Marlin Search ",
+          "enable_marlin_search": "Aktiviere Marlin Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://domain.org:port",
           "marlin_search_hint": "Gib die URL für den Marlin Server ein. Die URL sollte http oder https enthalten und optional den Port.",
@@ -315,7 +315,7 @@
       "poster": "Poster",
       "cover": "Cover",
       "show_titles": "Titel anzeigen",
-      "show_stats": "Showstatistiken anzeigen"
+      "show_stats": "Statistiken anzeigen"
     },
     "filters": {
       "genres": "Genres",
