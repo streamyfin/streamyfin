@@ -8,7 +8,7 @@ import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { HomeSectionStyle, useSettings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Api } from "@jellyfin/sdk";
 import {
@@ -36,7 +36,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useSplashScreenLoading, useSplashScreenVisible } from "@/providers/SplashScreenProvider";
+import {
+  useSplashScreenLoading,
+  useSplashScreenVisible,
+} from "@/providers/SplashScreenProvider";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -148,8 +151,8 @@ export default function index() {
   });
 
   // show splash screen until query loaded
-  useSplashScreenLoading(l1)
-  const splashScreenVisible = useSplashScreenVisible()
+  useSplashScreenLoading(l1);
+  const splashScreenVisible = useSplashScreenVisible();
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
@@ -313,6 +316,7 @@ export default function index() {
       const ss: Section[] = [];
 
       for (const key in settings.home?.sections) {
+        // @ts-expect-error
         const section = settings.home?.sections[key];
         const id = section.title || key;
         ss.push({
