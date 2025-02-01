@@ -1,12 +1,14 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
+import de from "./translations/de.json";
 import en from "./translations/en.json";
 import fr from "./translations/fr.json";
 import sv from "./translations/sv.json";
 import { getLocales } from "expo-localization";
 
 export const APP_LANGUAGES = [
+  { label: "Deutsch", value: "de" },
   { label: "English", value: "en" },
   { label: "Français", value: "fr" },
   { label: "Svenska", value: "sv" },
@@ -15,6 +17,7 @@ export const APP_LANGUAGES = [
 i18n.use(initReactI18next).init({
   compatibilityJSON: "v4",
   resources: {
+    de: { translation: de },
     en: { translation: en },
     fr: { translation: fr },
     sv: { translation: sv },
