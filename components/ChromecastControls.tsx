@@ -49,7 +49,10 @@ import {
   previousIndexes,
 } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { useQuery } from "@tanstack/react-query";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getPlaystateApi,
+  getUserLibraryApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { useTranslation } from "react-i18next";
 import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
@@ -63,9 +66,13 @@ const BLURHASH =
 export default function ChromecastControls({
   mediaStatus,
   client,
+  setWasMediaPlaying,
+  reportPlaybackStopedRef,
 }: {
   mediaStatus: MediaStatus;
   client: RemoteMediaClient;
+  setWasMediaPlaying: (wasPlaying: boolean) => void;
+  reportPlaybackStopedRef: React.MutableRefObject<() => void>;
 }) {
   const lightHapticFeedback = useHaptic("light");
 
@@ -101,11 +108,6 @@ export default function ChromecastControls({
     client.requestStatus();
   }, [mediaStatus.playerState]);
 
-  // update progess on stream position change
-  useEffect(() => {
-    if (streamPosition) progress.value = streamPosition;
-  }, [streamPosition]);
-
   // update max progress
   useEffect(() => {
     if (mediaStatus.mediaInfo?.streamDuration)
@@ -134,10 +136,11 @@ export default function ChromecastControls({
     [updateTimes]
   );
 
-  const { mediaMetadata, itemId } = useMemo(
+  const { mediaMetadata, itemId, streamURL } = useMemo(
     () => ({
       mediaMetadata: mediaStatus.mediaInfo?.metadata,
       itemId: mediaStatus.mediaInfo?.contentId,
+      streamURL: mediaStatus.mediaInfo?.contentUrl,
     }),
     [mediaStatus]
   );
@@ -190,6 +193,73 @@ export default function ChromecastControls({
     enabled: !!itemId,
     staleTime: 0,
   });
+
+  const onProgress = useCallback(
+    async (progressInTicks: number, isPlaying: boolean) => {
+      if (!item?.Id || !streamURL) return;
+
+      await getPlaystateApi(api!).onPlaybackProgress({
+        itemId: item.Id,
+        audioStreamIndex: playbackOptions?.audioIndex,
+        subtitleStreamIndex: playbackOptions?.subtitleIndex,
+        mediaSourceId,
+        positionTicks: Math.floor(progressInTicks),
+        isPaused: !isPlaying,
+        playMethod: streamURL.includes("m3u8") ? "Transcode" : "DirectStream",
+        playSessionId: sessionId,
+      });
+    },
+    [api, item, playbackOptions, mediaSourceId, streamURL, sessionId]
+  );
+
+  // update progess on stream position change
+  useEffect(() => {
+    if (streamPosition) {
+      progress.value = streamPosition;
+      onProgress(secondsToTicks(streamPosition), isPlaying);
+    }
+  }, [streamPosition, isPlaying]);
+
+  const reportPlaybackStart = useCallback(async () => {
+    if (!streamURL) return;
+
+    await getPlaystateApi(api!).onPlaybackStart({
+      itemId: item?.Id!,
+      audioStreamIndex: playbackOptions?.audioIndex,
+      subtitleStreamIndex: playbackOptions?.subtitleIndex,
+      mediaSourceId,
+      playMethod: streamURL.includes("m3u8") ? "Transcode" : "DirectStream",
+      playSessionId: sessionId,
+    });
+  }, [api, item, playbackOptions, mediaSourceId, streamURL, sessionId]);
+
+  // report playback started
+  useEffect(() => {
+    setWasMediaPlaying(true);
+    reportPlaybackStart();
+  }, [reportPlaybackStart]);
+
+  // update the reportPlaybackStoppedRef
+  useEffect(() => {
+    reportPlaybackStopedRef.current = async () => {
+      if (!streamURL) return;
+
+      await getPlaystateApi(api!).onPlaybackStopped({
+        itemId: item?.Id!,
+        mediaSourceId,
+        positionTicks: secondsToTicks(progress.value),
+        playSessionId: sessionId,
+      });
+    };
+  }, [
+    api,
+    item,
+    playbackOptions,
+    progress,
+    mediaSourceId,
+    streamURL,
+    sessionId,
+  ]);
 
   const { previousItem, nextItem } = useAdjacentItems({
     item: {
