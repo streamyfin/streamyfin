@@ -464,7 +464,7 @@ export default function ChromecastControls({
           }
         >
           <View className="pt-6 pb-4 px-4">
-            <View className="flex flex-row flex-wrap justify-between w-full pb-1">
+            <View className="flex flex-row flex-wrap-reverse justify-between w-full pb-1">
               <Text className="text-white font-bold text-3xl">{title}</Text>
               <RoundButton
                 size="large"
@@ -503,7 +503,7 @@ export default function ChromecastControls({
             {NextEpisodeButtonMemoized}
           </View>
           <BlurView
-            intensity={5}
+            intensity={ANDROID_EXPERIMENTAL_BLUR ? 5 : 70}
             tint="dark"
             // blurs buttons too. not wanted
             experimentalBlurMethod={
