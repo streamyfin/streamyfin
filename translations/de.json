@@ -81,8 +81,8 @@
       },
       "media_controls": {
         "media_controls_title": "Mediensteuerung",
-        "forward_skip_length": "Vorwärts überspringen Länge",
-        "rewind_length": "Zurückspulen Länge",
+        "forward_skip_length": "Vorspulzeit",
+        "rewind_length": "Rückspulzeit",
         "seconds_unit": "s"
       },
       "audio": {
