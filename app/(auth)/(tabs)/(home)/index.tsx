@@ -8,7 +8,7 @@ import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { HomeSectionStyle, useSettings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Api } from "@jellyfin/sdk";
 import {
@@ -36,6 +36,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  useSplashScreenLoading,
+  useSplashScreenVisible,
+} from "@/providers/SplashScreenProvider";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -146,6 +150,10 @@ export default function index() {
     staleTime: 60 * 1000,
   });
 
+  // show splash screen until query loaded
+  useSplashScreenLoading(l1);
+  const splashScreenVisible = useSplashScreenVisible();
+
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
     [data, settings?.hiddenLibraries]
@@ -207,7 +215,7 @@ export default function index() {
       const latestMediaViews = collections.map((c) => {
         const includeItemTypes: BaseItemKind[] =
           c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-        const title = t("home.recently_added_in", {libraryName: c.Name});
+        const title = t("home.recently_added_in", { libraryName: c.Name });
         const queryKey = [
           "home",
           "recentlyAddedIn" + c.CollectionType,
@@ -308,6 +316,7 @@ export default function index() {
       const ss: Section[] = [];
 
       for (const key in settings.home?.sections) {
+        // @ts-expect-error
         const section = settings.home?.sections[key];
         const id = section.title || key;
         ss.push({
@@ -352,7 +361,7 @@ export default function index() {
       <View className="flex flex-col items-center justify-center h-full -mt-6 px-8">
         <Text className="text-3xl font-bold mb-2">{t("home.no_internet")}</Text>
         <Text className="text-center opacity-70">
-        {t("home.no_internet_message")}
+          {t("home.no_internet_message")}
         </Text>
         <View className="mt-4">
           <Button
@@ -393,11 +402,15 @@ export default function index() {
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
         <Text className="text-3xl font-bold mb-2">{t("home.oops")}</Text>
-        <Text className="text-center opacity-70">{t("home.error_message")}</Text>
+        <Text className="text-center opacity-70">
+          {t("home.error_message")}
+        </Text>
       </View>
     );
 
-  if (l1)
+  // this spinner should only show up, when user navigates here
+  // on launch the splash screen is used for loading
+  if (l1 && !splashScreenVisible)
     return (
       <View className="justify-center items-center h-full">
         <Loader />
@@ -429,6 +442,7 @@ export default function index() {
                 queryKey={section.queryKey}
                 queryFn={section.queryFn}
                 orientation={section.orientation}
+                hideIfEmpty
               />
             );
           } else if (section.type === "MediaListSection") {

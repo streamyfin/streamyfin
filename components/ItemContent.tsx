@@ -90,7 +90,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
               {item.Type !== "Program" && (
                 <View className="flex flex-row items-center space-x-2">
                   <DownloadSingleItem item={item} size="large" />
-                  <PlayedStatus item={item} />
+                  <PlayedStatus items={[item]} size="large" />
                   <AddToFavorites item={item} type="item" />
                 </View>
               )}

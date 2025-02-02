@@ -1,5 +1,5 @@
 import "@/augmentations";
-import { Text } from "@/components/common/Text";
+import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
   getOrSetDeviceId,
@@ -8,8 +8,11 @@ import {
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
+import {
+  SplashScreenProvider,
+  useSplashScreenLoading,
+} from "@/providers/SplashScreenProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
-import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
 import { LogProvider, writeToLog } from "@/utils/log";
@@ -29,24 +32,19 @@ import * as BackgroundFetch from "expo-background-fetch";
 import * as FileSystem from "expo-file-system";
 import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
-import * as Linking from "expo-linking";
+import { getLocales } from "expo-localization";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
-import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
-import { Provider as JotaiProvider, useAtom } from "jotai";
+import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef } from "react";
-import { Appearance, AppState, TouchableOpacity } from "react-native";
+import { I18nextProvider, useTranslation } from "react-i18next";
+import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { I18nextProvider, useTranslation } from "react-i18next";
-import i18n from "@/i18n";
-import { getLocales } from "expo-localization";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-
-SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -213,28 +211,20 @@ const checkAndRequestPermissions = async () => {
 };
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
   Appearance.setColorScheme("dark");
 
-  if (!loaded) {
-    return null;
-  }
-
   return (
-    <JotaiProvider>
-      <I18nextProvider i18n={i18n}>
-        <Layout />
-      </I18nextProvider>
-    </JotaiProvider>
+    <SplashScreenProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <JotaiProvider>
+          <ActionSheetProvider>
+            <I18nextProvider i18n={i18n}>
+              <Layout />
+            </I18nextProvider>
+          </ActionSheetProvider>
+        </JotaiProvider>
+      </GestureHandlerRootView>
+    </SplashScreenProvider>
   );
 }
 
@@ -251,8 +241,7 @@ const queryClient = new QueryClient({
 });
 
 function Layout() {
-  const [settings, updateSettings] = useSettings();
-  const [orientation, setOrientation] = useAtom(orientationAtom);
+  const [settings] = useSettings();
 
   useKeepAwake();
   useNotificationObserver();
@@ -297,93 +286,77 @@ function Layout() {
     };
   }, []);
 
-  useEffect(() => {
-    const subscription = ScreenOrientation.addOrientationChangeListener(
-      (event) => {
-        setOrientation(event.orientationInfo.orientation);
-      }
-    );
+  const [loaded] = useFonts({
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  });
 
-    ScreenOrientation.getOrientationAsync().then((initialOrientation) => {
-      setOrientation(initialOrientation);
-    });
+  useSplashScreenLoading(!loaded);
 
-    return () => {
-      ScreenOrientation.removeOrientationChangeListener(subscription);
-    };
-  }, []);
-
-  const url = Linking.useURL();
-
-  if (url) {
-    const { hostname, path, queryParams } = Linking.parse(url);
+  if (!loaded) {
+    return null;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <ActionSheetProvider>
-          <JobQueueProvider>
-            <JellyfinProvider>
-              <PlaySettingsProvider>
-                <LogProvider>
-                  <WebSocketProvider>
-                    <DownloadProvider>
-                      <BottomSheetModalProvider>
-                        <SystemBars style="light" hidden={false} />
-                        <ThemeProvider value={DarkTheme}>
-                          <Stack initialRouteName="/home">
-                            <Stack.Screen
-                              name="(auth)/(tabs)"
-                              options={{
-                                headerShown: false,
-                                title: "",
-                                header: () => null,
-                              }}
-                            />
-                            <Stack.Screen
-                              name="(auth)/player"
-                              options={{
-                                headerShown: false,
-                                title: "",
-                                header: () => null,
-                              }}
-                            />
-                            <Stack.Screen
-                              name="login"
-                              options={{
-                                headerShown: true,
-                                title: "",
-                                headerTransparent: true,
-                              }}
-                            />
-                            <Stack.Screen name="+not-found" />
-                          </Stack>
-                          <Toaster
-                            duration={4000}
-                            toastOptions={{
-                              style: {
-                                backgroundColor: "#262626",
-                                borderColor: "#363639",
-                                borderWidth: 1,
-                              },
-                              titleStyle: {
-                                color: "white",
-                              },
-                            }}
-                            closeButton
-                          />
-                        </ThemeProvider>
-                      </BottomSheetModalProvider>
-                    </DownloadProvider>
-                  </WebSocketProvider>
-                </LogProvider>
-              </PlaySettingsProvider>
-            </JellyfinProvider>
-          </JobQueueProvider>
-        </ActionSheetProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <QueryClientProvider client={queryClient}>
+      <JobQueueProvider>
+        <JellyfinProvider>
+          <PlaySettingsProvider>
+            <LogProvider>
+              <WebSocketProvider>
+                <DownloadProvider>
+                  <BottomSheetModalProvider>
+                    <SystemBars style="light" hidden={false} />
+                    <ThemeProvider value={DarkTheme}>
+                      <Stack>
+                        <Stack.Screen
+                          name="(auth)/(tabs)"
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="(auth)/player"
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="login"
+                          options={{
+                            headerShown: true,
+                            title: "",
+                            headerTransparent: true,
+                          }}
+                        />
+                        <Stack.Screen name="+not-found" />
+                      </Stack>
+                      <Toaster
+                        duration={4000}
+                        toastOptions={{
+                          style: {
+                            backgroundColor: "#262626",
+                            borderColor: "#363639",
+                            borderWidth: 1,
+                          },
+                          titleStyle: {
+                            color: "white",
+                          },
+                        }}
+                        closeButton
+                      />
+                    </ThemeProvider>
+                  </BottomSheetModalProvider>
+                </DownloadProvider>
+              </WebSocketProvider>
+            </LogProvider>
+          </PlaySettingsProvider>
+        </JellyfinProvider>
+      </JobQueueProvider>
+    </QueryClientProvider>
   );
 }
 
