@@ -20,7 +20,7 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",
     "server_received_too_many_requests_try_again_later": "Server received too many requests, try again later.",
     "there_is_a_server_error": "There is a server error",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url":  "An unexpected error occurred. Did you enter the server URL correctly?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
@@ -184,7 +184,7 @@
       "storage": {
         "storage_title": "Storage",
         "app_usage": "App {{usedSpace}}%",
-        "phone_usage": "Phone {{availableSpace}}%",
+        "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} used",
         "delete_all_downloaded_files": "Delete All Downloaded Files"
       },

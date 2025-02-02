@@ -11,19 +11,19 @@
     "enter_code_to_login": "Entrez le code {{code}} pour vous connecter",
     "failed_to_initiate_quick_connect": "Échec de l'initialisation de Connexion Rapide",
     "got_it": "D'accord",
-    "connection_failed": "La connection a échouée",
+    "connection_failed": "La connexion a échoué",
     "could_not_connect_to_server": "Impossible de se connecter au serveur. Veuillez vérifier l'URL et votre connection réseau.",
     "an_unexpected_error_occured": "Une erreur inattendue s'est produite",
     "change_server": "Changer de serveur",
     "invalid_username_or_password": "Nom d'utilisateur ou mot de passe invalide",
     "user_does_not_have_permission_to_log_in": "L'utilisateur n'a pas la permission de se connecter",
-    "server_is_taking_too_long_to_respond_try_again_later": "Le serveur met trop de temps à répondre, réessayez plus tard",
+    "server_is_taking_too_long_to_respond_try_again_later": "Le serveur prend trop de temps à répondre, réessayez plus tard",
     "server_received_too_many_requests_try_again_later": "Le serveur a reçu trop de demandes, réessayez plus tard",
     "there_is_a_server_error": "Il y a une erreur de serveur",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url":  "Une erreur inattendue s'est produite. Avez-vous entré la bonne URL?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Une erreur inattendue s'est produite. Avez-vous entré la bonne URL?"
   },
   "server": {
-    "enter_url_to_jellyfin_server": "Entrez l'URL de votre serveur Jellyfin",
+    "enter_url_to_jellyfin_server": "Entrez l'URL du serveur Jellyfin",
     "server_url_placeholder": "http(s)://votre-serveur.com",
     "connect_button": "Connexion",
     "previous_servers": "Serveurs précédents",
@@ -34,7 +34,7 @@
   },
   "home": {
     "no_internet": "Pas d'Internet",
-    "no_items": "Aucun item",
+    "no_items": "Aucun média",
     "no_internet_message": "Aucun problème, vous pouvez toujours regarder\nle contenu téléchargé.",
     "go_to_downloads": "Aller aux téléchargements",
     "oops": "Oups!",
@@ -55,7 +55,7 @@
       "chromecast_feature_description": "Diffusez des films et des émissions de télévision sur vos appareils Chromecast.",
       "centralised_settings_plugin_title": "Plugin de paramètres centralisés",
       "centralised_settings_plugin_description": "Configuration des paramètres d'un emplacement centralisé sur votre serveur Jellyfin. Tous les paramètres clients pour tous les utilisateurs seront synchronisés automatiquement.",
-      "done_button": "Fait",
+      "done_button": "Terminé",
       "go_to_settings_button": "Allez dans les paramètres",
       "read_more": "Lisez-en plus"
     },
@@ -82,7 +82,7 @@
       "media_controls": {
         "media_controls_title": "Contrôles Média",
         "forward_skip_length": "Durée de saut en avant",
-        "rewind_length": "Durée de retour arrière",
+        "rewind_length": "Durée de retour en arrière",
         "seconds_unit": "s"
       },
       "audio": {
@@ -108,7 +108,7 @@
           "Smart": "Intelligent",
           "Always": "Toujours",
           "None": "Aucun",
-          "OnlyForced": "Forcés seulement" 
+          "OnlyForced": "Forcés seulement"
         }
       },
       "other": {
@@ -131,7 +131,7 @@
         "safe_area_in_controls": "Zone de sécurité dans les contrôles",
         "show_custom_menu_links": "Afficher les liens personnalisés",
         "hide_libraries": "Cacher des bibliothèques",
-        "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez obtenir de la table de bibliothèque et de la page d'accueil des sections.",
+        "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l’onglet Bibliothèque et les sections de la page d’accueil.",
         "disable_haptic_feedback": "Désactiver le retour haptique"
       },
       "downloads": {
@@ -150,7 +150,7 @@
         "server_url_placeholder": "http(s)://domaine.org:port"
       },
       "plugins": {
-        "plugins_title": "Plugiciels",
+        "plugins_title": "Plugins",
         "jellyseerr": {
           "jellyseerr_warning": "Cette intégration est dans ses débuts. Attendez-vous à ce que des choses changent.",
           "server_url": "URL du serveur",
@@ -184,7 +184,7 @@
       "storage": {
         "storage_title": "Stockage",
         "app_usage": "App {{usedSpace}}%",
-        "phone_usage": "Téléphone {{availableSpace}}%",
+        "device_usage": "Appareil {{availableSpace}}%",
         "size_used": "{{used}} de {{total}} utilisés",
         "delete_all_downloaded_files": "Supprimer tous les fichiers téléchargés"
       },
@@ -218,11 +218,11 @@
       "movies": "Films",
       "queue": "File d'attente",
       "queue_hint": "La file d'attente et les téléchargements seront perdus au redémarrage de l'application",
-      "no_items_in_queue": "Aucun item dans la file d'attente",
-      "no_downloaded_items": "Aucun item téléchargé",
+      "no_items_in_queue": "Aucun téléchargement de média dans la file d'attente",
+      "no_downloaded_items": "Aucun média téléchargé",
       "delete_all_movies_button": "Supprimer tous les films",
       "delete_all_tvseries_button": "Supprimer toutes les séries",
-      "delete_all_button": "Supprimer tout",
+      "delete_all_button": "Supprimer tout les médias",
       "active_download": "Téléchargement actif",
       "no_active_downloads": "Aucun téléchargements actifs",
       "active_downloads": "Téléchargements actifs",
@@ -254,8 +254,8 @@
         "no_response_received_from_server": "Aucune réponse reçue du serveur",
         "error_setting_up_the_request": "Erreur lors de la configuration de la demande",
         "failed_to_start_download_for_item_unexpected_error": "Échec du démarrage du téléchargement pour {{item}}: Erreur inattendue",
-        "all_files_folders_and_jobs_deleted_successfully": "Tous les fichiers, dossiers et travaux ont été supprimés avec succès",
-        "an_error_occured_while_deleting_files_and_jobs": "Une erreur s'est produite lors de la suppression des fichiers et des travaux",
+        "all_files_folders_and_jobs_deleted_successfully": "Tous les fichiers, dossiers et tâches ont été supprimés avec succès",
+        "an_error_occured_while_deleting_files_and_jobs": "Une erreur s'est produite lors de la suppression des fichiers et des tâches",
         "go_to_downloads": "Aller aux téléchargements"
       }
     }
@@ -263,7 +263,7 @@
   "search": {
     "search_here": "Rechercher ici...",
     "search": "Rechercher...",
-    "x_items": "{{count}} items",
+    "x_items": "{{count}} médias",
     "library": "Bibliothèque",
     "discover": "Découvrir",
     "no_results": "Aucun résultat",
@@ -287,9 +287,9 @@
     "tv_genres": "Genres TV",
     "upcoming_tv": "TV à venir",
     "networks": "Réseaux",
-    "tmdb_movie_keyword": "Mot-clé Films TMDB",
+    "tmdb_movie_keyword": "Mot(s)-clé(s) Films TMDB",
     "tmdb_movie_genre": "Genre de film TMDB",
-    "tmdb_tv_keyword": "Mot-clé TV TMDB",
+    "tmdb_tv_keyword": "Mot(s)-clé(s) TV TMDB",
     "tmdb_tv_genre": "Genre TV TMDB",
     "tmdb_search": "Recherche TMDB",
     "tmdb_studio": "Studio TMDB",
@@ -298,14 +298,14 @@
     "tmdb_tv_streaming_services": "Services de streaming TV TMDB"
   },
   "library": {
-    "no_items_found": "Aucun item trouvé",
+    "no_items_found": "Aucun média trouvé",
     "no_results": "Aucun résultat",
     "no_libraries_found": "Aucune bibliothèque trouvée",
     "item_types": {
       "movies": "films",
       "series": "séries",
       "boxsets": "coffrets",
-      "items": "items"
+      "items": "médias"
     },
     "options": {
       "display": "Affichage",
@@ -332,16 +332,16 @@
     "videos": "Vidéos",
     "boxsets": "Coffrets",
     "playlists": "Listes de lecture"
-  },  
+  },
   "custom_links": {
-    "no_links": "Aucun lien"
+    "no_links": "Aucuns liens"
   },
   "player": {
     "error": "Erreur",
     "failed_to_get_stream_url": "Échec de l'obtention de l'URL du flux",
     "an_error_occured_while_playing_the_video": "Une erreur s'est produite lors de la lecture de la vidéo",
     "client_error": "Erreur client",
-    "could_not_create_stream_for_chromecast": "Impossible de créer un flux pour Chromecast",
+    "could_not_create_stream_for_chromecast": "Impossible de créer un flux sur la Chromecast",
     "message_from_server": "Message du serveur: {{message}}",
     "video_has_finished_playing": "La vidéo a fini de jouer!",
     "no_video_source": "Aucune source vidéo...",
@@ -355,7 +355,7 @@
   },
   "item_card": {
     "next_up": "À suivre",
-    "no_items_to_display": "Aucun item à afficher",
+    "no_items_to_display": "Aucun médias à afficher",
     "cast_and_crew": "Distribution et équipe",
     "series": "Séries",
     "seasons": "Saisons",
@@ -363,8 +363,8 @@
     "no_episodes_for_this_season": "Aucun épisode pour cette saison",
     "overview": "Aperçu",
     "more_with": "Plus avec {{name}}",
-    "similar_items": "Items similaires",
-    "no_similar_items_found": "Aucun item similaire trouvé",
+    "similar_items": "Médias similaires",
+    "no_similar_items_found": "Aucun média similaire trouvé",
     "video": "Vidéo",
     "more_details": "Plus de détails",
     "quality": "Qualité",
@@ -373,18 +373,18 @@
     "show_more": "Afficher plus",
     "show_less": "Afficher moins",
     "appeared_in": "Apparu dans",
-    "could_not_load_item": "Impossible de charger l'item",
+    "could_not_load_item": "Impossible de charger le média",
     "none": "Aucun",
     "download": {
       "download_season": "Télécharger la saison",
       "download_series": "Télécharger la série",
       "download_episode": "Télécharger l'épisode",
       "download_movie": "Télécharger le film",
-      "download_x_item": "Télécharger {{item_count}} items",
+      "download_x_item": "Télécharger {{item_count}} médias",
       "download_button": "Télécharger",
-      "using_optimized_server": "Avec le serveur de versions optimisées",
+      "using_optimized_server": "Avec le serveur optimisées",
       "using_default_method": "Avec la méthode par défaut"
-    } 
+    }
   },
   "live_tv": {
     "next": "Suivant",
@@ -402,7 +402,7 @@
     "confirm": "Confirmer",
     "cancel": "Annuler",
     "yes": "Oui",
-    "whats_wrong": "Qu'est-ce qui ne va pas?",
+    "whats_wrong": "Quel est le problème?",
     "issue_type": "Type de problème",
     "select_an_issue": "Sélectionnez un problème",
     "types": "Types",
@@ -426,7 +426,7 @@
     "production_country": "Pays de production",
     "studios": "Studios",
     "network": "Réseaux",
-    "currently_streaming_on": "En diffusion continue sur",
+    "currently_streaming_on": "En streaming sur",
     "advanced": "Avancé",
     "request_as": "Demander en tant que",
     "tags": "Tags",
@@ -436,7 +436,7 @@
     "season_number": "Saison {{season_number}}",
     "number_episodes": "{{episode_number}} épisodes",
     "born": "Né(e) le",
-    "appearances": "Apparitions",
+    "appearances": "Apparences",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Jellyseer ne répond pas aux exigences! Veuillez mettre à jour au moins vers la version 2.0.0.",
       "jellyseerr_test_failed": "Échec du test de Jellyseerr",
