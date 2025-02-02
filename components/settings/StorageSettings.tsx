@@ -85,7 +85,7 @@ export const StorageSettings = () => {
               <View className="flex flex-row items-center">
                 <View className="w-3 h-3 rounded-full bg-purple-400 mr-1"></View>
                 <Text className="text-white text-xs">
-                  {t("home.settings.storage.phone_usage", {availableSpace: calculatePercentage(size.total - size.remaining - size.app, size.total)})}
+                  {t("home.settings.storage.device_usage", {availableSpace: calculatePercentage(size.total - size.remaining - size.app, size.total)})}
                 </Text>
               </View>
             </>
