@@ -184,7 +184,7 @@
       "storage": {
         "storage_title": "Almacenamiento",
         "app_usage": "App {{usedSpace}}%",
-        "phone_usage": "Dispositivo {{availableSpace}}%",
+        "device_usage": "Dispositivo {{availableSpace}}%",
         "size_used": "{{used}} de {{total}} usado",
         "delete_all_downloaded_files": "Eliminar todos los archivos descargados"
       },
