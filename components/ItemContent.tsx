@@ -252,13 +252,13 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 </View>
               )}
 
-              {!Platform.isTV && (
-                <PlayButton
-                  className="grow"
-                  selectedOptions={selectedOptions}
-                  item={item}
-                />
-              )}
+              {/* {!Platform.isTV && ( */}
+              <PlayButton
+                className="grow"
+                selectedOptions={selectedOptions}
+                item={item}
+              />
+              {/* )} */}
             </View>
 
             {item.Type === "Episode" && (
