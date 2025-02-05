@@ -11,6 +11,16 @@
         "buildType": "apk"
       }
     },
+    "development_tv": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_TV": "1"
+      }
+    },
     "preview": {
       "distribution": "internal"
     },
