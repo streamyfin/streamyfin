@@ -1,17 +1,14 @@
 import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
 import { formatTimeString } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-// import { checkForExistingDownloads } from "@kesha-antonov/react-native-background-downloader";
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-// import { FFmpegKit } from "ffmpeg-kit-react-native";
 const FFmpegKit = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
 import { useAtom } from "jotai";
 import {
@@ -27,6 +24,7 @@ import { Button } from "../Button";
 import { Image } from "expo-image";
 import { useMemo } from "react";
 import { storage } from "@/utils/mmkv";
+import { t } from "i18next";
 
 interface Props extends ViewProps {}
 
@@ -35,14 +33,14 @@ export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
   if (processes?.length === 0)
     return (
       <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
-        <Text className="text-lg font-bold">Active download</Text>
-        <Text className="opacity-50">No active downloads</Text>
+        <Text className="text-lg font-bold">{t("home.downloads.active_download")}</Text>
+        <Text className="opacity-50">{t("home.downloads.no_active_downloads")}</Text>
       </View>
     );
 
   return (
     <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
-      <Text className="text-lg font-bold mb-2">Active downloads</Text>
+      <Text className="text-lg font-bold mb-2">{t("home.downloads.active_downloads")}</Text>
       <View className="space-y-2">
         {processes?.map((p) => (
           <DownloadCard key={p.item.Id} process={p} />
@@ -67,7 +65,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     mutationFn: async (id: string) => {
       if (!process) throw new Error("No active download");
 
-      if (settings?.downloadMethod === "optimized") {
+      if (settings?.downloadMethod === DownloadMethod.Optimized) {
         try {
           const tasks = await BackGroundDownloader.checkForExistingDownloads();
           for (const task of tasks) {
@@ -87,11 +85,11 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       }
     },
     onSuccess: () => {
-      toast.success("Download canceled");
+      toast.success(t("home.downloads.toasts.download_cancelled"));
     },
     onError: (e) => {
       console.error(e);
-      toast.error("Could not cancel download");
+      toast.error(t("home.downloads.toasts.could_not_cancel_download"));
     },
   });
 
@@ -158,7 +156,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                 <Text className="text-xs">{process.speed?.toFixed(2)}x</Text>
               )}
               {eta(process) && (
-                <Text className="text-xs">ETA {eta(process)}</Text>
+                <Text className="text-xs">{t("home.downloads.eta", {eta: eta(process)})}</Text>
               )}
             </View>
 

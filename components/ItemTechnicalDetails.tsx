@@ -15,6 +15,7 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { Button } from "./Button";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   source?: MediaSourceInfo;
@@ -22,15 +23,16 @@ interface Props {
 
 export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const { t } = useTranslation();
 
   return (
     <View className="px-4 mt-2 mb-4">
-      <Text className="text-lg font-bold mb-4">Video</Text>
+      <Text className="text-lg font-bold mb-4">{t("item_card.video")}</Text>
       <TouchableOpacity onPress={() => bottomSheetModalRef.current?.present()}>
         <View className="flex flex-row space-x-2">
           <VideoStreamInfo source={source} />
         </View>
-        <Text className="text-purple-600">More details</Text>
+        <Text className="text-purple-600">{t("item_card.more_details")}</Text>
       </TouchableOpacity>
       <BottomSheetModal
         ref={bottomSheetModalRef}
@@ -52,14 +54,14 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
         <BottomSheetScrollView>
           <View className="flex flex-col space-y-2 p-4 mb-4">
             <View className="">
-              <Text className="text-lg font-bold mb-4">Video</Text>
+              <Text className="text-lg font-bold mb-4">{t("item_card.video")}</Text>
               <View className="flex flex-row space-x-2">
                 <VideoStreamInfo source={source} />
               </View>
             </View>
 
             <View className="">
-              <Text className="text-lg font-bold mb-2">Audio</Text>
+              <Text className="text-lg font-bold mb-2">{t("item_card.audio")}</Text>
               <AudioStreamInfo
                 audioStreams={
                   source?.MediaStreams?.filter(
@@ -70,7 +72,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
             </View>
 
             <View className="">
-              <Text className="text-lg font-bold mb-2">Subtitles</Text>
+              <Text className="text-lg font-bold mb-2">{t("item_card.subtitles")}</Text>
               <SubtitleStreamInfo
                 subtitleStreams={
                   source?.MediaStreams?.filter(

@@ -6,16 +6,19 @@ import { View, ViewProps } from "react-native";
 import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
-  item: BaseItemDto;
+  items: BaseItemDto[];
+  size?: "default" | "large";
 }
 
-export const PlayedStatus: React.FC<Props> = ({ item, ...props }) => {
+export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
   const queryClient = useQueryClient();
 
   const invalidateQueries = () => {
-    queryClient.invalidateQueries({
-      queryKey: ["item", item.Id],
-    });
+    items.forEach((item) => {
+      queryClient.invalidateQueries({
+        queryKey: ["item", item.Id],
+      });
+    })
     queryClient.invalidateQueries({
       queryKey: ["resumeItems"],
     });
@@ -39,15 +42,20 @@ export const PlayedStatus: React.FC<Props> = ({ item, ...props }) => {
     });
   };
 
-  const markAsPlayedStatus = useMarkAsPlayed(item);
+  const allPlayed = items.every((item) => item.UserData?.Played);
+
+  const markAsPlayedStatus = useMarkAsPlayed(items);
 
   return (
     <View {...props}>
       <RoundButton
-        fillColor={item.UserData?.Played ? "primary" : undefined}
-        icon={item.UserData?.Played ? "checkmark" : "checkmark"}
-        onPress={() => markAsPlayedStatus(item.UserData?.Played || false)}
-        size="large"
+        fillColor={allPlayed ? "primary" : undefined}
+        icon={allPlayed ? "checkmark" : "checkmark"}
+        onPress={async () => {    
+          console.log(allPlayed);
+          await markAsPlayedStatus(!allPlayed)
+        }}
+        size={props.size}
       />
     </View>
   );

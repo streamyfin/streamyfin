@@ -1,26 +1,26 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { runtimeTicksToSeconds } from "@/utils/time";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { atom, useAtom } from "jotai";
-import { useEffect, useMemo, useState, useRef } from "react";
-import { View, TouchableOpacity } from "react-native";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { Ionicons } from "@expo/vector-icons";
-import { Loader } from "@/components/Loader";
-import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
-import { Text } from "@/components/common/Text";
-import { DownloadSingleItem } from "@/components/DownloadItem";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   HorizontalScroll,
   HorizontalScrollRef,
 } from "@/components/common/HorrizontalScroll";
+import { Text } from "@/components/common/Text";
+import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { DownloadSingleItem } from "@/components/DownloadItem";
+import { Loader } from "@/components/Loader";
 import {
   SeasonDropdown,
   SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+import { runtimeTicksToSeconds } from "@/utils/time";
+import { Ionicons } from "@expo/vector-icons";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { atom, useAtom } from "jotai";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
   item: BaseItemDto;

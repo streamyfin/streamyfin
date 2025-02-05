@@ -5,15 +5,17 @@ import React from "react";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "@/components/common/Text";
 import PersonPoster from "@/components/jellyseerr/PersonPoster";
+import { useTranslation } from "react-i18next";
 
 const CastSlide: React.FC<
   { details?: MovieDetails | TvDetails } & ViewProps
 > = ({ details, ...props }) => {
+  const { t } = useTranslation();
   return (
-    details?.credits?.cast?.length &&
+    details?.credits?.cast &&
     details?.credits?.cast?.length > 0 && (
       <View {...props}>
-        <Text className="text-lg font-bold mb-2 px-4">Cast</Text>
+        <Text className="text-lg font-bold mb-2 px-4">{t("jellyseerr.cast")}</Text>
         <FlashList
           horizontal
           showsHorizontalScrollIndicator={false}

@@ -23,11 +23,12 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import NetInfo from "@react-native-community/netinfo";
-import { QueryFunction, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -36,6 +37,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  useSplashScreenLoading,
+  useSplashScreenVisible,
+} from "@/providers/SplashScreenProvider";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -56,11 +61,19 @@ type Section = ScrollingCollectionListSection | MediaListSection;
 export default function index() {
   const router = useRouter();
 
+  const { t } = useTranslation();
+
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
   const [loading, setLoading] = useState(false);
-  const [settings, _] = useSettings();
+  const [
+    settings,
+    updateSettings,
+    pluginSettings,
+    setPluginSettings,
+    refreshStreamyfinPluginSettings,
+  ] = useSettings();
 
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [loadingRetry, setLoadingRetry] = useState(false);
@@ -116,13 +129,17 @@ export default function index() {
       setIsConnected(state.isConnected);
     });
 
+    // cleanCacheDirectory().catch((e) =>
+    //   console.error("Something went wrong cleaning cache directory")
+    // );
+
     return () => {
       unsubscribe();
     };
   }, []);
 
   const {
-    data: userViews,
+    data,
     isError: e1,
     isLoading: l1,
   } = useQuery({
@@ -142,28 +159,14 @@ export default function index() {
     staleTime: 60 * 1000,
   });
 
-  const {
-    data: mediaListCollections,
-    isError: e2,
-    isLoading: l2,
-  } = useQuery({
-    queryKey: ["home", "sf_promoted", user?.Id, settings?.usePopularPlugin],
-    queryFn: async () => {
-      if (!api || !user?.Id) return [];
+  // show splash screen until query loaded
+  useSplashScreenLoading(l1);
+  const splashScreenVisible = useSplashScreenVisible();
 
-      const response = await getItemsApi(api).getItems({
-        userId: user.Id,
-        tags: ["sf_promoted"],
-        recursive: true,
-        fields: ["Tags"],
-        includeItemTypes: ["BoxSet"],
-      });
-
-      return response.data.Items || [];
-    },
-    enabled: !!api && !!user?.Id && settings?.usePopularPlugin === true,
-    staleTime: 60 * 1000,
-  });
+  const userViews = useMemo(
+    () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
+    [data, settings?.hiddenLibraries]
+  );
 
   const collections = useMemo(() => {
     const allow = ["movies", "tvshows"];
@@ -178,6 +181,7 @@ export default function index() {
 
   const refetch = useCallback(async () => {
     setLoading(true);
+    await refreshStreamyfinPluginSettings();
     await invalidateCache();
     setLoading(false);
   }, []);
@@ -212,114 +216,161 @@ export default function index() {
     [api, user?.Id]
   );
 
-  const sections = useMemo(() => {
-    if (!api || !user?.Id) return [];
+  let sections: Section[] = [];
+  if (!settings?.home || !settings?.home?.sections) {
+    sections = useMemo(() => {
+      if (!api || !user?.Id) return [];
 
-    const latestMediaViews = collections.map((c) => {
-      const includeItemTypes: BaseItemKind[] =
-        c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
-      const title = "Recently Added in " + c.Name;
-      const queryKey = [
-        "home",
-        "recentlyAddedIn" + c.CollectionType,
-        user?.Id!,
-        c.Id!,
-      ];
-      return createCollectionConfig(
-        title || "",
-        queryKey,
-        includeItemTypes,
-        c.Id
-      );
-    });
+      const latestMediaViews = collections.map((c) => {
+        const includeItemTypes: BaseItemKind[] =
+          c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
+        const title = t("home.recently_added_in", { libraryName: c.Name });
+        const queryKey = [
+          "home",
+          "recentlyAddedIn" + c.CollectionType,
+          user?.Id!,
+          c.Id!,
+        ];
+        return createCollectionConfig(
+          title || "",
+          queryKey,
+          includeItemTypes,
+          c.Id
+        );
+      });
 
-    const ss: Section[] = [
-      {
-        title: "Continue Watching",
-        queryKey: ["home", "resumeItems"],
-        queryFn: async () =>
-          (
-            await getItemsApi(api).getResumeItems({
-              userId: user.Id,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              includeItemTypes: ["Movie", "Series", "Episode"],
-            })
-          ).data.Items || [],
-        type: "ScrollingCollectionList",
-        orientation: "horizontal",
-      },
-      {
-        title: "Next Up",
-        queryKey: ["home", "nextUp-all"],
-        queryFn: async () =>
-          (
-            await getTvShowsApi(api).getNextUp({
-              userId: user?.Id,
-              fields: ["MediaSourceCount"],
-              limit: 20,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              enableResumable: false,
-            })
-          ).data.Items || [],
-        type: "ScrollingCollectionList",
-        orientation: "horizontal",
-      },
-      ...latestMediaViews,
-      ...(mediaListCollections?.map(
-        (ml) =>
-          ({
-            title: ml.Name,
-            queryKey: ["home", "mediaList", ml.Id!],
-            queryFn: async () => ml,
-            type: "MediaListSection",
-            orientation: "vertical",
-          } as Section)
-      ) || []),
-      {
-        title: "Suggested Movies",
-        queryKey: ["home", "suggestedMovies", user?.Id],
-        queryFn: async () =>
-          (
-            await getSuggestionsApi(api).getSuggestions({
-              userId: user?.Id,
-              limit: 10,
-              mediaType: ["Video"],
-              type: ["Movie"],
-            })
-          ).data.Items || [],
-        type: "ScrollingCollectionList",
-        orientation: "vertical",
-      },
-      {
-        title: "Suggested Episodes",
-        queryKey: ["home", "suggestedEpisodes", user?.Id],
-        queryFn: async () => {
-          try {
-            const suggestions = await getSuggestions(api, user.Id);
-            const nextUpPromises = suggestions.map((series) =>
-              getNextUp(api, user.Id, series.Id)
-            );
-            const nextUpResults = await Promise.all(nextUpPromises);
-
-            return nextUpResults.filter((item) => item !== null) || [];
-          } catch (error) {
-            console.error("Error fetching data:", error);
-            return [];
-          }
+      const ss: Section[] = [
+        {
+          title: t("home.continue_watching"),
+          queryKey: ["home", "resumeItems"],
+          queryFn: async () =>
+            (
+              await getItemsApi(api).getResumeItems({
+                userId: user.Id,
+                enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                includeItemTypes: ["Movie", "Series", "Episode"],
+              })
+            ).data.Items || [],
+          type: "ScrollingCollectionList",
+          orientation: "horizontal",
         },
-        type: "ScrollingCollectionList",
-        orientation: "horizontal",
-      },
-    ];
-    return ss;
-  }, [api, user?.Id, collections, mediaListCollections]);
+        {
+          title: t("home.next_up"),
+          queryKey: ["home", "nextUp-all"],
+          queryFn: async () =>
+            (
+              await getTvShowsApi(api).getNextUp({
+                userId: user?.Id,
+                fields: ["MediaSourceCount"],
+                limit: 20,
+                enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                enableResumable: false,
+              })
+            ).data.Items || [],
+          type: "ScrollingCollectionList",
+          orientation: "horizontal",
+        },
+        ...latestMediaViews,
+        // ...(mediaListCollections?.map(
+        //   (ml) =>
+        //     ({
+        //       title: ml.Name,
+        //       queryKey: ["home", "mediaList", ml.Id!],
+        //       queryFn: async () => ml,
+        //       type: "MediaListSection",
+        //       orientation: "vertical",
+        //     } as Section)
+        // ) || []),
+        {
+          title: t("home.suggested_movies"),
+          queryKey: ["home", "suggestedMovies", user?.Id],
+          queryFn: async () =>
+            (
+              await getSuggestionsApi(api).getSuggestions({
+                userId: user?.Id,
+                limit: 10,
+                mediaType: ["Video"],
+                type: ["Movie"],
+              })
+            ).data.Items || [],
+          type: "ScrollingCollectionList",
+          orientation: "vertical",
+        },
+        {
+          title: t("home.suggested_episodes"),
+          queryKey: ["home", "suggestedEpisodes", user?.Id],
+          queryFn: async () => {
+            try {
+              const suggestions = await getSuggestions(api, user.Id);
+              const nextUpPromises = suggestions.map((series) =>
+                getNextUp(api, user.Id, series.Id)
+              );
+              const nextUpResults = await Promise.all(nextUpPromises);
+
+              return nextUpResults.filter((item) => item !== null) || [];
+            } catch (error) {
+              console.error("Error fetching data:", error);
+              return [];
+            }
+          },
+          type: "ScrollingCollectionList",
+          orientation: "horizontal",
+        },
+      ];
+      return ss;
+    }, [api, user?.Id, collections]);
+  } else {
+    sections = useMemo(() => {
+      if (!api || !user?.Id) return [];
+      const ss: Section[] = [];
+
+      for (const key in settings.home?.sections) {
+        // @ts-expect-error
+        const section = settings.home?.sections[key];
+        const id = section.title || key;
+        ss.push({
+          title: id,
+          queryKey: ["home", id],
+          queryFn: async () => {
+            if (section.items) {
+              const response = await getItemsApi(api).getItems({
+                userId: user?.Id,
+                limit: section.items?.limit || 25,
+                recursive: true,
+                includeItemTypes: section.items?.includeItemTypes,
+                sortBy: section.items?.sortBy,
+                sortOrder: section.items?.sortOrder,
+                filters: section.items?.filters,
+                parentId: section.items?.parentId,
+              });
+              return response.data.Items || [];
+            } else if (section.nextUp) {
+              const response = await getTvShowsApi(api).getNextUp({
+                userId: user?.Id,
+                fields: ["MediaSourceCount"],
+                limit: section.items?.limit || 25,
+                enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                enableResumable: section.items?.enableResumable || false,
+                enableRewatching: section.items?.enableRewatching || false,
+              });
+              return response.data.Items || [];
+            }
+            return [];
+          },
+          type: "ScrollingCollectionList",
+          orientation: section?.orientation || "vertical",
+        });
+      }
+      return ss;
+    }, [api, user?.Id, settings.home?.sections]);
+  }
 
   if (isConnected === false) {
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6 px-8">
-        <Text className="text-3xl font-bold mb-2">No Internet</Text>
+        <Text className="text-3xl font-bold mb-2">{t("home.no_internet")}</Text>
         <Text className="text-center opacity-70">
-          No worries, you can still watch{"\n"}downloaded content.
+          {t("home.no_internet_message")}
         </Text>
         <View className="mt-4">
           <Button
@@ -330,7 +381,7 @@ export default function index() {
               <Ionicons name="arrow-forward" size={20} color="white" />
             }
           >
-            Go to downloads
+            {t("home.go_to_downloads")}
           </Button>
           <Button
             color="black"
@@ -356,17 +407,19 @@ export default function index() {
     );
   }
 
-  if (e1 || e2)
+  if (e1)
     return (
       <View className="flex flex-col items-center justify-center h-full -mt-6">
-        <Text className="text-3xl font-bold mb-2">Oops!</Text>
+        <Text className="text-3xl font-bold mb-2">{t("home.oops")}</Text>
         <Text className="text-center opacity-70">
-          Something went wrong.{"\n"}Please log out and in again.
+          {t("home.error_message")}
         </Text>
       </View>
     );
 
-  if (l1 || l2)
+  // this spinner should only show up, when user navigates here
+  // on launch the splash screen is used for loading
+  if (l1 && !splashScreenVisible)
     return (
       <View className="justify-center items-center h-full">
         <Loader />
@@ -398,6 +451,7 @@ export default function index() {
                 queryKey={section.queryKey}
                 queryFn={section.queryFn}
                 orientation={section.orientation}
+                hideIfEmpty
               />
             );
           } else if (section.type === "MediaListSection") {

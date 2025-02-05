@@ -1,0 +1,30 @@
+{
+  "login": {
+    "username_required": "Användarnamn krävs",
+    "error_title": "Fel",
+    "login_title": "Logga in",
+    "username_placeholder": "Användarnamn",
+    "password_placeholder": "Lösenord",
+    "login_button": "Logga in"
+  },
+  "server": {
+    "server_url_placeholder": "Server URL",
+    "connect_button": "Anslut"
+  },
+  "home": {
+    "home": "Hem",
+    "no_internet": "Ingen Internet",
+    "no_internet_message": "Ingen fara, du kan fortfarande titta\npå nedladdat innehåll.",
+    "go_to_downloads": "Gå till nedladdningar",
+    "oops": "Hoppsan!",
+    "error_message": "Något gick fel.\nLogga ut och in igen.",
+    "continue_watching": "Fortsätt titta",
+    "next_up": "Nästa upp",
+    "recently_added_in": "Nyligen tillagt i {{libraryName}}"
+  },
+  "tabs": {
+    "home": "Hem",
+    "search": "Sök",
+    "library": "Bibliotek"
+  }
+}

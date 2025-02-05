@@ -7,11 +7,14 @@ import { useAtom } from "jotai";
 import React from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 export default function page() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
+
+  const { t } = useTranslation();
 
   return (
     <ScrollView
@@ -28,7 +31,7 @@ export default function page() {
       <View className="flex flex-col space-y-2">
         <ScrollingCollectionList
           queryKey={["livetv", "recommended"]}
-          title={"On now"}
+          title={t("live_tv.on_now")}
           queryFn={async () => {
             if (!api) return [] as BaseItemDto[];
             const res = await getLiveTvApi(api).getRecommendedPrograms({
@@ -46,7 +49,7 @@ export default function page() {
         />
         <ScrollingCollectionList
           queryKey={["livetv", "shows"]}
-          title={"Shows"}
+          title={t("live_tv.shows")}
           queryFn={async () => {
             if (!api) return [] as BaseItemDto[];
             const res = await getLiveTvApi(api).getLiveTvPrograms({
@@ -68,7 +71,7 @@ export default function page() {
         />
         <ScrollingCollectionList
           queryKey={["livetv", "movies"]}
-          title={"Movies"}
+          title={t("live_tv.movies")}
           queryFn={async () => {
             if (!api) return [] as BaseItemDto[];
             const res = await getLiveTvApi(api).getLiveTvPrograms({
@@ -86,7 +89,7 @@ export default function page() {
         />
         <ScrollingCollectionList
           queryKey={["livetv", "sports"]}
-          title={"Sports"}
+          title={t("live_tv.sports")}
           queryFn={async () => {
             if (!api) return [] as BaseItemDto[];
             const res = await getLiveTvApi(api).getLiveTvPrograms({
@@ -104,7 +107,7 @@ export default function page() {
         />
         <ScrollingCollectionList
           queryKey={["livetv", "kids"]}
-          title={"For Kids"}
+          title={t("live_tv.for_kids")}
           queryFn={async () => {
             if (!api) return [] as BaseItemDto[];
             const res = await getLiveTvApi(api).getLiveTvPrograms({
@@ -122,7 +125,7 @@ export default function page() {
         />
         <ScrollingCollectionList
           queryKey={["livetv", "news"]}
-          title={"News"}
+          title={t("live_tv.news")}
           queryFn={async () => {
             if (!api) return [] as BaseItemDto[];
             const res = await getLiveTvApi(api).getLiveTvPrograms({
