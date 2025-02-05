@@ -26,6 +26,10 @@ package-lock.json
 
 /ios
 /android
+/iostv
+/iosmobile
+/androidmobile
+/androidtv
 
 modules/player/android
 

@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
@@ -31,7 +32,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { Button } from "./Button";
 import { SelectedOptions } from "./ItemContent";
-import { chromecastProfile } from "@/utils/profiles/chromecast";
+const chromecastProfile = !Platform.isTV
+  ? require("@/utils/profiles/chromecast")
+  : null;
 import { useTranslation } from "react-i18next";
 import { useHaptic } from "@/hooks/useHaptic";
 

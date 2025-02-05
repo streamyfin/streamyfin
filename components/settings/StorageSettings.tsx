@@ -48,7 +48,10 @@ export const StorageSettings = () => {
           <Text className="">{t("home.settings.storage.storage_title")}</Text>
           {size && (
             <Text className="text-neutral-500">
-              {t("home.settings.storage.size_used", {used: Number(size.total - size.remaining).bytesToReadable(), total: size.total?.bytesToReadable()})}
+              {t("home.settings.storage.size_used", {
+                used: Number(size.total - size.remaining).bytesToReadable(),
+                total: size.total?.bytesToReadable(),
+              })}
             </Text>
           )}
         </View>
@@ -79,13 +82,20 @@ export const StorageSettings = () => {
               <View className="flex flex-row items-center">
                 <View className="w-3 h-3 rounded-full bg-purple-600 mr-1"></View>
                 <Text className="text-white text-xs">
-                  {t("home.settings.storage.app_usage", {usedSpace: calculatePercentage(size.app, size.total)})}
+                  {t("home.settings.storage.app_usage", {
+                    usedSpace: calculatePercentage(size.app, size.total),
+                  })}
                 </Text>
               </View>
               <View className="flex flex-row items-center">
                 <View className="w-3 h-3 rounded-full bg-purple-400 mr-1"></View>
                 <Text className="text-white text-xs">
-                  {t("home.settings.storage.device_usage", {availableSpace: calculatePercentage(size.total - size.remaining - size.app, size.total)})}
+                  {t("home.settings.storage.device_usage", {
+                    availableSpace: calculatePercentage(
+                      size.total - size.remaining - size.app,
+                      size.total
+                    ),
+                  })}
                 </Text>
               </View>
             </>

@@ -13,12 +13,15 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  checkForExistingDownloads,
-  completeHandler,
-  download,
-  setConfig,
-} from "@kesha-antonov/react-native-background-downloader";
+// import {
+//   checkForExistingDownloads,
+//   completeHandler,
+//   download,
+//   setConfig,
+// } from "@kesha-antonov/react-native-background-downloader";
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 import MMKV from "react-native-mmkv";
 import {
   focusManager,
@@ -42,7 +45,8 @@ import React, {
 import { AppState, AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
 import { apiAtom } from "./JellyfinProvider";
-import * as Notifications from "expo-notifications";
+// import * as Notifications from "expo-notifications";
+const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { getItemImage } from "@/utils/getItemImage";
 import useImageStorage from "@/hooks/useImageStorage";
 import { storage } from "@/utils/mmkv";
@@ -68,6 +72,7 @@ const DownloadContext = createContext<ReturnType<
 > | null>(null);
 
 function useDownloadProvider() {
+  if (Platform.isTV) return;
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [settings] = useSettings();
@@ -174,7 +179,7 @@ function useDownloadProvider() {
   useEffect(() => {
     const checkIfShouldStartDownload = async () => {
       if (processes.length === 0) return;
-      await checkForExistingDownloads();
+      await BackGroundDownloader.checkForExistingDownloads();
     };
 
     checkIfShouldStartDownload();
@@ -218,7 +223,7 @@ function useDownloadProvider() {
         )
       );
 
-      setConfig({
+      BackGroundDownloader.setConfig({
         isLogsEnabled: true,
         progressInterval: 500,
         headers: {
@@ -238,7 +243,7 @@ function useDownloadProvider() {
 
       const baseDirectory = FileSystem.documentDirectory;
 
-      download({
+      BackGroundDownloader.download({
         id: process.id,
         url: settings?.optimizedVersionsServerUrl + "download/" + process.id,
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
@@ -288,7 +293,7 @@ function useDownloadProvider() {
             },
           });
           setTimeout(() => {
-            completeHandler(process.id);
+            BackGroundDownloader.completeHandler(process.id);
             removeProcess(process.id);
           }, 1000);
         })

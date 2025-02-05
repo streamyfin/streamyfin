@@ -29,13 +29,19 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as DropdownMenu from "zeego/dropdown-menu";
 import RequestModal from "@/components/jellyseerr/RequestModal";
-import {ANIME_KEYWORD_ID} from "@/utils/jellyseerr/server/api/themoviedb/constants";
-import {MediaRequestBody} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
+import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -79,7 +85,8 @@ const Page: React.FC = () => {
     },
   });
 
-  const [canRequest, hasAdvancedRequestPermission] = useJellyseerrCanRequest(details);
+  const [canRequest, hasAdvancedRequestPermission] =
+    useJellyseerrCanRequest(details);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -112,20 +119,22 @@ const Page: React.FC = () => {
       seasons: (details as TvDetails)?.seasons
         ?.filter?.((s) => s.seasonNumber !== 0)
         ?.map?.((s) => s.seasonNumber),
-    }
+    };
 
     if (hasAdvancedRequestPermission) {
-      advancedReqModalRef?.current?.present?.(body)
-      return
+      advancedReqModalRef?.current?.present?.(body);
+      return;
     }
 
     requestMedia(mediaTitle, body, refetch);
   }, [details, result, requestMedia, hasAdvancedRequestPermission]);
 
   const isAnime = useMemo(
-    () => (details?.keywords.some(k => k.id === ANIME_KEYWORD_ID) || false) && result.mediaType === MediaType.TV,
+    () =>
+      (details?.keywords.some((k) => k.id === ANIME_KEYWORD_ID) || false) &&
+      result.mediaType === MediaType.TV,
     [details]
-  )
+  );
 
   useEffect(() => {
     if (details) {
@@ -247,7 +256,7 @@ const Page: React.FC = () => {
                 hasAdvancedRequest={hasAdvancedRequestPermission}
                 onAdvancedRequest={(data) =>
                   advancedReqModalRef?.current?.present(data)
-              }
+                }
               />
             )}
             <DetailFacts
@@ -265,8 +274,8 @@ const Page: React.FC = () => {
         type={result.mediaType as MediaType}
         isAnime={isAnime}
         onRequested={() => {
-          advancedReqModalRef?.current?.close()
-          refetch()
+          advancedReqModalRef?.current?.close();
+          refetch();
         }}
       />
       <BottomSheetModal
@@ -313,7 +322,9 @@ const Page: React.FC = () => {
                     collisionPadding={0}
                     sideOffset={0}
                   >
-                    <DropdownMenu.Label>{t("jellyseerr.types")}</DropdownMenu.Label>
+                    <DropdownMenu.Label>
+                      {t("jellyseerr.types")}
+                    </DropdownMenu.Label>
                     {Object.entries(IssueTypeName)
                       .reverse()
                       .map(([key, value], idx) => (
