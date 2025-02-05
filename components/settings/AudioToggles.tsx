@@ -1,5 +1,5 @@
 import { TouchableOpacity, View, ViewProps } from "react-native";
-import * as DropdownMenu from "@/components/DropdownMenu";
+import * as DropdownMenu from "zeego/dropdown-menu";
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { Ionicons } from "@expo/vector-icons";
-import {useSettings} from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 
 interface Props extends ViewProps {}
 
@@ -47,7 +47,8 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             <DropdownMenu.Trigger>
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3 ">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {settings?.defaultAudioLanguage?.DisplayName || t("home.settings.audio.none")}
+                  {settings?.defaultAudioLanguage?.DisplayName ||
+                    t("home.settings.audio.none")}
                 </Text>
                 <Ionicons
                   name="chevron-expand-sharp"
@@ -65,7 +66,9 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
               collisionPadding={8}
               sideOffset={8}
             >
-              <DropdownMenu.Label>{t("home.settings.audio.language")}</DropdownMenu.Label>
+              <DropdownMenu.Label>
+                {t("home.settings.audio.language")}
+              </DropdownMenu.Label>
               <DropdownMenu.Item
                 key={"none-audio"}
                 onSelect={() => {
@@ -74,7 +77,9 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
                   });
                 }}
               >
-                <DropdownMenu.ItemTitle>{t("home.settings.audio.none")}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>
+                  {t("home.settings.audio.none")}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               {cultures?.map((l) => (
                 <DropdownMenu.Item
