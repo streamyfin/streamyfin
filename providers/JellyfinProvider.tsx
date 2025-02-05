@@ -23,7 +23,10 @@ import { getDeviceName } from "react-native-device-info";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/utils/atoms/settings";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { useSplashScreenLoading, useSplashScreenVisible } from "./SplashScreenProvider";
+import {
+  useSplashScreenLoading,
+  useSplashScreenVisible,
+} from "./SplashScreenProvider";
 
 interface Server {
   address: string;
@@ -267,7 +270,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             case 401:
               throw new Error(t("login.invalid_username_or_password"));
             case 403:
-              throw new Error(t("login.user_does_not_have_permission_to_log_in"));
+              throw new Error(
+                t("login.user_does_not_have_permission_to_log_in")
+              );
             case 408:
               throw new Error(
                 t("login.server_is_taking_too_long_to_respond_try_again_later")
@@ -280,7 +285,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               throw new Error(t("login.there_is_a_server_error"));
             default:
               throw new Error(
-                t("login.an_unexpected_error_occured_did_you_enter_the_correct_url")
+                t(
+                  "login.an_unexpected_error_occured_did_you_enter_the_correct_url"
+                )
               );
           }
         }
@@ -344,10 +351,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   let isLoadingOrFetching = isLoading || isFetching;
   useProtectedRoute(user, isLoadingOrFetching);
-  
+
   // show splash screen until everything loaded
-  useSplashScreenLoading(isLoadingOrFetching)
-  const splashScreenVisible = useSplashScreenVisible()
+  useSplashScreenLoading(isLoadingOrFetching);
+  const splashScreenVisible = useSplashScreenVisible();
 
   return (
     <JellyfinContext.Provider value={contextValue}>

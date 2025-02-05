@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
@@ -5,10 +6,12 @@ import {
   unregisterBackgroundFetchAsync,
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
-import * as BackgroundFetch from "expo-background-fetch";
+const BackgroundFetch = !Platform.isTV
+  ? require("expo-background-fetch")
+  : null;
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { useRouter } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
-import * as TaskManager from "expo-task-manager";
 import React, { useEffect, useMemo } from "react";
 import { Linking, Switch, TouchableOpacity } from "react-native";
 import { toast } from "sonner-native";
@@ -29,6 +32,8 @@ export const OtherSettings: React.FC = () => {
    * Background task
    *******************/
   const checkStatusAsync = async () => {
+    if (Platform.isTV) return;
+
     await BackgroundFetch.getStatusAsync();
     return await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   };

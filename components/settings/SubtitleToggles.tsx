@@ -1,5 +1,5 @@
 import { TouchableOpacity, View, ViewProps } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import * as DropdownMenu from "@/components/DropdownMenu";
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";

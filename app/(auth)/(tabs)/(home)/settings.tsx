@@ -1,8 +1,8 @@
+import { Platform } from "react-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { AudioToggles } from "@/components/settings/AudioToggles";
-import { DownloadSettings } from "@/components/settings/DownloadSettings";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
 import { OtherSettings } from "@/components/settings/OtherSettings";
@@ -17,10 +17,13 @@ import { clearLogs } from "@/utils/log";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
-import React, { useEffect } from "react";
+import React, { lazy, useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { storage } from "@/utils/mmkv";
+const DownloadSettings = lazy(
+  () => import("@/components/settings/DownloadSettings")
+);
 
 export default function settings() {
   const router = useRouter();
@@ -42,7 +45,9 @@ export default function settings() {
             logout();
           }}
         >
-          <Text className="text-red-600">{t("home.settings.log_out_button")}</Text>
+          <Text className="text-red-600">
+            {t("home.settings.log_out_button")}
+          </Text>
         </TouchableOpacity>
       ),
     });
@@ -66,11 +71,12 @@ export default function settings() {
         </MediaProvider>
 
         <OtherSettings />
-        <DownloadSettings />
+
+        {!Platform.isTV && <DownloadSettings />}
 
         <PluginSettings />
 
-        <AppLanguageSelector/>
+        <AppLanguageSelector />
 
         <ListGroup title={"Intro"}>
           <ListItem

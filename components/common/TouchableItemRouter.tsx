@@ -6,7 +6,6 @@ import {
 import { useRouter, useSegments } from "expo-router";
 import { PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, TouchableOpacityProps } from "react-native";
-import * as ContextMenu from "zeego/context-menu";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import * as Haptics from "expo-haptics";
 

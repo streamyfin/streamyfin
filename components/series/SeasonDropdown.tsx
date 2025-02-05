@@ -92,7 +92,9 @@ export const SeasonDropdown: React.FC<Props> = ({
       <DropdownMenu.Trigger>
         <View className="flex flex-row">
           <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-            <Text>{t("item_card.season")} {seasonIndex}</Text>
+            <Text>
+              {t("item_card.season")} {seasonIndex}
+            </Text>
           </TouchableOpacity>
         </View>
       </DropdownMenu.Trigger>

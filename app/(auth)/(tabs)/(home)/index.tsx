@@ -27,6 +27,7 @@ import { QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -77,30 +78,38 @@ export default function index() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [loadingRetry, setLoadingRetry] = useState(false);
 
-  const { downloadedFiles, cleanCacheDirectory } = useDownload();
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => {
-            router.push("/(auth)/downloads");
-          }}
-          className="p-2"
-        >
-          <Feather
-            name="download"
-            color={hasDownloads ? Colors.primary : "white"}
-            size={22}
-          />
-        </TouchableOpacity>
-      ),
-    });
-  }, [downloadedFiles, navigation, router]);
+  if (!Platform.isTV) {
+    const { downloadedFiles, cleanCacheDirectory } = useDownload();
+    useEffect(() => {
+      const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
+      navigation.setOptions({
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={() => {
+              router.push("/(auth)/downloads");
+            }}
+            className="p-2"
+          >
+            <Feather
+              name="download"
+              color={hasDownloads ? Colors.primary : "white"}
+              size={22}
+            />
+          </TouchableOpacity>
+        ),
+      });
+    }, [downloadedFiles, navigation, router]);
+
+    useEffect(() => {
+      cleanCacheDirectory().catch((e) =>
+        console.error("Something went wrong cleaning cache directory")
+      );
+    }, []);
+  }
 
   const checkConnection = useCallback(async () => {
     setLoadingRetry(true);
@@ -120,9 +129,9 @@ export default function index() {
       setIsConnected(state.isConnected);
     });
 
-    cleanCacheDirectory().catch((e) =>
-      console.error("Something went wrong cleaning cache directory")
-    );
+    // cleanCacheDirectory().catch((e) =>
+    //   console.error("Something went wrong cleaning cache directory")
+    // );
 
     return () => {
       unsubscribe();

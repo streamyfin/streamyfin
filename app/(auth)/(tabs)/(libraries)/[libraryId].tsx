@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { FlatList, useWindowDimensions, View } from "react-native";

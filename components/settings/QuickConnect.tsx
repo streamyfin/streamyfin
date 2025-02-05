@@ -49,16 +49,25 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         });
         if (res.status === 200) {
           successHapticFeedback();
-          Alert.alert(t("home.settings.quick_connect.success"), t("home.settings.quick_connect.quick_connect_autorized"));
+          Alert.alert(
+            t("home.settings.quick_connect.success"),
+            t("home.settings.quick_connect.quick_connect_autorized")
+          );
           setQuickConnectCode(undefined);
           bottomSheetModalRef?.current?.close();
         } else {
           errorHapticFeedback();
-          Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
+          Alert.alert(
+            t("home.settings.quick_connect.error"),
+            t("home.settings.quick_connect.invalid_code")
+          );
         }
       } catch (e) {
         errorHapticFeedback();
-        Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
+        Alert.alert(
+          t("home.settings.quick_connect.error"),
+          t("home.settings.quick_connect.invalid_code")
+        );
       }
     }
   }, [api, user, quickConnectCode]);
@@ -96,7 +105,9 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                 <BottomSheetTextInput
                   style={{ color: "white" }}
                   clearButtonMode="always"
-                  placeholder={t("home.settings.quick_connect.enter_the_quick_connect_code")}
+                  placeholder={t(
+                    "home.settings.quick_connect.enter_the_quick_connect_code"
+                  )}
                   placeholderTextColor="#9CA3AF"
                   value={quickConnectCode}
                   onChangeText={setQuickConnectCode}

@@ -12,13 +12,18 @@
       "resizeMode": "contain"
     },
     "jsEngine": "hermes",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "requireFullScreen": true,
       "infoPlist": {
         "NSCameraUsageDescription": "The app needs access to your camera to scan barcodes.",
         "NSMicrophoneUsageDescription": "The app needs access to your microphone.",
-        "UIBackgroundModes": ["audio", "fetch"],
+        "UIBackgroundModes": [
+          "audio",
+          "fetch"
+        ],
         "NSLocalNetworkUsageDescription": "The app needs access to your local network to connect to your Jellyfin server.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -47,15 +52,10 @@
       ]
     },
     "plugins": [
+      "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
       "@config-plugins/ffmpeg-kit-react-native",
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ],
       [
         "react-native-video",
         {
@@ -74,9 +74,11 @@
         {
           "ios": {
             "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "newArchEnabled": false
           },
           "android": {
+            "newArchEnabled": false,
             "android": {
               "compileSdkVersion": 34,
               "targetSdkVersion": 34,
@@ -110,12 +112,24 @@
       "expo-asset",
       [
         "react-native-edge-to-edge",
-        { "android": { "parentTheme": "Material3" } }
+        {
+          "android": {
+            "parentTheme": "Material3"
+          }
+        }
       ],
-      ["react-native-bottom-tabs"],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withGoogleCastActivity.js"],
-      ["./plugins/withTrustLocalCerts.js"]
+      [
+        "react-native-bottom-tabs"
+      ],
+      [
+        "./plugins/withChangeNativeAndroidTextToWhite.js"
+      ],
+      [
+        "./plugins/withGoogleCastActivity.js"
+      ],
+      [
+        "./plugins/withTrustLocalCerts.js"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,8 +1,11 @@
 import { useSettings } from "@/utils/atoms/settings";
-import * as ScreenOrientation from "expo-screen-orientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useEffect } from "react";
+import { Platform } from "react-native";
 
 export const useOrientationSettings = () => {
+  if (Platform.isTV) return;
+
   const [settings] = useSettings();
 
   useEffect(() => {
