@@ -3,7 +3,8 @@ import { Bitrate, BitrateSelector } from "@/components/BitrateSelector";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
-const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
+// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
+import { PlayButton } from "@/components/PlayButton";
 import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
 import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
@@ -192,9 +193,10 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           }
         >
           <View className="flex flex-col bg-transparent shrink">
+            {/* {!Platform.isTV && ( */}
             <View className="flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink">
               <ItemHeader item={item} className="mb-4" />
-              {item.Type !== "Program" && (
+              {item.Type !== "Program" && !Platform.isTV && (
                 <View className="flex flex-row items-center justify-start w-full h-16">
                   <BitrateSelector
                     className="mr-1"
@@ -249,6 +251,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                   />
                 </View>
               )}
+
               {!Platform.isTV && (
                 <PlayButton
                   className="grow"
