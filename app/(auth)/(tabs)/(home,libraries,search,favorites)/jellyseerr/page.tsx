@@ -1,28 +1,24 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { useLocalSearchParams, useNavigation } from "expo-router";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
-import { Text } from "@/components/common/Text";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { Image } from "expo-image";
-import { TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { OverviewText } from "@/components/OverviewText";
-import { GenreTags } from "@/components/GenreTags";
-import {
-  MediaRequestStatus,
-  MediaStatus,
-  MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import { useQuery } from "@tanstack/react-query";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
+import { GenreTags } from "@/components/GenreTags";
+import Cast from "@/components/jellyseerr/Cast";
+import DetailFacts from "@/components/jellyseerr/DetailFacts";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { JellyserrRatings } from "@/components/Ratings";
+import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
+import { ItemActions } from "@/components/series/SeriesActions";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import {
+  IssueType,
+  IssueTypeName,
+} from "@/utils/jellyseerr/server/constants/issue";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
+import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { useTranslation } from "react-i18next";
+import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
@@ -30,23 +26,28 @@ import {
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import {
-  IssueType,
-  IssueTypeName,
-} from "@/utils/jellyseerr/server/constants/issue";
-import * as DropdownMenu from "@/components/DropdownMenu";
-import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
-import { JellyserrRatings } from "@/components/Ratings";
-import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import DetailFacts from "@/components/jellyseerr/DetailFacts";
-import { ItemActions } from "@/components/series/SeriesActions";
-import Cast from "@/components/jellyseerr/Cast";
-import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { useLocalSearchParams, useNavigation } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as DropdownMenu from "zeego/dropdown-menu";
+import RequestModal from "@/components/jellyseerr/RequestModal";
+import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
+import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const { t } = useTranslation();
+
   const { mediaTitle, releaseYear, posterSrc, ...result } =
     params as unknown as {
       mediaTitle: string;
@@ -60,6 +61,7 @@ const Page: React.FC = () => {
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
+  const advancedReqModalRef = useRef<BottomSheetModal>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const {
@@ -83,7 +85,8 @@ const Page: React.FC = () => {
     },
   });
 
-  const canRequest = useJellyseerrCanRequest(details);
+  const [canRequest, hasAdvancedRequestPermission] =
+    useJellyseerrCanRequest(details);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -109,19 +112,29 @@ const Page: React.FC = () => {
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
   const request = useCallback(async () => {
-    requestMedia(
-      mediaTitle,
-      {
-        mediaId: Number(result.id!!),
-        mediaType: result.mediaType!!,
-        tvdbId: details?.externalIds?.tvdbId,
-        seasons: (details as TvDetails)?.seasons
-          ?.filter?.((s) => s.seasonNumber !== 0)
-          ?.map?.((s) => s.seasonNumber),
-      },
-      refetch
-    );
-  }, [details, result, requestMedia]);
+    const body: MediaRequestBody = {
+      mediaId: Number(result.id!!),
+      mediaType: result.mediaType!!,
+      tvdbId: details?.externalIds?.tvdbId,
+      seasons: (details as TvDetails)?.seasons
+        ?.filter?.((s) => s.seasonNumber !== 0)
+        ?.map?.((s) => s.seasonNumber),
+    };
+
+    if (hasAdvancedRequestPermission) {
+      advancedReqModalRef?.current?.present?.(body);
+      return;
+    }
+
+    requestMedia(mediaTitle, body, refetch);
+  }, [details, result, requestMedia, hasAdvancedRequestPermission]);
+
+  const isAnime = useMemo(
+    () =>
+      (details?.keywords.some((k) => k.id === ANIME_KEYWORD_ID) || false) &&
+      result.mediaType === MediaType.TV,
+    [details]
+  );
 
   useEffect(() => {
     if (details) {
@@ -213,7 +226,7 @@ const Page: React.FC = () => {
                 <Button loading={true} disabled={true} color="purple"></Button>
               ) : canRequest ? (
                 <Button color="purple" onPress={request}>
-                  Request
+                  {t("jellyseerr.request_button")}
                 </Button>
               ) : (
                 <Button
@@ -228,7 +241,7 @@ const Page: React.FC = () => {
                     borderStyle: "solid",
                   }}
                 >
-                  Report issue
+                  {t("jellyseerr.report_issue_button")}
                 </Button>
               )}
               <OverviewText text={result.overview} className="mt-4" />
@@ -240,6 +253,10 @@ const Page: React.FC = () => {
                 result={result as TvResult}
                 details={details as TvDetails}
                 refetch={refetch}
+                hasAdvancedRequest={hasAdvancedRequestPermission}
+                onAdvancedRequest={(data) =>
+                  advancedReqModalRef?.current?.present(data)
+                }
               />
             )}
             <DetailFacts
@@ -250,6 +267,17 @@ const Page: React.FC = () => {
           </View>
         </View>
       </ParallaxScrollView>
+      <RequestModal
+        ref={advancedReqModalRef}
+        title={mediaTitle}
+        id={result.id!!}
+        type={result.mediaType as MediaType}
+        isAnime={isAnime}
+        onRequested={() => {
+          advancedReqModalRef?.current?.close();
+          refetch();
+        }}
+      />
       <BottomSheetModal
         ref={bottomSheetModalRef}
         enableDynamicSizing
@@ -265,7 +293,7 @@ const Page: React.FC = () => {
           <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
             <View>
               <Text className="font-bold text-2xl text-neutral-100">
-                Whats wrong?
+                {t("jellyseerr.whats_wrong")}
               </Text>
             </View>
             <View className="flex flex-col space-y-2 items-start">
@@ -274,13 +302,13 @@ const Page: React.FC = () => {
                   <DropdownMenu.Trigger>
                     <View className="flex flex-col">
                       <Text className="opacity-50 mb-1 text-xs">
-                        Issue Type
+                        {t("jellyseerr.issue_type")}
                       </Text>
                       <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
                         <Text style={{}} className="" numberOfLines={1}>
                           {issueType
                             ? IssueTypeName[issueType]
-                            : "Select an issue"}
+                            : t("jellyseerr.select_an_issue")}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -294,7 +322,9 @@ const Page: React.FC = () => {
                     collisionPadding={0}
                     sideOffset={0}
                   >
-                    <DropdownMenu.Label>Types</DropdownMenu.Label>
+                    <DropdownMenu.Label>
+                      {t("jellyseerr.types")}
+                    </DropdownMenu.Label>
                     {Object.entries(IssueTypeName)
                       .reverse()
                       .map(([key, value], idx) => (
@@ -319,7 +349,7 @@ const Page: React.FC = () => {
                   maxLength={254}
                   style={{ color: "white" }}
                   clearButtonMode="always"
-                  placeholder="(optional) Describe the issue..."
+                  placeholder={t("jellyseerr.describe_the_issue")}
                   placeholderTextColor="#9CA3AF"
                   // Issue with multiline + Textinput inside a portal
                   // https://github.com/callstack/react-native-paper/issues/1668
@@ -329,7 +359,7 @@ const Page: React.FC = () => {
               </View>
             </View>
             <Button className="mt-auto" onPress={submitIssue} color="purple">
-              Submit
+              {t("jellyseerr.submit_button")}
             </Button>
           </View>
         </BottomSheetView>

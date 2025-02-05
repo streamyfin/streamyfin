@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import * as DropdownMenu from "@/components/DropdownMenu";
 import { Text } from "../common/Text";
+import { t } from "i18next";
 
 type Props = {
   item: BaseItemDto;
@@ -91,7 +92,7 @@ export const SeasonDropdown: React.FC<Props> = ({
       <DropdownMenu.Trigger>
         <View className="flex flex-row">
           <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-            <Text>Season {seasonIndex}</Text>
+            <Text>{t("item_card.season")} {seasonIndex}</Text>
           </TouchableOpacity>
         </View>
       </DropdownMenu.Trigger>
@@ -104,7 +105,7 @@ export const SeasonDropdown: React.FC<Props> = ({
         collisionPadding={8}
         sideOffset={8}
       >
-        <DropdownMenu.Label>Seasons</DropdownMenu.Label>
+        <DropdownMenu.Label>{t("item_card.seasons")}</DropdownMenu.Label>
         {seasons?.sort(sortByIndex).map((season: any) => (
           <DropdownMenu.Item
             key={season[keys.title]}

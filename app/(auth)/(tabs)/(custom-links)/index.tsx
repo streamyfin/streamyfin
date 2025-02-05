@@ -7,6 +7,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { ListItem } from "@/components/list/ListItem";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Text } from "@/components/common/Text";
+import { useTranslation } from "react-i18next";
 
 const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
 
@@ -20,6 +21,7 @@ export default function menuLinks() {
   const [api] = useAtom(apiAtom);
   const insets = useSafeAreaInsets();
   const [menuLinks, setMenuLinks] = useState<MenuLink[]>([]);
+  const { t } = useTranslation();
 
   const getMenuLinks = useCallback(async () => {
     try {
@@ -75,7 +77,7 @@ export default function menuLinks() {
       )}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">No links</Text>
+          <Text className="font-bold text-xl text-neutral-500">{t("custom_links.no_links")}</Text>
         </View>
       }
     />

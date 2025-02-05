@@ -1,6 +1,7 @@
 import "@/augmentations";
 import { Platform } from "react-native";
 import { Text } from "@/components/common/Text";
+import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
   getOrSetDeviceId,
@@ -9,8 +10,11 @@ import {
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
+import {
+  SplashScreenProvider,
+  useSplashScreenLoading,
+} from "@/providers/SplashScreenProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
-import { orientationAtom } from "@/utils/atoms/orientation";
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
 import { LogProvider, writeToLog } from "@/utils/log";
@@ -19,11 +23,6 @@ import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-// import {
-//   checkForExistingDownloads,
-//   completeHandler,
-//   download,
-// } from "@kesha-antonov/react-native-background-downloader";
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
@@ -35,21 +34,19 @@ const BackgroundFetch = !Platform.isTV
 import * as FileSystem from "expo-file-system";
 import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
-import * as Linking from "expo-linking";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { router, Stack } from "expo-router";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import * as SplashScreen from "expo-splash-screen";
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
-import { Provider as JotaiProvider, useAtom } from "jotai";
+import { getLocales } from "expo-localization";
+import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef } from "react";
-import { Appearance, AppState, TouchableOpacity } from "react-native";
+import { I18nextProvider, useTranslation } from "react-i18next";
+import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-
-SplashScreen.preventAutoHideAsync();
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -222,26 +219,20 @@ const checkAndRequestPermissions = async () => {
 };
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
   Appearance.setColorScheme("dark");
 
-  if (!loaded) {
-    return null;
-  }
-
   return (
-    <JotaiProvider>
-      <Layout />
-    </JotaiProvider>
+    <SplashScreenProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <JotaiProvider>
+          <ActionSheetProvider>
+            <I18nextProvider i18n={i18n}>
+              <Layout />
+            </I18nextProvider>
+          </ActionSheetProvider>
+        </JotaiProvider>
+      </GestureHandlerRootView>
+    </SplashScreenProvider>
   );
 }
 
@@ -258,15 +249,20 @@ const queryClient = new QueryClient({
 });
 
 function Layout() {
-  const [settings, updateSettings] = useSettings();
-  const [orientation, setOrientation] = useAtom(orientationAtom);
-
-  useKeepAwake();
-
+  const [settings] = useSettings();
   const appState = useRef(AppState.currentState);
 
+  useEffect(() => {
+    i18n.changeLanguage(
+      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en"
+    );
+  }, [settings?.preferedLanguage, i18n]);
+
   if (!Platform.isTV) {
+    useKeepAwake();
     useNotificationObserver();
+
+    const { i18n } = useTranslation();
 
     useEffect(() => {
       checkAndRequestPermissions();
@@ -300,95 +296,79 @@ function Layout() {
         subscription.remove();
       };
     }, []);
-
-    useEffect(() => {
-      const subscription = ScreenOrientation.addOrientationChangeListener(
-        (event) => {
-          setOrientation(event.orientationInfo.orientation);
-        }
-      );
-
-      ScreenOrientation.getOrientationAsync().then((initialOrientation) => {
-        setOrientation(initialOrientation);
-      });
-
-      return () => {
-        ScreenOrientation.removeOrientationChangeListener(subscription);
-      };
-    }, []);
   }
 
-  const url = Linking.useURL();
+  const [loaded] = useFonts({
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  });
 
-  if (url) {
-    const { hostname, path, queryParams } = Linking.parse(url);
+  useSplashScreenLoading(!loaded);
+
+  if (!loaded) {
+    return null;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <ActionSheetProvider>
-          <JobQueueProvider>
-            <JellyfinProvider>
-              <PlaySettingsProvider>
-                <LogProvider>
-                  <WebSocketProvider>
-                    <DownloadProvider>
-                      <BottomSheetModalProvider>
-                        <SystemBars style="light" hidden={false} />
-                        <ThemeProvider value={DarkTheme}>
-                          <Stack initialRouteName="/home">
-                            <Stack.Screen
-                              name="(auth)/(tabs)"
-                              options={{
-                                headerShown: false,
-                                title: "",
-                                header: () => null,
-                              }}
-                            />
-                            <Stack.Screen
-                              name="(auth)/player"
-                              options={{
-                                headerShown: false,
-                                title: "",
-                                header: () => null,
-                              }}
-                            />
-                            <Stack.Screen
-                              name="login"
-                              options={{
-                                headerShown: true,
-                                title: "",
-                                headerTransparent: true,
-                              }}
-                            />
-                            <Stack.Screen name="+not-found" />
-                          </Stack>
-                          <Toaster
-                            duration={4000}
-                            toastOptions={{
-                              style: {
-                                backgroundColor: "#262626",
-                                borderColor: "#363639",
-                                borderWidth: 1,
-                              },
-                              titleStyle: {
-                                color: "white",
-                              },
-                            }}
-                            closeButton
-                          />
-                        </ThemeProvider>
-                      </BottomSheetModalProvider>
-                    </DownloadProvider>
-                  </WebSocketProvider>
-                </LogProvider>
-              </PlaySettingsProvider>
-            </JellyfinProvider>
-          </JobQueueProvider>
-        </ActionSheetProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <QueryClientProvider client={queryClient}>
+      <JobQueueProvider>
+        <JellyfinProvider>
+          <PlaySettingsProvider>
+            <LogProvider>
+              <WebSocketProvider>
+                <DownloadProvider>
+                  <BottomSheetModalProvider>
+                    <SystemBars style="light" hidden={false} />
+                    <ThemeProvider value={DarkTheme}>
+                      <Stack>
+                        <Stack.Screen
+                          name="(auth)/(tabs)"
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="(auth)/player"
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="login"
+                          options={{
+                            headerShown: true,
+                            title: "",
+                            headerTransparent: true,
+                          }}
+                        />
+                        <Stack.Screen name="+not-found" />
+                      </Stack>
+                      <Toaster
+                        duration={4000}
+                        toastOptions={{
+                          style: {
+                            backgroundColor: "#262626",
+                            borderColor: "#363639",
+                            borderWidth: 1,
+                          },
+                          titleStyle: {
+                            color: "white",
+                          },
+                        }}
+                        closeButton
+                      />
+                    </ThemeProvider>
+                  </BottomSheetModalProvider>
+                </DownloadProvider>
+              </WebSocketProvider>
+            </LogProvider>
+          </PlaySettingsProvider>
+        </JellyfinProvider>
+      </JobQueueProvider>
+    </QueryClientProvider>
   );
 }
 

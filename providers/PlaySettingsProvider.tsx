@@ -38,7 +38,6 @@ type PlaySettingsContextType = {
   setPlayUrl: React.Dispatch<React.SetStateAction<string | null>>;
   playSessionId?: string | null;
   setOfflineSettings: (data: PlaybackType) => void;
-  setMusicPlaySettings: (item: BaseItemDto, url: string) => void;
 };
 
 const PlaySettingsContext = createContext<PlaySettingsContextType | undefined>(
@@ -60,13 +59,6 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   const setOfflineSettings = useCallback((data: PlaybackType) => {
     _setPlaySettings(data);
   }, []);
-
-  const setMusicPlaySettings = (item: BaseItemDto, url: string) => {
-    setPlaySettings({
-      item: item,
-    });
-    setPlayUrl(url);
-  };
 
   const setPlaySettings = useCallback(
     async (
@@ -147,7 +139,6 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         setPlaySettings,
         playUrl,
         setPlayUrl,
-        setMusicPlaySettings,
         setOfflineSettings,
         playSessionId,
         mediaSource,

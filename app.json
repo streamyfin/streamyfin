@@ -2,15 +2,14 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.24.0",
+    "version": "0.25.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#2E2E2E"
+      "resizeMode": "contain"
     },
     "jsEngine": "hermes",
     "assetBundlePatterns": [
@@ -91,7 +90,9 @@
               "jniLibs": {
                 "useLegacyPackaging": true
               }
-            }
+            },
+            "useAndroidX": true,
+            "enableJetifier": true
           }
         }
       ],
@@ -107,6 +108,7 @@
           "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."
         }
       ],
+      "expo-localization",
       "expo-asset",
       [
         "react-native-edge-to-edge",
@@ -121,6 +123,12 @@
       ],
       [
         "./plugins/withChangeNativeAndroidTextToWhite.js"
+      ],
+      [
+        "./plugins/withGoogleCastActivity.js"
+      ],
+      [
+        "./plugins/withTrustLocalCerts.js"
       ]
     ],
     "experiments": {

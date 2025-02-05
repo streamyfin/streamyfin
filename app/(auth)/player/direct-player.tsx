@@ -27,7 +27,7 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import * as Haptics from "@/packages/expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusEffect, useGlobalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, {
@@ -48,11 +48,14 @@ import {
 import { useSharedValue } from "react-native-reanimated";
 import settings from "../(tabs)/(home)/settings";
 import { useSettings } from "@/utils/atoms/settings";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
+  const { t } = useTranslation();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -68,9 +71,11 @@ export default function page() {
   const { getDownloadedItem } = useDownload();
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
+  const lightHapticFeedback = useHaptic("light");
+
   const setShowControls = useCallback((show: boolean) => {
     _setShowControls(show);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
   }, []);
 
   const {
@@ -158,7 +163,7 @@ export default function page() {
       const { mediaSource, sessionId, url } = res;
 
       if (!sessionId || !mediaSource || !url) {
-        Alert.alert("Error", "Failed to get stream url");
+        Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
         return null;
       }
 
@@ -175,7 +180,7 @@ export default function page() {
   const togglePlay = useCallback(async () => {
     if (!api) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
     if (isPlaying) {
       await videoRef.current?.pause();
 
@@ -411,6 +416,8 @@ export default function page() {
     }
   }
 
+  const insets = useSafeAreaInsets();
+
   if (!item || isLoadingItem || isLoadingStreamUrl || !stream)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
@@ -421,7 +428,7 @@ export default function page() {
   if (isErrorItem || isErrorStreamUrl)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-        <Text className="text-white">Error</Text>
+        <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
 
@@ -435,6 +442,8 @@ export default function page() {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
+          paddingLeft: ignoreSafeAreas ? 0 : insets.left,
+          paddingRight: ignoreSafeAreas ? 0 : insets.right,
         }}
       >
         <VlcPlayerView
@@ -458,8 +467,8 @@ export default function page() {
           onVideoError={(e) => {
             console.error("Video Error:", e.nativeEvent);
             Alert.alert(
-              "Error",
-              "An error occurred while playing the video. Check logs in settings."
+              t("player.error"),
+              t("player.an_error_occured_while_playing_the_video")
             );
             writeToLog("ERROR", "Video Error", e.nativeEvent);
           }}

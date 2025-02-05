@@ -26,10 +26,11 @@ import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { lazy, useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
+// const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
+const Chromecast = lazy(() => import("./Chromecast"));
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
@@ -91,7 +92,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 {item.Type !== "Program" && (
                   <View className="flex flex-row items-center space-x-2">
                     <DownloadSingleItem item={item} size="large" />
-                    <PlayedStatus item={item} />
+                    <PlayedStatus items={[item]} size="large" />
                     <AddToFavorites item={item} type="item" />
                   </View>
                 )}

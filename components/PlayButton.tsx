@@ -35,7 +35,8 @@ import { SelectedOptions } from "./ItemContent";
 const chromecastProfile = !Platform.isTV
   ? require("@/utils/profiles/chromecast")
   : null;
-import * as Haptics from "@/packages/expo-haptics";
+import { useTranslation } from "react-i18next";
+import { useHaptic } from "@/hooks/useHaptic";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -53,6 +54,7 @@ export const PlayButton: React.FC<Props> = ({
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
   const mediaStatus = useMediaStatus();
+  const { t } = useTranslation();
 
   const [colorAtom] = useAtom(itemThemeColorAtom);
   const api = useAtomValue(apiAtom);
@@ -67,6 +69,7 @@ export const PlayButton: React.FC<Props> = ({
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
   const [settings] = useSettings();
+  const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
     (q: string, bitrateValue: number | undefined) => {
@@ -82,7 +85,7 @@ export const PlayButton: React.FC<Props> = ({
   const onPress = useCallback(async () => {
     if (!item) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    lightHapticFeedback();
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
@@ -134,8 +137,8 @@ export const PlayButton: React.FC<Props> = ({
                 if (!data?.url) {
                   console.warn("No URL returned from getStreamUrl", data);
                   Alert.alert(
-                    "Client error",
-                    "Could not create stream for Chromecast"
+                    t("player.client_error"),
+                    t("player.could_not_create_stream_for_chromecast")
                   );
                   return;
                 }

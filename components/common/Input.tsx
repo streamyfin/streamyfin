@@ -7,7 +7,7 @@ export function Input(props: TextInputProps) {
   return (
     <TextInput
       ref={inputRef}
-      className="p-4 border border-neutral-800 rounded-xl bg-neutral-900"
+      className="p-4  rounded-xl bg-neutral-900"
       allowFontScaling={false}
       style={[{ color: "white" }, style]}
       placeholderTextColor={"#9CA3AF"}

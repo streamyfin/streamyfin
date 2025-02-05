@@ -1,4 +1,4 @@
-import { useSettings } from "@/utils/atoms/settings";
+import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import { useLog, writeToLog } from "@/utils/log";
 import {
@@ -52,8 +52,9 @@ import useImageStorage from "@/hooks/useImageStorage";
 import { storage } from "@/utils/mmkv";
 import useDownloadHelper from "@/utils/download";
 import { FileInfo } from "expo-file-system";
-import * as Haptics from "@/packages/expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import * as Application from "expo-application";
+import { useTranslation } from "react-i18next";
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -73,6 +74,7 @@ const DownloadContext = createContext<ReturnType<
 function useDownloadProvider() {
   if (Platform.isTV) return;
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [settings] = useSettings();
   const router = useRouter();
   const [api] = useAtom(apiAtom);
@@ -82,6 +84,8 @@ function useDownloadProvider() {
   const { saveImage } = useImageStorage();
 
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
+
+  const successHapticFeedback = useHaptic("success");
 
   const authHeader = useMemo(() => {
     return api?.accessToken;
@@ -109,7 +113,7 @@ function useDownloadProvider() {
       const url = settings?.optimizedVersionsServerUrl;
 
       if (
-        settings?.downloadMethod !== "optimized" ||
+        settings?.downloadMethod !== DownloadMethod.Optimized ||
         !url ||
         !deviceId ||
         !authHeader
@@ -142,9 +146,9 @@ function useDownloadProvider() {
           if (settings.autoDownload) {
             startDownload(job);
           } else {
-            toast.info(`${job.item.Name} is ready to be downloaded`, {
+            toast.info(t("home.downloads.toasts.item_is_ready_to_be_downloaded",{item: job.item.Name}), {
               action: {
-                label: "Go to downloads",
+                label: t("home.downloads.toasts.go_to_downloads"),
                 onClick: () => {
                   router.push("/downloads");
                   toast.dismiss();
@@ -169,7 +173,7 @@ function useDownloadProvider() {
     },
     staleTime: 0,
     refetchInterval: 2000,
-    enabled: settings?.downloadMethod === "optimized",
+    enabled: settings?.downloadMethod === DownloadMethod.Optimized,
   });
 
   useEffect(() => {
@@ -227,9 +231,9 @@ function useDownloadProvider() {
         },
       });
 
-      toast.info(`Download started for ${process.item.Name}`, {
+      toast.info(t("home.downloads.toasts.download_stated_for_item", {item: process.item.Name}), {
         action: {
-          label: "Go to downloads",
+          label: t("home.downloads.toasts.go_to_downloads"),
           onClick: () => {
             router.push("/downloads");
             toast.dismiss();
@@ -278,10 +282,10 @@ function useDownloadProvider() {
             process.item,
             doneHandler.bytesDownloaded
           );
-          toast.success(`Download completed for ${process.item.Name}`, {
+          toast.success(t("home.downloads.toasts.download_completed_for_item", {item: process.item.Name}), {
             duration: 3000,
             action: {
-              label: "Go to downloads",
+              label: t("home.downloads.toasts.go_to_downloads"),
               onClick: () => {
                 router.push("/downloads");
                 toast.dismiss();
@@ -303,7 +307,7 @@ function useDownloadProvider() {
           if (error.errorCode === 404) {
             errorMsg = "File not found on server";
           }
-          toast.error(`Download failed for ${process.item.Name} - ${errorMsg}`);
+          toast.error(t("home.downloads.toasts.download_failed_for_item", {item: process.item.Name, error: errorMsg}));
           writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
             error,
             processDetails: {
@@ -360,9 +364,9 @@ function useDownloadProvider() {
           throw new Error("Failed to start optimization job");
         }
 
-        toast.success(`Queued ${item.Name} for optimization`, {
+        toast.success(t("home.downloads.toasts.queued_item_for_optimization", {item: item.Name}), {
           action: {
-            label: "Go to download",
+            label: t("home.downloads.toasts.go_to_downloads"),
             onClick: () => {
               router.push("/downloads");
               toast.dismiss();
@@ -380,21 +384,21 @@ function useDownloadProvider() {
             headers: error.response?.headers,
           });
           toast.error(
-            `Failed to start download for ${item.Name}: ${error.message}`
+            t("home.downloads.toasts.failed_to_start_download_for_item", {item: item.Name, message: error.message})
           );
           if (error.response) {
             toast.error(
-              `Server responded with status ${error.response.status}`
+              t("home.downloads.toasts.server_responded_with_status", {statusCode: error.response.status})
             );
           } else if (error.request) {
-            toast.error("No response received from server");
+            t("home.downloads.toasts.no_response_received_from_server");
           } else {
             toast.error("Error setting up the request");
           }
         } else {
           console.error("Non-Axios error:", error);
           toast.error(
-            `Failed to start download for ${item.Name}: Unexpected error`
+            t("home.downloads.toasts.failed_to_start_download_for_item_unexpected_error", {item: item.Name})
           );
         }
       }
@@ -410,11 +414,11 @@ function useDownloadProvider() {
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] }),
     ])
       .then(() =>
-        toast.success("All files, folders, and jobs deleted successfully")
+        toast.success(t("home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"))
       )
       .catch((reason) => {
         console.error("Failed to delete all files, folders, and jobs:", reason);
-        toast.error("An error occurred while deleting files and jobs");
+        toast.error(t("home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs"));
       });
   };
 
@@ -537,9 +541,7 @@ function useDownloadProvider() {
         if (i.Id) return deleteFile(i.Id);
         return;
       })
-    ).then(() =>
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    );
+    ).then(() => successHapticFeedback());
   };
 
   const cleanCacheDirectory = async () => {
