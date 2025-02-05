@@ -1,4 +1,4 @@
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import { useLog, writeToLog } from "@/utils/log";
 import {
@@ -13,12 +13,6 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-// import {
-//   checkForExistingDownloads,
-//   completeHandler,
-//   download,
-//   setConfig,
-// } from "@kesha-antonov/react-native-background-downloader";
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
@@ -146,15 +140,20 @@ function useDownloadProvider() {
           if (settings.autoDownload) {
             startDownload(job);
           } else {
-            toast.info(t("home.downloads.toasts.item_is_ready_to_be_downloaded",{item: job.item.Name}), {
-              action: {
-                label: t("home.downloads.toasts.go_to_downloads"),
-                onClick: () => {
-                  router.push("/downloads");
-                  toast.dismiss();
+            toast.info(
+              t("home.downloads.toasts.item_is_ready_to_be_downloaded", {
+                item: job.item.Name,
+              }),
+              {
+                action: {
+                  label: t("home.downloads.toasts.go_to_downloads"),
+                  onClick: () => {
+                    router.push("/downloads");
+                    toast.dismiss();
+                  },
                 },
-              },
-            });
+              }
+            );
             Notifications.scheduleNotificationAsync({
               content: {
                 title: job.item.Name,
@@ -231,15 +230,20 @@ function useDownloadProvider() {
         },
       });
 
-      toast.info(t("home.downloads.toasts.download_stated_for_item", {item: process.item.Name}), {
-        action: {
-          label: t("home.downloads.toasts.go_to_downloads"),
-          onClick: () => {
-            router.push("/downloads");
-            toast.dismiss();
+      toast.info(
+        t("home.downloads.toasts.download_stated_for_item", {
+          item: process.item.Name,
+        }),
+        {
+          action: {
+            label: t("home.downloads.toasts.go_to_downloads"),
+            onClick: () => {
+              router.push("/downloads");
+              toast.dismiss();
+            },
           },
-        },
-      });
+        }
+      );
 
       const baseDirectory = FileSystem.documentDirectory;
 
@@ -282,16 +286,21 @@ function useDownloadProvider() {
             process.item,
             doneHandler.bytesDownloaded
           );
-          toast.success(t("home.downloads.toasts.download_completed_for_item", {item: process.item.Name}), {
-            duration: 3000,
-            action: {
-              label: t("home.downloads.toasts.go_to_downloads"),
-              onClick: () => {
-                router.push("/downloads");
-                toast.dismiss();
+          toast.success(
+            t("home.downloads.toasts.download_completed_for_item", {
+              item: process.item.Name,
+            }),
+            {
+              duration: 3000,
+              action: {
+                label: t("home.downloads.toasts.go_to_downloads"),
+                onClick: () => {
+                  router.push("/downloads");
+                  toast.dismiss();
+                },
               },
-            },
-          });
+            }
+          );
           setTimeout(() => {
             BackGroundDownloader.completeHandler(process.id);
             removeProcess(process.id);
@@ -307,7 +316,12 @@ function useDownloadProvider() {
           if (error.errorCode === 404) {
             errorMsg = "File not found on server";
           }
-          toast.error(t("home.downloads.toasts.download_failed_for_item", {item: process.item.Name, error: errorMsg}));
+          toast.error(
+            t("home.downloads.toasts.download_failed_for_item", {
+              item: process.item.Name,
+              error: errorMsg,
+            })
+          );
           writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
             error,
             processDetails: {
@@ -364,15 +378,20 @@ function useDownloadProvider() {
           throw new Error("Failed to start optimization job");
         }
 
-        toast.success(t("home.downloads.toasts.queued_item_for_optimization", {item: item.Name}), {
-          action: {
-            label: t("home.downloads.toasts.go_to_downloads"),
-            onClick: () => {
-              router.push("/downloads");
-              toast.dismiss();
+        toast.success(
+          t("home.downloads.toasts.queued_item_for_optimization", {
+            item: item.Name,
+          }),
+          {
+            action: {
+              label: t("home.downloads.toasts.go_to_downloads"),
+              onClick: () => {
+                router.push("/downloads");
+                toast.dismiss();
+              },
             },
-          },
-        });
+          }
+        );
       } catch (error) {
         writeToLog("ERROR", "Error in startBackgroundDownload", error);
         console.error("Error in startBackgroundDownload:", error);
@@ -384,11 +403,16 @@ function useDownloadProvider() {
             headers: error.response?.headers,
           });
           toast.error(
-            t("home.downloads.toasts.failed_to_start_download_for_item", {item: item.Name, message: error.message})
+            t("home.downloads.toasts.failed_to_start_download_for_item", {
+              item: item.Name,
+              message: error.message,
+            })
           );
           if (error.response) {
             toast.error(
-              t("home.downloads.toasts.server_responded_with_status", {statusCode: error.response.status})
+              t("home.downloads.toasts.server_responded_with_status", {
+                statusCode: error.response.status,
+              })
             );
           } else if (error.request) {
             t("home.downloads.toasts.no_response_received_from_server");
@@ -398,7 +422,10 @@ function useDownloadProvider() {
         } else {
           console.error("Non-Axios error:", error);
           toast.error(
-            t("home.downloads.toasts.failed_to_start_download_for_item_unexpected_error", {item: item.Name})
+            t(
+              "home.downloads.toasts.failed_to_start_download_for_item_unexpected_error",
+              { item: item.Name }
+            )
           );
         }
       }
@@ -414,11 +441,19 @@ function useDownloadProvider() {
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] }),
     ])
       .then(() =>
-        toast.success(t("home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"))
+        toast.success(
+          t(
+            "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"
+          )
+        )
       )
       .catch((reason) => {
         console.error("Failed to delete all files, folders, and jobs:", reason);
-        toast.error(t("home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs"));
+        toast.error(
+          t(
+            "home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs"
+          )
+        );
       });
   };
 

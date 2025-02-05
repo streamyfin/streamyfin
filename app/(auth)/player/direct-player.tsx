@@ -13,7 +13,10 @@ import {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
-import { useDownload } from "@/providers/DownloadProvider";
+// import { useDownload } from "@/providers/DownloadProvider";
+const useDownload = !Platform.isTV
+  ? require("@/providers/DownloadProvider")
+  : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -68,7 +71,10 @@ export default function page() {
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
 
-  const { getDownloadedItem } = useDownload();
+  if (!Platform.isTV) {
+    const { getDownloadedItem } = useDownload();
+  }
+
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
   const lightHapticFeedback = useHaptic("light");
@@ -109,7 +115,7 @@ export default function page() {
   } = useQuery({
     queryKey: ["item", itemId],
     queryFn: async () => {
-      if (offline) {
+      if (offline && !Platform.isTV) {
         const item = await getDownloadedItem(itemId);
         if (item) return item.item;
       }
@@ -132,7 +138,7 @@ export default function page() {
   } = useQuery({
     queryKey: ["stream-url", itemId, mediaSourceId, bitrateValue],
     queryFn: async () => {
-      if (offline) {
+      if (offline && !Platform.isTV) {
         const data = await getDownloadedItem(itemId);
         if (!data?.mediaSource) return null;
 
