@@ -72,7 +72,7 @@ export default function page() {
   const cacheProgress = useSharedValue(0);
 
   if (!Platform.isTV) {
-      const getDownloadedItem  = downloadProvider.useDownload();
+    const getDownloadedItem  = downloadProvider.useDownload();
   }
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
