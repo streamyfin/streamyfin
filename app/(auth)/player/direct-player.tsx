@@ -14,7 +14,7 @@ import {
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
 // import { useDownload } from "@/providers/DownloadProvider";
-const useDownload = !Platform.isTV
+const downloadProvider = !Platform.isTV
   ? require("@/providers/DownloadProvider")
   : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -72,7 +72,7 @@ export default function page() {
   const cacheProgress = useSharedValue(0);
 
   if (!Platform.isTV) {
-    const { getDownloadedItem } = useDownload();
+      const getDownloadedItem  = downloadProvider.useDownload();
   }
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
