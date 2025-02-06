@@ -90,7 +90,8 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 
 For the TV version suffix the npm commands with `:tv`.
 
- `npm run prebuild:tv, npm run ios:tv or npm run android:tv`
+`npm run prebuild:tv` 
+ `npm run ios:tv or npm run android:tv`
 
 ## 📄 License
 
