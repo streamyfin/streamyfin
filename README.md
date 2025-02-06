@@ -88,7 +88,9 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 4. run `npm run prebuild`
 5. Create an expo dev build by running `npm run ios` or `nom run android`. This will open a simulator on your computer and run the app.
 
-For the TV version suffix the npm commands with `:tv`. `npm run prebuild:tv, npm run ios:tv or npm run android:tv`
+For the TV version suffix the npm commands with `:tv`.
+
+ `npm run prebuild:tv, npm run ios:tv or npm run android:tv`
 
 ## 📄 License
 
