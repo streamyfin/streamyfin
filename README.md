@@ -85,7 +85,7 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
 3. Make sure you have xcode and/or android studio installed.
-4. Create an expo dev build by running `npx expo run:ios` or `npx expo run:android`. This will open a simulator on your computer and run the app.
+4. Create an expo dev build by running `npm run ios` or `nom run android`. This will open a simulator on your computer and run the app.
 
 ## 📄 License
 
