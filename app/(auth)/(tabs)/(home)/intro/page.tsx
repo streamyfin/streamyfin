@@ -5,7 +5,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
-import {useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { Linking, TouchableOpacity, View } from "react-native";
 
 export default function page() {
@@ -30,10 +30,10 @@ export default function page() {
       </View>
 
       <View>
-        <Text className="text-lg font-bold">{t("home.intro.features_title")}</Text>
-        <Text className="text-xs">
-          {t("home.intro.features_description")}
+        <Text className="text-lg font-bold">
+          {t("home.intro.features_title")}
         </Text>
+        <Text className="text-xs">{t("home.intro.features_description")}</Text>
         <View className="flex flex-row items-center mt-4">
           <Image
             source={require("@/assets/icons/jellyseerr-logo.svg")}
@@ -60,7 +60,9 @@ export default function page() {
             <Ionicons name="cloud-download-outline" size={32} color="white" />
           </View>
           <View className="shrink ml-2">
-            <Text className="font-bold mb-1">{t("home.intro.downloads_feature_title")}</Text>
+            <Text className="font-bold mb-1">
+              {t("home.intro.downloads_feature_title")}
+            </Text>
             <Text className="shrink text-xs">
               {t("home.intro.downloads_feature_description")}
             </Text>
@@ -94,7 +96,9 @@ export default function page() {
             <Feather name="settings" size={28} color={"white"} />
           </View>
           <View className="shrink ml-2">
-            <Text className="font-bold mb-1">{t("home.intro.centralised_settings_plugin_title")}</Text>
+            <Text className="font-bold mb-1">
+              {t("home.intro.centralised_settings_plugin_title")}
+            </Text>
             <Text className="shrink text-xs">
               {t("home.intro.centralised_settings_plugin_description")}{" "}
               <Text
@@ -127,7 +131,9 @@ export default function page() {
           }}
           className="mt-4"
         >
-          <Text className="text-purple-600 text-center">{t("home.intro.go_to_settings_button")}</Text>
+          <Text className="text-purple-600 text-center">
+            {t("home.intro.go_to_settings_button")}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

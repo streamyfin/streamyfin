@@ -7,7 +7,7 @@ import { useRouter, useSegments } from "expo-router";
 import { PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, TouchableOpacityProps } from "react-native";
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import * as Haptics from "expo-haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -74,10 +74,10 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       async (selectedIndex) => {
         if (selectedIndex === 0) {
           await markAsPlayedStatus(true);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } else if (selectedIndex === 1) {
           await markAsPlayedStatus(false);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       }
     );

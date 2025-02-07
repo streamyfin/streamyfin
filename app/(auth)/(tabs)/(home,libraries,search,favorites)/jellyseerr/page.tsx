@@ -36,9 +36,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as DropdownMenu from "zeego/dropdown-menu";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import RequestModal from "@/components/jellyseerr/RequestModal";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
