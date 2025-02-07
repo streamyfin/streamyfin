@@ -3,8 +3,8 @@ import {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { Platform, TouchableOpacity, View } from "react-native";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { Text } from "./common/Text";
 import { useTranslation } from "react-i18next";
 
@@ -20,6 +20,7 @@ export const MediaSourceSelector: React.FC<Props> = ({
   selected,
   ...props
 }) => {
+  if (Platform.isTV) return null;
   const selectedName = useMemo(
     () =>
       item.MediaSources?.find((x) => x.Id === selected?.Id)?.MediaStreams?.find(

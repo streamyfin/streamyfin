@@ -1,4 +1,4 @@
-import * as DropdownMenu from "zeego/dropdown-menu";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { Platform, TouchableOpacity, View, ViewProps } from "react-native";
 import { Text } from "../common/Text";
 import { useSettings } from "@/utils/atoms/settings";
@@ -10,13 +10,11 @@ import { APP_LANGUAGES } from "@/i18n";
 interface Props extends ViewProps {}
 
 export const AppLanguageSelector: React.FC<Props> = ({ ...props }) => {
+  if (Platform.isTV) return null;
   const [settings, updateSettings] = useSettings();
   const { t } = useTranslation();
 
   if (!settings) return null;
-
-  // todo: fix
-  if (Platform.isTV) return null;
 
   return (
     <View>

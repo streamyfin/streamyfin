@@ -26,14 +26,18 @@ export default function IndexLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View className="flex flex-row items-center space-x-2">
-              {!Platform.isTV && <Chromecast />}
-              <TouchableOpacity
-                onPress={() => {
-                  router.push("/(auth)/settings");
-                }}
-              >
-                <Feather name="settings" color={"white"} size={22} />
-              </TouchableOpacity>
+              {!Platform.isTV && (
+                <>
+                  <Chromecast />
+                  <TouchableOpacity
+                    onPress={() => {
+                      router.push("/(auth)/settings");
+                    }}
+                  >
+                    <Feather name="settings" color={"white"} size={22} />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           ),
         }}

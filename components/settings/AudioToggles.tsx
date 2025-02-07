@@ -1,5 +1,5 @@
-import { TouchableOpacity, View, ViewProps } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { Platform, TouchableOpacity, View, ViewProps } from "react-native";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { Text } from "../common/Text";
 import { useMedia } from "./MediaContext";
 import { Switch } from "react-native-gesture-handler";
@@ -12,6 +12,7 @@ import { useSettings } from "@/utils/atoms/settings";
 interface Props extends ViewProps {}
 
 export const AudioToggles: React.FC<Props> = ({ ...props }) => {
+  if (Platform.isTV) return null;
   const media = useMedia();
   const [_, __, pluginSettings] = useSettings();
   const { settings, updateSettings } = media;

@@ -1,6 +1,6 @@
 import { atom, useAtom } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
-import * as ScreenOrientation from "expo-screen-orientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { storage } from "../mmkv";
 import { Platform } from "react-native";
 import {

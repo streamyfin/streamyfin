@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { View, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as DropdownMenu from "zeego/dropdown-menu";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { EmbeddedSubtitle, ExternalSubtitle } from "../types";
