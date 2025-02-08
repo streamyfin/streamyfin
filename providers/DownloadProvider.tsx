@@ -1,6 +1,11 @@
+import { useHaptic } from "@/hooks/useHaptic";
+import useImageStorage from "@/hooks/useImageStorage";
 import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
+import useDownloadHelper from "@/utils/download";
+import { getItemImage } from "@/utils/getItemImage";
 import { useLog, writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 import {
   cancelAllJobs,
   cancelJobById,
@@ -13,19 +18,11 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
-import MMKV from "react-native-mmkv";
-import {
-  focusManager,
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
+import { FileInfo } from "expo-file-system";
 import { useRouter } from "expo-router";
 import { atom, useAtom } from "jotai";
 import React, {
@@ -34,21 +31,16 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { AppState, AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
 import { apiAtom } from "./JellyfinProvider";
+const BackGroundDownloader = !Platform.isTV
+  ? (require("@kesha-antonov/react-native-background-downloader") as typeof import("@kesha-antonov/react-native-background-downloader"))
+  : null;
 // import * as Notifications from "expo-notifications";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
-import { getItemImage } from "@/utils/getItemImage";
-import useImageStorage from "@/hooks/useImageStorage";
-import { storage } from "@/utils/mmkv";
-import useDownloadHelper from "@/utils/download";
-import { FileInfo } from "expo-file-system";
-import { useHaptic } from "@/hooks/useHaptic";
-import * as Application from "expo-application";
-import { useTranslation } from "react-i18next";
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -67,6 +59,7 @@ const DownloadContext = createContext<ReturnType<
 
 function useDownloadProvider() {
   if (Platform.isTV) return;
+  
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [settings] = useSettings();
@@ -178,7 +171,7 @@ function useDownloadProvider() {
   useEffect(() => {
     const checkIfShouldStartDownload = async () => {
       if (processes.length === 0) return;
-      await BackGroundDownloader.checkForExistingDownloads();
+      await BackGroundDownloader?.checkForExistingDownloads();
     };
 
     checkIfShouldStartDownload();
@@ -222,7 +215,7 @@ function useDownloadProvider() {
         )
       );
 
-      BackGroundDownloader.setConfig({
+      BackGroundDownloader?.setConfig({
         isLogsEnabled: true,
         progressInterval: 500,
         headers: {
@@ -247,7 +240,7 @@ function useDownloadProvider() {
 
       const baseDirectory = FileSystem.documentDirectory;
 
-      BackGroundDownloader.download({
+      BackGroundDownloader?.download({
         id: process.id,
         url: settings?.optimizedVersionsServerUrl + "download/" + process.id,
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
@@ -308,7 +301,7 @@ function useDownloadProvider() {
         })
         .error(async (error) => {
           removeProcess(process.id);
-          completeHandler(process.id);
+          BackGroundDownloader.completeHandler(process.id);
           let errorMsg = "";
           if (error.errorCode === 1000) {
             errorMsg = "No space left";
