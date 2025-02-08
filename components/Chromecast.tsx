@@ -17,7 +17,7 @@ interface Props extends ViewProps {
   background?: "blur" | "transparent";
 }
 
-export default function Chromecast({
+export function Chromecast({
   width = 48,
   height = 48,
   background = "transparent",
