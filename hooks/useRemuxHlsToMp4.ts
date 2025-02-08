@@ -9,8 +9,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
+
 // import { FFmpegKit, FFmpegSession, Statistics } from "ffmpeg-kit-react-native";
-const FFmpegKit = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
+const FFMPEGKitReactNative = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { toast } from "sonner-native";
@@ -21,6 +22,9 @@ import { useSettings } from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
 import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
+
+type FFmpegSession = typeof FFMPEGKitReactNative.FFmpegSession;
+type Statistics = typeof FFMPEGKitReactNative.Statistics
 
 const createFFmpegCommand = (url: string, output: string) => [
   "-y", // overwrite output files without asking
@@ -183,7 +187,7 @@ export const useRemuxHlsToMp4 = () => {
         writeInfoLog(`useRemuxHlsToMp4 ~ startRemuxing for item ${item.Name}`);
         setProcesses((prev) => [...prev, job]);
 
-        await FFmpegKit.executeAsync(
+        await FFMPEGKitReactNative.FFmpegKit.executeAsync(
           createFFmpegCommand(url, output).join(" "),
           (session) => completeCallback(session, item),
           undefined,
@@ -206,7 +210,7 @@ export const useRemuxHlsToMp4 = () => {
   );
 
   const cancelRemuxing = useCallback(() => {
-    FFmpegKit.cancel();
+    FFMPEGKitReactNative.FFmpegKit.cancel();
     setProcesses([]);
   }, []);
 
