@@ -1,5 +1,5 @@
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { Platform, TouchableOpacity, View, ViewProps } from "react-native";
+import * as DropdownMenu from "zeego/dropdown-menu";
+import { TouchableOpacity, View, ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import React, {
   PropsWithChildren,
@@ -33,7 +33,6 @@ const Dropdown = <T extends unknown>({
   multi = false,
   ...props
 }: PropsWithChildren<Props<T> & ViewProps>) => {
-  if (Platform.isTV) return null;
   const [selected, setSelected] = useState<T[]>();
 
   useEffect(() => {
