@@ -66,7 +66,6 @@ const DownloadContext = createContext<ReturnType<
 > | null>(null);
 
 function useDownloadProvider() {
-  if (Platform.isTV) return;
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [settings] = useSettings();

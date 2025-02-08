@@ -48,7 +48,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
               className="w-28 rounded-lg overflow-hidden border border-neutral-900"
               id={item.id.toString()}
               title={item.name}
-              colors={[]}
+              // colors={[]}
               contentFit={"cover"}
               url={jellyseerrApi?.imageProxy(
                 item.backdrops?.[0],
