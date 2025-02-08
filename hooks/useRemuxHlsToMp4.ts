@@ -25,7 +25,7 @@ import { useTranslation } from "react-i18next";
 
 type FFmpegSession = typeof FFMPEGKitReactNative.FFmpegSession;
 type Statistics = typeof FFMPEGKitReactNative.Statistics
-
+const FFmpegKit = FFMPEGKitReactNative.FFmpegKit;
 const createFFmpegCommand = (url: string, output: string) => [
   "-y", // overwrite output files without asking
   "-thread_queue_size 512", // https://ffmpeg.org/ffmpeg.html#toc-Advanced-options
@@ -187,7 +187,7 @@ export const useRemuxHlsToMp4 = () => {
         writeInfoLog(`useRemuxHlsToMp4 ~ startRemuxing for item ${item.Name}`);
         setProcesses((prev) => [...prev, job]);
 
-        await FFMPEGKitReactNative.FFmpegKit.executeAsync(
+        await FFmpegKit.executeAsync(
           createFFmpegCommand(url, output).join(" "),
           (session) => completeCallback(session, item),
           undefined,
@@ -210,7 +210,7 @@ export const useRemuxHlsToMp4 = () => {
   );
 
   const cancelRemuxing = useCallback(() => {
-    FFMPEGKitReactNative.FFmpegKit.cancel();
+    FFmpegKit.cancel();
     setProcesses([]);
   }, []);
 
