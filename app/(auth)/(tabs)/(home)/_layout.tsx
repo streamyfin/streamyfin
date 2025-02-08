@@ -3,9 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { lazy } from "react";
-// const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
-const Chromecast = lazy(() => import("@/components/Chromecast"));
+const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
 
 export default function IndexLayout() {
   const router = useRouter();
@@ -28,7 +26,7 @@ export default function IndexLayout() {
             <View className="flex flex-row items-center space-x-2">
               {!Platform.isTV && (
                 <>
-                  <Chromecast />
+                  <Chromecast.Chromecast />
                   <TouchableOpacity
                     onPress={() => {
                       router.push("/(auth)/settings");
