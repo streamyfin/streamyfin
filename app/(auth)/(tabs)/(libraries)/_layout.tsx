@@ -153,7 +153,7 @@ export default function IndexLayout() {
                       disabled={settings.libraryOptions.imageStyle === "poster"}
                       key="show-titles-option"
                       value={settings.libraryOptions.showTitles}
-                      onValueChange={(newValue) => {
+                      onValueChange={(newValue: string) => {
                         if (settings.libraryOptions.imageStyle === "poster")
                           return;
                         updateSettings({
@@ -172,7 +172,7 @@ export default function IndexLayout() {
                     <DropdownMenu.CheckboxItem
                       key="show-stats-option"
                       value={settings.libraryOptions.showStats}
-                      onValueChange={(newValue) => {
+                      onValueChange={(newValue: string) => {
                         updateSettings({
                           libraryOptions: {
                             ...settings.libraryOptions,

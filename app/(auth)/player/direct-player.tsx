@@ -70,9 +70,9 @@ export default function page() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
-
+  let getDownloadedItem = null;
   if (!Platform.isTV) {
-    const getDownloadedItem  = downloadProvider.useDownload();
+    getDownloadedItem  = downloadProvider.useDownload();
   }
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
@@ -386,16 +386,16 @@ export default function page() {
 
   const allSubs =
     stream?.mediaSource.MediaStreams?.filter(
-      (sub) => sub.Type === "Subtitle"
+      (sub: { Type: string; }) => sub.Type === "Subtitle"
     ) || [];
   const chosenSubtitleTrack = allSubs.find(
-    (sub) => sub.Index === subtitleIndex
+    (sub: { Index: number; }) => sub.Index === subtitleIndex
   );
   const allAudio =
     stream?.mediaSource.MediaStreams?.filter(
-      (audio) => audio.Type === "Audio"
+      (audio: { Type: string; }) => audio.Type === "Audio"
     ) || [];
-  const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
+  const chosenAudioTrack = allAudio.find((audio: { Index: number | undefined; }) => audio.Index === audioIndex);
 
   // Direct playback CASE
   if (!bitrateValue) {

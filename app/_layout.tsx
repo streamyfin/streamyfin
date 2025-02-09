@@ -64,14 +64,14 @@ function useNotificationObserver() {
   useEffect(() => {
     let isMounted = true;
 
-    function redirect(notification: Notifications.Notification) {
+    function redirect(notification: typeof Notifications.Notification) {
       const url = notification.request.content.data?.url;
       if (url) {
         router.push(url);
       }
     }
 
-    Notifications.getLastNotificationResponseAsync().then((response) => {
+    Notifications.getLastNotificationResponseAsync().then((response: { notification: any; }) => {
       if (!isMounted || !response?.notification) {
         return;
       }
@@ -79,7 +79,7 @@ function useNotificationObserver() {
     });
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+      (response: { notification: any; }) => {
         redirect(response.notification);
       }
     );
@@ -127,7 +127,7 @@ if (!Platform.isTV) {
         const downloadUrl = url + "download/" + job.id;
         const tasks = await BackGroundDownloader.checkForExistingDownloads();
 
-        if (tasks.find((task) => task.id === job.id)) {
+        if (tasks.find((task: { id: string; }) => task.id === job.id)) {
           console.log("TaskManager ~ Download already in progress: ", job.id);
           continue;
         }
@@ -163,9 +163,9 @@ if (!Platform.isTV) {
               trigger: null,
             });
           })
-          .error((error) => {
+          .error((error: any) => {
             console.log("TaskManager ~ Download error: ", job.id, error);
-            completeHandler(job.id);
+            BackGroundDownloader.completeHandler(job.id);
             Notifications.scheduleNotificationAsync({
               content: {
                 title: job.item.Name,

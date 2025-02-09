@@ -20,7 +20,7 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
   }
 
   const createHapticHandler = useCallback(
-    (type: Haptics.ImpactFeedbackStyle) => {
+    (type: typeof Haptics.ImpactFeedbackStyle) => {
       return Platform.OS === "web" || Platform.isTV
         ? () => {}
         : () => Haptics.impactAsync(type);
@@ -28,7 +28,7 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
     []
   );
   const createNotificationFeedback = useCallback(
-    (type: Haptics.NotificationFeedbackType) => {
+    (type: typeof Haptics.NotificationFeedbackType) => {
       return Platform.OS === "web" || Platform.isTV
         ? () => {}
         : () => Haptics.notificationAsync(type);
