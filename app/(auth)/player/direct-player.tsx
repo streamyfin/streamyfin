@@ -116,7 +116,7 @@ export default function page() {
     queryKey: ["item", itemId],
     queryFn: async () => {
       if (offline && !Platform.isTV) {
-        const item = await getDownloadedItem(itemId);
+        const item = await getDownloadedItem.getDownloadedItem(itemId);
         if (item) return item.item;
       }
 
@@ -139,7 +139,7 @@ export default function page() {
     queryKey: ["stream-url", itemId, mediaSourceId, bitrateValue],
     queryFn: async () => {
       if (offline && !Platform.isTV) {
-        const data = await getDownloadedItem(itemId);
+        const data = await getDownloadedItem.getDownloadedItem(itemId);
         if (!data?.mediaSource) return null;
 
         const url = await getDownloadedFileUrl(data.item.Id!);
