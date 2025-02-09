@@ -71,15 +71,17 @@ function useNotificationObserver() {
       }
     }
 
-    Notifications.getLastNotificationResponseAsync().then((response: { notification: any; }) => {
-      if (!isMounted || !response?.notification) {
-        return;
+    Notifications.getLastNotificationResponseAsync().then(
+      (response: { notification: any }) => {
+        if (!isMounted || !response?.notification) {
+          return;
+        }
+        redirect(response?.notification);
       }
-      redirect(response?.notification);
-    });
+    );
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: any; }) => {
+      (response: { notification: any }) => {
         redirect(response.notification);
       }
     );
@@ -127,7 +129,7 @@ if (!Platform.isTV) {
         const downloadUrl = url + "download/" + job.id;
         const tasks = await BackGroundDownloader.checkForExistingDownloads();
 
-        if (tasks.find((task: { id: string; }) => task.id === job.id)) {
+        if (tasks.find((task: { id: string }) => task.id === job.id)) {
           console.log("TaskManager ~ Download already in progress: ", job.id);
           continue;
         }
@@ -269,12 +271,15 @@ function Layout() {
     }, []);
 
     useEffect(() => {
-      if (settings?.autoRotate === true)
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.DEFAULT);
-      else
+      // If the user has auto rotate enabled, unlock the orientation
+      if (settings.autoRotate === true) {
+        ScreenOrientation.unlockAsync();
+      } else {
+        // If the user has auto rotate disabled, lock the orientation to portrait
         ScreenOrientation.lockAsync(
           ScreenOrientation.OrientationLock.PORTRAIT_UP
         );
+      }
     }, [settings]);
 
     useEffect(() => {

@@ -55,6 +55,7 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
+  console.log("Direct Player");
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -72,7 +73,7 @@ export default function page() {
   const cacheProgress = useSharedValue(0);
   let getDownloadedItem = null;
   if (!Platform.isTV) {
-    getDownloadedItem  = downloadProvider.useDownload();
+    getDownloadedItem = downloadProvider.useDownload();
   }
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
@@ -303,9 +304,6 @@ export default function page() {
     [item?.Id, isPlaying, api, isPlaybackStopped, audioIndex, subtitleIndex]
   );
 
-  useOrientation();
-  useOrientationSettings();
-
   useWebSocket({
     isPlaying: isPlaying,
     togglePlay: togglePlay,
@@ -386,16 +384,18 @@ export default function page() {
 
   const allSubs =
     stream?.mediaSource.MediaStreams?.filter(
-      (sub: { Type: string; }) => sub.Type === "Subtitle"
+      (sub: { Type: string }) => sub.Type === "Subtitle"
     ) || [];
   const chosenSubtitleTrack = allSubs.find(
-    (sub: { Index: number; }) => sub.Index === subtitleIndex
+    (sub: { Index: number }) => sub.Index === subtitleIndex
   );
   const allAudio =
     stream?.mediaSource.MediaStreams?.filter(
-      (audio: { Type: string; }) => audio.Type === "Audio"
+      (audio: { Type: string }) => audio.Type === "Audio"
     ) || [];
-  const chosenAudioTrack = allAudio.find((audio: { Index: number | undefined; }) => audio.Index === audioIndex);
+  const chosenAudioTrack = allAudio.find(
+    (audio: { Index: number | undefined }) => audio.Index === audioIndex
+  );
 
   // Direct playback CASE
   if (!bitrateValue) {
