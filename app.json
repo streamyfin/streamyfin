@@ -124,11 +124,14 @@
         "./plugins/withTrustLocalCerts.js"
       ],
       [
+        "./plugins/withGradleProperties.js"
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#2e2e2e",
           "image": "./assets/images/StreamyFinFinal.png",
-          "imageWidth": 200
+          "imageWidth": 100
         }
       ]
     ],
