@@ -70,7 +70,7 @@ export const useImageColors = ({
         fallback: "#fff",
         cache: false,
       })
-        .then((colors) => {
+        .then((colors: { platform: string; dominant: string; vibrant: string; detail: string; primary: string; }) => {
           let primary: string = "#fff";
           let text: string = "#000";
           let backup: string = "#fff";
@@ -104,7 +104,7 @@ export const useImageColors = ({
             storage.set(`${source.uri}-text`, text);
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           console.error("Error getting colors", error);
         });
     }

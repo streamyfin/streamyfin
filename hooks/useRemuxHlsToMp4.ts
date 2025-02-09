@@ -100,8 +100,8 @@ export const useRemuxHlsToMp4 = () => {
           toast.success(t("home.downloads.toasts.download_completed"));
         }
 
-        setProcesses((prev) => {
-          return prev.filter((process) => process.itemId !== item.Id);
+        setProcesses((prev: any[]) => {
+          return prev.filter((process: { itemId: string | undefined; }) => process.itemId !== item.Id);
         });
       } catch (e) {
         console.error(e);
@@ -125,8 +125,8 @@ export const useRemuxHlsToMp4 = () => {
         totalFrames > 0 ? Math.floor((processedFrames / totalFrames) * 100) : 0;
 
       if (!item.Id) throw new Error("Item is undefined");
-      setProcesses((prev) => {
-        return prev.map((process) => {
+      setProcesses((prev: any[]) => {
+        return prev.map((process: { itemId: string | undefined; }) => {
           if (process.itemId === item.Id) {
             return {
               ...process,
@@ -185,13 +185,13 @@ export const useRemuxHlsToMp4 = () => {
         };
 
         writeInfoLog(`useRemuxHlsToMp4 ~ startRemuxing for item ${item.Name}`);
-        setProcesses((prev) => [...prev, job]);
+        setProcesses((prev: any) => [...prev, job]);
 
         await FFmpegKit.executeAsync(
           createFFmpegCommand(url, output).join(" "),
-          (session) => completeCallback(session, item),
+          (session: any) => completeCallback(session, item),
           undefined,
-          (s) => statisticsCallback(s, item)
+          (s: any) => statisticsCallback(s, item)
         );
       } catch (e) {
         const error = e as Error;
@@ -200,8 +200,8 @@ export const useRemuxHlsToMp4 = () => {
           `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}, 
           Error: ${error.message}, Stack: ${error.stack}`
         );
-        setProcesses((prev) => {
-          return prev.filter((process) => process.itemId !== item.Id);
+        setProcesses((prev: any[]) => {
+          return prev.filter((process: { itemId: string | undefined; }) => process.itemId !== item.Id);
         });
         throw error; // Re-throw the error to propagate it to the caller
       }
