@@ -42,6 +42,8 @@ import { SubtitleHelper } from "@/utils/SubtitleHelper";
 import { useTranslation } from "react-i18next";
 
 const Player = () => {
+  console.log("Transcoding Player");
+
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const [settings] = useSettings();
@@ -294,9 +296,6 @@ const Player = () => {
       subtitleIndex,
     ]
   );
-
-  useOrientation();
-  useOrientationSettings();
 
   useWebSocket({
     isPlaying: isPlaying,
