@@ -7,10 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain"
-    },
     "jsEngine": "hermes",
     "assetBundlePatterns": [
       "**/*"
@@ -74,16 +70,13 @@
         {
           "ios": {
             "deploymentTarget": "15.6",
-            "useFrameworks": "static",
-            "newArchEnabled": false
+            "useFrameworks": "static"
           },
           "android": {
-            "newArchEnabled": false,
-            "android": {
-              "compileSdkVersion": 34,
-              "targetSdkVersion": 34,
-              "buildToolsVersion": "34.0.0"
-            },
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "2.0.21",
             "minSdkVersion": 24,
             "usesCleartextTraffic": true,
             "packagingOptions": {
@@ -129,6 +122,17 @@
       ],
       [
         "./plugins/withTrustLocalCerts.js"
+      ],
+      [
+        "./plugins/withGradleProperties.js"
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#2e2e2e",
+          "image": "./assets/images/StreamyFinFinal.png",
+          "imageWidth": 100
+        }
       ]
     ],
     "experiments": {
@@ -148,6 +152,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/e79219d1-797f-4fbe-9fa1-cfd360690a68"
-    }
+    },
+    "newArchEnabled": false
   }
 }
