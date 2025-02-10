@@ -164,6 +164,15 @@ export const OtherSettings: React.FC = () => {
           showArrow
         />
         <ListItem
+          title={t("home.settings.other.default_bitrate")}
+          disabled={pluginSettings?.defaultBitrate?.locked}
+        >
+          <BitrateSelector
+            selected={settings.defaultBitrate}
+            onChange={(bitrate) => updateSettings({ defaultBitrate: bitrate })}
+          />
+        </ListItem>
+        <ListItem
           title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
         >
