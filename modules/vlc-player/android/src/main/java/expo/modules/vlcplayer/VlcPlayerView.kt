@@ -1,23 +1,40 @@
 package expo.modules.vlcplayer
 
+import android.R
+import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_IMMUTABLE
+import android.app.PendingIntent.FLAG_UPDATE_CURRENT
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.drawable.Icon
+import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.ViewGroup
-import android.widget.FrameLayout
+import androidx.annotation.RequiresApi
+import androidx.core.app.ComponentActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleObserver
-import android.net.Uri
 import expo.modules.kotlin.AppContext
-import expo.modules.kotlin.views.ExpoView
 import expo.modules.kotlin.viewevent.EventDispatcher
+import expo.modules.kotlin.views.ExpoView
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
-import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.util.VLCVideoLayout
 
+
 class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context, appContext), LifecycleObserver, MediaPlayer.EventListener {
+    private val PIP_PLAY_PAUSE_ACTION = "PIP_PLAY_PAUSE_ACTION"
+    private val PIP_REWIND_ACTION = "PIP_REWIND_ACTION"
+    private val PIP_FORWARD_ACTION = "PIP_FORWARD_ACTION"
 
     private var libVLC: LibVLC? = null
     private var mediaPlayer: MediaPlayer? = null
@@ -30,6 +47,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private val onVideoProgress by EventDispatcher()
     private val onVideoStateChange by EventDispatcher()
     private val onVideoLoadEnd by EventDispatcher()
+    private val onPipStarted by EventDispatcher()
 
     private var startPosition: Int? = 0
     private var isMediaReady: Boolean = false
@@ -44,9 +62,32 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             handler.postDelayed(this, updateInterval)
         }
     }
+    private val currentActivity get() = context.findActivity()
+    private val actions: MutableList<RemoteAction> = mutableListOf()
+
+    private val actionReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                PIP_PLAY_PAUSE_ACTION -> if (isPaused) play() else pause()
+                PIP_FORWARD_ACTION -> seekTo((mediaPlayer?.time?.toInt() ?: 0) + 15_000)
+                PIP_REWIND_ACTION -> seekTo((mediaPlayer?.time?.toInt() ?: 0) - 15_000)
+            }
+        }
+    }
 
     init {
         setupView()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            setupPipActions()
+            currentActivity.apply {
+                setPictureInPictureParams(getPipParams()!!)
+                addOnPictureInPictureModeChangedListener { info ->
+                    onPipStarted(mapOf(
+                        "pipStarted" to info.isInPictureInPictureMode
+                    ))
+                }
+            }
+        }
     }
 
     private fun setupView() {
@@ -57,6 +98,76 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
         addView(videoLayout)
         Log.d("VlcPlayerView", "View setup complete")
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun setupPipActions() {
+        val remoteActionFilter = IntentFilter()
+        val playPauseIntent: Intent = Intent(PIP_PLAY_PAUSE_ACTION).setPackage(context.packageName)
+        val forwardIntent: Intent = Intent(PIP_FORWARD_ACTION).setPackage(context.packageName)
+        val rewindIntent: Intent = Intent(PIP_REWIND_ACTION).setPackage(context.packageName)
+
+        remoteActionFilter.addAction(PIP_PLAY_PAUSE_ACTION)
+        remoteActionFilter.addAction(PIP_FORWARD_ACTION)
+        remoteActionFilter.addAction(PIP_REWIND_ACTION)
+
+        actions.addAll(
+            listOf(
+                RemoteAction(
+                    Icon.createWithResource(context, R.drawable.ic_media_rew),
+                    "Rewind",
+                    "Rewind Video",
+                    PendingIntent.getBroadcast(
+                        context,
+                        0,
+                        rewindIntent,
+                        FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
+                    )
+                ),
+                RemoteAction(
+                    Icon.createWithResource(context, R.drawable.ic_media_play),
+                    "Play",
+                    "Play Video",
+                    PendingIntent.getBroadcast(
+                        context,
+                        0,
+                        playPauseIntent,
+                        FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
+                    )
+                ),
+                RemoteAction(
+                    Icon.createWithResource(context, R.drawable.ic_media_ff),
+                    "Skip",
+                    "Skip Forward",
+                    PendingIntent.getBroadcast(
+                        context,
+                        0,
+                        forwardIntent,
+                        FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
+                    )
+                )
+            )
+        )
+
+        ContextCompat.registerReceiver(
+            context,
+            actionReceiver,
+            remoteActionFilter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    private fun getPipParams(): PictureInPictureParams? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            var builder = PictureInPictureParams.Builder()
+                .setActions(actions)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder = builder.setAutoEnterEnabled(true)
+            }
+            return builder.build()
+        }
+        return null
     }
 
     fun setSource(source: Map<String, Any>) {
@@ -109,6 +220,12 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         if (autoplay) {
             Log.d("VlcPlayerView", "Playing...")
             play()
+        }
+    }
+
+    fun startPictureInPicture() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            currentActivity.enterPictureInPictureMode(getPipParams()!!)
         }
     }
 
@@ -283,4 +400,13 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             ));
         }
     }
+}
+
+internal fun Context.findActivity(): androidx.activity.ComponentActivity {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is androidx.activity.ComponentActivity) return context
+        context = context.baseContext
+    }
+    throw IllegalStateException("Failed to find ComponentActivity")
 }

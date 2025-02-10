@@ -3,12 +3,11 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
-import { useOrientation } from "@/hooks/useOrientation";
-import { useOrientationSettings } from "@/hooks/useOrientationSettings";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules/vlc-player";
 import {
+  PipStartedPayload,
   PlaybackStatePayload,
   ProgressUpdatePayload,
   VlcPlayerViewRef,
@@ -18,13 +17,10 @@ const downloadProvider = !Platform.isTV
   ? require("@/providers/DownloadProvider")
   : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
-import { Api } from "@jellyfin/sdk";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import {
   getPlaystateApi,
   getUserLibraryApi,
@@ -42,14 +38,12 @@ import React, {
 } from "react";
 import {
   Alert,
-  BackHandler,
   View,
   AppState,
   AppStateStatus,
   Platform,
 } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import settings from "../(tabs)/(home)/settings";
 import { useSettings } from "@/utils/atoms/settings";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -67,6 +61,7 @@ export default function page() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [isPipStarted, setIsPipStarted] = useState(false);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -190,37 +185,23 @@ export default function page() {
     lightHapticFeedback();
     if (isPlaying) {
       await videoRef.current?.pause();
-
-      if (!offline && stream) {
-        await getPlaystateApi(api).onPlaybackProgress({
-          itemId: item?.Id!,
-          audioStreamIndex: audioIndex ? audioIndex : undefined,
-          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-          mediaSourceId: mediaSourceId,
-          positionTicks: msToTicks(progress.value),
-          isPaused: true,
-          playMethod: stream.url?.includes("m3u8")
-            ? "Transcode"
-            : "DirectStream",
-          playSessionId: stream.sessionId,
-        });
-      }
     } else {
       videoRef.current?.play();
-      if (!offline && stream) {
-        await getPlaystateApi(api).onPlaybackProgress({
-          itemId: item?.Id!,
-          audioStreamIndex: audioIndex ? audioIndex : undefined,
-          subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-          mediaSourceId: mediaSourceId,
-          positionTicks: msToTicks(progress.value),
-          isPaused: false,
-          playMethod: stream?.url.includes("m3u8")
-            ? "Transcode"
-            : "DirectStream",
-          playSessionId: stream.sessionId,
-        });
-      }
+    }
+
+    if (!offline && stream) {
+      await getPlaystateApi(api).onPlaybackProgress({
+        itemId: item?.Id!,
+        audioStreamIndex: audioIndex ? audioIndex : undefined,
+        subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+        mediaSourceId: mediaSourceId,
+        positionTicks: msToTicks(progress.get()),
+        isPaused: !isPlaying,
+        playMethod: stream?.url.includes("m3u8")
+          ? "Transcode"
+          : "DirectStream",
+        playSessionId: stream.sessionId,
+      });
     }
   }, [
     isPlaying,
@@ -232,13 +213,13 @@ export default function page() {
     subtitleIndex,
     mediaSourceId,
     offline,
-    progress.value,
+    progress,
   ]);
 
   const reportPlaybackStopped = useCallback(async () => {
     if (offline) return;
 
-    const currentTimeInTicks = msToTicks(progress.value);
+    const currentTimeInTicks = msToTicks(progress.get());
 
     await getPlaystateApi(api!).onPlaybackStopped({
       itemId: item?.Id!,
@@ -273,8 +254,7 @@ export default function page() {
 
   const onProgress = useCallback(
     async (data: ProgressUpdatePayload) => {
-      if (isSeeking.value === true) return;
-      if (isPlaybackStopped === true) return;
+      if (isSeeking.get() || isPlaybackStopped) return;
 
       const { currentTime } = data.nativeEvent;
 
@@ -282,7 +262,7 @@ export default function page() {
         setIsBuffering(false);
       }
 
-      progress.value = currentTime;
+      progress.set(currentTime);
 
       if (offline) return;
 
@@ -301,7 +281,7 @@ export default function page() {
         playSessionId: stream.sessionId,
       });
     },
-    [item?.Id, isPlaying, api, isPlaybackStopped, audioIndex, subtitleIndex]
+    [item?.Id, isSeeking, api, isPlaybackStopped, audioIndex, subtitleIndex]
   );
 
   useWebSocket({
@@ -310,6 +290,11 @@ export default function page() {
     stopPlayback: stop,
     offline,
   });
+
+  const onPipStarted = useCallback((e: PipStartedPayload) => {
+    const { pipStarted } = e.nativeEvent;
+    setIsPipStarted(pipStarted)
+  }, [])
 
   const onPlaybackStateChanged = useCallback((e: PlaybackStatePayload) => {
     const { state, isBuffering, isPlaying } = e.nativeEvent;
@@ -340,25 +325,13 @@ export default function page() {
       : 0;
   }, [item]);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      return async () => {
-        stop();
-      };
-    }, [])
-  );
-
   const [appState, setAppState] = useState(AppState.currentState);
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (appState.match(/inactive|background/) && nextAppState === "active") {
-        // Handle app coming to the foreground
-      } else if (nextAppState.match(/inactive|background/)) {
-        // Handle app going to the background
-        if (videoRef.current && videoRef.current.pause) {
-          videoRef.current.pause();
-        }
+      // Handle app going to the background
+      if (nextAppState.match(/inactive|background/)) {
+        _setShowControls(false)
       }
       setAppState(nextAppState);
     };
@@ -373,10 +346,9 @@ export default function page() {
       // Cleanup the event listener when the component is unmounted
       subscription.remove();
     };
-  }, [appState]);
+  }, [appState, isPipStarted, isPlaying]);
 
   // Preselection of audio and subtitle tracks.
-
   if (!settings) return null;
 
   let initOptions = [`--sub-text-scale=${settings.subtitleSize}`];
@@ -410,7 +382,7 @@ export default function page() {
       };
     }
 
-    if (chosenAudioTrack)
+  if (chosenAudioTrack)
       initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   } else {
     // Transcoded playback CASE
@@ -466,6 +438,7 @@ export default function page() {
           onVideoProgress={onProgress}
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}
+          onPipStarted={onPipStarted}
           onVideoLoadStart={() => {}}
           onVideoLoadEnd={() => {
             setIsVideoLoaded(true);
@@ -496,6 +469,7 @@ export default function page() {
           setIgnoreSafeAreas={setIgnoreSafeAreas}
           ignoreSafeAreas={ignoreSafeAreas}
           isVideoLoaded={isVideoLoaded}
+          startPictureInPicture={videoRef?.current?.startPictureInPicture}
           play={videoRef.current?.play}
           pause={videoRef.current?.pause}
           seek={videoRef.current?.seekTo}
@@ -512,23 +486,4 @@ export default function page() {
       )}
     </View>
   );
-}
-
-export function usePoster(
-  item: BaseItemDto,
-  api: Api | null
-): string | undefined {
-  const poster = useMemo(() => {
-    if (!item || !api) return undefined;
-    return item.Type === "Audio"
-      ? `${api.basePath}/Items/${item.AlbumId}/Images/Primary?tag=${item.AlbumPrimaryImageTag}&quality=90&maxHeight=200&maxWidth=200`
-      : getBackdropUrl({
-          api,
-          item: item,
-          quality: 70,
-          width: 200,
-        });
-  }, [item, api]);
-
-  return poster ?? undefined;
 }
