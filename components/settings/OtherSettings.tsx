@@ -165,7 +165,7 @@ export const OtherSettings: React.FC = () => {
           showArrow
         />
         <ListItem
-          title={t("home.settings.other.default_quality")}
+          title="Default quality"
           disabled={pluginSettings?.defaultBitrate?.locked}
         >
           <Dropdown
