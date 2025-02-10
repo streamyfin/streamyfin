@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
-import { BitrateSelector } from "@/components/BitrateSelector";
+import { BitrateSelector, BITRATES } from "@/components/BitrateSelector";
 import {
   BACKGROUND_FETCH_TASK,
   registerBackgroundFetchAsync,
