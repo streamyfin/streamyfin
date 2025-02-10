@@ -1,5 +1,6 @@
 package expo.modules.vlcplayer
 
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -8,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.lifecycle.LifecycleObserver
 import android.net.Uri
+import android.os.Build
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.views.ExpoView
 import expo.modules.kotlin.viewevent.EventDispatcher
@@ -47,6 +49,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     init {
         setupView()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            appContext.currentActivity?.apply {
+                setPictureInPictureParams(getPipParams()!!)
+            }
+        }
     }
 
     private fun setupView() {
@@ -57,6 +64,17 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
         addView(videoLayout)
         Log.d("VlcPlayerView", "View setup complete")
+    }
+
+    private fun getPipParams(): PictureInPictureParams? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            var builder = PictureInPictureParams.Builder()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder = builder.setAutoEnterEnabled(true)
+            }
+            return builder.build()
+        }
+        return null
     }
 
     fun setSource(source: Map<String, Any>) {
@@ -109,6 +127,14 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         if (autoplay) {
             Log.d("VlcPlayerView", "Playing...")
             play()
+        }
+    }
+
+    fun startPictureInPicture() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            appContext.currentActivity?.apply {
+                enterPictureInPictureMode(getPipParams()!!)
+            }
         }
     }
 
