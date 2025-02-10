@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name           = 'VlcPlayer'
-  s.version        = '1.0.0'
+  s.version        = '4.0.0a10'
   s.summary        = 'A sample project summary'
   s.description    = 'A sample project description'
   s.author         = ''
@@ -10,8 +10,8 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-  s.ios.dependency 'MobileVLCKit', '~> 3.6.1b1' 
-  s.tvos.dependency 'TVVLCKit', '~> 3.6.1b1' 
+  s.ios.dependency 'VLCKit', s.version
+  s.tvos.dependency 'VLCKit', s.version
 
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {

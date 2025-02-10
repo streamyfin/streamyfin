@@ -106,11 +106,21 @@
           }
         }
       ],
-      ["react-native-bottom-tabs"],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withGoogleCastActivity.js"],
-      ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"],
+      [
+        "react-native-bottom-tabs"
+      ],
+      [
+        "./plugins/withChangeNativeAndroidTextToWhite.js"
+      ],
+      [
+        "./plugins/withAndroidManifest.js"
+      ],
+      [
+        "./plugins/withTrustLocalCerts.js"
+      ],
+      [
+        "./plugins/withGradleProperties.js"
+      ],
       [
         "expo-splash-screen",
         {

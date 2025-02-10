@@ -26,8 +26,13 @@ class VlcPlayerModule : Module() {
         "onVideoLoadStart",
         "onVideoLoadEnd",
         "onVideoProgress",
-        "onVideoError"
+        "onVideoError",
+        "onPipStarted"
       )
+
+      AsyncFunction("startPictureInPicture") { view: VlcPlayerView ->
+        view.startPictureInPicture()
+      }
 
       AsyncFunction("play") { view: VlcPlayerView ->
         view.play()

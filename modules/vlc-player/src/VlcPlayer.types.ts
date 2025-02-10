@@ -24,6 +24,12 @@ export type VideoLoadStartPayload = {
   };
 };
 
+export type PipStartedPayload = {
+  nativeEvent: {
+    pipStarted: boolean;
+  };
+};
+
 export type VideoStateChangePayload = PlaybackStatePayload;
 
 export type VideoProgressPayload = ProgressUpdatePayload;
@@ -64,9 +70,11 @@ export type VlcPlayerViewProps = {
   onVideoLoadStart?: (event: VideoLoadStartPayload) => void;
   onVideoLoadEnd?: (event: VideoLoadStartPayload) => void;
   onVideoError?: (event: PlaybackStatePayload) => void;
+  onPipStarted?: (event: PipStartedPayload) => void;
 };
 
 export interface VlcPlayerViewRef {
+  startPictureInPicture: () => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
   stop: () => Promise<void>;

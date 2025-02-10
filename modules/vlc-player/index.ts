@@ -1,7 +1,6 @@
 import {
-  NativeModulesProxy,
   EventEmitter,
-  Subscription,
+  EventSubscription,
 } from "expo-modules-core";
 
 import VlcPlayerModule from "./src/VlcPlayerModule";
@@ -19,13 +18,11 @@ import {
   VlcPlayerViewRef,
 } from "./src/VlcPlayer.types";
 
-const emitter = new EventEmitter(
-  VlcPlayerModule ?? NativeModulesProxy.VlcPlayer
-);
+const emitter = new EventEmitter(VlcPlayerModule);
 
 export function addPlaybackStateListener(
   listener: (event: PlaybackStatePayload) => void
-): Subscription {
+): EventSubscription {
   return emitter.addListener<PlaybackStatePayload>(
     "onPlaybackStateChanged",
     listener
@@ -34,7 +31,7 @@ export function addPlaybackStateListener(
 
 export function addVideoLoadStartListener(
   listener: (event: VideoLoadStartPayload) => void
-): Subscription {
+): EventSubscription {
   return emitter.addListener<VideoLoadStartPayload>(
     "onVideoLoadStart",
     listener
@@ -43,7 +40,7 @@ export function addVideoLoadStartListener(
 
 export function addVideoStateChangeListener(
   listener: (event: VideoStateChangePayload) => void
-): Subscription {
+): EventSubscription {
   return emitter.addListener<VideoStateChangePayload>(
     "onVideoStateChange",
     listener
@@ -52,7 +49,7 @@ export function addVideoStateChangeListener(
 
 export function addVideoProgressListener(
   listener: (event: VideoProgressPayload) => void
-): Subscription {
+): EventSubscription {
   return emitter.addListener<VideoProgressPayload>("onVideoProgress", listener);
 }
 
