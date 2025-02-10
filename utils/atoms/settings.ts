@@ -11,6 +11,7 @@ import {
   BaseItemKind,
   ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
+import { Bitrate, BITRATES } from "@/components/BitrateSelector";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
 
@@ -122,6 +123,7 @@ export type Settings = {
   marlinServerUrl?: string;
   openInVLC?: boolean;
   downloadQuality?: DownloadOption;
+  defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
@@ -169,6 +171,7 @@ const loadSettings = (): Settings => {
     marlinServerUrl: "",
     openInVLC: false,
     downloadQuality: DownloadOptions[0],
+    defaultBitrate: BITRATES[0],
     libraryOptions: {
       display: "list",
       cardStyle: "detailed",
