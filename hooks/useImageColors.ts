@@ -10,7 +10,9 @@ import { storage } from "@/utils/mmkv";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useMemo } from "react";
-import { getColors } from "react-native-image-colors";
+import { Platform } from "react-native";
+// import { getColors } from "react-native-image-colors";
+const Colors = !Platform.isTV ? require("react-native-image-colors") : null;
 
 /**
  * Custom hook to extract and manage image colors for a given item.
@@ -28,6 +30,8 @@ export const useImageColors = ({
   url?: string | null;
   disabled?: boolean;
 }) => {
+  if (Platform.isTV) return;
+
   const api = useAtomValue(apiAtom);
   const [, setPrimaryColor] = useAtom(itemThemeColorAtom);
 
@@ -62,11 +66,11 @@ export const useImageColors = ({
       }
 
       // Extract colors from the image
-      getColors(source.uri, {
+      Colors.getColors(source.uri, {
         fallback: "#fff",
         cache: false,
       })
-        .then((colors) => {
+        .then((colors: { platform: string; dominant: string; vibrant: string; detail: string; primary: string; }) => {
           let primary: string = "#fff";
           let text: string = "#000";
           let backup: string = "#fff";
@@ -100,7 +104,7 @@ export const useImageColors = ({
             storage.set(`${source.uri}-text`, text);
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           console.error("Error getting colors", error);
         });
     }

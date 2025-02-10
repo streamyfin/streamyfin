@@ -13,7 +13,10 @@ import {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
-import { useDownload } from "@/providers/DownloadProvider";
+// import { useDownload } from "@/providers/DownloadProvider";
+const downloadProvider = !Platform.isTV
+  ? require("@/providers/DownloadProvider")
+  : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -52,6 +55,7 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
+  console.log("Direct Player");
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -67,8 +71,11 @@ export default function page() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
+  let getDownloadedItem = null;
+  if (!Platform.isTV) {
+    getDownloadedItem = downloadProvider.useDownload();
+  }
 
-  const { getDownloadedItem } = useDownload();
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
   const lightHapticFeedback = useHaptic("light");
@@ -109,8 +116,8 @@ export default function page() {
   } = useQuery({
     queryKey: ["item", itemId],
     queryFn: async () => {
-      if (offline) {
-        const item = await getDownloadedItem(itemId);
+      if (offline && !Platform.isTV) {
+        const item = await getDownloadedItem.getDownloadedItem(itemId);
         if (item) return item.item;
       }
 
@@ -132,8 +139,8 @@ export default function page() {
   } = useQuery({
     queryKey: ["stream-url", itemId, mediaSourceId, bitrateValue],
     queryFn: async () => {
-      if (offline) {
-        const data = await getDownloadedItem(itemId);
+      if (offline && !Platform.isTV) {
+        const data = await getDownloadedItem.getDownloadedItem(itemId);
         if (!data?.mediaSource) return null;
 
         const url = await getDownloadedFileUrl(data.item.Id!);
@@ -297,9 +304,6 @@ export default function page() {
     [item?.Id, isPlaying, api, isPlaybackStopped, audioIndex, subtitleIndex]
   );
 
-  useOrientation();
-  useOrientationSettings();
-
   useWebSocket({
     isPlaying: isPlaying,
     togglePlay: togglePlay,
@@ -380,16 +384,18 @@ export default function page() {
 
   const allSubs =
     stream?.mediaSource.MediaStreams?.filter(
-      (sub) => sub.Type === "Subtitle"
+      (sub: { Type: string }) => sub.Type === "Subtitle"
     ) || [];
   const chosenSubtitleTrack = allSubs.find(
-    (sub) => sub.Index === subtitleIndex
+    (sub: { Index: number }) => sub.Index === subtitleIndex
   );
   const allAudio =
     stream?.mediaSource.MediaStreams?.filter(
-      (audio) => audio.Type === "Audio"
+      (audio: { Type: string }) => audio.Type === "Audio"
     ) || [];
-  const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
+  const chosenAudioTrack = allAudio.find(
+    (audio: { Index: number | undefined }) => audio.Index === audioIndex
+  );
 
   // Direct playback CASE
   if (!bitrateValue) {

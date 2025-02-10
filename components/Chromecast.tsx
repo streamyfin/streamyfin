@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect } from "react";
 import { Platform, TouchableOpacity, ViewProps } from "react-native";
 import GoogleCast, {
@@ -19,12 +18,12 @@ interface Props extends ViewProps {
   background?: "blur" | "transparent";
 }
 
-export const Chromecast: React.FC<Props> = ({
+export function Chromecast({
   width = 48,
   height = 48,
   background = "transparent",
   ...props
-}) => {
+}) {
   const client = useRemoteMediaClient();
   const castDevice = useCastDevice();
   const devices = useDevices();
@@ -86,4 +85,4 @@ export const Chromecast: React.FC<Props> = ({
       <Feather name="cast" size={22} color={"white"} />
     </RoundButton>
   );
-};
+}

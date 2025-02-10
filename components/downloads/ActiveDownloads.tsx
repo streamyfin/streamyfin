@@ -4,12 +4,16 @@ import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
 import { formatTimeString } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-import { checkForExistingDownloads } from "@kesha-antonov/react-native-background-downloader";
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { FFmpegKit } from "ffmpeg-kit-react-native";
+const FFmpegKitProvider = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
+import { useAtom } from "jotai";
 import {
   ActivityIndicator,
+  Platform,
   TouchableOpacity,
   TouchableOpacityProps,
   View,
@@ -38,7 +42,7 @@ export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
     <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
       <Text className="text-lg font-bold mb-2">{t("home.downloads.active_downloads")}</Text>
       <View className="space-y-2">
-        {processes?.map((p) => (
+        {processes?.map((p: JobStatus) => (
           <DownloadCard key={p.item.Id} process={p} />
         ))}
       </View>
@@ -63,7 +67,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
       if (settings?.downloadMethod === DownloadMethod.Optimized) {
         try {
-          const tasks = await checkForExistingDownloads();
+          const tasks = await BackGroundDownloader.checkForExistingDownloads();
           for (const task of tasks) {
             if (task.id === id) {
               task.stop();
@@ -76,8 +80,8 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
           await queryClient.refetchQueries({ queryKey: ["jobs"] });
         }
       } else {
-        FFmpegKit.cancel(Number(id));
-        setProcesses((prev) => prev.filter((p) => p.id !== id));
+        FFmpegKitProvider.FFmpegKit.cancel(Number(id));
+        setProcesses((prev: any[]) => prev.filter((p: { id: string; }) => p.id !== id));
       }
     },
     onSuccess: () => {

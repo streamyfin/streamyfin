@@ -5,15 +5,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
-import { Switch, TouchableOpacity } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { Platform, Switch, TouchableOpacity } from "react-native";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 
-export const DownloadSettings: React.FC = ({ ...props }) => {
+export default function DownloadSettings({ ...props }) {
   const [settings, updateSettings, pluginSettings] = useSettings();
   const { setProcesses } = useDownload();
   const router = useRouter();
@@ -61,7 +61,9 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
               collisionPadding={8}
               sideOffset={8}
             >
-              <DropdownMenu.Label>{t("home.settings.downloads.methods")}</DropdownMenu.Label>
+              <DropdownMenu.Label>
+                {t("home.settings.downloads.methods")}
+              </DropdownMenu.Label>
               <DropdownMenu.Item
                 key="1"
                 onSelect={() => {
@@ -69,7 +71,9 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
                   setProcesses([]);
                 }}
               >
-                <DropdownMenu.ItemTitle>{t("home.settings.downloads.default")}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>
+                  {t("home.settings.downloads.default")}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 key="2"
@@ -79,7 +83,9 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
                   queryClient.invalidateQueries({ queryKey: ["search"] });
                 }}
               >
-                <DropdownMenu.ItemTitle>{t("home.settings.downloads.optimized")}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>
+                  {t("home.settings.downloads.optimized")}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -134,4 +140,4 @@ export const DownloadSettings: React.FC = ({ ...props }) => {
       </ListGroup>
     </DisabledSetting>
   );
-};
+}

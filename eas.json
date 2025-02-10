@@ -11,6 +11,16 @@
         "buildType": "apk"
       }
     },
+    "development_tv": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_TV": "1"
+      }
+    },
     "preview": {
       "distribution": "internal"
     },
@@ -32,6 +42,16 @@
       "android": {
         "buildType": "apk",
         "image": "latest"
+      }
+    },
+    "production-apk-tv": {
+      "channel": "0.25.0",
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
+      },
+      "env": {
+        "EXPO_TV": "1"
       }
     }
   },

@@ -1,4 +1,6 @@
 import "@/augmentations";
+import { Platform } from "react-native";
+import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
@@ -21,22 +23,22 @@ import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import {
-  checkForExistingDownloads,
-  completeHandler,
-  download,
-} from "@kesha-antonov/react-native-background-downloader";
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as BackgroundFetch from "expo-background-fetch";
+const BackgroundFetch = !Platform.isTV
+  ? require("expo-background-fetch")
+  : null;
 import * as FileSystem from "expo-file-system";
 import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
-import { getLocales } from "expo-localization";
-import * as Notifications from "expo-notifications";
+const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { router, Stack } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
-import * as TaskManager from "expo-task-manager";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
+import { getLocales } from "expo-localization";
 import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef } from "react";
 import { I18nextProvider, useTranslation } from "react-i18next";
@@ -46,34 +48,40 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+if (!Platform.isTV) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 function useNotificationObserver() {
+  if (Platform.isTV) return;
+
   useEffect(() => {
     let isMounted = true;
 
-    function redirect(notification: Notifications.Notification) {
+    function redirect(notification: typeof Notifications.Notification) {
       const url = notification.request.content.data?.url;
       if (url) {
         router.push(url);
       }
     }
 
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!isMounted || !response?.notification) {
-        return;
+    Notifications.getLastNotificationResponseAsync().then(
+      (response: { notification: any }) => {
+        if (!isMounted || !response?.notification) {
+          return;
+        }
+        redirect(response?.notification);
       }
-      redirect(response?.notification);
-    });
+    );
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+      (response: { notification: any }) => {
         redirect(response.notification);
       }
     );
@@ -85,99 +93,101 @@ function useNotificationObserver() {
   }, []);
 }
 
-TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
-  console.log("TaskManager ~ trigger");
+if (!Platform.isTV) {
+  TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
+    console.log("TaskManager ~ trigger");
 
-  const now = Date.now();
+    const now = Date.now();
 
-  const settingsData = storage.getString("settings");
+    const settingsData = storage.getString("settings");
 
-  if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
 
-  const settings: Partial<Settings> = JSON.parse(settingsData);
-  const url = settings?.optimizedVersionsServerUrl;
+    const settings: Partial<Settings> = JSON.parse(settingsData);
+    const url = settings?.optimizedVersionsServerUrl;
 
-  if (!settings?.autoDownload || !url)
-    return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!settings?.autoDownload || !url)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
-  const token = getTokenFromStorage();
-  const deviceId = getOrSetDeviceId();
-  const baseDirectory = FileSystem.documentDirectory;
+    const token = getTokenFromStorage();
+    const deviceId = getOrSetDeviceId();
+    const baseDirectory = FileSystem.documentDirectory;
 
-  if (!token || !deviceId || !baseDirectory)
-    return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!token || !deviceId || !baseDirectory)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
-  const jobs = await getAllJobsByDeviceId({
-    deviceId,
-    authHeader: token,
-    url,
-  });
+    const jobs = await getAllJobsByDeviceId({
+      deviceId,
+      authHeader: token,
+      url,
+    });
 
-  console.log("TaskManager ~ Active jobs: ", jobs.length);
+    console.log("TaskManager ~ Active jobs: ", jobs.length);
 
-  for (let job of jobs) {
-    if (job.status === "completed") {
-      const downloadUrl = url + "download/" + job.id;
-      const tasks = await checkForExistingDownloads();
+    for (let job of jobs) {
+      if (job.status === "completed") {
+        const downloadUrl = url + "download/" + job.id;
+        const tasks = await BackGroundDownloader.checkForExistingDownloads();
 
-      if (tasks.find((task) => task.id === job.id)) {
-        console.log("TaskManager ~ Download already in progress: ", job.id);
-        continue;
+        if (tasks.find((task: { id: string }) => task.id === job.id)) {
+          console.log("TaskManager ~ Download already in progress: ", job.id);
+          continue;
+        }
+
+        BackGroundDownloader.download({
+          id: job.id,
+          url: downloadUrl,
+          destination: `${baseDirectory}${job.item.Id}.mp4`,
+          headers: {
+            Authorization: token,
+          },
+        })
+          .begin(() => {
+            console.log("TaskManager ~ Download started: ", job.id);
+          })
+          .done(() => {
+            console.log("TaskManager ~ Download completed: ", job.id);
+            saveDownloadedItemInfo(job.item);
+            BackGroundDownloader.completeHandler(job.id);
+            cancelJobById({
+              authHeader: token,
+              id: job.id,
+              url: url,
+            });
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: job.item.Name,
+                body: "Download completed",
+                data: {
+                  url: `/downloads`,
+                },
+              },
+              trigger: null,
+            });
+          })
+          .error((error: any) => {
+            console.log("TaskManager ~ Download error: ", job.id, error);
+            BackGroundDownloader.completeHandler(job.id);
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: job.item.Name,
+                body: "Download failed",
+                data: {
+                  url: `/downloads`,
+                },
+              },
+              trigger: null,
+            });
+          });
       }
-
-      download({
-        id: job.id,
-        url: downloadUrl,
-        destination: `${baseDirectory}${job.item.Id}.mp4`,
-        headers: {
-          Authorization: token,
-        },
-      })
-        .begin(() => {
-          console.log("TaskManager ~ Download started: ", job.id);
-        })
-        .done(() => {
-          console.log("TaskManager ~ Download completed: ", job.id);
-          saveDownloadedItemInfo(job.item);
-          completeHandler(job.id);
-          cancelJobById({
-            authHeader: token,
-            id: job.id,
-            url: url,
-          });
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: job.item.Name,
-              body: "Download completed",
-              data: {
-                url: `/downloads`,
-              },
-            },
-            trigger: null,
-          });
-        })
-        .error((error) => {
-          console.log("TaskManager ~ Download error: ", job.id, error);
-          completeHandler(job.id);
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: job.item.Name,
-              body: "Download failed",
-              data: {
-                url: `/downloads`,
-              },
-            },
-            trigger: null,
-          });
-        });
     }
-  }
 
-  console.log(`Auto download started: ${new Date(now).toISOString()}`);
+    console.log(`Auto download started: ${new Date(now).toISOString()}`);
 
-  // Be sure to return the successful result type!
-  return BackgroundFetch.BackgroundFetchResult.NewData;
-});
+    // Be sure to return the successful result type!
+    return BackgroundFetch.BackgroundFetchResult.NewData;
+  });
+}
 
 const checkAndRequestPermissions = async () => {
   try {
@@ -242,24 +252,7 @@ const queryClient = new QueryClient({
 
 function Layout() {
   const [settings] = useSettings();
-
-  useKeepAwake();
-  useNotificationObserver();
-
-  const { i18n } = useTranslation();
-
-  useEffect(() => {
-    checkAndRequestPermissions();
-  }, []);
-
-  useEffect(() => {
-    if (settings?.autoRotate === true)
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.DEFAULT);
-    else
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP
-      );
-  }, [settings]);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     i18n.changeLanguage(
@@ -267,24 +260,48 @@ function Layout() {
     );
   }, [settings?.preferedLanguage, i18n]);
 
-  const appState = useRef(AppState.currentState);
+  if (!Platform.isTV) {
+    useKeepAwake();
+    useNotificationObserver();
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
-        checkForExistingDownloads();
+    const { i18n } = useTranslation();
+
+    useEffect(() => {
+      checkAndRequestPermissions();
+    }, []);
+
+    useEffect(() => {
+      // If the user has auto rotate enabled, unlock the orientation
+      if (settings.autoRotate === true) {
+        ScreenOrientation.unlockAsync();
+      } else {
+        // If the user has auto rotate disabled, lock the orientation to portrait
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP
+        );
       }
-    });
+    }, [settings]);
 
-    checkForExistingDownloads();
+    useEffect(() => {
+      const subscription = AppState.addEventListener(
+        "change",
+        (nextAppState) => {
+          if (
+            appState.current.match(/inactive|background/) &&
+            nextAppState === "active"
+          ) {
+            BackGroundDownloader.checkForExistingDownloads();
+          }
+        }
+      );
 
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+      BackGroundDownloader.checkForExistingDownloads();
+
+      return () => {
+        subscription.remove();
+      };
+    }, []);
+  }
 
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),

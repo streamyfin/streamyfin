@@ -1,6 +1,11 @@
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { useHaptic } from "@/hooks/useHaptic";
+import useImageStorage from "@/hooks/useImageStorage";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
+import useDownloadHelper from "@/utils/download";
+import { getItemImage } from "@/utils/getItemImage";
 import { useLog, writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 import {
   cancelAllJobs,
   cancelJobById,
@@ -13,22 +18,11 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import {
-  checkForExistingDownloads,
-  completeHandler,
-  download,
-  setConfig,
-} from "@kesha-antonov/react-native-background-downloader";
-import MMKV from "react-native-mmkv";
-import {
-  focusManager,
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
+import { FileInfo } from "expo-file-system";
 import { useRouter } from "expo-router";
 import { atom, useAtom } from "jotai";
 import React, {
@@ -37,20 +31,16 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { AppState, AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
 import { apiAtom } from "./JellyfinProvider";
-import * as Notifications from "expo-notifications";
-import { getItemImage } from "@/utils/getItemImage";
-import useImageStorage from "@/hooks/useImageStorage";
-import { storage } from "@/utils/mmkv";
-import useDownloadHelper from "@/utils/download";
-import { FileInfo } from "expo-file-system";
-import { useHaptic } from "@/hooks/useHaptic";
-import * as Application from "expo-application";
-import { useTranslation } from "react-i18next";
+const BackGroundDownloader = !Platform.isTV
+  ? (require("@kesha-antonov/react-native-background-downloader") as typeof import("@kesha-antonov/react-native-background-downloader"))
+  : null;
+// import * as Notifications from "expo-notifications";
+const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -68,6 +58,8 @@ const DownloadContext = createContext<ReturnType<
 > | null>(null);
 
 function useDownloadProvider() {
+  if (Platform.isTV) return;
+  
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [settings] = useSettings();
@@ -141,15 +133,20 @@ function useDownloadProvider() {
           if (settings.autoDownload) {
             startDownload(job);
           } else {
-            toast.info(t("home.downloads.toasts.item_is_ready_to_be_downloaded",{item: job.item.Name}), {
-              action: {
-                label: t("home.downloads.toasts.go_to_downloads"),
-                onClick: () => {
-                  router.push("/downloads");
-                  toast.dismiss();
+            toast.info(
+              t("home.downloads.toasts.item_is_ready_to_be_downloaded", {
+                item: job.item.Name,
+              }),
+              {
+                action: {
+                  label: t("home.downloads.toasts.go_to_downloads"),
+                  onClick: () => {
+                    router.push("/downloads");
+                    toast.dismiss();
+                  },
                 },
-              },
-            });
+              }
+            );
             Notifications.scheduleNotificationAsync({
               content: {
                 title: job.item.Name,
@@ -174,7 +171,7 @@ function useDownloadProvider() {
   useEffect(() => {
     const checkIfShouldStartDownload = async () => {
       if (processes.length === 0) return;
-      await checkForExistingDownloads();
+      await BackGroundDownloader?.checkForExistingDownloads();
     };
 
     checkIfShouldStartDownload();
@@ -218,7 +215,7 @@ function useDownloadProvider() {
         )
       );
 
-      setConfig({
+      BackGroundDownloader?.setConfig({
         isLogsEnabled: true,
         progressInterval: 500,
         headers: {
@@ -226,19 +223,24 @@ function useDownloadProvider() {
         },
       });
 
-      toast.info(t("home.downloads.toasts.download_stated_for_item", {item: process.item.Name}), {
-        action: {
-          label: t("home.downloads.toasts.go_to_downloads"),
-          onClick: () => {
-            router.push("/downloads");
-            toast.dismiss();
+      toast.info(
+        t("home.downloads.toasts.download_stated_for_item", {
+          item: process.item.Name,
+        }),
+        {
+          action: {
+            label: t("home.downloads.toasts.go_to_downloads"),
+            onClick: () => {
+              router.push("/downloads");
+              toast.dismiss();
+            },
           },
-        },
-      });
+        }
+      );
 
       const baseDirectory = FileSystem.documentDirectory;
 
-      download({
+      BackGroundDownloader?.download({
         id: process.id,
         url: settings?.optimizedVersionsServerUrl + "download/" + process.id,
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
@@ -277,24 +279,29 @@ function useDownloadProvider() {
             process.item,
             doneHandler.bytesDownloaded
           );
-          toast.success(t("home.downloads.toasts.download_completed_for_item", {item: process.item.Name}), {
-            duration: 3000,
-            action: {
-              label: t("home.downloads.toasts.go_to_downloads"),
-              onClick: () => {
-                router.push("/downloads");
-                toast.dismiss();
+          toast.success(
+            t("home.downloads.toasts.download_completed_for_item", {
+              item: process.item.Name,
+            }),
+            {
+              duration: 3000,
+              action: {
+                label: t("home.downloads.toasts.go_to_downloads"),
+                onClick: () => {
+                  router.push("/downloads");
+                  toast.dismiss();
+                },
               },
-            },
-          });
+            }
+          );
           setTimeout(() => {
-            completeHandler(process.id);
+            BackGroundDownloader.completeHandler(process.id);
             removeProcess(process.id);
           }, 1000);
         })
         .error(async (error) => {
           removeProcess(process.id);
-          completeHandler(process.id);
+          BackGroundDownloader.completeHandler(process.id);
           let errorMsg = "";
           if (error.errorCode === 1000) {
             errorMsg = "No space left";
@@ -302,7 +309,12 @@ function useDownloadProvider() {
           if (error.errorCode === 404) {
             errorMsg = "File not found on server";
           }
-          toast.error(t("home.downloads.toasts.download_failed_for_item", {item: process.item.Name, error: errorMsg}));
+          toast.error(
+            t("home.downloads.toasts.download_failed_for_item", {
+              item: process.item.Name,
+              error: errorMsg,
+            })
+          );
           writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
             error,
             processDetails: {
@@ -359,15 +371,20 @@ function useDownloadProvider() {
           throw new Error("Failed to start optimization job");
         }
 
-        toast.success(t("home.downloads.toasts.queued_item_for_optimization", {item: item.Name}), {
-          action: {
-            label: t("home.downloads.toasts.go_to_downloads"),
-            onClick: () => {
-              router.push("/downloads");
-              toast.dismiss();
+        toast.success(
+          t("home.downloads.toasts.queued_item_for_optimization", {
+            item: item.Name,
+          }),
+          {
+            action: {
+              label: t("home.downloads.toasts.go_to_downloads"),
+              onClick: () => {
+                router.push("/downloads");
+                toast.dismiss();
+              },
             },
-          },
-        });
+          }
+        );
       } catch (error) {
         writeToLog("ERROR", "Error in startBackgroundDownload", error);
         console.error("Error in startBackgroundDownload:", error);
@@ -379,11 +396,16 @@ function useDownloadProvider() {
             headers: error.response?.headers,
           });
           toast.error(
-            t("home.downloads.toasts.failed_to_start_download_for_item", {item: item.Name, message: error.message})
+            t("home.downloads.toasts.failed_to_start_download_for_item", {
+              item: item.Name,
+              message: error.message,
+            })
           );
           if (error.response) {
             toast.error(
-              t("home.downloads.toasts.server_responded_with_status", {statusCode: error.response.status})
+              t("home.downloads.toasts.server_responded_with_status", {
+                statusCode: error.response.status,
+              })
             );
           } else if (error.request) {
             t("home.downloads.toasts.no_response_received_from_server");
@@ -393,7 +415,10 @@ function useDownloadProvider() {
         } else {
           console.error("Non-Axios error:", error);
           toast.error(
-            t("home.downloads.toasts.failed_to_start_download_for_item_unexpected_error", {item: item.Name})
+            t(
+              "home.downloads.toasts.failed_to_start_download_for_item_unexpected_error",
+              { item: item.Name }
+            )
           );
         }
       }
@@ -409,11 +434,19 @@ function useDownloadProvider() {
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] }),
     ])
       .then(() =>
-        toast.success(t("home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"))
+        toast.success(
+          t(
+            "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"
+          )
+        )
       )
       .catch((reason) => {
         console.error("Failed to delete all files, folders, and jobs:", reason);
-        toast.error(t("home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs"));
+        toast.error(
+          t(
+            "home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs"
+          )
+        );
       });
   };
 

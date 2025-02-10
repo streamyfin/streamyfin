@@ -1,10 +1,9 @@
-import { Chromecast } from "@/components/Chromecast";
-import { Text } from "@/components/common/Text";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
+const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
 
 export default function IndexLayout() {
   const router = useRouter();
@@ -25,14 +24,18 @@ export default function IndexLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View className="flex flex-row items-center space-x-2">
-              <Chromecast />
-              <TouchableOpacity
-                onPress={() => {
-                  router.push("/(auth)/settings");
-                }}
-              >
-                <Feather name="settings" color={"white"} size={22} />
-              </TouchableOpacity>
+              {!Platform.isTV && (
+                <>
+                  <Chromecast.Chromecast />
+                  <TouchableOpacity
+                    onPress={() => {
+                      router.push("/(auth)/settings");
+                    }}
+                  >
+                    <Feather name="settings" color={"white"} size={22} />
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           ),
         }}

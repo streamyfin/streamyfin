@@ -2,10 +2,6 @@ import { Platform } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import ios from "@/utils/profiles/ios";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,12 +10,6 @@ import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
-import CastContext, {
-  CastButton,
-  PlayServicesState,
-  useMediaStatus,
-  useRemoteMediaClient,
-} from "react-native-google-cast";
 import Animated, {
   Easing,
   interpolate,
@@ -32,12 +22,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { Button } from "./Button";
 import { SelectedOptions } from "./ItemContent";
-const chromecastProfile = !Platform.isTV
-  ? require("@/utils/profiles/chromecast")
-  : null;
 import { useTranslation } from "react-i18next";
 import { useHaptic } from "@/hooks/useHaptic";
-import { chromecastLoadMedia } from "@/utils/chromecastLoadMedia";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -53,8 +39,6 @@ export const PlayButton: React.FC<Props> = ({
   ...props
 }: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
-  const client = useRemoteMediaClient();
-  const mediaStatus = useMediaStatus();
   const { t } = useTranslation();
 
   const [colorAtom] = useAtom(itemThemeColorAtom);
@@ -97,99 +81,15 @@ export const PlayButton: React.FC<Props> = ({
     });
 
     const queryString = queryParams.toString();
-
-    if (!client) {
-      goToPlayer(queryString, selectedOptions.bitrate?.value);
-      return;
-    }
-
-    const options = ["Chromecast", "Device", "Cancel"];
-    const cancelButtonIndex = 2;
-    showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-      },
-      async (selectedIndex: number | undefined) => {
-        if (!api) return;
-        const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
-        const isOpeningCurrentlyPlayingMedia =
-          currentTitle && currentTitle === item?.Name;
-
-        switch (selectedIndex) {
-          case 0:
-            if (!Platform.isTV) {
-              await CastContext.getPlayServicesState().then(async (state) => {
-                if (state && state !== PlayServicesState.SUCCESS)
-                  CastContext.showPlayServicesErrorDialog(state);
-                else {
-                  // Get a new URL with the Chromecast device profile:
-                  const data = await getStreamUrl({
-                    api,
-                    item,
-                    deviceProfile: chromecastProfile,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-                    userId: user?.Id,
-                    audioStreamIndex: selectedOptions.audioIndex,
-                    maxStreamingBitrate: selectedOptions.bitrate?.value,
-                    mediaSourceId: selectedOptions.mediaSource?.Id,
-                    subtitleStreamIndex: selectedOptions.subtitleIndex,
-                  });
-
-                  if (!data?.url) {
-                    console.warn("No URL returned from getStreamUrl", data);
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.could_not_create_stream_for_chromecast")
-                    );
-                    return;
-                  }
-
-                  chromecastLoadMedia({
-                    client,
-                    item,
-                    contentUrl: data.url,
-                    sessionId: data.sessionId || undefined,
-                    mediaSourceId: data.mediaSource?.Id || undefined,
-                    playbackOptions: selectedOptions,
-                    images: [
-                      {
-                        url: getParentBackdropImageUrl({
-                          api,
-                          item,
-                          quality: 90,
-                          width: 2000,
-                        })!,
-                      },
-                    ],
-                  }).then(() => {
-                    // state is already set when reopening current media, so skip it here.
-                    if (isOpeningCurrentlyPlayingMedia) {
-                      return;
-                    }
-                    router.push("/player/google-cast-player");
-                  });
-                }
-              });
-            }
-            break;
-          case 1:
-            goToPlayer(queryString, selectedOptions.bitrate?.value);
-            break;
-          case cancelButtonIndex:
-            break;
-        }
-      }
-    );
+    goToPlayer(queryString, selectedOptions.bitrate?.value);
+    return;
   }, [
     item,
-    client,
     settings,
     api,
     user,
     router,
     showActionSheetWithOptions,
-    mediaStatus,
     selectedOptions,
   ]);
 
@@ -323,13 +223,7 @@ export const PlayButton: React.FC<Props> = ({
             <Animated.Text style={animatedTextStyle}>
               <Ionicons name="play-circle" size={24} />
             </Animated.Text>
-            {client && (
-              <Animated.Text style={animatedTextStyle}>
-                <Feather name="cast" size={22} />
-                <CastButton tintColor="transparent" />
-              </Animated.Text>
-            )}
-            {!client && settings?.openInVLC && (
+            {settings?.openInVLC && (
               <Animated.Text style={animatedTextStyle}>
                 <MaterialCommunityIcons
                   name="vlc"

@@ -1,7 +1,7 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useEffect, useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { Platform, TouchableOpacity, View } from "react-native";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { Text } from "../common/Text";
 import { t } from "i18next";
 
@@ -30,6 +30,8 @@ export const SeasonDropdown: React.FC<Props> = ({
   state,
   onSelect,
 }) => {
+  if (Platform.isTV) return null;
+
   const keys = useMemo<SeasonKeys>(
     () =>
       item.Type === "Episode"
@@ -92,7 +94,9 @@ export const SeasonDropdown: React.FC<Props> = ({
       <DropdownMenu.Trigger>
         <View className="flex flex-row">
           <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-            <Text>{t("item_card.season")} {seasonIndex}</Text>
+            <Text>
+              {t("item_card.season")} {seasonIndex}
+            </Text>
           </TouchableOpacity>
         </View>
       </DropdownMenu.Trigger>

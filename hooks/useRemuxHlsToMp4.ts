@@ -9,7 +9,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
-import { FFmpegKit, FFmpegSession, Statistics } from "ffmpeg-kit-react-native";
+
+// import { FFmpegKit, FFmpegSession, Statistics } from "ffmpeg-kit-react-native";
+const FFMPEGKitReactNative = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { toast } from "sonner-native";
@@ -18,8 +20,12 @@ import useDownloadHelper from "@/utils/download";
 import { Api } from "@jellyfin/sdk";
 import { useSettings } from "@/utils/atoms/settings";
 import { JobStatus } from "@/utils/optimize-server";
+import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 
+type FFmpegSession = typeof FFMPEGKitReactNative.FFmpegSession;
+type Statistics = typeof FFMPEGKitReactNative.Statistics
+const FFmpegKit = FFMPEGKitReactNative.FFmpegKit;
 const createFFmpegCommand = (url: string, output: string) => [
   "-y", // overwrite output files without asking
   "-thread_queue_size 512", // https://ffmpeg.org/ffmpeg.html#toc-Advanced-options
@@ -55,7 +61,12 @@ export const useRemuxHlsToMp4 = () => {
   const [settings] = useSettings();
   const { saveImage } = useImageStorage();
   const { saveSeriesPrimaryImage } = useDownloadHelper();
-  const { saveDownloadedItemInfo, setProcesses, processes, APP_CACHE_DOWNLOAD_DIRECTORY } = useDownload();
+  const {
+    saveDownloadedItemInfo,
+    setProcesses,
+    processes,
+    APP_CACHE_DOWNLOAD_DIRECTORY,
+  } = useDownload();
 
   const onSaveAssets = async (api: Api, item: BaseItemDto) => {
     await saveSeriesPrimaryImage(item);
@@ -79,9 +90,9 @@ export const useRemuxHlsToMp4 = () => {
         if (returnCode.isValueSuccess()) {
           const stat = await session.getLastReceivedStatistics();
           await FileSystem.moveAsync({
-              from: `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`,
-              to: `${FileSystem.documentDirectory}${item.Id}.mp4`
-          })
+            from: `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`,
+            to: `${FileSystem.documentDirectory}${item.Id}.mp4`,
+          });
           await queryClient.invalidateQueries({
             queryKey: ["downloadedItems"],
           });
@@ -89,8 +100,8 @@ export const useRemuxHlsToMp4 = () => {
           toast.success(t("home.downloads.toasts.download_completed"));
         }
 
-        setProcesses((prev) => {
-          return prev.filter((process) => process.itemId !== item.Id);
+        setProcesses((prev: any[]) => {
+          return prev.filter((process: { itemId: string | undefined; }) => process.itemId !== item.Id);
         });
       } catch (e) {
         console.error(e);
@@ -114,8 +125,8 @@ export const useRemuxHlsToMp4 = () => {
         totalFrames > 0 ? Math.floor((processedFrames / totalFrames) * 100) : 0;
 
       if (!item.Id) throw new Error("Item is undefined");
-      setProcesses((prev) => {
-        return prev.map((process) => {
+      setProcesses((prev: any[]) => {
+        return prev.map((process: { itemId: string | undefined; }) => {
           if (process.itemId === item.Id) {
             return {
               ...process,
@@ -133,12 +144,16 @@ export const useRemuxHlsToMp4 = () => {
 
   const startRemuxing = useCallback(
     async (item: BaseItemDto, url: string, mediaSource: MediaSourceInfo) => {
-      const cacheDir = await FileSystem.getInfoAsync(APP_CACHE_DOWNLOAD_DIRECTORY);
+      const cacheDir = await FileSystem.getInfoAsync(
+        APP_CACHE_DOWNLOAD_DIRECTORY
+      );
       if (!cacheDir.exists) {
-        await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {intermediates: true})
+        await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {
+          intermediates: true,
+        });
       }
 
-      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`
+      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`;
 
       if (!api) throw new Error("API is not defined");
       if (!item.Id) throw new Error("Item must have an Id");
@@ -170,13 +185,13 @@ export const useRemuxHlsToMp4 = () => {
         };
 
         writeInfoLog(`useRemuxHlsToMp4 ~ startRemuxing for item ${item.Name}`);
-        setProcesses((prev) => [...prev, job]);
+        setProcesses((prev: any) => [...prev, job]);
 
         await FFmpegKit.executeAsync(
           createFFmpegCommand(url, output).join(" "),
-          (session) => completeCallback(session, item),
+          (session: any) => completeCallback(session, item),
           undefined,
-          (s) => statisticsCallback(s, item)
+          (s: any) => statisticsCallback(s, item)
         );
       } catch (e) {
         const error = e as Error;
@@ -185,8 +200,8 @@ export const useRemuxHlsToMp4 = () => {
           `useRemuxHlsToMp4 ~ remuxing failed for item: ${item.Name}, 
           Error: ${error.message}, Stack: ${error.stack}`
         );
-        setProcesses((prev) => {
-          return prev.filter((process) => process.itemId !== item.Id);
+        setProcesses((prev: any[]) => {
+          return prev.filter((process: { itemId: string | undefined; }) => process.itemId !== item.Id);
         });
         throw error; // Re-throw the error to propagate it to the caller
       }

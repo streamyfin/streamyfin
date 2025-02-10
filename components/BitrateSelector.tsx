@@ -1,5 +1,5 @@
-import { TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
+import { Platform, TouchableOpacity, View } from "react-native";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { Text } from "./common/Text";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -54,6 +54,7 @@ export const BitrateSelector: React.FC<Props> = ({
   inverted,
   ...props
 }) => {
+  if (Platform.isTV) return null;
   const sorted = useMemo(() => {
     if (inverted)
       return BITRATES.sort(
@@ -77,7 +78,9 @@ export const BitrateSelector: React.FC<Props> = ({
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           <View className="flex flex-col" {...props}>
-            <Text className="opacity-50 mb-1 text-xs">{t("item_card.quality")}</Text>
+            <Text className="opacity-50 mb-1 text-xs">
+              {t("item_card.quality")}
+            </Text>
             <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
               <Text style={{}} className="" numberOfLines={1}>
                 {BITRATES.find((b) => b.value === selected?.value)?.key}
