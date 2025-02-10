@@ -165,12 +165,29 @@ export const OtherSettings: React.FC = () => {
           showArrow
         />
         <ListItem
-          title={t("home.settings.other.default_bitrate")}
+          title={t("home.settings.other.default_quality")}
           disabled={pluginSettings?.defaultBitrate?.locked}
         >
-          <BitrateSelector
+          <Dropdown
+            data={BITRATES}
+            disabled={pluginSettings?.defaultBitrate?.locked}
+            keyExtractor={(item) => item.key}
+            titleExtractor={(item) => item.key}
             selected={settings.defaultBitrate}
-            onChange={(bitrate) => updateSettings({ defaultBitrate: bitrate })}
+            title={
+              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
+                <Text className="mr-1 text-[#8E8D91]">
+                  {settings.defaultBitrate?.key}
+                </Text>
+                <Ionicons
+                  name="chevron-expand-sharp"
+                  size={18}
+                  color="#5A5960"
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.other.quality")}
+            onSelected={(defaultBitrate) => updateSettings({ defaultBitrate })}
           />
         </ListItem>
         <ListItem
