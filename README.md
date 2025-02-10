@@ -18,6 +18,7 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
 - 🔊 **Background audio**: Stream music in the background, even when locking the phone.
 - 📥 **Download media** (Experimental): Save your media locally and watch it offline.
 - 📡 **Chromecast** (Experimental): Cast your media to any Chromecast-enabled device.
+- 📡 **Settings management** (Experimental): Manage app settings for all your users with a JF plugin.
 - 🤖 **Jellyseerr integration**: Request media directly in the app.
 
 ## 🧪 Experimental Features
