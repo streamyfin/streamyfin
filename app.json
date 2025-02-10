@@ -118,7 +118,7 @@
         "./plugins/withChangeNativeAndroidTextToWhite.js"
       ],
       [
-        "./plugins/withGoogleCastActivity.js"
+        "./plugins/withAndroidManifest.js"
       ],
       [
         "./plugins/withTrustLocalCerts.js"
