@@ -196,12 +196,6 @@ Thanks to the following contributors for their significant contributions:
         <br /><sub><b>@whoopsi-daisy</b></sub>
       </a>
     </td>
-    <td align="center">
-      <a href="https://github.com/Gauvino">
-        <img src="https://github.com/Gauvino.png?size=80" width="80" style="border-radius: 50%;" />
-        <br /><sub><b>@Gauvino</b></sub>
-      </a>
-    </td>
   </tr>
 </table>
 
