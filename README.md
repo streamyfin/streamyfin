@@ -167,6 +167,24 @@ Thanks to the following contributors for their significant contributions:
       </a>
     </td>
     <td align="center">
+      <a href="https://github.com/simoncaron">
+        <img src="https://github.com/simoncaron.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@simoncaron</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/jakequade">
+        <img src="https://github.com/jakequade.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@jakequade</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Ryan0204">
+        <img src="https://github.com/Ryan0204.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@Ryan0204</b></sub>
+      </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/retardgerman">
         <img src="https://github.com/retardgerman.png?size=80" width="80" style="border-radius: 50%;" />
         <br /><sub><b>@retardgerman</b></sub>
