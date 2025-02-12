@@ -66,7 +66,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
   const [selectedSubtitleStream, setSelectedSubtitleStream] =
     useState<number>(0);
-  const [maxBitrate, setMaxBitrate] = useState<Bitrate>({
+  const [maxBitrate, setMaxBitrate] = useState<Bitrate>(settings?.defaultBitrate ?? {
     key: "Max",
     value: undefined,
   });
@@ -194,10 +194,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
       for (const item of items) {
         if (itemsNotDownloaded.length > 1) {
-          ({ mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
-            item,
-            settings!
-          ));
+          const defaults = getDefaultPlaySettings(item, settings!);
+          mediaSource = defaults.mediaSource;
+          audioIndex = defaults.audioIndex;
+          subtitleIndex = defaults.subtitleIndex;
+          // Keep using the selected bitrate for consistency across all downloads
         }
 
         const res = await getStreamUrl({

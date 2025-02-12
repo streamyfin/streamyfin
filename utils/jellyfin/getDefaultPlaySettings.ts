@@ -92,10 +92,8 @@ export function getDefaultPlaySettings(
     }
   }
 
-  // 4. Get default bitrate
-  const bitrate = BITRATES.sort(
-    (a, b) => (b.value || Infinity) - (a.value || Infinity)
-  )[0];
+  // 4. Get default bitrate from settings or fallback to max
+  const bitrate = settings.defaultBitrate ?? BITRATES[0];
 
   return {
     item,
