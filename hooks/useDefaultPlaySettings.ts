@@ -28,8 +28,8 @@ const useDefaultPlaySettings = (
       (x) => x.Type === "Audio"
     )?.Index;
 
-    // 4. Get default bitrate
-    const bitrate = BITRATES[0];
+    // 4. Get default bitrate from settings or fallback to max
+    const bitrate = settings?.defaultBitrate ?? BITRATES[0];
 
     return {
       defaultAudioIndex:
