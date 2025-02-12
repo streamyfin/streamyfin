@@ -38,7 +38,7 @@ Chromecast support is still in development, and we're working on improving it. C
 The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that hold all settings for the client Streamyfin. This allows you to syncronize settings accross all your users, like:
 
 - Auto log in to Jellyseerr without the user having to do anythin
-- Choose the default languages 
+- Choose the default languages
 - Set download method and search provider
 - Customize homescreen
 - And more...
@@ -68,7 +68,7 @@ Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/r
 
 To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
 
- **Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
+**Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
 
 ## 🚀 Getting Started
 
@@ -123,7 +123,85 @@ Streamyfin is developed by [Fredrik Burmester](https://github.com/fredrikburmest
 
 ## ✨ Acknowledgements
 
-I'd like to thank the following people and projects for their contributions to Streamyfin:
+### Core Developers
+
+Thanks to the following contributors for their significant contributions:
+
+<table>
+  <tr
+    style="
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
+    "
+  >
+    <td align="center">
+      <a href="https://github.com/Alexk2309">
+        <img src="https://github.com/Alexk2309.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@Alexk2309</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/herrrta">
+        <img src="https://github.com/herrrta.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@herrrta</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/lostb1t">
+        <img src="https://github.com/lostb1t.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@lostb1t</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Simon-Eklundh">
+        <img src="https://github.com/Simon-Eklundh.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@Simon-Eklundh</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/topiga">
+        <img src="https://github.com/topiga.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@topiga</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/simoncaron">
+        <img src="https://github.com/simoncaron.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@simoncaron</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/jakequade">
+        <img src="https://github.com/jakequade.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@jakequade</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Ryan0204">
+        <img src="https://github.com/Ryan0204.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@Ryan0204</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/retardgerman">
+        <img src="https://github.com/retardgerman.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@retardgerman</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/whoopsi-daisy">
+        <img src="https://github.com/whoopsi-daisy.png?size=80" width="80" style="border-radius: 50%;" />
+        <br /><sub><b>@whoopsi-daisy</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
+
+And all other developers who have contributed to Streamyfin, thank you for your contributions.
+
+I'd also like to thank the following people and projects for their contributions to Streamyfin:
 
 - [Reiverr](https://github.com/aleksilassila/reiverr) for great help with understanding the Jellyfin API.
 - [Jellyfin TS SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) for the TypeScript SDK.
