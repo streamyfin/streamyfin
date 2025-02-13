@@ -1,0 +1,43 @@
+```yaml
+name: Lint Codebase
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Run ESLint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ESLint
+        run: npx eslint 'streamyfin/**/*.ts' 'streamyfin/**/*.tsx'
+
+      - name: Upload Lint Results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: eslint-report
+          path: ./eslint-report.html
+
+      - name: Display ESLint Report
+        if: ${{ always() }}
+        run: cat ./eslint-report.html
+```
