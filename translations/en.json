@@ -146,7 +146,7 @@
         "default": "Default",
         "optimized_version_hint": "Enter the URL for the optimize server. The URL should include http or https and optionally the port.",
         "read_more_about_optimized_server": "Read more about the optimize server.",
-        "url":"URL",
+        "url": "URL",
         "server_url_placeholder": "http(s)://domain.org:port"
       },
       "plugins": {
@@ -203,7 +203,7 @@
         "app_language_description": "Select the language for the app.",
         "system": "System"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Error deleting files",
         "background_downloads_enabled": "Background downloads enabled",
         "background_downloads_disabled": "Background downloads disabled",
@@ -398,7 +398,7 @@
     "for_kids": "For Kids",
     "news": "News"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Confirm",
     "cancel": "Cancel",
     "yes": "Yes",
@@ -453,5 +453,17 @@
     "library": "Library",
     "custom_links": "Custom Links",
     "favorites": "Favorites"
+  },
+  "chromecast": {
+    "no_devices_available": "No Google Cast devices available.",
+    "are_you_on_same_network": "Are you on the same network?",
+    "no_device_selected": "No device selected",
+    "click_icon_to_connect": "Click icon to connect.",
+    "establishing_connection": "Establishing connection...",
+    "no_media_selected": "No media selected.",
+    "start_playing": "Start playing any media",
+    "go_home": "Go Home",
+    "error_loading_item": "An unexpected error occurred while loading the media.",
+    "retry_load_item": "Retry"
   }
 }
