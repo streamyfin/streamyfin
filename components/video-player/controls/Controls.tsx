@@ -24,7 +24,7 @@ import {
   ticksToMs,
   ticksToSeconds,
 } from "@/utils/time";
-import {Ionicons, MaterialIcons} from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import {
   BaseItemDto,
   MediaSourceInfo,
@@ -35,7 +35,12 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {Platform, TouchableOpacity, useWindowDimensions, View} from "react-native";
+import {
+  Platform,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -214,15 +219,10 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrateValue.toString(),
     }).toString();
 
-    stop()
+    stop();
 
-    if (!bitrateValue) {
-      // @ts-expect-error
-      router.replace(`player/direct-player?${queryParams}`);
-      return;
-    }
     // @ts-expect-error
-    router.replace(`player/transcoding-player?${queryParams}`);
+    router.replace(`player/direct-player?${queryParams}`);
   }, [previousItem, settings, subtitleIndex, audioIndex]);
 
   const goToNextItem = useCallback(() => {
@@ -254,15 +254,10 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrateValue.toString(),
     }).toString();
 
-    stop()
+    stop();
 
-    if (!bitrateValue) {
-      // @ts-expect-error
-      router.replace(`player/direct-player?${queryParams}`);
-      return;
-    }
     // @ts-expect-error
-    router.replace(`player/transcoding-player?${queryParams}`);
+    router.replace(`player/direct-player?${queryParams}`);
   }, [nextItem, settings, subtitleIndex, audioIndex]);
 
   const updateTimes = useCallback(
@@ -419,15 +414,10 @@ export const Controls: React.FC<Props> = ({
           bitrateValue: bitrateValue.toString(),
         }).toString();
 
-        stop()
+        stop();
 
-        if (!bitrateValue) {
-          // @ts-expect-error
-          router.replace(`player/direct-player?${queryParams}`);
-          return;
-        }
         // @ts-expect-error
-        router.replace(`player/transcoding-player?${queryParams}`);
+        router.replace(`player/direct-player?${queryParams}`);
       } catch (error) {
         console.error("Error in gotoEpisode:", error);
       }
@@ -508,7 +498,7 @@ export const Controls: React.FC<Props> = ({
   }, [trickPlayUrl, trickplayInfo, time]);
 
   const onClose = async () => {
-    stop()
+    stop();
     lightHapticFeedback();
     await ScreenOrientation.lockAsync(
       ScreenOrientation.OrientationLock.PORTRAIT_UP
@@ -569,9 +559,7 @@ export const Controls: React.FC<Props> = ({
 
             <View className="flex flex-row items-center space-x-2 ">
               {!Platform.isTV && (
-                <TouchableOpacity
-                  onPress={startPictureInPicture}
-                >
+                <TouchableOpacity onPress={startPictureInPicture}>
                   <MaterialIcons
                     name="picture-in-picture"
                     size={24}

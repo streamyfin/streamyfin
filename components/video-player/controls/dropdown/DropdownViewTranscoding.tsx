@@ -78,6 +78,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
     return [disableSubtitle, ...transcodedSubtitle];
   }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams]);
 
+  // TODO: Make image based subtitles work with transcoding streams in VLC
   const changeToImageBasedSub = useCallback(
     (subtitleIndex: number) => {
       const queryParams = new URLSearchParams({
@@ -88,8 +89,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
         bitrateValue: bitrateValue,
       }).toString();
 
-      // @ts-expect-error
-      router.replace(`player/transcoding-player?${queryParams}`);
+      // router.replace(`player/transcoding-player?${queryParams}`);
     },
     [mediaSource]
   );
@@ -101,6 +101,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
       index: x.Index!,
     })) || [];
 
+  // TODO: Make audio work with transcoding streams in VLC
   const ChangeTranscodingAudio = useCallback(
     (audioIndex: number) => {
       const queryParams = new URLSearchParams({
@@ -111,8 +112,7 @@ const DropdownView: React.FC<DropdownViewProps> = ({ showControls }) => {
         bitrateValue: bitrateValue,
       }).toString();
 
-      // @ts-expect-error
-      router.replace(`player/transcoding-player?${queryParams}`);
+      // router.replace(`player/transcoding-player?${queryParams}`);
     },
     [mediaSource, subtitleIndex, audioIndex]
   );
