@@ -13,7 +13,14 @@ type ExternalSubtitle = {
 type TranscodedSubtitle = {
   name: string;
   index: number;
+  deliveryUrl: string;
   IsTextSubtitleStream: boolean;
 };
 
-export { EmbeddedSubtitle, ExternalSubtitle, TranscodedSubtitle };
+type Track = {
+  name: string;
+  index: number;
+  setTrack: () => void;
+};
+
+export { EmbeddedSubtitle, ExternalSubtitle, TranscodedSubtitle, Track };
