@@ -32,20 +32,20 @@
       }
     },
     "production": {
-      "channel": "0.26.0",
+      "channel": "0.26.1",
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
-      "channel": "0.26.0",
+      "channel": "0.26.1",
       "android": {
         "buildType": "apk",
         "image": "latest"
       }
     },
     "production-apk-tv": {
-      "channel": "0.26.0",
+      "channel": "0.26.1",
       "android": {
         "buildType": "apk",
         "image": "latest"
