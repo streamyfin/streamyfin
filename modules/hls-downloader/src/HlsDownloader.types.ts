@@ -17,8 +17,3 @@ export type HlsDownloaderModuleEvents = {
   onError: (params: OnErrorEventPayload) => void;
   onComplete: (params: OnCompleteEventPayload) => void;
 };
-
-export type HlsDownloaderViewProps = {
-  url: string;
-  style?: StyleProp<ViewStyle>;
-};
