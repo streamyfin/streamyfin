@@ -50,7 +50,7 @@ export default function search() {
 
   const { t } = useTranslation();
 
-  const { q, prev } = params as { q: string; prev: Href<string> };
+  const { q } = params as { q: string };
 
   const [searchType, setSearchType] = useState<SearchType>("Library");
   const [search, setSearch] = useState<string>("");
@@ -122,18 +122,17 @@ export default function search() {
 
   const navigation = useNavigation();
   useLayoutEffect(() => {
-    if (Platform.OS === "ios")
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: t("search.search"),
-          onChangeText: (e: any) => {
-            router.setParams({ q: "" });
-            setSearch(e.nativeEvent.text);
-          },
-          hideWhenScrolling: false,
-          autoFocus: true,
+    navigation.setOptions({
+      headerSearchBarOptions: {
+        placeholder: t("search.search"),
+        onChangeText: (e: any) => {
+          router.setParams({ q: "" });
+          setSearch(e.nativeEvent.text);
         },
-      });
+        hideWhenScrolling: false,
+        autoFocus: true,
+      },
+    });
   }, [navigation]);
 
   const { data: movies, isFetching: l1 } = useQuery({
@@ -211,18 +210,6 @@ export default function search() {
         }}
       >
         <View className="flex flex-col">
-          {Platform.OS === "android" && (
-            <View className="mb-4 px-4">
-              <Input
-                autoCorrect={false}
-                returnKeyType="done"
-                keyboardType="web-search"
-                placeholder={t("search.search_here")}
-                value={search}
-                onChangeText={(text) => setSearch(text)}
-              />
-            </View>
-          )}
           {jellyseerrApi && (
             <View className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
               <TouchableOpacity onPress={() => setSearchType("Library")}>
