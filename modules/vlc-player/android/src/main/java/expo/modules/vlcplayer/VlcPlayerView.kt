@@ -1,6 +1,7 @@
 package expo.modules.vlcplayer
 
 import android.R
+import android.app.Activity
 import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.app.PendingIntent.FLAG_UPDATE_CURRENT
@@ -14,13 +15,20 @@ import android.content.IntentFilter
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import androidx.annotation.RequiresApi
-import androidx.core.app.ComponentActivity
-import androidx.core.content.ContextCompat
+import androidx.core.app.PictureInPictureModeChangedInfo
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.OnLifecycleEvent
+import expo.modules.core.interfaces.ReactActivityLifecycleListener
+import expo.modules.core.logging.LogHandlers
+import expo.modules.core.logging.Logger
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
@@ -31,7 +39,8 @@ import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.util.VLCVideoLayout
 
 
-class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context, appContext), LifecycleObserver, MediaPlayer.EventListener {
+class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context, appContext), LifecycleObserver, MediaPlayer.EventListener, ReactActivityLifecycleListener {
+    private val log = Logger(listOf(LogHandlers.createOSLogHandler(this::class.simpleName!!)))
     private val PIP_PLAY_PAUSE_ACTION = "PIP_PLAY_PAUSE_ACTION"
     private val PIP_REWIND_ACTION = "PIP_REWIND_ACTION"
     private val PIP_FORWARD_ACTION = "PIP_FORWARD_ACTION"
@@ -43,6 +52,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var lastReportedState: Int? = null
     private var lastReportedIsPlaying: Boolean? = null
     private var media : Media? = null
+    private var timeLeft: Long? = null
 
     private val onVideoProgress by EventDispatcher()
     private val onVideoStateChange by EventDispatcher()
@@ -64,53 +74,87 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
     private val currentActivity get() = context.findActivity()
     private val actions: MutableList<RemoteAction> = mutableListOf()
-
-    private val actionReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+    private val remoteActionFilter = IntentFilter()
+    private val playPauseIntent: Intent = Intent(PIP_PLAY_PAUSE_ACTION).setPackage(context.packageName)
+    private val forwardIntent: Intent = Intent(PIP_FORWARD_ACTION).setPackage(context.packageName)
+    private val rewindIntent: Intent = Intent(PIP_REWIND_ACTION).setPackage(context.packageName)
+    private var actionReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                PIP_PLAY_PAUSE_ACTION -> if (isPaused) play() else pause()
+                PIP_PLAY_PAUSE_ACTION -> {
+                    if (isPaused) play() else pause()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        setupPipActions()
+                        currentActivity.setPictureInPictureParams(getPipParams()!!)
+                    }
+                }
                 PIP_FORWARD_ACTION -> seekTo((mediaPlayer?.time?.toInt() ?: 0) + 15_000)
                 PIP_REWIND_ACTION -> seekTo((mediaPlayer?.time?.toInt() ?: 0) - 15_000)
             }
         }
     }
 
-    init {
-        setupView()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            setupPipActions()
-            currentActivity.apply {
-                setPictureInPictureParams(getPipParams()!!)
-                addOnPictureInPictureModeChangedListener { info ->
-                    onPipStarted(mapOf(
-                        "pipStarted" to info.isInPictureInPictureMode
-                    ))
-                }
+    private var pipChangeListener: (PictureInPictureModeChangedInfo) -> Unit = { info ->
+        if (!info.isInPictureInPictureMode && mediaPlayer?.isPlaying == true) {
+            log.debug("Exiting PiP")
+            timeLeft = mediaPlayer?.time
+            pause()
+
+            // Setting the media after reattaching the view allows for a fast video view render
+            if (mediaPlayer?.vlcVout?.areViewsAttached() == false) {
+                mediaPlayer?.attachViews(videoLayout, null, false, false)
+                mediaPlayer?.media = media
+                mediaPlayer?.play()
+                timeLeft?.let { mediaPlayer?.time = it }
+                mediaPlayer?.pause()
+
             }
         }
+        onPipStarted(mapOf(
+            "pipStarted" to info.isInPictureInPictureMode
+        ))
+    }
+
+    init {
+        VLCManager.listeners.add(this)
+        setupView()
+        setupPiP()
     }
 
     private fun setupView() {
-        Log.d("VlcPlayerView", "Setting up view")
+        log.debug("Setting up view")
         setBackgroundColor(android.graphics.Color.WHITE)
         videoLayout = VLCVideoLayout(context).apply {
             layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         }
+        videoLayout.keepScreenOn = true
         addView(videoLayout)
-        Log.d("VlcPlayerView", "View setup complete")
+        log.debug("View setup complete")
+    }
+
+    private fun setupPiP() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            remoteActionFilter.addAction(PIP_PLAY_PAUSE_ACTION)
+            remoteActionFilter.addAction(PIP_FORWARD_ACTION)
+            remoteActionFilter.addAction(PIP_REWIND_ACTION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                currentActivity.registerReceiver(
+                    actionReceiver,
+                    remoteActionFilter,
+                    Context.RECEIVER_NOT_EXPORTED
+                )
+            }
+            setupPipActions()
+            currentActivity.apply {
+                setPictureInPictureParams(getPipParams()!!)
+                addOnPictureInPictureModeChangedListener(pipChangeListener)
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun setupPipActions() {
-        val remoteActionFilter = IntentFilter()
-        val playPauseIntent: Intent = Intent(PIP_PLAY_PAUSE_ACTION).setPackage(context.packageName)
-        val forwardIntent: Intent = Intent(PIP_FORWARD_ACTION).setPackage(context.packageName)
-        val rewindIntent: Intent = Intent(PIP_REWIND_ACTION).setPackage(context.packageName)
-
-        remoteActionFilter.addAction(PIP_PLAY_PAUSE_ACTION)
-        remoteActionFilter.addAction(PIP_FORWARD_ACTION)
-        remoteActionFilter.addAction(PIP_REWIND_ACTION)
-
+        actions.clear()
         actions.addAll(
             listOf(
                 RemoteAction(
@@ -125,12 +169,13 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                     )
                 ),
                 RemoteAction(
-                    Icon.createWithResource(context, R.drawable.ic_media_play),
+                    if (isPaused) Icon.createWithResource(context, R.drawable.ic_media_play)
+                    else Icon.createWithResource(context, R.drawable.ic_media_pause),
                     "Play",
                     "Play Video",
                     PendingIntent.getBroadcast(
                         context,
-                        0,
+                        if (isPaused) 0 else 1,
                         playPauseIntent,
                         FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
                     )
@@ -148,13 +193,6 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 )
             )
         )
-
-        ContextCompat.registerReceiver(
-            context,
-            actionReceiver,
-            remoteActionFilter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
     }
 
     private fun getPipParams(): PictureInPictureParams? {
@@ -171,7 +209,9 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun setSource(source: Map<String, Any>) {
+        log.debug("setting source $source")
         if (hasSource) {
+            log.debug("Source already set. Resuming")
             mediaPlayer?.attachViews(videoLayout, null, false, false)
             play()
             return
@@ -196,12 +236,12 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         mediaPlayer?.attachViews(videoLayout, null, false, false)
         mediaPlayer?.setEventListener(this)
 
-        Log.d("VlcPlayerView", "Loading network file: $uri")
+        log.debug("Loading network file: $uri")
         media = Media(libVLC, Uri.parse(uri))
         mediaPlayer?.media = media
 
 
-        Log.d("VlcPlayerView", "Debug: Media options: $mediaOptions")
+        log.debug("Debug: Media options: $mediaOptions")
         // media.addOptions(mediaOptions)
 
         // Apply subtitle options
@@ -218,7 +258,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         hasSource = true
 
         if (autoplay) {
-            Log.d("VlcPlayerView", "Playing...")
+            log.debug("Playing...")
             play()
         }
     }
@@ -268,9 +308,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun getAudioTracks(): List<Map<String, Any>>? {
-
-        println("getAudioTracks")
-        println(mediaPlayer?.getAudioTracks())
+        log.debug("getAudioTracks ${mediaPlayer?.audioTracks}")
         val trackDescriptions = mediaPlayer?.audioTracks ?: return null
 
         return trackDescriptions.map { trackDescription ->
@@ -294,19 +332,32 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
 
         // Debug statement to print the result
-        Log.d("VlcPlayerView", "Subtitle Tracks: $subtitleTracks")
+        log.debug("Subtitle Tracks: $subtitleTracks")
 
         return subtitleTracks
     }
 
     fun setSubtitleURL(subtitleURL: String, name: String) {
-        println("Setting subtitle URL: $subtitleURL, name: $name")
+        log.debug("Setting subtitle URL: $subtitleURL, name: $name")
         mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
     }
 
     override fun onDetachedFromWindow() {
-        println("onDetachedFromWindow")
+        log.debug("onDetachedFromWindow")
         super.onDetachedFromWindow()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            currentActivity.setPictureInPictureParams(
+                PictureInPictureParams.Builder()
+                    .setAutoEnterEnabled(false)
+                    .build()
+            )
+        }
+
+        currentActivity.unregisterReceiver(actionReceiver)
+        currentActivity.removeOnPictureInPictureModeChangedListener(pipChangeListener)
+        VLCManager.listeners.clear()
+
         mediaPlayer?.stop()
         handler.removeCallbacks(updateProgressRunnable) // Stop updating progress
 
@@ -319,6 +370,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     override fun onEvent(event: MediaPlayer.Event) {
+        keepScreenOn = event.type == MediaPlayer.Event.Playing || event.type == MediaPlayer.Event.Buffering
         when (event.type) {
             MediaPlayer.Event.Playing,
             MediaPlayer.Event.Paused,
@@ -340,34 +392,26 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             "target" to "null", // Replace with actual target if needed
             "currentTime" to player.time.toInt(),
             "duration" to (player.media?.duration?.toInt() ?: 0),
-            "error" to false
+            "error" to false,
+            "isPlaying" to (currentState == MediaPlayer.Event.Playing),
+            "isBuffering" to (!player.isPlaying && currentState == MediaPlayer.Event.Buffering)
         )
 
+        // Todo: make enum - string to prevent this when statement from becoming exhaustive
         when (currentState) {
-            MediaPlayer.Event.Playing -> {
-                stateInfo["isPlaying"] = true
-                stateInfo["isBuffering"] = false
+            MediaPlayer.Event.Playing ->
                 stateInfo["state"] = "Playing"
-            }
-            MediaPlayer.Event.Paused -> {
-                stateInfo["isPlaying"] = false
+            MediaPlayer.Event.Paused ->
                 stateInfo["state"] = "Paused"
-            }
-            MediaPlayer.Event.Buffering -> {
-                stateInfo["isBuffering"] = true
+            MediaPlayer.Event.Buffering ->
                 stateInfo["state"] = "Buffering"
-            }
             MediaPlayer.Event.EncounteredError -> {
-                Log.e("VlcPlayerView", "player.state ~ error")
                 stateInfo["state"] = "Error"
                 onVideoLoadEnd(stateInfo);
             }
-            MediaPlayer.Event.Opening -> {
-                Log.d("VlcPlayerView", "player.state ~ opening")
+            MediaPlayer.Event.Opening ->
                 stateInfo["state"] = "Opening"
-            }
         }
-
 
         if (lastReportedState != currentState || lastReportedIsPlaying != player.isPlaying) {
             lastReportedState = currentState
@@ -399,6 +443,16 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 "duration" to durationMs
             ));
         }
+    }
+
+    override fun onPause(activity: Activity?) {
+        log.debug("Pausing activity...")
+    }
+
+
+    override fun onResume(activity: Activity?) {
+        log.debug("Resuming activity...")
+        if (isPaused) play()
     }
 }
 
