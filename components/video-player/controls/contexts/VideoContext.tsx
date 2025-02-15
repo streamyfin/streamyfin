@@ -9,6 +9,7 @@ import React, {
   useState,
   ReactNode,
   useEffect,
+  useMemo,
 } from "react";
 import { useControlContext } from "./ControlContext";
 import { Track } from "../types";
@@ -57,10 +58,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   const allSubs =
     mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
 
-  const onTextBasedSubtitle = allSubs.find(
-    (s) => s.Index?.toString() === subtitleIndex && s.IsTextSubtitleStream
-  );
-
   const { itemId, audioIndex, bitrateValue, subtitleIndex } =
     useLocalSearchParams<{
       itemId: string;
@@ -69,6 +66,14 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       mediaSourceId: string;
       bitrateValue: string;
     }>();
+
+  const onTextBasedSubtitle = useMemo(
+    () =>
+      allSubs.find(
+        (s) => s.Index?.toString() === subtitleIndex && s.IsTextSubtitleStream
+      ) || subtitleIndex === "-1",
+    [allSubs, subtitleIndex]
+  );
 
   const setPlayerParams = ({
     chosenAudioIndex = audioIndex,
@@ -98,10 +103,13 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
     const setTrack = type === "audio" ? setAudioTrack : setSubtitleTrack;
     const paramKey = type === "audio" ? "audioIndex" : "subtitleIndex";
 
-    // If we're transcoding and we're going from a text based subtitle
-    // to an image based subtitle, we need to change the player params.
+    // If we're transcoding and we're going from a image based subtitle
+    // to a text based subtitle, we need to change the player params.
+
     const shouldChangePlayerParams =
-      type === "subtitle" && mediaSource?.TranscodingUrl && onTextBasedSubtitle;
+      type === "subtitle" &&
+      mediaSource?.TranscodingUrl &&
+      !onTextBasedSubtitle;
 
     console.log("Set player params", index, serverIndex);
     if (shouldChangePlayerParams) {
@@ -118,13 +126,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
 
   useEffect(() => {
     const fetchTracks = async () => {
-      if (
-        getSubtitleTracks &&
-        (subtitleTracks === null || subtitleTracks.length === 0)
-      ) {
+      if (getSubtitleTracks) {
         const subtitleData = await getSubtitleTracks();
-        // Means subtitles are still loading.
-        if (!subtitleData) return;
 
         let textSubIndex = 0;
         const subtitles: Track[] = allSubs?.map((sub) => {
@@ -135,12 +138,14 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
 
           const displayTitle = sub.DisplayTitle || "Undefined Subtitle";
           const vlcIndex = subtitleData?.at(textSubIndex)?.index ?? -1;
+
           const finalIndex = shouldIncrement ? vlcIndex : sub.Index ?? -1;
 
           if (shouldIncrement) textSubIndex++;
           return {
             name: displayTitle,
             index: sub.Index ?? -1,
+            originalIndex: finalIndex,
             setTrack: () =>
               shouldIncrement
                 ? setTrackParams("subtitle", finalIndex, sub.Index ?? -1)
@@ -160,7 +165,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
               : setPlayerParams({ chosenSubtitleIndex: "-1" }),
         });
 
-        console.log("subtitles", subtitles);
         setSubtitleTracks(subtitles);
       }
       if (

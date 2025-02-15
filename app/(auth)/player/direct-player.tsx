@@ -385,14 +385,12 @@ export default function page() {
   }
 
   const insets = useSafeAreaInsets();
-
-  if (!item || isLoadingItem || isLoadingStream)
-    useEffect(() => {
-      const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
-      return () => {
-        beforeRemoveListener();
-      };
-    }, [navigation]);
+  useEffect(() => {
+    const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
+    return () => {
+      beforeRemoveListener();
+    };
+  }, [navigation]);
 
   if (!item || isLoadingItem || !stream)
     return (
