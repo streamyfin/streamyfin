@@ -45,6 +45,10 @@ import {
   useDownloadProgress,
   useDownloadError,
   useDownloadComplete,
+  addCompleteListener,
+  addErrorListener,
+  addProgressListener,
+  checkForExistingDownloads,
 } from "@/modules/hls-downloader";
 
 interface NativeDownloadButton extends ViewProps {
@@ -56,8 +60,7 @@ interface NativeDownloadButton extends ViewProps {
 
 type DownloadState = {
   id: string;
-  bytesDownloaded: number;
-  bytesTotal: number;
+  progress: number;
   state: DownloadTaskState;
   metadata?: {};
 };
@@ -111,10 +114,6 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
     bottomSheetModalRef.current?.dismiss();
   }, []);
 
-  const progress = useDownloadProgress();
-  const complete = useDownloadComplete("download");
-  const downloadError = useDownloadError();
-
   const acceptDownloadOptions = useCallback(async () => {
     if (userCanDownload === true) {
       closeModal();
@@ -146,6 +145,7 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
       if (res.url.includes("master.m3u8")) {
         // TODO: Download with custom native module
         downloadHLSAsset(
+          item.Id!,
           res.url,
           `${FileSystem.documentDirectory}${item.Name}.mkv`
         );
@@ -166,8 +166,7 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
               toast.success("Download started");
               setActiveDownload({
                 id: jobId,
-                bytesDownloaded: 0,
-                bytesTotal: expectedBytes,
+                progress: 0,
                 state: "DOWNLOADING",
               });
             })
@@ -202,17 +201,55 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
   ]);
 
   useEffect(() => {
-    console.log(progress);
-  }, [progress]);
+    const progressListener = addProgressListener((item) => {
+      console.log("progress ~", item);
+      setActiveDownload({
+        id: activeDownload?.id!,
+        progress: item.progress,
+        state: "DOWNLOADING",
+      });
+    });
+
+    checkForExistingDownloads().then((downloads) => {
+      console.log(
+        "AVAssetDownloadURLSession ~ checkForExistingDownloads ~",
+        downloads
+      );
+      const firstDownload = downloads?.[0];
+      if (!download) return;
+
+      setActiveDownload({
+        id: firstDownload?.id,
+        progress: firstDownload?.progress,
+        state: firstDownload?.state,
+      });
+    });
+
+    return () => {
+      progressListener.remove();
+    };
+  }, []);
+
+  // useEffect(() => {
+  //   console.log(progress);
+
+  //   // setActiveDownload({
+  //   //   id: activeDownload?.id!,
+  //   //   progress,
+  //   //   state: "DOWNLOADING",
+  //   // });
+  // }, [progress]);
 
   useEffect(() => {
     RNBackgroundDownloader.checkForExistingDownloads().then((downloads) => {
-      console.log("checkForExistingDownloads ~", downloads);
+      console.log(
+        "RNBackgroundDownloader ~ checkForExistingDownloads ~",
+        downloads
+      );
       const e = downloads?.[0];
       setActiveDownload({
         id: e?.id,
-        bytesDownloaded: e?.bytesDownloaded,
-        bytesTotal: e?.bytesTotal,
+        progress: e?.bytesDownloaded / e?.bytesTotal,
         state: e?.state,
       });
 
@@ -220,8 +257,7 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
         console.log(`Downloaded: ${bytesDownloaded} of ${bytesTotal}`);
         setActiveDownload({
           id: e?.id,
-          bytesDownloaded,
-          bytesTotal,
+          progress: bytesDownloaded / bytesTotal,
           state: e?.state,
         });
       });
@@ -271,14 +307,10 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
         size={size}
         onPress={onButtonPress}
       >
-        {activeDownload &&
-        activeDownload?.bytesTotal > 0 &&
-        activeDownload?.bytesDownloaded > 0 ? (
+        {activeDownload && activeDownload?.progress > 0 ? (
           <ProgressCircle
             size={24}
-            fill={
-              (activeDownload.bytesDownloaded / activeDownload.bytesTotal) * 100
-            }
+            fill={activeDownload.progress * 100}
             width={4}
             tintColor="#9334E9"
             backgroundColor="#bdc3c7"

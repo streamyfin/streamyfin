@@ -11,11 +11,29 @@ import HlsDownloaderModule from "./src/HlsDownloaderModule";
 
 /**
  * Initiates an HLS download.
+ * @param id - A unique identifier for the download.
  * @param url - The HLS stream URL.
  * @param assetTitle - A title for the asset.
  */
-function downloadHLSAsset(url: string, assetTitle: string): void {
-  HlsDownloaderModule.downloadHLSAsset(url, assetTitle);
+function downloadHLSAsset(id: string, url: string, assetTitle: string): void {
+  HlsDownloaderModule.downloadHLSAsset(id, url, assetTitle);
+}
+
+/**
+ * Checks for existing downloads.
+ * Returns an array of downloads with additional fields:
+ * id, progress, bytesDownloaded, bytesTotal, and state.
+ */
+async function checkForExistingDownloads(): Promise<
+  Array<{
+    id: string;
+    progress: number;
+    bytesDownloaded: number;
+    bytesTotal: number;
+    state: "PENDING" | "DOWNLOADING" | "PAUSED" | "DONE" | "FAILED" | "STOPPED";
+  }>
+> {
+  return HlsDownloaderModule.checkForExistingDownloads();
 }
 
 /**
@@ -118,7 +136,7 @@ function useDownloadComplete(destinationFileName?: string): string | null {
     console.log("Setting up download complete listener");
 
     const subscription = addCompleteListener(
-      async (event: { location: string }) => {
+      async (event: OnCompleteEventPayload) => {
         console.log("Download complete event received:", event);
         console.log("Original download location:", event.location);
 
@@ -162,7 +180,12 @@ function useDownloadComplete(destinationFileName?: string): string | null {
 
 export {
   downloadHLSAsset,
+  checkForExistingDownloads,
   useDownloadComplete,
   useDownloadError,
   useDownloadProgress,
+  addCompleteListener,
+  addErrorListener,
+  addProgressListener,
+  HlsDownloaderModule,
 };

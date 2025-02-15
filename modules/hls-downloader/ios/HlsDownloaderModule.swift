@@ -1,39 +1,31 @@
+// ios/HlsDownloaderModule.swift
 import ExpoModulesCore
 import AVFoundation
 
 public class HlsDownloaderModule: Module {
-  // Optional: Keep a strong reference to the delegate (for the current download)
-  private var currentDelegate: HLSDownloadDelegate?
+  var activeDownloads: [Int: (task: AVAssetDownloadTask, delegate: HLSDownloadDelegate)] = [:]
 
   public func definition() -> ModuleDefinition {
     Name("HlsDownloader")
     
-    // Declare the events you wish to expose.
     Events("onProgress", "onError", "onComplete")
     
-    // Expose the download function.
-    Function("downloadHLSAsset") { (url: String, assetTitle: String) -> Void in
-      print("[HlsDownloaderModule] downloadHLSAsset called with url: \(url) and assetTitle: \(assetTitle)")
-      
+    Function("downloadHLSAsset") { (providedId: String, url: String, assetTitle: String) -> Void in
       guard let assetURL = URL(string: url) else {
-        print("[HlsDownloaderModule] Invalid URL: \(url)")
-        self.sendEvent("onError", ["error": "Invalid URL"])
+        self.sendEvent("onError", ["id": providedId, "error": "Invalid URL", "state": "FAILED"])
         return
       }
       
       let asset = AVURLAsset(url: assetURL)
-      let configuration = URLSessionConfiguration.background(withIdentifier: "com.example.hlsdownload.\(UUID().uuidString)")
-      print("[HlsDownloaderModule] Created background session configuration")
-      
+      let configuration = URLSessionConfiguration.background(withIdentifier: "com.example.hlsdownload")
       let delegate = HLSDownloadDelegate(module: self)
-      self.currentDelegate = delegate
+      delegate.providedId = providedId
       
       let downloadSession = AVAssetDownloadURLSession(
         configuration: configuration,
         assetDownloadDelegate: delegate,
         delegateQueue: OperationQueue.main
       )
-      print("[HlsDownloaderModule] Created download session")
       
       guard let task = downloadSession.makeAssetDownloadTask(
         asset: asset,
@@ -41,32 +33,68 @@ public class HlsDownloaderModule: Module {
         assetArtworkData: nil,
         options: nil
       ) else {
-        print("[HlsDownloaderModule] Failed to create download task")
-        self.sendEvent("onError", ["error": "Failed to create download task"])
+        self.sendEvent("onError", ["id": providedId, "error": "Failed to create download task", "state": "FAILED"])
         return
       }
       
-      print("[HlsDownloaderModule] Starting download task for asset: \(assetTitle)")
+      delegate.taskIdentifier = task.taskIdentifier
+      self.activeDownloads[task.taskIdentifier] = (task, delegate)
+      
+      self.sendEvent("onProgress", [
+        "id": providedId,
+        "progress": 0.0,
+        "state": "PENDING"
+      ])
+      
       task.resume()
     }
     
-    // Called when JavaScript starts observing events.
-    OnStartObserving {
-      print("[HlsDownloaderModule] Started observing events")
-      // Additional setup if needed.
+    Function("checkForExistingDownloads") {
+      () -> [[String: Any]] in
+      var downloads: [[String: Any]] = []
+      for (id, pair) in self.activeDownloads {
+        let task = pair.task
+        let delegate = pair.delegate
+        let downloaded = delegate.downloadedSeconds
+        let total = delegate.totalSeconds
+        let progress = total > 0 ? downloaded / total : 0
+        downloads.append([
+          "id": delegate.providedId.isEmpty ? String(id) : delegate.providedId,
+          "progress": progress,
+          "bytesDownloaded": downloaded,
+          "bytesTotal": total,
+          "state": self.mappedState(for: task)
+        ])
+      }
+      return downloads
     }
     
-    // Called when JavaScript stops observing events.
-    OnStopObserving {
-      print("[HlsDownloaderModule] Stopped observing events")
-      // Clean up if necessary.
+    OnStartObserving { }
+    OnStopObserving { }
+  }
+  
+  func removeDownload(with id: Int) {
+    activeDownloads.removeValue(forKey: id)
+  }
+  
+  func mappedState(for task: URLSessionTask, errorOccurred: Bool = false) -> String {
+    if errorOccurred { return "FAILED" }
+    switch task.state {
+    case .running: return "DOWNLOADING"
+    case .suspended: return "PAUSED"
+    case .completed: return "DONE"
+    case .canceling: return "STOPPED"
+    @unknown default: return "PENDING"
     }
   }
 }
 
-// Delegate that listens to AVAssetDownloadURLSession events and emits them to JS.
 class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
   weak var module: HlsDownloaderModule?
+  var taskIdentifier: Int = 0
+  var providedId: String = ""
+  var downloadedSeconds: Double = 0
+  var totalSeconds: Double = 0
   
   init(module: HlsDownloaderModule) {
     self.module = module
@@ -76,25 +104,45 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
                   didLoad timeRange: CMTimeRange,
                   totalTimeRangesLoaded loadedTimeRanges: [NSValue],
                   timeRangeExpectedToLoad: CMTimeRange) {
-    let loadedSeconds = loadedTimeRanges.reduce(0.0) { result, value in
-      result + CMTimeGetSeconds(value.timeRangeValue.duration)
+    var loadedSeconds = 0.0
+    for value in loadedTimeRanges {
+      loadedSeconds += CMTimeGetSeconds(value.timeRangeValue.duration)
     }
-    let totalSeconds = CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
-    let progress = totalSeconds > 0 ? loadedSeconds / totalSeconds : 0
-    print("[HLSDownloadDelegate] Progress: \(progress * 100)%")
-    module?.sendEvent("onProgress", ["progress": progress])
+    let total = CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
+    downloadedSeconds = loadedSeconds
+    totalSeconds = total
+    let progress = total > 0 ? loadedSeconds / total : 0
+    let state = module?.mappedState(for: assetDownloadTask) ?? "PENDING"
+    
+    module?.sendEvent("onProgress", [
+      "id": providedId,
+      "progress": progress,
+      "bytesDownloaded": loadedSeconds,
+      "bytesTotal": total,
+      "state": state
+    ])
   }
   
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     if let error = error {
-      print("[HLSDownloadDelegate] Error: \(error.localizedDescription)")
-      module?.sendEvent("onError", ["error": error.localizedDescription])
+      let state = module?.mappedState(for: task, errorOccurred: true) ?? "FAILED"
+      module?.sendEvent("onError", [
+        "id": providedId,
+        "error": error.localizedDescription,
+        "state": state
+      ])
     }
+    module?.removeDownload(with: task.taskIdentifier)
   }
   
   func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask,
                   didFinishDownloadingTo location: URL) {
-    print("[HLSDownloadDelegate] Download complete: \(location.absoluteString)")
-    module?.sendEvent("onComplete", ["location": location.absoluteString])
+    let state = module?.mappedState(for: assetDownloadTask) ?? "DONE"
+    module?.sendEvent("onComplete", [
+      "id": providedId,
+      "location": location.absoluteString,
+      "state": state
+    ])
+    module?.removeDownload(with: assetDownloadTask.taskIdentifier)
   }
 }
