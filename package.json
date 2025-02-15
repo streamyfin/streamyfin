@@ -132,9 +132,6 @@
       "exclude": [
         "react-native"
       ]
-    },
-    "autolinking": {
-      "nativeModulesDir": "modules"
     }
   }
 }
