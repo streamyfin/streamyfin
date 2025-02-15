@@ -14,20 +14,11 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import RNBackgroundDownloader, {
-  DownloadTaskState,
-} from "@kesha-antonov/react-native-background-downloader";
 import { useFocusEffect } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { View, ViewProps } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, View, ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "./BitrateSelector";
@@ -36,20 +27,8 @@ import { Text } from "./common/Text";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-
-import * as FileSystem from "expo-file-system";
 import ProgressCircle from "./ProgressCircle";
-
-import {
-  downloadHLSAsset,
-  useDownloadProgress,
-  useDownloadError,
-  useDownloadComplete,
-  addCompleteListener,
-  addErrorListener,
-  addProgressListener,
-  checkForExistingDownloads,
-} from "@/modules/hls-downloader";
+import { useNativeDownloads } from "@/providers/NativeDownloadProvider";
 
 interface NativeDownloadButton extends ViewProps {
   item: BaseItemDto;
@@ -57,13 +36,6 @@ interface NativeDownloadButton extends ViewProps {
   subtitle?: string;
   size?: "default" | "large";
 }
-
-type DownloadState = {
-  id: string;
-  progress: number;
-  state: DownloadTaskState;
-  metadata?: {};
-};
 
 export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
   item,
@@ -75,10 +47,7 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [settings] = useSettings();
-
-  const [activeDownload, setActiveDownload] = useState<
-    DownloadState | undefined
-  >(undefined);
+  const { downloads, startDownload } = useNativeDownloads();
 
   const [selectedMediaSource, setSelectedMediaSource] = useState<
     MediaSourceInfo | undefined | null
@@ -118,69 +87,27 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
     if (userCanDownload === true) {
       closeModal();
 
-      console.log({
-        selectedAudioStream,
-        selectedMediaSource,
-        selectedSubtitleStream,
-        maxBitrate,
-        item,
-      });
+      try {
+        const res = await getStreamUrl({
+          api,
+          item,
+          startTimeTicks: 0,
+          userId: user?.Id,
+          audioStreamIndex: selectedAudioStream,
+          maxStreamingBitrate: maxBitrate.value,
+          mediaSourceId: selectedMediaSource?.Id,
+          subtitleStreamIndex: selectedSubtitleStream,
+          deviceProfile: download,
+        });
 
-      const res = await getStreamUrl({
-        api,
-        item,
-        startTimeTicks: 0,
-        userId: user?.Id,
-        audioStreamIndex: selectedAudioStream,
-        maxStreamingBitrate: maxBitrate.value,
-        mediaSourceId: selectedMediaSource?.Id,
-        subtitleStreamIndex: selectedSubtitleStream,
-        deviceProfile: download,
-      });
-
-      console.log("acceptDownloadOptions ~", res);
-
-      if (!res?.url) throw new Error("No url found");
-
-      if (res.url.includes("master.m3u8")) {
-        // TODO: Download with custom native module
-        console.log("TODO: Download with custom native module");
+        if (!res?.url) throw new Error("No url found");
         if (!item.Id || !item.Name) throw new Error("No item id found");
-        downloadHLSAsset(item.Id, res.url, item.Name);
-      } else {
-        // Download with reac-native-background-downloader
-        const destination = `${FileSystem.documentDirectory}${item.Name}.mkv`;
-        const jobId = item.Id!;
 
-        try {
-          RNBackgroundDownloader.download({
-            id: jobId,
-            url: res.url,
-            destination,
-          })
-            .begin(({ expectedBytes, headers }) => {
-              console.log(`Starting download of ${expectedBytes} bytes`);
-              toast.success("Download started");
-              setActiveDownload({
-                id: jobId,
-                progress: 0,
-                state: "DOWNLOADING",
-              });
-            })
-            .progress(({ bytesDownloaded, bytesTotal }) =>
-              console.log(`Downloaded: ${bytesDownloaded} of ${bytesTotal}`)
-            )
-            .done(({ bytesDownloaded, bytesTotal }) => {
-              console.log("Download completed:", bytesDownloaded, bytesTotal);
-
-              RNBackgroundDownloader.completeHandler(jobId);
-            })
-            .error(({ error, errorCode }) =>
-              console.error("Download error:", error)
-            );
-        } catch (error) {
-          console.log("error ~", error);
-        }
+        await startDownload(item, res.url);
+        toast.success("Download started");
+      } catch (error) {
+        console.error("Download error:", error);
+        toast.error("Failed to start download");
       }
     } else {
       toast.error(
@@ -195,86 +122,10 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
     selectedMediaSource,
     selectedAudioStream,
     selectedSubtitleStream,
+    item,
+    user,
+    api,
   ]);
-
-  useEffect(() => {
-    const progressListener = addProgressListener((_item) => {
-      console.log("progress ~", item);
-      if (item.Id !== _item.id) return;
-      setActiveDownload((prev) => {
-        if (!prev) return undefined;
-        return {
-          ...prev,
-          progress: _item.progress,
-          state: _item.state,
-        };
-      });
-    });
-
-    checkForExistingDownloads().then((downloads) => {
-      console.log(
-        "AVAssetDownloadURLSession ~ checkForExistingDownloads ~",
-        downloads
-      );
-
-      const firstDownload = downloads?.[0];
-
-      if (!firstDownload) return;
-      if (firstDownload.id !== item.Id) return;
-
-      setActiveDownload({
-        id: firstDownload?.id,
-        progress: firstDownload?.progress,
-        state: firstDownload?.state,
-      });
-    });
-
-    return () => {
-      progressListener.remove();
-    };
-  }, []);
-
-  // useEffect(() => {
-  //   console.log(progress);
-
-  //   // setActiveDownload({
-  //   //   id: activeDownload?.id!,
-  //   //   progress,
-  //   //   state: "DOWNLOADING",
-  //   // });
-  // }, [progress]);
-
-  useEffect(() => {
-    RNBackgroundDownloader.checkForExistingDownloads().then((downloads) => {
-      console.log(
-        "RNBackgroundDownloader ~ checkForExistingDownloads ~",
-        downloads
-      );
-      const e = downloads?.[0];
-      setActiveDownload({
-        id: e?.id,
-        progress: e?.bytesDownloaded / e?.bytesTotal,
-        state: e?.state,
-      });
-
-      e.progress(({ bytesDownloaded, bytesTotal }) => {
-        console.log(`Downloaded: ${bytesDownloaded} of ${bytesTotal}`);
-        setActiveDownload({
-          id: e?.id,
-          progress: bytesDownloaded / bytesTotal,
-          state: e?.state,
-        });
-      });
-      e.done(({ bytesDownloaded, bytesTotal }) => {
-        console.log("Download completed:", bytesDownloaded, bytesTotal);
-        setActiveDownload(undefined);
-      });
-      e.error(({ error, errorCode }) => {
-        console.error("Download error:", error);
-        setActiveDownload(undefined);
-      });
-    });
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -300,25 +151,30 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
     []
   );
 
-  const onButtonPress = () => {
-    handlePresentModalPress();
-  };
+  const activeDownload = item.Id ? downloads[item.Id] : undefined;
 
   return (
     <View {...props}>
       <RoundButton
-        disabled={userCanDownload === false || activeDownload?.id !== undefined}
+        disabled={userCanDownload === false || activeDownload !== undefined}
         size={size}
-        onPress={onButtonPress}
+        onPress={handlePresentModalPress}
       >
-        {activeDownload && activeDownload?.progress > 0 ? (
-          <ProgressCircle
-            size={24}
-            fill={activeDownload.progress * 100}
-            width={4}
-            tintColor="#9334E9"
-            backgroundColor="#bdc3c7"
-          />
+        {activeDownload ? (
+          <>
+            {activeDownload.state === "PENDING" && (
+              <ActivityIndicator size="small" color="white" />
+            )}
+            {activeDownload.state === "DOWNLOADING" && (
+              <ProgressCircle
+                size={24}
+                fill={activeDownload.progress * 100}
+                width={4}
+                tintColor="#9334E9"
+                backgroundColor="#bdc3c7"
+              />
+            )}
+          </>
         ) : (
           <Ionicons name="cloud-download-outline" size={24} color="white" />
         )}

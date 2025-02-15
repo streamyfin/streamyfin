@@ -47,6 +47,7 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
+import { NativeDownloadProvider } from "@/providers/NativeDownloadProvider";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -321,52 +322,54 @@ function Layout() {
             <LogProvider>
               <WebSocketProvider>
                 <DownloadProvider>
-                  <BottomSheetModalProvider>
-                    <SystemBars style="light" hidden={false} />
-                    <ThemeProvider value={DarkTheme}>
-                      <Stack>
-                        <Stack.Screen
-                          name="(auth)/(tabs)"
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
+                  <NativeDownloadProvider>
+                    <BottomSheetModalProvider>
+                      <SystemBars style="light" hidden={false} />
+                      <ThemeProvider value={DarkTheme}>
+                        <Stack>
+                          <Stack.Screen
+                            name="(auth)/(tabs)"
+                            options={{
+                              headerShown: false,
+                              title: "",
+                              header: () => null,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="(auth)/player"
+                            options={{
+                              headerShown: false,
+                              title: "",
+                              header: () => null,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="login"
+                            options={{
+                              headerShown: true,
+                              title: "",
+                              headerTransparent: true,
+                            }}
+                          />
+                          <Stack.Screen name="+not-found" />
+                        </Stack>
+                        <Toaster
+                          duration={4000}
+                          toastOptions={{
+                            style: {
+                              backgroundColor: "#262626",
+                              borderColor: "#363639",
+                              borderWidth: 1,
+                            },
+                            titleStyle: {
+                              color: "white",
+                            },
                           }}
+                          closeButton
                         />
-                        <Stack.Screen
-                          name="(auth)/player"
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
-                          }}
-                        />
-                        <Stack.Screen
-                          name="login"
-                          options={{
-                            headerShown: true,
-                            title: "",
-                            headerTransparent: true,
-                          }}
-                        />
-                        <Stack.Screen name="+not-found" />
-                      </Stack>
-                      <Toaster
-                        duration={4000}
-                        toastOptions={{
-                          style: {
-                            backgroundColor: "#262626",
-                            borderColor: "#363639",
-                            borderWidth: 1,
-                          },
-                          titleStyle: {
-                            color: "white",
-                          },
-                        }}
-                        closeButton
-                      />
-                    </ThemeProvider>
-                  </BottomSheetModalProvider>
+                      </ThemeProvider>
+                    </BottomSheetModalProvider>
+                  </NativeDownloadProvider>
                 </DownloadProvider>
               </WebSocketProvider>
             </LogProvider>

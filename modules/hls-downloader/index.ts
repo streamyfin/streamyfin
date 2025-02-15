@@ -3,6 +3,7 @@ import { type EventSubscription } from "expo-modules-core";
 import { useEffect, useState } from "react";
 
 import type {
+  DownloadMetadata,
   OnCompleteEventPayload,
   OnErrorEventPayload,
   OnProgressEventPayload,
@@ -14,9 +15,15 @@ import HlsDownloaderModule from "./src/HlsDownloaderModule";
  * @param id - A unique identifier for the download.
  * @param url - The HLS stream URL.
  * @param assetTitle - A title for the asset.
+ * @param destination - The destination path for the downloaded asset.
  */
-function downloadHLSAsset(id: string, url: string, assetTitle: string): void {
-  HlsDownloaderModule.downloadHLSAsset(id, url, assetTitle);
+function downloadHLSAsset(
+  id: string,
+  url: string,
+  assetTitle: string,
+  metadata: DownloadMetadata
+): void {
+  HlsDownloaderModule.downloadHLSAsset(id, url, assetTitle, metadata);
 }
 
 /**
