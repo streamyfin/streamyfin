@@ -54,8 +54,7 @@ import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
-import DropdownViewDirect from "./dropdown/DropdownViewDirect";
-import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
+import DropdownView from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
@@ -549,11 +548,7 @@ export const Controls: React.FC<Props> = ({
                 setSubtitleTrack={setSubtitleTrack}
                 setSubtitleURL={setSubtitleURL}
               >
-                {!mediaSource?.TranscodingUrl ? (
-                  <DropdownViewDirect showControls={showControls} />
-                ) : (
-                  <DropdownViewTranscoding showControls={showControls} />
-                )}
+                <DropdownView showControls={showControls} />
               </VideoProvider>
             </View>
 

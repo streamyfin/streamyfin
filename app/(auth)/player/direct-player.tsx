@@ -36,17 +36,12 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import {
-  Alert,
-  View,
-  AppState,
-  AppStateStatus,
-  Platform,
-} from "react-native";
+import { Alert, View, AppState, AppStateStatus, Platform } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSettings } from "@/utils/atoms/settings";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client";
 
 export default function page() {
   console.log("Direct Player");
@@ -127,57 +122,80 @@ export default function page() {
     staleTime: 0,
   });
 
-  const {
-    data: stream,
-    isLoading: isLoadingStreamUrl,
-    isError: isErrorStreamUrl,
-  } = useQuery({
-    queryKey: ["stream-url", itemId, mediaSourceId, bitrateValue],
-    queryFn: async () => {
-      if (offline && !Platform.isTV) {
-        const data = await getDownloadedItem.getDownloadedItem(itemId);
-        if (!data?.mediaSource) return null;
+  const [stream, setStream] = useState<{
+    mediaSource: MediaSourceInfo;
+    url: string;
+    sessionId: string | undefined;
+  } | null>(null);
+  const [isLoadingStream, setIsLoadingStream] = useState(true);
+  const [isErrorStream, setIsErrorStream] = useState(false);
 
-        const url = await getDownloadedFileUrl(data.item.Id!);
+  useEffect(() => {
+    const fetchStream = async () => {
+      setIsLoadingStream(true);
+      setIsErrorStream(false);
 
-        if (item)
-          return {
-            mediaSource: data.mediaSource,
-            url,
-            sessionId: undefined,
-          };
+      try {
+        if (offline && !Platform.isTV) {
+          const data = await getDownloadedItem.getDownloadedItem(itemId);
+          if (!data?.mediaSource) {
+            setStream(null);
+            return;
+          }
+
+          const url = await getDownloadedFileUrl(data.item.Id!);
+
+          if (item) {
+            setStream({
+              mediaSource: data.mediaSource as MediaSourceInfo,
+              url,
+              sessionId: undefined,
+            });
+            return;
+          }
+        }
+
+        const res = await getStreamUrl({
+          api,
+          item,
+          startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+          userId: user?.Id,
+          audioStreamIndex: audioIndex,
+          maxStreamingBitrate: bitrateValue,
+          mediaSourceId: mediaSourceId,
+          subtitleStreamIndex: subtitleIndex,
+          deviceProfile: native,
+        });
+
+        if (!res) {
+          setStream(null);
+          return;
+        }
+
+        const { mediaSource, sessionId, url } = res;
+
+        if (!sessionId || !mediaSource || !url) {
+          Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
+          setStream(null);
+          return;
+        }
+
+        setStream({
+          mediaSource,
+          sessionId,
+          url,
+        });
+      } catch (error) {
+        console.error("Error fetching stream:", error);
+        setIsErrorStream(true);
+        setStream(null);
+      } finally {
+        setIsLoadingStream(false);
       }
+    };
 
-      const res = await getStreamUrl({
-        api,
-        item,
-        startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-        userId: user?.Id,
-        audioStreamIndex: audioIndex,
-        maxStreamingBitrate: bitrateValue,
-        mediaSourceId: mediaSourceId,
-        subtitleStreamIndex: subtitleIndex,
-        deviceProfile: native,
-      });
-
-      if (!res) return null;
-
-      const { mediaSource, sessionId, url } = res;
-
-      if (!sessionId || !mediaSource || !url) {
-        Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
-        return null;
-      }
-
-      return {
-        mediaSource,
-        sessionId,
-        url,
-      };
-    },
-    enabled: !!itemId && !!item,
-    staleTime: 0,
-  });
+    fetchStream();
+  }, [itemId, mediaSourceId]);
 
   const togglePlay = useCallback(async () => {
     if (!api) return;
@@ -197,9 +215,7 @@ export default function page() {
         mediaSourceId: mediaSourceId,
         positionTicks: msToTicks(progress.get()),
         isPaused: !isPlaying,
-        playMethod: stream?.url.includes("m3u8")
-          ? "Transcode"
-          : "DirectStream",
+        playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
         playSessionId: stream.sessionId,
       });
     }
@@ -236,21 +252,6 @@ export default function page() {
     setIsPlaybackStopped(true);
     videoRef.current?.stop();
   }, [videoRef, reportPlaybackStopped]);
-
-  // TODO: unused should remove.
-  const reportPlaybackStart = useCallback(async () => {
-    if (offline) return;
-
-    if (!stream) return;
-    await getPlaystateApi(api!).onPlaybackStart({
-      itemId: item?.Id!,
-      audioStreamIndex: audioIndex ? audioIndex : undefined,
-      subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-      mediaSourceId: mediaSourceId,
-      playMethod: stream.url?.includes("m3u8") ? "Transcode" : "DirectStream",
-      playSessionId: stream?.sessionId ? stream?.sessionId : undefined,
-    });
-  }, [api, item, mediaSourceId, stream]);
 
   const onProgress = useCallback(
     async (data: ProgressUpdatePayload) => {
@@ -293,8 +294,8 @@ export default function page() {
 
   const onPipStarted = useCallback((e: PipStartedPayload) => {
     const { pipStarted } = e.nativeEvent;
-    setIsPipStarted(pipStarted)
-  }, [])
+    setIsPipStarted(pipStarted);
+  }, []);
 
   const onPlaybackStateChanged = useCallback((e: PlaybackStatePayload) => {
     const { state, isBuffering, isPlaying } = e.nativeEvent;
@@ -331,7 +332,7 @@ export default function page() {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       // Handle app going to the background
       if (nextAppState.match(/inactive|background/)) {
-        _setShowControls(false)
+        _setShowControls(false);
       }
       setAppState(nextAppState);
     };
@@ -350,65 +351,60 @@ export default function page() {
 
   // Preselection of audio and subtitle tracks.
   if (!settings) return null;
-
   let initOptions = [`--sub-text-scale=${settings.subtitleSize}`];
-  let externalTrack = { name: "", DeliveryUrl: "" };
 
-  const allSubs =
-    stream?.mediaSource.MediaStreams?.filter(
-      (sub: { Type: string }) => sub.Type === "Subtitle"
-    ) || [];
-  const chosenSubtitleTrack = allSubs.find(
-    (sub: { Index: number }) => sub.Index === subtitleIndex
-  );
   const allAudio =
     stream?.mediaSource.MediaStreams?.filter(
-      (audio: { Type: string }) => audio.Type === "Audio"
+      (audio) => audio.Type === "Audio"
     ) || [];
-  const chosenAudioTrack = allAudio.find(
-    (audio: { Index: number | undefined }) => audio.Index === audioIndex
+  const allSubs =
+    stream?.mediaSource.MediaStreams?.filter(
+      (sub) => sub.Type === "Subtitle"
+    ) || [];
+  const textSubs = allSubs.filter((sub) => sub.IsTextSubtitleStream);
+
+  const chosenSubtitleTrack = allSubs.find(
+    (sub) => sub.Index === subtitleIndex
   );
+  const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
 
-  // Direct playback CASE
-  if (!bitrateValue) {
-    // If Subtitle is embedded we can use the position to select it straight away.
-    if (chosenSubtitleTrack && !chosenSubtitleTrack.DeliveryUrl) {
-      initOptions.push(`--sub-track=${allSubs.indexOf(chosenSubtitleTrack)}`);
-    } else if (chosenSubtitleTrack && chosenSubtitleTrack.DeliveryUrl) {
-      // If Subtitle is external we need to pass the URL to the player.
-      externalTrack = {
-        name: chosenSubtitleTrack.DisplayTitle || "",
-        DeliveryUrl: `${api?.basePath || ""}${chosenSubtitleTrack.DeliveryUrl}`,
-      };
-    }
+  const notTranscoding = !stream?.mediaSource.TranscodingUrl;
+  if (
+    chosenSubtitleTrack &&
+    (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
+  ) {
+    const finalIndex = notTranscoding
+      ? allSubs.indexOf(chosenSubtitleTrack)
+      : textSubs.indexOf(chosenSubtitleTrack);
+    initOptions.push(`--sub-track=${finalIndex}`);
+  }
 
-  if (chosenAudioTrack)
-      initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
-  } else {
-    // Transcoded playback CASE
-    if (chosenSubtitleTrack?.DeliveryMethod === "Hls") {
-      externalTrack = {
-        name: `subs ${chosenSubtitleTrack.DisplayTitle}`,
-        DeliveryUrl: "",
-      };
-    }
+  if (notTranscoding && chosenAudioTrack) {
+    initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   }
 
   const insets = useSafeAreaInsets();
 
-  if (!item || isLoadingItem || isLoadingStreamUrl || !stream)
+  if (!item || isLoadingItem || isLoadingStream)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
         <Loader />
       </View>
     );
 
-  if (isErrorItem || isErrorStreamUrl)
+  if (isErrorItem || isErrorStream)
     return (
       <View className="w-screen h-screen flex flex-col items-center justify-center bg-black">
         <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
+
+  const externalSubtitles = allSubs
+    .filter((sub: any) => sub.DeliveryMethod === "External")
+    .map((sub: any) => ({
+      name: sub.DisplayTitle,
+      DeliveryUrl: api?.basePath + sub.DeliveryUrl,
+    }));
 
   return (
     <View style={{ flex: 1, backgroundColor: "black" }}>
@@ -427,11 +423,11 @@ export default function page() {
         <VlcPlayerView
           ref={videoRef}
           source={{
-            uri: stream.url,
+            uri: stream?.url || "",
             autoplay: true,
             isNetwork: true,
             startPosition,
-            externalTrack,
+            externalSubtitles,
             initOptions,
           }}
           style={{ width: "100%", height: "100%" }}

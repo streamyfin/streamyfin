@@ -1,67 +1,21 @@
-import React, { useMemo, useState } from "react";
-import { View, TouchableOpacity, Platform } from "react-native";
+import React from "react";
+import { TouchableOpacity, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
-import { EmbeddedSubtitle, ExternalSubtitle } from "../types";
-import { useAtomValue } from "jotai";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 
-interface DropdownViewDirectProps {
+interface DropdownViewProps {
   showControls: boolean;
   offline?: boolean; // used to disable external subs for downloads
 }
 
-const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
+const DropdownView: React.FC<DropdownViewProps> = ({
   showControls,
   offline = false,
 }) => {
-  const api = useAtomValue(apiAtom);
-  const ControlContext = useControlContext();
-  const mediaSource = ControlContext?.mediaSource;
-  const item = ControlContext?.item;
-  const isVideoLoaded = ControlContext?.isVideoLoaded;
-
   const videoContext = useVideoContext();
-  const {
-    subtitleTracks,
-    audioTracks,
-    setSubtitleURL,
-    setSubtitleTrack,
-    setAudioTrack,
-  } = videoContext;
-
-  const allSubtitleTracksForDirectPlay = useMemo(() => {
-    if (mediaSource?.TranscodingUrl) return null;
-    const embeddedSubs =
-      subtitleTracks
-        ?.map((s) => ({
-          name: s.name,
-          index: s.index,
-          deliveryUrl: undefined,
-        }))
-        .filter((sub) => !sub.name.endsWith("[External]")) || [];
-
-    const externalSubs =
-      mediaSource?.MediaStreams?.filter(
-        (stream) => stream.Type === "Subtitle" && !!stream.DeliveryUrl
-      ).map((s) => ({
-        name: s.DisplayTitle! + " [External]",
-        index: s.Index!,
-        deliveryUrl: s.DeliveryUrl,
-      })) || [];
-
-    // Combine embedded subs with external subs only if not offline
-    if (!offline) {
-      return [...embeddedSubs, ...externalSubs] as (
-        | EmbeddedSubtitle
-        | ExternalSubtitle
-      )[];
-    }
-    return embeddedSubs as EmbeddedSubtitle[];
-  }, [item, isVideoLoaded, subtitleTracks, mediaSource?.MediaStreams, offline]);
+  const { subtitleTracks, audioTracks } = videoContext;
 
   const { subtitleIndex, audioIndex } = useLocalSearchParams<{
     itemId: string;
@@ -98,21 +52,11 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
             loop={true}
             sideOffset={10}
           >
-            {allSubtitleTracksForDirectPlay?.map((sub, idx: number) => (
+            {subtitleTracks?.map((sub, idx: number) => (
               <DropdownMenu.CheckboxItem
                 key={`subtitle-item-${idx}`}
                 value={subtitleIndex === sub.index.toString()}
-                onValueChange={() => {
-                  if ("deliveryUrl" in sub && sub.deliveryUrl) {
-                    setSubtitleURL &&
-                      setSubtitleURL(api?.basePath + sub.deliveryUrl, sub.name);
-                  } else {
-                    setSubtitleTrack && setSubtitleTrack(sub.index);
-                  }
-                  router.setParams({
-                    subtitleIndex: sub.index.toString(),
-                  });
-                }}
+                onValueChange={() => sub.setTrack()}
               >
                 <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
                   {sub.name}
@@ -136,12 +80,7 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
               <DropdownMenu.CheckboxItem
                 key={`audio-item-${idx}`}
                 value={audioIndex === track.index.toString()}
-                onValueChange={() => {
-                  setAudioTrack && setAudioTrack(track.index);
-                  router.setParams({
-                    audioIndex: track.index.toString(),
-                  });
-                }}
+                onValueChange={() => track.setTrack()}
               >
                 <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
                   {track.name}
@@ -155,4 +94,4 @@ const DropdownViewDirect: React.FC<DropdownViewDirectProps> = ({
   );
 };
 
-export default DropdownViewDirect;
+export default DropdownView;
