@@ -129,7 +129,7 @@ export default function search() {
           router.setParams({ q: "" });
           setSearch(e.nativeEvent.text);
         },
-        hideWhenScrolling: true,
+        hideWhenScrolling: false,
         autoFocus: true,
       },
     });
