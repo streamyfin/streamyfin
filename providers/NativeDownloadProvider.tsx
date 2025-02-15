@@ -12,6 +12,7 @@ import {
 } from "@/modules/hls-downloader";
 import * as FileSystem from "expo-file-system";
 import { DownloadInfo } from "@/modules/hls-downloader/src/HlsDownloader.types";
+import { processStream } from "@/utils/hls/av-file-parser";
 
 type DownloadContextType = {
   downloads: Record<string, DownloadInfo>;
@@ -124,6 +125,8 @@ export const NativeDownloadProvider: React.FC<{
               payload.metadata.Name
             );
             console.log("File successfully persisted to:", newLocation);
+
+            processStream(newLocation);
           } else {
             console.log(
               "No filename in metadata, using original location",
