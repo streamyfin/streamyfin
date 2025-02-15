@@ -144,12 +144,9 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
 
       if (res.url.includes("master.m3u8")) {
         // TODO: Download with custom native module
-        downloadHLSAsset(
-          item.Id!,
-          res.url,
-          `${FileSystem.documentDirectory}${item.Name}.mkv`
-        );
         console.log("TODO: Download with custom native module");
+        if (!item.Id || !item.Name) throw new Error("No item id found");
+        downloadHLSAsset(item.Id, res.url, item.Name);
       } else {
         // Download with reac-native-background-downloader
         const destination = `${FileSystem.documentDirectory}${item.Name}.mkv`;
@@ -201,12 +198,16 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
   ]);
 
   useEffect(() => {
-    const progressListener = addProgressListener((item) => {
+    const progressListener = addProgressListener((_item) => {
       console.log("progress ~", item);
-      setActiveDownload({
-        id: activeDownload?.id!,
-        progress: item.progress,
-        state: "DOWNLOADING",
+      if (item.Id !== _item.id) return;
+      setActiveDownload((prev) => {
+        if (!prev) return undefined;
+        return {
+          ...prev,
+          progress: _item.progress,
+          state: _item.state,
+        };
       });
     });
 
@@ -215,8 +216,11 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
         "AVAssetDownloadURLSession ~ checkForExistingDownloads ~",
         downloads
       );
+
       const firstDownload = downloads?.[0];
-      if (!download) return;
+
+      if (!firstDownload) return;
+      if (firstDownload.id !== item.Id) return;
 
       setActiveDownload({
         id: firstDownload?.id,

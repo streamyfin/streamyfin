@@ -1,5 +1,9 @@
 export type OnProgressEventPayload = {
   progress: number;
+  state: "PENDING" | "DOWNLOADING" | "PAUSED" | "DONE" | "FAILED" | "STOPPED";
+  id: string;
+  bytesDownloaded: number;
+  bytesTotal: number;
 };
 
 export type OnErrorEventPayload = {

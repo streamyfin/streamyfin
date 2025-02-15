@@ -11,6 +11,8 @@ public class HlsDownloaderModule: Module {
     Events("onProgress", "onError", "onComplete")
     
     Function("downloadHLSAsset") { (providedId: String, url: String, assetTitle: String) -> Void in
+      print("Starting download - ID: \(providedId), URL: \(url), Title: \(assetTitle)")
+
       guard let assetURL = URL(string: url) else {
         self.sendEvent("onError", ["id": providedId, "error": "Invalid URL", "state": "FAILED"])
         return
@@ -47,6 +49,7 @@ public class HlsDownloaderModule: Module {
       ])
       
       task.resume()
+      print("Download task started with identifier: \(task.taskIdentifier)")
     }
     
     Function("checkForExistingDownloads") {
