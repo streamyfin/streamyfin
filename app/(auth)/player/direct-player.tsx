@@ -27,7 +27,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useFocusEffect, useGlobalSearchParams } from "expo-router";
+import { useGlobalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, {
   useCallback,
@@ -54,6 +54,7 @@ export default function page() {
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
+  const navigation = useNavigation();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -395,6 +396,13 @@ export default function page() {
   }
 
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const beforeRemoveListener = navigation.addListener('beforeRemove', stop);
+    return () => {
+      beforeRemoveListener();
+    };
+  }, [navigation]);
 
   if (!item || isLoadingItem || isLoadingStreamUrl || !stream)
     return (
