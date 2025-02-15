@@ -327,29 +327,6 @@ export default function page() {
       : 0;
   }, [item]);
 
-  const [appState, setAppState] = useState(AppState.currentState);
-
-  useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      // Handle app going to the background
-      if (nextAppState.match(/inactive|background/)) {
-        _setShowControls(false);
-      }
-      setAppState(nextAppState);
-    };
-
-    // Use AppState.addEventListener and return a cleanup function
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
-    );
-
-    return () => {
-      // Cleanup the event listener when the component is unmounted
-      subscription.remove();
-    };
-  }, [appState, isPipStarted, isPlaying]);
-
   // Preselection of audio and subtitle tracks.
   if (!settings) return null;
   let initOptions = [`--sub-text-scale=${settings.subtitleSize}`];
@@ -456,7 +433,7 @@ export default function page() {
           }}
         />
       </View>
-      {videoRef.current && (
+      {videoRef.current && !isPipStarted && (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}

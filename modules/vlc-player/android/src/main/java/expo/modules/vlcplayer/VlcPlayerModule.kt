@@ -1,11 +1,24 @@
 package expo.modules.vlcplayer
 
+import androidx.core.os.bundleOf
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class VlcPlayerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("VlcPlayer")
+
+    OnActivityEntersForeground {
+      VLCManager.listeners.forEach {
+        it.onResume(appContext.currentActivity)
+      }
+    }
+
+    OnActivityEntersBackground {
+      VLCManager.listeners.forEach {
+        it.onPause(appContext.currentActivity)
+      }
+    }
 
     View(VlcPlayerView::class) {
       Prop("source") { view: VlcPlayerView, source: Map<String, Any> ->
