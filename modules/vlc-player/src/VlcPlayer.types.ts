@@ -39,7 +39,7 @@ export type VlcPlayerSource = {
   type?: string;
   isNetwork?: boolean;
   autoplay?: boolean;
-  externalTrack?: { name: string, DeliveryUrl: string };
+  externalSubtitles: { name: string; DeliveryUrl: string }[];
   initOptions?: any[];
   mediaOptions?: { [key: string]: any };
   startPosition?: number;

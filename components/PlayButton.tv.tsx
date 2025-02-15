@@ -58,11 +58,7 @@ export const PlayButton: React.FC<Props> = ({
 
   const goToPlayer = useCallback(
     (q: string, bitrateValue: number | undefined) => {
-      if (!bitrateValue) {
-        router.push(`/player/direct-player?${q}`);
-        return;
-      }
-      router.push(`/player/transcoding-player?${q}`);
+      router.push(`/player/direct-player?${q}`);
     },
     [router]
   );
