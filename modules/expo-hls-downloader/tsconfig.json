@@ -4,6 +4,6 @@
   "compilerOptions": {
     "outDir": "./build"
   },
-  "include": ["./src"],
+  "include": ["./src", "index.ts"],
   "exclude": ["**/__mocks__/*", "**/__tests__/*", "**/__rsc_tests__/*"]
 }

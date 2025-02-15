@@ -14,7 +14,7 @@ import {
   useDownloadComplete,
   useDownloadError,
   useDownloadProgress,
-} from "../src/ExpoHlsDownloader";
+} from "..";
 
 /**
  * Parses boot.xml in the root download directory to extract the stream folder name.

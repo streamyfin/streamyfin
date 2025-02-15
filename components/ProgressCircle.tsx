@@ -24,7 +24,7 @@ const ProgressCircle: React.FC<ProgressCircleProps> = ({
       fill={fill}
       tintColor={tintColor}
       backgroundColor={backgroundColor}
-      rotation={45}
+      rotation={0}
     />
   );
 };

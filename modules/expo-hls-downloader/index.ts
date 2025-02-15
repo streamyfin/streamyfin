@@ -6,15 +6,15 @@ import type {
   OnCompleteEventPayload,
   OnErrorEventPayload,
   OnProgressEventPayload,
-} from "./ExpoHlsDownloader.types";
-import ExpoHlsDownloaderModule from "./ExpoHlsDownloaderModule";
+} from "./src/ExpoHlsDownloader.types";
+import ExpoHlsDownloaderModule from "./src/ExpoHlsDownloaderModule";
 
 /**
  * Initiates an HLS download.
  * @param url - The HLS stream URL.
  * @param assetTitle - A title for the asset.
  */
-export function downloadHLSAsset(url: string, assetTitle: string): void {
+function downloadHLSAsset(url: string, assetTitle: string): void {
   ExpoHlsDownloaderModule.downloadHLSAsset(url, assetTitle);
 }
 
@@ -23,7 +23,7 @@ export function downloadHLSAsset(url: string, assetTitle: string): void {
  * @param listener A callback invoked with progress updates.
  * @returns A subscription that can be removed.
  */
-export function addProgressListener(
+function addProgressListener(
   listener: (event: OnProgressEventPayload) => void
 ): EventSubscription {
   return ExpoHlsDownloaderModule.addListener("onProgress", listener);
@@ -34,7 +34,7 @@ export function addProgressListener(
  * @param listener A callback invoked with error details.
  * @returns A subscription that can be removed.
  */
-export function addErrorListener(
+function addErrorListener(
   listener: (event: OnErrorEventPayload) => void
 ): EventSubscription {
   return ExpoHlsDownloaderModule.addListener("onError", listener);
@@ -45,7 +45,7 @@ export function addErrorListener(
  * @param listener A callback invoked when the download completes.
  * @returns A subscription that can be removed.
  */
-export function addCompleteListener(
+function addCompleteListener(
   listener: (event: OnCompleteEventPayload) => void
 ): EventSubscription {
   return ExpoHlsDownloaderModule.addListener("onComplete", listener);
@@ -54,7 +54,7 @@ export function addCompleteListener(
 /**
  * React hook that returns the current download progress (0–1).
  */
-export function useDownloadProgress(): number {
+function useDownloadProgress(): number {
   const [progress, setProgress] = useState(0);
   useEffect(() => {
     const subscription = addProgressListener((event) => {
@@ -68,7 +68,7 @@ export function useDownloadProgress(): number {
 /**
  * React hook that returns the latest download error (or null if none).
  */
-export function useDownloadError(): string | null {
+function useDownloadError(): string | null {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const subscription = addErrorListener((event) => {
@@ -111,9 +111,7 @@ async function persistDownloadedFile(
  * @param destinationFileName Optional filename (with extension) to persist the file.
  * @returns The final file URI or null if not completed.
  */
-export function useDownloadComplete(
-  destinationFileName?: string
-): string | null {
+function useDownloadComplete(destinationFileName?: string): string | null {
   const [location, setLocation] = useState<string | null>(null);
 
   useEffect(() => {
@@ -161,3 +159,10 @@ export function useDownloadComplete(
 
   return location;
 }
+
+export {
+  downloadHLSAsset,
+  useDownloadComplete,
+  useDownloadError,
+  useDownloadProgress,
+};

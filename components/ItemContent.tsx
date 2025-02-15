@@ -36,6 +36,8 @@ import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { AddToFavorites } from "./AddToFavorites";
+import { NativeDownloadButton } from "./NativeDownloadButton";
+import { Ionicons } from "@expo/vector-icons";
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -95,7 +97,13 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 />
                 {item.Type !== "Program" && (
                   <View className="flex flex-row items-center space-x-2">
-                    <DownloadSingleItem item={item} size="large" />
+                    {/* <DownloadSingleItem item={item} size="large" /> */}
+                    <NativeDownloadButton
+                      size={"large"}
+                      title={"Download"}
+                      subtitle={item.Name!}
+                      item={item}
+                    />
                     <PlayedStatus items={[item]} size="large" />
                     <AddToFavorites item={item} type="item" />
                   </View>
