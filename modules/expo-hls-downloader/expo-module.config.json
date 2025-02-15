@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple"],
+  "apple": {
+    "modules": ["ExpoHlsDownloaderModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.hlsdownloader.ExpoHlsDownloaderModule"]
+  }
+}
