@@ -6,7 +6,7 @@ public class HlsDownloaderModule: Module {
   private var currentDelegate: HLSDownloadDelegate?
 
   public func definition() -> ModuleDefinition {
-    Name("ExpoHlsDownloader")
+    Name("HlsDownloader")
     
     // Declare the events you wish to expose.
     Events("onProgress", "onError", "onComplete")
