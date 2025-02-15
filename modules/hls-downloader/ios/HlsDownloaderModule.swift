@@ -1,7 +1,7 @@
 import ExpoModulesCore
 import AVFoundation
 
-public class ExpoHlsDownloaderModule: Module {
+public class HlsDownloaderModule: Module {
   // Optional: Keep a strong reference to the delegate (for the current download)
   private var currentDelegate: HLSDownloadDelegate?
 
@@ -13,17 +13,17 @@ public class ExpoHlsDownloaderModule: Module {
     
     // Expose the download function.
     Function("downloadHLSAsset") { (url: String, assetTitle: String) -> Void in
-      print("[ExpoHlsDownloaderModule] downloadHLSAsset called with url: \(url) and assetTitle: \(assetTitle)")
+      print("[HlsDownloaderModule] downloadHLSAsset called with url: \(url) and assetTitle: \(assetTitle)")
       
       guard let assetURL = URL(string: url) else {
-        print("[ExpoHlsDownloaderModule] Invalid URL: \(url)")
+        print("[HlsDownloaderModule] Invalid URL: \(url)")
         self.sendEvent("onError", ["error": "Invalid URL"])
         return
       }
       
       let asset = AVURLAsset(url: assetURL)
       let configuration = URLSessionConfiguration.background(withIdentifier: "com.example.hlsdownload.\(UUID().uuidString)")
-      print("[ExpoHlsDownloaderModule] Created background session configuration")
+      print("[HlsDownloaderModule] Created background session configuration")
       
       let delegate = HLSDownloadDelegate(module: self)
       self.currentDelegate = delegate
@@ -33,7 +33,7 @@ public class ExpoHlsDownloaderModule: Module {
         assetDownloadDelegate: delegate,
         delegateQueue: OperationQueue.main
       )
-      print("[ExpoHlsDownloaderModule] Created download session")
+      print("[HlsDownloaderModule] Created download session")
       
       guard let task = downloadSession.makeAssetDownloadTask(
         asset: asset,
@@ -41,24 +41,24 @@ public class ExpoHlsDownloaderModule: Module {
         assetArtworkData: nil,
         options: nil
       ) else {
-        print("[ExpoHlsDownloaderModule] Failed to create download task")
+        print("[HlsDownloaderModule] Failed to create download task")
         self.sendEvent("onError", ["error": "Failed to create download task"])
         return
       }
       
-      print("[ExpoHlsDownloaderModule] Starting download task for asset: \(assetTitle)")
+      print("[HlsDownloaderModule] Starting download task for asset: \(assetTitle)")
       task.resume()
     }
     
     // Called when JavaScript starts observing events.
     OnStartObserving {
-      print("[ExpoHlsDownloaderModule] Started observing events")
+      print("[HlsDownloaderModule] Started observing events")
       // Additional setup if needed.
     }
     
     // Called when JavaScript stops observing events.
     OnStopObserving {
-      print("[ExpoHlsDownloaderModule] Stopped observing events")
+      print("[HlsDownloaderModule] Stopped observing events")
       // Clean up if necessary.
     }
   }
@@ -66,9 +66,9 @@ public class ExpoHlsDownloaderModule: Module {
 
 // Delegate that listens to AVAssetDownloadURLSession events and emits them to JS.
 class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
-  weak var module: ExpoHlsDownloaderModule?
+  weak var module: HlsDownloaderModule?
   
-  init(module: ExpoHlsDownloaderModule) {
+  init(module: HlsDownloaderModule) {
     self.module = module
   }
   

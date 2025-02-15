@@ -6,8 +6,8 @@ import type {
   OnCompleteEventPayload,
   OnErrorEventPayload,
   OnProgressEventPayload,
-} from "./src/ExpoHlsDownloader.types";
-import ExpoHlsDownloaderModule from "./src/ExpoHlsDownloaderModule";
+} from "./src/HlsDownloader.types";
+import HlsDownloaderModule from "./src/HlsDownloaderModule";
 
 /**
  * Initiates an HLS download.
@@ -15,7 +15,7 @@ import ExpoHlsDownloaderModule from "./src/ExpoHlsDownloaderModule";
  * @param assetTitle - A title for the asset.
  */
 function downloadHLSAsset(url: string, assetTitle: string): void {
-  ExpoHlsDownloaderModule.downloadHLSAsset(url, assetTitle);
+  HlsDownloaderModule.downloadHLSAsset(url, assetTitle);
 }
 
 /**
@@ -26,7 +26,7 @@ function downloadHLSAsset(url: string, assetTitle: string): void {
 function addProgressListener(
   listener: (event: OnProgressEventPayload) => void
 ): EventSubscription {
-  return ExpoHlsDownloaderModule.addListener("onProgress", listener);
+  return HlsDownloaderModule.addListener("onProgress", listener);
 }
 
 /**
@@ -37,7 +37,7 @@ function addProgressListener(
 function addErrorListener(
   listener: (event: OnErrorEventPayload) => void
 ): EventSubscription {
-  return ExpoHlsDownloaderModule.addListener("onError", listener);
+  return HlsDownloaderModule.addListener("onError", listener);
 }
 
 /**
@@ -48,7 +48,7 @@ function addErrorListener(
 function addCompleteListener(
   listener: (event: OnCompleteEventPayload) => void
 ): EventSubscription {
-  return ExpoHlsDownloaderModule.addListener("onComplete", listener);
+  return HlsDownloaderModule.addListener("onComplete", listener);
 }
 
 /**

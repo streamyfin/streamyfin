@@ -12,13 +12,13 @@ export type OnCompleteEventPayload = {
   location: string;
 };
 
-export type ExpoHlsDownloaderModuleEvents = {
+export type HlsDownloaderModuleEvents = {
   onProgress: (params: OnProgressEventPayload) => void;
   onError: (params: OnErrorEventPayload) => void;
   onComplete: (params: OnCompleteEventPayload) => void;
 };
 
-export type ExpoHlsDownloaderViewProps = {
+export type HlsDownloaderViewProps = {
   url: string;
   style?: StyleProp<ViewStyle>;
 };

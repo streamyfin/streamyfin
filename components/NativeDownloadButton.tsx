@@ -45,7 +45,7 @@ import {
   useDownloadProgress,
   useDownloadError,
   useDownloadComplete,
-} from "@/modules/expo-hls-downloader";
+} from "@/modules/hls-downloader";
 
 interface NativeDownloadButton extends ViewProps {
   item: BaseItemDto;
