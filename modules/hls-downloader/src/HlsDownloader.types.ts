@@ -25,6 +25,8 @@ export type OnProgressEventPayload = BaseEventPayload & {
 
 export type OnErrorEventPayload = BaseEventPayload & {
   error: string;
+  errorCode: number;
+  errorDomain: string;
 };
 
 export type OnCompleteEventPayload = BaseEventPayload & {

@@ -118,16 +118,17 @@ export const NativeDownloadProvider: React.FC<{
         console.log("Original download location:", payload.location);
 
         try {
-          // Get the download info from our state
-          const downloadInfo = downloads[payload.id];
-          if (downloadInfo?.metadata?.Name) {
+          if (payload?.metadata?.Name) {
             const newLocation = await persistDownloadedFile(
               payload.location,
-              downloadInfo.metadata.Name
+              payload.metadata.Name
             );
             console.log("File successfully persisted to:", newLocation);
           } else {
-            console.log("No filename in metadata, using original location");
+            console.log(
+              "No filename in metadata, using original location",
+              payload
+            );
           }
         } catch (error) {
           console.error("Failed to persist file:", error);
