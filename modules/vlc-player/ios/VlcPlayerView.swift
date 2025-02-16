@@ -457,7 +457,14 @@ extension VlcPlayerView: SimpleAppLifecycleListener {
             logger.debug("Player view is missing. Adding back as subview")
             self.addSubview(self.vlc.getPlayerView())
         }
-        self.layoutIfNeeded()
+
+        // Current solution to fixing black screen when re-entering application
+        if let videoTrack = self.vlc.player.videoTracks.first { $0.isSelected == true } {
+            videoTrack.isSelected = false
+            videoTrack.isSelectedExclusively = true
+            self.vlc.player.play()
+            self.vlc.player.pause()
+        }
     }
 }
 
