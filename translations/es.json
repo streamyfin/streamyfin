@@ -87,7 +87,7 @@
       },
       "audio": {
         "audio_title": "Audio",
-        "set_audio_track": "Establecer pista de audio del elemento anterior",
+        "set_audio_track": "Establecer pista del elemento anterior",
         "audio_language": "Idioma de audio",
         "audio_hint": "Elige un idioma de audio por defecto.",
         "none": "Ninguno",
@@ -97,7 +97,7 @@
         "subtitle_title": "Subtítulos",
         "subtitle_language": "Idioma de subtítulos",
         "subtitle_mode": "Modo de subtítulos",
-        "set_subtitle_track": "Establecer pista de subtítulos del elemento anterior",
+        "set_subtitle_track": "Establecer pista del elemento anterior",
         "subtitle_size": "Tamaño de subtítulos",
         "subtitle_hint": "Configurar preferencias de subtítulos.",
         "none": "Ninguno",
