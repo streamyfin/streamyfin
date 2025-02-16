@@ -1,53 +1,38 @@
 import "@/augmentations";
-import { Platform } from "react-native";
-import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import { DownloadProvider } from "@/providers/DownloadProvider";
-import {
-  getOrSetDeviceId,
-  getTokenFromStorage,
-  JellyfinProvider,
-} from "@/providers/JellyfinProvider";
-import { JobQueueProvider } from "@/providers/JobQueueProvider";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { JellyfinProvider } from "@/providers/JellyfinProvider";
+import { NativeDownloadProvider } from "@/providers/NativeDownloadProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import {
   SplashScreenProvider,
   useSplashScreenLoading,
 } from "@/providers/SplashScreenProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
-import { Settings, useSettings } from "@/utils/atoms/settings";
-import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
+import { useSettings } from "@/utils/atoms/settings";
 import { LogProvider, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
-import * as FileSystem from "expo-file-system";
 import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
-const Notifications = !Platform.isTV ? require("expo-notifications") : null;
-import { router, Stack } from "expo-router";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { getLocales } from "expo-localization";
+import { router, Stack } from "expo-router";
 import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef } from "react";
 import { I18nextProvider, useTranslation } from "react-i18next";
-import { Appearance, AppState } from "react-native";
+import { Appearance, AppState, Platform } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-import { NativeDownloadProvider } from "@/providers/NativeDownloadProvider";
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
+const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -92,102 +77,6 @@ function useNotificationObserver() {
       subscription.remove();
     };
   }, []);
-}
-
-if (!Platform.isTV) {
-  TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
-    console.log("TaskManager ~ trigger");
-
-    const now = Date.now();
-
-    const settingsData = storage.getString("settings");
-
-    if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
-
-    const settings: Partial<Settings> = JSON.parse(settingsData);
-    const url = settings?.optimizedVersionsServerUrl;
-
-    if (!settings?.autoDownload || !url)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
-
-    const token = getTokenFromStorage();
-    const deviceId = getOrSetDeviceId();
-    const baseDirectory = FileSystem.documentDirectory;
-
-    if (!token || !deviceId || !baseDirectory)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
-
-    const jobs = await getAllJobsByDeviceId({
-      deviceId,
-      authHeader: token,
-      url,
-    });
-
-    console.log("TaskManager ~ Active jobs: ", jobs.length);
-
-    for (let job of jobs) {
-      if (job.status === "completed") {
-        const downloadUrl = url + "download/" + job.id;
-        const tasks = await BackGroundDownloader.checkForExistingDownloads();
-
-        if (tasks.find((task: { id: string }) => task.id === job.id)) {
-          console.log("TaskManager ~ Download already in progress: ", job.id);
-          continue;
-        }
-
-        BackGroundDownloader.download({
-          id: job.id,
-          url: downloadUrl,
-          destination: `${baseDirectory}${job.item.Id}.mp4`,
-          headers: {
-            Authorization: token,
-          },
-        })
-          .begin(() => {
-            console.log("TaskManager ~ Download started: ", job.id);
-          })
-          .done(() => {
-            console.log("TaskManager ~ Download completed: ", job.id);
-            saveDownloadedItemInfo(job.item);
-            BackGroundDownloader.completeHandler(job.id);
-            cancelJobById({
-              authHeader: token,
-              id: job.id,
-              url: url,
-            });
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: job.item.Name,
-                body: "Download completed",
-                data: {
-                  url: `/downloads`,
-                },
-              },
-              trigger: null,
-            });
-          })
-          .error((error: any) => {
-            console.log("TaskManager ~ Download error: ", job.id, error);
-            BackGroundDownloader.completeHandler(job.id);
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: job.item.Name,
-                body: "Download failed",
-                data: {
-                  url: `/downloads`,
-                },
-              },
-              trigger: null,
-            });
-          });
-      }
-    }
-
-    console.log(`Auto download started: ${new Date(now).toISOString()}`);
-
-    // Be sure to return the successful result type!
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  });
 }
 
 const checkAndRequestPermissions = async () => {
@@ -316,64 +205,62 @@ function Layout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <JobQueueProvider>
-        <JellyfinProvider>
-          <PlaySettingsProvider>
-            <LogProvider>
-              <WebSocketProvider>
-                <NativeDownloadProvider>
-                  <BottomSheetModalProvider>
-                    <SystemBars style="light" hidden={false} />
-                    <ThemeProvider value={DarkTheme}>
-                      <Stack>
-                        <Stack.Screen
-                          name="(auth)/(tabs)"
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
-                          }}
-                        />
-                        <Stack.Screen
-                          name="(auth)/player"
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
-                          }}
-                        />
-                        <Stack.Screen
-                          name="login"
-                          options={{
-                            headerShown: true,
-                            title: "",
-                            headerTransparent: true,
-                          }}
-                        />
-                        <Stack.Screen name="+not-found" />
-                      </Stack>
-                      <Toaster
-                        duration={4000}
-                        toastOptions={{
-                          style: {
-                            backgroundColor: "#262626",
-                            borderColor: "#363639",
-                            borderWidth: 1,
-                          },
-                          titleStyle: {
-                            color: "white",
-                          },
+      <JellyfinProvider>
+        <PlaySettingsProvider>
+          <LogProvider>
+            <WebSocketProvider>
+              <NativeDownloadProvider>
+                <BottomSheetModalProvider>
+                  <SystemBars style="light" hidden={false} />
+                  <ThemeProvider value={DarkTheme}>
+                    <Stack>
+                      <Stack.Screen
+                        name="(auth)/(tabs)"
+                        options={{
+                          headerShown: false,
+                          title: "",
+                          header: () => null,
                         }}
-                        closeButton
                       />
-                    </ThemeProvider>
-                  </BottomSheetModalProvider>
-                </NativeDownloadProvider>
-              </WebSocketProvider>
-            </LogProvider>
-          </PlaySettingsProvider>
-        </JellyfinProvider>
-      </JobQueueProvider>
+                      <Stack.Screen
+                        name="(auth)/player"
+                        options={{
+                          headerShown: false,
+                          title: "",
+                          header: () => null,
+                        }}
+                      />
+                      <Stack.Screen
+                        name="login"
+                        options={{
+                          headerShown: true,
+                          title: "",
+                          headerTransparent: true,
+                        }}
+                      />
+                      <Stack.Screen name="+not-found" />
+                    </Stack>
+                    <Toaster
+                      duration={4000}
+                      toastOptions={{
+                        style: {
+                          backgroundColor: "#262626",
+                          borderColor: "#363639",
+                          borderWidth: 1,
+                        },
+                        titleStyle: {
+                          color: "white",
+                        },
+                      }}
+                      closeButton
+                    />
+                  </ThemeProvider>
+                </BottomSheetModalProvider>
+              </NativeDownloadProvider>
+            </WebSocketProvider>
+          </LogProvider>
+        </PlaySettingsProvider>
+      </JellyfinProvider>
     </QueryClientProvider>
   );
 }

@@ -4,6 +4,7 @@ import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
+import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -11,7 +12,7 @@ import {
   useSplashScreenVisible,
 } from "@/providers/SplashScreenProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { Api } from "@jellyfin/sdk";
 import {
   BaseItemDto,
@@ -26,7 +27,11 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import NetInfo from "@react-native-community/netinfo";
 import { QueryFunction, useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import {
+  useNavigation,
+  useNavigationContainerRef,
+  useRouter,
+} from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,6 +39,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -81,6 +87,23 @@ export default function index() {
     const state = await NetInfo.fetch();
     setIsConnected(state.isConnected);
     setLoadingRetry(false);
+  }, []);
+
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => {
+            router.push("/(auth)/downloads");
+          }}
+          className="p-2"
+        >
+          <Feather name="download" color={Colors.primary} size={22} />
+        </TouchableOpacity>
+      ),
+    });
   }, []);
 
   useEffect(() => {

@@ -11,20 +11,19 @@ import {
   DownloadMetadata,
 } from "@/modules/hls-downloader/src/HlsDownloader.types";
 import { getItemImage } from "@/utils/getItemImage";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { rewriteM3U8Files } from "@/utils/movpkg-to-vlc/tools";
+import download from "@/utils/profiles/download";
 import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import RNBackgroundDownloader from "@kesha-antonov/react-native-background-downloader";
+import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import download from "@/utils/profiles/download";
-import { useQuery } from "@tanstack/react-query";
 
 type DownloadOptionsData = {
   selectedAudioStream: number;
@@ -45,7 +44,6 @@ type DownloadContextType = {
       maxBitrate,
     }: DownloadOptionsData
   ) => Promise<void>;
-  cancelDownload: (id: string) => void;
   getDownloadedItem: (id: string) => Promise<DownloadMetadata | null>;
   activeDownloads: DownloadInfo[];
   downloadedFiles: DownloadedFileInfo[];
@@ -83,7 +81,7 @@ export type DownloadedFileInfo = {
   metadata: DownloadMetadata;
 };
 
-const listDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
+const getDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
   const downloadsDir = FileSystem.documentDirectory + "downloads/";
   const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
   if (!dirInfo.exists) return [];
@@ -113,7 +111,7 @@ const listDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
   return downloaded;
 };
 
-const getDownloadedItem = async (id: string) => {
+const getDownloadedFile = async (id: string) => {
   const downloadsDir = FileSystem.documentDirectory + "downloads/";
   const fileInfo = await FileSystem.getInfoAsync(downloadsDir + id + ".json");
   if (!fileInfo.exists) return null;
@@ -136,7 +134,7 @@ export const NativeDownloadProvider: React.FC<{
 
   const { data: downloadedFiles } = useQuery({
     queryKey: ["downloadedFiles"],
-    queryFn: listDownloadedFiles,
+    queryFn: getDownloadedFiles,
   });
 
   useEffect(() => {
@@ -153,35 +151,21 @@ export const NativeDownloadProvider: React.FC<{
             state: download.state,
             bytesDownloaded: download.bytesDownloaded,
             bytesTotal: download.bytesTotal,
+            metadata: download.metadata,
+            startTime: download?.startTime,
           },
         }),
         {}
       );
 
-      // Check regular downloads
-      const regularDownloads =
-        await RNBackgroundDownloader.checkForExistingDownloads();
-      const regularDownloadStates = regularDownloads.reduce(
-        (acc, download) => ({
-          ...acc,
-          [download.id]: {
-            id: download.id,
-            progress: download.bytesDownloaded / download.bytesTotal,
-            state: download.state,
-            bytesDownloaded: download.bytesDownloaded,
-            bytesTotal: download.bytesTotal,
-          },
-        }),
-        {}
-      );
-
-      setDownloads({ ...hlsDownloadStates, ...regularDownloadStates });
+      setDownloads({ ...hlsDownloadStates });
     };
 
     initializeDownloads();
 
-    // Set up HLS download listeners
     const progressListener = addProgressListener((download) => {
+      if (!download.metadata) throw new Error("No metadata found in download");
+
       console.log("[HLS] Download progress:", download);
       setDownloads((prev) => ({
         ...prev,
@@ -191,12 +175,14 @@ export const NativeDownloadProvider: React.FC<{
           state: download.state,
           bytesDownloaded: download.bytesDownloaded,
           bytesTotal: download.bytesTotal,
+          metadata: download.metadata,
+          startTime: download?.startTime,
         },
       }));
     });
 
     const completeListener = addCompleteListener(async (payload) => {
-      if (!payload?.id) throw new Error("No id found in payload");
+      if (!payload.id) throw new Error("No id found in payload");
 
       try {
         rewriteM3U8Files(payload.location);
@@ -235,7 +221,6 @@ export const NativeDownloadProvider: React.FC<{
   useEffect(() => {
     // Go through all the files in the folder downloads, check for the file id.json and id-done.json, if the id.json exists but id-done.json does not exist, then the download is still in done but not parsed. Parse it.
     const checkForUnparsedDownloads = async () => {
-      let found = false;
       const downloadsFolder = await FileSystem.getInfoAsync(
         FileSystem.documentDirectory + "downloads"
       );
@@ -263,7 +248,6 @@ export const NativeDownloadProvider: React.FC<{
               loading: "Finishing up download...",
               success: () => "Download complete ✅",
             });
-            found = true;
           }
         }
       }
@@ -300,83 +284,17 @@ export const NativeDownloadProvider: React.FC<{
     });
 
     if (!res) throw new Error("Failed to get stream URL");
-
     const { mediaSource } = res;
-
     if (!mediaSource) throw new Error("Failed to get media source");
 
     await saveImage(item.Id, itemImage?.uri);
 
-    if (url.includes("master.m3u8")) {
-      // HLS download
-      downloadHLSAsset(jobId, url, {
-        item,
-        mediaSource,
-      });
-    } else {
-      // Regular download
-      try {
-        const task = RNBackgroundDownloader.download({
-          id: jobId,
-          url: url,
-          destination: `${FileSystem.documentDirectory}${jobId}/${item.Name}.mkv`,
-        });
+    if (!url.includes("master.m3u8"))
+      throw new Error("Only HLS downloads are supported");
 
-        task.begin(({ expectedBytes }) => {
-          setDownloads((prev) => ({
-            ...prev,
-            [jobId]: {
-              id: jobId,
-              progress: 0,
-              state: "DOWNLOADING",
-            },
-          }));
-        });
-
-        task.progress(({ bytesDownloaded, bytesTotal }) => {
-          console.log(
-            "[Normal] Download progress:",
-            bytesDownloaded,
-            bytesTotal
-          );
-          setDownloads((prev) => ({
-            ...prev,
-            [jobId]: {
-              id: jobId,
-              progress: bytesDownloaded / bytesTotal,
-              state: "DOWNLOADING",
-            },
-          }));
-        });
-
-        task.done(() => {
-          setDownloads((prev) => {
-            const newDownloads = { ...prev };
-            delete newDownloads[jobId];
-            return newDownloads;
-          });
-        });
-
-        task.error(({ error }) => {
-          console.error("Download error:", error);
-          setDownloads((prev) => {
-            const newDownloads = { ...prev };
-            delete newDownloads[jobId];
-            return newDownloads;
-          });
-        });
-      } catch (error) {
-        console.error("Error starting download:", error);
-      }
-    }
-  };
-
-  const cancelDownload = (id: string) => {
-    // Implement cancel logic here
-    setDownloads((prev) => {
-      const newDownloads = { ...prev };
-      delete newDownloads[id];
-      return newDownloads;
+    downloadHLSAsset(jobId, url, {
+      item,
+      mediaSource,
     });
   };
 
@@ -385,9 +303,8 @@ export const NativeDownloadProvider: React.FC<{
       value={{
         downloads,
         startDownload,
-        cancelDownload,
-        downloadedFiles,
-        getDownloadedItem: getDownloadedItem,
+        downloadedFiles: downloadedFiles ?? [],
+        getDownloadedItem: getDownloadedFile,
         activeDownloads: Object.values(downloads),
       }}
     >

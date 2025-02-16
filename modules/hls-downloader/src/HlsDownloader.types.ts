@@ -20,13 +20,14 @@ export interface DownloadMetadata {
 export type BaseEventPayload = {
   id: string;
   state: DownloadState;
-  metadata?: DownloadMetadata;
+  metadata: DownloadMetadata;
 };
 
 export type OnProgressEventPayload = BaseEventPayload & {
   progress: number;
   bytesDownloaded: number;
   bytesTotal: number;
+  startTime?: number;
 };
 
 export type OnErrorEventPayload = BaseEventPayload & {
@@ -55,5 +56,5 @@ export interface DownloadInfo {
   bytesTotal?: number;
   location?: string;
   error?: string;
-  metadata?: DownloadMetadata;
+  metadata: DownloadMetadata;
 }

@@ -5,7 +5,7 @@ public class HlsDownloaderModule: Module {
   var activeDownloads:
     [Int: (
       task: AVAssetDownloadTask, delegate: HLSDownloadDelegate, metadata: [String: Any],
-      startTime: Date
+      startTime: Double
     )] = [:]
 
   public func definition() -> ModuleDefinition {
@@ -15,8 +15,9 @@ public class HlsDownloaderModule: Module {
 
     Function("downloadHLSAsset") {
       (providedId: String, url: String, metadata: [String: Any]?) -> Void in
+      let startTime = Date().timeIntervalSince1970
       print(
-        "Starting download - ID: \(providedId), URL: \(url), Metadata: \(String(describing: metadata))"
+        "Starting download - ID: \(providedId), URL: \(url), Metadata: \(String(describing: metadata)), StartTime: \(startTime)"
       )
 
       guard let assetURL = URL(string: url) else {
@@ -27,6 +28,7 @@ public class HlsDownloaderModule: Module {
             "error": "Invalid URL",
             "state": "FAILED",
             "metadata": metadata ?? [:],
+            "startTime": startTime,
           ])
         return
       }
@@ -36,6 +38,7 @@ public class HlsDownloaderModule: Module {
         withIdentifier: "com.example.hlsdownload")
       let delegate = HLSDownloadDelegate(module: self)
       delegate.providedId = providedId
+      delegate.startTime = startTime
       let downloadSession = AVAssetDownloadURLSession(
         configuration: configuration,
         assetDownloadDelegate: delegate,
@@ -47,7 +50,7 @@ public class HlsDownloaderModule: Module {
           asset: asset,
           assetTitle: providedId,
           assetArtworkData: nil,
-          options: nil
+          options: [AVAssetDownloadTaskMinimumRequiredMediaBitrateKey: startTime]
         )
       else {
         self.sendEvent(
@@ -57,12 +60,13 @@ public class HlsDownloaderModule: Module {
             "error": "Failed to create download task",
             "state": "FAILED",
             "metadata": metadata ?? [:],
+            "startTime": startTime,
           ])
         return
       }
 
       delegate.taskIdentifier = task.taskIdentifier
-      self.activeDownloads[task.taskIdentifier] = (task, delegate, metadata ?? [:], Date())
+      self.activeDownloads[task.taskIdentifier] = (task, delegate, metadata ?? [:], startTime)
       self.sendEvent(
         "onProgress",
         [
@@ -70,7 +74,7 @@ public class HlsDownloaderModule: Module {
           "progress": 0.0,
           "state": "PENDING",
           "metadata": metadata ?? [:],
-          "startTime": Date().timeIntervalSince1970,
+          "startTime": startTime,
         ])
 
       task.resume()
@@ -95,7 +99,7 @@ public class HlsDownloaderModule: Module {
           "bytesTotal": total,
           "state": self.mappedState(for: task),
           "metadata": metadata,
-          "startTime": startTime.timeIntervalSince1970,
+          "startTime": startTime,
         ])
       }
       return downloads
@@ -142,6 +146,7 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
   var providedId: String = ""
   var downloadedSeconds: Double = 0
   var totalSeconds: Double = 0
+  var startTime: Double = 0
 
   init(module: HlsDownloaderModule) {
     self.module = module
@@ -157,9 +162,8 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
     }
 
     let total = CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
-    let downloadInfo = module?.activeDownloads[assetDownloadTask.taskIdentifier]
-    let metadata = downloadInfo?.metadata ?? [:]
-    let startTime = downloadInfo?.startTime.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+    let metadata = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.metadata ?? [:]
+    let startTime = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.startTime ?? 0
 
     self.downloadedSeconds = downloaded
     self.totalSeconds = total
@@ -183,9 +187,8 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
-    let downloadInfo = module?.activeDownloads[assetDownloadTask.taskIdentifier]
-    let metadata = downloadInfo?.metadata ?? [:]
-    let startTime = downloadInfo?.startTime.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+    let metadata = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.metadata ?? [:]
+    let startTime = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.startTime ?? 0
     let folderName = providedId
     do {
       guard let module = module else { return }
@@ -224,10 +227,8 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     if let error = error {
-      let downloadInfo = module?.activeDownloads[task.taskIdentifier]
-      let metadata = downloadInfo?.metadata ?? [:]
-      let startTime = downloadInfo?.startTime.timeIntervalSince1970 ?? Date().timeIntervalSince1970
-
+      let metadata = module?.activeDownloads[task.taskIdentifier]?.metadata ?? [:]
+      let startTime = module?.activeDownloads[task.taskIdentifier]?.startTime ?? 0
       module?.sendEvent(
         "onError",
         [

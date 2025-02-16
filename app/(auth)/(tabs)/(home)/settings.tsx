@@ -21,9 +21,6 @@ import React, { lazy, useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { storage } from "@/utils/mmkv";
-const DownloadSettings = lazy(
-  () => import("@/components/settings/DownloadSettings")
-);
 
 export default function settings() {
   const router = useRouter();
@@ -71,8 +68,6 @@ export default function settings() {
         </MediaProvider>
 
         <OtherSettings />
-
-        {!Platform.isTV && <DownloadSettings />}
 
         <PluginSettings />
 
