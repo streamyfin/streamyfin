@@ -2,7 +2,6 @@ import ExpoModulesCore
 import VLCKit
 import UIKit
 
-
 public class VLCPlayerView: UIView {
      func setupView(parent: UIView) {
          self.backgroundColor = .black

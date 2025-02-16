@@ -12,7 +12,7 @@ import {
 } from "@/modules/hls-downloader";
 import * as FileSystem from "expo-file-system";
 import { DownloadInfo } from "@/modules/hls-downloader/src/HlsDownloader.types";
-import { processStream } from "@/utils/hls/av-file-parser";
+import { parseBootXML, processStream } from "@/utils/hls/av-file-parser";
 
 type DownloadContextType = {
   downloads: Record<string, DownloadInfo>;
@@ -47,6 +47,22 @@ const persistDownloadedFile = async (
   } catch (error) {
     console.error("Error persisting file:", error);
     throw error;
+  }
+};
+
+/**
+ * Opens the boot.xml file and parses it to get the streams
+ */
+const getBootStreams = async (path: string) => {
+  const b = `${path}/boot.xml`;
+  const fileInfo = await FileSystem.getInfoAsync(b);
+  if (fileInfo.exists) {
+    const boot = await FileSystem.readAsStringAsync(b, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    return parseBootXML(boot);
+  } else {
+    console.log(`No boot.xml found in ${path}`);
   }
 };
 
@@ -88,6 +104,11 @@ export const NativeDownloadProvider: React.FC<{
       );
 
       setDownloads({ ...hlsDownloadStates, ...regularDownloadStates });
+
+      console.log("Existing downloads:", {
+        ...hlsDownloadStates,
+        ...regularDownloadStates,
+      });
     };
 
     initializeDownloads();
@@ -106,43 +127,30 @@ export const NativeDownloadProvider: React.FC<{
     });
 
     const completeListener = addCompleteListener(async (payload) => {
-      if (typeof payload === "string") {
-        // Handle string ID (old HLS downloads)
-        setDownloads((prev) => {
-          const newDownloads = { ...prev };
-          delete newDownloads[payload];
-          return newDownloads;
-        });
-      } else {
-        // Handle OnCompleteEventPayload (with location)
-        console.log("Download complete event received:", payload);
-        console.log("Original download location:", payload.location);
+      console.log("Download complete to:", payload.location);
 
-        try {
-          if (payload?.metadata?.Name) {
-            const newLocation = await persistDownloadedFile(
-              payload.location,
-              payload.metadata.Name
-            );
-            console.log("File successfully persisted to:", newLocation);
+      // try {
+      //   if (payload?.id) {
+      //     const newLocation = await persistDownloadedFile(
+      //       payload.location,
+      //       payload.id
+      //     );
+      //     console.log("File successfully persisted to:", newLocation);
+      //   } else {
+      //     console.log(
+      //       "No filename in metadata, using original location",
+      //       payload
+      //     );
+      //   }
+      // } catch (error) {
+      //   console.error("Failed to persist file:", error);
+      // }
 
-            processStream(newLocation);
-          } else {
-            console.log(
-              "No filename in metadata, using original location",
-              payload
-            );
-          }
-        } catch (error) {
-          console.error("Failed to persist file:", error);
-        }
-
-        setDownloads((prev) => {
-          const newDownloads = { ...prev };
-          delete newDownloads[payload.id];
-          return newDownloads;
-        });
-      }
+      setDownloads((prev) => {
+        const newDownloads = { ...prev };
+        delete newDownloads[payload.id];
+        return newDownloads;
+      });
     });
 
     const errorListener = addErrorListener((error) => {

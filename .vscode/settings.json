@@ -10,6 +10,6 @@
     "editor.formatOnSave": true
   },
   "[swift]": {
-    "editor.defaultFormatter": "sswg.swift-lang"
+    "editor.defaultFormatter": "swiftlang.swift-vscode"
   }
 }

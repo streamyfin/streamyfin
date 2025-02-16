@@ -19,7 +19,31 @@ export interface StreamInfo {
   segPaths: string[];
 }
 
-// 1. Parse boot.xml to extract stream definitions.
+// Rewrites m3u8 files with local paths
+export async function rewriteM3U8Files(path: string) {
+  const streams = await getBootStreams(path);
+  if (!streams) return;
+  for (const stream of streams) {
+    const streamDirectory = `${path}/${stream.id}`;
+    processStream(streamDirectory);
+  }
+}
+
+// Opens the boot.xml file and parses it to get the streams
+const getBootStreams = async (path: string) => {
+  const b = `${path}/boot.xml`;
+  const fileInfo = await FileSystem.getInfoAsync(b);
+  if (fileInfo.exists) {
+    const boot = await FileSystem.readAsStringAsync(b, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    return parseBootXML(boot);
+  } else {
+    console.log(`No boot.xml found in ${path}`);
+  }
+};
+
+// Parse boot.xml to extract stream definitions.
 export function parseBootXML(xml: string): StreamDefinition[] {
   const json = parser.parse(xml);
   const pkg = json.HLSMoviePackage;
@@ -33,7 +57,7 @@ export function parseBootXML(xml: string): StreamDefinition[] {
   }));
 }
 
-// 2. Parse StreamInfoBoot.xml to extract the local m3u8 path and segment paths.
+// Parse StreamInfoBoot.xml to extract the local m3u8 path and segment paths.
 export function parseStreamInfo(xml: string): StreamInfo {
   const json = parser.parse(xml);
   const streamInfo = json.StreamInfo;
@@ -56,7 +80,7 @@ export function parseStreamInfo(xml: string): StreamInfo {
   };
 }
 
-// 3. Update the m3u8 playlist content by replacing remote segment URLs with local paths.
+// Update the m3u8 playlist content by replacing remote segment URLs with local paths.
 export function updatePlaylistWithLocalSegments(
   playlistContent: string,
   segPaths: string[]
@@ -76,29 +100,45 @@ export function updatePlaylistWithLocalSegments(
   return lines.join("\n");
 }
 
-// Example: Process a stream directory using Expo FileSystem.
+// Process a stream directory using Expo FileSystem.
 export async function processStream(streamDir: string): Promise<void> {
+  console.log(`Processing stream directory: ${streamDir}`);
+
   // Read StreamInfoBoot.xml from the stream directory.
   const streamInfoPath = `${streamDir}/StreamInfoBoot.xml`;
+  console.log(`Reading StreamInfoBoot.xml from: ${streamInfoPath}`);
+  try {
   const streamInfoXML = await FileSystem.readAsStringAsync(streamInfoPath, {
     encoding: FileSystem.EncodingType.UTF8,
   });
+    console.log('Successfully read StreamInfoBoot.xml');
   const streamInfo = parseStreamInfo(streamInfoXML);
+    console.log(`Parsed stream info: ${JSON.stringify(streamInfo, null, 2)}`);
 
   // Read the local m3u8 file.
   const playlistPath = `${streamDir}/${streamInfo.localM3U8}`;
+    console.log(`Reading m3u8 playlist from: ${playlistPath}`);
   const playlistContent = await FileSystem.readAsStringAsync(playlistPath, {
     encoding: FileSystem.EncodingType.UTF8,
   });
+    console.log('Successfully read m3u8 playlist');
 
   // Replace remote segment URIs with local segment paths.
+    console.log('Updating playlist with local segment paths');
   const updatedPlaylist = updatePlaylistWithLocalSegments(
     playlistContent,
     streamInfo.segPaths
   );
 
   // Save the updated playlist back to disk.
+    console.log(`Writing updated playlist back to: ${playlistPath}`);
   await FileSystem.writeAsStringAsync(playlistPath, updatedPlaylist, {
     encoding: FileSystem.EncodingType.UTF8,
   });
+    console.log('Successfully wrote updated playlist');
+
+  } catch (error) {
+    console.error(`Error processing stream directory ${streamDir}:`, error);
+    throw error;
+}
 }
