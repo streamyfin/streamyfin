@@ -63,7 +63,7 @@ public class HlsDownloaderModule: Module {
           }
 
           let configuration = URLSessionConfiguration.background(
-            withIdentifier: "com.example.hlsdownload.\(providedId)")
+            withIdentifier: "com.streamyfin.hlsdownload")
           configuration.allowsCellularAccess = true
           configuration.sessionSendsLaunchEvents = true
           configuration.isDiscretionary = false

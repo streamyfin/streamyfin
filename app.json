@@ -19,6 +19,9 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         },
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "com.example.hlsdownload"
+        ],
         "UISupportsTrueScreenSizeOnMac": true,
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true
