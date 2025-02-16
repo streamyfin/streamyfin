@@ -54,12 +54,12 @@ import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
-import DropdownView from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { VideoTouchOverlay } from "./VideoTouchOverlay";
+import DropdownView from "./dropdown/DropdownView";
 
 interface Props {
   item: BaseItemDto;
@@ -220,8 +220,13 @@ export const Controls: React.FC<Props> = ({
 
     stop();
 
+    if (!bitrateValue) {
+      // @ts-expect-error
+      router.replace(`player/direct-player?${queryParams}`);
+      return;
+    }
     // @ts-expect-error
-    router.replace(`player/direct-player?${queryParams}`);
+    router.replace(`player/transcoding-player?${queryParams}`);
   }, [previousItem, settings, subtitleIndex, audioIndex]);
 
   const goToNextItem = useCallback(() => {
@@ -255,8 +260,13 @@ export const Controls: React.FC<Props> = ({
 
     stop();
 
+    if (!bitrateValue) {
+      // @ts-expect-error
+      router.replace(`player/direct-player?${queryParams}`);
+      return;
+    }
     // @ts-expect-error
-    router.replace(`player/direct-player?${queryParams}`);
+    router.replace(`player/transcoding-player?${queryParams}`);
   }, [nextItem, settings, subtitleIndex, audioIndex]);
 
   const updateTimes = useCallback(
@@ -415,8 +425,13 @@ export const Controls: React.FC<Props> = ({
 
         stop();
 
+        if (!bitrateValue) {
+          // @ts-expect-error
+          router.replace(`player/direct-player?${queryParams}`);
+          return;
+        }
         // @ts-expect-error
-        router.replace(`player/direct-player?${queryParams}`);
+        router.replace(`player/transcoding-player?${queryParams}`);
       } catch (error) {
         console.error("Error in gotoEpisode:", error);
       }
