@@ -4,12 +4,14 @@ import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
-import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
-import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  useSplashScreenLoading,
+  useSplashScreenVisible,
+} from "@/providers/SplashScreenProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { Api } from "@jellyfin/sdk";
 import {
   BaseItemDto,
@@ -24,23 +26,17 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import NetInfo from "@react-native-community/netinfo";
 import { QueryFunction, useQuery } from "@tanstack/react-query";
-import { useNavigation, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  useSplashScreenLoading,
-  useSplashScreenVisible,
-} from "@/providers/SplashScreenProvider";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -78,38 +74,7 @@ export default function index() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [loadingRetry, setLoadingRetry] = useState(false);
 
-  const navigation = useNavigation();
-
   const insets = useSafeAreaInsets();
-
-  if (!Platform.isTV) {
-    const { downloadedFiles, cleanCacheDirectory } = useDownload();
-    useEffect(() => {
-      const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
-      navigation.setOptions({
-        headerLeft: () => (
-          <TouchableOpacity
-            onPress={() => {
-              router.push("/(auth)/downloads");
-            }}
-            className="p-2"
-          >
-            <Feather
-              name="download"
-              color={hasDownloads ? Colors.primary : "white"}
-              size={22}
-            />
-          </TouchableOpacity>
-        ),
-      });
-    }, [downloadedFiles, navigation, router]);
-
-    useEffect(() => {
-      cleanCacheDirectory().catch((e) =>
-        console.error("Something went wrong cleaning cache directory")
-      );
-    }, []);
-  }
 
   const checkConnection = useCallback(async () => {
     setLoadingRetry(true);

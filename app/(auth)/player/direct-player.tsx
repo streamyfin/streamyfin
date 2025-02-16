@@ -2,7 +2,7 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
-import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules/vlc-player";
@@ -12,11 +12,9 @@ import {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
-// import { useDownload } from "@/providers/DownloadProvider";
-const downloadProvider = !Platform.isTV
-  ? require("@/providers/DownloadProvider")
-  : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useNativeDownloads } from "@/providers/NativeDownloadProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
@@ -26,26 +24,19 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { useHaptic } from "@/hooks/useHaptic";
-import { useFocusEffect, useGlobalSearchParams } from "expo-router";
+import * as FileSystem from "expo-file-system";
+import { useGlobalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
-  useEffect,
 } from "react";
-import {
-  Alert,
-  View,
-  AppState,
-  AppStateStatus,
-  Platform,
-} from "react-native";
-import { useSharedValue } from "react-native-reanimated";
-import { useSettings } from "@/utils/atoms/settings";
 import { useTranslation } from "react-i18next";
+import { Alert, AppState, AppStateStatus, Platform, View } from "react-native";
+import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function page() {
@@ -66,10 +57,8 @@ export default function page() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
-  let getDownloadedItem = null;
-  if (!Platform.isTV) {
-    getDownloadedItem = downloadProvider.useDownload();
-  }
+
+  const { getDownloadedItem } = useNativeDownloads();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -112,7 +101,7 @@ export default function page() {
     queryKey: ["item", itemId],
     queryFn: async () => {
       if (offline && !Platform.isTV) {
-        const item = await getDownloadedItem.getDownloadedItem(itemId);
+        const item = await getDownloadedItem(itemId);
         if (item) return item.item;
       }
 
@@ -135,15 +124,30 @@ export default function page() {
     queryKey: ["stream-url", itemId, mediaSourceId, bitrateValue],
     queryFn: async () => {
       if (offline && !Platform.isTV) {
-        const data = await getDownloadedItem.getDownloadedItem(itemId);
+        const data = await getDownloadedItem(itemId);
         if (!data?.mediaSource) return null;
 
-        const url = await getDownloadedFileUrl(data.item.Id!);
+        let m3u8Url = "";
+        const path = `${FileSystem.documentDirectory}/downloads/${item?.Id}/Data`;
+        const files = await FileSystem.readDirectoryAsync(path);
+        for (const file of files) {
+          if (file.endsWith(".m3u8")) {
+            console.log(file);
+            m3u8Url = `${path}/${file}`;
+            break;
+          }
+        }
+
+        console.log({
+          mediaSource: data.mediaSource,
+          url: m3u8Url,
+          sessionId: undefined,
+        });
 
         if (item)
           return {
             mediaSource: data.mediaSource,
-            url,
+            url: m3u8Url,
             sessionId: undefined,
           };
       }
@@ -197,9 +201,7 @@ export default function page() {
         mediaSourceId: mediaSourceId,
         positionTicks: msToTicks(progress.get()),
         isPaused: !isPlaying,
-        playMethod: stream?.url.includes("m3u8")
-          ? "Transcode"
-          : "DirectStream",
+        playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
         playSessionId: stream.sessionId,
       });
     }
@@ -293,8 +295,8 @@ export default function page() {
 
   const onPipStarted = useCallback((e: PipStartedPayload) => {
     const { pipStarted } = e.nativeEvent;
-    setIsPipStarted(pipStarted)
-  }, [])
+    setIsPipStarted(pipStarted);
+  }, []);
 
   const onPlaybackStateChanged = useCallback((e: PlaybackStatePayload) => {
     const { state, isBuffering, isPlaying } = e.nativeEvent;
@@ -331,7 +333,7 @@ export default function page() {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       // Handle app going to the background
       if (nextAppState.match(/inactive|background/)) {
-        _setShowControls(false)
+        _setShowControls(false);
       }
       setAppState(nextAppState);
     };
@@ -356,18 +358,16 @@ export default function page() {
 
   const allSubs =
     stream?.mediaSource.MediaStreams?.filter(
-      (sub: { Type: string }) => sub.Type === "Subtitle"
+      (sub) => sub.Type === "Subtitle"
     ) || [];
   const chosenSubtitleTrack = allSubs.find(
-    (sub: { Index: number }) => sub.Index === subtitleIndex
+    (sub) => sub.Index === subtitleIndex
   );
   const allAudio =
     stream?.mediaSource.MediaStreams?.filter(
-      (audio: { Type: string }) => audio.Type === "Audio"
+      (audio) => audio.Type === "Audio"
     ) || [];
-  const chosenAudioTrack = allAudio.find(
-    (audio: { Index: number | undefined }) => audio.Index === audioIndex
-  );
+  const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
 
   // Direct playback CASE
   if (!bitrateValue) {
@@ -382,7 +382,7 @@ export default function page() {
       };
     }
 
-  if (chosenAudioTrack)
+    if (chosenAudioTrack)
       initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   } else {
     // Transcoded playback CASE

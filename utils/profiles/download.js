@@ -22,28 +22,29 @@ export default {
       Codec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,pcm,wma",
     },
   ],
-  DirectPlayProfiles: [
-    {
-      Type: MediaTypes.Video,
-      Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
-      VideoCodec:
-        "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
-      AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma",
-    },
-    {
-      Type: MediaTypes.Audio,
-      Container: "mp3,aac,flac,alac,wav,ogg,wma",
-      AudioCodec:
-        "mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape",
-    },
-  ],
+  // DirectPlayProfiles: [
+  //   {
+  //     Type: MediaTypes.Video,
+  //     Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
+  //     VideoCodec:
+  //       "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
+  //     AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma",
+  //   },
+  //   {
+  //     Type: MediaTypes.Audio,
+  //     Container: "mp3,aac,flac,alac,wav,ogg,wma",
+  //     AudioCodec:
+  //       "mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape",
+  //   },
+  // ],
   TranscodingProfiles: [
     {
       Type: MediaTypes.Video,
       Context: "Streaming",
       Protocol: "hls",
-      Container: "ts",
-      VideoCodec: "h264, hevc",
+      Container: "ts,mp4,mkv,avi,mov,flv,m2ts,webm,ogv,3gp",
+      VideoCodec:
+        "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
       AudioCodec: "aac,mp3,ac3",
       CopyTimestamps: false,
       EnableSubtitlesInManifest: true,
@@ -52,8 +53,9 @@ export default {
       Type: MediaTypes.Audio,
       Context: "Streaming",
       Protocol: "http",
-      Container: "mp3",
-      AudioCodec: "mp3",
+      Container: "mp3,aac,flac,alac,wav,ogg,wma",
+      AudioCodec:
+        "mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape",
       MaxAudioChannels: "2",
     },
   ],

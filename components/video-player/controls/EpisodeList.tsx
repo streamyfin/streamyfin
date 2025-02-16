@@ -4,7 +4,6 @@ import {
 } from "@/components/common/HorrizontalScroll";
 import { Text } from "@/components/common/Text";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
-import { DownloadSingleItem } from "@/components/DownloadItem";
 import { Loader } from "@/components/Loader";
 import {
   SeasonDropdown,
@@ -232,9 +231,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
                 <Text className="text-xs text-neutral-500">
                   {runtimeTicksToSeconds(_item.RunTimeTicks)}
                 </Text>
-              </View>
-              <View className="self-start mt-2">
-                <DownloadSingleItem item={_item} />
               </View>
               <Text
                 numberOfLines={5}

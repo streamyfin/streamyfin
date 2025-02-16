@@ -1,4 +1,5 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useNativeDownloads } from "@/providers/NativeDownloadProvider";
 import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -20,15 +21,14 @@ import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, View, ViewProps } from "react-native";
 import { toast } from "sonner-native";
-import { AudioTrackSelector } from "./AudioTrackSelector";
-import { Bitrate, BitrateSelector } from "./BitrateSelector";
-import { Button } from "./Button";
-import { Text } from "./common/Text";
-import { MediaSourceSelector } from "./MediaSourceSelector";
-import { RoundButton } from "./RoundButton";
-import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import ProgressCircle from "./ProgressCircle";
-import { useNativeDownloads } from "@/providers/NativeDownloadProvider";
+import { AudioTrackSelector } from "../AudioTrackSelector";
+import { Bitrate, BitrateSelector } from "../BitrateSelector";
+import { Button } from "../Button";
+import { Text } from "../common/Text";
+import { MediaSourceSelector } from "../MediaSourceSelector";
+import ProgressCircle from "../ProgressCircle";
+import { RoundButton } from "../RoundButton";
+import { SubtitleTrackSelector } from "../SubtitleTrackSelector";
 
 interface NativeDownloadButton extends ViewProps {
   item: BaseItemDto;
@@ -102,8 +102,15 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
 
         if (!res?.url) throw new Error("No url found");
         if (!item.Id || !item.Name) throw new Error("No item id found");
+        if (!selectedMediaSource) throw new Error("No media source found");
+        if (!selectedAudioStream) throw new Error("No audio stream found");
 
-        await startDownload(item, res.url);
+        await startDownload(item, res.url, {
+          maxBitrate: maxBitrate.value,
+          selectedAudioStream,
+          selectedSubtitleStream,
+          selectedMediaSource,
+        });
         toast.success("Download started");
       } catch (error) {
         console.error("Download error:", error);
@@ -173,6 +180,18 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
                 tintColor="#9334E9"
                 backgroundColor="#bdc3c7"
               />
+            )}
+            {activeDownload.state === "FAILED" && (
+              <Ionicons name="close" size={24} color="white" />
+            )}
+            {activeDownload.state === "PAUSED" && (
+              <Ionicons name="pause" size={24} color="white" />
+            )}
+            {activeDownload.state === "STOPPED" && (
+              <Ionicons name="stop" size={24} color="white" />
+            )}
+            {activeDownload.state === "DONE" && (
+              <Ionicons name="cloud-done-outline" size={24} color={"white"} />
             )}
           </>
         ) : (

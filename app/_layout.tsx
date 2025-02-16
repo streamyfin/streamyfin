@@ -321,56 +321,54 @@ function Layout() {
           <PlaySettingsProvider>
             <LogProvider>
               <WebSocketProvider>
-                <DownloadProvider>
-                  <NativeDownloadProvider>
-                    <BottomSheetModalProvider>
-                      <SystemBars style="light" hidden={false} />
-                      <ThemeProvider value={DarkTheme}>
-                        <Stack>
-                          <Stack.Screen
-                            name="(auth)/(tabs)"
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
-                            }}
-                          />
-                          <Stack.Screen
-                            name="(auth)/player"
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
-                            }}
-                          />
-                          <Stack.Screen
-                            name="login"
-                            options={{
-                              headerShown: true,
-                              title: "",
-                              headerTransparent: true,
-                            }}
-                          />
-                          <Stack.Screen name="+not-found" />
-                        </Stack>
-                        <Toaster
-                          duration={4000}
-                          toastOptions={{
-                            style: {
-                              backgroundColor: "#262626",
-                              borderColor: "#363639",
-                              borderWidth: 1,
-                            },
-                            titleStyle: {
-                              color: "white",
-                            },
+                <NativeDownloadProvider>
+                  <BottomSheetModalProvider>
+                    <SystemBars style="light" hidden={false} />
+                    <ThemeProvider value={DarkTheme}>
+                      <Stack>
+                        <Stack.Screen
+                          name="(auth)/(tabs)"
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
                           }}
-                          closeButton
                         />
-                      </ThemeProvider>
-                    </BottomSheetModalProvider>
-                  </NativeDownloadProvider>
-                </DownloadProvider>
+                        <Stack.Screen
+                          name="(auth)/player"
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="login"
+                          options={{
+                            headerShown: true,
+                            title: "",
+                            headerTransparent: true,
+                          }}
+                        />
+                        <Stack.Screen name="+not-found" />
+                      </Stack>
+                      <Toaster
+                        duration={4000}
+                        toastOptions={{
+                          style: {
+                            backgroundColor: "#262626",
+                            borderColor: "#363639",
+                            borderWidth: 1,
+                          },
+                          titleStyle: {
+                            color: "white",
+                          },
+                        }}
+                        closeButton
+                      />
+                    </ThemeProvider>
+                  </BottomSheetModalProvider>
+                </NativeDownloadProvider>
               </WebSocketProvider>
             </LogProvider>
           </PlaySettingsProvider>

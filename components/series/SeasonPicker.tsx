@@ -6,7 +6,6 @@ import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
-import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
 import { Text } from "../common/Text";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
@@ -148,17 +147,6 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         />
         {episodes?.length || 0 > 0 ? (
           <View className="flex flex-row items-center space-x-2">
-            <DownloadItems
-              title={t("item_card.download.download_season")}
-              className="ml-2"
-              items={episodes || []}
-              MissingDownloadIconComponent={() => (
-                <Ionicons name="download" size={20} color="white" />
-              )}
-              DownloadedIconComponent={() => (
-                <Ionicons name="download" size={20} color="#9333ea" />
-              )}
-            />
             <PlayedStatus items={episodes || []} />
           </View>
         ) : null}
@@ -198,9 +186,6 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
                   <Text className="text-xs text-neutral-500">
                     {runtimeTicksToSeconds(e.RunTimeTicks)}
                   </Text>
-                </View>
-                <View className="self-start ml-auto -mt-0.5">
-                  <DownloadSingleItem item={e} />
                 </View>
               </View>
 

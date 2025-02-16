@@ -3,6 +3,7 @@ import { type EventSubscription } from "expo-modules-core";
 import { useEffect, useState } from "react";
 
 import type {
+  DownloadInfo,
   DownloadMetadata,
   OnCompleteEventPayload,
   OnErrorEventPayload,
@@ -14,16 +15,14 @@ import HlsDownloaderModule from "./src/HlsDownloaderModule";
  * Initiates an HLS download.
  * @param id - A unique identifier for the download.
  * @param url - The HLS stream URL.
- * @param assetTitle - A title for the asset.
- * @param destination - The destination path for the downloaded asset.
+ * @param metadata - Additional metadata for the download.
  */
 function downloadHLSAsset(
   id: string,
   url: string,
-  assetTitle: string,
   metadata: DownloadMetadata
 ): void {
-  HlsDownloaderModule.downloadHLSAsset(id, url, assetTitle, metadata);
+  HlsDownloaderModule.downloadHLSAsset(id, url, metadata);
 }
 
 /**
@@ -31,15 +30,7 @@ function downloadHLSAsset(
  * Returns an array of downloads with additional fields:
  * id, progress, bytesDownloaded, bytesTotal, and state.
  */
-async function checkForExistingDownloads(): Promise<
-  Array<{
-    id: string;
-    progress: number;
-    bytesDownloaded: number;
-    bytesTotal: number;
-    state: "PENDING" | "DOWNLOADING" | "PAUSED" | "DONE" | "FAILED" | "STOPPED";
-  }>
-> {
+async function checkForExistingDownloads(): Promise<DownloadInfo[]> {
   return HlsDownloaderModule.checkForExistingDownloads();
 }
 

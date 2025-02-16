@@ -1,9 +1,7 @@
 import { AudioTrackSelector } from "@/components/AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "@/components/BitrateSelector";
-import { DownloadSingleItem } from "@/components/DownloadItem";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
-// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
 import { PlayButton } from "@/components/PlayButton";
 import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
@@ -15,6 +13,7 @@ import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarous
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
 import { useOrientation } from "@/hooks/useOrientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { SubtitleHelper } from "@/utils/SubtitleHelper";
 import { useSettings } from "@/utils/atoms/settings";
@@ -25,19 +24,17 @@ import {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
+import { AddToFavorites } from "./AddToFavorites";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
-import { AddToFavorites } from "./AddToFavorites";
-import { NativeDownloadButton } from "./NativeDownloadButton";
-import { Ionicons } from "@expo/vector-icons";
+import { NativeDownloadButton } from "./downloads/NativeDownloadButton";
+const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
 export type SelectedOptions = {
   bitrate: Bitrate;

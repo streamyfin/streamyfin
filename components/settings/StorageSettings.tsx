@@ -1,49 +1,15 @@
-import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useDownload } from "@/providers/DownloadProvider";
-import { useQuery } from "@tanstack/react-query";
-import * as FileSystem from "expo-file-system";
-import { View } from "react-native";
-import { toast } from "sonner-native";
-import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
+import { View } from "react-native";
 
 export const StorageSettings = () => {
-  const { deleteAllFiles, appSizeUsage } = useDownload();
   const { t } = useTranslation();
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
 
-  const { data: size, isLoading: appSizeLoading } = useQuery({
-    queryKey: ["appSize", appSizeUsage],
-    queryFn: async () => {
-      const app = await appSizeUsage;
-
-      const remaining = await FileSystem.getFreeDiskStorageAsync();
-      const total = await FileSystem.getTotalDiskCapacityAsync();
-
-      return { app, remaining, total, used: (total - remaining) / total };
-    },
-  });
-
-  const onDeleteClicked = async () => {
-    try {
-      await deleteAllFiles();
-      successHapticFeedback();
-    } catch (e) {
-      errorHapticFeedback();
-      toast.error(t("home.settings.toasts.error_deleting_files"));
-    }
-  };
-
-  const calculatePercentage = (value: number, total: number) => {
-    return ((value / total) * 100).toFixed(2);
-  };
-
   return (
     <View>
-      <View className="flex flex-col gap-y-1">
+      {/* <View className="flex flex-col gap-y-1">
         <View className="flex flex-row items-center justify-between">
           <Text className="">{t("home.settings.storage.storage_title")}</Text>
           {size && (
@@ -108,7 +74,7 @@ export const StorageSettings = () => {
           onPress={onDeleteClicked}
           title={t("home.settings.storage.delete_all_downloaded_files")}
         />
-      </ListGroup>
+      </ListGroup> */}
     </View>
   );
 };

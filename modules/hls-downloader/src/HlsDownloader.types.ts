@@ -1,3 +1,8 @@
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
+
 export type DownloadState =
   | "PENDING"
   | "DOWNLOADING"
@@ -7,7 +12,8 @@ export type DownloadState =
   | "STOPPED";
 
 export interface DownloadMetadata {
-  Name: string;
+  item: BaseItemDto;
+  mediaSource: MediaSourceInfo;
   [key: string]: unknown;
 }
 
@@ -42,6 +48,7 @@ export type HlsDownloaderModuleEvents = {
 // Export a common interface that can be used by both HLS and regular downloads
 export interface DownloadInfo {
   id: string;
+  startTime?: number;
   progress: number;
   state: DownloadState;
   bytesDownloaded?: number;
