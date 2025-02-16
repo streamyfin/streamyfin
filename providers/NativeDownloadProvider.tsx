@@ -18,7 +18,7 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -92,8 +92,6 @@ const getDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
     const fileInfo = await FileSystem.getInfoAsync(downloadsDir + file);
     if (fileInfo.isDirectory) continue;
 
-    console.log(file);
-
     const doneFile = await isFileMarkedAsDone(file.replace(".json", ""));
     if (!doneFile) continue;
 
@@ -107,7 +105,6 @@ const getDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
       metadata: JSON.parse(fileContent) as DownloadMetadata,
     });
   }
-  console.log(downloaded);
   return downloaded;
 };
 
@@ -128,6 +125,7 @@ export const NativeDownloadProvider: React.FC<{
 }> = ({ children }) => {
   const [downloads, setDownloads] = useState<Record<string, DownloadInfo>>({});
   const { saveImage } = useImageStorage();
+  const queryClient = useQueryClient();
 
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -135,6 +133,9 @@ export const NativeDownloadProvider: React.FC<{
   const { data: downloadedFiles } = useQuery({
     queryKey: ["downloadedFiles"],
     queryFn: getDownloadedFiles,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 
   useEffect(() => {
@@ -166,7 +167,13 @@ export const NativeDownloadProvider: React.FC<{
     const progressListener = addProgressListener((download) => {
       if (!download.metadata) throw new Error("No metadata found in download");
 
-      console.log("[HLS] Download progress:", download);
+      console.log(
+        "[HLS] Download progress:",
+        download.bytesTotal,
+        download.bytesDownloaded,
+        download.progress,
+        download.state
+      );
       setDownloads((prev) => ({
         ...prev,
         [download.id]: {
@@ -185,19 +192,22 @@ export const NativeDownloadProvider: React.FC<{
       if (!payload.id) throw new Error("No id found in payload");
 
       try {
-        rewriteM3U8Files(payload.location);
-        markFileAsDone(payload.id);
+        await rewriteM3U8Files(payload.location);
+        await markFileAsDone(payload.id);
+
+        setDownloads((prev) => {
+          const newDownloads = { ...prev };
+          delete newDownloads[payload.id];
+          return newDownloads;
+        });
+
+        await queryClient.invalidateQueries({ queryKey: ["downloadedFiles"] });
+
         toast.success("Download complete ✅");
       } catch (error) {
         console.error("Failed to persist file:", error);
         toast.error("Failed to download ❌");
       }
-
-      setDownloads((prev) => {
-        const newDownloads = { ...prev };
-        delete newDownloads[payload.id];
-        return newDownloads;
-      });
     });
 
     const errorListener = addErrorListener((error) => {
@@ -208,6 +218,7 @@ export const NativeDownloadProvider: React.FC<{
           delete newDownloads[error.id];
           return newDownloads;
         });
+        toast.error("Failed to download ❌");
       }
     });
 

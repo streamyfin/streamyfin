@@ -34,6 +34,10 @@ async function checkForExistingDownloads(): Promise<DownloadInfo[]> {
   return HlsDownloaderModule.checkForExistingDownloads();
 }
 
+async function cancelDownload(id: string): Promise<void> {
+  return HlsDownloaderModule.cancelDownload(id);
+}
+
 /**
  * Subscribes to download progress events.
  * @param listener A callback invoked with progress updates.
@@ -186,4 +190,5 @@ export {
   addErrorListener,
   addProgressListener,
   HlsDownloaderModule,
+  cancelDownload,
 };

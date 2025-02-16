@@ -39,7 +39,7 @@ async function processAllStreams(
       const streamInfo = await processStream(streamDir);
       if (streamInfo && streamInfo.MediaPlaylist.PathToLocalCopy) {
         localPaths.push(
-          `${streamDir}/${streamInfo.MediaPlaylist.PathToLocalCopy}`
+          `${streamDir}${streamInfo.MediaPlaylist.PathToLocalCopy}`
         );
       }
     } catch (error) {

@@ -33,52 +33,91 @@ public class HlsDownloaderModule: Module {
         return
       }
 
-      let asset = AVURLAsset(url: assetURL)
-      let configuration = URLSessionConfiguration.background(
-        withIdentifier: "com.example.hlsdownload")
-      let delegate = HLSDownloadDelegate(module: self)
-      delegate.providedId = providedId
-      delegate.startTime = startTime
-      let downloadSession = AVAssetDownloadURLSession(
-        configuration: configuration,
-        assetDownloadDelegate: delegate,
-        delegateQueue: OperationQueue.main
-      )
-
-      guard
-        let task = downloadSession.makeAssetDownloadTask(
-          asset: asset,
-          assetTitle: providedId,
-          assetArtworkData: nil,
-          options: [AVAssetDownloadTaskMinimumRequiredMediaBitrateKey: startTime]
-        )
-      else {
-        self.sendEvent(
-          "onError",
-          [
-            "id": providedId,
-            "error": "Failed to create download task",
-            "state": "FAILED",
-            "metadata": metadata ?? [:],
-            "startTime": startTime,
-          ])
-        return
-      }
-
-      delegate.taskIdentifier = task.taskIdentifier
-      self.activeDownloads[task.taskIdentifier] = (task, delegate, metadata ?? [:], startTime)
-      self.sendEvent(
-        "onProgress",
-        [
-          "id": providedId,
-          "progress": 0.0,
-          "state": "PENDING",
-          "metadata": metadata ?? [:],
-          "startTime": startTime,
+      // Add asset options to allow cellular downloads and specify allowed media types
+      let asset = AVURLAsset(
+        url: assetURL,
+        options: [
+          "AVURLAssetOutOfBandMIMETypeKey": "application/x-mpegURL",
+          "AVURLAssetHTTPHeaderFieldsKey": ["User-Agent": "YourAppNameHere/1.0"],
+          "AVURLAssetAllowsCellularAccessKey": true,
         ])
 
-      task.resume()
-      print("Download task started with identifier: \(task.taskIdentifier)")
+      // Validate the asset before proceeding
+      asset.loadValuesAsynchronously(forKeys: ["playable", "duration"]) {
+        var error: NSError?
+        let status = asset.statusOfValue(forKey: "playable", error: &error)
+
+        DispatchQueue.main.async {
+          if status == .failed || error != nil {
+            self.sendEvent(
+              "onError",
+              [
+                "id": providedId,
+                "error":
+                  "Asset validation failed: \(error?.localizedDescription ?? "Unknown error")",
+                "state": "FAILED",
+                "metadata": metadata ?? [:],
+                "startTime": startTime,
+              ])
+            return
+          }
+
+          let configuration = URLSessionConfiguration.background(
+            withIdentifier: "com.example.hlsdownload.\(providedId)")
+          configuration.allowsCellularAccess = true
+          configuration.sessionSendsLaunchEvents = true
+          configuration.isDiscretionary = false
+
+          let delegate = HLSDownloadDelegate(module: self)
+          delegate.providedId = providedId
+          delegate.startTime = startTime
+
+          let downloadSession = AVAssetDownloadURLSession(
+            configuration: configuration,
+            assetDownloadDelegate: delegate,
+            delegateQueue: OperationQueue.main
+          )
+
+          guard
+            let task = downloadSession.makeAssetDownloadTask(
+              asset: asset,
+              assetTitle: providedId,
+              assetArtworkData: nil,
+              options: [
+                AVAssetDownloadTaskMinimumRequiredMediaBitrateKey: 265_000,
+                AVAssetDownloadTaskMinimumRequiredPresentationSizeKey: NSValue(
+                  cgSize: CGSize(width: 480, height: 360)),
+              ]
+            )
+          else {
+            self.sendEvent(
+              "onError",
+              [
+                "id": providedId,
+                "error": "Failed to create download task",
+                "state": "FAILED",
+                "metadata": metadata ?? [:],
+                "startTime": startTime,
+              ])
+            return
+          }
+
+          delegate.taskIdentifier = task.taskIdentifier
+          self.activeDownloads[task.taskIdentifier] = (task, delegate, metadata ?? [:], startTime)
+          self.sendEvent(
+            "onProgress",
+            [
+              "id": providedId,
+              "progress": 0.0,
+              "state": "PENDING",
+              "metadata": metadata ?? [:],
+              "startTime": startTime,
+            ])
+
+          task.resume()
+          print("Download task started with identifier: \(task.taskIdentifier)")
+        }
+      }
     }
 
     Function("checkForExistingDownloads") {
@@ -105,6 +144,29 @@ public class HlsDownloaderModule: Module {
       return downloads
     }
 
+    Function("cancelDownload") { (providedId: String) -> Void in
+      guard
+        let entry = self.activeDownloads.first(where: { $0.value.delegate.providedId == providedId }
+        )
+      else {
+        print("No active download found with identifier: \(providedId)")
+        return
+      }
+      let (task, delegate, metadata, startTime) = entry.value
+      task.cancel()
+      self.activeDownloads.removeValue(forKey: task.taskIdentifier)
+      self.sendEvent(
+        "onError",
+        [
+          "id": providedId,
+          "error": "Download cancelled",
+          "state": "CANCELLED",
+          "metadata": metadata,
+          "startTime": startTime,
+        ])
+      print("Download cancelled for identifier: \(providedId)")
+    }
+
     OnStartObserving {}
     OnStopObserving {}
   }
@@ -114,17 +176,23 @@ public class HlsDownloaderModule: Module {
   }
 
   func persistDownloadedFolder(originalLocation: URL, folderName: String) throws -> URL {
-    let fileManager = FileManager.default
-    let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    let destinationDir = documents.appendingPathComponent("downloads", isDirectory: true)
-    if !fileManager.fileExists(atPath: destinationDir.path) {
-      try fileManager.createDirectory(at: destinationDir, withIntermediateDirectories: true)
+    let fm = FileManager.default
+    let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    let downloadsDir = docs.appendingPathComponent("downloads", isDirectory: true)
+    if !fm.fileExists(atPath: downloadsDir.path) {
+      try fm.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
     }
-    let newLocation = destinationDir.appendingPathComponent(folderName, isDirectory: true)
-    if fileManager.fileExists(atPath: newLocation.path) {
-      try fileManager.removeItem(at: newLocation)
+    let newLocation = downloadsDir.appendingPathComponent(folderName, isDirectory: true)
+    if fm.fileExists(atPath: newLocation.path) {
+      try fm.removeItem(at: newLocation)
     }
-    try fileManager.moveItem(at: originalLocation, to: newLocation)
+
+    // If the original file exists, move it. Otherwise, if newLocation already exists, assume it was moved.
+    if fm.fileExists(atPath: originalLocation.path) {
+      try fm.moveItem(at: originalLocation, to: newLocation)
+    } else if !fm.fileExists(atPath: newLocation.path) {
+      throw NSError(domain: NSCocoaErrorDomain, code: NSFileNoSuchFileError, userInfo: nil)
+    }
     return newLocation
   }
 
