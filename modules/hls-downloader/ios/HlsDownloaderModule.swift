@@ -299,41 +299,47 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
     let metadata = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.metadata ?? [:]
     let startTime = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.startTime ?? 0
     let folderName = providedId
+
+    guard let module = module else { return }
+
+    // Calculate download size
+    // let fileManager = FileManager.default
+    // let enumerator = fileManager.enumerator(
+    //   at: newLocation,
+    //   includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
+    //   options: [.skipsHiddenFiles],
+    //   errorHandler: nil)!
+
+    // var totalSize: Int64 = 0
+    // while let filePath = enumerator.nextObject() as? URL {
+    //   do {
+    //     let resourceValues = try filePath.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
+    //     if let size = resourceValues.totalFileAllocatedSize {
+    //       totalSize += Int64(size)
+    //     }
+    //   } catch {
+    //     print("Error calculating size: \(error)")
+    //   }
+    // }
+
     do {
-      guard let module = module else { return }
       let newLocation = try module.persistDownloadedFolder(
         originalLocation: location, folderName: folderName)
 
-      // Calculate download size
-      // let fileManager = FileManager.default
-      // let enumerator = fileManager.enumerator(
-      //   at: newLocation,
-      //   includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
-      //   options: [.skipsHiddenFiles],
-      //   errorHandler: nil)!
-
-      // var totalSize: Int64 = 0
-      // while let filePath = enumerator.nextObject() as? URL {
-      //   do {
-      //     let resourceValues = try filePath.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
-      //     if let size = resourceValues.totalFileAllocatedSize {
-      //       totalSize += Int64(size)
-      //     }
-      //   } catch {
-      //     print("Error calculating size: \(error)")
-      //   }
-      // }
-
+      // Handle metadata first
       if !metadata.isEmpty {
         let metadataLocation = newLocation.deletingLastPathComponent().appendingPathComponent(
           "\(providedId).json")
-        let jsonData = try JSONSerialization.data(withJSONObject: metadata, options: .prettyPrinted)
+        let jsonData = try JSONSerialization.data(
+          withJSONObject: metadata, options: .prettyPrinted)
         try jsonData.write(to: metadataLocation)
       }
 
+      // Create a new Task for async operation
       Task {
         do {
           try await rewriteM3U8Files(baseDir: newLocation.path)
+
           module.sendEvent(
             "onComplete",
             [
@@ -356,7 +362,7 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
         }
       }
     } catch {
-      module?.sendEvent(
+      module.sendEvent(
         "onError",
         [
           "id": providedId,
@@ -366,7 +372,8 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
           "startTime": startTime,
         ])
     }
-    module?.removeDownload(with: assetDownloadTask.taskIdentifier)
+
+    module.removeDownload(with: assetDownloadTask.taskIdentifier)
   }
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {

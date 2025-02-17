@@ -145,37 +145,35 @@ export const NativeDownloadProvider: React.FC<{
   });
 
   useEffect(() => {
-    const initializeDownloads = async () => {
-      const hlsDownloads = await checkForExistingDownloads();
-      const hlsDownloadStates = hlsDownloads.reduce(
-        (acc, download) => ({
-          ...acc,
-          [download.id]: {
-            id: download.id,
-            progress: download.progress,
-            state: download.state,
-            secondsDownloaded: download.secondsDownloaded,
-            secondsTotal: download.secondsTotal,
-            metadata: download.metadata,
-            startTime: download?.startTime,
-          },
-        }),
-        {}
-      );
+    // const initializeDownloads = async () => {
+    //   const hlsDownloads = await checkForExistingDownloads();
+    //   const hlsDownloadStates = hlsDownloads.reduce(
+    //     (acc, download) => ({
+    //       ...acc,
+    //       [download.id]: {
+    //         id: download.id,
+    //         progress: download.progress,
+    //         state: download.state,
+    //         secondsDownloaded: download.secondsDownloaded,
+    //         secondsTotal: download.secondsTotal,
+    //         metadata: download.metadata,
+    //         startTime: download?.startTime,
+    //       },
+    //     }),
+    //     {}
+    //   );
 
-      setDownloads({ ...hlsDownloadStates });
-    };
+    //   setDownloads({ ...hlsDownloadStates });
+    // };
 
-    initializeDownloads();
+    // initializeDownloads();
 
     const progressListener = addProgressListener((download) => {
-      console.log("Attempting to add progress listener");
       if (!download.metadata) throw new Error("No metadata found in download");
 
       console.log(
         "[HLS] Download progress:",
-        download.secondsTotal,
-        download.secondsDownloaded,
+        download.metadata.item.Id,
         download.progress,
         download.state
       );
@@ -198,6 +196,7 @@ export const NativeDownloadProvider: React.FC<{
       try {
         // await rewriteM3U8Files(payload.location);
         // await markFileAsDone(payload.id);
+        console.log("completeListener", payload.id);
 
         setDownloads((prev) => {
           const newDownloads = { ...prev };
@@ -205,9 +204,9 @@ export const NativeDownloadProvider: React.FC<{
           return newDownloads;
         });
 
-        await queryClient.invalidateQueries({ queryKey: ["downloadedFiles"] });
-
         if (payload.state === "DONE") toast.success("Download complete ✅");
+
+        refetchDownloadedFiles();
       } catch (error) {
         console.error("Failed to download file:", error);
         toast.error("Failed to download ❌");

@@ -47,21 +47,9 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name="downloads/[seriesId]"
-        options={{
-          title: t("home.downloads.tvseries"),
-        }}
-      />
-      <Stack.Screen
         name="settings"
         options={{
           title: t("home.settings.settings_title"),
-        }}
-      />
-      <Stack.Screen
-        name="settings/optimized-server/page"
-        options={{
-          title: "",
         }}
       />
       <Stack.Screen
