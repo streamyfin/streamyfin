@@ -27,7 +27,6 @@
     "@gorhom/bottom-sheet": "^5.1.0",
     "@jellyfin/sdk": "^0.11.0",
     "@kesha-antonov/react-native-background-downloader": "3.2.6",
-    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-menu/menu": "^1.2.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -35,9 +34,6 @@
     "@react-navigation/native": "^7.0.14",
     "@shopify/flash-list": "1.7.3",
     "@tanstack/react-query": "^5.66.0",
-    "@types/lodash": "^4.17.15",
-    "@types/react-native-vector-icons": "^6.4.18",
-    "@types/uuid": "^10.0.0",
     "add": "^2.0.6",
     "axios": "^1.7.9",
     "expo": "^52.0.31",
@@ -124,7 +120,10 @@
     "patch-package": "^8.0.0",
     "postinstall-postinstall": "^2.1.0",
     "react-test-renderer": "19.0.0",
-    "typescript": "~5.7.3"
+    "typescript": "~5.7.3",
+    "@types/lodash": "^4.17.15",
+    "@types/react-native-vector-icons": "^6.4.18",
+    "@types/uuid": "^10.0.0"
   },
   "private": true,
   "expo": {
