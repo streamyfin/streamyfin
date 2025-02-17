@@ -20,9 +20,17 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useAtomValue } from "jotai";
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
+import { useFocusEffect } from "expo-router";
+import { AppState, AppStateStatus } from "react-native";
 
 type DownloadOptionsData = {
   selectedAudioStream: number;
@@ -120,37 +128,46 @@ export const NativeDownloadProvider: React.FC<{
   });
 
   useEffect(() => {
-    const _getActiveDownloads = async () => {
-      const activeDownloads = await getActiveDownloads();
-      setDownloads((prev) => {
-        const newDownloads = { ...prev };
-        activeDownloads.forEach((download) => {
-          newDownloads[download.id] = {
-            id: download.id,
-            progress: download.progress,
-            state: download.state,
-            secondsDownloaded: download.secondsDownloaded,
-            secondsTotal: download.secondsTotal,
-            metadata: download.metadata,
-            startTime: download.startTime,
-          };
-        });
-        return newDownloads;
-      });
+    const handleAppStateChange = (state: AppStateStatus) => {
+      if (state === "background" || state === "inactive") {
+        setDownloads({});
+      } else if (state === "active") {
+        const _getActiveDownloads = async () => {
+          const activeDownloads = await getActiveDownloads();
+          setDownloads((prev) => {
+            const newDownloads = { ...prev };
+            activeDownloads.forEach((download) => {
+              newDownloads[download.id] = {
+                id: download.id,
+                progress: download.progress,
+                state: download.state,
+                secondsDownloaded: download.secondsDownloaded,
+                secondsTotal: download.secondsTotal,
+                metadata: download.metadata,
+                startTime: download.startTime,
+              };
+            });
+            return newDownloads;
+          });
+        };
+        _getActiveDownloads();
+        refetchDownloadedFiles();
+      }
     };
 
-    _getActiveDownloads();
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
 
+    return () => {
+      subscription.remove();
+    };
+  }, [getActiveDownloads]);
+
+  useEffect(() => {
     const progressListener = addProgressListener((download) => {
       if (!download.metadata) throw new Error("No metadata found in download");
-
-      console.log(
-        "[HLS] Download progress:",
-        download.metadata.item.Id,
-        download.progress,
-        download.state,
-        download.taskId
-      );
 
       setDownloads((prev) => ({
         ...prev,

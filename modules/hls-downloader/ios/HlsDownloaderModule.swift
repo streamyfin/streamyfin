@@ -1,7 +1,7 @@
 import AVFoundation
 import ExpoModulesCore
+import UserNotifications
 
-// Separate delegate class for managing download-specific state
 class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
   weak var module: HlsDownloaderModule?
   var taskIdentifier: Int = 0
@@ -40,12 +40,10 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
 }
 
 public class HlsDownloaderModule: Module {
-  // Main delegate handler for the download session
   private lazy var delegateHandler: HLSDownloadDelegate = {
     return HLSDownloadDelegate(module: self)
   }()
 
-  // Track active downloads with all necessary information
   var activeDownloads:
     [Int: (
       task: AVAssetDownloadTask,
@@ -54,7 +52,6 @@ public class HlsDownloaderModule: Module {
       startTime: Double
     )] = [:]
 
-  // Configure background download session
   private lazy var downloadSession: AVAssetDownloadURLSession = {
     let configuration = URLSessionConfiguration.background(
       withIdentifier: "com.example.hlsdownload")
@@ -73,6 +70,20 @@ public class HlsDownloaderModule: Module {
 
     Events("onProgress", "onError", "onComplete")
 
+    // Function("requestNotificationPermission") { () -> Bool in
+    //   var permissionGranted = false
+    //   let semaphore = DispatchSemaphore(value: 0)
+
+    //   UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) {
+    //     granted, error in
+    //     permissionGranted = granted
+    //     semaphore.signal()
+    //   }
+
+    //   _ = semaphore.wait(timeout: .now() + 5.0)
+    //   return permissionGranted
+    // }
+
     Function("getActiveDownloads") { () -> [[String: Any]] in
       return activeDownloads.map { (taskId, downloadInfo) in
         return [
@@ -89,14 +100,12 @@ public class HlsDownloaderModule: Module {
       (providedId: String, url: String, metadata: [String: Any]?) -> Void in
       let startTime = Date().timeIntervalSince1970
 
-      // Check if download already exists
       let fm = FileManager.default
       let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
       let downloadsDir = docs.appendingPathComponent("downloads", isDirectory: true)
       let potentialExistingLocation = downloadsDir.appendingPathComponent(
         providedId, isDirectory: true)
 
-      // If download exists and is valid, return immediately
       if fm.fileExists(atPath: potentialExistingLocation.path) {
         if let files = try? fm.contentsOfDirectory(atPath: potentialExistingLocation.path),
           files.contains(where: { $0.hasSuffix(".m3u8") })
@@ -116,7 +125,6 @@ public class HlsDownloaderModule: Module {
         }
       }
 
-      // Validate URL
       guard let assetURL = URL(string: url) else {
         self.sendEvent(
           "onError",
@@ -130,7 +138,6 @@ public class HlsDownloaderModule: Module {
         return
       }
 
-      // Configure asset with necessary options
       let asset = AVURLAsset(
         url: assetURL,
         options: [
@@ -139,7 +146,6 @@ public class HlsDownloaderModule: Module {
           "AVURLAssetAllowsCellularAccessKey": true,
         ])
 
-      // Load asset asynchronously
       asset.loadValuesAsynchronously(forKeys: ["playable", "duration"]) {
         var error: NSError?
         let status = asset.statusOfValue(forKey: "playable", error: &error)
@@ -159,7 +165,6 @@ public class HlsDownloaderModule: Module {
             return
           }
 
-          // Create download task with quality options
           guard
             let task = self.downloadSession.makeAssetDownloadTask(
               asset: asset,
@@ -185,16 +190,13 @@ public class HlsDownloaderModule: Module {
             return
           }
 
-          // Configure delegate for this download
           let delegate = HLSDownloadDelegate(module: self)
           delegate.providedId = providedId
           delegate.startTime = startTime
           delegate.taskIdentifier = task.taskIdentifier
 
-          // Store download information
           self.activeDownloads[task.taskIdentifier] = (task, delegate, metadata ?? [:], startTime)
 
-          // Send initial progress event
           self.sendEvent(
             "onProgress",
             [
@@ -205,13 +207,11 @@ public class HlsDownloaderModule: Module {
               "startTime": startTime,
             ])
 
-          // Start the download
           task.resume()
         }
       }
     }
 
-    // Additional methods and event handlers...
     Function("cancelDownload") { (providedId: String) -> Void in
       guard
         let entry = self.activeDownloads.first(where: { $0.value.delegate.providedId == providedId }
@@ -237,9 +237,28 @@ public class HlsDownloaderModule: Module {
     }
   }
 
-  // Helper methods
   func removeDownload(with id: Int) {
     activeDownloads.removeValue(forKey: id)
+  }
+
+  private func sendDownloadCompletionNotification(title: String, body: String) {
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = body
+    content.sound = .default
+
+    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+    let request = UNNotificationRequest(
+      identifier: UUID().uuidString,
+      content: content,
+      trigger: trigger
+    )
+
+    UNUserNotificationCenter.current().add(request) { error in
+      if let error = error {
+        print("Error showing notification: \(error)")
+      }
+    }
   }
 
   func persistDownloadedFolder(originalLocation: URL, folderName: String) throws -> URL {
@@ -270,7 +289,6 @@ public class HlsDownloaderModule: Module {
   }
 }
 
-// Extension for URL session delegate methods
 extension HlsDownloaderModule {
   func urlSession(
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange,
@@ -323,6 +341,21 @@ extension HlsDownloaderModule {
       Task {
         do {
           try await rewriteM3U8Files(baseDir: newLocation.path)
+
+          // Safely access metadata for notification
+          let notificationBody: String
+          if let item = downloadInfo.metadata["item"] as? [String: Any],
+            let name = item["Name"] as? String
+          {
+            notificationBody = "\(name) has finished downloading."
+          } else {
+            notificationBody = "Download completed successfully."
+          }
+
+          sendDownloadCompletionNotification(
+            title: "Download Complete",
+            body: notificationBody
+          )
 
           sendEvent(
             "onComplete",

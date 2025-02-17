@@ -100,7 +100,8 @@ export default function Index() {
   const deleteFile = async (id: string) => {
     const downloadsDir = FileSystem.documentDirectory + "downloads/";
     await FileSystem.deleteAsync(downloadsDir + id + ".json");
-    await queryClient.invalidateQueries({ queryKey: ["downloadedFiles"] });
+    await FileSystem.deleteAsync(downloadsDir + id);
+    refetchDownloadedFiles()
   };
 
   return (
