@@ -130,6 +130,7 @@ export default function page() {
         let m3u8Url = "";
         const path = `${FileSystem.documentDirectory}/downloads/${item?.Id}/Data`;
         const files = await FileSystem.readDirectoryAsync(path);
+
         for (const file of files) {
           if (file.endsWith(".m3u8")) {
             console.log(file);
@@ -138,10 +139,11 @@ export default function page() {
           }
         }
 
-        console.log({
-          mediaSource: data.mediaSource,
+        if (!m3u8Url) throw new Error("No m3u8 file found");
+
+        console.log("stream ~", {
+          mediaSource: data.mediaSource.Id,
           url: m3u8Url,
-          sessionId: undefined,
         });
 
         if (item)

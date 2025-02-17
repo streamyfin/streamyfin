@@ -33,6 +33,11 @@ async function checkForExistingDownloads(): Promise<DownloadInfo[]> {
   return HlsDownloaderModule.checkForExistingDownloads();
 }
 
+/**
+ *  Cancels an ongoing download.
+ * @param id - The unique identifier for the download.
+ * @returns void
+ */
 async function cancelDownload(id: string): Promise<void> {
   return HlsDownloaderModule.cancelDownload(id);
 }

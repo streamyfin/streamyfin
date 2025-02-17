@@ -4,11 +4,13 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 
 export type DownloadState =
+  | "QUEUED"
   | "PENDING"
   | "DOWNLOADING"
   | "PAUSED"
   | "DONE"
   | "FAILED"
+  | "CANCELLED"
   | "STOPPED";
 
 export interface DownloadMetadata {

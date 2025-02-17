@@ -5,6 +5,7 @@ import {
   addProgressListener,
   checkForExistingDownloads,
   downloadHLSAsset,
+  cancelDownload,
 } from "@/modules/hls-downloader";
 import {
   DownloadInfo,
@@ -45,8 +46,10 @@ type DownloadContextType = {
     }: DownloadOptionsData
   ) => Promise<void>;
   getDownloadedItem: (id: string) => Promise<DownloadMetadata | null>;
+  cancelDownload: (id: string) => Promise<void>;
   activeDownloads: DownloadInfo[];
   downloadedFiles: DownloadedFileInfo[];
+  refetchDownloadedFiles: () => void;
 };
 
 const DownloadContext = createContext<DownloadContextType | undefined>(
@@ -82,22 +85,26 @@ export type DownloadedFileInfo = {
 };
 
 const getDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
-  const downloadsDir = FileSystem.documentDirectory + "downloads/";
-  const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
-  if (!dirInfo.exists) return [];
-  const files = await FileSystem.readDirectoryAsync(downloadsDir);
   const downloaded: DownloadedFileInfo[] = [];
 
-  for (const file of files) {
+  const downloadsDir = FileSystem.documentDirectory + "downloads/";
+  const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
+
+  if (!dirInfo.exists) return [];
+
+  const files = await FileSystem.readDirectoryAsync(downloadsDir);
+
+  for (let file of files) {
     const fileInfo = await FileSystem.getInfoAsync(downloadsDir + file);
     if (fileInfo.isDirectory) continue;
+    if (!file.endsWith(".json")) continue;
 
-    const doneFile = await isFileMarkedAsDone(file.replace(".json", ""));
-    if (!doneFile) continue;
+    const fileContent = await FileSystem.readAsStringAsync(downloadsDir + file);
 
-    const fileContent = await FileSystem.readAsStringAsync(
-      downloadsDir + file.replace("-done", "")
-    );
+    // Check that fileContent is actually DownloadMetadata
+    if (!fileContent) continue;
+    if (!fileContent.includes("mediaSource")) continue;
+    if (!fileContent.includes("item")) continue;
 
     downloaded.push({
       id: file.replace(".json", ""),
@@ -112,8 +119,6 @@ const getDownloadedFile = async (id: string) => {
   const downloadsDir = FileSystem.documentDirectory + "downloads/";
   const fileInfo = await FileSystem.getInfoAsync(downloadsDir + id + ".json");
   if (!fileInfo.exists) return null;
-  const doneFile = await isFileMarkedAsDone(id);
-  if (!doneFile) return null;
   const fileContent = await FileSystem.readAsStringAsync(
     downloadsDir + id + ".json"
   );
@@ -130,7 +135,7 @@ export const NativeDownloadProvider: React.FC<{
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
 
-  const { data: downloadedFiles } = useQuery({
+  const { data: downloadedFiles, refetch: refetchDownloadedFiles } = useQuery({
     queryKey: ["downloadedFiles"],
     queryFn: getDownloadedFiles,
     refetchOnWindowFocus: true,
@@ -140,9 +145,7 @@ export const NativeDownloadProvider: React.FC<{
   });
 
   useEffect(() => {
-    // Initialize downloads from both HLS and regular downloads
     const initializeDownloads = async () => {
-      // Check HLS downloads
       const hlsDownloads = await checkForExistingDownloads();
       const hlsDownloadStates = hlsDownloads.reduce(
         (acc, download) => ({
@@ -204,7 +207,7 @@ export const NativeDownloadProvider: React.FC<{
 
         await queryClient.invalidateQueries({ queryKey: ["downloadedFiles"] });
 
-        toast.success("Download complete ✅");
+        if (payload.state === "DONE") toast.success("Download complete ✅");
       } catch (error) {
         console.error("Failed to download file:", error);
         toast.error("Failed to download ❌");
@@ -217,7 +220,12 @@ export const NativeDownloadProvider: React.FC<{
         delete newDownloads[error.id];
         return newDownloads;
       });
-      toast.error("Failed to download ❌");
+
+      if (error.state === "CANCELLED") toast.info("Download cancelled 🟡");
+      else {
+        toast.error("Download failed ❌");
+        console.error("Download error:", error);
+      }
     });
 
     return () => {
@@ -225,43 +233,6 @@ export const NativeDownloadProvider: React.FC<{
       completeListener.remove();
       errorListener.remove();
     };
-  }, []);
-
-  useEffect(() => {
-    // Go through all the files in the folder downloads, check for the file id.json and id-done.json, if the id.json exists but id-done.json does not exist, then the download is still in done but not parsed. Parse it.
-    const checkForUnparsedDownloads = async () => {
-      const downloadsFolder = await FileSystem.getInfoAsync(
-        FileSystem.documentDirectory + "downloads"
-      );
-      if (!downloadsFolder.exists) return;
-      const files = await FileSystem.readDirectoryAsync(
-        FileSystem.documentDirectory + "downloads"
-      );
-      for (const file of files) {
-        if (file.endsWith(".json")) {
-          const id = file.replace(".json", "");
-          const doneFile = await FileSystem.getInfoAsync(
-            FileSystem.documentDirectory + "downloads/" + id + "-done"
-          );
-          if (!doneFile.exists) {
-            console.log("Found unparsed download:", id);
-
-            const p = async () => {
-              await rewriteM3U8Files(
-                FileSystem.documentDirectory + "downloads/" + id
-              );
-              await markFileAsDone(id);
-            };
-            toast.promise(p(), {
-              error: () => "Failed to download ❌",
-              loading: "Finishing up download...",
-              success: () => "Download complete ✅",
-            });
-          }
-        }
-      }
-    };
-    // checkForUnparsedDownloads();
   }, []);
 
   const startDownload = async (
@@ -315,6 +286,8 @@ export const NativeDownloadProvider: React.FC<{
         downloadedFiles: downloadedFiles ?? [],
         getDownloadedItem: getDownloadedFile,
         activeDownloads: Object.values(downloads),
+        cancelDownload: cancelDownload,
+        refetchDownloadedFiles,
       }}
     >
       {children}

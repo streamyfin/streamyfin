@@ -116,7 +116,18 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
           selectedSubtitleStream,
           selectedMediaSource,
         });
-        toast.success("Download started");
+        toast.success(
+          t("home.downloads.toasts.download_started_for", { item: item.Name }),
+          {
+            action: {
+              label: "Go to download",
+              onClick: () => {
+                router.push("/downloads");
+                toast.dismiss();
+              },
+            },
+          }
+        );
       } catch (error) {
         console.error("Download error:", error);
         toast.error("Failed to start download");

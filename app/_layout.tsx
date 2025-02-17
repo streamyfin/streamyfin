@@ -29,9 +29,6 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
 if (!Platform.isTV) {
@@ -171,26 +168,6 @@ function Layout() {
         );
       }
     }, [settings]);
-
-    useEffect(() => {
-      const subscription = AppState.addEventListener(
-        "change",
-        (nextAppState) => {
-          if (
-            appState.current.match(/inactive|background/) &&
-            nextAppState === "active"
-          ) {
-            BackGroundDownloader.checkForExistingDownloads();
-          }
-        }
-      );
-
-      BackGroundDownloader.checkForExistingDownloads();
-
-      return () => {
-        subscription.remove();
-      };
-    }, []);
   }
 
   const [loaded] = useFonts({
