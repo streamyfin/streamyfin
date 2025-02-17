@@ -88,7 +88,7 @@ public class HlsDownloaderModule: Module {
           }
 
           let configuration = URLSessionConfiguration.background(
-            withIdentifier: "com.streamyfin.hlsdownload.\(providedId)")  // Add unique identifier
+            withIdentifier: "com.streamyfin.hlsdownload")  // Add unique identifier
           configuration.allowsCellularAccess = true
           configuration.sessionSendsLaunchEvents = true
           configuration.isDiscretionary = false
