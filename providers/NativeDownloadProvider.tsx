@@ -1,10 +1,10 @@
 import useImageStorage from "@/hooks/useImageStorage";
 import {
-  addCompleteListener,
   addErrorListener,
   addProgressListener,
-  downloadHLSAsset,
   cancelDownload,
+  downloadHLSAsset,
+  getActiveDownloads,
 } from "@/modules/hls-downloader";
 import {
   DownloadInfo,
@@ -12,13 +12,12 @@ import {
 } from "@/modules/hls-downloader/src/HlsDownloader.types";
 import { getItemImage } from "@/utils/getItemImage";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { rewriteM3U8Files } from "@/utils/movpkg-to-vlc/tools";
 import download from "@/utils/profiles/download";
 import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -54,28 +53,6 @@ type DownloadContextType = {
 const DownloadContext = createContext<DownloadContextType | undefined>(
   undefined
 );
-
-/**
- * Marks a file as done by creating a file with the same name in the downloads directory.
- * @param doneFile - The name of the file to mark as done.
- */
-const markFileAsDone = async (id: string) => {
-  await FileSystem.writeAsStringAsync(
-    `${FileSystem.documentDirectory}downloads/${id}-done`,
-    "done"
-  );
-};
-
-/**
- * Checks if a file is marked as done by checking if a file with the same name exists in the downloads directory.
- * @param doneFile - The name of the file to check.
- * @returns True if the file is marked as done, false otherwise.
- */
-const isFileMarkedAsDone = async (id: string) => {
-  const fileUri = `${FileSystem.documentDirectory}downloads/${id}-done`;
-  const fileInfo = await FileSystem.getInfoAsync(fileUri);
-  return fileInfo.exists;
-};
 
 export type DownloadedFileInfo = {
   id: string;
@@ -129,7 +106,6 @@ export const NativeDownloadProvider: React.FC<{
 }> = ({ children }) => {
   const [downloads, setDownloads] = useState<Record<string, DownloadInfo>>({});
   const { saveImage } = useImageStorage();
-  const queryClient = useQueryClient();
 
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -144,6 +120,27 @@ export const NativeDownloadProvider: React.FC<{
   });
 
   useEffect(() => {
+    const _getActiveDownloads = async () => {
+      const activeDownloads = await getActiveDownloads();
+      setDownloads((prev) => {
+        const newDownloads = { ...prev };
+        activeDownloads.forEach((download) => {
+          newDownloads[download.id] = {
+            id: download.id,
+            progress: download.progress,
+            state: download.state,
+            secondsDownloaded: download.secondsDownloaded,
+            secondsTotal: download.secondsTotal,
+            metadata: download.metadata,
+            startTime: download.startTime,
+          };
+        });
+        return newDownloads;
+      });
+    };
+
+    _getActiveDownloads();
+
     const progressListener = addProgressListener((download) => {
       if (!download.metadata) throw new Error("No metadata found in download");
 

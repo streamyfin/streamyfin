@@ -73,6 +73,18 @@ public class HlsDownloaderModule: Module {
 
     Events("onProgress", "onError", "onComplete")
 
+    Function("getActiveDownloads") { () -> [[String: Any]] in
+      return activeDownloads.map { (taskId, downloadInfo) in
+        return [
+          "id": downloadInfo.delegate.providedId,
+          "state": "DOWNLOADING",
+          "metadata": downloadInfo.metadata,
+          "startTime": downloadInfo.startTime,
+          "taskId": taskId,
+        ]
+      }
+    }
+
     Function("downloadHLSAsset") {
       (providedId: String, url: String, metadata: [String: Any]?) -> Void in
       let startTime = Date().timeIntervalSince1970

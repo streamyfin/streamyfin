@@ -35,6 +35,14 @@ async function cancelDownload(id: string): Promise<void> {
 }
 
 /**
+ *
+ * @returns A list of active downloads.
+ */
+async function getActiveDownloads(): Promise<DownloadInfo[]> {
+  return HlsDownloaderModule.getActiveDownloads();
+}
+
+/**
  * Subscribes to download progress events.
  * @param listener A callback invoked with progress updates.
  * @returns A subscription that can be removed.
@@ -104,4 +112,5 @@ export {
   addProgressListener,
   HlsDownloaderModule,
   cancelDownload,
+  getActiveDownloads,
 };
