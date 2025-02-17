@@ -1,9 +1,9 @@
 import React, { useCallback, useRef } from "react";
 import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-
+import { userAtom } from "@/providers/JellyfinProvider";
 import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
-
+import { useAtom } from "jotai";
 import {
   createNativeBottomTabNavigator,
   NativeBottomTabNavigationEventMap,
@@ -33,6 +33,11 @@ export default function TabLayout() {
   const [settings] = useSettings();
   const { t } = useTranslation();
   const router = useRouter();
+  const [user] = useAtom(userAtom);
+  
+  if (!user) {
+    return;
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -118,6 +123,22 @@ export default function TabLayout() {
                       : { sfSymbol: "rectangle.stack" },
           }}
         />
+        {user.Policy?.IsAdministrator && (
+          <NativeTabs.Screen
+            name="(sessions)"
+            options={{
+              title: t("tabs.sessions"),
+              tabBarIcon:
+                Platform.OS == "android"
+                  ? ({ color, focused, size }) =>
+                      require("@/assets/icons/server.rack.png")
+                  : ({ focused }) =>
+                      focused
+                        ? { sfSymbol: "rectangle.stack.fill" }
+                        : { sfSymbol: "rectangle.stack" },
+            }}
+          />
+        )}
         <NativeTabs.Screen
           name="(custom-links)"
           options={{
