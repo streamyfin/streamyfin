@@ -25,7 +25,6 @@ const getETA = (download: DownloadInfo): string | null => {
     !download.secondsDownloaded ||
     !download.secondsTotal
   ) {
-    console.log(download);
     return null;
   }
   const elapsed = Date.now() / 1000 - download.startTime;

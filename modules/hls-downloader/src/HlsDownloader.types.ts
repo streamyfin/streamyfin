@@ -30,6 +30,7 @@ export type OnProgressEventPayload = BaseEventPayload & {
   progress: number;
   secondsDownloaded: number;
   secondsTotal: number;
+  taskId?: number;
 };
 
 export type OnErrorEventPayload = BaseEventPayload & {

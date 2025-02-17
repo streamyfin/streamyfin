@@ -1,12 +1,66 @@
 import AVFoundation
 import ExpoModulesCore
 
+class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
+  weak var module: HlsDownloaderModule?
+  var taskIdentifier: Int = 0
+  var providedId: String = ""
+  var downloadedSeconds: Double = 0
+  var totalSeconds: Double = 0
+  var startTime: Double = 0
+
+  init(module: HlsDownloaderModule) {
+    self.module = module
+    super.init()
+  }
+
+  public func urlSession(
+    _ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange,
+    totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange
+  ) {
+    module?.urlSession(
+      session, assetDownloadTask: assetDownloadTask, didLoad: timeRange,
+      totalTimeRangesLoaded: loadedTimeRanges, timeRangeExpectedToLoad: timeRangeExpectedToLoad)
+  }
+
+  public func urlSession(
+    _ session: URLSession, assetDownloadTask: AVAssetDownloadTask,
+    didFinishDownloadingTo location: URL
+  ) {
+    module?.urlSession(
+      session, assetDownloadTask: assetDownloadTask, didFinishDownloadingTo: location)
+  }
+
+  public func urlSession(
+    _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
+  ) {
+    module?.urlSession(session, task: task, didCompleteWithError: error)
+  }
+}
+
 public class HlsDownloaderModule: Module {
+  private lazy var delegateHandler: HlsDownloaderDelegate = {
+    return HlsDownloaderDelegate(module: self)
+  }()
+
   var activeDownloads:
     [Int: (
       task: AVAssetDownloadTask, delegate: HLSDownloadDelegate, metadata: [String: Any],
       startTime: Double
     )] = [:]
+
+  private lazy var downloadSession: AVAssetDownloadURLSession = {
+    let configuration = URLSessionConfiguration.background(
+      withIdentifier: "com.example.hlsdownload")
+    configuration.allowsCellularAccess = true
+    configuration.sessionSendsLaunchEvents = true
+    configuration.isDiscretionary = false
+    return AVAssetDownloadURLSession(
+      configuration: configuration,
+      assetDownloadDelegate: delegateHandler,
+      delegateQueue: OperationQueue.main
+    )
+  }()
 
   public func definition() -> ModuleDefinition {
     Name("HlsDownloader")
@@ -16,20 +70,15 @@ public class HlsDownloaderModule: Module {
     Function("downloadHLSAsset") {
       (providedId: String, url: String, metadata: [String: Any]?) -> Void in
       let startTime = Date().timeIntervalSince1970
-
-      // First check if the asset already exists
       let fm = FileManager.default
       let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
       let downloadsDir = docs.appendingPathComponent("downloads", isDirectory: true)
       let potentialExistingLocation = downloadsDir.appendingPathComponent(
         providedId, isDirectory: true)
-
       if fm.fileExists(atPath: potentialExistingLocation.path) {
-        // Check if the download is complete by looking for the master playlist
         if let files = try? fm.contentsOfDirectory(atPath: potentialExistingLocation.path),
           files.contains(where: { $0.hasSuffix(".m3u8") })
         {
-          // Asset exists and appears complete, send completion event
           self.sendEvent(
             "onComplete",
             [
@@ -41,7 +90,6 @@ public class HlsDownloaderModule: Module {
             ])
           return
         } else {
-          // Asset exists but appears incomplete, clean it up
           try? fm.removeItem(at: potentialExistingLocation)
         }
       }
@@ -59,7 +107,6 @@ public class HlsDownloaderModule: Module {
         return
       }
 
-      // Rest of the download logic remains the same
       let asset = AVURLAsset(
         url: assetURL,
         options: [
@@ -87,31 +134,16 @@ public class HlsDownloaderModule: Module {
             return
           }
 
-          let configuration = URLSessionConfiguration.background(
-            withIdentifier: "com.streamyfin.hlsdownload")  // Add unique identifier
-          configuration.allowsCellularAccess = true
-          configuration.sessionSendsLaunchEvents = true
-          configuration.isDiscretionary = false
-
-          let delegate = HLSDownloadDelegate(module: self)
-          delegate.providedId = providedId
-          delegate.startTime = startTime
-
-          let downloadSession = AVAssetDownloadURLSession(
-            configuration: configuration,
-            assetDownloadDelegate: delegate,
-            delegateQueue: OperationQueue.main
-          )
-
           guard
-            let task = downloadSession.makeAssetDownloadTask(
+            let task = self.downloadSession.makeAssetDownloadTask(
               asset: asset,
               assetTitle: providedId,
               assetArtworkData: nil,
               options: [
                 AVAssetDownloadTaskMinimumRequiredMediaBitrateKey: 265_000,
                 AVAssetDownloadTaskMinimumRequiredPresentationSizeKey: NSValue(
-                  cgSize: CGSize(width: 480, height: 360)),
+                  cgSize: CGSize(width: 480, height: 360)
+                ),
               ]
             )
           else {
@@ -127,8 +159,13 @@ public class HlsDownloaderModule: Module {
             return
           }
 
+          let delegate = HLSDownloadDelegate(module: self)
+          delegate.providedId = providedId
+          delegate.startTime = startTime
           delegate.taskIdentifier = task.taskIdentifier
+
           self.activeDownloads[task.taskIdentifier] = (task, delegate, metadata ?? [:], startTime)
+
           self.sendEvent(
             "onProgress",
             [
@@ -185,24 +222,18 @@ public class HlsDownloaderModule: Module {
       try fm.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
     }
     let newLocation = downloadsDir.appendingPathComponent(folderName, isDirectory: true)
-
-    // New atomic move implementation
     let tempLocation = downloadsDir.appendingPathComponent("\(folderName)_temp", isDirectory: true)
 
-    // Clean up any existing temp folder
     if fm.fileExists(atPath: tempLocation.path) {
       try fm.removeItem(at: tempLocation)
     }
 
-    // Move to temp location first
     try fm.moveItem(at: originalLocation, to: tempLocation)
 
-    // If target exists, remove it
     if fm.fileExists(atPath: newLocation.path) {
       try fm.removeItem(at: newLocation)
     }
 
-    // Final move from temp to target
     try fm.moveItem(at: tempLocation, to: newLocation)
 
     return newLocation
@@ -219,48 +250,69 @@ public class HlsDownloaderModule: Module {
     }
   }
 }
-
-class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
+class HlsDownloaderDelegate: NSObject, AVAssetDownloadDelegate {
   weak var module: HlsDownloaderModule?
   var taskIdentifier: Int = 0
   var providedId: String = ""
   var downloadedSeconds: Double = 0
   var totalSeconds: Double = 0
   var startTime: Double = 0
-  private var wasCancelled = false
 
   init(module: HlsDownloaderModule) {
     self.module = module
+    super.init()
   }
 
+  public func urlSession(
+    _ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange,
+    totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange
+  ) {
+    module?.urlSession(
+      session, assetDownloadTask: assetDownloadTask, didLoad: timeRange,
+      totalTimeRangesLoaded: loadedTimeRanges, timeRangeExpectedToLoad: timeRangeExpectedToLoad)
+  }
+
+  public func urlSession(
+    _ session: URLSession, assetDownloadTask: AVAssetDownloadTask,
+    didFinishDownloadingTo location: URL
+  ) {
+    module?.urlSession(
+      session, assetDownloadTask: assetDownloadTask, didFinishDownloadingTo: location)
+  }
+
+  public func urlSession(
+    _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
+  ) {
+    module?.urlSession(session, task: task, didCompleteWithError: error)
+  }
+}
+
+extension HlsDownloaderModule {
   func urlSession(
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange,
     totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange
   ) {
+    guard let downloadInfo = activeDownloads[assetDownloadTask.taskIdentifier] else { return }
+
     let downloaded = loadedTimeRanges.reduce(0.0) { total, value in
       let timeRange = value.timeRangeValue
       return total + CMTimeGetSeconds(timeRange.duration)
     }
 
     let total = CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
-    let metadata = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.metadata ?? [:]
-    let startTime = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.startTime ?? 0
-
-    self.downloadedSeconds = downloaded
-    self.totalSeconds = total
-
     let progress = total > 0 ? downloaded / total : 0
 
-    module?.sendEvent(
+    sendEvent(
       "onProgress",
       [
-        "id": providedId,
+        "id": downloadInfo.delegate.providedId,
         "progress": progress,
         "secondsDownloaded": downloaded,
         "secondsTotal": total,
         "state": progress >= 1.0 ? "DONE" : "DOWNLOADING",
-        "metadata": metadata,
-        "startTime": startTime,
+        "metadata": downloadInfo.metadata,
+        "startTime": downloadInfo.startTime,
+        "taskId": assetDownloadTask.taskIdentifier,
       ])
   }
 
@@ -268,110 +320,82 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
-    if wasCancelled {
-      return
-    }
-
-    let metadata = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.metadata ?? [:]
-    let startTime = module?.activeDownloads[assetDownloadTask.taskIdentifier]?.startTime ?? 0
-    let folderName = providedId
-
-    guard let module = module else { return }
-
-    // Calculate download size
-    // let fileManager = FileManager.default
-    // let enumerator = fileManager.enumerator(
-    //   at: newLocation,
-    //   includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
-    //   options: [.skipsHiddenFiles],
-    //   errorHandler: nil)!
-
-    // var totalSize: Int64 = 0
-    // while let filePath = enumerator.nextObject() as? URL {
-    //   do {
-    //     let resourceValues = try filePath.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
-    //     if let size = resourceValues.totalFileAllocatedSize {
-    //       totalSize += Int64(size)
-    //     }
-    //   } catch {
-    //     print("Error calculating size: \(error)")
-    //   }
-    // }
+    guard let downloadInfo = activeDownloads[assetDownloadTask.taskIdentifier] else { return }
 
     do {
-      let newLocation = try module.persistDownloadedFolder(
-        originalLocation: location, folderName: folderName)
+      let newLocation = try persistDownloadedFolder(
+        originalLocation: location, folderName: downloadInfo.delegate.providedId)
 
-      // Handle metadata first
-      if !metadata.isEmpty {
+      if !downloadInfo.metadata.isEmpty {
         let metadataLocation = newLocation.deletingLastPathComponent().appendingPathComponent(
-          "\(providedId).json")
+          "\(downloadInfo.delegate.providedId).json")
         let jsonData = try JSONSerialization.data(
-          withJSONObject: metadata, options: .prettyPrinted)
+          withJSONObject: downloadInfo.metadata, options: .prettyPrinted)
         try jsonData.write(to: metadataLocation)
       }
 
-      // Create a new Task for async operation
       Task {
         do {
           try await rewriteM3U8Files(baseDir: newLocation.path)
 
-          module.sendEvent(
+          sendEvent(
             "onComplete",
             [
-              "id": providedId,
+              "id": downloadInfo.delegate.providedId,
               "location": newLocation.absoluteString,
               "state": "DONE",
-              "metadata": metadata,
-              "startTime": startTime,
+              "metadata": downloadInfo.metadata,
+              "startTime": downloadInfo.startTime,
             ])
         } catch {
-          module.sendEvent(
+          sendEvent(
             "onError",
             [
-              "id": providedId,
+              "id": downloadInfo.delegate.providedId,
               "error": error.localizedDescription,
               "state": "FAILED",
-              "metadata": metadata,
-              "startTime": startTime,
+              "metadata": downloadInfo.metadata,
+              "startTime": downloadInfo.startTime,
             ])
         }
       }
     } catch {
-      module.sendEvent(
+      sendEvent(
         "onError",
         [
-          "id": providedId,
+          "id": downloadInfo.delegate.providedId,
           "error": error.localizedDescription,
           "state": "FAILED",
-          "metadata": metadata,
-          "startTime": startTime,
+          "metadata": downloadInfo.metadata,
+          "startTime": downloadInfo.startTime,
         ])
     }
 
-    module.removeDownload(with: assetDownloadTask.taskIdentifier)
+    removeDownload(with: assetDownloadTask.taskIdentifier)
   }
 
-  func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    if let error = error {
-      if (error as NSError).code == NSURLErrorCancelled {
-        wasCancelled = true
-        module?.removeDownload(with: taskIdentifier)
-        return
-      }
+  func urlSession(
+    _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
+  ) {
+    guard let error = error,
+      let downloadInfo = activeDownloads[task.taskIdentifier]
+    else { return }
 
-      let metadata = module?.activeDownloads[task.taskIdentifier]?.metadata ?? [:]
-      let startTime = module?.activeDownloads[task.taskIdentifier]?.startTime ?? 0
-      module?.sendEvent(
-        "onError",
-        [
-          "id": providedId,
-          "error": error.localizedDescription,
-          "state": "FAILED",
-          "metadata": metadata,
-          "startTime": startTime,
-        ])
-      module?.removeDownload(with: taskIdentifier)
+    if (error as NSError).code == NSURLErrorCancelled {
+      removeDownload(with: task.taskIdentifier)
+      return
     }
+
+    sendEvent(
+      "onError",
+      [
+        "id": downloadInfo.delegate.providedId,
+        "error": error.localizedDescription,
+        "state": "FAILED",
+        "metadata": downloadInfo.metadata,
+        "startTime": downloadInfo.startTime,
+      ])
+
+    removeDownload(with: task.taskIdentifier)
   }
 }

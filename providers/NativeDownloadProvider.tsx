@@ -151,7 +151,8 @@ export const NativeDownloadProvider: React.FC<{
         "[HLS] Download progress:",
         download.metadata.item.Id,
         download.progress,
-        download.state
+        download.state,
+        download.taskId
       );
 
       setDownloads((prev) => ({
@@ -166,26 +167,15 @@ export const NativeDownloadProvider: React.FC<{
           startTime: download?.startTime,
         },
       }));
-    });
 
-    const completeListener = addCompleteListener(async (payload) => {
-      try {
-        // await rewriteM3U8Files(payload.location);
-        // await markFileAsDone(payload.id);
-        console.log("completeListener", payload.id);
+      if (download.state === "DONE") {
+        refetchDownloadedFiles();
 
         setDownloads((prev) => {
           const newDownloads = { ...prev };
-          delete newDownloads[payload.id];
+          delete newDownloads[download.id];
           return newDownloads;
         });
-
-        if (payload.state === "DONE") toast.success("Download complete ✅");
-
-        refetchDownloadedFiles();
-      } catch (error) {
-        console.error("Failed to download file:", error);
-        toast.error("Failed to download ❌");
       }
     });
 
@@ -197,15 +187,16 @@ export const NativeDownloadProvider: React.FC<{
       });
 
       if (error.state === "CANCELLED") toast.info("Download cancelled 🟡");
-      else {
+      else if (error.state === "FAILED") {
         toast.error("Download failed ❌");
         console.error("Download error:", error);
+      } else {
+        console.error("errorListener fired with unknown state:", error);
       }
     });
 
     return () => {
       progressListener.remove();
-      completeListener.remove();
       errorListener.remove();
     };
   }, []);
