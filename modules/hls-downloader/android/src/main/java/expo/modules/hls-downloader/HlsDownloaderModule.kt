@@ -1,206 +1,227 @@
-package com.example.hlsdownloader
+package expo.modules.hlsdownloader
 
 import android.content.Context
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import androidx.media3.common.MediaItem
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
-import androidx.media3.exoplayer.offline.DownloadService
-import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.cache.SimpleCache
-import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.exoplayer.offline.DownloadRequest
-import com.facebook.react.bridge.ReactContext
-import com.facebook.react.modules.core.DeviceEventManagerModule
-import java.io.File
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.NoOpCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.database.StandaloneDatabaseProvider
+import expo.modules.kotlin.modules.Module
+import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONObject
-import java.util.concurrent.ConcurrentHashMap
+import java.io.File
+import java.util.concurrent.Executors
 
-@UnstableApi
-class HlsDownloaderModule(private val context: ReactContext) {
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val downloadCache: SimpleCache
-    private val downloadManager: DownloadManager
-    private val activeDownloads = ConcurrentHashMap<String, DownloadInfo>()
+class HlsDownloaderModule : Module() {
+    private var activeDownloads = mutableMapOf<String, DownloadMetadata>()
+    private lateinit var downloadManager: DownloadManager
+    private lateinit var downloadCache: SimpleCache
+    private val executor = Executors.newSingleThreadExecutor()
 
-    data class DownloadInfo(
+    data class DownloadMetadata(
+        val providedId: String,
         val metadata: Map<String, Any>,
-        val startTime: Long,
-        var downloadRequest: DownloadRequest? = null
+        val startTime: Long
     )
 
-    init {
-        // Initialize download cache
-        val downloadDirectory = File(context.filesDir, "downloads")
-        if (!downloadDirectory.exists()) {
-            downloadDirectory.mkdirs()
-        }
-        
-        downloadCache = SimpleCache(
-            downloadDirectory,
-            NoOpCacheEvictor(),
-            DefaultHttpDataSource.Factory()
+    override fun definition() = ModuleDefinition {
+        Name("HlsDownloader")
+
+        Events(
+            "onProgress",
+            "onError",
+            "onComplete"
         )
 
-        // Initialize download manager
-        downloadManager = DownloadManager(
-            context,
-            createDatabaseProvider(),
-            downloadCache,
-            DefaultHttpDataSource.Factory(),
-            null
-        )
-
-        // Start tracking downloads
-        downloadManager.addListener(object : DownloadManager.Listener {
-            override fun onDownloadChanged(
-                downloadManager: DownloadManager,
-                download: Download,
-                finalException: Exception?
-            ) {
-                val downloadInfo = activeDownloads[download.request.id] ?: return
-                
-                when (download.state) {
-                    Download.STATE_DOWNLOADING -> {
-                        sendEvent("onProgress", mapOf(
-                            "id" to download.request.id,
-                            "progress" to (download.percentDownloaded / 100.0),
-                            "state" to "DOWNLOADING",
-                            "metadata" to downloadInfo.metadata,
-                            "startTime" to downloadInfo.startTime
-                        ))
-                    }
-                    Download.STATE_COMPLETED -> {
-                        handleCompletedDownload(download, downloadInfo)
-                    }
-                    Download.STATE_FAILED -> {
-                        handleFailedDownload(download, downloadInfo, finalException)
-                    }
-                }
+        OnCreate {
+            val context = appContext.reactContext as Context
+            val cacheDir = File(context.getExternalFilesDir(null), "downloads")
+            if (!cacheDir.exists()) {
+                cacheDir.mkdirs()
             }
-        })
-    }
 
-    fun downloadHLSAsset(providedId: String, url: String, metadata: Map<String, Any>?) {
-        val startTime = System.currentTimeMillis()
-        
-        // Check if download already exists
-        val downloadDir = File(context.filesDir, "downloads/$providedId")
-        if (downloadDir.exists() && downloadDir.list()?.any { it.endsWith(".m3u8") } == true) {
-            sendEvent("onComplete", mapOf(
-                "id" to providedId,
-                "location" to downloadDir.absolutePath,
-                "state" to "DONE",
-                "metadata" to (metadata ?: emptyMap()),
-                "startTime" to startTime
-            ))
-            return
-        }
+            val databaseProvider = StandaloneDatabaseProvider(context)
+            downloadCache = SimpleCache(cacheDir, NoOpCacheEvictor(), databaseProvider)
 
-        try {
-            val mediaItem = MediaItem.fromUri(Uri.parse(url))
-            val downloadRequest = DownloadRequest.Builder(providedId, mediaItem.mediaId)
-                .setCustomCacheKey(providedId)
-                .setData(metadata?.toString()?.toByteArray() ?: ByteArray(0))
-                .build()
+            val dataSourceFactory = DefaultHttpDataSource.Factory()
+                .setUserAgent("MyApp/1.0")
+                .setAllowCrossProtocolRedirects(true)
 
-            activeDownloads[providedId] = DownloadInfo(
-                metadata = metadata ?: emptyMap(),
-                startTime = startTime,
-                downloadRequest = downloadRequest
+            downloadManager = DownloadManager(
+                context,
+                databaseProvider,
+                downloadCache,
+                dataSourceFactory,
+                executor
             )
 
-            downloadManager.addDownload(downloadRequest)
-            
-            sendEvent("onProgress", mapOf(
-                "id" to providedId,
-                "progress" to 0.0,
-                "state" to "PENDING",
-                "metadata" to (metadata ?: emptyMap()),
-                "startTime" to startTime
-            ))
-        } catch (e: Exception) {
-            sendEvent("onError", mapOf(
-                "id" to providedId,
-                "error" to e.localizedMessage,
-                "state" to "FAILED",
-                "metadata" to (metadata ?: emptyMap()),
-                "startTime" to startTime
-            ))
+            downloadManager.addListener(object : DownloadManager.Listener {
+                override fun onDownloadChanged(
+                    downloadManager: DownloadManager,
+                    download: Download,
+                    finalException: Exception?
+                ) {
+                    val metadata = activeDownloads[download.request.id]
+                    if (metadata != null) {
+                        when (download.state) {
+                            Download.STATE_COMPLETED -> {
+                                sendEvent(
+                                    "onComplete",
+                                    mapOf(
+                                        "id" to metadata.providedId,
+                                        "location" to download.request.uri.toString(),
+                                        "state" to "DONE",
+                                        "metadata" to metadata.metadata,
+                                        "startTime" to metadata.startTime
+                                    )
+                                )
+                                activeDownloads.remove(download.request.id)
+                                saveMetadataFile(metadata)
+                            }
+                            Download.STATE_FAILED -> {
+                                sendEvent(
+                                    "onError",
+                                    mapOf(
+                                        "id" to metadata.providedId,
+                                        "error" to (finalException?.message ?: "Download failed"),
+                                        "state" to "FAILED",
+                                        "metadata" to metadata.metadata,
+                                        "startTime" to metadata.startTime
+                                    )
+                                )
+                                activeDownloads.remove(download.request.id)
+                            }
+                            else -> {
+                                val progress = if (download.contentLength > 0) {
+                                    download.bytesDownloaded.toFloat() / download.contentLength
+                                } else 0f
+
+                                sendEvent(
+                                    "onProgress",
+                                    mapOf(
+                                        "id" to metadata.providedId,
+                                        "progress" to progress,
+                                        "state" to when (download.state) {
+                                            Download.STATE_DOWNLOADING -> "DOWNLOADING"
+                                            Download.STATE_QUEUED -> "PENDING"
+                                            else -> "DOWNLOADING"
+                                        },
+                                        "metadata" to metadata.metadata,
+                                        "startTime" to metadata.startTime,
+                                        "taskId" to download.request.id
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            })
+        }
+
+        Function("getActiveDownloads") {
+            activeDownloads.map { (taskId, metadata) ->
+                mapOf(
+                    "id" to metadata.providedId,
+                    "state" to "DOWNLOADING",
+                    "metadata" to metadata.metadata,
+                    "startTime" to metadata.startTime,
+                    "taskId" to taskId
+                )
+            }
+        }
+
+        Function("downloadHLSAsset") { providedId: String, url: String, metadata: Map<String, Any>? ->
+            val startTime = System.currentTimeMillis()
+            val context = appContext.reactContext as Context
+
+            val downloadDir = File(context.getExternalFilesDir(null), "downloads/$providedId")
+            if (downloadDir.exists() && downloadDir.listFiles()?.any { file -> file.name.endsWith(".m3u8") } == true) {
+                sendEvent(
+                    "onComplete",
+                    mapOf(
+                        "id" to providedId,
+                        "location" to downloadDir.absolutePath,
+                        "state" to "DONE",
+                        "metadata" to (metadata ?: emptyMap()),
+                        "startTime" to startTime
+                    )
+                )
+                return@Function
+            }
+
+            try {
+                val downloadRequest = DownloadRequest.Builder(
+                    providedId,
+                    Uri.parse(url)
+                )
+                .setCustomCacheKey(providedId)
+                .build()
+
+                downloadManager.addDownload(downloadRequest)
+
+                activeDownloads[providedId] = DownloadMetadata(
+                    providedId = providedId,
+                    metadata = metadata ?: emptyMap(),
+                    startTime = startTime
+                )
+
+                sendEvent(
+                    "onProgress",
+                    mapOf(
+                        "id" to providedId,
+                        "progress" to 0.0,
+                        "state" to "PENDING",
+                        "metadata" to (metadata ?: emptyMap()),
+                        "startTime" to startTime
+                    )
+                )
+
+            } catch (e: Exception) {
+                sendEvent(
+                    "onError",
+                    mapOf(
+                        "id" to providedId,
+                        "error" to e.message,
+                        "state" to "FAILED",
+                        "metadata" to (metadata ?: emptyMap()),
+                        "startTime" to startTime
+                    )
+                )
+            }
+        }
+
+        Function("cancelDownload") { providedId: String ->
+            activeDownloads[providedId]?.let { metadata ->
+                downloadManager.removeDownload(providedId)
+                sendEvent(
+                    "onError",
+                    mapOf(
+                        "id" to metadata.providedId,
+                        "error" to "Download cancelled",
+                        "state" to "CANCELLED",
+                        "metadata" to metadata.metadata,
+                        "startTime" to metadata.startTime
+                    )
+                )
+                activeDownloads.remove(providedId)
+            }
         }
     }
 
-    fun cancelDownload(providedId: String) {
-        val downloadInfo = activeDownloads[providedId] ?: return
-        downloadInfo.downloadRequest?.let { request ->
-            downloadManager.removeDownload(request.id)
-            sendEvent("onError", mapOf(
-                "id" to providedId,
-                "error" to "Download cancelled",
-                "state" to "CANCELLED",
-                "metadata" to downloadInfo.metadata,
-                "startTime" to downloadInfo.startTime
-            ))
-            activeDownloads.remove(providedId)
-        }
-    }
-
-    private fun handleCompletedDownload(download: Download, downloadInfo: DownloadInfo) {
+    private fun saveMetadataFile(metadata: DownloadMetadata) {
         try {
-            val downloadDir = File(context.filesDir, "downloads/${download.request.id}")
-            if (!downloadDir.exists()) {
-                downloadDir.mkdirs()
-            }
-
-            // Save metadata if present
-            downloadInfo.metadata.takeIf { it.isNotEmpty() }?.let { metadata ->
-                val metadataFile = File(downloadDir, "${download.request.id}.json")
-                metadataFile.writeText(JSONObject(metadata).toString())
-            }
-
-            sendEvent("onComplete", mapOf(
-                "id" to download.request.id,
-                "location" to downloadDir.absolutePath,
-                "state" to "DONE",
-                "metadata" to downloadInfo.metadata,
-                "startTime" to downloadInfo.startTime
-            ))
+            val context = appContext.reactContext as Context
+            val metadataFile = File(
+                context.getExternalFilesDir(null),
+                "downloads/${metadata.providedId}.json"
+            )
+            metadataFile.writeText(JSONObject(metadata.metadata).toString())
         } catch (e: Exception) {
-            handleFailedDownload(download, downloadInfo, e)
-        } finally {
-            activeDownloads.remove(download.request.id)
+            e.printStackTrace()
         }
-    }
-
-    private fun handleFailedDownload(
-        download: Download,
-        downloadInfo: DownloadInfo,
-        error: Exception?
-    ) {
-        sendEvent("onError", mapOf(
-            "id" to download.request.id,
-            "error" to (error?.localizedMessage ?: "Unknown error"),
-            "state" to "FAILED",
-            "metadata" to downloadInfo.metadata,
-            "startTime" to downloadInfo.startTime
-        ))
-        activeDownloads.remove(download.request.id)
-    }
-
-    private fun createDatabaseProvider() = StandaloneDatabaseProvider(context)
-
-    private fun sendEvent(eventName: String, params: Map<String, Any>) {
-        mainHandler.post {
-            context
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                .emit(eventName, params)
-        }
-    }
-
-    companion object {
-        private const val DOWNLOAD_CONTENT_DIRECTORY = "downloads"
     }
 }

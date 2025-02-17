@@ -1,0 +1,14 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml:1:1-2:12
+INJECTED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml:1:1-2:12
+	package
+		INJECTED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml
+uses-sdk
+INJECTED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml
+INJECTED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/fredrikburmester/Documents/GitHub/streamyfin/modules/hls-downloader/android/src/main/AndroidManifest.xml
