@@ -11,7 +11,7 @@ interface useSessionsProps {
 }
 
 export const useSessions = ({
-  refetchInterval = 4 * 1000,
+  refetchInterval = 5 * 1000,
 }: useSessionsProps) => {
   const [api] = useAtom(apiAtom);
   const { data, isLoading, error } = useQuery({
@@ -19,7 +19,7 @@ export const useSessions = ({
     queryFn: async () => {
       if (!api) return null;
       const response = await getSessionApi(api).getSessions();
-      return response.data;
+      return response.data.filter((s) => s.NowPlayingItem);
     },
     refetchInterval: refetchInterval,
     //cacheTime: 0

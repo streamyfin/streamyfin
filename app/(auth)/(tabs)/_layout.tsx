@@ -35,10 +35,6 @@ export default function TabLayout() {
   const router = useRouter();
   const [user] = useAtom(userAtom);
   const { sessions, isLoading } = useSessions({});
-  
-  if (!user) {
-    return;
-  }
 
   useFocusEffect(
     useCallback(() => {
@@ -53,7 +49,11 @@ export default function TabLayout() {
         };
       }
     }, [])
-  );
+  ); 
+    
+  if (!user) {
+    return;
+  }
 
   return (
     <>
@@ -129,7 +129,7 @@ export default function TabLayout() {
             name="(sessions)"
             options={{
               title: t("tabs.sessions"),
-              tabBarBadge: sessions.length,
+              tabBarBadge: 1,
               tabBarIcon:
                 Platform.OS == "android"
                   ? ({ color, focused, size }) =>

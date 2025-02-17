@@ -452,6 +452,7 @@
     "search": "Search",
     "library": "Library",
     "custom_links": "Custom Links",
-    "favorites": "Favorites"
+    "favorites": "Favorites",
+    "sessions": "Sessions"
   }
 }
