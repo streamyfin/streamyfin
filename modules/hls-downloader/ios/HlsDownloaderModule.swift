@@ -264,24 +264,24 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
         originalLocation: location, folderName: folderName)
 
       // Calculate download size
-      let fileManager = FileManager.default
-      let enumerator = fileManager.enumerator(
-        at: newLocation,
-        includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
-        options: [.skipsHiddenFiles],
-        errorHandler: nil)!
+      // let fileManager = FileManager.default
+      // let enumerator = fileManager.enumerator(
+      //   at: newLocation,
+      //   includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
+      //   options: [.skipsHiddenFiles],
+      //   errorHandler: nil)!
 
-      var totalSize: Int64 = 0
-      while let filePath = enumerator.nextObject() as? URL {
-        do {
-          let resourceValues = try filePath.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
-          if let size = resourceValues.totalFileAllocatedSize {
-            totalSize += Int64(size)
-          }
-        } catch {
-          print("Error calculating size: \(error)")
-        }
-      }
+      // var totalSize: Int64 = 0
+      // while let filePath = enumerator.nextObject() as? URL {
+      //   do {
+      //     let resourceValues = try filePath.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
+      //     if let size = resourceValues.totalFileAllocatedSize {
+      //       totalSize += Int64(size)
+      //     }
+      //   } catch {
+      //     print("Error calculating size: \(error)")
+      //   }
+      // }
 
       if !metadata.isEmpty {
         let metadataLocation = newLocation.deletingLastPathComponent().appendingPathComponent(
@@ -290,16 +290,30 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
         try jsonData.write(to: metadataLocation)
       }
 
-      module.sendEvent(
-        "onComplete",
-        [
-          "id": providedId,
-          "location": newLocation.absoluteString,
-          "state": "DONE",
-          "metadata": metadata,
-          "startTime": startTime,
-          "bytesDownloaded": totalSize,
-        ])
+      Task {
+        do {
+          try await rewriteM3U8Files(baseDir: newLocation.path)
+          module.sendEvent(
+            "onComplete",
+            [
+              "id": providedId,
+              "location": newLocation.absoluteString,
+              "state": "DONE",
+              "metadata": metadata,
+              "startTime": startTime,
+            ])
+        } catch {
+          module.sendEvent(
+            "onError",
+            [
+              "id": providedId,
+              "error": error.localizedDescription,
+              "state": "FAILED",
+              "metadata": metadata,
+              "startTime": startTime,
+            ])
+        }
+      }
     } catch {
       module?.sendEvent(
         "onError",

@@ -193,8 +193,8 @@ export const NativeDownloadProvider: React.FC<{
 
     const completeListener = addCompleteListener(async (payload) => {
       try {
-        await rewriteM3U8Files(payload.location);
-        await markFileAsDone(payload.id);
+        // await rewriteM3U8Files(payload.location);
+        // await markFileAsDone(payload.id);
 
         setDownloads((prev) => {
           const newDownloads = { ...prev };
@@ -261,7 +261,7 @@ export const NativeDownloadProvider: React.FC<{
         }
       }
     };
-    checkForUnparsedDownloads();
+    // checkForUnparsedDownloads();
   }, []);
 
   const startDownload = async (
