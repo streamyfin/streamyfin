@@ -308,15 +308,32 @@ extension HlsDownloaderModule {
         try jsonData.write(to: metadataLocation)
       }
 
-      sendEvent(
-        "onComplete",
-        [
-          "id": downloadInfo.delegate.providedId,
-          "location": newLocation.absoluteString,
-          "state": "DONE",
-          "metadata": downloadInfo.metadata,
-          "startTime": downloadInfo.startTime,
-        ])
+      Task {
+        do {
+          try await rewriteM3U8Files(baseDir: newLocation.path)
+
+          sendEvent(
+            "onComplete",
+            [
+              "id": downloadInfo.delegate.providedId,
+              "location": newLocation.absoluteString,
+              "state": "DONE",
+              "metadata": downloadInfo.metadata,
+              "startTime": downloadInfo.startTime,
+            ])
+        } catch {
+          sendEvent(
+            "onError",
+            [
+              "id": downloadInfo.delegate.providedId,
+              "error": error.localizedDescription,
+              "state": "FAILED",
+              "metadata": downloadInfo.metadata,
+              "startTime": downloadInfo.startTime,
+            ])
+        }
+      }
+
     } catch {
       sendEvent(
         "onError",
