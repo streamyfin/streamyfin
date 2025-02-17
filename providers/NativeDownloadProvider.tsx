@@ -3,7 +3,6 @@ import {
   addCompleteListener,
   addErrorListener,
   addProgressListener,
-  checkForExistingDownloads,
   downloadHLSAsset,
   cancelDownload,
 } from "@/modules/hls-downloader";
@@ -145,29 +144,6 @@ export const NativeDownloadProvider: React.FC<{
   });
 
   useEffect(() => {
-    // const initializeDownloads = async () => {
-    //   const hlsDownloads = await checkForExistingDownloads();
-    //   const hlsDownloadStates = hlsDownloads.reduce(
-    //     (acc, download) => ({
-    //       ...acc,
-    //       [download.id]: {
-    //         id: download.id,
-    //         progress: download.progress,
-    //         state: download.state,
-    //         secondsDownloaded: download.secondsDownloaded,
-    //         secondsTotal: download.secondsTotal,
-    //         metadata: download.metadata,
-    //         startTime: download?.startTime,
-    //       },
-    //     }),
-    //     {}
-    //   );
-
-    //   setDownloads({ ...hlsDownloadStates });
-    // };
-
-    // initializeDownloads();
-
     const progressListener = addProgressListener((download) => {
       if (!download.metadata) throw new Error("No metadata found in download");
 

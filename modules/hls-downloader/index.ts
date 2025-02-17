@@ -26,14 +26,6 @@ function downloadHLSAsset(
 }
 
 /**
- * Checks for existing downloads.
- * Returns an array of downloads with additional fields:
- */
-async function checkForExistingDownloads(): Promise<DownloadInfo[]> {
-  return HlsDownloaderModule.checkForExistingDownloads();
-}
-
-/**
  *  Cancels an ongoing download.
  * @param id - The unique identifier for the download.
  * @returns void
@@ -105,7 +97,6 @@ function useDownloadError(): string | null {
 
 export {
   downloadHLSAsset,
-  checkForExistingDownloads,
   useDownloadError,
   useDownloadProgress,
   addCompleteListener,

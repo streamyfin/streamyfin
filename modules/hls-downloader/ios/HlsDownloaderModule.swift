@@ -144,30 +144,6 @@ public class HlsDownloaderModule: Module {
       }
     }
 
-    Function("checkForExistingDownloads") {
-      () -> [[String: Any]] in
-      var downloads: [[String: Any]] = []
-      for (id, pair) in self.activeDownloads {
-        let task = pair.task
-        let delegate = pair.delegate
-        let metadata = pair.metadata
-        let startTime = pair.startTime
-        let downloaded = delegate.downloadedSeconds
-        let total = delegate.totalSeconds
-        let progress = total > 0 ? downloaded / total : 0
-        downloads.append([
-          "id": delegate.providedId.isEmpty ? String(id) : delegate.providedId,
-          "progress": progress,
-          "secondsDownloaded": downloaded,
-          "secondsTotal": total,
-          "state": self.mappedState(for: task),
-          "metadata": metadata,
-          "startTime": startTime,
-        ])
-      }
-      return downloads
-    }
-
     Function("cancelDownload") { (providedId: String) -> Void in
       guard
         let entry = self.activeDownloads.first(where: { $0.value.delegate.providedId == providedId }
