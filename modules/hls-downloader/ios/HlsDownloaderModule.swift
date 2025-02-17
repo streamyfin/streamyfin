@@ -8,13 +8,6 @@ public class HlsDownloaderModule: Module {
       startTime: Double
     )] = [:]
 
-  struct DownloadRequest {
-    let providedId: String
-    let url: String
-    let metadata: [String: Any]?
-  }
-  var pendingDownloads: [DownloadRequest] = []
-
   public func definition() -> ModuleDefinition {
     Name("HlsDownloader")
 
@@ -23,22 +16,6 @@ public class HlsDownloaderModule: Module {
     Function("downloadHLSAsset") {
       (providedId: String, url: String, metadata: [String: Any]?) -> Void in
       let startTime = Date().timeIntervalSince1970
-
-      // Enforce max 3 concurrent downloads.
-      if self.activeDownloads.count >= 3 {
-        self.pendingDownloads.append(
-          DownloadRequest(providedId: providedId, url: url, metadata: metadata))
-        self.sendEvent(
-          "onProgress",
-          [
-            "id": providedId,
-            "progress": 0.0,
-            "state": "QUEUED",
-            "metadata": metadata ?? [:],
-            "startTime": startTime,
-          ])
-        return
-      }
 
       // First check if the asset already exists
       let fm = FileManager.default
@@ -151,9 +128,7 @@ public class HlsDownloaderModule: Module {
           }
 
           delegate.taskIdentifier = task.taskIdentifier
-
           self.activeDownloads[task.taskIdentifier] = (task, delegate, metadata ?? [:], startTime)
-
           self.sendEvent(
             "onProgress",
             [
@@ -201,7 +176,8 @@ public class HlsDownloaderModule: Module {
         print("No active download found with identifier: \(providedId)")
         return
       }
-      let (task, _, metadata, startTime) = entry.value
+      let (task, delegate, metadata, startTime) = entry.value
+
       self.sendEvent(
         "onError",
         [
@@ -211,6 +187,7 @@ public class HlsDownloaderModule: Module {
           "metadata": metadata,
           "startTime": startTime,
         ])
+
       task.cancel()
       self.activeDownloads.removeValue(forKey: task.taskIdentifier)
       print("Download cancelled for identifier: \(providedId)")
