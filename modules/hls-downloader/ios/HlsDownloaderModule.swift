@@ -201,7 +201,7 @@ public class HlsDownloaderModule: Module {
         print("No active download found with identifier: \(providedId)")
         return
       }
-      let (task, delegate, metadata, startTime) = entry.value
+      let (task, _, metadata, startTime) = entry.value
       self.sendEvent(
         "onError",
         [
