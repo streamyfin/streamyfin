@@ -9,8 +9,7 @@ import { Alert } from "react-native";
 export default function index() {
   const { sessions, isLoading } = useSessions({});
   const { t } = useTranslation();
-  //Alert.alert(sessions);
-  Alert.alert(JSON.stringify(sessions));
+
   if (isLoading)
     return (
       <View className="justify-center items-center h-full">
@@ -18,10 +17,12 @@ export default function index() {
       </View>
     );
 
-  if (!sessions)
+  if (!sessions || sessions.length == 0)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">{t("sessions.no_active_sessions")}</Text>
+        <Text className="text-lg text-neutral-500">
+          {t("sessions.no_active_sessions")}
+        </Text>
       </View>
     );
 
@@ -32,12 +33,12 @@ export default function index() {
         paddingTop: 17,
         paddingHorizontal: 17,
         paddingBottom: 150,
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
+        //paddingLeft: insets.left,
+        //paddingRight: insets.right,
       }}
       data={sessions}
       renderItem={({ item }) => {
-        <Text>Yo</Text> 
+        return <Text>{item.Id}</Text>;
       }}
       //renderItem={({ item }) => <LibraryItemCard library={item} />}
       keyExtractor={(item) => item.Id || ""}

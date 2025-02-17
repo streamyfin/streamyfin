@@ -12,7 +12,7 @@ import {
 const { Navigator } = createNativeBottomTabNavigator();
 
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
-
+import { useSessions } from "@/hooks/useSessions";
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
@@ -34,6 +34,7 @@ export default function TabLayout() {
   const { t } = useTranslation();
   const router = useRouter();
   const [user] = useAtom(userAtom);
+  const { sessions, isLoading } = useSessions({});
   
   if (!user) {
     return;
@@ -128,6 +129,7 @@ export default function TabLayout() {
             name="(sessions)"
             options={{
               title: t("tabs.sessions"),
+              tabBarBadge: sessions.length,
               tabBarIcon:
                 Platform.OS == "android"
                   ? ({ color, focused, size }) =>

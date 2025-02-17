@@ -14,7 +14,7 @@ export const useSessions = ({
   refetchInterval = 4 * 1000,
 }: useSessionsProps) => {
   const [api] = useAtom(apiAtom);
-  const { sessions, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
       if (!api) return null;
@@ -24,6 +24,6 @@ export const useSessions = ({
     refetchInterval: refetchInterval,
     //cacheTime: 0
   });
-  Alert.alert(JSON.stringify(sessions));
-  return { sessions, isLoading }
+
+  return { sessions: data, isLoading }
 };
