@@ -6,6 +6,7 @@ import en from "./translations/en.json";
 import es from "./translations/es.json";
 import fr from "./translations/fr.json";
 import sv from "./translations/sv.json";
+import zhTW from './translations/zh-TW.json';
 import { getLocales } from "expo-localization";
 
 export const APP_LANGUAGES = [
@@ -14,6 +15,7 @@ export const APP_LANGUAGES = [
   { label: "Español", value: "es" },
   { label: "Français", value: "fr" },
   { label: "Svenska", value: "sv" },
+  { label: "繁體中文", value: "zh-TW" },
 ];
 
 i18n.use(initReactI18next).init({
@@ -24,6 +26,7 @@ i18n.use(initReactI18next).init({
     es: { translation: es },
     fr: { translation: fr },
     sv: { translation: sv },
+    "zh-TW": { translation: zhTW },
   },
 
   lng: getLocales()[0].languageCode || "en",
