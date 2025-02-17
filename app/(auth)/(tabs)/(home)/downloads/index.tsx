@@ -29,11 +29,10 @@ const formatETA = (seconds: number): string => {
 };
 
 const getETA = (download: DownloadInfo): string | null => {
-  console.log("getETA", download);
   if (
     !download.startTime ||
-    !download.bytesDownloaded ||
-    !download.bytesTotal
+    !download.secondsDownloaded ||
+    !download.secondsTotal
   ) {
     console.log(download);
     return null;
@@ -41,12 +40,10 @@ const getETA = (download: DownloadInfo): string | null => {
 
   const elapsed = Date.now() / 1000 - download.startTime; // seconds
 
-  console.log("Elapsed (s):", Number(download.startTime), Date.now(), elapsed);
+  if (elapsed <= 0 || download.secondsDownloaded <= 0) return null;
 
-  if (elapsed <= 0 || download.bytesDownloaded <= 0) return null;
-
-  const speed = download.bytesDownloaded / elapsed; // bytes per second
-  const remainingBytes = download.bytesTotal - download.bytesDownloaded;
+  const speed = download.secondsDownloaded / elapsed; // downloaded seconds per second
+  const remainingBytes = download.secondsTotal - download.secondsDownloaded;
 
   if (speed <= 0) return null;
 
@@ -108,8 +105,8 @@ export default function Index() {
           </Text>
           {activeDownloads.map((i) => {
             const progress =
-              i.bytesTotal && i.bytesDownloaded
-                ? i.bytesDownloaded / i.bytesTotal
+              i.secondsTotal && i.secondsDownloaded
+                ? i.secondsDownloaded / i.secondsTotal
                 : 0;
             const eta = getETA(i);
             const item = i.metadata?.item;
@@ -130,11 +127,6 @@ export default function Index() {
                     <Text className="text-xs text-neutral-500">
                       {eta ? `${eta} remaining` : "Calculating time..."}
                     </Text>
-                    {i.state === "DOWNLOADING" && i.bytesTotal ? (
-                      <Text className="text-xs text-neutral-500">
-                        {formatBytes(i.bytesTotal * 100000)}
-                      </Text>
-                    ) : null}
                   </View>
                 </View>
 

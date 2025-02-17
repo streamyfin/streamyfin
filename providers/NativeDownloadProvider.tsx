@@ -136,6 +136,7 @@ export const NativeDownloadProvider: React.FC<{
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     refetchOnReconnect: true,
+    staleTime: 0,
   });
 
   useEffect(() => {
@@ -150,8 +151,8 @@ export const NativeDownloadProvider: React.FC<{
             id: download.id,
             progress: download.progress,
             state: download.state,
-            bytesDownloaded: download.bytesDownloaded,
-            bytesTotal: download.bytesTotal,
+            secondsDownloaded: download.secondsDownloaded,
+            secondsTotal: download.secondsTotal,
             metadata: download.metadata,
             startTime: download?.startTime,
           },
@@ -165,23 +166,25 @@ export const NativeDownloadProvider: React.FC<{
     initializeDownloads();
 
     const progressListener = addProgressListener((download) => {
+      console.log("Attempting to add progress listener");
       if (!download.metadata) throw new Error("No metadata found in download");
 
       console.log(
         "[HLS] Download progress:",
-        download.bytesTotal,
-        download.bytesDownloaded,
+        download.secondsTotal,
+        download.secondsDownloaded,
         download.progress,
         download.state
       );
+
       setDownloads((prev) => ({
         ...prev,
         [download.id]: {
           id: download.id,
           progress: download.progress,
           state: download.state,
-          bytesDownloaded: download.bytesDownloaded,
-          bytesTotal: download.bytesTotal,
+          secondsDownloaded: download.secondsDownloaded,
+          secondsTotal: download.secondsTotal,
           metadata: download.metadata,
           startTime: download?.startTime,
         },
@@ -189,8 +192,6 @@ export const NativeDownloadProvider: React.FC<{
     });
 
     const completeListener = addCompleteListener(async (payload) => {
-      if (!payload.id) throw new Error("No id found in payload");
-
       try {
         await rewriteM3U8Files(payload.location);
         await markFileAsDone(payload.id);
@@ -205,21 +206,18 @@ export const NativeDownloadProvider: React.FC<{
 
         toast.success("Download complete ✅");
       } catch (error) {
-        console.error("Failed to persist file:", error);
+        console.error("Failed to download file:", error);
         toast.error("Failed to download ❌");
       }
     });
 
     const errorListener = addErrorListener((error) => {
-      console.error("Download error:", error);
-      if (error.id) {
-        setDownloads((prev) => {
-          const newDownloads = { ...prev };
-          delete newDownloads[error.id];
-          return newDownloads;
-        });
-        toast.error("Failed to download ❌");
-      }
+      setDownloads((prev) => {
+        const newDownloads = { ...prev };
+        delete newDownloads[error.id];
+        return newDownloads;
+      });
+      toast.error("Failed to download ❌");
     });
 
     return () => {
@@ -249,10 +247,10 @@ export const NativeDownloadProvider: React.FC<{
             console.log("Found unparsed download:", id);
 
             const p = async () => {
-              await markFileAsDone(id);
-              rewriteM3U8Files(
+              await rewriteM3U8Files(
                 FileSystem.documentDirectory + "downloads/" + id
               );
+              await markFileAsDone(id);
             };
             toast.promise(p(), {
               error: () => "Failed to download ❌",

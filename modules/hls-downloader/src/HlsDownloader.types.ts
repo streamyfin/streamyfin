@@ -21,13 +21,13 @@ export type BaseEventPayload = {
   id: string;
   state: DownloadState;
   metadata: DownloadMetadata;
+  startTime?: number;
 };
 
 export type OnProgressEventPayload = BaseEventPayload & {
   progress: number;
-  bytesDownloaded: number;
-  bytesTotal: number;
-  startTime?: number;
+  secondsDownloaded: number;
+  secondsTotal: number;
 };
 
 export type OnErrorEventPayload = BaseEventPayload & {
@@ -38,6 +38,7 @@ export type OnErrorEventPayload = BaseEventPayload & {
 
 export type OnCompleteEventPayload = BaseEventPayload & {
   location: string;
+  bytesDownloaded?: number;
 };
 
 export type HlsDownloaderModuleEvents = {
@@ -52,8 +53,8 @@ export interface DownloadInfo {
   startTime?: number;
   progress: number;
   state: DownloadState;
-  bytesDownloaded?: number;
-  bytesTotal?: number;
+  secondsDownloaded?: number;
+  secondsTotal?: number;
   location?: string;
   error?: string;
   metadata: DownloadMetadata;

@@ -3,6 +3,7 @@ import { parseBootXML } from "./parse/boot";
 import { parseStreamInfoXml, StreamInfo } from "./parse/streamInfoBoot";
 
 export async function rewriteM3U8Files(baseDir: string): Promise<void> {
+  console.log(`[1] Rewriting M3U8 files in ${baseDir}`);
   const bootData = await loadBootData(baseDir);
   if (!bootData) return;
 
@@ -14,6 +15,7 @@ export async function rewriteM3U8Files(baseDir: string): Promise<void> {
 }
 
 async function loadBootData(baseDir: string): Promise<any | null> {
+  console.log(`[2] Loading boot.xml from ${baseDir}`);
   const bootPath = `${baseDir}/boot.xml`;
   try {
     const bootInfo = await FileSystem.getInfoAsync(bootPath);
@@ -31,15 +33,19 @@ async function processAllStreams(
   baseDir: string,
   bootData: any
 ): Promise<string[]> {
+  console.log(`[3] Processing all streams in ${baseDir}`);
   const localPaths: string[] = [];
+  const streams = Array.isArray(bootData.Streams.Stream)
+    ? bootData.Streams.Stream
+    : [bootData.Streams.Stream];
 
-  for (const stream of bootData.Streams.Stream) {
+  for (const stream of streams) {
     const streamDir = `${baseDir}/${stream.ID}`;
     try {
       const streamInfo = await processStream(streamDir);
       if (streamInfo && streamInfo.MediaPlaylist.PathToLocalCopy) {
         localPaths.push(
-          `${streamDir}${streamInfo.MediaPlaylist.PathToLocalCopy}`
+          `${streamDir}/${streamInfo.MediaPlaylist.PathToLocalCopy}`
         );
       }
     } catch (error) {
@@ -84,7 +90,9 @@ export function updatePlaylistWithLocalSegments(
 export async function processStream(
   streamDir: string
 ): Promise<StreamInfo | null> {
+  console.log(`[4] Processing stream at ${streamDir}`);
   const streamInfoPath = `${streamDir}/StreamInfoBoot.xml`;
+  console.log(`Processing stream at ${streamDir}...`);
 
   try {
     const streamXML = await FileSystem.readAsStringAsync(streamInfoPath);

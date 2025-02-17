@@ -38,7 +38,5 @@ export async function parseBootXML(xml: string): Promise<Boot> {
     parseAttributeValue: true,
   });
   const jsonObj = parser.parse(xml);
-  const b = jsonObj.HLSMoviePackage as Boot;
-  console.log(b.Streams);
   return jsonObj.HLSMoviePackage as Boot;
 }

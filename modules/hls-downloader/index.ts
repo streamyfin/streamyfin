@@ -28,7 +28,6 @@ function downloadHLSAsset(
 /**
  * Checks for existing downloads.
  * Returns an array of downloads with additional fields:
- * id, progress, bytesDownloaded, bytesTotal, and state.
  */
 async function checkForExistingDownloads(): Promise<DownloadInfo[]> {
   return HlsDownloaderModule.checkForExistingDownloads();
@@ -99,91 +98,9 @@ function useDownloadError(): string | null {
   return error;
 }
 
-/**
- * Moves a file from a temporary URI to a permanent location in the document directory.
- * @param tempFileUri The temporary file URI returned by the native module.
- * @param newFilename The desired filename (with extension) for the persisted file.
- * @returns A promise that resolves with the new file URI.
- */
-async function persistDownloadedFile(
-  tempFileUri: string,
-  newFilename: string
-): Promise<string> {
-  const newUri = FileSystem.documentDirectory + newFilename;
-  try {
-    await FileSystem.moveAsync({
-      from: tempFileUri,
-      to: newUri,
-    });
-    console.log("File persisted to:", newUri);
-    return newUri;
-  } catch (error) {
-    console.error("Error moving file:", error);
-    throw error;
-  }
-}
-
-/**
- * React hook that returns the completion location of the download.
- * If a destinationFileName is provided, the hook will move the downloaded file
- * to the document directory under that name, then return the new URI.
- *
- * @param destinationFileName Optional filename (with extension) to persist the file.
- * @returns The final file URI or null if not completed.
- */
-function useDownloadComplete(destinationFileName?: string): string | null {
-  const [location, setLocation] = useState<string | null>(null);
-
-  useEffect(() => {
-    console.log("Setting up download complete listener");
-
-    const subscription = addCompleteListener(
-      async (event: OnCompleteEventPayload) => {
-        console.log("Download complete event received:", event);
-        console.log("Original download location:", event.location);
-
-        if (destinationFileName) {
-          console.log(
-            "Attempting to persist file with name:",
-            destinationFileName
-          );
-          try {
-            const newLocation = await persistDownloadedFile(
-              event.location,
-              destinationFileName
-            );
-            console.log("File successfully persisted to:", newLocation);
-            setLocation(newLocation);
-          } catch (error) {
-            console.error("Failed to persist file:", error);
-            console.error("Error details:", {
-              originalLocation: event.location,
-              destinationFileName,
-              error: error instanceof Error ? error.message : error,
-            });
-          }
-        } else {
-          console.log(
-            "No destination filename provided, using original location"
-          );
-          setLocation(event.location);
-        }
-      }
-    );
-
-    return () => {
-      console.log("Cleaning up download complete listener");
-      subscription.remove();
-    };
-  }, [destinationFileName]);
-
-  return location;
-}
-
 export {
   downloadHLSAsset,
   checkForExistingDownloads,
-  useDownloadComplete,
   useDownloadError,
   useDownloadProgress,
   addCompleteListener,

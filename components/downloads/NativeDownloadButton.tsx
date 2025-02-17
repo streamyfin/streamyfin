@@ -15,11 +15,16 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, View, ViewProps } from "react-native";
+import {
+  ActivityIndicator,
+  TouchableOpacity,
+  View,
+  ViewProps,
+} from "react-native";
 import { toast } from "sonner-native";
 import { AudioTrackSelector } from "../AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "../BitrateSelector";
@@ -158,6 +163,8 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
     []
   );
 
+  const router = useRouter();
+
   const activeDownload = item.Id ? downloads[item.Id] : undefined;
 
   return (
@@ -168,7 +175,11 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
         onPress={handlePresentModalPress}
       >
         {activeDownload ? (
-          <>
+          <TouchableOpacity
+            onPress={() => {
+              router.push(`/downloads`);
+            }}
+          >
             {activeDownload.state === "PENDING" && (
               <ActivityIndicator size="small" color="white" />
             )}
@@ -193,7 +204,7 @@ export const NativeDownloadButton: React.FC<NativeDownloadButton> = ({
             {activeDownload.state === "DONE" && (
               <Ionicons name="cloud-done-outline" size={24} color={"white"} />
             )}
-          </>
+          </TouchableOpacity>
         ) : (
           <Ionicons name="cloud-download-outline" size={24} color="white" />
         )}

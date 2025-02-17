@@ -38,7 +38,7 @@ public class HlsDownloaderModule: Module {
         url: assetURL,
         options: [
           "AVURLAssetOutOfBandMIMETypeKey": "application/x-mpegURL",
-          "AVURLAssetHTTPHeaderFieldsKey": ["User-Agent": "YourAppNameHere/1.0"],
+          "AVURLAssetHTTPHeaderFieldsKey": ["User-Agent": "Streamyfin/1.0"],
           "AVURLAssetAllowsCellularAccessKey": true,
         ])
 
@@ -134,8 +134,8 @@ public class HlsDownloaderModule: Module {
         downloads.append([
           "id": delegate.providedId.isEmpty ? String(id) : delegate.providedId,
           "progress": progress,
-          "bytesDownloaded": downloaded,
-          "bytesTotal": total,
+          "secondsDownloaded": downloaded,
+          "secondsTotal": total,
           "state": self.mappedState(for: task),
           "metadata": metadata,
           "startTime": startTime,
@@ -243,8 +243,8 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
       [
         "id": providedId,
         "progress": progress,
-        "bytesDownloaded": downloaded,
-        "bytesTotal": total,
+        "secondsDownloaded": downloaded,
+        "secondsTotal": total,
         "state": progress >= 1.0 ? "DONE" : "DOWNLOADING",
         "metadata": metadata,
         "startTime": startTime,
@@ -263,6 +263,26 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
       let newLocation = try module.persistDownloadedFolder(
         originalLocation: location, folderName: folderName)
 
+      // Calculate download size
+      let fileManager = FileManager.default
+      let enumerator = fileManager.enumerator(
+        at: newLocation,
+        includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
+        options: [.skipsHiddenFiles],
+        errorHandler: nil)!
+
+      var totalSize: Int64 = 0
+      while let filePath = enumerator.nextObject() as? URL {
+        do {
+          let resourceValues = try filePath.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
+          if let size = resourceValues.totalFileAllocatedSize {
+            totalSize += Int64(size)
+          }
+        } catch {
+          print("Error calculating size: \(error)")
+        }
+      }
+
       if !metadata.isEmpty {
         let metadataLocation = newLocation.deletingLastPathComponent().appendingPathComponent(
           "\(providedId).json")
@@ -278,6 +298,7 @@ class HLSDownloadDelegate: NSObject, AVAssetDownloadDelegate {
           "state": "DONE",
           "metadata": metadata,
           "startTime": startTime,
+          "bytesDownloaded": totalSize,
         ])
     } catch {
       module?.sendEvent(
