@@ -132,7 +132,8 @@
         "show_custom_menu_links": "Mostrar enlaces de menú personalizados",
         "hide_libraries": "Ocultar bibliotecas",
         "select_liraries_you_want_to_hide": "Selecciona las bibliotecas que quieres ocultar de la pestaña Bibliotecas y de Inicio.",
-        "disable_haptic_feedback": "Desactivar feedback háptico"
+        "disable_haptic_feedback": "Desactivar feedback háptico",
+        "default_quality": "Calidad por defecto"
       },
       "downloads": {
         "downloads_title": "Descargas",
