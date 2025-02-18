@@ -4,7 +4,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useAtom } from "jotai";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { Alert } from "react-native";
-
+import { userAtom } from "@/providers/JellyfinProvider";
 
 interface useSessionsProps {
   refetchInterval: number;
@@ -14,14 +14,24 @@ export const useSessions = ({
   refetchInterval = 5 * 1000,
 }: useSessionsProps) => {
   const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
+
+  //if (!user || !user.Policy?.IsAdministrator) {
+  //  return { sessions: [], isLoading: false };
+  //}
+  
   const { data, isLoading, error } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
-      if (!api) return null;
+      //if (!api) return [];
+      if (!api || !user || !user.Policy?.IsAdministrator) {
+         return [];
+      };
       const response = await getSessionApi(api).getSessions();
       return response.data.filter((s) => s.NowPlayingItem);
     },
     refetchInterval: refetchInterval,
+    //enabled: !!user || !!user.Policy?.IsAdministrator,
     //cacheTime: 0
   });
 

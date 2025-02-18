@@ -1,18 +1,17 @@
 import React, { useCallback, useRef } from "react";
 import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { userAtom } from "@/providers/JellyfinProvider";
+
 import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
-import { useAtom } from "jotai";
+
 import {
   createNativeBottomTabNavigator,
   NativeBottomTabNavigationEventMap,
 } from "@bottom-tabs/react-navigation";
 
 const { Navigator } = createNativeBottomTabNavigator();
-
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
-import { useSessions } from "@/hooks/useSessions";
+
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
@@ -33,8 +32,6 @@ export default function TabLayout() {
   const [settings] = useSettings();
   const { t } = useTranslation();
   const router = useRouter();
-  const [user] = useAtom(userAtom);
-  const { sessions, isLoading } = useSessions({});
 
   useFocusEffect(
     useCallback(() => {
@@ -49,11 +46,7 @@ export default function TabLayout() {
         };
       }
     }, [])
-  ); 
-    
-  if (!user) {
-    return;
-  }
+  );
 
   return (
     <>
@@ -124,23 +117,6 @@ export default function TabLayout() {
                       : { sfSymbol: "rectangle.stack" },
           }}
         />
-        {user.Policy?.IsAdministrator && (
-          <NativeTabs.Screen
-            name="(sessions)"
-            options={{
-              title: t("tabs.sessions"),
-              tabBarBadge: 1,
-              tabBarIcon:
-                Platform.OS == "android"
-                  ? ({ color, focused, size }) =>
-                      require("@/assets/icons/server.rack.png")
-                  : ({ focused }) =>
-                      focused
-                        ? { sfSymbol: "rectangle.stack.fill" }
-                        : { sfSymbol: "rectangle.stack" },
-            }}
-          />
-        )}
         <NativeTabs.Screen
           name="(custom-links)"
           options={{

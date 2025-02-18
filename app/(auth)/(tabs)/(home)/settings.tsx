@@ -12,6 +12,7 @@ import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { UserInfo } from "@/components/settings/UserInfo";
+import { Dashboard } from "@/components/settings/Dashboard";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -62,6 +63,7 @@ export default function settings() {
     >
       <View className="p-4 flex flex-col gap-y-4">
         <UserInfo />
+        <Dashboard className="mb-4" />
         <QuickConnect className="mb-4" />
 
         <MediaProvider>

@@ -4,10 +4,14 @@ import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
+import { useAtom } from "jotai";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSessions } from "@/hooks/useSessions";
 
 export default function IndexLayout() {
   const router = useRouter();
   const { t } = useTranslation();
+
   return (
     <Stack>
       <Stack.Screen
@@ -27,13 +31,7 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast />
-                  <TouchableOpacity
-                    onPress={() => {
-                      router.push("/(auth)/settings");
-                    }}
-                  >
-                    <Feather name="settings" color={"white"} size={22} />
-                  </TouchableOpacity>
+                  <SettingsButton />
                 </>
               )}
             </View>
@@ -112,3 +110,23 @@ export default function IndexLayout() {
     </Stack>
   );
 }
+
+const SettingsButton = () => {
+  const router = useRouter();
+  const [user] = useAtom(userAtom);
+  const { sessions = [], isLoading } = useSessions({});
+
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        router.push("/(auth)/settings");
+      }}
+    >
+      <Feather
+        name="settings"
+        color={sessions.length === 0 ? "white" : "purple"}
+        size={22}
+      />
+    </TouchableOpacity>
+  );
+};
