@@ -17,6 +17,7 @@ import java.io.File
 import java.util.concurrent.Executors
 
 class HlsDownloaderModule : Module() {
+    private val TAG = "HlsDownloaderModule"
     private var activeDownloads = mutableMapOf<String, DownloadMetadata>()
     private lateinit var downloadManager: DownloadManager
     private lateinit var downloadCache: SimpleCache
@@ -38,6 +39,7 @@ class HlsDownloaderModule : Module() {
         )
 
         OnCreate {
+            android.util.Log.d(TAG, "Creating HLS Downloader module")
             val context = appContext.reactContext as Context
             val cacheDir = File(context.getExternalFilesDir(null), "downloads")
             if (!cacheDir.exists()) {
@@ -65,10 +67,13 @@ class HlsDownloaderModule : Module() {
                     download: Download,
                     finalException: Exception?
                 ) {
+                    android.util.Log.d(TAG, "Download changed - State: ${download.state}, Progress: ${download.percentDownloaded}%")
+
                     val metadata = activeDownloads[download.request.id]
                     if (metadata != null) {
                         when (download.state) {
                             Download.STATE_COMPLETED -> {
+                                android.util.Log.d(TAG, "Download completed for ${metadata.providedId}")
                                 sendEvent(
                                     "onComplete",
                                     mapOf(
@@ -83,6 +88,7 @@ class HlsDownloaderModule : Module() {
                                 saveMetadataFile(metadata)
                             }
                             Download.STATE_FAILED -> {
+                                android.util.Log.e(TAG, "Download failed for ${metadata.providedId}", finalException)
                                 sendEvent(
                                     "onError",
                                     mapOf(
@@ -100,6 +106,8 @@ class HlsDownloaderModule : Module() {
                                     download.bytesDownloaded.toFloat() / download.contentLength
                                 } else 0f
 
+                                android.util.Log.d(TAG, "Download progress for ${metadata.providedId}: $progress")
+
                                 sendEvent(
                                     "onProgress",
                                     mapOf(
@@ -108,7 +116,10 @@ class HlsDownloaderModule : Module() {
                                         "state" to when (download.state) {
                                             Download.STATE_DOWNLOADING -> "DOWNLOADING"
                                             Download.STATE_QUEUED -> "PENDING"
-                                            else -> "DOWNLOADING"
+                                            Download.STATE_STOPPED -> "STOPPED"
+                                            Download.STATE_REMOVING -> "REMOVING"
+                                            Download.STATE_RESTARTING -> "RESTARTING"
+                                            else -> "UNKNOWN"
                                         },
                                         "metadata" to metadata.metadata,
                                         "startTime" to metadata.startTime,
@@ -117,9 +128,24 @@ class HlsDownloaderModule : Module() {
                                 )
                             }
                         }
+                    } else {
+                        android.util.Log.w(TAG, "Received download update for unknown download id: ${download.request.id}")
                     }
                 }
+
+                override fun onDownloadsPausedChanged(
+                    downloadManager: DownloadManager,
+                    downloadsPaused: Boolean
+                ) {
+                    android.util.Log.d(TAG, "Downloads paused changed: $downloadsPaused")
+                }
+
+                override fun onIdle(downloadManager: DownloadManager) {
+                    android.util.Log.d(TAG, "Download manager is idle")
+                }
             })
+
+            downloadManager.resumeDownloads()
         }
 
         Function("getActiveDownloads") {
@@ -135,6 +161,7 @@ class HlsDownloaderModule : Module() {
         }
 
         Function("downloadHLSAsset") { providedId: String, url: String, metadata: Map<String, Any>? ->
+            android.util.Log.d(TAG, "Starting download for $providedId from $url")
             val startTime = System.currentTimeMillis()
             val context = appContext.reactContext as Context
 
@@ -158,10 +185,11 @@ class HlsDownloaderModule : Module() {
                     providedId,
                     Uri.parse(url)
                 )
-                .setCustomCacheKey(providedId)
+                .setStreamKeys(emptyList())
                 .build()
 
                 downloadManager.addDownload(downloadRequest)
+                android.util.Log.d(TAG, "Download request added for $providedId")
 
                 activeDownloads[providedId] = DownloadMetadata(
                     providedId = providedId,
@@ -181,6 +209,7 @@ class HlsDownloaderModule : Module() {
                 )
 
             } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error starting download for $providedId", e)
                 sendEvent(
                     "onError",
                     mapOf(
@@ -225,3 +254,4 @@ class HlsDownloaderModule : Module() {
         }
     }
 }
+

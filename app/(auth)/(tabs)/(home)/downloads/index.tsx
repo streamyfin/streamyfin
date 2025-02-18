@@ -101,7 +101,7 @@ export default function Index() {
     const downloadsDir = FileSystem.documentDirectory + "downloads/";
     await FileSystem.deleteAsync(downloadsDir + id + ".json");
     await FileSystem.deleteAsync(downloadsDir + id);
-    refetchDownloadedFiles()
+    refetchDownloadedFiles();
   };
 
   return (

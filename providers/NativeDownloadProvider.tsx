@@ -30,7 +30,7 @@ import {
 import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
 import { useFocusEffect } from "expo-router";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
 
 type DownloadOptionsData = {
   selectedAudioStream: number;
@@ -69,34 +69,55 @@ export type DownloadedFileInfo = {
 };
 
 const getDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
-  const downloaded: DownloadedFileInfo[] = [];
+  console.log("getDownloadedFiles ~");
 
-  const downloadsDir = FileSystem.documentDirectory + "downloads/";
-  const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
+  const files = await FileSystem.readDirectoryAsync(
+    FileSystem.documentDirectory!
+  );
+  console.log(files);
 
-  if (!dirInfo.exists) return [];
+  return [];
 
-  const files = await FileSystem.readDirectoryAsync(downloadsDir);
+  // const downloaded: DownloadedFileInfo[] = [];
 
-  for (let file of files) {
-    const fileInfo = await FileSystem.getInfoAsync(downloadsDir + file);
-    if (fileInfo.isDirectory) continue;
-    if (!file.endsWith(".json")) continue;
+  // const downloadsDir = Platform.select({
+  //   ios: FileSystem.documentDirectory + "downloads/",
+  //   android: FileSystem.cacheDirectory + "../files/downloads/",
+  // });
 
-    const fileContent = await FileSystem.readAsStringAsync(downloadsDir + file);
+  // if (!downloadsDir) throw new Error("Downloads directory not found");
 
-    // Check that fileContent is actually DownloadMetadata
-    if (!fileContent) continue;
-    if (!fileContent.includes("mediaSource")) continue;
-    if (!fileContent.includes("item")) continue;
+  // const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
 
-    downloaded.push({
-      id: file.replace(".json", ""),
-      path: downloadsDir + file.replace(".json", ""),
-      metadata: JSON.parse(fileContent) as DownloadMetadata,
-    });
-  }
-  return downloaded;
+  // if (!dirInfo.exists) {
+  //   console.warn("Downloads directory does not exist");
+  //   return [];
+  // }
+
+  // const files = await FileSystem.readDirectoryAsync(downloadsDir);
+
+  // console.log("getDownloadedFiles ~", files.length);
+
+  // for (let file of files) {
+  //   console.log(file);
+  //   const fileInfo = await FileSystem.getInfoAsync(downloadsDir + file);
+  //   if (fileInfo.isDirectory) continue;
+  //   if (!file.endsWith(".json")) continue;
+
+  //   const fileContent = await FileSystem.readAsStringAsync(downloadsDir + file);
+
+  //   // Check that fileContent is actually DownloadMetadata
+  //   if (!fileContent) continue;
+  //   if (!fileContent.includes("mediaSource")) continue;
+  //   if (!fileContent.includes("item")) continue;
+
+  //   downloaded.push({
+  //     id: file.replace(".json", ""),
+  //     path: downloadsDir + file.replace(".json", ""),
+  //     metadata: JSON.parse(fileContent) as DownloadMetadata,
+  //   });
+  // }
+  // return downloaded;
 };
 
 const getDownloadedFile = async (id: string) => {
@@ -167,6 +188,12 @@ export const NativeDownloadProvider: React.FC<{
 
   useEffect(() => {
     const progressListener = addProgressListener((download) => {
+      console.log("p ~", {
+        id: download.id,
+        progress: download.progress,
+        state: download.state,
+        taskId: download.taskId,
+      });
       if (!download.metadata) throw new Error("No metadata found in download");
 
       setDownloads((prev) => ({
