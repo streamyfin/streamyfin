@@ -41,16 +41,18 @@ class HlsDownloaderModule : Module() {
         OnCreate {
             android.util.Log.d(TAG, "Creating HLS Downloader module")
             val context = appContext.reactContext as Context
-            val cacheDir = File(context.getExternalFilesDir(null), "downloads")
+            
+            val cacheDir = File(context.filesDir, "downloads")
             if (!cacheDir.exists()) {
                 cacheDir.mkdirs()
+                android.util.Log.d(TAG, "Created base downloads directory: ${cacheDir.absolutePath}")
             }
 
             val databaseProvider = StandaloneDatabaseProvider(context)
             downloadCache = SimpleCache(cacheDir, NoOpCacheEvictor(), databaseProvider)
 
             val dataSourceFactory = DefaultHttpDataSource.Factory()
-                .setUserAgent("MyApp/1.0")
+                .setUserAgent("Streamyfin/1.0")
                 .setAllowCrossProtocolRedirects(true)
 
             downloadManager = DownloadManager(
@@ -161,23 +163,15 @@ class HlsDownloaderModule : Module() {
         }
 
         Function("downloadHLSAsset") { providedId: String, url: String, metadata: Map<String, Any>? ->
-            android.util.Log.d(TAG, "Starting download for $providedId from $url")
+             android.util.Log.d(TAG, "Starting download for $providedId from $url")
             val startTime = System.currentTimeMillis()
             val context = appContext.reactContext as Context
 
-            val downloadDir = File(context.getExternalFilesDir(null), "downloads/$providedId")
-            if (downloadDir.exists() && downloadDir.listFiles()?.any { file -> file.name.endsWith(".m3u8") } == true) {
-                sendEvent(
-                    "onComplete",
-                    mapOf(
-                        "id" to providedId,
-                        "location" to downloadDir.absolutePath,
-                        "state" to "DONE",
-                        "metadata" to (metadata ?: emptyMap()),
-                        "startTime" to startTime
-                    )
-                )
-                return@Function
+            // Create the directory for this download
+            val downloadDir = File(context.filesDir, "downloads/$providedId")
+            if (!downloadDir.exists()) {
+                downloadDir.mkdirs()
+                android.util.Log.d(TAG, "Created directory: ${downloadDir.absolutePath}")
             }
 
             try {
@@ -190,6 +184,12 @@ class HlsDownloaderModule : Module() {
 
                 downloadManager.addDownload(downloadRequest)
                 android.util.Log.d(TAG, "Download request added for $providedId")
+
+                saveMetadataFile(DownloadMetadata(
+                    providedId = providedId,
+                    metadata = metadata ?: emptyMap(),
+                    startTime = startTime
+                ))
 
                 activeDownloads[providedId] = DownloadMetadata(
                     providedId = providedId,
@@ -244,12 +244,19 @@ class HlsDownloaderModule : Module() {
     private fun saveMetadataFile(metadata: DownloadMetadata) {
         try {
             val context = appContext.reactContext as Context
+            // Create metadata file in internal storage
             val metadataFile = File(
-                context.getExternalFilesDir(null),
-                "downloads/${metadata.providedId}.json"
+                context.filesDir,
+                "downloads/${metadata.providedId}/${metadata.providedId}.json"
             )
+            
+            // Ensure the parent directory exists
+            metadataFile.parentFile?.mkdirs()
+            
+            android.util.Log.d(TAG, "Saving metadata to: ${metadataFile.absolutePath}")
             metadataFile.writeText(JSONObject(metadata.metadata).toString())
         } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error saving metadata file", e)
             e.printStackTrace()
         }
     }

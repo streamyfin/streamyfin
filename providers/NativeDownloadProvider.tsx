@@ -1,5 +1,6 @@
 import useImageStorage from "@/hooks/useImageStorage";
 import {
+  addCompleteListener,
   addErrorListener,
   addProgressListener,
   cancelDownload,
@@ -69,55 +70,48 @@ export type DownloadedFileInfo = {
 };
 
 const getDownloadedFiles = async (): Promise<DownloadedFileInfo[]> => {
-  console.log("getDownloadedFiles ~");
+  const downloaded: DownloadedFileInfo[] = [];
 
-  const files = await FileSystem.readDirectoryAsync(
-    FileSystem.documentDirectory!
-  );
-  console.log(files);
+  const downloadsDir = Platform.select({
+    ios: FileSystem.documentDirectory + "downloads/",
+    android: FileSystem.documentDirectory + "downloads/",
+  });
 
-  return [];
+  console.log("downloadsDir ~", downloadsDir);
 
-  // const downloaded: DownloadedFileInfo[] = [];
+  if (!downloadsDir) throw new Error("Downloads directory not found");
 
-  // const downloadsDir = Platform.select({
-  //   ios: FileSystem.documentDirectory + "downloads/",
-  //   android: FileSystem.cacheDirectory + "../files/downloads/",
-  // });
+  const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
 
-  // if (!downloadsDir) throw new Error("Downloads directory not found");
+  if (!dirInfo.exists) {
+    console.warn("Downloads directory does not exist");
+    return [];
+  }
 
-  // const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
+  const files = await FileSystem.readDirectoryAsync(downloadsDir);
 
-  // if (!dirInfo.exists) {
-  //   console.warn("Downloads directory does not exist");
-  //   return [];
-  // }
+  console.log("getDownloadedFiles ~", files.length);
 
-  // const files = await FileSystem.readDirectoryAsync(downloadsDir);
+  for (let file of files) {
+    console.log(file);
+    const fileInfo = await FileSystem.getInfoAsync(downloadsDir + file);
+    if (fileInfo.isDirectory) continue;
+    if (!file.endsWith(".json")) continue;
 
-  // console.log("getDownloadedFiles ~", files.length);
+    const fileContent = await FileSystem.readAsStringAsync(downloadsDir + file);
 
-  // for (let file of files) {
-  //   console.log(file);
-  //   const fileInfo = await FileSystem.getInfoAsync(downloadsDir + file);
-  //   if (fileInfo.isDirectory) continue;
-  //   if (!file.endsWith(".json")) continue;
+    // Check that fileContent is actually DownloadMetadata
+    if (!fileContent) continue;
+    if (!fileContent.includes("mediaSource")) continue;
+    if (!fileContent.includes("item")) continue;
 
-  //   const fileContent = await FileSystem.readAsStringAsync(downloadsDir + file);
-
-  //   // Check that fileContent is actually DownloadMetadata
-  //   if (!fileContent) continue;
-  //   if (!fileContent.includes("mediaSource")) continue;
-  //   if (!fileContent.includes("item")) continue;
-
-  //   downloaded.push({
-  //     id: file.replace(".json", ""),
-  //     path: downloadsDir + file.replace(".json", ""),
-  //     metadata: JSON.parse(fileContent) as DownloadMetadata,
-  //   });
-  // }
-  // return downloaded;
+    downloaded.push({
+      id: file.replace(".json", ""),
+      path: downloadsDir + file.replace(".json", ""),
+      metadata: JSON.parse(fileContent) as DownloadMetadata,
+    });
+  }
+  return downloaded;
 };
 
 const getDownloadedFile = async (id: string) => {
@@ -220,6 +214,21 @@ export const NativeDownloadProvider: React.FC<{
       }
     });
 
+    const completeListener = addCompleteListener((download) => {
+      console.log("c ~", {
+        id: download.id,
+        state: download.state,
+      });
+
+      // Remove the active download from the state
+      setDownloads((prev) => {
+        const newDownloads = { ...prev };
+        delete newDownloads[download.id];
+        return newDownloads;
+      });
+      refetchDownloadedFiles();
+    });
+
     const errorListener = addErrorListener((error) => {
       setDownloads((prev) => {
         const newDownloads = { ...prev };
@@ -239,6 +248,7 @@ export const NativeDownloadProvider: React.FC<{
     return () => {
       progressListener.remove();
       errorListener.remove();
+      completeListener.remove();
     };
   }, []);
 
