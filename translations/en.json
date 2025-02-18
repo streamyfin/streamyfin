@@ -210,7 +210,11 @@
         "connected": "Connected",
         "could_not_connect": "Could not connect",
         "invalid_url": "Invalid URL"
-      }
+      },
+      "dashboard": {
+        "title": "Dashboard",
+        "sessions_title": "Sessions"
+      },
     },
     "downloads": {
       "downloads_title": "Downloads",
@@ -452,7 +456,6 @@
     "search": "Search",
     "library": "Library",
     "custom_links": "Custom Links",
-    "favorites": "Favorites",
-    "sessions": "Sessions"
+    "favorites": "Favorites"
   }
 }

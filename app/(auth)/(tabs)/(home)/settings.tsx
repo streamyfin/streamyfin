@@ -22,6 +22,8 @@ import React, { lazy, useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { storage } from "@/utils/mmkv";
+import { useAtom } from "jotai";
+import { userAtom } from "@/providers/JellyfinProvider";
 const DownloadSettings = lazy(
   () => import("@/components/settings/DownloadSettings")
 );
@@ -29,6 +31,7 @@ const DownloadSettings = lazy(
 export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [user] = useAtom(userAtom);
   const { logout } = useJellyfin();
   const successHapticFeedback = useHaptic("success");
 
@@ -63,7 +66,11 @@ export default function settings() {
     >
       <View className="p-4 flex flex-col gap-y-4">
         <UserInfo />
-        <Dashboard className="mb-4" />
+        
+        {user && user.Policy?.IsAdministrator && (
+          <Dashboard className="mb-4" />
+        )}
+
         <QuickConnect className="mb-4" />
 
         <MediaProvider>

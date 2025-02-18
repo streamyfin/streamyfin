@@ -16,10 +16,10 @@ export const Dashboard = () => {
   if (!settings) return null;
   return (
     <View>
-      <ListGroup title={t("home.settings.dashboard.dashboard_title")} className="mb-4">
+      <ListGroup title={t("home.settings.dashboard.title")} className="mt-4">
         <ListItem
           onPress={() => router.push("/settings/dashboard/sessions")}
-          title={"Sessions"}
+          title={t("home.settings.dashboard.sessions_title")}
           showArrow
         />
       </ListGroup>

@@ -70,12 +70,12 @@ const SessionCard = ({ session }: SessionCardProps) => {
   const api = useAtomValue(apiAtom);
   //const [remainingTime, setRemainingTime] = useState<string>("");
   const [remainingTicks, setRemainingTicks] = useState<number>(0);
-  
+
   const tick = () => {
     //console.log(remainingTicks - 1000);
     setRemainingTicks(remainingTicks - 1000);
   };
-  
+
   const getRemainingTime = () => {
     const remainingTimeTicks = remainingTicks;
     const hours = Math.floor(remainingTimeTicks / 36000000000);
@@ -87,43 +87,57 @@ const SessionCard = ({ session }: SessionCardProps) => {
     return r;
     //setRemainingTime(r);
   };
-  
+
   useEffect(() => {
+    //console.log(session.TranscodingInfo?.VideoCodec);
+    //console.log(session.TranscodingInfo?.IsVideoDirect);
+    //console.log(session.PlayState);
     const currentTime = session.PlayState?.PositionTicks;
     const duration = session.NowPlayingItem?.RunTimeTicks;
     const remainingTimeTicks = duration - currentTime;
     setRemainingTicks(remainingTimeTicks);
   }, [session]);
   
+  const mediaSource = useCallback(() => {
+   const Id = session.PlayState?.MediaSourceId;
+   return session.NowPlayingItem?.MediaSources.filter((s) => s.Id == Id).first();
+  }, [session]);
+
   //useEffect(() => {
   //  getRemainingTime(session.NowPlayingItem)
   //}, []);
-  
+
   useInterval(tick, 1000);
 
   return (
-    <View className="flex flex-row p-4 shadow-md rounded-lg m-2">
-    <View className="flex-row w-full">
-      <View className="h-16 w-24 pr-4">
-        <Poster
-          id={session.NowPlayingItem.Id}
-          url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
-        />
+    <View className="flex flex-col p-4 shadow-md rounded-lg m-2">
+      <View className="flex-row w-full">
+        <View className="w-24 pr-4">
+          <Poster
+            id={session.NowPlayingItem.Id}
+            url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
+          />
+        </View>
+        <View className="">
+          <Text className="text-lg font-bold">
+            {session.NowPlayingItem?.Name}
+          </Text>
+          <Text className="text-gray-600">{getRemainingTime()}</Text>
+          <Text className="text-lg font-bold">{session.UserName}</Text>
+        </View>
       </View>
-      <View className="flex-1">
-        <Text className="text-lg font-bold">
-          {session.NowPlayingItem?.Name}
-        </Text>
-        <Text className="text-gray-600">{getRemainingTime()}</Text>
-        <Text className="text-lg font-bold">
-          {session.UserName}
-        </Text>
-      </View>
-            </View>
       <View className="flex-row w-full pr-4">
-        <Text className="text-lg font-bold">
-          {session.Username}
-        </Text>
+        <View className="pr-4">
+        <Text className="text-lg font-bold">Video</Text>
+        </View>
+        <View className="pr-4">
+           <Text className="text-lg font-bold">
+           {session.PlayState?.PlayMethod}
+           
+           {mediaSource.Name}
+           {session.TranscodingInfo?.VideoCodec}
+           </Text>
+        </View>
       </View>
     </View>
   );
