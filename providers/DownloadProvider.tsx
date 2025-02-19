@@ -18,11 +18,13 @@ import {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
 import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
 import { FileInfo } from "expo-file-system";
+import Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { atom, useAtom } from "jotai";
 import React, {
@@ -36,11 +38,6 @@ import { useTranslation } from "react-i18next";
 import { AppState, AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
 import { apiAtom } from "./JellyfinProvider";
-const BackGroundDownloader = !Platform.isTV
-  ? (require("@kesha-antonov/react-native-background-downloader") as typeof import("@kesha-antonov/react-native-background-downloader"))
-  : null;
-// import * as Notifications from "expo-notifications";
-const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -58,8 +55,6 @@ const DownloadContext = createContext<ReturnType<
 > | null>(null);
 
 function useDownloadProvider() {
-  if (Platform.isTV) return;
-  
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [settings] = useSettings();
@@ -746,6 +741,9 @@ export function useDownload() {
   const context = useContext(DownloadContext);
   if (context === null) {
     throw new Error("useDownload must be used within a DownloadProvider");
+  }
+  if (Platform.isTV) {
+    throw new Error("useDownload is not supported on TVOS");
   }
   return context;
 }
