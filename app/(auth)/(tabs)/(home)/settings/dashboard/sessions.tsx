@@ -160,7 +160,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
         <View className="flex flex-row" >
           <Text className="text-xs opacity-50 w-16 font-bold text-right pr-4">Video</Text>
           
-          <Text className="flex-1 text-sm">
+          <Text className="flex-1 text-xs">
             {videoStream?.DisplayTitle}
             {isTranscoding && (
                 <>
@@ -173,7 +173,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
         <View className="flex mt-1 flex-row">
             <Text className="text-xs opacity-50 font-bold w-16 text-right pr-4">Audio</Text>
             
-          <Text className="flex-1 text-sm">
+          <Text className="flex-1 text-xs">
             {audioStream?.Codec}
             {!session.TranscodingInfo?.IsAudioDirect && (
                 <>
@@ -186,7 +186,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       <>
       <View className="flex mt-1 text-wrap flex-row">
           <Text className="text-xs opacity-50 w-16 font-bold text-right pr-4">Subtitle</Text>
-            <Text className="flex-1 text-sm">
+            <Text className="flex-1 text-xs">
               {subtitleStream.DisplayTitle}
             </Text>
           </View>
