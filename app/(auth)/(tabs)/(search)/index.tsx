@@ -209,7 +209,12 @@ export default function search() {
           paddingRight: insets.right,
         }}
       >
-        <View className="flex flex-col">
+        <View
+          className="flex flex-col"
+          style={{
+            marginTop: Platform.OS === "android" ? 16 : 0,
+          }}
+        >
           {jellyseerrApi && (
             <View className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
               <TouchableOpacity onPress={() => setSearchType("Library")}>
