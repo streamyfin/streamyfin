@@ -78,20 +78,8 @@ const SessionCard = ({ session }: SessionCardProps) => {
     setRemainingTicks(remainingTicks - 10000000);
   };
 
-  const getRemainingTime = () => {
-    const remainingTimeTicks = remainingTicks;
-    const hours = Math.floor(remainingTimeTicks / 36000000000);
-    const minutes = Math.floor((remainingTimeTicks % 36000000000) / 600000000);
-    const seconds = Math.floor((remainingTimeTicks % 600000000) / 10000000);
-    const r = `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-    return r;
-  };
-  
   const getProgressPercentage = () => {
     return Math.round(100 / session.NowPlayingItem?.RunTimeTicks * (session.NowPlayingItem?.RunTimeTicks - remainingTicks));
-  //}, [remainingTicks]);
   };
 
   useEffect(() => {
