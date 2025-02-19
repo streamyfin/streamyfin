@@ -4,7 +4,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useTranslation } from "react-i18next";
 import { Image, StyleSheet, View } from "react-native";
 import { Loader } from "@/components/Loader";
-import { Alert } from "react-native";
+import { ImageBackground } from "react-native";
 import {
   MediaSourceType,
   SessionInfoDto,
@@ -77,6 +77,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
   const [remainingTicks, setRemainingTicks] = useState<number>(0);
 
   const tick = () => {
+    if (session.PlayState?.IsPaused) return;
     setRemainingTicks(remainingTicks - 10000000);
   };
 
@@ -90,11 +91,13 @@ const SessionCard = ({ session }: SessionCardProps) => {
       .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     return r;
   };
+  
+  const getProgressPercentage = () => {
+    return Math.round(100 / session.NowPlayingItem?.RunTimeTicks * (session.NowPlayingItem?.RunTimeTicks - remainingTicks));
+  //}, [remainingTicks]);
+  };
 
   useEffect(() => {
-    //console.log(session.TranscodingInfo?.VideoCodec);
-    //console.log(session.TranscodingInfo?.IsVideoDirect);
-    //console.log(session.PlayState);
     const currentTime = session.PlayState?.PositionTicks;
     const duration = session.NowPlayingItem?.RunTimeTicks;
     const remainingTimeTicks = duration - currentTime;
@@ -104,24 +107,39 @@ const SessionCard = ({ session }: SessionCardProps) => {
   useInterval(tick, 1000);
 
   return (
-    <BlurView intensity={90} className="flex flex-col p-4 shadow-md rounded-lg m-2 bg-linear-to-r from-purple-500 to-pink-500">
-      <View className="flex-row w-full">
+    <View className="flex flex-col shadow-md rounded-lg m-2">
+     <ImageBackground 
+     className="flex"
+  resizeMode="cover" 
+  source={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
+  blurRadius={1} 
+>
+    <View className="flex-row w-full p-5">
         <View className="w-20 pr-4">
           <Poster
             id={session.NowPlayingItem.Id}
             url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
           />
         </View>
-        <View className="">
+        <View className="w-full">
           <Text className="font-bold">
             {session.NowPlayingItem?.Name}
           </Text>
-          <Text className="">{getRemainingTime()} left</Text>
           <Text className="text-sm font-bold">{session.UserName}</Text>
+          <Text className="">{getRemainingTime()} left</Text>
+          <View className="align-bottom bg-gray-800 h-1">
+            <View 
+              className={`bg-purple-600 h-full`} 
+              style={{
+                width: getProgressPercentage() + "%"
+              }}
+           />
+          </View>
         </View>
       </View>
       <TranscodingView session={session} />
-    </BlurView>
+      </ImageBackground>
+    </View>
   );
 };
 
@@ -157,8 +175,8 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   }, [session]);
 
   return (
-      <View className="flex flex-col">
-        <View className="flex mt-4 flex-row" >
+      <View className="flex flex-col p-4 bg-gray-900">
+        <View className="flex flex-row" >
           <Text className="text-sm w-20 font-bold text-right pr-4">Video</Text>
           
           <Text className="text-sm">
@@ -171,7 +189,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           </Text>
         </View>
 
-        <View className="flex mt-2 flex-row">
+        <View className="flex mt-1 flex-row">
             <Text className="text-sm w-20 font-bold text-right pr-4">Audio</Text>
             
           <Text className="text-sm">
@@ -186,7 +204,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       </View>
       {subtitleStream && (
       <>
-      <View className="flex mt-2 flex-row">
+      <View className="flex mt-1 flex-row">
           <Text className="text-sm w-20 font-bold text-right pr-4">Subtitle</Text>
 
             <Text className="text-sm">
