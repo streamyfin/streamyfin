@@ -15,7 +15,6 @@ import { ListItem } from "../list/ListItem";
 
 export const JellyseerrSettings = () => {
   const {
-    jellyseerrApi,
     jellyseerrUser,
     setJellyseerrUser,
     clearAllJellyseerData,
@@ -24,28 +23,29 @@ export const JellyseerrSettings = () => {
   const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
-  const [settings, updateSettings, pluginSettings] = useSettings();
+  const [settings, updateSettings] = useSettings();
 
   const [jellyseerrPassword, setJellyseerrPassword] = useState<
-    string | undefined
-  >(undefined);
+    string
+  >("");
 
-  const [jellyseerrServerUrl, setjellyseerrServerUrl] = useState<
+  const [jellyseerrServerUrl, setJellyseerrServerUrl] = useState<
     string | undefined
   >(settings?.jellyseerrServerUrl || undefined);
 
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
-      if (!jellyseerrServerUrl && !settings?.jellyseerrServerUrl)
+      if (!jellyseerrServerUrl) {
         throw new Error("Missing server url");
+      }
       if (!user?.Name)
         throw new Error("Missing required information for login");
       const jellyseerrTempApi = new JellyseerrApi(
-        jellyseerrServerUrl || settings.jellyseerrServerUrl || ""
+        jellyseerrServerUrl
       );
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid) throw new Error("Invalid server url");
-      return jellyseerrTempApi.login(user.Name, jellyseerrPassword || "");
+      return jellyseerrTempApi.login(user.Name, jellyseerrPassword);
     },
     onSuccess: (user) => {
       setJellyseerrUser(user);
@@ -55,15 +55,15 @@ export const JellyseerrSettings = () => {
       toast.error(t("jellyseerr.failed_to_login"));
     },
     onSettled: () => {
-      setJellyseerrPassword(undefined);
+      setJellyseerrPassword("");
     },
   });
 
   const clearData = () => {
     clearAllJellyseerData().finally(() => {
       setJellyseerrUser(undefined);
-      setJellyseerrPassword(undefined);
-      setjellyseerrServerUrl(undefined);
+      setJellyseerrPassword("");
+      setJellyseerrServerUrl(undefined);
     });
   };
 
@@ -143,7 +143,7 @@ export const JellyseerrSettings = () => {
               returnKeyType="done"
               autoCapitalize="none"
               textContentType="URL"
-              onChangeText={setjellyseerrServerUrl}
+              onChangeText={setJellyseerrServerUrl}
               editable={!loginToJellyseerrMutation.isPending}
             />
             <View>
@@ -158,6 +158,7 @@ export const JellyseerrSettings = () => {
                   "home.settings.plugins.jellyseerr.password_placeholder",
                   { username: user?.Name }
                 )}
+                style={{ flexShrink: 1 }}
                 value={jellyseerrPassword}
                 keyboardType="default"
                 secureTextEntry={true}

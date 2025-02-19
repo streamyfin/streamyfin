@@ -172,7 +172,7 @@ export class JellyseerrApi {
       });
   }
 
-  async login(username: string, password: string): Promise<JellyseerrUser> {
+  async login(username: string, password: string = ''): Promise<JellyseerrUser> {
     return this.axios
       ?.post<JellyseerrUser>(Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN, {
         username,
