@@ -110,13 +110,13 @@ const SessionCard = ({ session }: SessionCardProps) => {
     <View className="flex flex-col shadow-md bg-neutral-900 rounded-2xl">
     
     <View className="flex flex-row p-4">
-        <View className="basis-20 pr-4">
+        <View className="basis-16 pr-4">
           <Poster
             id={session.NowPlayingItem.Id}
             url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
           />
         </View>
-        <View className="w-full">
+        <View className="w-full flex-1 ">
          <View className="flex flex-row justify-between">
           <Text className="font-bold">
             {session.NowPlayingItem?.Name}
@@ -128,6 +128,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
               {session.NowPlayingItem?.SeriesName}
             </Text>
             )}
+            <View className="flex-1 align-bottom" />    
           <Text className="text-xs opacity-50 text-right">{getRemainingTime()} left</Text>
           <View className="align-bottom bg-gray-800 h-1">
             <View 
@@ -136,7 +137,8 @@ const SessionCard = ({ session }: SessionCardProps) => {
                 width: getProgressPercentage() + "%"
               }}
            />
-          </View>
+
+           </View>
         </View>
       </View>
       <TranscodingView session={session} />
@@ -178,9 +180,9 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   return (
       <View className="flex flex-col bg-neutral-800 p-4">
         <View className="flex flex-row" >
-          <Text className="text-xs opacity-50 w-20 font-bold text-right pr-4">Video</Text>
+          <Text className="text-xs opacity-50 w-16 font-bold text-right pr-4">Video</Text>
           
-          <Text className="text-sm">
+          <Text className="flex-1 text-sm">
             {videoStream?.DisplayTitle}
             {isTranscoding && (
                 <>
@@ -191,9 +193,9 @@ const TranscodingView = ({ session }: SessionCardProps) => {
         </View>
 
         <View className="flex mt-1 flex-row">
-            <Text className="text-xs opacity-50 font-bold w-20 text-right pr-4">Audio</Text>
+            <Text className="text-xs opacity-50 font-bold w-16 text-right pr-4">Audio</Text>
             
-          <Text className="text-sm">
+          <Text className="flex-1 text-sm">
             {audioStream?.Codec}
             {!session.TranscodingInfo?.IsAudioDirect && (
                 <>
@@ -205,8 +207,8 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       {subtitleStream && (
       <>
       <View className="flex mt-1 text-wrap flex-row">
-          <Text className="text-xs opacity-50 w-20 font-bold text-right pr-4">Subtitle</Text>
-            <Text className="text-wrap text-sm">
+          <Text className="text-xs opacity-50 w-16 font-bold text-right pr-4">Subtitle</Text>
+            <Text className="flex-1 text-sm">
               {subtitleStream.DisplayTitle}
             </Text>
           </View>
