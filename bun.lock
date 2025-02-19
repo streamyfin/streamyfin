@@ -44,7 +44,7 @@
         "expo-router": "~4.0.17",
         "expo-screen-orientation": "~8.0.4",
         "expo-sensors": "~14.0.2",
-        "expo-splash-screen": "~0.29.21",
+        "expo-splash-screen": "~0.29.22",
         "expo-status-bar": "~2.0.1",
         "expo-system-ui": "~4.0.8",
         "expo-task-manager": "~12.0.5",

@@ -6,10 +6,6 @@ import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  useSplashScreenLoading,
-  useSplashScreenVisible,
-} from "@/providers/SplashScreenProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { Api } from "@jellyfin/sdk";
@@ -123,10 +119,6 @@ export const SettingsIndex = () => {
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
   });
-
-  // show splash screen until query loaded
-  useSplashScreenLoading(l1);
-  const splashScreenVisible = useSplashScreenVisible();
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
@@ -382,9 +374,7 @@ export const SettingsIndex = () => {
       </View>
     );
 
-  // this spinner should only show up, when user navigates here
-  // on launch the splash screen is used for loading
-  if (l1 && !splashScreenVisible)
+  if (l1)
     return (
       <View className="justify-center items-center h-full">
         <Loader />
