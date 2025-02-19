@@ -317,7 +317,9 @@ const Login: React.FC = () => {
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
-                  onPress={async () => await handleConnect(serverURL)}
+                  onPress={async () => {
+                    await handleConnect(serverURL);
+                  }}
                   className="w-full grow"
                 >
                   {t("server.connect_button")}
