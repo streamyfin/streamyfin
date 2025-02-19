@@ -361,6 +361,21 @@ export default function page() {
     initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   }
 
+  const externalSubtitles = allSubs
+    .filter((sub: any) => sub.DeliveryMethod === "External")
+    .map((sub: any) => ({
+      name: sub.DisplayTitle,
+      DeliveryUrl: api?.basePath + sub.DeliveryUrl,
+    }));
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Add useEffect to handle mounting
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
   const insets = useSafeAreaInsets();
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
@@ -382,13 +397,6 @@ export default function page() {
         <Text className="text-white">{t("player.error")}</Text>
       </View>
     );
-
-  const externalSubtitles = allSubs
-    .filter((sub: any) => sub.DeliveryMethod === "External")
-    .map((sub: any) => ({
-      name: sub.DisplayTitle,
-      DeliveryUrl: api?.basePath + sub.DeliveryUrl,
-    }));
 
   return (
     <View style={{ flex: 1, backgroundColor: "black" }}>
@@ -419,7 +427,6 @@ export default function page() {
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}
           onPipStarted={onPipStarted}
-          onVideoLoadStart={() => {}}
           onVideoLoadEnd={() => {
             setIsVideoLoaded(true);
           }}
@@ -433,7 +440,7 @@ export default function page() {
           }}
         />
       </View>
-      {videoRef.current && !isPipStarted && (
+      {videoRef.current && !isPipStarted && isMounted === true ? (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
@@ -463,7 +470,7 @@ export default function page() {
           stop={stop}
           isVlc
         />
-      )}
+      ) : null}
     </View>
   );
 }
