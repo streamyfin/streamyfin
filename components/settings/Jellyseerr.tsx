@@ -36,23 +36,16 @@ export const JellyseerrSettings = () => {
 
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
-      if (!jellyseerrServerUrl && !settings?.jellyseerrServerUrl) {
+      if (!jellyseerrServerUrl && !settings?.jellyseerrServerUrl)
         throw new Error("Missing server url");
-      }
-
-      if (!user?.Name || !jellyseerrPassword) {
+      if (!user?.Name)
         throw new Error("Missing required information for login");
-      }
       const jellyseerrTempApi = new JellyseerrApi(
         jellyseerrServerUrl || settings.jellyseerrServerUrl || ""
       );
       const testResult = await jellyseerrTempApi.test();
-
-      if (!testResult.isValid) {
-        throw new Error("Invalid server url");
-      }
-
-      return jellyseerrTempApi.login(user.Name, jellyseerrPassword);
+      if (!testResult.isValid) throw new Error("Invalid server url");
+      return jellyseerrTempApi.login(user.Name, jellyseerrPassword || "");
     },
     onSuccess: (user) => {
       setJellyseerrUser(user);
