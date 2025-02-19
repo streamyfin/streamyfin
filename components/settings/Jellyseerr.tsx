@@ -12,6 +12,7 @@ import { Input } from "../common/Input";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import {URL_REGEX} from "@/constants/Regex";
 
 export const JellyseerrSettings = () => {
   const {
@@ -35,7 +36,7 @@ export const JellyseerrSettings = () => {
 
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
-      if (!jellyseerrServerUrl) {
+      if (!jellyseerrServerUrl || !URL_REGEX.test(jellyseerrServerUrl)) {
         throw new Error("Missing server url");
       }
       if (!user?.Name)
