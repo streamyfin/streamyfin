@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Keyboard } from "react-native";
 
 import { z } from "zod";
 import { t } from "i18next";
@@ -38,7 +39,7 @@ const Login: React.FC = () => {
     username: _username,
     password: _password,
   } = params as { apiUrl: string; username: string; password: string };
-  
+
   const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [serverURL, setServerURL] = useState<string>(_apiUrl);
@@ -92,6 +93,8 @@ const Login: React.FC = () => {
   }, [serverName, navigation, api?.basePath]);
 
   const handleLogin = async () => {
+    Keyboard.dismiss();
+
     setLoading(true);
     try {
       const result = CredentialsSchema.safeParse(credentials);
@@ -111,7 +114,6 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
-
 
   /**
    * Checks the availability and validity of a Jellyfin server URL.

@@ -303,6 +303,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async () => {
       storage.delete("token");
       setUser(null);
+      setApi(null);
       setPluginSettings(undefined);
       await clearAllJellyseerData();
     },
