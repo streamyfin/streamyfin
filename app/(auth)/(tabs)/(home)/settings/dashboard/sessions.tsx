@@ -26,7 +26,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { BlurView } from "expo-blur";
+import { formatTimeString, msToTicks, ticksToSeconds } from '@/utils/time';
 
 export default function page() {
   const navigation = useNavigation();
@@ -56,8 +56,6 @@ export default function page() {
         paddingTop: 17,
         paddingHorizontal: 17,
         paddingBottom: 150,
-        //paddingLeft: insets.left,
-        //paddingRight: insets.right,
       }}
       data={sessions}
       renderItem={({ item }) => <SessionCard session={item} />}
@@ -73,7 +71,6 @@ interface SessionCardProps {
 
 const SessionCard = ({ session }: SessionCardProps) => {
   const api = useAtomValue(apiAtom);
-  //const [remainingTime, setRemainingTime] = useState<string>("");
   const [remainingTicks, setRemainingTicks] = useState<number>(0);
 
   const tick = () => {
@@ -129,7 +126,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
             </Text>
             )}
             <View className="flex-1 align-bottom" />    
-          <Text className="text-xs opacity-50 text-right">{getRemainingTime()} left</Text>
+          <Text className="text-xs opacity-50 text-right">{formatTimeString(remainingTicks, "tick")} left</Text>
           <View className="align-bottom bg-gray-800 h-1">
             <View 
               className={`bg-purple-600 h-full`} 
@@ -146,11 +143,6 @@ const SessionCard = ({ session }: SessionCardProps) => {
   );
 };
 
-interface transcodingInfoProps {
-  transcodingInfo: TranscodingInfo;
-  item: BaseItemDto;
-}
-
 const TranscodingView = ({ session }: SessionCardProps) => {
   const videoStream = useMemo(() => {
     return session.NowPlayingItem?.MediaStreams?.filter(
@@ -164,14 +156,12 @@ const TranscodingView = ({ session }: SessionCardProps) => {
     )[0];
   }, [session]);
 
-
   const subtitleStream = useMemo(() => {
     const subtitleIndex = session.PlayState?.SubtitleStreamIndex;
     return subtitleIndex !== null && subtitleIndex !== undefined
       ? session.NowPlayingItem?.MediaStreams?.[subtitleIndex]
       : undefined;
   }, [session]);
-
 
   const isTranscoding = useMemo(() => {
     return session.PlayState?.PlayMethod == "Transcode";
