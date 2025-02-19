@@ -74,7 +74,7 @@
     "react-i18next": "^15.4.0",
     "react-native": "npm:react-native-tvos@~0.77.0-0",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-bottom-tabs": "0.8.6",
+    "react-native-bottom-tabs": "0.8.7",
     "react-native-circular-progress": "^1.4.1",
     "react-native-compressor": "^1.10.3",
     "react-native-country-flag": "^2.0.2",
