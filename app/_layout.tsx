@@ -10,10 +10,6 @@ import {
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
-import {
-  SplashScreenProvider,
-  useSplashScreenLoading,
-} from "@/providers/SplashScreenProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { Settings, useSettings } from "@/utils/atoms/settings";
 import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
@@ -36,6 +32,7 @@ import { useFonts } from "expo-font";
 import { useKeepAwake } from "expo-keep-awake";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { router, Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { getLocales } from "expo-localization";
@@ -57,6 +54,15 @@ if (!Platform.isTV) {
     }),
   });
 }
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
+
+// Set the animation options. This is optional.
+SplashScreen.setOptions({
+  duration: 500,
+  fade: true,
+});
 
 function useNotificationObserver() {
   if (Platform.isTV) return;
@@ -224,17 +230,15 @@ export default function RootLayout() {
   Appearance.setColorScheme("dark");
 
   return (
-    <SplashScreenProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <JotaiProvider>
-          <ActionSheetProvider>
-            <I18nextProvider i18n={i18n}>
-              <Layout />
-            </I18nextProvider>
-          </ActionSheetProvider>
-        </JotaiProvider>
-      </GestureHandlerRootView>
-    </SplashScreenProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <JotaiProvider>
+        <ActionSheetProvider>
+          <I18nextProvider i18n={i18n}>
+            <Layout />
+          </I18nextProvider>
+        </ActionSheetProvider>
+      </JotaiProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -303,16 +307,6 @@ function Layout() {
     }, []);
   }
 
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  useSplashScreenLoading(!loaded);
-
-  if (!loaded) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <JobQueueProvider>
@@ -324,7 +318,7 @@ function Layout() {
                   <BottomSheetModalProvider>
                     <SystemBars style="light" hidden={false} />
                     <ThemeProvider value={DarkTheme}>
-                      <Stack>
+                      <Stack initialRouteName="(auth)/(tabs)">
                         <Stack.Screen
                           name="(auth)/(tabs)"
                           options={{

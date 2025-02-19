@@ -237,7 +237,6 @@ const Login: React.FC = () => {
                       setCredentials({ ...credentials, username: text })
                     }
                     value={credentials.username}
-                    autoFocus
                     secureTextEntry={false}
                     keyboardType="default"
                     returnKeyType="done"

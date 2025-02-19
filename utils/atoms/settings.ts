@@ -268,6 +268,8 @@ export const useSettings = () => {
       const newSettings = { ..._settings, ...update };
 
       setSettings(newSettings);
+
+      // @ts-expect-error
       saveSettings(newSettings);
     }
   };
