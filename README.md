@@ -87,7 +87,7 @@ We welcome any help to make Streamyfin better. If you'd like to contribute, plea
 2. Install dependencies `bun i && bun run submodule-reload`
 3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
 4. run `npm run prebuild`
-5. Create an expo dev build by running `npm run ios` or `nom run android`. This will open a simulator on your computer and run the app.
+5. Create an expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app.
 
 For the TV version suffix the npm commands with `:tv`.
 
