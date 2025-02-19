@@ -5,7 +5,11 @@ import { useTranslation } from "react-i18next";
 import { Image, StyleSheet, View } from "react-native";
 import { Loader } from "@/components/Loader";
 import { Alert } from "react-native";
-import { SessionInfoDto } from "@jellyfin/sdk/lib/generated-client";
+import {
+  MediaSourceType,
+  SessionInfoDto,
+  TranscodingInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import { getItemImage } from "@/utils/getItemImage";
 import { useAtom, useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -72,8 +76,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
   const [remainingTicks, setRemainingTicks] = useState<number>(0);
 
   const tick = () => {
-    //console.log(remainingTicks - 1000);
-    setRemainingTicks(remainingTicks - 1000);
+    setRemainingTicks(remainingTicks - 10000000);
   };
 
   const getRemainingTime = () => {
@@ -85,7 +88,6 @@ const SessionCard = ({ session }: SessionCardProps) => {
       .toString()
       .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     return r;
-    //setRemainingTime(r);
   };
 
   useEffect(() => {
@@ -97,11 +99,13 @@ const SessionCard = ({ session }: SessionCardProps) => {
     const remainingTimeTicks = duration - currentTime;
     setRemainingTicks(remainingTimeTicks);
   }, [session]);
-  
-  const mediaSource = useCallback(() => {
-   const Id = session.PlayState?.MediaSourceId;
-   return session.NowPlayingItem?.MediaSources.filter((s) => s.Id == Id).first();
-  }, [session]);
+
+  // const mediaSource = useCallback(() => {
+  //   const Id = session.PlayState?.MediaSourceId;
+  //   return session.NowPlayingItem?.MediaSources.filter(
+  //     (s) => s.Id == Id
+  //   ).first();
+  // }, [session]);
 
   //useEffect(() => {
   //  getRemainingTime(session.NowPlayingItem)
@@ -119,26 +123,119 @@ const SessionCard = ({ session }: SessionCardProps) => {
           />
         </View>
         <View className="">
-          <Text className="text-lg font-bold">
+          <Text className=" font-bold">
             {session.NowPlayingItem?.Name}
           </Text>
-          <Text className="text-gray-600">{getRemainingTime()}</Text>
+          <Text className="">{getRemainingTime()} left</Text>
           <Text className="text-lg font-bold">{session.UserName}</Text>
         </View>
       </View>
-      <View className="flex-row w-full pr-4">
-        <View className="pr-4">
-        <Text className="text-lg font-bold">Video</Text>
-        </View>
-        <View className="pr-4">
-           <Text className="text-lg font-bold">
-           {session.PlayState?.PlayMethod}
-           
-           {mediaSource.Name}
-           {session.TranscodingInfo?.VideoCodec}
-           </Text>
-        </View>
-      </View>
+      <TranscodingView session={session} />
     </View>
   );
 };
+
+interface transcodingInfoProps {
+  transcodingInfo: TranscodingInfo;
+  item: BaseItemDto;
+}
+
+const TranscodingView = ({ session }: SessionCardProps) => {
+  const videoStream = useMemo(() => {
+    return session.NowPlayingItem?.MediaStreams?.filter(
+      (s) => s.Type == "Video"
+    )[0];
+  }, [session]);
+
+  const audioStream = useMemo(() => {
+    return session.NowPlayingItem?.MediaStreams?.filter(
+      (s) => s.Type == "Audio"
+    )[0];
+  }, [session]);
+
+
+  const subtitleStream = useMemo(() => {
+    const subtitleIndex = session.PlayState?.SubtitleStreamIndex;
+    return subtitleIndex !== null && subtitleIndex !== undefined
+      ? session.NowPlayingItem?.MediaStreams?.[subtitleIndex]
+      : undefined;
+  }, [session]);
+
+
+  const isTranscoding = useMemo(() => {
+    return session.PlayState?.PlayMethod == "Transcode";
+  }, [session]);
+
+  return (
+      <View className="grid grid-cols-2 gap-2">
+        <View className="">
+          <Text className="text-lg font-bold">Video</Text>
+        </View>
+        <View className="">
+          <Text className="text-lg font-bold">
+            {videoStream?.DisplayTitle}
+            {isTranscoding && (
+                <>
+                {'\n'} -> {session.TranscodingInfo?.Height}p ({session.TranscodingInfo?.VideoCodec} {Math.round(session.TranscodingInfo?.Bitrate / 1000000)} Mbps)
+                </>
+            )}
+          </Text>
+      </View>
+
+        <View className="pr-4">
+            <Text className="text-lg font-bold">Audio</Text>
+        </View>
+        <View>
+          <Text className="text-lg font-bold">
+            {/* {audioStream?.DisplayTitle} */}
+            {audioStream?.Codec}
+            {!session.TranscodingInfo?.IsAudioDirect && (
+                <>
+                {'\n'} -> {session.TranscodingInfo?.AudioCodec}
+                </>
+            )}
+          </Text>
+      </View>
+      {subtitleStream && (
+      <><View className="pr-4">
+          <Text className="text-lg font-bold">Subtitle</Text>
+        </View><View>
+            <Text className="text-lg font-bold">
+              {subtitleStream.DisplayTitle}
+              {/* {!session.TranscodingInfo?.IsAudioDirect && (
+                <>
+                  {'\n'} -> {session.TranscodingInfo?.AudioCodec}
+                </>
+              )} */}
+            </Text>
+          </View></>
+        )}
+        
+      </View>
+  );
+};
+
+// const StreamValue = ({ mediaSource, transcodeInfo }: SessionCardProps) => {
+//   const mediaSource = useMemo(() => {
+//     return session.NowPlayingItem?.MediaStreams?.filter(
+//       (s) => s.Type == "Video"
+//     )[0];
+//   }, [session]);
+//   console.log(mediaSource);
+//   return (
+//       <View className="flex-row w-full pr-4">
+//         <View className="pr-4">
+//           <Text className="text-lg font-bold">Video</Text>
+//         </View>
+//         <View className="pr-4">
+//         <Text className="text-lg font-bold">
+//           { mediaSource?.DisplayTitle }
+//             { session.PlayState?.PlayMethod} 
+
+//             {/* {mediaSource.Name} */}
+//             {session.TranscodingInfo?.VideoCodec} */}
+//           </Text>
+//         </View>
+//       </View>
+//   );
+// };
