@@ -554,7 +554,10 @@ export const Controls: React.FC<Props> = ({
 
             <View className="flex flex-row items-center space-x-2 ">
               {!Platform.isTV && (
-                <TouchableOpacity onPress={startPictureInPicture}>
+                <TouchableOpacity
+                  onPress={startPictureInPicture}
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
+                >
                   <MaterialIcons
                     name="picture-in-picture"
                     size={24}
