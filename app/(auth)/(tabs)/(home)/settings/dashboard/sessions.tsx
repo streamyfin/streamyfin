@@ -26,6 +26,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { BlurView } from "expo-blur";
 
 export default function page() {
   const navigation = useNavigation();
@@ -100,38 +101,27 @@ const SessionCard = ({ session }: SessionCardProps) => {
     setRemainingTicks(remainingTimeTicks);
   }, [session]);
 
-  // const mediaSource = useCallback(() => {
-  //   const Id = session.PlayState?.MediaSourceId;
-  //   return session.NowPlayingItem?.MediaSources.filter(
-  //     (s) => s.Id == Id
-  //   ).first();
-  // }, [session]);
-
-  //useEffect(() => {
-  //  getRemainingTime(session.NowPlayingItem)
-  //}, []);
-
   useInterval(tick, 1000);
 
   return (
-    <View className="flex flex-col p-4 shadow-md rounded-lg m-2">
+    <BlurView intensity={90} className="flex flex-col p-4 shadow-md rounded-lg m-2 bg-linear-to-r from-purple-500 to-pink-500">
       <View className="flex-row w-full">
-        <View className="w-24 pr-4">
+        <View className="w-20 pr-4">
           <Poster
             id={session.NowPlayingItem.Id}
             url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
           />
         </View>
         <View className="">
-          <Text className=" font-bold">
+          <Text className="font-bold">
             {session.NowPlayingItem?.Name}
           </Text>
           <Text className="">{getRemainingTime()} left</Text>
-          <Text className="text-lg font-bold">{session.UserName}</Text>
+          <Text className="text-sm font-bold">{session.UserName}</Text>
         </View>
       </View>
       <TranscodingView session={session} />
-    </View>
+    </BlurView>
   );
 };
 
@@ -167,12 +157,11 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   }, [session]);
 
   return (
-      <View className="grid grid-cols-2 gap-2">
-        <View className="">
-          <Text className="text-lg font-bold">Video</Text>
-        </View>
-        <View className="">
-          <Text className="text-lg font-bold">
+      <View className="flex flex-col">
+        <View className="flex mt-4 flex-row" >
+          <Text className="text-sm w-20 font-bold text-right pr-4">Video</Text>
+          
+          <Text className="text-sm">
             {videoStream?.DisplayTitle}
             {isTranscoding && (
                 <>
@@ -180,13 +169,12 @@ const TranscodingView = ({ session }: SessionCardProps) => {
                 </>
             )}
           </Text>
-      </View>
-
-        <View className="pr-4">
-            <Text className="text-lg font-bold">Audio</Text>
         </View>
-        <View>
-          <Text className="text-lg font-bold">
+
+        <View className="flex mt-2 flex-row">
+            <Text className="text-sm w-20 font-bold text-right pr-4">Audio</Text>
+            
+          <Text className="text-sm">
             {/* {audioStream?.DisplayTitle} */}
             {audioStream?.Codec}
             {!session.TranscodingInfo?.IsAudioDirect && (
@@ -197,10 +185,11 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           </Text>
       </View>
       {subtitleStream && (
-      <><View className="pr-4">
-          <Text className="text-lg font-bold">Subtitle</Text>
-        </View><View>
-            <Text className="text-lg font-bold">
+      <>
+      <View className="flex mt-2 flex-row">
+          <Text className="text-sm w-20 font-bold text-right pr-4">Subtitle</Text>
+
+            <Text className="text-sm">
               {subtitleStream.DisplayTitle}
               {/* {!session.TranscodingInfo?.IsAudioDirect && (
                 <>
@@ -214,6 +203,8 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       </View>
   );
 };
+
+
 
 // const StreamValue = ({ mediaSource, transcodeInfo }: SessionCardProps) => {
 //   const mediaSource = useMemo(() => {

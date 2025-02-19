@@ -68,6 +68,12 @@ export default function IndexLayout() {
           title: "",
         }}
       />
+     <Stack.Screen
+        name="settings/dashboard/sessions"
+        options={{
+          title: t("home.settings.dashboard.sessions_title"),
+        }}
+      />
       <Stack.Screen
         name="settings/jellyseerr/page"
         options={{
