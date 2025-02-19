@@ -107,26 +107,28 @@ const SessionCard = ({ session }: SessionCardProps) => {
   useInterval(tick, 1000);
 
   return (
-    <View className="flex flex-col shadow-md rounded-lg m-2">
-     <ImageBackground 
-     className="flex"
-  resizeMode="cover" 
-  source={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
-  blurRadius={1} 
->
-    <View className="flex-row w-full p-5">
-        <View className="w-20 pr-4">
+    <View className="flex flex-col shadow-md bg-neutral-900 rounded-2xl">
+    
+    <View className="flex flex-row p-4">
+        <View className="basis-20 pr-4">
           <Poster
             id={session.NowPlayingItem.Id}
             url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
           />
         </View>
         <View className="w-full">
+         <View className="flex flex-row justify-between">
           <Text className="font-bold">
             {session.NowPlayingItem?.Name}
-          </Text>
-          <Text className="text-sm font-bold">{session.UserName}</Text>
-          <Text className="">{getRemainingTime()} left</Text>
+           </Text>
+           <Text className="text-xs opacity-50 align-right">{session.UserName}</Text>
+          </View>
+            {session.NowPlayingItem?.SeriesName && (
+            <Text className="text-xs opacity-50">
+              {session.NowPlayingItem?.SeriesName}
+            </Text>
+            )}
+          <Text className="text-xs opacity-50 text-right">{getRemainingTime()} left</Text>
           <View className="align-bottom bg-gray-800 h-1">
             <View 
               className={`bg-purple-600 h-full`} 
@@ -138,7 +140,6 @@ const SessionCard = ({ session }: SessionCardProps) => {
         </View>
       </View>
       <TranscodingView session={session} />
-      </ImageBackground>
     </View>
   );
 };
@@ -175,9 +176,9 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   }, [session]);
 
   return (
-      <View className="flex flex-col p-4 bg-gray-900">
+      <View className="flex flex-col bg-neutral-800 p-4">
         <View className="flex flex-row" >
-          <Text className="text-sm w-20 font-bold text-right pr-4">Video</Text>
+          <Text className="text-xs opacity-50 w-20 font-bold text-right pr-4">Video</Text>
           
           <Text className="text-sm">
             {videoStream?.DisplayTitle}
@@ -190,10 +191,9 @@ const TranscodingView = ({ session }: SessionCardProps) => {
         </View>
 
         <View className="flex mt-1 flex-row">
-            <Text className="text-sm w-20 font-bold text-right pr-4">Audio</Text>
+            <Text className="text-xs opacity-50 font-bold w-20 text-right pr-4">Audio</Text>
             
           <Text className="text-sm">
-            {/* {audioStream?.DisplayTitle} */}
             {audioStream?.Codec}
             {!session.TranscodingInfo?.IsAudioDirect && (
                 <>
@@ -204,47 +204,16 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       </View>
       {subtitleStream && (
       <>
-      <View className="flex mt-1 flex-row">
-          <Text className="text-sm w-20 font-bold text-right pr-4">Subtitle</Text>
-
-            <Text className="text-sm">
+      <View className="flex mt-1 text-wrap flex-row">
+          <Text className="text-xs opacity-50 w-20 font-bold text-right pr-4">Subtitle</Text>
+            <Text className="text-wrap text-sm">
               {subtitleStream.DisplayTitle}
-              {/* {!session.TranscodingInfo?.IsAudioDirect && (
-                <>
-                  {'\n'} -> {session.TranscodingInfo?.AudioCodec}
-                </>
-              )} */}
             </Text>
-          </View></>
+          </View>
+          </>
         )}
         
       </View>
   );
 };
 
-
-
-// const StreamValue = ({ mediaSource, transcodeInfo }: SessionCardProps) => {
-//   const mediaSource = useMemo(() => {
-//     return session.NowPlayingItem?.MediaStreams?.filter(
-//       (s) => s.Type == "Video"
-//     )[0];
-//   }, [session]);
-//   console.log(mediaSource);
-//   return (
-//       <View className="flex-row w-full pr-4">
-//         <View className="pr-4">
-//           <Text className="text-lg font-bold">Video</Text>
-//         </View>
-//         <View className="pr-4">
-//         <Text className="text-lg font-bold">
-//           { mediaSource?.DisplayTitle }
-//             { session.PlayState?.PlayMethod} 
-
-//             {/* {mediaSource.Name} */}
-//             {session.TranscodingInfo?.VideoCodec} */}
-//           </Text>
-//         </View>
-//       </View>
-//   );
-// };
