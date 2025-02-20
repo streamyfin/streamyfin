@@ -1,12 +1,11 @@
-import { Api, Jellyfin } from "@jellyfin/sdk";
+import { storage } from "@/utils/mmkv";
+import { Jellyfin } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { storage } from "@/utils/mmkv";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-import { getAuthHeaders } from "./jellyfin/jellyfin";
-import { getOrSetDeviceId } from "./device";
 import { getDeviceName } from "react-native-device-info";
+import { getOrSetDeviceId } from "./device";
 
 export const RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY =
   "notification_send_for_item_ids";
@@ -97,7 +96,7 @@ export async function fetchAndStoreRecentlyAdded(
 
     const response1 = await getItemsApi(api).getItems({
       userId: userId,
-      limit: 5,
+      limit: 10,
       recursive: true,
       includeItemTypes: ["Episode"],
       sortOrder: ["Descending"],
@@ -105,9 +104,17 @@ export async function fetchAndStoreRecentlyAdded(
     });
     const response2 = await getItemsApi(api).getItems({
       userId: userId,
-      limit: 5,
+      limit: 10,
       recursive: true,
       includeItemTypes: ["Movie"],
+      sortOrder: ["Descending"],
+      sortBy: ["DateCreated"],
+    });
+    const response3 = await getItemsApi(api).getItems({
+      userId: userId,
+      limit: 10,
+      recursive: true,
+      includeItemTypes: ["Series"],
       sortOrder: ["Descending"],
       sortBy: ["DateCreated"],
     });
@@ -128,8 +135,16 @@ export async function fetchAndStoreRecentlyAdded(
         Type: item.Type,
       })) ?? [];
 
+    const newSeries =
+      response3.data.Items?.map((item) => ({
+        Id: item.Id,
+        Name: item.Name,
+        DateCreated: item.DateCreated,
+        Type: item.Type,
+      })) ?? [];
+
     const newIds: string[] = [];
-    const items = [...newEpisodes, ...newMovies];
+    const items = [...newEpisodes, ...newMovies, ...newSeries];
 
     // Don't send initial mass-notifications if there are no previously sent notifications
     if (alreadySentItemIds.length === 0) {
