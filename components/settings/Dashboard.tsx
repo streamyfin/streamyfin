@@ -19,7 +19,7 @@ export const Dashboard = () => {
     <View>
       <ListGroup title={t("home.settings.dashboard.title")} className="mt-4">
         <ListItem
-          className="bg-purple-900"
+          className={sessions.length != 0 ? "bg-purple-900" : ""}
           onPress={() => router.push("/settings/dashboard/sessions")}
           title={t("home.settings.dashboard.sessions_title")}
           showArrow
