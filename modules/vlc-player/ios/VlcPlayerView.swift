@@ -459,7 +459,7 @@ extension VlcPlayerView: SimpleAppLifecycleListener {
         }
 
         // Current solution to fixing black screen when re-entering application
-        if let videoTrack = self.vlc.player.videoTracks.first { $0.isSelected == true } {
+        if let videoTrack = self.vlc.player.videoTracks.first { $0.isSelected == true }, !self.vlc.isMediaPlaying() {
             videoTrack.isSelected = false
             videoTrack.isSelectedExclusively = true
             self.vlc.player.play()
