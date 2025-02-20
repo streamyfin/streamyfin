@@ -10,6 +10,7 @@ import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
 import { storage } from "@/utils/mmkv";
 import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
+import { useCallback } from "react";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
@@ -42,6 +43,10 @@ export const StorageSettings = () => {
   const calculatePercentage = (value: number, total: number) => {
     return ((value / total) * 100).toFixed(2);
   };
+
+  const clearRecentlyAddedNotifications = useCallback(() => {
+    storage.delete(RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY);
+  }, []);
 
   return (
     <View>
@@ -114,9 +119,7 @@ export const StorageSettings = () => {
       <ListGroup>
         <ListItem
           textColor="red"
-          onPress={() => {
-            storage.set(RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY, "[]");
-          }}
+          onPress={clearRecentlyAddedNotifications}
           title={"Reset recently added notifications"}
         />
       </ListGroup>
