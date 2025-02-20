@@ -21,6 +21,7 @@ import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import {
   getPlaystateApi,
   getUserLibraryApi,
@@ -298,16 +299,18 @@ export default function page() {
     setIsPipStarted(pipStarted);
   }, []);
 
-  const onPlaybackStateChanged = useCallback((e: PlaybackStatePayload) => {
+  const onPlaybackStateChanged = useCallback(async (e: PlaybackStatePayload) => {
     const { state, isBuffering, isPlaying } = e.nativeEvent;
 
     if (state === "Playing") {
       setIsPlaying(true);
+      if (!Platform.isTV) await activateKeepAwakeAsync()
       return;
     }
 
     if (state === "Paused") {
       setIsPlaying(false);
+      if (!Platform.isTV) await deactivateKeepAwake();
       return;
     }
 
