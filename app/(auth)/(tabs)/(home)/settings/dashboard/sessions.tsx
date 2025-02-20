@@ -29,7 +29,7 @@ export default function page() {
     return (
       <View className="h-full w-full flex justify-center items-center">
         <Text className="text-lg text-neutral-500">
-          {t("sessions.no_active_sessions")}
+          {t("home.settings.dashboard.no_active_sessions")}
         </Text>
       </View>
     );
