@@ -1,12 +1,10 @@
-import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useAtom } from "jotai";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
-import { Alert } from "react-native";
 import { userAtom } from "@/providers/JellyfinProvider";
 
-interface useSessionsProps {
+export interface useSessionsProps {
   refetchInterval: number;
   activeWithinSeconds: number;
 }
@@ -17,14 +15,16 @@ export const useSessions = ({
 }: useSessionsProps) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
       if (!api || !user || !user.Policy?.IsAdministrator) {
-         return [];
-      };
-      const response = await getSessionApi(api).getSessions(activeWithinSeconds = activeWithinSeconds);
+        return [];
+      }
+      const response = await getSessionApi(api).getSessions({
+        activeWithinSeconds: activeWithinSeconds,
+      });
       return response.data.filter((s) => s.NowPlayingItem);
     },
     refetchInterval: refetchInterval,
@@ -32,5 +32,5 @@ export const useSessions = ({
     //cacheTime: 0
   });
 
-  return { sessions: data, isLoading }
+  return { sessions: data, isLoading };
 };

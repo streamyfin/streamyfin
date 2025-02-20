@@ -1,37 +1,21 @@
 import { Text } from "@/components/common/Text";
-import { useSessions } from "@/hooks/useSessions";
+import { useSessions, useSessionsProps } from "@/hooks/useSessions";
 import { FlashList } from "@shopify/flash-list";
 import { useTranslation } from "react-i18next";
-import { Image, StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Loader } from "@/components/Loader";
-import { ImageBackground } from "react-native";
-import {
-  MediaSourceType,
-  SessionInfoDto,
-  TranscodingInfo,
-} from "@jellyfin/sdk/lib/generated-client";
-import { getItemImage } from "@/utils/getItemImage";
-import { useAtom, useAtomValue } from "jotai";
+import { SessionInfoDto } from "@jellyfin/sdk/lib/generated-client";
+import { useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import Poster from "@/components/posters/Poster";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { useNavigation } from "expo-router";
 import { useInterval } from "@/hooks/useInterval";
-import React, {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { formatTimeString, msToTicks, ticksToSeconds } from '@/utils/time';
-import { Entypo, AntDesign } from '@expo/vector-icons';
+import React, { useEffect, useMemo, useState } from "react";
+import { formatTimeString } from "@/utils/time";
+import { Entypo, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function page() {
-  const navigation = useNavigation();
-  const { sessions, isLoading } = useSessions({});
+  const { sessions, isLoading } = useSessions({} as useSessionsProps);
   const { t } = useTranslation();
 
   if (isLoading)
@@ -80,79 +64,129 @@ const SessionCard = ({ session }: SessionCardProps) => {
   };
 
   const getProgressPercentage = () => {
-    return Math.round(100 / session.NowPlayingItem?.RunTimeTicks * (session.NowPlayingItem?.RunTimeTicks - remainingTicks));
+    if (!session.NowPlayingItem || !session.NowPlayingItem.RunTimeTicks) {
+      return 0;
+    }
+
+    return Math.round(
+      (100 / session.NowPlayingItem?.RunTimeTicks) *
+        (session.NowPlayingItem?.RunTimeTicks - remainingTicks)
+    );
   };
 
   useEffect(() => {
     const currentTime = session.PlayState?.PositionTicks;
     const duration = session.NowPlayingItem?.RunTimeTicks;
-    const remainingTimeTicks = duration - currentTime;
-    setRemainingTicks(remainingTimeTicks);
+    if (
+      duration !== null &&
+      duration !== undefined &&
+      currentTime !== null &&
+      currentTime !== undefined
+    ) {
+      const remainingTimeTicks = duration - currentTime;
+      setRemainingTicks(remainingTimeTicks);
+    }
   }, [session]);
 
   useInterval(tick, 1000);
 
   return (
     <View className="flex flex-col shadow-md bg-neutral-900 rounded-2xl mb-4">
-    
-    <View className="flex flex-row p-4">
+      <View className="flex flex-row p-4">
         <View className="w-20 pr-4">
           <Poster
-            id={session.NowPlayingItem.Id}
+            id={session.NowPlayingItem?.Id}
             url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
           />
         </View>
         <View className="w-full flex-1">
-         <View className="flex flex-row justify-between">
-          <View className="flex-1 pr-4">
-           <Text className="font-bold">
-            {session.NowPlayingItem?.Name}
-           </Text>
-                    {!session.NowPlayingItem?.SeriesName && (
-            <Text className="text-xs opacity-50">
-              {session.NowPlayingItem?.ProductionYear}
+          <View className="flex flex-row justify-between">
+            <View className="flex-1 pr-4">
+              <Text className="font-bold">{session.NowPlayingItem?.Name}</Text>
+              {!session.NowPlayingItem?.SeriesName && (
+                <Text className="text-xs opacity-50">
+                  {session.NowPlayingItem?.ProductionYear}
+                </Text>
+              )}
+              {session.NowPlayingItem?.SeriesName && (
+                <Text className="text-xs opacity-50">
+                  {session.NowPlayingItem?.SeriesName}
+                </Text>
+              )}
+            </View>
+            <Text className="text-xs opacity-50 align-right text-right">
+              {session.UserName}
+              {"\n"}
+              {session.Client}
+              {"\n"}
+              {session.DeviceName}
             </Text>
-            )}
-            {session.NowPlayingItem?.SeriesName && (
-            <Text className="text-xs opacity-50">
-              {session.NowPlayingItem?.SeriesName}
-            </Text>
-            )}
-           </View>
-           <Text className="text-xs opacity-50 align-right text-right">
-           {session.UserName}{"\n"}
-           {session.Client}{"\n"}
-           {session.DeviceName}
-           </Text>
           </View>
           <View className="flex-1" />
           <View className="flex flex-col align-bottom">
-          <View className="flex flex-row justify-between align-bottom">
-          <Text className="-ml-1 text-xs opacity-50 align-left text-left">
-            {!session.PlayState?.IsPaused ? (
-<Entypo name="controller-play" size={14} color="white" />
-      ) : (
-<AntDesign name="pause" size={14} color="white" />
-      )}
-                </Text>
-          <Text className="text-xs opacity-50 align-right text-right">
-          {formatTimeString(remainingTicks, "tick")} left
-          </Text>
-  </View>
-          <View className="align-bottom bg-gray-800 h-1">
-            <View 
-              className={`bg-purple-600 h-full`} 
-              style={{
-                width: getProgressPercentage() + "%"
-              }}
-           />
-
-           </View>
+            <View className="flex flex-row justify-between align-bottom">
+              <Text className="-ml-1 text-xs opacity-50 align-left text-left">
+                {!session.PlayState?.IsPaused ? (
+                  <Entypo name="controller-play" size={14} color="white" />
+                ) : (
+                  <AntDesign name="pause" size={14} color="white" />
+                )}
+              </Text>
+              <Text className="text-xs opacity-50 align-right text-right">
+                {formatTimeString(remainingTicks, "tick")} left
+              </Text>
             </View>
-
+            <View className="align-bottom bg-gray-800 h-1">
+              <View
+                className={`bg-purple-600 h-full`}
+                style={{
+                  width: getProgressPercentage() + "%",
+                }}
+              />
+            </View>
+          </View>
         </View>
       </View>
       <TranscodingView session={session} />
+    </View>
+  );
+};
+
+interface TranscodingStreamViewProps {
+  title: String | undefined;
+  value: String;
+  isTranscoding: Boolean;
+  transcodeValue: String | undefined | null;
+}
+
+const TranscodingStreamView = ({
+  title,
+  value,
+  isTranscoding,
+  transcodeValue,
+}: TranscodingStreamViewProps) => {
+  return (
+    <View className="flex flex-col">
+      <View className="flex flex-row">
+        <Text className="text-xs opacity-50 w-20 font-bold text-right pr-4">
+          {title}
+        </Text>
+        <Text className="flex-1 text-xs">{value}</Text>
+      </View>
+      {isTranscoding && (
+        <>
+          <View className="flex flex-row">
+            <Text className="-mt-1 text-xs opacity-50 w-20 font-bold text-right pr-4">
+              <MaterialCommunityIcons
+                name="arrow-right-bottom"
+                size={14}
+                color="white"
+              />
+            </Text>
+            <Text className="flex-1 text-xs">{transcodeValue}</Text>
+          </View>
+        </>
+      )}
     </View>
   );
 };
@@ -170,7 +204,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       ? session.NowPlayingItem?.MediaStreams?.[index]
       : undefined;
   }, [session.PlayState?.AudioStreamIndex]);
-  
+
   const subtitleStream = useMemo(() => {
     const index = session.PlayState?.SubtitleStreamIndex;
     return index !== null && index !== undefined
@@ -183,47 +217,58 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   }, [session.PlayState?.PlayMethod]);
 
   const videoStreamTitle = () => {
-    return videoStream?.DisplayTitle.split(" ")[0];
-  }; 
-  
-  return (
-      <View className="flex flex-col bg-neutral-800 p-4">
-        <View className="flex flex-row" >
-          <Text className="pt-[2.5px] text-xs opacity-50 w-20 font-bold text-right pr-4">Video</Text>
-          
-          <Text className="flex-1 text-sm">
-            {videoStreamTitle()} ({videoStream?.Codec} {videoStream?.VideoRange.toUpperCase()} {Math.round(videoStream?.BitRate / 1000000)}Mbps)
-            {isTranscoding && (
-                <>
-                {'\n'} -> {videoStreamTitle()} ({session.TranscodingInfo?.VideoCodec.toUpperCase()} {Math.round(session.TranscodingInfo?.Bitrate / 1000000)}Mbps)
-                </>
-            )}
-          </Text>
-        </View>
+    return videoStream?.DisplayTitle?.split(" ")[0];
+  };
 
-        <View className="flex mt-1 flex-row">
-          <Text className="pt-[2.5px] text-xs opacity-50 font-bold w-20 text-right pr-4">Audio</Text>
-          <Text className="flex-1 text-sm">
-            <Text className="capitalize">{audioStream?.Language}</Text> ({audioStream?.Codec.toUpperCase()} {audioStream?.ChannelLayout})
-            {isTranscoding && !session.TranscodingInfo?.IsAudioDirect && (
-                <>
-                {'\n'} -> {session.TranscodingInfo?.AudioCodec.toUpperCase()} {session.TranscodingInfo?.AudioChannels}
-                </>
-            )}
-          </Text>
-      </View>
+  const toMbps = (val: number) => {
+    return Math.round(val / 1000000);
+  };
+
+  return (
+    <View className="flex flex-col bg-neutral-800 p-4">
+      <TranscodingStreamView
+        title="Video"
+        isTranscoding={
+          isTranscoding && !session.TranscodingInfo?.IsVideoDirect
+            ? true
+            : false
+        }
+        value={`${videoStreamTitle()} (${
+          videoStream?.Codec
+        } ${videoStream?.VideoRange?.toUpperCase()} ${Math.round(
+          (videoStream?.BitRate || 0) / 1000000
+        )}Mbps)}`}
+        transcodeValue={`${videoStreamTitle()} (${session.TranscodingInfo?.VideoCodec?.toUpperCase()} ${toMbps(
+          session.TranscodingInfo?.Bitrate || 0
+        )}Mbps)}`}
+      />
+
+      <TranscodingStreamView
+        title="Audio"
+        isTranscoding={
+          isTranscoding && !session.TranscodingInfo?.IsVideoDirect
+            ? true
+            : false
+        }
+        value={`${
+          audioStream?.Language
+        } (${audioStream?.Codec?.toUpperCase()} ${
+          audioStream?.ChannelLayout
+        }) ${toMbps(audioStream?.BitRate || 0)}Mbps`}
+        transcodeValue={`${session.TranscodingInfo?.AudioCodec?.toUpperCase()} ${
+          session.TranscodingInfo?.AudioChannels
+        } ${toMbps(session.TranscodingInfo?.Bitrate || 0)}Mbps`}
+      />
       {subtitleStream && (
-      <>
-      <View className="flex mt-1 text-wrap flex-row">
-          <Text className="pt-[2.5px] text-xs opacity-50 w-20 font-bold text-right pr-4">Subtitle</Text>
-            <Text numberOfLines={1} className="flex-1 text-top text-sm">
-              {subtitleStream.DisplayTitle}
-            </Text>
-          </View>
-          </>
-        )}
-        
-      </View>
+        <>
+          <TranscodingStreamView
+            title="Subtitle"
+            isTranscoding={false}
+            value={`${subtitleStream.DisplayTitle}`}
+            transcodeValue={null}
+          />
+        </>
+      )}
+    </View>
   );
 };
-

@@ -5,8 +5,8 @@ import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
 import { useAtom } from "jotai";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSessions } from "@/hooks/useSessions";
+import { userAtom } from "@/providers/JellyfinProvider";
+import { useSessions, useSessionsProps } from "@/hooks/useSessions";
 
 export default function IndexLayout() {
   const router = useRouter();
@@ -68,7 +68,7 @@ export default function IndexLayout() {
           title: "",
         }}
       />
-     <Stack.Screen
+      <Stack.Screen
         name="settings/dashboard/sessions"
         options={{
           title: t("home.settings.dashboard.sessions_title"),
@@ -120,7 +120,7 @@ export default function IndexLayout() {
 const SettingsButton = () => {
   const router = useRouter();
   const [user] = useAtom(userAtom);
-  const { sessions = [], isLoading } = useSessions({});
+  const { sessions = [], isLoading } = useSessions({} as useSessionsProps);
 
   return (
     <TouchableOpacity
