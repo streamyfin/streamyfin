@@ -73,11 +73,7 @@ export const PlayButton: React.FC<Props> = ({
 
   const goToPlayer = useCallback(
     (q: string, bitrateValue: number | undefined) => {
-      if (!bitrateValue) {
-        router.push(`/player/direct-player?${q}`);
-        return;
-      }
-      router.push(`/player/transcoding-player?${q}`);
+      router.push(`/player/direct-player?${q}`);
     },
     [router]
   );
@@ -119,96 +115,100 @@ export const PlayButton: React.FC<Props> = ({
           case 0:
             if (!Platform.isTV) {
               await CastContext.getPlayServicesState().then(async (state) => {
-                if (state && state !== PlayServicesState.SUCCESS)
+                if (state && state !== PlayServicesState.SUCCESS) {
                   CastContext.showPlayServicesErrorDialog(state);
-                else {
+                } else {
                   // Get a new URL with the Chromecast device profile:
-                  const data = await getStreamUrl({
-                    api,
-                    item,
-                    deviceProfile: chromecastProfile,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-                    userId: user?.Id,
-                    audioStreamIndex: selectedOptions.audioIndex,
-                    maxStreamingBitrate: selectedOptions.bitrate?.value,
-                    mediaSourceId: selectedOptions.mediaSource?.Id,
-                    subtitleStreamIndex: selectedOptions.subtitleIndex,
-                  });
-
-                  if (!data?.url) {
-                    console.warn("No URL returned from getStreamUrl", data);
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.could_not_create_stream_for_chromecast")
-                    );
-                    return;
-                  }
-
-                  client
-                    .loadMedia({
-                      mediaInfo: {
-                        contentUrl: data?.url,
-                        contentType: "video/mp4",
-                        metadata:
-                          item.Type === "Episode"
-                            ? {
-                                type: "tvShow",
-                                title: item.Name || "",
-                                episodeNumber: item.IndexNumber || 0,
-                                seasonNumber: item.ParentIndexNumber || 0,
-                                seriesTitle: item.SeriesName || "",
-                                images: [
-                                  {
-                                    url: getParentBackdropImageUrl({
-                                      api,
-                                      item,
-                                      quality: 90,
-                                      width: 2000,
-                                    })!,
-                                  },
-                                ],
-                              }
-                            : item.Type === "Movie"
-                            ? {
-                                type: "movie",
-                                title: item.Name || "",
-                                subtitle: item.Overview || "",
-                                images: [
-                                  {
-                                    url: getPrimaryImageUrl({
-                                      api,
-                                      item,
-                                      quality: 90,
-                                      width: 2000,
-                                    })!,
-                                  },
-                                ],
-                              }
-                            : {
-                                type: "generic",
-                                title: item.Name || "",
-                                subtitle: item.Overview || "",
-                                images: [
-                                  {
-                                    url: getPrimaryImageUrl({
-                                      api,
-                                      item,
-                                      quality: 90,
-                                      width: 2000,
-                                    })!,
-                                  },
-                                ],
-                              },
-                      },
-                      startTime: 0,
-                    })
-                    .then(() => {
-                      // state is already set when reopening current media, so skip it here.
-                      if (isOpeningCurrentlyPlayingMedia) {
-                        return;
-                      }
-                      CastContext.showExpandedControls();
+                  try {
+                    const data = await getStreamUrl({
+                      api,
+                      item,
+                      deviceProfile: chromecastProfile,
+                      startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+                      userId: user?.Id,
+                      audioStreamIndex: selectedOptions.audioIndex,
+                      maxStreamingBitrate: selectedOptions.bitrate?.value,
+                      mediaSourceId: selectedOptions.mediaSource?.Id,
+                      subtitleStreamIndex: selectedOptions.subtitleIndex,
                     });
+
+                    if (!data?.url) {
+                      console.warn("No URL returned from getStreamUrl", data);
+                      Alert.alert(
+                        t("player.client_error"),
+                        t("player.could_not_create_stream_for_chromecast")
+                      );
+                      return;
+                    }
+
+                    client
+                      .loadMedia({
+                        mediaInfo: {
+                          contentUrl: data?.url,
+                          contentType: "video/mp4",
+                          metadata:
+                            item.Type === "Episode"
+                              ? {
+                                  type: "tvShow",
+                                  title: item.Name || "",
+                                  episodeNumber: item.IndexNumber || 0,
+                                  seasonNumber: item.ParentIndexNumber || 0,
+                                  seriesTitle: item.SeriesName || "",
+                                  images: [
+                                    {
+                                      url: getParentBackdropImageUrl({
+                                        api,
+                                        item,
+                                        quality: 90,
+                                        width: 2000,
+                                      })!,
+                                    },
+                                  ],
+                                }
+                              : item.Type === "Movie"
+                              ? {
+                                  type: "movie",
+                                  title: item.Name || "",
+                                  subtitle: item.Overview || "",
+                                  images: [
+                                    {
+                                      url: getPrimaryImageUrl({
+                                        api,
+                                        item,
+                                        quality: 90,
+                                        width: 2000,
+                                      })!,
+                                    },
+                                  ],
+                                }
+                              : {
+                                  type: "generic",
+                                  title: item.Name || "",
+                                  subtitle: item.Overview || "",
+                                  images: [
+                                    {
+                                      url: getPrimaryImageUrl({
+                                        api,
+                                        item,
+                                        quality: 90,
+                                        width: 2000,
+                                      })!,
+                                    },
+                                  ],
+                                },
+                        },
+                        startTime: 0,
+                      })
+                      .then(() => {
+                        // state is already set when reopening current media, so skip it here.
+                        if (isOpeningCurrentlyPlayingMedia) {
+                          return;
+                        }
+                        CastContext.showExpandedControls();
+                      });
+                  } catch (e) {
+                    console.log(e);
+                  }
                 }
               });
             }

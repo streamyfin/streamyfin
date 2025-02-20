@@ -62,7 +62,7 @@ export default function DownloadSettings({ ...props }) {
               sideOffset={8}
             >
               <DropdownMenu.Label>
-                {t("home.settings.downloads.methods")}
+                {t("home.settings.downloads.download_method")}
               </DropdownMenu.Label>
               <DropdownMenu.Item
                 key="1"

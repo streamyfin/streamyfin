@@ -165,7 +165,7 @@ export const OtherSettings: React.FC = () => {
           showArrow
         />
         <ListItem
-          title="Default quality"
+          title={t("home.settings.other.default_quality")}
           disabled={pluginSettings?.defaultBitrate?.locked}
         >
           <Dropdown
@@ -186,7 +186,7 @@ export const OtherSettings: React.FC = () => {
                 />
               </TouchableOpacity>
             }
-            label={t("home.settings.other.quality")}
+            label={t("home.settings.other.default_quality")}
             onSelected={(defaultBitrate) => updateSettings({ defaultBitrate })}
           />
         </ListItem>

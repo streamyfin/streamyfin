@@ -36,15 +36,6 @@ export default function Layout() {
             animation: "fade",
           }}
         />
-        <Stack.Screen
-          name="transcoding-player"
-          options={{
-            headerShown: false,
-            autoHideHomeIndicator: true,
-            title: "",
-            animation: "fade",
-          }}
-        />
       </Stack>
     </>
   );

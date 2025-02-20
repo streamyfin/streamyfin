@@ -55,7 +55,9 @@ export default function TabLayout() {
       <NativeTabs
         sidebarAdaptable={false}
         ignoresTopSafeArea
-        barTintColor={Platform.OS === "android" ? "#121212" : undefined}
+        tabBarStyle={{
+          backgroundColor: "#121212",
+        }}
         tabBarActiveTintColor={Colors.primary}
         scrollEdgeAppearance="default"
       >
