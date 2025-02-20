@@ -135,7 +135,7 @@ export const JellyseerrSettings = () => {
               placeholder={t(
                 "home.settings.plugins.jellyseerr.server_url_placeholder"
               )}
-              value={settings?.jellyseerrServerUrl ?? jellyseerrServerUrl}
+              value={jellyseerrServerUrl ?? settings?.jellyseerrServerUrl}
               defaultValue={
                 settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
               }
