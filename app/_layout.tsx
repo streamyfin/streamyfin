@@ -1,6 +1,5 @@
 import "@/augmentations";
 import { Platform } from "react-native";
-import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
@@ -28,8 +27,6 @@ const BackgroundFetch = !Platform.isTV
   ? require("expo-background-fetch")
   : null;
 import * as FileSystem from "expo-file-system";
-import { useFonts } from "expo-font";
-import { useKeepAwake } from "expo-keep-awake";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -38,7 +35,7 @@ const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { getLocales } from "expo-localization";
 import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef } from "react";
-import { I18nextProvider, useTranslation } from "react-i18next";
+import { I18nextProvider } from "react-i18next";
 import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -265,10 +262,7 @@ function Layout() {
   }, [settings?.preferedLanguage, i18n]);
 
   if (!Platform.isTV) {
-    useKeepAwake();
     useNotificationObserver();
-
-    const { i18n } = useTranslation();
 
     useEffect(() => {
       checkAndRequestPermissions();
