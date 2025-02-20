@@ -10,7 +10,7 @@ import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
 import { storage } from "@/utils/mmkv";
 import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
@@ -46,6 +46,17 @@ export const StorageSettings = () => {
 
   const clearRecentlyAddedNotifications = useCallback(() => {
     storage.delete(RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY);
+  }, []);
+
+  const recentlyAddedNotificationsItemIds = useMemo(() => {
+    const s = storage.getString(RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY);
+    if (!s) return [] as string[];
+    try {
+      const t: string[] = JSON.parse(s);
+      return t;
+    } catch (e) {
+      throw new Error("Failed to parse recently added notifications item ids");
+    }
   }, []);
 
   return (
@@ -120,7 +131,7 @@ export const StorageSettings = () => {
         <ListItem
           textColor="red"
           onPress={clearRecentlyAddedNotifications}
-          title={"Reset recently added notifications"}
+          title={`Reset recently added notifications (${recentlyAddedNotificationsItemIds.length})`}
         />
       </ListGroup>
     </View>
