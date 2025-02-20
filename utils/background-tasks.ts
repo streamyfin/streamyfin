@@ -8,7 +8,7 @@ export const BACKGROUND_FETCH_TASK = "background-fetch";
 export async function registerBackgroundFetchAsync() {
   try {
     BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
-      minimumInterval: 10 * 60, // 1 minutes
+      minimumInterval: 10 * 60, // 10 minutes
       stopOnTerminate: false, // android only,
       startOnBoot: false, // android only
     });
