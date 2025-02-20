@@ -31,7 +31,7 @@ export const BACKGROUND_FETCH_TASK_RECENTLY_ADDED =
 export async function registerBackgroundFetchAsyncRecentlyAdded() {
   try {
     BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK_RECENTLY_ADDED, {
-      minimumInterval: 60 * 60, // 60 minutes
+      minimumInterval: 10 * 60, // 10 minutes
       stopOnTerminate: false, // android only,
       startOnBoot: true, // android only
     });
