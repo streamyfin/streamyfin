@@ -29,7 +29,7 @@ export default function page() {
 
   const onSave = (val: string) => {
     updateSettings({
-q
+      marlinServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
     });
     toast.success(t("home.settings.plugins.marlin_search.toasts.saved"));
   };
