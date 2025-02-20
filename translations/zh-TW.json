@@ -81,8 +81,8 @@
       },
       "media_controls": {
         "media_controls_title": "媒體控制",
-        "forward_skip_length": "前進跳過長度",
-        "rewind_length": "倒帶長度",
+        "forward_skip_length": "快進秒數",
+        "rewind_length": "倒帶秒數",
         "seconds_unit": "秒"
       },
       "audio": {
@@ -108,7 +108,7 @@
           "Smart": "智能",
           "Always": "總是",
           "None": "無",
-          "OnlyForced": "僅強制"
+          "OnlyForced": "僅強制字幕"
         }
       },
       "other": {
@@ -142,7 +142,7 @@
         "optimized_versions_server": "Optimized Version 伺服器",
         "save_button": "保存",
         "optimized_server": "Optimized Server",
-        "optimized": "優化",
+        "optimized": "已優化",
         "default": "默認",
         "optimized_version_hint": "輸入 Optimized Server 的 URL。URL 應包括 http(s) 和端口 (可選)。",
         "read_more_about_optimized_server": "閱讀更多關於 Optimized Server 的信息。",
@@ -410,7 +410,7 @@
     "submit_button": "提交",
     "report_issue_button": "報告問題",
     "request_button": "請求",
-    "are_you_sure_you_want_to_request_all_seasons": "您確定要請求所有季度的節目嗎？",
+    "are_you_sure_you_want_to_request_all_seasons": "您確定要請求這個節目的所有季度嗎？",
     "failed_to_login": "登入失敗",
     "cast": "演員",
     "details": "詳情",
@@ -427,8 +427,8 @@
     "studios": "工作室",
     "network": "網絡",
     "currently_streaming_on": "目前在以下流媒體上播放",
-    "advanced": "高級",
-    "request_as": "請求為",
+    "advanced": "高級設定",
+    "request_as": "選擇用戶以作請求",
     "tags": "標籤",
     "quality_profile": "質量配置文件",
     "root_folder": "根文件夾",
@@ -450,7 +450,7 @@
   "tabs": {
     "home": "主頁",
     "search": "搜索",
-    "library": "庫",
+    "library": "媒體庫",
     "custom_links": "自定義鏈接",
     "favorites": "收藏"
   }
