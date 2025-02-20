@@ -12,7 +12,13 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { useInterval } from "@/hooks/useInterval";
 import React, { useEffect, useMemo, useState } from "react";
 import { formatTimeString } from "@/utils/time";
-import { Ionicons, Entypo, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
+import { formatBitrate } from "@/utils/bitrate";
+import {
+  Ionicons,
+  Entypo,
+  AntDesign,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import { Badge } from "@/components/Badge";
 
 export default function page() {
@@ -177,45 +183,45 @@ const TranscodingStreamView = ({
   isTranscoding,
   transcodeValue,
   properties = [],
-  transcodeProperties = []
+  transcodeProperties = [],
 }: TranscodingStreamViewProps) => {
-  
-  
   const icon = (val: string) => {
     switch (val) {
-    case "bitrate":
-      return <Ionicons name="speedometer-outline" size={12} color="white" />
-      break;
-     case "codec":
-      return <Ionicons name="layers-outline" size={12} color="white" />
-      break;
-     case "videoRange":
-      return <Ionicons name="color-palette-outline" size={12} color="white" />
-      break;
-     case "resolution":
-      return <Ionicons name="film-outline" size={12} color="white" />
-      break;
-     case "language":
-      return <Ionicons name="language-outline" size={12} color="white" />
-      break;
-     case "audioChannels":
-      return <Ionicons name="mic-outline" size={12} color="white" />
-      break;
-    default:
-      return <Ionicons name="layers-outline" size={12} color="white" />
+      case "bitrate":
+        return <Ionicons name="speedometer-outline" size={12} color="white" />;
+        break;
+      case "codec":
+        return <Ionicons name="layers-outline" size={12} color="white" />;
+        break;
+      case "videoRange":
+        return (
+          <Ionicons name="color-palette-outline" size={12} color="white" />
+        );
+        break;
+      case "resolution":
+        return <Ionicons name="film-outline" size={12} color="white" />;
+        break;
+      case "language":
+        return <Ionicons name="language-outline" size={12} color="white" />;
+        break;
+      case "audioChannels":
+        return <Ionicons name="mic-outline" size={12} color="white" />;
+        break;
+      default:
+        return <Ionicons name="layers-outline" size={12} color="white" />;
     }
   };
-  
+
   const formatVal = (key: String, val: any) => {
     switch (key) {
-    case "bitrate":
-      return formatBitrate(val)
-      break;
+      case "bitrate":
+        return formatBitrate(val);
+        break;
       default:
-      return val
+        return val;
     }
   };
-  
+
   return (
     <View className="flex flex-col pt-2 first:pt-0">
       <View className="flex flex-row">
@@ -223,17 +229,21 @@ const TranscodingStreamView = ({
           {title}
         </Text>
         <Text className="flex-1">
-       {Object.keys(properties).filter(key => !(properties[key] === undefined || properties[key] === null)).map((key) => (
-         <Badge
-              variant="gray"
-              className="m-0 p-0 pt-0.5 mr-1"
-              text={formatVal(key, properties[key])}
-              iconLeft={
-                icon(key)
-              }
-            />
+          {Object.keys(properties)
+            .filter(
+              (key) =>
+                !(properties[key] === undefined || properties[key] === null)
+            )
+            .map((key) => (
+              <Badge
+                key={key}
+                variant="gray"
+                className="m-0 p-0 pt-0.5 mr-1"
+                text={formatVal(key, properties[key])}
+                iconLeft={icon(key)}
+              />
             ))}
-        </Text> 
+        </Text>
       </View>
       {isTranscoding && (
         <>
@@ -246,31 +256,29 @@ const TranscodingStreamView = ({
               />
             </Text>
             <Text className="flex-1 text-sm mt-1">
-       {Object.keys(transcodeProperties).filter(key => !(transcodeProperties[key] === undefined || transcodeProperties[key] === null)).map((key) => (
-         <Badge
-              variant="gray"
-              className="m-0 p-0 mr-1"
-              text={formatVal(key, transcodeProperties[key])}
-              iconLeft={
-                icon(key)
-              }
-            />
-            ))}
+              {Object.keys(transcodeProperties)
+                .filter(
+                  (key) =>
+                    !(
+                      transcodeProperties[key] === undefined ||
+                      transcodeProperties[key] === null
+                    )
+                )
+                .map((key) => (
+                  <Badge
+                    key={key}
+                    variant="gray"
+                    className="m-0 p-0 mr-1"
+                    text={formatVal(key, transcodeProperties[key])}
+                    iconLeft={icon(key)}
+                  />
+                ))}
             </Text>
           </View>
         </>
       )}
     </View>
   );
-};
-
-const formatBitrate = (bitrate?: number | null) => {
-  if (!bitrate) return "N/A";
-
-  const sizes = ["bps", "Kbps", "Mbps", "Gbps", "Tbps"];
-  if (bitrate === 0) return "0 bps";
-  const i = parseInt(Math.floor(Math.log(bitrate) / Math.log(1000)).toString());
-  return Math.round((bitrate / Math.pow(1000, i)) * 100) / 100 + " " + sizes[i];
 };
 
 const TranscodingView = ({ session }: SessionCardProps) => {
@@ -302,10 +310,6 @@ const TranscodingView = ({ session }: SessionCardProps) => {
     return videoStream?.DisplayTitle?.split(" ")[0];
   };
 
-  const toMbps = (val: number) => {
-    return Math.round(val / 1000000);
-  };
-
   return (
     <View className="flex flex-col bg-neutral-800 rounded-b-2xl p-4 pt-2">
       <TranscodingStreamView
@@ -316,7 +320,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           codec: videoStream?.Codec,
           //videoRange: videoStream?.VideoRange
         }}
-       transcodeProperties={{
+        transcodeProperties={{
           bitrate: session.TranscodingInfo?.Bitrate,
           codec: session.TranscodingInfo?.VideoCodec,
         }}
@@ -333,28 +337,29 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           language: audioStream?.Language,
           bitrate: audioStream?.BitRate,
           codec: audioStream?.Codec,
-          audioChannels: audioStream?.ChannelLayout
+          audioChannels: audioStream?.ChannelLayout,
         }}
-       transcodeProperties={{
+        transcodeProperties={{
           bitrate: session.TranscodingInfo?.Bitrate,
           codec: session.TranscodingInfo?.AudioCodec,
-          audioChannels: session.TranscodingInfo?.AudioChannels
-       }} 
+          audioChannels: session.TranscodingInfo?.AudioChannels,
+        }}
         isTranscoding={
           isTranscoding && !session.TranscodingInfo?.IsVideoDirect
             ? true
             : false
         }
       />
+
       {subtitleStream && (
         <>
           <TranscodingStreamView
             title="Subtitle"
             isTranscoding={false}
-                    properties={{
-          language: subtitleStream?.Language,
-          codec: subtitleStream?.Codec,
-        }}
+            properties={{
+              language: subtitleStream?.Language,
+              codec: subtitleStream?.Codec,
+            }}
             transcodeValue={null}
           />
         </>
