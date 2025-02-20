@@ -164,6 +164,7 @@ export const OtherSettings: React.FC = () => {
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
+
         <ListItem
           title={t("home.settings.other.default_quality")}
           disabled={pluginSettings?.defaultBitrate?.locked}
@@ -173,7 +174,6 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.defaultBitrate?.locked}
             keyExtractor={(item) => item.key}
             titleExtractor={(item) => item.key}
-            selected={settings.defaultBitrate}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
@@ -199,6 +199,14 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.disableHapticFeedback?.locked}
             onValueChange={(disableHapticFeedback) =>
               updateSettings({ disableHapticFeedback })
+            }
+          />
+        </ListItem>
+        <ListItem title={"Recently added notifications"}>
+          <Switch
+            value={settings.recentlyAddedNotifications}
+            onValueChange={(recentlyAddedNotifications) =>
+              updateSettings({ recentlyAddedNotifications })
             }
           />
         </ListItem>

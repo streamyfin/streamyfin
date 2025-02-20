@@ -8,6 +8,8 @@ import { toast } from "sonner-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
+import { storage } from "@/utils/mmkv";
+import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
@@ -107,6 +109,15 @@ export const StorageSettings = () => {
           textColor="red"
           onPress={onDeleteClicked}
           title={t("home.settings.storage.delete_all_downloaded_files")}
+        />
+      </ListGroup>
+      <ListGroup>
+        <ListItem
+          textColor="red"
+          onPress={() => {
+            storage.set(RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY, "[]");
+          }}
+          title={"Reset recently added notifications"}
         />
       </ListGroup>
     </View>

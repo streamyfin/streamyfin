@@ -145,6 +145,7 @@ export type Settings = {
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
+  recentlyAddedNotifications: boolean;
 };
 
 export interface Lockable<T> {
@@ -198,6 +199,7 @@ const defaultValues: Settings = {
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
+  recentlyAddedNotifications: true,
 };
 
 const loadSettings = (): Partial<Settings> => {
