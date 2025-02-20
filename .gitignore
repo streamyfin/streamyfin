@@ -43,3 +43,4 @@ credentials.json
 .vscode/
 .idea/
 .ruby-lsp
+modules/hls-downloader/android/build

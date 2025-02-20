@@ -1,8 +1,9 @@
-import { Platform } from "react-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { AudioToggles } from "@/components/settings/AudioToggles";
+import DownloadSettings from "@/components/settings/DownloadSettings";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
 import { OtherSettings } from "@/components/settings/OtherSettings";
@@ -10,23 +11,19 @@ import { PluginSettings } from "@/components/settings/PluginSettings";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
-import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { Dashboard } from "@/components/settings/Dashboard";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
-import { useHaptic } from "@/hooks/useHaptic";
+import { storage } from "@/utils/mmkv";
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
-import React, { lazy, useEffect } from "react";
+import React, { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { storage } from "@/utils/mmkv";
 import { useAtom } from "jotai";
 import { userAtom } from "@/providers/JellyfinProvider";
-const DownloadSettings = lazy(
-  () => import("@/components/settings/DownloadSettings")
-);
 
 export default function settings() {
   const router = useRouter();
@@ -66,10 +63,8 @@ export default function settings() {
     >
       <View className="p-4 flex flex-col gap-y-4">
         <UserInfo />
-        
-        {user && user.Policy?.IsAdministrator && (
-          <Dashboard className="mb-4" />
-        )}
+
+        {user && user.Policy?.IsAdministrator && <Dashboard className="mb-4" />}
 
         <QuickConnect className="mb-4" />
 
@@ -81,7 +76,7 @@ export default function settings() {
 
         <OtherSettings />
 
-        {!Platform.isTV && <DownloadSettings />}
+        <DownloadSettings />
 
         <PluginSettings />
 

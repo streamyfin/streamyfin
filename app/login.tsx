@@ -9,7 +9,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -19,17 +19,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Keyboard } from "react-native";
 
 import { z } from "zod";
-import { t } from 'i18next';
+import { t } from "i18next";
 const CredentialsSchema = z.object({
-  username: z.string().min(1, t("login.username_required")),});
+  username: z.string().min(1, t("login.username_required")),
+});
 
-  const Login: React.FC = () => {
+const Login: React.FC = () => {
+  const api = useAtomValue(apiAtom);
+  const navigation = useNavigation();
+  const params = useLocalSearchParams();
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
-  const [api] = useAtom(apiAtom);
-  const params = useLocalSearchParams();
 
   const {
     apiUrl: _apiUrl,
@@ -37,6 +40,8 @@ const CredentialsSchema = z.object({
     password: _password,
   } = params as { apiUrl: string; username: string; password: string };
 
+  const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [serverURL, setServerURL] = useState<string>(_apiUrl);
   const [serverName, setServerName] = useState<string>("");
   const [credentials, setCredentials] = useState<{
@@ -47,10 +52,11 @@ const CredentialsSchema = z.object({
     password: _password,
   });
 
+  /**
+   * A way to auto login based on a link
+   */
   useEffect(() => {
     (async () => {
-      // we might re-use the checkUrl function here to check the url as well
-      // however, I don't think it should be necessary for now
       if (_apiUrl) {
         setServer({
           address: _apiUrl,
@@ -66,7 +72,6 @@ const CredentialsSchema = z.object({
     })();
   }, [_apiUrl, _username, _password]);
 
-  const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
       headerTitle: serverName,
@@ -79,15 +84,17 @@ const CredentialsSchema = z.object({
             className="flex flex-row items-center"
           >
             <Ionicons name="chevron-back" size={18} color={Colors.primary} />
-            <Text className="ml-2 text-purple-600">{t("login.change_server")}</Text>
+            <Text className="ml-2 text-purple-600">
+              {t("login.change_server")}
+            </Text>
           </TouchableOpacity>
         ) : null,
     });
   }, [serverName, navigation, api?.basePath]);
 
-  const [loading, setLoading] = useState<boolean>(false);
-
   const handleLogin = async () => {
+    Keyboard.dismiss();
+
     setLoading(true);
     try {
       const result = CredentialsSchema.safeParse(credentials);
@@ -98,14 +105,15 @@ const CredentialsSchema = z.object({
       if (error instanceof Error) {
         Alert.alert(t("login.connection_failed"), error.message);
       } else {
-        Alert.alert(t("login.connection_failed"), t("login.an_unexpected_error_occured"));
+        Alert.alert(
+          t("login.connection_failed"),
+          t("login.an_unexpected_error_occured")
+        );
       }
     } finally {
       setLoading(false);
     }
   };
-
-  const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
 
   /**
    * Checks the availability and validity of a Jellyfin server URL.
@@ -180,14 +188,21 @@ const CredentialsSchema = z.object({
     try {
       const code = await initiateQuickConnect();
       if (code) {
-        Alert.alert(t("login.quick_connect"), t("login.enter_code_to_login", {code: code}), [
-          {
-            text: t("login.got_it"),
-          },
-        ]);
+        Alert.alert(
+          t("login.quick_connect"),
+          t("login.enter_code_to_login", { code: code }),
+          [
+            {
+              text: t("login.got_it"),
+            },
+          ]
+        );
       }
     } catch (error) {
-      Alert.alert(t("login.error_title"), t("login.failed_to_initiate_quick_connect"));
+      Alert.alert(
+        t("login.error_title"),
+        t("login.failed_to_initiate_quick_connect")
+      );
     }
   };
 
@@ -201,16 +216,18 @@ const CredentialsSchema = z.object({
             <View className="flex flex-col h-full relative items-center justify-center">
               <View className="px-4 -mt-20 w-full">
                 <View className="flex flex-col space-y-2">
-                <Text className="text-2xl font-bold -mb-2">
-                  <>
-                    {serverName ? (
-                      <>
-                        {t("login.login_to_title") + " "}
-                        <Text className="text-purple-600">{serverName}</Text>
-                      </>
-                    ) : t("login.login_title")}
-                  </>
-                </Text>
+                  <Text className="text-2xl font-bold -mb-2">
+                    <>
+                      {serverName ? (
+                        <>
+                          {t("login.login_to_title") + " "}
+                          <Text className="text-purple-600">{serverName}</Text>
+                        </>
+                      ) : (
+                        t("login.login_title")
+                      )}
+                    </>
+                  </Text>
                   <Text className="text-xs text-neutral-400">
                     {api.basePath}
                   </Text>
@@ -220,7 +237,6 @@ const CredentialsSchema = z.object({
                       setCredentials({ ...credentials, username: text })
                     }
                     value={credentials.username}
-                    autoFocus
                     secureTextEntry={false}
                     keyboardType="default"
                     returnKeyType="done"
@@ -300,7 +316,9 @@ const CredentialsSchema = z.object({
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
-                  onPress={async () => await handleConnect(serverURL)}
+                  onPress={async () => {
+                    await handleConnect(serverURL);
+                  }}
                   className="w-full grow"
                 >
                   {t("server.connect_button")}
