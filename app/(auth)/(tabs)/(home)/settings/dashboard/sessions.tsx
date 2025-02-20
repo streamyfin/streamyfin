@@ -27,6 +27,7 @@ import React, {
   useState,
 } from "react";
 import { formatTimeString, msToTicks, ticksToSeconds } from '@/utils/time';
+import { Entypo, AntDesign } from '@expo/vector-icons';
 
 export default function page() {
   const navigation = useNavigation();
@@ -92,29 +93,52 @@ const SessionCard = ({ session }: SessionCardProps) => {
   useInterval(tick, 1000);
 
   return (
-    <View className="flex flex-col shadow-md bg-neutral-900 rounded-2xl">
+    <View className="flex flex-col shadow-md bg-neutral-900 rounded-2xl mb-4">
     
     <View className="flex flex-row p-4">
-        <View className="basis-16 pr-4">
+        <View className="w-20 pr-4">
           <Poster
             id={session.NowPlayingItem.Id}
             url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
           />
         </View>
-        <View className="w-full flex-1 ">
+        <View className="w-full flex-1">
          <View className="flex flex-row justify-between">
-          <Text className="font-bold">
+          <View className="flex-1 pr-4">
+           <Text className="font-bold">
             {session.NowPlayingItem?.Name}
            </Text>
-           <Text className="text-xs opacity-50 align-right">{session.UserName}</Text>
-          </View>
+                    {!session.NowPlayingItem?.SeriesName && (
+            <Text className="text-xs opacity-50">
+              {session.NowPlayingItem?.ProductionYear}
+            </Text>
+            )}
             {session.NowPlayingItem?.SeriesName && (
             <Text className="text-xs opacity-50">
               {session.NowPlayingItem?.SeriesName}
             </Text>
             )}
-            <View className="flex-1 align-bottom" />    
-          <Text className="text-xs opacity-50 text-right">{formatTimeString(remainingTicks, "tick")} left</Text>
+           </View>
+           <Text className="text-xs opacity-50 align-right text-right">
+           {session.UserName}{"\n"}
+           {session.Client}{"\n"}
+           {session.DeviceName}
+           </Text>
+          </View>
+          <View className="flex-1" />
+          <View className="flex flex-col align-bottom">
+          <View className="flex flex-row justify-between align-bottom">
+          <Text className="-ml-1 text-xs opacity-50 align-left text-left">
+            {!session.PlayState?.IsPaused ? (
+<Entypo name="controller-play" size={14} color="white" />
+      ) : (
+<AntDesign name="pause" size={14} color="white" />
+      )}
+                </Text>
+          <Text className="text-xs opacity-50 align-right text-right">
+          {formatTimeString(remainingTicks, "tick")} left
+          </Text>
+  </View>
           <View className="align-bottom bg-gray-800 h-1">
             <View 
               className={`bg-purple-600 h-full`} 
@@ -124,6 +148,8 @@ const SessionCard = ({ session }: SessionCardProps) => {
            />
 
            </View>
+            </View>
+
         </View>
       </View>
       <TranscodingView session={session} />
@@ -139,45 +165,49 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   }, [session]);
 
   const audioStream = useMemo(() => {
-    return session.NowPlayingItem?.MediaStreams?.filter(
-      (s) => s.Type == "Audio"
-    )[0];
-  }, [session]);
-
-  const subtitleStream = useMemo(() => {
-    const subtitleIndex = session.PlayState?.SubtitleStreamIndex;
-    return subtitleIndex !== null && subtitleIndex !== undefined
-      ? session.NowPlayingItem?.MediaStreams?.[subtitleIndex]
+    const index = session.PlayState?.AudioStreamIndex;
+    return index !== null && index !== undefined
+      ? session.NowPlayingItem?.MediaStreams?.[index]
       : undefined;
-  }, [session]);
+  }, [session.PlayState?.AudioStreamIndex]);
+  
+  const subtitleStream = useMemo(() => {
+    const index = session.PlayState?.SubtitleStreamIndex;
+    return index !== null && index !== undefined
+      ? session.NowPlayingItem?.MediaStreams?.[index]
+      : undefined;
+  }, [session.PlayState?.SubtitleStreamIndex]);
 
   const isTranscoding = useMemo(() => {
     return session.PlayState?.PlayMethod == "Transcode";
-  }, [session]);
+  }, [session.PlayState?.PlayMethod]);
 
+  const videoStreamTitle = () => {
+    return videoStream?.DisplayTitle.split(" ")[0];
+  }; 
+  
   return (
       <View className="flex flex-col bg-neutral-800 p-4">
         <View className="flex flex-row" >
-          <Text className="text-xs opacity-50 w-16 font-bold text-right pr-4">Video</Text>
+          <Text className="pt-[2.5px] text-xs opacity-50 w-20 font-bold text-right pr-4">Video</Text>
           
-          <Text className="flex-1 text-xs">
-            {videoStream?.DisplayTitle}
+          <Text className="flex-1 text-sm">
+            {videoStreamTitle()} ({videoStream?.Codec} {videoStream?.VideoRange.toUpperCase()} {Math.round(videoStream?.BitRate / 1000000)}Mbps)
             {isTranscoding && (
                 <>
-                {'\n'} -> {session.TranscodingInfo?.Height}p ({session.TranscodingInfo?.VideoCodec} {Math.round(session.TranscodingInfo?.Bitrate / 1000000)} Mbps)
+                {'\n'} -> {videoStreamTitle()} ({session.TranscodingInfo?.VideoCodec.toUpperCase()} {Math.round(session.TranscodingInfo?.Bitrate / 1000000)}Mbps)
                 </>
             )}
           </Text>
         </View>
 
         <View className="flex mt-1 flex-row">
-            <Text className="text-xs opacity-50 font-bold w-16 text-right pr-4">Audio</Text>
-            
-          <Text className="flex-1 text-xs">
-            {audioStream?.Codec}
-            {!session.TranscodingInfo?.IsAudioDirect && (
+          <Text className="pt-[2.5px] text-xs opacity-50 font-bold w-20 text-right pr-4">Audio</Text>
+          <Text className="flex-1 text-sm">
+            <Text className="capitalize">{audioStream?.Language}</Text> ({audioStream?.Codec.toUpperCase()} {audioStream?.ChannelLayout})
+            {isTranscoding && !session.TranscodingInfo?.IsAudioDirect && (
                 <>
-                {'\n'} -> {session.TranscodingInfo?.AudioCodec}
+                {'\n'} -> {session.TranscodingInfo?.AudioCodec.toUpperCase()} {session.TranscodingInfo?.AudioChannels}
                 </>
             )}
           </Text>
@@ -185,8 +215,8 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       {subtitleStream && (
       <>
       <View className="flex mt-1 text-wrap flex-row">
-          <Text className="text-xs opacity-50 w-16 font-bold text-right pr-4">Subtitle</Text>
-            <Text className="flex-1 text-xs">
+          <Text className="pt-[2.5px] text-xs opacity-50 w-20 font-bold text-right pr-4">Subtitle</Text>
+            <Text numberOfLines={1} className="flex-1 text-top text-sm">
               {subtitleStream.DisplayTitle}
             </Text>
           </View>

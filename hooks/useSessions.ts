@@ -8,26 +8,23 @@ import { userAtom } from "@/providers/JellyfinProvider";
 
 interface useSessionsProps {
   refetchInterval: number;
+  activeWithinSeconds: number;
 }
 
 export const useSessions = ({
   refetchInterval = 5 * 1000,
+  activeWithinSeconds = 360,
 }: useSessionsProps) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-
-  //if (!user || !user.Policy?.IsAdministrator) {
-  //  return { sessions: [], isLoading: false };
-  //}
   
   const { data, isLoading, error } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
-      //if (!api) return [];
       if (!api || !user || !user.Policy?.IsAdministrator) {
          return [];
       };
-      const response = await getSessionApi(api).getSessions();
+      const response = await getSessionApi(api).getSessions(activeWithinSeconds = activeWithinSeconds);
       return response.data.filter((s) => s.NowPlayingItem);
     },
     refetchInterval: refetchInterval,
