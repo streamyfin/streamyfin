@@ -294,6 +294,32 @@ function Layout() {
       checkAndRequestPermissions();
     }, []);
 
+    const checkStatusAsync = async () => {
+      if (Platform.isTV) return;
+
+      await BackgroundFetch.getStatusAsync();
+      return await TaskManager.isTaskRegisteredAsync(
+        BACKGROUND_FETCH_TASK_RECENTLY_ADDED
+      );
+    };
+
+    useEffect(() => {
+      (async () => {
+        const isRegistered = await checkStatusAsync();
+
+        if (settings.recentlyAddedNotifications === false && isRegistered) {
+          console.log("unregisterBackgroundFetchAsyncRecentlyAdded");
+          unregisterBackgroundFetchAsyncRecentlyAdded();
+        } else if (
+          settings.recentlyAddedNotifications === true &&
+          !isRegistered
+        ) {
+          console.log("registerBackgroundFetchAsyncRecentlyAdded");
+          registerBackgroundFetchAsyncRecentlyAdded();
+        }
+      })();
+    }, [settings.recentlyAddedNotifications]);
+
     useEffect(() => {
       // If the user has auto rotate enabled, unlock the orientation
       if (settings.autoRotate === true) {
@@ -303,12 +329,6 @@ function Layout() {
         ScreenOrientation.lockAsync(
           ScreenOrientation.OrientationLock.PORTRAIT_UP
         );
-      }
-
-      if (settings.recentlyAddedNotifications === true) {
-        registerBackgroundFetchAsyncRecentlyAdded();
-      } else {
-        unregisterBackgroundFetchAsyncRecentlyAdded();
       }
     }, [settings]);
 
