@@ -449,12 +449,23 @@ export const useJellyseerr = () => {
     );
   };
 
+  const jellyseerrRegion = useMemo(
+    () => jellyseerrUser?.settings?.region || "US",
+    [jellyseerrUser]
+  );
+
+  const jellyseerrLocale = useMemo(() => {
+    return jellyseerrUser?.settings?.locale || "en";
+  }, [jellyseerrUser]);
+
   return {
     jellyseerrApi,
     jellyseerrUser,
     setJellyseerrUser,
     clearAllJellyseerData,
     isJellyseerrResult,
+    jellyseerrRegion,
+    jellyseerrLocale,
     requestMedia,
   };
 };

@@ -19,7 +19,7 @@ export default function page() {
   const local = useLocalSearchParams();
   const { t } = useTranslation();
 
-  const { jellyseerrApi, jellyseerrUser } = useJellyseerr();
+  const { jellyseerrApi, jellyseerrUser, jellyseerrRegion: region, jellyseerrLocale: locale } = useJellyseerr();
 
   const { personId } = local as { personId: string };
 
@@ -31,15 +31,6 @@ export default function page() {
     }),
     enabled: !!jellyseerrApi && !!personId,
   });
-
-  const locale = useMemo(() => {
-    return jellyseerrUser?.settings?.locale || "en";
-  }, [jellyseerrUser]);
-
-  const region = useMemo(
-    () => jellyseerrUser?.settings?.region || "US",
-    [jellyseerrUser]
-  );
 
   const castedRoles: PersonCreditCast[] = useMemo(
     () =>

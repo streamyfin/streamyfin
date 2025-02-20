@@ -23,6 +23,8 @@ import { Loader } from "../Loader";
 import { t } from "i18next";
 import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
 import {MediaRequestBody} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import {textShadowStyle} from "@/components/jellyseerr/discover/GenericSlideCard";
+import {dateOpts} from "@/components/jellyseerr/DetailFacts";
 
 const JellyseerrSeasonEpisodes: React.FC<{
   details: TvDetails;
@@ -52,26 +54,51 @@ const JellyseerrSeasonEpisodes: React.FC<{
 };
 
 const RenderItem = ({ item, index }: any) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, jellyseerrRegion: region, jellyseerrLocale: locale } = useJellyseerr();
   const [imageError, setImageError] = useState(false);
+
+  const upcomingAirDate = useMemo(() => {
+    const airDate = item.airDate;
+    if (airDate) {
+      let airDateObj = new Date(airDate);
+
+      if (new Date() < airDateObj) {
+        return airDateObj.toLocaleDateString(
+          `${locale}-${region}`,
+          dateOpts
+        );
+      }
+    }
+  }, [item]);
 
   return (
     <View className="flex flex-col w-44 mt-2">
       <View className="relative aspect-video rounded-lg overflow-hidden border border-neutral-800">
         {!imageError ? (
-          <Image
-            key={item.id}
-            id={item.id}
-            source={{
-              uri: jellyseerrApi?.imageProxy(item.stillPath),
-            }}
-            cachePolicy={"memory-disk"}
-            contentFit="cover"
-            className="w-full h-full"
-            onError={(e) => {
-              setImageError(true);
-            }}
-          />
+          <>
+            <Image
+              key={item.id}
+              id={item.id}
+              source={{
+                uri: jellyseerrApi?.imageProxy(item.stillPath),
+              }}
+              cachePolicy={"memory-disk"}
+              contentFit="cover"
+              className="w-full h-full"
+              onError={(e) => {
+                setImageError(true);
+              }}
+            />
+            {upcomingAirDate && (
+              <View className="absolute justify-center bottom-0 right-0.5 items-center">
+                <View className="rounded-full bg-purple-600/30 p-1">
+                  <Text className="text-center text-xs" style={textShadowStyle.shadow}>
+                    {upcomingAirDate}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
         ) : (
           <View className="flex flex-col w-full h-full items-center justify-center border border-neutral-800 bg-neutral-900">
             <Ionicons

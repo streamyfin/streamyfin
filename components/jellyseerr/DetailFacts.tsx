@@ -19,7 +19,7 @@ interface Release {
   type: number;
 }
 
-const dateOpts: Intl.DateTimeFormatOptions = {
+export const dateOpts: Intl.DateTimeFormatOptions = {
   year: "numeric",
   month: "long",
   day: "numeric",
@@ -50,17 +50,8 @@ const Fact: React.FC<{ title: string; fact?: string | null } & ViewProps> = ({
 const DetailFacts: React.FC<
   { details?: MovieDetails | TvDetails } & ViewProps
 > = ({ details, className, ...props }) => {
-  const { jellyseerrUser } = useJellyseerr();
+  const { jellyseerrUser, jellyseerrRegion: region, jellyseerrLocale: locale } = useJellyseerr();
   const { t } = useTranslation();
-
-  const locale = useMemo(() => {
-    return jellyseerrUser?.settings?.locale || "en";
-  }, [jellyseerrUser]);
-
-  const region = useMemo(
-    () => jellyseerrUser?.settings?.region || "US",
-    [jellyseerrUser]
-  );
 
   const releases = useMemo(
     () =>
