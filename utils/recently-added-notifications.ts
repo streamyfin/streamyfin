@@ -86,7 +86,7 @@ export async function fetchAndStoreRecentlyAdded(
     );
 
     const jellyfin = new Jellyfin({
-      clientInfo: { name: "Streamyfin", version: "0.26.1" },
+      clientInfo: { name: "Streamyfin", version: "0.27.0" },
       deviceInfo: {
         name: deviceName,
         id,
