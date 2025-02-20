@@ -237,7 +237,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           videoStream?.Codec
         } ${videoStream?.VideoRange?.toUpperCase()} ${Math.round(
           (videoStream?.BitRate || 0) / 1000000
-        )}Mbps)}`}
+        )}Mbps)`}
         transcodeValue={`${videoStreamTitle()} (${session.TranscodingInfo?.VideoCodec?.toUpperCase()} ${toMbps(
           session.TranscodingInfo?.Bitrate || 0
         )}Mbps)}`}
@@ -254,7 +254,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           audioStream?.Language
         } (${audioStream?.Codec?.toUpperCase()} ${
           audioStream?.ChannelLayout
-        }) ${toMbps(audioStream?.BitRate || 0)}Mbps`}
+        } ${toMbps(audioStream?.BitRate || 0)}Mbps)`}
         transcodeValue={`${session.TranscodingInfo?.AudioCodec?.toUpperCase()} ${
           session.TranscodingInfo?.AudioChannels
         } ${toMbps(session.TranscodingInfo?.Bitrate || 0)}Mbps`}
