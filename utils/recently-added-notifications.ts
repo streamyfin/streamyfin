@@ -66,7 +66,7 @@ export async function fetchAndStoreRecentlyAdded(
   userId: string,
   basePath: string,
   token: string
-) {
+): Promise<number> {
   try {
     const deviceName = await getDeviceName();
     const id = getOrSetDeviceId();
@@ -153,7 +153,7 @@ export async function fetchAndStoreRecentlyAdded(
         RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY,
         JSON.stringify(items.map((item) => item.Id))
       );
-      return;
+      return 0;
     } else {
       // Only send notifications for items that haven't been sent yet
       for (const newItem of items) {
@@ -176,8 +176,12 @@ export async function fetchAndStoreRecentlyAdded(
         RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY,
         JSON.stringify([...new Set([...alreadySentItemIds, ...newIds])])
       );
+
+      return newIds.length;
     }
   } catch (error) {
     console.error("Error fetching recently added items:", error);
   }
+
+  return 0;
 }
