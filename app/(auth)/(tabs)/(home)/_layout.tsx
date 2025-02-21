@@ -1,5 +1,5 @@
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -152,9 +152,9 @@ const SessionsButton = () => {
       }}
     >
       <View className="mr-4">
-        <Feather
-          name="play"
-          color={sessions.length === 0 ? "white" : "purple"}
+        <Ionicons 
+          name="play-circle"
+          color={sessions.length === 0 ? "white" : "#9333ea"}
           size={22}
         />
       </View>
