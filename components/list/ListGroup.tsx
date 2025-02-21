@@ -29,7 +29,7 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
       </Text>
       <View
         style={[]}
-        className="flex flex-col rounded-xl overflow-hidden pl-4 bg-neutral-900"
+        className="flex flex-col rounded-xl overflow-hidden pl-0 bg-neutral-900"
       >
         {Children.map(childrenArray, (child, index) => {
           if (isValidElement<{ style?: ViewStyle }>(child)) {
