@@ -22,6 +22,7 @@ import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import Dropdown from "@/components/common/Dropdown";
+import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
@@ -164,6 +165,7 @@ export const OtherSettings: React.FC = () => {
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
+
         <ListItem
           title={t("home.settings.other.default_quality")}
           disabled={pluginSettings?.defaultBitrate?.locked}
@@ -173,7 +175,6 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.defaultBitrate?.locked}
             keyExtractor={(item) => item.key}
             titleExtractor={(item) => item.key}
-            selected={settings.defaultBitrate}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">

@@ -4,14 +4,21 @@ import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
   getOrSetDeviceId,
+  getServerUrlFromStorage,
   getTokenFromStorage,
+  getUserFromStorage,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { Settings, useSettings } from "@/utils/atoms/settings";
-import { BACKGROUND_FETCH_TASK } from "@/utils/background-tasks";
+import {
+  BACKGROUND_FETCH_TASK,
+  BACKGROUND_FETCH_TASK_RECENTLY_ADDED,
+  registerBackgroundFetchAsyncRecentlyAdded,
+  unregisterBackgroundFetchAsyncRecentlyAdded,
+} from "@/utils/background-tasks";
 import { LogProvider, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
@@ -41,6 +48,8 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
+import { Jellyfin } from "@jellyfin/sdk";
+import { fetchAndStoreRecentlyAdded } from "@/utils/recently-added-notifications";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -97,6 +106,27 @@ function useNotificationObserver() {
 }
 
 if (!Platform.isTV) {
+  TaskManager.defineTask(BACKGROUND_FETCH_TASK_RECENTLY_ADDED, async () => {
+    const token = getTokenFromStorage();
+    const url = getServerUrlFromStorage();
+    const user = getUserFromStorage();
+
+    console.log(
+      "TaskManager ~ trigger ~ recently added notifications:",
+      token,
+      url,
+      user?.Id
+    );
+
+    if (!token || !url || !user?.Id) return;
+
+    const result = await fetchAndStoreRecentlyAdded(user.Id, url, token);
+
+    if (!result) return BackgroundFetch.BackgroundFetchResult.NoData;
+
+    return BackgroundFetch.BackgroundFetchResult.NewData;
+  });
+
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     console.log("TaskManager ~ trigger");
 
@@ -267,6 +297,32 @@ function Layout() {
     useEffect(() => {
       checkAndRequestPermissions();
     }, []);
+
+    const checkStatusAsync = async () => {
+      if (Platform.isTV) return;
+
+      await BackgroundFetch.getStatusAsync();
+      return await TaskManager.isTaskRegisteredAsync(
+        BACKGROUND_FETCH_TASK_RECENTLY_ADDED
+      );
+    };
+
+    useEffect(() => {
+      (async () => {
+        const isRegistered = await checkStatusAsync();
+
+        if (settings.recentlyAddedNotifications === false && isRegistered) {
+          console.log("unregisterBackgroundFetchAsyncRecentlyAdded");
+          unregisterBackgroundFetchAsyncRecentlyAdded();
+        } else if (
+          settings.recentlyAddedNotifications === true &&
+          !isRegistered
+        ) {
+          console.log("registerBackgroundFetchAsyncRecentlyAdded");
+          registerBackgroundFetchAsyncRecentlyAdded();
+        }
+      })();
+    }, [settings.recentlyAddedNotifications]);
 
     useEffect(() => {
       // If the user has auto rotate enabled, unlock the orientation

@@ -8,6 +8,9 @@ import { toast } from "sonner-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
+import { storage } from "@/utils/mmkv";
+import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
+import { useCallback, useMemo } from "react";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
@@ -40,6 +43,7 @@ export const StorageSettings = () => {
   const calculatePercentage = (value: number, total: number) => {
     return ((value / total) * 100).toFixed(2);
   };
+
 
   return (
     <View>
@@ -109,6 +113,7 @@ export const StorageSettings = () => {
           title={t("home.settings.storage.delete_all_downloaded_files")}
         />
       </ListGroup>
+      
     </View>
   );
 };
