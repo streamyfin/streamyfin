@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, Pressable } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
@@ -79,6 +79,7 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   const onPress = useCallback(async () => {
+    console.log("onPress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -113,105 +114,103 @@ export const PlayButton: React.FC<Props> = ({
 
         switch (selectedIndex) {
           case 0:
-            if (!Platform.isTV) {
-              await CastContext.getPlayServicesState().then(async (state) => {
-                if (state && state !== PlayServicesState.SUCCESS) {
-                  CastContext.showPlayServicesErrorDialog(state);
-                } else {
-                  // Get a new URL with the Chromecast device profile:
-                  try {
-                    const data = await getStreamUrl({
-                      api,
-                      item,
-                      deviceProfile: chromecastProfile,
-                      startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-                      userId: user?.Id,
-                      audioStreamIndex: selectedOptions.audioIndex,
-                      maxStreamingBitrate: selectedOptions.bitrate?.value,
-                      mediaSourceId: selectedOptions.mediaSource?.Id,
-                      subtitleStreamIndex: selectedOptions.subtitleIndex,
-                    });
+            await CastContext.getPlayServicesState().then(async (state) => {
+              if (state && state !== PlayServicesState.SUCCESS) {
+                CastContext.showPlayServicesErrorDialog(state);
+              } else {
+                // Get a new URL with the Chromecast device profile:
+                try {
+                  const data = await getStreamUrl({
+                    api,
+                    item,
+                    deviceProfile: chromecastProfile,
+                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+                    userId: user?.Id,
+                    audioStreamIndex: selectedOptions.audioIndex,
+                    maxStreamingBitrate: selectedOptions.bitrate?.value,
+                    mediaSourceId: selectedOptions.mediaSource?.Id,
+                    subtitleStreamIndex: selectedOptions.subtitleIndex,
+                  });
 
-                    if (!data?.url) {
-                      console.warn("No URL returned from getStreamUrl", data);
-                      Alert.alert(
-                        t("player.client_error"),
-                        t("player.could_not_create_stream_for_chromecast")
-                      );
-                      return;
-                    }
-
-                    client
-                      .loadMedia({
-                        mediaInfo: {
-                          contentUrl: data?.url,
-                          contentType: "video/mp4",
-                          metadata:
-                            item.Type === "Episode"
-                              ? {
-                                  type: "tvShow",
-                                  title: item.Name || "",
-                                  episodeNumber: item.IndexNumber || 0,
-                                  seasonNumber: item.ParentIndexNumber || 0,
-                                  seriesTitle: item.SeriesName || "",
-                                  images: [
-                                    {
-                                      url: getParentBackdropImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                }
-                              : item.Type === "Movie"
-                              ? {
-                                  type: "movie",
-                                  title: item.Name || "",
-                                  subtitle: item.Overview || "",
-                                  images: [
-                                    {
-                                      url: getPrimaryImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                }
-                              : {
-                                  type: "generic",
-                                  title: item.Name || "",
-                                  subtitle: item.Overview || "",
-                                  images: [
-                                    {
-                                      url: getPrimaryImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                },
-                        },
-                        startTime: 0,
-                      })
-                      .then(() => {
-                        // state is already set when reopening current media, so skip it here.
-                        if (isOpeningCurrentlyPlayingMedia) {
-                          return;
-                        }
-                        CastContext.showExpandedControls();
-                      });
-                  } catch (e) {
-                    console.log(e);
+                  if (!data?.url) {
+                    console.warn("No URL returned from getStreamUrl", data);
+                    Alert.alert(
+                      t("player.client_error"),
+                      t("player.could_not_create_stream_for_chromecast")
+                    );
+                    return;
                   }
+
+                  client
+                    .loadMedia({
+                      mediaInfo: {
+                        contentUrl: data?.url,
+                        contentType: "video/mp4",
+                        metadata:
+                          item.Type === "Episode"
+                            ? {
+                                type: "tvShow",
+                                title: item.Name || "",
+                                episodeNumber: item.IndexNumber || 0,
+                                seasonNumber: item.ParentIndexNumber || 0,
+                                seriesTitle: item.SeriesName || "",
+                                images: [
+                                  {
+                                    url: getParentBackdropImageUrl({
+                                      api,
+                                      item,
+                                      quality: 90,
+                                      width: 2000,
+                                    })!,
+                                  },
+                                ],
+                              }
+                            : item.Type === "Movie"
+                            ? {
+                                type: "movie",
+                                title: item.Name || "",
+                                subtitle: item.Overview || "",
+                                images: [
+                                  {
+                                    url: getPrimaryImageUrl({
+                                      api,
+                                      item,
+                                      quality: 90,
+                                      width: 2000,
+                                    })!,
+                                  },
+                                ],
+                              }
+                            : {
+                                type: "generic",
+                                title: item.Name || "",
+                                subtitle: item.Overview || "",
+                                images: [
+                                  {
+                                    url: getPrimaryImageUrl({
+                                      api,
+                                      item,
+                                      quality: 90,
+                                      width: 2000,
+                                    })!,
+                                  },
+                                ],
+                              },
+                      },
+                      startTime: 0,
+                    })
+                    .then(() => {
+                      // state is already set when reopening current media, so skip it here.
+                      if (isOpeningCurrentlyPlayingMedia) {
+                        return;
+                      }
+                      CastContext.showExpandedControls();
+                    });
+                } catch (e) {
+                  console.log(e);
                 }
-              });
-            }
+              }
+            });
             break;
           case 1:
             goToPlayer(queryString, selectedOptions.bitrate?.value);
@@ -323,75 +322,62 @@ export const PlayButton: React.FC<Props> = ({
    */
 
   return (
-    <View>
-      <TouchableOpacity
-        disabled={!item}
-        accessibilityLabel="Play button"
-        accessibilityHint="Tap to play the media"
-        onPress={onPress}
-        className={`relative`}
-        {...props}
-      >
-        <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
-          <Animated.View
-            style={[
-              animatedPrimaryStyle,
-              animatedWidthStyle,
-              {
-                height: "100%",
-              },
-            ]}
-          />
-        </View>
-
+    <TouchableOpacity
+      disabled={!item}
+      accessibilityLabel="Play button"
+      accessibilityHint="Tap to play the media"
+      onPress={onPress}
+      className={`relative`}
+      {...props}
+    >
+      <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
         <Animated.View
-          style={[animatedAverageStyle, { opacity: 0.5 }]}
-          className="absolute w-full h-full top-0 left-0 rounded-xl"
+          style={[
+            animatedPrimaryStyle,
+            animatedWidthStyle,
+            {
+              height: "100%",
+            },
+          ]}
         />
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: colorAtom.primary,
-            borderStyle: "solid",
-          }}
-          className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
-        >
-          <View className="flex flex-row items-center space-x-2">
-            <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-              {runtimeTicksToMinutes(item?.RunTimeTicks)}
-            </Animated.Text>
+      </View>
+
+      <Animated.View
+        style={[animatedAverageStyle, { opacity: 0.5 }]}
+        className="absolute w-full h-full top-0 left-0 rounded-xl"
+      />
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: colorAtom.primary,
+          borderStyle: "solid",
+        }}
+        className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
+      >
+        <View className="flex flex-row items-center space-x-2">
+          <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
+            {runtimeTicksToMinutes(item?.RunTimeTicks)}
+          </Animated.Text>
+          <Animated.Text style={animatedTextStyle}>
+            <Ionicons name="play-circle" size={24} />
+          </Animated.Text>
+          {client && (
             <Animated.Text style={animatedTextStyle}>
-              <Ionicons name="play-circle" size={24} />
+              <Feather name="cast" size={22} />
+              <CastButton tintColor="transparent" />
             </Animated.Text>
-            {client && (
-              <Animated.Text style={animatedTextStyle}>
-                <Feather name="cast" size={22} />
-                <CastButton tintColor="transparent" />
-              </Animated.Text>
-            )}
-            {!client && settings?.openInVLC && (
-              <Animated.Text style={animatedTextStyle}>
-                <MaterialCommunityIcons
-                  name="vlc"
-                  size={18}
-                  color={animatedTextStyle.color}
-                />
-              </Animated.Text>
-            )}
-          </View>
+          )}
+          {!client && settings?.openInVLC && (
+            <Animated.Text style={animatedTextStyle}>
+              <MaterialCommunityIcons
+                name="vlc"
+                size={18}
+                color={animatedTextStyle.color}
+              />
+            </Animated.Text>
+          )}
         </View>
-      </TouchableOpacity>
-      {/* <View className="mt-2 flex flex-row items-center">
-        <Ionicons
-          name="information-circle"
-          size={12}
-          className=""
-          color={"#9BA1A6"}
-        />
-        <Text className="text-neutral-500 ml-1">
-          {directStream ? "Direct stream" : "Transcoded stream"}
-        </Text>
-      </View> */}
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 };

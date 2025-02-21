@@ -270,6 +270,7 @@ function Layout() {
 
     useEffect(() => {
       // If the user has auto rotate enabled, unlock the orientation
+      if (Platform.isTV) return;
       if (settings.autoRotate === true) {
         ScreenOrientation.unlockAsync();
       } else {

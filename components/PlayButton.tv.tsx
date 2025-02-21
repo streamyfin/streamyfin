@@ -63,7 +63,8 @@ export const PlayButton: React.FC<Props> = ({
     [router]
   );
 
-  const onPress = useCallback(async () => {
+  const onPress = () => {
+    console.log("onpress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -79,15 +80,7 @@ export const PlayButton: React.FC<Props> = ({
     const queryString = queryParams.toString();
     goToPlayer(queryString, selectedOptions.bitrate?.value);
     return;
-  }, [
-    item,
-    settings,
-    api,
-    user,
-    router,
-    showActionSheetWithOptions,
-    selectedOptions,
-  ]);
+  };
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item || !item.RunTimeTicks) return 0;
@@ -179,69 +172,55 @@ export const PlayButton: React.FC<Props> = ({
    */
 
   return (
-    <View>
-      <TouchableOpacity
-        disabled={!item}
-        accessibilityLabel="Play button"
-        accessibilityHint="Tap to play the media"
-        onPress={onPress}
-        className={`relative`}
-        {...props}
-      >
-        <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
-          <Animated.View
-            style={[
-              animatedPrimaryStyle,
-              animatedWidthStyle,
-              {
-                height: "100%",
-              },
-            ]}
-          />
-        </View>
-
+    <TouchableOpacity
+      accessibilityLabel="Play button"
+      accessibilityHint="Tap to play the media"
+      onPress={onPress}
+      className={`relative`}
+      {...props}
+    >
+      <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
         <Animated.View
-          style={[animatedAverageStyle, { opacity: 0.5 }]}
-          className="absolute w-full h-full top-0 left-0 rounded-xl"
+          style={[
+            animatedPrimaryStyle,
+            animatedWidthStyle,
+            {
+              height: "100%",
+            },
+          ]}
         />
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: colorAtom.primary,
-            borderStyle: "solid",
-          }}
-          className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
-        >
-          <View className="flex flex-row items-center space-x-2">
-            <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-              {runtimeTicksToMinutes(item?.RunTimeTicks)}
-            </Animated.Text>
+      </View>
+
+      <Animated.View
+        style={[animatedAverageStyle, { opacity: 0.5 }]}
+        className="absolute w-full h-full top-0 left-0 rounded-xl"
+      />
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: colorAtom.primary,
+          borderStyle: "solid",
+        }}
+        className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
+      >
+        <View className="flex flex-row items-center space-x-2">
+          <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
+            {runtimeTicksToMinutes(item?.RunTimeTicks)}
+          </Animated.Text>
+          <Animated.Text style={animatedTextStyle}>
+            <Ionicons name="play-circle" size={24} />
+          </Animated.Text>
+          {settings?.openInVLC && (
             <Animated.Text style={animatedTextStyle}>
-              <Ionicons name="play-circle" size={24} />
+              <MaterialCommunityIcons
+                name="vlc"
+                size={18}
+                color={animatedTextStyle.color}
+              />
             </Animated.Text>
-            {settings?.openInVLC && (
-              <Animated.Text style={animatedTextStyle}>
-                <MaterialCommunityIcons
-                  name="vlc"
-                  size={18}
-                  color={animatedTextStyle.color}
-                />
-              </Animated.Text>
-            )}
-          </View>
+          )}
         </View>
-      </TouchableOpacity>
-      {/* <View className="mt-2 flex flex-row items-center">
-        <Ionicons
-          name="information-circle"
-          size={12}
-          className=""
-          color={"#9BA1A6"}
-        />
-        <Text className="text-neutral-500 ml-1">
-          {directStream ? "Direct stream" : "Transcoded stream"}
-        </Text>
-      </View> */}
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 };

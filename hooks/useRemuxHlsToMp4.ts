@@ -11,7 +11,9 @@ import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 
 // import { FFmpegKit, FFmpegSession, Statistics } from "ffmpeg-kit-react-native";
-const FFMPEGKitReactNative = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
+const FFMPEGKitReactNative = !Platform.isTV
+  ? require("ffmpeg-kit-react-native")
+  : null;
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { toast } from "sonner-native";
@@ -24,8 +26,10 @@ import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 
 type FFmpegSession = typeof FFMPEGKitReactNative.FFmpegSession;
-type Statistics = typeof FFMPEGKitReactNative.Statistics
-const FFmpegKit = FFMPEGKitReactNative.FFmpegKit;
+type Statistics = typeof FFMPEGKitReactNative.Statistics;
+const FFmpegKit = Platform.isTV
+  ? null
+  : (FFMPEGKitReactNative.FFmpegKit as typeof FFMPEGKitReactNative.FFmpegKit);
 const createFFmpegCommand = (url: string, output: string) => [
   "-y", // overwrite output files without asking
   "-thread_queue_size 512", // https://ffmpeg.org/ffmpeg.html#toc-Advanced-options
@@ -101,7 +105,10 @@ export const useRemuxHlsToMp4 = () => {
         }
 
         setProcesses((prev: any[]) => {
-          return prev.filter((process: { itemId: string | undefined; }) => process.itemId !== item.Id);
+          return prev.filter(
+            (process: { itemId: string | undefined }) =>
+              process.itemId !== item.Id
+          );
         });
       } catch (e) {
         console.error(e);
@@ -126,7 +133,7 @@ export const useRemuxHlsToMp4 = () => {
 
       if (!item.Id) throw new Error("Item is undefined");
       setProcesses((prev: any[]) => {
-        return prev.map((process: { itemId: string | undefined; }) => {
+        return prev.map((process: { itemId: string | undefined }) => {
           if (process.itemId === item.Id) {
             return {
               ...process,
@@ -161,15 +168,18 @@ export const useRemuxHlsToMp4 = () => {
       // First lets save any important assets we want to present to the user offline
       await onSaveAssets(api, item);
 
-      toast.success(t("home.downloads.toasts.download_started_for", {item: item.Name}), {
-        action: {
-          label: "Go to download",
-          onClick: () => {
-            router.push("/downloads");
-            toast.dismiss();
+      toast.success(
+        t("home.downloads.toasts.download_started_for", { item: item.Name }),
+        {
+          action: {
+            label: "Go to download",
+            onClick: () => {
+              router.push("/downloads");
+              toast.dismiss();
+            },
           },
-        },
-      });
+        }
+      );
 
       try {
         const job: JobStatus = {
@@ -201,7 +211,10 @@ export const useRemuxHlsToMp4 = () => {
           Error: ${error.message}, Stack: ${error.stack}`
         );
         setProcesses((prev: any[]) => {
-          return prev.filter((process: { itemId: string | undefined; }) => process.itemId !== item.Id);
+          return prev.filter(
+            (process: { itemId: string | undefined }) =>
+              process.itemId !== item.Id
+          );
         });
         throw error; // Re-throw the error to propagate it to the caller
       }
