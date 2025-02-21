@@ -9,6 +9,7 @@ import { storage } from "@/utils/mmkv";
 import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
 import * as TaskManager from "expo-task-manager";
 import * as BackgroundFetch from "expo-background-fetch";
+import { useMMKVNumber } from "react-native-mmkv";
 
 export const RecentlyAddedNotificationsSettings: React.FC = ({ ...props }) => {
   const [settings, updateSettings] = useSettings();
@@ -28,6 +29,10 @@ export const RecentlyAddedNotificationsSettings: React.FC = ({ ...props }) => {
     }
   }, []);
 
+  const [triggerCount, setTriggerCount] = useMMKVNumber(
+    "notification_send_for_item_ids.count"
+  );
+
   return (
     <View className="mb-4" {...props}>
       <ListGroup title={"Recently Added Notifications"}>
@@ -39,6 +44,7 @@ export const RecentlyAddedNotificationsSettings: React.FC = ({ ...props }) => {
             }
           />
         </ListItem>
+        <ListItem title={`Trigger count (${triggerCount || 0})`} />
         <ListItem
           textColor="red"
           onPress={clearRecentlyAddedNotifications}

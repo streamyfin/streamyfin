@@ -111,6 +111,9 @@ if (!Platform.isTV) {
     const url = getServerUrlFromStorage();
     const user = getUserFromStorage();
 
+    const c = storage.getNumber("notification_send_for_item_ids.count");
+    storage.set("notification_send_for_item_ids.count", (c || 0) + 1);
+
     console.log(
       "TaskManager ~ trigger ~ recently added notifications:",
       token,
