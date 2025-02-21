@@ -1,16 +1,15 @@
 import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { storage } from "@/utils/mmkv";
 import { JobStatus } from "@/utils/optimize-server";
 import { formatTimeString } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-const FFmpegKitProvider = !Platform.isTV ? require("ffmpeg-kit-react-native") : null;
-import { useAtom } from "jotai";
+import { t } from "i18next";
+import { useMemo } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -21,10 +20,12 @@ import {
 } from "react-native";
 import { toast } from "sonner-native";
 import { Button } from "../Button";
-import { Image } from "expo-image";
-import { useMemo } from "react";
-import { storage } from "@/utils/mmkv";
-import { t } from "i18next";
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
+const FFmpegKitProvider = !Platform.isTV
+  ? require("ffmpeg-kit-react-native")
+  : null;
 
 interface Props extends ViewProps {}
 
@@ -33,14 +34,20 @@ export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
   if (processes?.length === 0)
     return (
       <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
-        <Text className="text-lg font-bold">{t("home.downloads.active_download")}</Text>
-        <Text className="opacity-50">{t("home.downloads.no_active_downloads")}</Text>
+        <Text className="text-lg font-bold">
+          {t("home.downloads.active_download")}
+        </Text>
+        <Text className="opacity-50">
+          {t("home.downloads.no_active_downloads")}
+        </Text>
       </View>
     );
 
   return (
     <View {...props} className="bg-neutral-900 p-4 rounded-2xl">
-      <Text className="text-lg font-bold mb-2">{t("home.downloads.active_downloads")}</Text>
+      <Text className="text-lg font-bold mb-2">
+        {t("home.downloads.active_downloads")}
+      </Text>
       <View className="space-y-2">
         {processes?.map((p: JobStatus) => (
           <DownloadCard key={p.item.Id} process={p} />
@@ -81,7 +88,9 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
         }
       } else {
         FFmpegKitProvider.FFmpegKit.cancel(Number(id));
-        setProcesses((prev: any[]) => prev.filter((p: { id: string; }) => p.id !== id));
+        setProcesses((prev: any[]) =>
+          prev.filter((p: { id: string }) => p.id !== id)
+        );
       }
     },
     onSuccess: () => {
@@ -156,7 +165,9 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                 <Text className="text-xs">{process.speed?.toFixed(2)}x</Text>
               )}
               {eta(process) && (
-                <Text className="text-xs">{t("home.downloads.eta", {eta: eta(process)})}</Text>
+                <Text className="text-xs">
+                  {t("home.downloads.eta", { eta: eta(process) })}
+                </Text>
               )}
             </View>
 

@@ -540,17 +540,19 @@ export const Controls: React.FC<Props> = ({
             pointerEvents={showControls ? "auto" : "none"}
             className={`flex flex-row w-full pt-2`}
           >
-            <View className="mr-auto">
-              <VideoProvider
-                getAudioTracks={getAudioTracks}
-                getSubtitleTracks={getSubtitleTracks}
-                setAudioTrack={setAudioTrack}
-                setSubtitleTrack={setSubtitleTrack}
-                setSubtitleURL={setSubtitleURL}
-              >
-                <DropdownView showControls={showControls} />
-              </VideoProvider>
-            </View>
+            {!Platform.isTV && (
+              <View className="mr-auto">
+                <VideoProvider
+                  getAudioTracks={getAudioTracks}
+                  getSubtitleTracks={getSubtitleTracks}
+                  setAudioTrack={setAudioTrack}
+                  setSubtitleTrack={setSubtitleTrack}
+                  setSubtitleURL={setSubtitleURL}
+                >
+                  <DropdownView showControls={showControls} />
+                </VideoProvider>
+              </View>
+            )}
 
             <View className="flex flex-row items-center space-x-2 ">
               {!Platform.isTV && (

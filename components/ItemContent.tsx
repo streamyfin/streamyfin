@@ -15,6 +15,7 @@ import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarous
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
 import { useOrientation } from "@/hooks/useOrientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -24,17 +25,16 @@ import {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
+import { AddToFavorites } from "./AddToFavorites";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
-import { AddToFavorites } from "./AddToFavorites";
+const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -94,7 +94,9 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 />
                 {item.Type !== "Program" && (
                   <View className="flex flex-row items-center space-x-2">
-                    <DownloadSingleItem item={item} size="large" />
+                    {!Platform.isTV && (
+                      <DownloadSingleItem item={item} size="large" />
+                    )}
                     <PlayedStatus items={[item]} size="large" />
                     <AddToFavorites item={item} type="item" />
                   </View>
@@ -164,7 +166,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           }
         >
           <View className="flex flex-col bg-transparent shrink">
-            {/* {!Platform.isTV && ( */}
             <View className="flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink">
               <ItemHeader item={item} className="mb-4" />
               {item.Type !== "Program" && !Platform.isTV && (
@@ -222,13 +223,11 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 </View>
               )}
 
-              {/* {!Platform.isTV && ( */}
               <PlayButton
                 className="grow"
                 selectedOptions={selectedOptions}
                 item={item}
               />
-              {/* )} */}
             </View>
 
             {item.Type === "Episode" && (
