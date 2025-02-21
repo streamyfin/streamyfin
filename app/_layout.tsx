@@ -120,7 +120,11 @@ if (!Platform.isTV) {
 
     if (!token || !url || !user?.Id) return;
 
-    fetchAndStoreRecentlyAdded(user.Id, url, token);
+    const result = await fetchAndStoreRecentlyAdded(user.Id, url, token);
+
+    if (!result) return BackgroundFetch.BackgroundFetchResult.NoData;
+
+    return BackgroundFetch.BackgroundFetchResult.NewData;
   });
 
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
