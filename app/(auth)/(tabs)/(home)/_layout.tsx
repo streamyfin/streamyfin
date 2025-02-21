@@ -31,6 +31,7 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast />
+                  <SessionsButton />
                   <SettingsButton />
                 </>
               )}
@@ -48,6 +49,12 @@ export default function IndexLayout() {
         name="downloads/[seriesId]"
         options={{
           title: t("home.downloads.tvseries"),
+        }}
+      />
+      <Stack.Screen
+        name="sessions/index"
+        options={{
+          title: t("home.sessions.title"),
         }}
       />
       <Stack.Screen
@@ -120,7 +127,6 @@ export default function IndexLayout() {
 const SettingsButton = () => {
   const router = useRouter();
   const [user] = useAtom(userAtom);
-  const { sessions = [], isLoading } = useSessions({} as useSessionsProps);
 
   return (
     <TouchableOpacity
@@ -128,11 +134,28 @@ const SettingsButton = () => {
         router.push("/(auth)/settings");
       }}
     >
-      <Feather
-        name="settings"
-        color={sessions.length === 0 ? "white" : "purple"}
-        size={22}
-      />
+      <Feather name="settings" color={"white"} size={22} />
+    </TouchableOpacity>
+  );
+};
+
+const SessionsButton = () => {
+  const router = useRouter();
+  const { sessions = [], _ } = useSessions({} as useSessionsProps);
+
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        router.push("/(auth)/sessions");
+      }}
+    >
+      <View className="mr-4">
+        <Feather
+          name="play"
+          color={sessions.length === 0 ? "white" : "purple"}
+          size={22}
+        />
+      </View>
     </TouchableOpacity>
   );
 };

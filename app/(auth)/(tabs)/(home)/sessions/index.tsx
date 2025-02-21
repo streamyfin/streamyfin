@@ -36,7 +36,7 @@ export default function page() {
     return (
       <View className="h-full w-full flex justify-center items-center">
         <Text className="text-lg text-neutral-500">
-          {t("home.settings.dashboard.no_active_sessions")}
+          {t("home.sessions.no_active_sessions")}
         </Text>
       </View>
     );
@@ -159,32 +159,11 @@ const SessionCard = ({ session }: SessionCardProps) => {
   );
 };
 
-interface StreamProps {
-  resolution: String | null | undefined;
-  language: String | null | undefined;
-  codec: String | null | undefined;
-  bitrate: number | null | undefined;
-  videoRange: String | null | undefined;
-  audioChannels: String | null | undefined;
-}
-
-interface TranscodingStreamViewProps {
-  title: String | undefined;
-  value: String;
-  isTranscoding: Boolean;
-  transcodeValue: String | undefined | null;
+interface TranscodingBadgesProps {
   properties: Array<StreamProps>;
-  transcodeProperties: Array<StreamProps>;
 }
 
-const TranscodingStreamView = ({
-  title,
-  value,
-  isTranscoding,
-  transcodeValue,
-  properties = [],
-  transcodeProperties = [],
-}: TranscodingStreamViewProps) => {
+const TranscodingBadges = ({ properties = [] }: TranscodingBadgesProps) => {
   const icon = (val: string) => {
     switch (val) {
       case "bitrate":
@@ -222,6 +201,47 @@ const TranscodingStreamView = ({
     }
   };
 
+  return Object.keys(properties)
+    .filter(
+      (key) => !(properties[key] === undefined || properties[key] === null)
+    )
+    .map((key) => (
+      <Badge
+        key={key}
+        variant="gray"
+        className="m-0 p-0 pt-0.5 mr-1"
+        text={formatVal(key, properties[key])}
+        iconLeft={icon(key)}
+      />
+    ));
+};
+
+interface StreamProps {
+  resolution: String | null | undefined;
+  language: String | null | undefined;
+  codec: String | null | undefined;
+  bitrate: number | null | undefined;
+  videoRange: String | null | undefined;
+  audioChannels: String | null | undefined;
+}
+
+interface TranscodingStreamViewProps {
+  title: String | undefined;
+  value: String;
+  isTranscoding: Boolean;
+  transcodeValue: String | undefined | null;
+  properties: Array<StreamProps>;
+  transcodeProperties: Array<StreamProps>;
+}
+
+const TranscodingStreamView = ({
+  title,
+  value,
+  isTranscoding,
+  transcodeValue,
+  properties = [],
+  transcodeProperties = [],
+}: TranscodingStreamViewProps) => {
   return (
     <View className="flex flex-col pt-2 first:pt-0">
       <View className="flex flex-row">
@@ -229,20 +249,7 @@ const TranscodingStreamView = ({
           {title}
         </Text>
         <Text className="flex-1">
-          {Object.keys(properties)
-            .filter(
-              (key) =>
-                !(properties[key] === undefined || properties[key] === null)
-            )
-            .map((key) => (
-              <Badge
-                key={key}
-                variant="gray"
-                className="m-0 p-0 pt-0.5 mr-1"
-                text={formatVal(key, properties[key])}
-                iconLeft={icon(key)}
-              />
-            ))}
+          <TranscodingBadges properties={properties} />
         </Text>
       </View>
       {isTranscoding && (
@@ -256,23 +263,7 @@ const TranscodingStreamView = ({
               />
             </Text>
             <Text className="flex-1 text-sm mt-1">
-              {Object.keys(transcodeProperties)
-                .filter(
-                  (key) =>
-                    !(
-                      transcodeProperties[key] === undefined ||
-                      transcodeProperties[key] === null
-                    )
-                )
-                .map((key) => (
-                  <Badge
-                    key={key}
-                    variant="gray"
-                    className="m-0 p-0 mr-1"
-                    text={formatVal(key, transcodeProperties[key])}
-                    iconLeft={icon(key)}
-                  />
-                ))}
+              <TranscodingBadges properties={transcodeProperties} />
             </Text>
           </View>
         </>

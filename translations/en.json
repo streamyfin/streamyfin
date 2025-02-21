@@ -147,7 +147,7 @@
         "default": "Default",
         "optimized_version_hint": "Enter the URL for the optimize server. The URL should include http or https and optionally the port.",
         "read_more_about_optimized_server": "Read more about the optimize server.",
-        "url":"URL",
+        "url": "URL",
         "server_url_placeholder": "http(s)://domain.org:port"
       },
       "plugins": {
@@ -204,7 +204,7 @@
         "app_language_description": "Select the language for the app.",
         "system": "System"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Error deleting files",
         "background_downloads_enabled": "Background downloads enabled",
         "background_downloads_disabled": "Background downloads disabled",
@@ -212,11 +212,10 @@
         "could_not_connect": "Could not connect",
         "invalid_url": "Invalid URL"
       },
-      "dashboard": {
-        "title": "Dashboard",
-        "sessions_title": "Sessions",
-        "no_active_sessions": "No active sessions"
-      },
+    },
+    "sessions": {
+      "title": "Sessions",
+      "no_active_sessions": "No active sessions"
     },
     "downloads": {
       "downloads_title": "Downloads",
@@ -404,7 +403,7 @@
     "for_kids": "For Kids",
     "news": "News"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Confirm",
     "cancel": "Cancel",
     "yes": "Yes",
