@@ -16,11 +16,21 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
-import React, { useEffect } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useMemo } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as TaskManager from "expo-task-manager";
+import { BACKGROUND_FETCH_TASK_RECENTLY_ADDED } from "@/utils/background-tasks";
+import { RecentlyAddedNotificationsSettings } from "@/components/settings/RecentlyAddedNotifications";
 
 export default function settings() {
   const router = useRouter();
@@ -91,7 +101,7 @@ export default function settings() {
           />
         </ListGroup>
 
-        <View className="mb-4">
+        <View className="">
           <ListGroup title={t("home.settings.logs.logs_title")}>
             <ListItem
               onPress={() => router.push("/settings/logs/page")}
@@ -106,7 +116,21 @@ export default function settings() {
           </ListGroup>
         </View>
 
-        <StorageSettings />
+        <RecentlyAddedNotificationsSettings />
+
+        <View
+          style={{
+            height: StyleSheet.hairlineWidth,
+            backgroundColor: "white",
+            overflow: "hidden",
+            marginVertical: 16,
+            opacity: 0.3,
+          }}
+        ></View>
+
+        <View className="">
+          <StorageSettings />
+        </View>
       </View>
     </ScrollView>
   );

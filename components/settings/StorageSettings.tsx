@@ -44,20 +44,6 @@ export const StorageSettings = () => {
     return ((value / total) * 100).toFixed(2);
   };
 
-  const clearRecentlyAddedNotifications = useCallback(() => {
-    storage.delete(RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY);
-  }, []);
-
-  const recentlyAddedNotificationsItemIds = useMemo(() => {
-    const s = storage.getString(RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY);
-    if (!s) return [] as string[];
-    try {
-      const t: string[] = JSON.parse(s);
-      return t;
-    } catch (e) {
-      throw new Error("Failed to parse recently added notifications item ids");
-    }
-  }, []);
 
   return (
     <View>
@@ -127,13 +113,7 @@ export const StorageSettings = () => {
           title={t("home.settings.storage.delete_all_downloaded_files")}
         />
       </ListGroup>
-      <ListGroup>
-        <ListItem
-          textColor="red"
-          onPress={clearRecentlyAddedNotifications}
-          title={`Reset recently added notifications (${recentlyAddedNotificationsItemIds.length})`}
-        />
-      </ListGroup>
+      
     </View>
   );
 };

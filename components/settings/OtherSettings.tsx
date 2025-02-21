@@ -22,6 +22,7 @@ import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import Dropdown from "@/components/common/Dropdown";
+import { RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY } from "@/utils/recently-added-notifications";
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
@@ -199,14 +200,6 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.disableHapticFeedback?.locked}
             onValueChange={(disableHapticFeedback) =>
               updateSettings({ disableHapticFeedback })
-            }
-          />
-        </ListItem>
-        <ListItem title={"Recently added notifications"}>
-          <Switch
-            value={settings.recentlyAddedNotifications}
-            onValueChange={(recentlyAddedNotifications) =>
-              updateSettings({ recentlyAddedNotifications })
             }
           />
         </ListItem>
