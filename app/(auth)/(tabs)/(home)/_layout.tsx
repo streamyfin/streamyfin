@@ -4,10 +4,15 @@ import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
 const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
+import { useAtom } from "jotai";
+import { userAtom } from "@/providers/JellyfinProvider";
+import { useSessions, useSessionsProps } from "@/hooks/useSessions";
 
 export default function IndexLayout() {
   const router = useRouter();
+  const [user] = useAtom(userAtom);
   const { t } = useTranslation();
+
   return (
     <Stack>
       <Stack.Screen
@@ -27,13 +32,10 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast />
-                  <TouchableOpacity
-                    onPress={() => {
-                      router.push("/(auth)/settings");
-                    }}
-                  >
-                    <Feather name="settings" color={"white"} size={22} />
-                  </TouchableOpacity>
+                   {user.Policy?.IsAdministrator && (
+                    <SessionsButton />
+                   )}
+                  <SettingsButton />
                 </>
               )}
             </View>
@@ -53,6 +55,12 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name="sessions/index"
+        options={{
+          title: t("home.sessions.title"),
+        }}
+      />
+      <Stack.Screen
         name="settings"
         options={{
           title: t("home.settings.settings_title"),
@@ -68,6 +76,12 @@ export default function IndexLayout() {
         name="settings/marlin-search/page"
         options={{
           title: "",
+        }}
+      />
+      <Stack.Screen
+        name="settings/dashboard/sessions"
+        options={{
+          title: t("home.settings.dashboard.sessions_title"),
         }}
       />
       <Stack.Screen
@@ -112,3 +126,38 @@ export default function IndexLayout() {
     </Stack>
   );
 }
+
+const SettingsButton = () => {
+  const router = useRouter();
+
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        router.push("/(auth)/settings");
+      }}
+    >
+      <Feather name="settings" color={"white"} size={22} />
+    </TouchableOpacity>
+  );
+};
+
+const SessionsButton = () => {
+  const router = useRouter();
+  const { sessions = [], _ } = useSessions({} as useSessionsProps);
+
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        router.push("/(auth)/sessions");
+      }}
+    >
+      <View className="mr-4">
+        <Feather
+          name="play"
+          color={sessions.length === 0 ? "white" : "purple"}
+          size={22}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+};

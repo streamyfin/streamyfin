@@ -12,6 +12,7 @@ import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { UserInfo } from "@/components/settings/UserInfo";
+import { Dashboard } from "@/components/settings/Dashboard";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useJellyfin } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
@@ -21,10 +22,13 @@ import { t } from "i18next";
 import React, { useEffect } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAtom } from "jotai";
+import { userAtom } from "@/providers/JellyfinProvider";
 
 export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [user] = useAtom(userAtom);
   const { logout } = useJellyfin();
   const successHapticFeedback = useHaptic("success");
 
@@ -59,6 +63,9 @@ export default function settings() {
     >
       <View className="p-4 flex flex-col gap-y-4">
         <UserInfo />
+
+        {user && user.Policy?.IsAdministrator && <Dashboard className="mb-4" />}
+
         <QuickConnect className="mb-4" />
 
         <MediaProvider>

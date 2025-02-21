@@ -16,6 +16,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { Button } from "./Button";
 import { useTranslation } from "react-i18next";
+import { formatBitrate } from "@/utils/bitrate";
 
 interface Props {
   source?: MediaSourceInfo;
@@ -54,14 +55,18 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
         <BottomSheetScrollView>
           <View className="flex flex-col space-y-2 p-4 mb-4">
             <View className="">
-              <Text className="text-lg font-bold mb-4">{t("item_card.video")}</Text>
+              <Text className="text-lg font-bold mb-4">
+                {t("item_card.video")}
+              </Text>
               <View className="flex flex-row space-x-2">
                 <VideoStreamInfo source={source} />
               </View>
             </View>
 
             <View className="">
-              <Text className="text-lg font-bold mb-2">{t("item_card.audio")}</Text>
+              <Text className="text-lg font-bold mb-2">
+                {t("item_card.audio")}
+              </Text>
               <AudioStreamInfo
                 audioStreams={
                   source?.MediaStreams?.filter(
@@ -72,7 +77,9 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
             </View>
 
             <View className="">
-              <Text className="text-lg font-bold mb-2">{t("item_card.subtitles")}</Text>
+              <Text className="text-lg font-bold mb-2">
+                {t("item_card.subtitles")}
+              </Text>
               <SubtitleStreamInfo
                 subtitleStreams={
                   source?.MediaStreams?.filter(
@@ -228,13 +235,4 @@ const formatFileSize = (bytes?: number | null) => {
   if (bytes === 0) return "0 Byte";
   const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString());
   return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
-};
-
-const formatBitrate = (bitrate?: number | null) => {
-  if (!bitrate) return "N/A";
-
-  const sizes = ["bps", "Kbps", "Mbps", "Gbps", "Tbps"];
-  if (bitrate === 0) return "0 bps";
-  const i = parseInt(Math.floor(Math.log(bitrate) / Math.log(1000)).toString());
-  return Math.round((bitrate / Math.pow(1000, i)) * 100) / 100 + " " + sizes[i];
 };
