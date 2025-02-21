@@ -153,7 +153,7 @@ export async function fetchAndStoreRecentlyAdded(
         RECENTLY_ADDED_SENT_NOTIFICATIONS_ITEM_IDS_KEY,
         JSON.stringify(items.map((item) => item.Id))
       );
-      return 0;
+      return items.length;
     } else {
       // Only send notifications for items that haven't been sent yet
       for (const newItem of items) {
