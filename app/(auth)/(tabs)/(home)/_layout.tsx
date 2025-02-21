@@ -10,6 +10,7 @@ import { useSessions, useSessionsProps } from "@/hooks/useSessions";
 
 export default function IndexLayout() {
   const router = useRouter();
+  const [user] = useAtom(userAtom);
   const { t } = useTranslation();
 
   return (
@@ -31,7 +32,9 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast />
-                  <SessionsButton />
+                   {user.Policy?.IsAdministrator && (
+                    <SessionsButton />
+                   )}
                   <SettingsButton />
                 </>
               )}
@@ -126,7 +129,6 @@ export default function IndexLayout() {
 
 const SettingsButton = () => {
   const router = useRouter();
-  const [user] = useAtom(userAtom);
 
   return (
     <TouchableOpacity
