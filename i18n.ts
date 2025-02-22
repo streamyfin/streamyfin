@@ -9,6 +9,7 @@ import it from "./translations/it.json";
 import ja from "./translations/ja.json";
 import nl from "./translations/nl.json";
 import sv from "./translations/sv.json";
+import zhCN from './translations/zh-CN.json';
 import zhTW from './translations/zh-TW.json';
 import { getLocales } from "expo-localization";
 
@@ -21,6 +22,7 @@ export const APP_LANGUAGES = [
   { label: "日本語", value: "ja" },
   { label: "Nederlands", value: "nl" },
   { label: "Svenska", value: "sv" },
+  { label: "简体中文", value: "zh-CN" },
   { label: "繁體中文", value: "zh-TW" },
 ];
 
@@ -35,6 +37,7 @@ i18n.use(initReactI18next).init({
     ja: { translation: ja },
     nl: { translation: nl },
     sv: { translation: sv },
+    "zh-CN": { translation: zhCN },
     "zh-TW": { translation: zhTW },
   },
 
