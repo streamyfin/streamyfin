@@ -155,7 +155,7 @@ const SessionsButton = () => {
         <Ionicons 
           name="play-circle"
           color={sessions.length === 0 ? "white" : "#9333ea"}
-          size={22}
+          size={25}
         />
       </View>
     </TouchableOpacity>
