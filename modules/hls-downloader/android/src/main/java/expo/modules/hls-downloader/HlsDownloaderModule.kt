@@ -14,6 +14,8 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONObject
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.util.concurrent.Executors
 
 class HlsDownloaderModule : Module() {
@@ -103,6 +105,9 @@ class HlsDownloaderModule : Module() {
                                         }
                                     }
                                 }
+
+                                // Convert .v3.exo files to .ts files
+                                convertExoToTs(providerDir)
 
                                 // Generate the .m3u8 playlist
                                 createM3U8Playlist(context, metadata.providedId)
@@ -295,66 +300,113 @@ class HlsDownloaderModule : Module() {
     }
 
     private fun createM3U8Playlist(context: Context, providerId: String) {
-    val providerDir = File(context.filesDir, "downloads/$providerId")
+        val providerDir = File(context.filesDir, "downloads/$providerId")
 
-    // Check if the provider directory exists 
-    if (!providerDir.exists() || !providerDir.isDirectory) {
-        android.util.Log.e("M3U8", "Provider directory does not exist: ${providerDir.absolutePath}")
-        return
-    }
-
-    // List all subfolders (0/, 1/, 2/, etc.)
-    val subFolders = providerDir.listFiles { file -> 
-        file.isDirectory && file.name.matches(Regex("\\d+")) // Match folders with numeric names
-    }
-
-    if (subFolders.isNullOrEmpty()) {
-        android.util.Log.e("M3U8", "No subfolders found in ${providerDir.absolutePath}")
-        return
-    }
-
-    // Collect all .v3.exo files from subfolders
-    val segmentFiles = mutableListOf<File>()
-    subFolders.forEach { folder ->
-        val filesInFolder = folder.listFiles { file ->
-            file.isFile && file.name.endsWith(".v3.exo") 
-        }
-        if (!filesInFolder.isNullOrEmpty()) {
-            segmentFiles.addAll(filesInFolder)
-        }
-    }
-
-    if (segmentFiles.isEmpty()) {
-        android.util.Log.e("M3U8", "No .v3.exo files found in any subfolder")
-        return
-    }
-
-    // Sort files by their numeric names (e.g., 102.124532.v3.exo)
-    val sortedFiles = segmentFiles.sortedBy { file ->
-        file.nameWithoutExtension.toDoubleOrNull() ?: 0.0
-    }
-
-    // Create the .m3u8 file
-    val m3u8File = File(providerDir, "playlist.m3u8")
-    m3u8File.bufferedWriter().use { writer ->
-        // Write the M3U8 header
-        writer.write("#EXTM3U\n")
-        writer.write("#EXT-X-VERSION:3\n")
-        writer.write("#EXT-X-TARGETDURATION:10\n") // Adjust target duration as needed
-        writer.write("#EXT-X-MEDIA-SEQUENCE:0\n") // Start sequence from 0
-
-        // Write each segment with absolute path
-        sortedFiles.forEach { file ->
-            val segmentDuration = 10.0 // Adjust segment duration as needed
-            val absolutePath = "file://${file.absolutePath}" // Add file:// prefix and use absolute path
-            writer.write("#EXTINF:$segmentDuration,\n") 
-            writer.write("$absolutePath\n") // Use absolute path instead of relative
+        // Check if the provider directory exists
+        if (!providerDir.exists() || !providerDir.isDirectory) {
+            android.util.Log.e("M3U8", "Provider directory does not exist: ${providerDir.absolutePath}")
+            return
         }
 
-        // Write the end tag
-        writer.write("#EXT-X-ENDLIST\n")
+        // List all subfolders (0/, 1/, 2/, etc.)
+        val subFolders = providerDir.listFiles { file ->
+            file.isDirectory && file.name.matches(Regex("\\d+")) // Match folders with numeric names
+        }
+
+        if (subFolders.isNullOrEmpty()) {
+            android.util.Log.e("M3U8", "No subfolders found in ${providerDir.absolutePath}")
+            return
+        }
+
+        // Minimum file size for a valid video segment (e.g., 1 KB)
+        val MIN_FILE_SIZE_BYTES = 1024
+
+        // Collect all .ts files from subfolders
+        val segmentFiles = mutableListOf<File>()
+        subFolders.forEach { folder ->
+            val filesInFolder = folder.listFiles { file ->
+                file.isFile && file.name.endsWith(".ts") && file.length() >= MIN_FILE_SIZE_BYTES
+            }
+            if (!filesInFolder.isNullOrEmpty()) {
+                segmentFiles.addAll(filesInFolder)
+            }
+        }
+
+        if (segmentFiles.isEmpty()) {
+            android.util.Log.e("M3U8", "No valid .ts files found in any subfolder")
+            return
+        }
+
+        // Sort files by their numeric names (e.g., 102.124532.ts)
+        val sortedFiles = segmentFiles.sortedBy { file ->
+            file.nameWithoutExtension.toDoubleOrNull() ?: 0.0
+        }
+
+        // Create the .m3u8 file
+        val m3u8File = File(providerDir, "playlist.m3u8")
+        m3u8File.bufferedWriter().use { writer ->
+            // Write the M3U8 header
+            writer.write("#EXTM3U\n")
+            writer.write("#EXT-X-VERSION:3\n")
+            writer.write("#EXT-X-TARGETDURATION:10\n") // Adjust target duration as needed
+            writer.write("#EXT-X-MEDIA-SEQUENCE:0\n") // Start sequence from 0
+
+            // Write each segment with absolute path
+            sortedFiles.forEach { file ->
+                val segmentDuration = 10.0 // Adjust segment duration as needed
+                val absolutePath = "file://${file.absolutePath}" // Add file:// prefix and use absolute path
+                writer.write("#EXTINF:$segmentDuration,\n")
+                writer.write("$absolutePath\n") // Use absolute path instead of relative
+            }
+
+            // Write the end tag
+            writer.write("#EXT-X-ENDLIST\n")
+        }
+
+        android.util.Log.d("M3U8", "Playlist created at: ${m3u8File.absolutePath}")
     }
 
-    android.util.Log.d("M3U8", "Playlist created at: ${m3u8File.absolutePath}")
-}
+    private fun convertExoToTs(providerDir: File) {
+        // List all subfolders (0/, 1/, 2/, etc.)
+        val subFolders = providerDir.listFiles { file ->
+            file.isDirectory && file.name.matches(Regex("\\d+")) // Match folders with numeric names
+        }
+
+        if (subFolders.isNullOrEmpty()) {
+            android.util.Log.e("ConvertExoToTs", "No subfolders found in ${providerDir.absolutePath}")
+            return
+        }
+
+        // Minimum file size for a valid video segment (e.g., 16 KB)
+        val MIN_FILE_SIZE_BYTES = 16 * 1024
+
+        // Convert .v3.exo files to .ts files
+        subFolders.forEach { folder ->
+            val exoFiles = folder.listFiles { file ->
+                file.isFile && file.name.endsWith(".v3.exo") && file.length() >= MIN_FILE_SIZE_BYTES
+            }
+
+            exoFiles?.forEach { exoFile ->
+                val tsFile = File(folder, "${exoFile.nameWithoutExtension}.ts")
+                try {
+                    // Copy the contents of the .v3.exo file to the .ts file
+                    FileInputStream(exoFile).use { input ->
+                        FileOutputStream(tsFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    android.util.Log.d("ConvertExoToTs", "Converted ${exoFile.name} to ${tsFile.name}")
+
+                    // Delete the .v3.exo file after conversion
+                    if (exoFile.delete()) {
+                        android.util.Log.d("ConvertExoToTs", "Deleted ${exoFile.name}")
+                    } else {
+                        android.util.Log.e("ConvertExoToTs", "Failed to delete ${exoFile.name}")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ConvertExoToTs", "Failed to convert ${exoFile.name} to .ts", e)
+                }
+            }
+        }
+    }
 }

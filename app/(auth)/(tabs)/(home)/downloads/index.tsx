@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
+  Platform,
   RefreshControl,
   ScrollView,
   TouchableOpacity,
@@ -222,9 +223,15 @@ export default function Index() {
                             tintColor="#9334E9"
                             backgroundColor="#bdc3c7"
                           />
-                          <Text className="absolute text-[10px] text-[#bdc3c7] top-[18px] left-[14px]">
-                            {(progress * 100).toFixed(0)}%
-                          </Text>
+                          {Platform.OS === "ios" ? (
+                            <Text className="absolute text-[10px] text-[#bdc3c7] top-[18px] left-[14px]">
+                              {(progress * 100).toFixed(0)}%
+                            </Text>
+                          ) : (
+                            <Text className="absolute text-[12px] text-[#bdc3c7] top-[15px] left-[16px]">
+                              {(progress * 100).toFixed(0)}%
+                            </Text>
+                          )}
                         </View>
                       )}
                     </View>
