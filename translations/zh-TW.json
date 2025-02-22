@@ -152,7 +152,7 @@
       "plugins": {
         "plugins_title": "插件",
         "jellyseerr": {
-          "jellyseerr_warning": "此集成處於早期階段。功能可能會有變化。",
+          "jellyseerr_warning": "此插件處於早期階段。功能可能會有變化。",
           "server_url": "伺服器 URL",
           "server_url_hint": "示例：http(s)://your-host.url\n（如果需要，添加端口）",
           "server_url_placeholder": "Jellyseerr URL...",
@@ -410,7 +410,7 @@
     "submit_button": "提交",
     "report_issue_button": "報告問題",
     "request_button": "請求",
-    "are_you_sure_you_want_to_request_all_seasons": "您確定要請求這個電視節目的所有季度嗎？",
+    "are_you_sure_you_want_to_request_all_seasons": "您確定要請求所有季度的劇集嗎？",
     "failed_to_login": "登入失敗",
     "cast": "演員",
     "details": "詳情",
@@ -438,7 +438,7 @@
     "born": "出生",
     "appearances": "出場",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Jellyseerr 伺服器不符合最低版本要求！請更新至至少 2.0.0",
+      "jellyseer_does_not_meet_requirements": "Jellyseerr 伺服器不符合最低版本要求！請使用 2.0.0 及以上版本。",
       "jellyseerr_test_failed": "Jellyseerr 測試失敗。請再試一次。",
       "failed_to_test_jellyseerr_server_url": "無法測試 Jellyseerr 伺服器 URL",
       "issue_submitted": "問題已提交！",
