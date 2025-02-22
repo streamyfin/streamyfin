@@ -23,6 +23,12 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
     const nativeRef = React.useRef<NativeViewRef>(null);
 
     React.useImperativeHandle(ref, () => ({
+      startDiscovery: async () => {
+        await nativeRef.current?.startDiscovery()
+      },
+      stopDiscovery: async () => {
+        await nativeRef.current?.stopDiscovery()
+      },
       startPictureInPicture: async () => {
         await nativeRef.current?.startPictureInPicture()
       },
@@ -100,6 +106,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
       onVideoLoadEnd,
       onVideoError,
       onPipStarted,
+      onDiscoveryStateChanged,
       ...otherProps
     } = props;
 
@@ -127,6 +134,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
         onVideoProgress={onVideoProgress}
         onVideoError={onVideoError}
         onPipStarted={onPipStarted}
+        onDiscoveryStateChanged={onDiscoveryStateChanged}
       />
     );
   }

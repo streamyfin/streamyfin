@@ -352,7 +352,8 @@
     "audio_tracks": "Audio Tracks:",
     "playback_state": "Afspeelstatus:",
     "no_data_available": "Geen data beschikbaar",
-    "index": "Index:"
+    "index": "Index:",
+    "device_discovery": "Device discovery"
   },
   "item_card": {
     "next_up": "Volgende",

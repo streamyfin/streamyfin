@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import { PropsWithChildren, ReactNode } from "react";
 import {
   TouchableOpacity,
@@ -13,7 +13,7 @@ interface Props extends TouchableOpacityProps, ViewProps {
   value?: string | null | undefined;
   children?: ReactNode;
   iconAfter?: ReactNode;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap | keyof typeof MaterialCommunityIcons.glyphMap;
   showArrow?: boolean;
   textColor?: "default" | "blue" | "red";
   onPress?: () => void;
@@ -89,7 +89,19 @@ const ListItemContent = ({
       <View className="flex flex-row items-center w-full">
         {icon && (
           <View className="border border-neutral-800 rounded-md h-8 w-8 flex items-center justify-center mr-2">
-            <Ionicons name="person-circle-outline" size={18} color="white" />
+            {icon in Ionicons.glyphMap ?
+              <Ionicons
+                name={icon as keyof typeof Ionicons.glyphMap}
+                size={18}
+                color="white"
+              />
+              :
+              <MaterialCommunityIcons
+                name={icon as keyof typeof MaterialCommunityIcons.glyphMap}
+                size={18}
+                color="white"
+              />
+            }
           </View>
         )}
         <Text

@@ -7,10 +7,11 @@ import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybac
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules/vlc-player";
 import {
+  OnDiscoveryStateChangedPayload,
   PipStartedPayload,
   PlaybackStatePayload,
   ProgressUpdatePayload,
-  VlcPlayerViewRef,
+  VlcPlayerViewRef, VLCRendererItem,
 } from "@/modules/vlc-player/src/VlcPlayer.types";
 const downloadProvider = !Platform.isTV ? require("@/providers/DownloadProvider") : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -30,6 +31,11 @@ import { useSettings } from "@/utils/atoms/settings";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BaseItemDto, MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client";
+import {BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomSheetView} from "@gorhom/bottom-sheet";
+import {ListGroup} from "@/components/list/ListGroup";
+import {ListItem} from "@/components/list/ListItem";
+import {storage} from "@/utils/mmkv";
+import {t} from "i18next";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -45,6 +51,8 @@ export default function page() {
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [isPipStarted, setIsPipStarted] = useState(false);
+  const [rendererItems, setRendererItems] = useState<VLCRendererItem[]>([]);
+  const discoveryModal = useRef<BottomSheetModal>(null);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -243,11 +251,6 @@ export default function page() {
     [item?.Id, audioIndex, subtitleIndex, mediaSourceId, isPlaying, stream, isSeeking, isPlaybackStopped, isBuffering]
   );
 
-  const onPipStarted = useCallback((e: PipStartedPayload) => {
-    const { pipStarted } = e.nativeEvent;
-    setIsPipStarted(pipStarted);
-  }, []);
-
   const changePlaybackState = useCallback(
     async (isPlaying: boolean) => {
       if (!api || offline || !stream) return;
@@ -298,9 +301,25 @@ export default function page() {
     offline,
   });
 
-  const onPlaybackStateChanged = useCallback(
-    async (e: PlaybackStatePayload) => {
-      const { state, isBuffering, isPlaying } = e.nativeEvent;
+  const onPipStarted = useCallback((e: PipStartedPayload) => {
+    const { pipStarted } = e.nativeEvent;
+    setIsPipStarted(pipStarted);
+  }, []);
+
+  const onDiscoveryStateChanged = useCallback((e: OnDiscoveryStateChangedPayload) => {
+    const {renderers} = e.nativeEvent;
+    setRendererItems(renderers);
+  }, []);
+
+  const startDiscovery = useCallback(async () => {
+    videoRef?.current?.pause?.()
+    videoRef?.current?.stopDiscovery?.()
+    videoRef?.current?.startDiscovery?.()
+    discoveryModal?.current?.present?.()
+  }, [rendererItems, videoRef])
+
+  const onPlaybackStateChanged = useCallback(async (e: PlaybackStatePayload) => {
+    const { state, isBuffering, isPlaying } = e.nativeEvent;
 
       if (state === "Playing") {
         setIsPlaying(true);
@@ -409,6 +428,7 @@ export default function page() {
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}
           onPipStarted={onPipStarted}
+          onDiscoveryStateChanged={onDiscoveryStateChanged}
           onVideoLoadEnd={() => {
             setIsVideoLoaded(true);
           }}
@@ -420,34 +440,76 @@ export default function page() {
         />
       </View>
       {videoRef.current && !isPipStarted && isMounted === true ? (
-        <Controls
-          mediaSource={stream?.mediaSource}
-          item={item}
-          videoRef={videoRef}
-          togglePlay={togglePlay}
-          isPlaying={isPlaying}
-          isSeeking={isSeeking}
-          progress={progress}
-          cacheProgress={cacheProgress}
-          isBuffering={isBuffering}
-          showControls={showControls}
-          setShowControls={setShowControls}
-          setIgnoreSafeAreas={setIgnoreSafeAreas}
-          ignoreSafeAreas={ignoreSafeAreas}
-          isVideoLoaded={isVideoLoaded}
-          startPictureInPicture={videoRef?.current?.startPictureInPicture}
-          play={videoRef.current?.play}
-          pause={videoRef.current?.pause}
-          seek={videoRef.current?.seekTo}
-          enableTrickplay={true}
-          getAudioTracks={videoRef.current?.getAudioTracks}
-          getSubtitleTracks={videoRef.current?.getSubtitleTracks}
-          offline={offline}
-          setSubtitleTrack={videoRef.current.setSubtitleTrack}
-          setSubtitleURL={videoRef.current.setSubtitleURL}
-          setAudioTrack={videoRef.current.setAudioTrack}
-          isVlc
-        />
+        <>
+          <Controls
+            mediaSource={stream?.mediaSource}
+            item={item}
+            videoRef={videoRef}
+            togglePlay={togglePlay}
+            isPlaying={isPlaying}
+            isSeeking={isSeeking}
+            progress={progress}
+            cacheProgress={cacheProgress}
+            isBuffering={isBuffering}
+            showControls={showControls}
+            setShowControls={setShowControls}
+            setIgnoreSafeAreas={setIgnoreSafeAreas}
+            ignoreSafeAreas={ignoreSafeAreas}
+            isVideoLoaded={isVideoLoaded}
+            startPictureInPicture={videoRef?.current?.startPictureInPicture}
+            play={videoRef.current?.play}
+            pause={videoRef.current?.pause}
+            seek={videoRef.current?.seekTo}
+            enableTrickplay={true}
+            getAudioTracks={videoRef.current?.getAudioTracks}
+            getSubtitleTracks={videoRef.current?.getSubtitleTracks}
+            offline={offline}
+            setSubtitleTrack={videoRef.current.setSubtitleTrack}
+            setSubtitleURL={videoRef.current.setSubtitleURL}
+            setAudioTrack={videoRef.current.setAudioTrack}
+            startDiscovery={startDiscovery}
+            isVlc
+          />
+          <BottomSheetModal
+            ref={discoveryModal}
+            enableDynamicSizing
+            enableDismissOnClose
+            snapPoints={["100%"]}
+            onDismiss={() => {
+              videoRef.current?.stopDiscovery?.()
+              videoRef.current?.play?.()
+            }}
+            handleIndicatorStyle={{
+              backgroundColor: "white",
+            }}
+            backgroundStyle={{
+              backgroundColor: "#171717",
+            }}
+            backdropComponent={(sheetProps: BottomSheetBackdropProps) =>
+              <BottomSheetBackdrop
+                {...sheetProps}
+                disappearsOnIndex={-1}
+                appearsOnIndex={0}
+              />
+            }
+          >
+            <BottomSheetView>
+              <ListGroup title={t("player.device_discovery")} className="mt-4 h-1/3">
+                {rendererItems.map((renderItem, index) => (
+                  <ListItem
+                    onPress={() => {
+                      // todo: set renderer item on player to change to device
+                    }}
+                    icon="cast"
+                    title={renderItem.name}
+                    key={index}
+                  />
+                ))}
+              </ListGroup>
+
+            </BottomSheetView>
+          </BottomSheetModal>
+        </>
       ) : null}
     </View>
   );

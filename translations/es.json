@@ -352,7 +352,8 @@
     "audio_tracks": "Pistas de audio:",
     "playback_state": "Estado de la reproducción:",
     "no_data_available": "No hay datos disponibles",
-    "index": "Índice:"
+    "index": "Índice:",
+    "device_discovery": "Device discovery"
   },
   "item_card": {
     "next_up": "A continuación",
