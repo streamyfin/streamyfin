@@ -10,7 +10,6 @@ import {
 } from "@bottom-tabs/react-navigation";
 
 const { Navigator } = createNativeBottomTabNavigator();
-
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 
 import { Colors } from "@/constants/Colors";
