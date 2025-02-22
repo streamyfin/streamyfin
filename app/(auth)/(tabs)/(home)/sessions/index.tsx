@@ -109,16 +109,29 @@ const SessionCard = ({ session }: SessionCardProps) => {
         <View className="w-full flex-1">
           <View className="flex flex-row justify-between">
             <View className="flex-1 pr-4">
-              <Text className="font-bold">{session.NowPlayingItem?.Name}</Text>
-              {!session.NowPlayingItem?.SeriesName && (
-                <Text className="text-xs opacity-50">
-                  {session.NowPlayingItem?.ProductionYear}
-                </Text>
-              )}
-              {session.NowPlayingItem?.SeriesName && (
-                <Text className="text-xs opacity-50">
-                  {session.NowPlayingItem?.SeriesName}
-                </Text>
+              {session.NowPlayingItem?.Type === "Episode" ? (
+                <>
+                  <Text className="font-bold">
+                    {session.NowPlayingItem?.Name}
+                  </Text>
+                  <Text numberOfLines={1} className="text-xs opacity-50">
+                    {`S${session.NowPlayingItem.ParentIndexNumber?.toString()}:E${session.NowPlayingItem.IndexNumber?.toString()}`}
+                    {" - "}
+                    {session.NowPlayingItem.SeriesName}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text className="font-bold">
+                    {session.NowPlayingItem?.Name}
+                  </Text>
+                  <Text className="text-xs opacity-50">
+                    {session.NowPlayingItem?.ProductionYear}
+                  </Text>
+                  <Text className="text-xs opacity-50">
+                    {session.NowPlayingItem?.SeriesName}
+                  </Text>
+                </>
               )}
             </View>
             <Text className="text-xs opacity-50 align-right text-right">
@@ -131,12 +144,12 @@ const SessionCard = ({ session }: SessionCardProps) => {
           </View>
           <View className="flex-1" />
           <View className="flex flex-col align-bottom">
-            <View className="flex flex-row justify-between align-bottom">
-              <Text className="-ml-1 text-xs opacity-50 align-left text-left">
+            <View className="flex flex-row justify-between align-bottom mb-1">
+              <Text className="-ml-0.5 text-xs opacity-50 align-left text-left">
                 {!session.PlayState?.IsPaused ? (
-                  <Entypo name="controller-play" size={14} color="white" />
+                  <Ionicons name="play" size={14} color="white" />
                 ) : (
-                  <AntDesign name="pause" size={14} color="white" />
+                  <Ionicons name="pause" size={14} color="white" />
                 )}
               </Text>
               <Text className="text-xs opacity-50 align-right text-right">
