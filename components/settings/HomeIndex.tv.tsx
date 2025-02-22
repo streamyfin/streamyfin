@@ -50,7 +50,7 @@ type MediaListSection = {
 
 type Section = ScrollingCollectionListSection | MediaListSection;
 
-export const SettingsIndex = () => {
+export const HomeIndex = () => {
   const router = useRouter();
 
   const { t } = useTranslation();

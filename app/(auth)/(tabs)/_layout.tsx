@@ -63,6 +63,11 @@ export default function TabLayout() {
       >
         <NativeTabs.Screen redirect name="index" />
         <NativeTabs.Screen
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              eventBus.emit("scrollToTop");
+            },
+          })}
           name="(home)"
           options={{
             title: t("tabs.home"),
