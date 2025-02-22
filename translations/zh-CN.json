@@ -108,7 +108,7 @@
           "Smart": "智能",
           "Always": "总是",
           "None": "无",
-          "OnlyForced": "仅强制"
+          "OnlyForced": "仅强制字幕"
         }
       },
       "other": {
@@ -142,7 +142,7 @@
         "optimized_versions_server": "Optimized Version 服务器",
         "save_button": "保存",
         "optimized_server": "Optimized Server",
-        "optimized": "优化",
+        "optimized": "已优化",
         "default": "默认",
         "optimized_version_hint": "输入 Optimized Server 的 URL。URL 应包括 http(s) 和端口 (可选)。",
         "read_more_about_optimized_server": "查看更多关于 Optimized Server 的信息。",
@@ -427,8 +427,8 @@
     "studios": "工作室",
     "network": "网络",
     "currently_streaming_on": "目前在以下流媒体上播放",
-    "advanced": "高级",
-    "request_as": "请求为",
+    "advanced": "高级设置",
+    "request_as": "选择用户以请求",
     "tags": "标签",
     "quality_profile": "质量配置文件",
     "root_folder": "根文件夹",
@@ -450,7 +450,7 @@
   "tabs": {
     "home": "主页",
     "search": "搜索",
-    "library": "库",
+    "library": "媒体库",
     "custom_links": "自定义链接",
     "favorites": "收藏"
   }
