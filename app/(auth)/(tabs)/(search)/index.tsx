@@ -26,12 +26,14 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
 import { useTranslation } from "react-i18next";
+import { eventBus } from "@/utils/eventBus";
 
 type SearchType = "Library" | "Discover";
 
@@ -120,20 +122,43 @@ export default function search() {
     [api, searchEngine, settings]
   );
 
+  type HeaderSearchBarRef = {
+    focus: () => void;
+    blur: () => void;
+    setText: (text: string) => void;
+    clearText: () => void;
+    cancelSearch: () => void;
+  };
+
+  const searchBarRef = useRef<HeaderSearchBarRef>(null);
   const navigation = useNavigation();
   useLayoutEffect(() => {
     navigation.setOptions({
       headerSearchBarOptions: {
+        ref: searchBarRef,
         placeholder: t("search.search"),
         onChangeText: (e: any) => {
           router.setParams({ q: "" });
           setSearch(e.nativeEvent.text);
         },
         hideWhenScrolling: false,
-        autoFocus: true,
+        autoFocus: false,
       },
     });
   }, [navigation]);
+
+  useEffect(() => {
+    const unsubscribe = eventBus.on("searchTabPressed", () => {
+      // Screen not actuve
+      if (!searchBarRef.current) return;
+      // Screen is active, focus search bar
+      searchBarRef.current?.focus();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const { data: movies, isFetching: l1 } = useQuery({
     queryKey: ["search", "movies", debouncedSearch],

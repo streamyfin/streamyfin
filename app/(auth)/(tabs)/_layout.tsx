@@ -20,6 +20,7 @@ import type {
   TabNavigationState,
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { eventBus } from "@/utils/eventBus";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -76,6 +77,11 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              eventBus.emit("searchTabPressed");
+            },
+          })}
           name="(search)"
           options={{
             title: t("tabs.search"),
