@@ -9,7 +9,7 @@ export const useFavorite = (item: BaseItemDto) => {
   const queryClient = useQueryClient();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const type = item.Type;
+  const type = "item";
   const [isFavorite, setIsFavorite] = useState(item.UserData?.IsFavorite);
 
   useEffect(() => {

@@ -62,7 +62,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const from = segments[2];
 
   const showActionSheet = useCallback(() => {
-    if (!(item.Type === "Movie" || item.Type === "Episode")) return;
+    if (!(item.Type === "Movie" || item.Type === "Episode" || item.Type === "Series")) return;
     const options = ["Mark as Played", "Mark as Not Played", isFavorite ? "Unmark as Favorite" : "Mark as Favorite", "Cancel"];
     const cancelButtonIndex = 3;
 
