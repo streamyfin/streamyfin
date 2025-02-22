@@ -9,6 +9,7 @@ import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybac
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { eventBus } from "@/utils/eventBus";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Api } from "@jellyfin/sdk";
 import {
@@ -26,7 +27,7 @@ import NetInfo from "@react-native-community/netinfo";
 import { QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -77,6 +78,8 @@ export const HomeIndex = () => {
 
   const insets = useSafeAreaInsets();
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const { downloadedFiles, cleanCacheDirectory } = useDownload();
   useEffect(() => {
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
@@ -102,6 +105,16 @@ export const HomeIndex = () => {
     cleanCacheDirectory().catch((e) =>
       console.error("Something went wrong cleaning cache directory")
     );
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = eventBus.on("scrollToTop", () => {
+      scrollViewRef.current?.scrollTo({ y: -152, animated: true });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const checkConnection = useCallback(async () => {
@@ -415,6 +428,8 @@ export const HomeIndex = () => {
 
   return (
     <ScrollView
+      scrollToOverflowEnabled={true}
+      ref={scrollViewRef}
       nestedScrollEnabled
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={
