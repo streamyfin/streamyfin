@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.26.0",
+    "version": "0.26.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -31,7 +31,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 52,
+      "versionCode": 53,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive_icon.png"
       },
@@ -106,21 +106,11 @@
           }
         }
       ],
-      [
-        "react-native-bottom-tabs"
-      ],
-      [
-        "./plugins/withChangeNativeAndroidTextToWhite.js"
-      ],
-      [
-        "./plugins/withAndroidManifest.js"
-      ],
-      [
-        "./plugins/withTrustLocalCerts.js"
-      ],
-      [
-        "./plugins/withGradleProperties.js"
-      ],
+      ["react-native-bottom-tabs"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
+      ["./plugins/withAndroidManifest.js"],
+      ["./plugins/withTrustLocalCerts.js"],
+      ["./plugins/withGradleProperties.js"],
       [
         "expo-splash-screen",
         {

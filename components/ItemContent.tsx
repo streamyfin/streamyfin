@@ -16,7 +16,6 @@ import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
 import { useOrientation } from "@/hooks/useOrientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { SubtitleHelper } from "@/utils/SubtitleHelper";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import {
@@ -118,37 +117,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
-
-    const [isTranscoding, setIsTranscoding] = useState(false);
-    const [previouslyChosenSubtitleIndex, setPreviouslyChosenSubtitleIndex] =
-      useState<number | undefined>(selectedOptions?.subtitleIndex);
-
-    useEffect(() => {
-      const isTranscoding = Boolean(selectedOptions?.bitrate.value);
-      if (isTranscoding) {
-        setPreviouslyChosenSubtitleIndex(selectedOptions?.subtitleIndex);
-        const subHelper = new SubtitleHelper(
-          selectedOptions?.mediaSource?.MediaStreams ?? []
-        );
-
-        const newSubtitleIndex = subHelper.getMostCommonSubtitleByName(
-          selectedOptions?.subtitleIndex
-        );
-
-        setSelectedOptions((prev) => ({
-          ...prev!,
-          subtitleIndex: newSubtitleIndex ?? -1,
-        }));
-      }
-      if (!isTranscoding && previouslyChosenSubtitleIndex !== undefined) {
-        setSelectedOptions((prev) => ({
-          ...prev!,
-          subtitleIndex: previouslyChosenSubtitleIndex,
-        }));
-      }
-      setIsTranscoding(isTranscoding);
-    }, [selectedOptions?.bitrate]);
-
     if (!selectedOptions) return null;
 
     return (
@@ -239,7 +207,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     selected={selectedOptions.audioIndex}
                   />
                   <SubtitleTrackSelector
-                    isTranscoding={isTranscoding}
                     source={selectedOptions.mediaSource}
                     onChange={(val) =>
                       setSelectedOptions(

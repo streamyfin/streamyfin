@@ -132,7 +132,8 @@
         "show_custom_menu_links": "Benutzerdefinierte Menülinks anzeigen",
         "hide_libraries": "Bibliotheken ausblenden",
         "select_liraries_you_want_to_hide": "Wähl die Bibliotheken aus, die du im Bibliothekstab und auf der Startseite ausblenden möchtest.",
-        "disable_haptic_feedback": "Haptisches Feedback deaktivieren"
+        "disable_haptic_feedback": "Haptisches Feedback deaktivieren",
+        "default_quality": "Standardqualität"
       },
       "downloads": {
         "downloads_title": "Downloads",
@@ -354,7 +355,7 @@
     "index": "Index:"
   },
   "item_card": {
-    "next_up": "Als nächstes",
+    "next_up": "Als Nächstes",
     "no_items_to_display": "Keine Elemente zum Anzeigen",
     "cast_and_crew": "Besetzung und Crew",
     "series": "Serien",

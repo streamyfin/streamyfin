@@ -15,6 +15,7 @@ export const chromecastProfile: DeviceProfile = {
       Codec: "aac,mp3,flac,opus,vorbis",
     },
   ],
+  ContainerProfiles: [],
   DirectPlayProfiles: [
     {
       Container: "mp4",
