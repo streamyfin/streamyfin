@@ -12,6 +12,7 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   s.ios.dependency 'VLCKit', s.version
   s.tvos.dependency 'VLCKit', s.version
+  s.dependency 'Alamofire', '~> 5.10'
 
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {

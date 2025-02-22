@@ -34,10 +34,10 @@ const ANIMATION_DURATION = 500;
 const MIN_PLAYBACK_WIDTH = 15;
 
 export const PlayButton: React.FC<Props> = ({
-  item,
-  selectedOptions,
-  ...props
-}: Props) => {
+                                              item,
+                                              selectedOptions,
+                                              ...props
+                                            }: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
   const { t } = useTranslation();
 
@@ -57,7 +57,7 @@ export const PlayButton: React.FC<Props> = ({
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
-    (q: string, bitrateValue: number | undefined) => {
+    (q: string) => {
       router.push(`/player/direct-player?${q}`);
     },
     [router]
@@ -78,7 +78,7 @@ export const PlayButton: React.FC<Props> = ({
     });
 
     const queryString = queryParams.toString();
-    goToPlayer(queryString, selectedOptions.bitrate?.value);
+    goToPlayer(queryString);
     return;
   };
 
@@ -88,9 +88,9 @@ export const PlayButton: React.FC<Props> = ({
     if (userData && userData.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0
         ? Math.max(
-            (userData.PlaybackPositionTicks / item.RunTimeTicks) * 100,
-            MIN_PLAYBACK_WIDTH
-          )
+          (userData.PlaybackPositionTicks / item.RunTimeTicks) * 100,
+          MIN_PLAYBACK_WIDTH
+        )
         : 0;
     }
     return 0;

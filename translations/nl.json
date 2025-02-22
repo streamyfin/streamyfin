@@ -147,7 +147,7 @@
         "default": "Standaard",
         "optimized_version_hint": "Vul de URL van de optimalisatieserver in. De URL moet http of https bevatten en eventueel de poort.",
         "read_more_about_optimized_server": "Lees meer over de optimalisatieserver.",
-        "url":"URL",
+        "url": "URL",
         "server_url_placeholder": "http(s)://domein.org:poort"
       },
       "plugins": {
@@ -204,7 +204,7 @@
         "app_language_description": "Selecteer een taal voor de app.",
         "system": "Systeem"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Fout bij het verwijden van bestanden",
         "background_downloads_enabled": "Downloads op de achtergrond ingeschakeld",
         "background_downloads_disabled": "Downloads op de achtergrond uitgeschakeld",
@@ -343,7 +343,7 @@
     "an_error_occured_while_playing_the_video": "Er is een fout opgetreden tijdens het afspelen van de video. Controleer de logs in de instellingen.",
     "client_error": "Fout van de client",
     "could_not_create_stream_for_chromecast": "Kon geen stream maken voor Chromecast",
-    "message_from_server": "Bericht van de server: {{message}}",
+    "message_from_server": "Bericht van de server",
     "video_has_finished_playing": "Video is gedaan met spelen!",
     "no_video_source": "Geen video bron...",
     "next_episode": "Volgende Aflevering",
@@ -399,7 +399,7 @@
     "for_kids": "Voor kinderen",
     "news": "Nieuws"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Bevestig",
     "cancel": "Annuleer",
     "yes": "Ja",
