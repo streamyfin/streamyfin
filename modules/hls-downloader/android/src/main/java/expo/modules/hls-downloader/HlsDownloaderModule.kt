@@ -41,15 +41,28 @@ class HlsDownloaderModule : Module() {
         OnCreate {
             android.util.Log.d(TAG, "Creating HLS Downloader module")
             val context = appContext.reactContext as Context
-            
-            val cacheDir = File(context.filesDir, "downloads")
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs()
-                android.util.Log.d(TAG, "Created base downloads directory: ${cacheDir.absolutePath}")
+
+            // Create the base downloads directory
+            val baseDownloadsDir = File(context.filesDir, "downloads")
+            if (!baseDownloadsDir.exists()) {
+                baseDownloadsDir.mkdirs()
+                android.util.Log.d(TAG, "Created base downloads directory: ${baseDownloadsDir.absolutePath}")
             }
 
             val databaseProvider = StandaloneDatabaseProvider(context)
-            downloadCache = SimpleCache(cacheDir, NoOpCacheEvictor(), databaseProvider)
+
+            // Initialize the cache with a temporary directory
+            val tempCacheDir = File(baseDownloadsDir, "temp")
+            if (!tempCacheDir.exists()) {
+                tempCacheDir.mkdirs()
+                android.util.Log.d(TAG, "Created temp cache directory: ${tempCacheDir.absolutePath}")
+            }
+
+            downloadCache = SimpleCache(
+                tempCacheDir,
+                NoOpCacheEvictor(),
+                databaseProvider
+            )
 
             val dataSourceFactory = DefaultHttpDataSource.Factory()
                 .setUserAgent("Streamyfin/1.0")
@@ -76,6 +89,24 @@ class HlsDownloaderModule : Module() {
                         when (download.state) {
                             Download.STATE_COMPLETED -> {
                                 android.util.Log.d(TAG, "Download completed for ${metadata.providedId}")
+
+                                // Move files from temp directory to providerId directory
+                                val tempDir = File(baseDownloadsDir, "temp")
+                                val providerDir = File(baseDownloadsDir, metadata.providedId)
+                                if (tempDir.exists() && tempDir.isDirectory) {
+                                    tempDir.listFiles()?.forEach { file ->
+                                        val destination = File(providerDir, file.name)
+                                        if (file.renameTo(destination)) {
+                                            android.util.Log.d(TAG, "Moved ${file.name} to ${destination.absolutePath}")
+                                        } else {
+                                            android.util.Log.e(TAG, "Failed to move ${file.name} to ${destination.absolutePath}")
+                                        }
+                                    }
+                                }
+
+                                // Generate the .m3u8 playlist
+                                createM3U8Playlist(context, metadata.providedId)
+
                                 sendEvent(
                                     "onComplete",
                                     mapOf(
@@ -163,11 +194,11 @@ class HlsDownloaderModule : Module() {
         }
 
         Function("downloadHLSAsset") { providedId: String, url: String, metadata: Map<String, Any>? ->
-             android.util.Log.d(TAG, "Starting download for $providedId from $url")
+            android.util.Log.d(TAG, "Starting download for $providedId from $url")
             val startTime = System.currentTimeMillis()
             val context = appContext.reactContext as Context
 
-            // Create the directory for this download
+            // Create the specific download directory
             val downloadDir = File(context.filesDir, "downloads/$providedId")
             if (!downloadDir.exists()) {
                 downloadDir.mkdirs()
@@ -175,12 +206,15 @@ class HlsDownloaderModule : Module() {
             }
 
             try {
-                val downloadRequest = DownloadRequest.Builder(
-                    providedId,
-                    Uri.parse(url)
-                )
-                .setStreamKeys(emptyList())
-                .build()
+                // Create MediaItem with proper URI
+                val mediaItem = MediaItem.Builder()
+                    .setUri(Uri.parse(url))
+                    .setCustomCacheKey(providedId) // This is optional and depends on the media type
+                    .build()
+
+                val downloadRequest = DownloadRequest.Builder(providedId, Uri.parse(url))
+                    .setData(providedId.toByteArray())
+                    .build()
 
                 downloadManager.addDownload(downloadRequest)
                 android.util.Log.d(TAG, "Download request added for $providedId")
@@ -244,15 +278,14 @@ class HlsDownloaderModule : Module() {
     private fun saveMetadataFile(metadata: DownloadMetadata) {
         try {
             val context = appContext.reactContext as Context
-            // Create metadata file in internal storage
+            // Save the metadata file directly in the /downloads folder
             val metadataFile = File(
                 context.filesDir,
-                "downloads/${metadata.providedId}/${metadata.providedId}.json"
+                "downloads/${metadata.providedId}.json" // Save outside the providerId folder
             )
-            
-            // Ensure the parent directory exists
+
             metadataFile.parentFile?.mkdirs()
-            
+
             android.util.Log.d(TAG, "Saving metadata to: ${metadataFile.absolutePath}")
             metadataFile.writeText(JSONObject(metadata.metadata).toString())
         } catch (e: Exception) {
@@ -260,5 +293,68 @@ class HlsDownloaderModule : Module() {
             e.printStackTrace()
         }
     }
-}
 
+    private fun createM3U8Playlist(context: Context, providerId: String) {
+    val providerDir = File(context.filesDir, "downloads/$providerId")
+
+    // Check if the provider directory exists 
+    if (!providerDir.exists() || !providerDir.isDirectory) {
+        android.util.Log.e("M3U8", "Provider directory does not exist: ${providerDir.absolutePath}")
+        return
+    }
+
+    // List all subfolders (0/, 1/, 2/, etc.)
+    val subFolders = providerDir.listFiles { file -> 
+        file.isDirectory && file.name.matches(Regex("\\d+")) // Match folders with numeric names
+    }
+
+    if (subFolders.isNullOrEmpty()) {
+        android.util.Log.e("M3U8", "No subfolders found in ${providerDir.absolutePath}")
+        return
+    }
+
+    // Collect all .v3.exo files from subfolders
+    val segmentFiles = mutableListOf<File>()
+    subFolders.forEach { folder ->
+        val filesInFolder = folder.listFiles { file ->
+            file.isFile && file.name.endsWith(".v3.exo") 
+        }
+        if (!filesInFolder.isNullOrEmpty()) {
+            segmentFiles.addAll(filesInFolder)
+        }
+    }
+
+    if (segmentFiles.isEmpty()) {
+        android.util.Log.e("M3U8", "No .v3.exo files found in any subfolder")
+        return
+    }
+
+    // Sort files by their numeric names (e.g., 102.124532.v3.exo)
+    val sortedFiles = segmentFiles.sortedBy { file ->
+        file.nameWithoutExtension.toDoubleOrNull() ?: 0.0
+    }
+
+    // Create the .m3u8 file
+    val m3u8File = File(providerDir, "playlist.m3u8")
+    m3u8File.bufferedWriter().use { writer ->
+        // Write the M3U8 header
+        writer.write("#EXTM3U\n")
+        writer.write("#EXT-X-VERSION:3\n")
+        writer.write("#EXT-X-TARGETDURATION:10\n") // Adjust target duration as needed
+        writer.write("#EXT-X-MEDIA-SEQUENCE:0\n") // Start sequence from 0
+
+        // Write each segment with absolute path
+        sortedFiles.forEach { file ->
+            val segmentDuration = 10.0 // Adjust segment duration as needed
+            val absolutePath = "file://${file.absolutePath}" // Add file:// prefix and use absolute path
+            writer.write("#EXTINF:$segmentDuration,\n") 
+            writer.write("$absolutePath\n") // Use absolute path instead of relative
+        }
+
+        // Write the end tag
+        writer.write("#EXT-X-ENDLIST\n")
+    }
+
+    android.util.Log.d("M3U8", "Playlist created at: ${m3u8File.absolutePath}")
+}
+}

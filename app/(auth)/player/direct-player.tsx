@@ -128,15 +128,21 @@ export default function page() {
         if (!data?.mediaSource) return null;
 
         let m3u8Url = "";
-        const path = `${FileSystem.documentDirectory}/downloads/${item?.Id}/Data`;
-        const files = await FileSystem.readDirectoryAsync(path);
+        if (Platform.OS === "ios") {
+          const path = `${FileSystem.documentDirectory}/downloads/${item?.Id}/Data`;
+          const files = await FileSystem.readDirectoryAsync(path);
 
-        for (const file of files) {
-          if (file.endsWith(".m3u8")) {
-            console.log(file);
-            m3u8Url = `${path}/${file}`;
-            break;
+          for (const file of files) {
+            if (file.endsWith(".m3u8")) {
+              console.log(file);
+              m3u8Url = `${path}/${file}`;
+              break;
+            }
           }
+        } else if (Platform.OS === "android") {
+          m3u8Url = `${FileSystem.documentDirectory}/downloads/${item?.Id}/playlist.m3u8`;
+          const fileContents = await FileSystem.readAsStringAsync(m3u8Url);
+          console.log(fileContents);
         }
 
         if (!m3u8Url) throw new Error("No m3u8 file found");

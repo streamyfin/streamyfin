@@ -46,6 +46,7 @@ dependencies {
     def media3_version = "1.2.1"
     implementation "androidx.media3:media3-exoplayer:$media3_version"
     implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
+    implementation "androidx.media3:media3-exoplayer-dash:$media3_version"
     implementation "androidx.media3:media3-database:$media3_version"
     implementation "androidx.media3:media3-datasource:$media3_version"
 }
@@ -76,12 +77,11 @@ android {
 }
 
 kotlin {
-  jvmToolchain(17)
+    jvmToolchain(17)
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
     kotlinOptions {
-        freeCompilerArgs += ["-Xshow-kotlin-compiler-errors"]
         jvmTarget = "17"
     }
 }
