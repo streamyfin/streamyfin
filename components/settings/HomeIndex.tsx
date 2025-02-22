@@ -25,7 +25,12 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import NetInfo from "@react-native-community/netinfo";
 import { QueryFunction, useQuery } from "@tanstack/react-query";
-import { useNavigation, useRouter } from "expo-router";
+import {
+  useNavigation,
+  usePathname,
+  useRouter,
+  useSegments,
+} from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -107,15 +112,17 @@ export const HomeIndex = () => {
     );
   }, []);
 
+  const segments = useSegments();
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
-      scrollViewRef.current?.scrollTo({ y: -152, animated: true });
+      if (segments[2] === "(home)")
+        scrollViewRef.current?.scrollTo({ y: -152, animated: true });
     });
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [segments]);
 
   const checkConnection = useCallback(async () => {
     setLoadingRetry(true);
