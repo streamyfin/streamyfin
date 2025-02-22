@@ -147,7 +147,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
               <View
                 className={`bg-purple-600 h-full`}
                 style={{
-                  width: getProgressPercentage() + "%",
+                  width: `${getProgressPercentage()}%`,
                 }}
               />
             </View>
@@ -160,87 +160,76 @@ const SessionCard = ({ session }: SessionCardProps) => {
 };
 
 interface TranscodingBadgesProps {
-  properties: Array<StreamProps>;
+  properties: StreamProps;
 }
 
-const TranscodingBadges = ({ properties = [] }: TranscodingBadgesProps) => {
+const TranscodingBadges = ({ properties }: TranscodingBadgesProps) => {
+  const iconMap = {
+    bitrate: <Ionicons name="speedometer-outline" size={12} color="white" />,
+    codec: <Ionicons name="layers-outline" size={12} color="white" />,
+    videoRange: (
+      <Ionicons name="color-palette-outline" size={12} color="white" />
+    ),
+    resolution: <Ionicons name="film-outline" size={12} color="white" />,
+    language: <Ionicons name="language-outline" size={12} color="white" />,
+    audioChannels: <Ionicons name="mic-outline" size={12} color="white" />,
+  } as const;
+
   const icon = (val: string) => {
-    switch (val) {
-      case "bitrate":
-        return <Ionicons name="speedometer-outline" size={12} color="white" />;
-        break;
-      case "codec":
-        return <Ionicons name="layers-outline" size={12} color="white" />;
-        break;
-      case "videoRange":
-        return (
-          <Ionicons name="color-palette-outline" size={12} color="white" />
-        );
-        break;
-      case "resolution":
-        return <Ionicons name="film-outline" size={12} color="white" />;
-        break;
-      case "language":
-        return <Ionicons name="language-outline" size={12} color="white" />;
-        break;
-      case "audioChannels":
-        return <Ionicons name="mic-outline" size={12} color="white" />;
-        break;
-      default:
-        return <Ionicons name="layers-outline" size={12} color="white" />;
-    }
+    return (
+      iconMap[val as keyof typeof iconMap] ?? (
+        <Ionicons name="layers-outline" size={12} color="white" />
+      )
+    );
   };
 
-  const formatVal = (key: String, val: any) => {
+  const formatVal = (key: string, val: any) => {
     switch (key) {
       case "bitrate":
         return formatBitrate(val);
-        break;
       default:
         return val;
     }
   };
 
-  return Object.keys(properties)
-    .filter(
-      (key) => !(properties[key] === undefined || properties[key] === null)
-    )
-    .map((key) => (
+  return Object.entries(properties)
+    .filter(([_, value]) => value !== undefined && value !== null)
+    .map(([key]) => (
       <Badge
         key={key}
         variant="gray"
         className="m-0 p-0 pt-0.5 mr-1"
-        text={formatVal(key, properties[key])}
+        text={formatVal(key, properties[key as keyof StreamProps])}
         iconLeft={icon(key)}
       />
     ));
 };
 
 interface StreamProps {
-  resolution: String | null | undefined;
-  language: String | null | undefined;
-  codec: String | null | undefined;
-  bitrate: number | null | undefined;
-  videoRange: String | null | undefined;
-  audioChannels: String | null | undefined;
+  resolution?: string | null | undefined;
+  language?: string | null | undefined;
+  codec?: string | null | undefined;
+  bitrate?: number | null | undefined;
+  videoRange?: string | null | undefined;
+  audioChannels?: string | null | undefined;
 }
 
 interface TranscodingStreamViewProps {
-  title: String | undefined;
-  value: String;
+  title: string | undefined;
+  value?: string;
   isTranscoding: Boolean;
-  transcodeValue: String | undefined | null;
-  properties: Array<StreamProps>;
-  transcodeProperties: Array<StreamProps>;
+  transcodeValue?: string | undefined | null;
+  properties: StreamProps;
+  transcodeProperties?: StreamProps;
 }
 
 const TranscodingStreamView = ({
   title,
-  value,
   isTranscoding,
+  properties,
+  transcodeProperties,
+  value,
   transcodeValue,
-  properties = [],
-  transcodeProperties = [],
 }: TranscodingStreamViewProps) => {
   return (
     <View className="flex flex-col pt-2 first:pt-0">
@@ -252,7 +241,7 @@ const TranscodingStreamView = ({
           <TranscodingBadges properties={properties} />
         </Text>
       </View>
-      {isTranscoding && (
+      {isTranscoding && transcodeProperties ? (
         <>
           <View className="flex flex-row">
             <Text className="-mt-0 text-xs opacity-50 w-20 font-bold text-right pr-4">
@@ -267,7 +256,7 @@ const TranscodingStreamView = ({
             </Text>
           </View>
         </>
-      )}
+      ) : null}
     </View>
   );
 };
@@ -309,7 +298,6 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           resolution: videoStreamTitle(),
           bitrate: videoStream?.BitRate,
           codec: videoStream?.Codec,
-          //videoRange: videoStream?.VideoRange
         }}
         transcodeProperties={{
           bitrate: session.TranscodingInfo?.Bitrate,
@@ -333,7 +321,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
         transcodeProperties={{
           bitrate: session.TranscodingInfo?.Bitrate,
           codec: session.TranscodingInfo?.AudioCodec,
-          audioChannels: session.TranscodingInfo?.AudioChannels,
+          audioChannels: session.TranscodingInfo?.AudioChannels?.toString(),
         }}
         isTranscoding={
           isTranscoding && !session.TranscodingInfo?.IsVideoDirect
