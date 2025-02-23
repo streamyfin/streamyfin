@@ -32,9 +32,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { Button } from "./Button";
 import { SelectedOptions } from "./ItemContent";
-const chromecastProfile = !Platform.isTV
-  ? require("@/utils/profiles/chromecast")
-  : null;
+import { chromecast } from "@/utils/profiles/chromecast";
+import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { useTranslation } from "react-i18next";
 import { useHaptic } from "@/hooks/useHaptic";
 
@@ -118,12 +117,15 @@ export const PlayButton: React.FC<Props> = ({
               if (state && state !== PlayServicesState.SUCCESS) {
                 CastContext.showPlayServicesErrorDialog(state);
               } else {
-                // Get a new URL with the Chromecast device profile:
+                // Check if user wants H265 for Chromecast
+                const enableH265 = settings.enableH265ForChromecast;
+
+                // Get a new URL with the Chromecast device profile
                 try {
                   const data = await getStreamUrl({
                     api,
                     item,
-                    deviceProfile: chromecastProfile,
+                    deviceProfile: enableH265 ? chromecast : chromecasth265,
                     startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
                     userId: user?.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
@@ -131,6 +133,8 @@ export const PlayButton: React.FC<Props> = ({
                     mediaSourceId: selectedOptions.mediaSource?.Id,
                     subtitleStreamIndex: selectedOptions.subtitleIndex,
                   });
+
+                  console.log("URL: ", data?.url, enableH265);
 
                   if (!data?.url) {
                     console.warn("No URL returned from getStreamUrl", data);

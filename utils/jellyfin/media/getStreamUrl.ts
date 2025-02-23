@@ -6,6 +6,7 @@ import {
   PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { Alert } from "react-native";
 
 export const getStreamUrl = async ({
   api,
@@ -80,7 +81,6 @@ export const getStreamUrl = async ({
 
   const res2 = await getMediaInfoApi(api).getPlaybackInfo(
     {
-      userId,
       itemId: item.Id!,
     },
     {
@@ -148,4 +148,8 @@ export const getStreamUrl = async ({
       };
     }
   }
+
+  Alert.alert("Error", "Could not play this item");
+
+  return null;
 };
