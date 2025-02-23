@@ -1,16 +1,27 @@
 import { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 
-export const chromecast: DeviceProfile = {
+export const chromecasth265: DeviceProfile = {
   Name: "Chromecast Video Profile",
   MaxStreamingBitrate: 8000000, // 8 Mbps
   MaxStaticBitrate: 8000000, // 8 Mbps
   MusicStreamingTranscodingBitrate: 384000, // 384 kbps
+  CodecProfiles: [
+    {
+      Type: "Video",
+      Codec: "hevc,h264",
+    },
+    {
+      Type: "Audio",
+      Codec: "aac,mp3,flac,opus,vorbis",
+    },
+  ],
+  ContainerProfiles: [],
   DirectPlayProfiles: [
     {
       Container: "mp4",
       Type: "Video",
-      VideoCodec: "h264",
-      AudioCodec: "aac,mp3",
+      VideoCodec: "hevc,h264",
+      AudioCodec: "aac,mp3,opus,vorbis",
     },
     {
       Container: "mp3",
@@ -20,15 +31,23 @@ export const chromecast: DeviceProfile = {
       Container: "aac",
       Type: "Audio",
     },
+    {
+      Container: "flac",
+      Type: "Audio",
+    },
+    {
+      Container: "wav",
+      Type: "Audio",
+    },
   ],
   TranscodingProfiles: [
     {
       Container: "ts",
       Type: "Video",
+      VideoCodec: "hevc,h264",
       AudioCodec: "aac,mp3",
-      VideoCodec: "h264",
-      Context: "Streaming",
       Protocol: "hls",
+      Context: "Streaming",
       MaxAudioChannels: "2",
       MinSegments: 2,
       BreakOnNonKeyFrames: true,
@@ -37,12 +56,10 @@ export const chromecast: DeviceProfile = {
       Container: "mp4",
       Type: "Video",
       VideoCodec: "h264",
-      AudioCodec: "aac,mp3",
+      AudioCodec: "aac",
       Protocol: "http",
       Context: "Streaming",
       MaxAudioChannels: "2",
-      MinSegments: 2,
-      BreakOnNonKeyFrames: true,
     },
     {
       Container: "mp3",
@@ -59,17 +76,6 @@ export const chromecast: DeviceProfile = {
       Protocol: "http",
       Context: "Streaming",
       MaxAudioChannels: "2",
-    },
-  ],
-  ContainerProfiles: [],
-  CodecProfiles: [
-    {
-      Type: "Video",
-      Codec: "h264",
-    },
-    {
-      Type: "Audio",
-      Codec: "aac,mp3",
     },
   ],
   SubtitleProfiles: [

@@ -145,6 +145,7 @@ export type Settings = {
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
+  enableH265ForChromecast: boolean;
 };
 
 export interface Lockable<T> {
@@ -198,6 +199,7 @@ const defaultValues: Settings = {
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
+  enableH265ForChromecast: false,
 };
 
 const loadSettings = (): Partial<Settings> => {

@@ -19,10 +19,11 @@ import { storage } from "@/utils/mmkv";
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
 import React, { useEffect } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, Switch, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAtom } from "jotai";
 import { userAtom } from "@/providers/JellyfinProvider";
+import { ChromecastSettings } from "@/components/settings/ChromecastSettings";
 
 export default function settings() {
   const router = useRouter();
@@ -78,6 +79,8 @@ export default function settings() {
         <PluginSettings />
 
         <AppLanguageSelector />
+
+        <ChromecastSettings />
 
         <ListGroup title={"Intro"}>
           <ListItem
