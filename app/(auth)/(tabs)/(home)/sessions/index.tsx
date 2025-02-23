@@ -4,7 +4,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Loader } from "@/components/Loader";
-import { SessionInfoDto } from "@jellyfin/sdk/lib/generated-client";
+import { HardwareAccelerationType, SessionInfoDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import Poster from "@/components/posters/Poster";
@@ -186,6 +186,7 @@ const TranscodingBadges = ({ properties }: TranscodingBadgesProps) => {
     resolution: <Ionicons name="film-outline" size={12} color="white" />,
     language: <Ionicons name="language-outline" size={12} color="white" />,
     audioChannels: <Ionicons name="mic-outline" size={12} color="white" />,
+    hwType: <Ionicons name="hardware-chip-outline" size={12} color="white" />,
   } as const;
 
   const icon = (val: string) => {
@@ -200,6 +201,8 @@ const TranscodingBadges = ({ properties }: TranscodingBadgesProps) => {
     switch (key) {
       case "bitrate":
         return formatBitrate(val);
+      case "hwType":
+        return val === HardwareAccelerationType.None ? "sw" : "hw";
       default:
         return val;
     }
@@ -219,6 +222,7 @@ const TranscodingBadges = ({ properties }: TranscodingBadgesProps) => {
 };
 
 interface StreamProps {
+  hwType?: HardwareAccelerationType | null | undefined;
   resolution?: string | null | undefined;
   language?: string | null | undefined;
   codec?: string | null | undefined;
@@ -313,6 +317,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           codec: videoStream?.Codec,
         }}
         transcodeProperties={{
+          hwType: session.TranscodingInfo?.HardwareAccelerationType,
           bitrate: session.TranscodingInfo?.Bitrate,
           codec: session.TranscodingInfo?.VideoCodec,
         }}
@@ -332,7 +337,6 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           audioChannels: audioStream?.ChannelLayout,
         }}
         transcodeProperties={{
-          bitrate: session.TranscodingInfo?.Bitrate,
           codec: session.TranscodingInfo?.AudioCodec,
           audioChannels: session.TranscodingInfo?.AudioChannels?.toString(),
         }}
