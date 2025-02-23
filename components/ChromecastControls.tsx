@@ -42,7 +42,7 @@ import { useAtomValue } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecastProfile } from "@/utils/profiles/chromecast";
+import { chromecast as chromecastProfile } from "@/utils/profiles/chromecast";
 import { SelectedOptions } from "./ItemContent";
 import {
   getDefaultPlaySettings,
