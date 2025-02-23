@@ -9,14 +9,11 @@ export interface useSessionsProps {
   activeWithinSeconds: number;
 }
 
-export const useSessions = ({
-  refetchInterval = 5 * 1000,
-  activeWithinSeconds = 360,
-}: useSessionsProps) => {
+export const useSessions = ({ refetchInterval = 5 * 1000, activeWithinSeconds = 360 }: useSessionsProps) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
       if (!api || !user || !user.Policy?.IsAdministrator) {
@@ -25,11 +22,11 @@ export const useSessions = ({
       const response = await getSessionApi(api).getSessions({
         activeWithinSeconds: activeWithinSeconds,
       });
-      return response.data.filter((s) => s.NowPlayingItem);
+      return response.data
+        .filter((s) => s.NowPlayingItem)
+        .sort((a, b) => (b.NowPlayingItem?.Name ?? "").localeCompare(a.NowPlayingItem?.Name ?? ""));
     },
     refetchInterval: refetchInterval,
-    //enabled: !!user || !!user.Policy?.IsAdministrator,
-    //cacheTime: 0
   });
 
   return { sessions: data, isLoading };
