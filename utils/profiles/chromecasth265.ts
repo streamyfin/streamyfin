@@ -18,7 +18,7 @@ export const chromecasth265: DeviceProfile = {
   ContainerProfiles: [],
   DirectPlayProfiles: [
     {
-      Container: "mp4",
+      Container: "mp4,mkv",
       Type: "Video",
       VideoCodec: "hevc,h264",
       AudioCodec: "aac,mp3,opus,vorbis",
@@ -53,13 +53,14 @@ export const chromecasth265: DeviceProfile = {
       BreakOnNonKeyFrames: true,
     },
     {
-      Container: "mp4",
+      Container: "mp4,mkv",
       Type: "Video",
-      VideoCodec: "h264",
+      VideoCodec: "hevc,h264",
       AudioCodec: "aac",
       Protocol: "http",
       Context: "Streaming",
       MaxAudioChannels: "2",
+      MinSegments: 2,
     },
     {
       Container: "mp3",
