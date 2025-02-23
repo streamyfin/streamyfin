@@ -9,6 +9,7 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
   },
+  "prettier.printWidth": 120,
   "[swift]": {
     "editor.defaultFormatter": "sswg.swift-lang"
   }

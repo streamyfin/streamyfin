@@ -342,7 +342,7 @@
     "an_error_occured_while_playing_the_video": "播放影片時發生錯誤。請檢查設置中的日誌。",
     "client_error": "客戶端錯誤",
     "could_not_create_stream_for_chromecast": "無法為 Chromecast 建立串流",
-    "message_from_server": "來自伺服器的消息：{{message}}",
+    "message_from_server": "來自伺服器的消息",
     "video_has_finished_playing": "影片播放完畢！",
     "no_video_source": "無影片來源...",
     "next_episode": "下一集",
