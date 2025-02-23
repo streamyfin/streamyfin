@@ -6,6 +6,7 @@ import {
   PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { Alert } from "react-native";
 
 export const getStreamUrl = async ({
   api,
@@ -36,6 +37,7 @@ export const getStreamUrl = async ({
   mediaSource: MediaSourceInfo | undefined;
 } | null> => {
   if (!api || !userId || !item?.Id) {
+    console.warn("Missing required parameters for getStreamUrl");
     return null;
   }
 
@@ -79,7 +81,6 @@ export const getStreamUrl = async ({
 
   const res2 = await getMediaInfoApi(api).getPlaybackInfo(
     {
-      userId,
       itemId: item.Id!,
     },
     {
@@ -111,15 +112,6 @@ export const getStreamUrl = async ({
     if (mediaSource?.TranscodingUrl) {
       const urlObj = new URL(api.basePath + mediaSource?.TranscodingUrl); // Create a URL object
 
-      // If there is no subtitle stream index, add it to the URL.
-      if (subtitleStreamIndex == -1) {
-        urlObj.searchParams.set("SubtitleMethod", "Hls");
-      }
-
-      // Add 'SubtitleMethod=Hls' if it doesn't exist
-      if (!urlObj.searchParams.has("SubtitleMethod")) {
-        urlObj.searchParams.append("SubtitleMethod", "Hls");
-      }
       // Get the updated URL
       const transcodeUrl = urlObj.toString();
 
@@ -129,9 +121,7 @@ export const getStreamUrl = async ({
         sessionId: sessionId,
         mediaSource,
       };
-    }
-
-    if (mediaSource?.SupportsDirectPlay) {
+    } else {
       const searchParams = new URLSearchParams({
         playSessionId: sessionData?.PlaySessionId || "",
         mediaSourceId: mediaSource?.Id || "",
@@ -159,38 +149,7 @@ export const getStreamUrl = async ({
     }
   }
 
-  if (item.MediaType === "Audio") {
-    if (mediaSource?.TranscodingUrl) {
-      return {
-        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
-        sessionId,
-        mediaSource,
-      };
-    }
+  Alert.alert("Error", "Could not play this item");
 
-    const searchParams = new URLSearchParams({
-      UserId: userId,
-      DeviceId: api.deviceInfo.id,
-      MaxStreamingBitrate: "140000000",
-      Container:
-        "opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg",
-      TranscodingContainer: "mp4",
-      TranscodingProtocol: "hls",
-      AudioCodec: "aac",
-      api_key: api.accessToken,
-      PlaySessionId: sessionData?.PlaySessionId || "",
-      StartTimeTicks: "0",
-      EnableRedirection: "true",
-      EnableRemoteMedia: "false",
-    });
-    return {
-      url: `${
-        api.basePath
-      }/Audio/${itemId}/universal?${searchParams.toString()}`,
-      sessionId,
-      mediaSource,
-    };
-  }
-
-  throw new Error("Unsupported media type");
+  return null;
 };

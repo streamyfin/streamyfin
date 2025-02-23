@@ -24,7 +24,7 @@ import {
   ticksToMs,
   ticksToSeconds,
 } from "@/utils/time";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import {
   BaseItemDto,
   MediaSourceInfo,
@@ -35,7 +35,12 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { TouchableOpacity, useWindowDimensions, View } from "react-native";
+import {
+  Platform,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   runOnJS,
@@ -49,8 +54,7 @@ import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
-import DropdownViewDirect from "./dropdown/DropdownViewDirect";
-import DropdownViewTranscoding from "./dropdown/DropdownViewTranscoding";
+import DropdownView from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
@@ -75,6 +79,7 @@ interface Props {
   isVideoLoaded?: boolean;
   mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
+  startPictureInPicture: () => Promise<void>;
   play: (() => Promise<void>) | (() => void);
   pause: () => void;
   getAudioTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
@@ -91,6 +96,7 @@ const CONTROLS_TIMEOUT = 4000;
 export const Controls: React.FC<Props> = ({
   item,
   seek,
+  startPictureInPicture,
   play,
   pause,
   togglePlay,
@@ -212,13 +218,10 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrateValue.toString(),
     }).toString();
 
-    if (!bitrateValue) {
-      // @ts-expect-error
-      router.replace(`player/direct-player?${queryParams}`);
-      return;
-    }
+    stop();
+
     // @ts-expect-error
-    router.replace(`player/transcoding-player?${queryParams}`);
+    router.replace(`player/direct-player?${queryParams}`);
   }, [previousItem, settings, subtitleIndex, audioIndex]);
 
   const goToNextItem = useCallback(() => {
@@ -250,13 +253,10 @@ export const Controls: React.FC<Props> = ({
       bitrateValue: bitrateValue.toString(),
     }).toString();
 
-    if (!bitrateValue) {
-      // @ts-expect-error
-      router.replace(`player/direct-player?${queryParams}`);
-      return;
-    }
+    stop();
+
     // @ts-expect-error
-    router.replace(`player/transcoding-player?${queryParams}`);
+    router.replace(`player/direct-player?${queryParams}`);
   }, [nextItem, settings, subtitleIndex, audioIndex]);
 
   const updateTimes = useCallback(
@@ -413,13 +413,10 @@ export const Controls: React.FC<Props> = ({
           bitrateValue: bitrateValue.toString(),
         }).toString();
 
-        if (!bitrateValue) {
-          // @ts-expect-error
-          router.replace(`player/direct-player?${queryParams}`);
-          return;
-        }
+        stop();
+
         // @ts-expect-error
-        router.replace(`player/transcoding-player?${queryParams}`);
+        router.replace(`player/direct-player?${queryParams}`);
       } catch (error) {
         console.error("Error in gotoEpisode:", error);
       }
@@ -499,6 +496,15 @@ export const Controls: React.FC<Props> = ({
     );
   }, [trickPlayUrl, trickplayInfo, time]);
 
+  const onClose = async () => {
+    stop();
+    lightHapticFeedback();
+    await ScreenOrientation.lockAsync(
+      ScreenOrientation.OrientationLock.PORTRAIT_UP
+    );
+    router.back();
+  };
+
   return (
     <ControlProvider
       item={item}
@@ -534,23 +540,35 @@ export const Controls: React.FC<Props> = ({
             pointerEvents={showControls ? "auto" : "none"}
             className={`flex flex-row w-full pt-2`}
           >
-            <View className="mr-auto">
-              <VideoProvider
-                getAudioTracks={getAudioTracks}
-                getSubtitleTracks={getSubtitleTracks}
-                setAudioTrack={setAudioTrack}
-                setSubtitleTrack={setSubtitleTrack}
-                setSubtitleURL={setSubtitleURL}
-              >
-                {!mediaSource?.TranscodingUrl ? (
-                  <DropdownViewDirect showControls={showControls} />
-                ) : (
-                  <DropdownViewTranscoding showControls={showControls} />
-                )}
-              </VideoProvider>
-            </View>
+            {!Platform.isTV && (
+              <View className="mr-auto">
+                <VideoProvider
+                  getAudioTracks={getAudioTracks}
+                  getSubtitleTracks={getSubtitleTracks}
+                  setAudioTrack={setAudioTrack}
+                  setSubtitleTrack={setSubtitleTrack}
+                  setSubtitleURL={setSubtitleURL}
+                >
+                  <DropdownView showControls={showControls} />
+                </VideoProvider>
+              </View>
+            )}
 
             <View className="flex flex-row items-center space-x-2 ">
+              {!Platform.isTV && (
+                <TouchableOpacity
+                  onPress={startPictureInPicture}
+                  className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
+                >
+                  <MaterialIcons
+                    name="picture-in-picture"
+                    size={24}
+                    color="white"
+                    style={{ opacity: showControls ? 1 : 0 }}
+                  />
+                </TouchableOpacity>
+              )}
+
               {item?.Type === "Episode" && !offline && (
                 <TouchableOpacity
                   onPress={() => {
@@ -592,13 +610,7 @@ export const Controls: React.FC<Props> = ({
               </TouchableOpacity>
               {/* )} */}
               <TouchableOpacity
-                onPress={async () => {
-                  lightHapticFeedback();
-                  await ScreenOrientation.lockAsync(
-                    ScreenOrientation.OrientationLock.PORTRAIT_UP
-                  );
-                  router.back();
-                }}
+                onPress={onClose}
                 className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
               >
                 <Ionicons name="close" size={24} color="white" />

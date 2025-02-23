@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
+import { BitrateSelector, BITRATES } from "@/components/BitrateSelector";
 import {
   BACKGROUND_FETCH_TASK,
   registerBackgroundFetchAsync,
@@ -163,6 +164,32 @@ export const OtherSettings: React.FC = () => {
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
+        <ListItem
+          title={t("home.settings.other.default_quality")}
+          disabled={pluginSettings?.defaultBitrate?.locked}
+        >
+          <Dropdown
+            data={BITRATES}
+            disabled={pluginSettings?.defaultBitrate?.locked}
+            keyExtractor={(item) => item.key}
+            titleExtractor={(item) => item.key}
+            selected={settings.defaultBitrate}
+            title={
+              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
+                <Text className="mr-1 text-[#8E8D91]">
+                  {settings.defaultBitrate?.key}
+                </Text>
+                <Ionicons
+                  name="chevron-expand-sharp"
+                  size={18}
+                  color="#5A5960"
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.other.default_quality")}
+            onSelected={(defaultBitrate) => updateSettings({ defaultBitrate })}
+          />
+        </ListItem>
         <ListItem
           title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}

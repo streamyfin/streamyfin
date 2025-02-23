@@ -15,7 +15,7 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 const page: React.FC = () => {
@@ -84,22 +84,26 @@ const page: React.FC = () => {
         allEpisodes &&
         allEpisodes.length > 0 && (
           <View className="flex flex-row items-center space-x-2">
-            <AddToFavorites item={item} type="series" />
-            <DownloadItems
-              size="large"
-              title={t("item_card.download.download_series")}
-              items={allEpisodes || []}
-              MissingDownloadIconComponent={() => (
-                <Ionicons name="download" size={22} color="white" />
-              )}
-              DownloadedIconComponent={() => (
-                <Ionicons
-                  name="checkmark-done-outline"
-                  size={24}
-                  color="#9333ea"
+            <AddToFavorites item={item} />
+            {!Platform.isTV && (
+              <>
+                <DownloadItems
+                  size="large"
+                  title={t("item_card.download.download_series")}
+                  items={allEpisodes || []}
+                  MissingDownloadIconComponent={() => (
+                    <Ionicons name="download" size={22} color="white" />
+                  )}
+                  DownloadedIconComponent={() => (
+                    <Ionicons
+                      name="checkmark-done-outline"
+                      size={24}
+                      color="#9333ea"
+                    />
+                  )}
                 />
-              )}
-            />
+              </>
+            )}
           </View>
         ),
     });

@@ -26,12 +26,14 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
 import { useTranslation } from "react-i18next";
+import { eventBus } from "@/utils/eventBus";
 
 type SearchType = "Library" | "Discover";
 
@@ -50,7 +52,7 @@ export default function search() {
 
   const { t } = useTranslation();
 
-  const { q, prev } = params as { q: string; prev: Href<string> };
+  const { q } = params as { q: string };
 
   const [searchType, setSearchType] = useState<SearchType>("Library");
   const [search, setSearch] = useState<string>("");
@@ -120,21 +122,43 @@ export default function search() {
     [api, searchEngine, settings]
   );
 
+  type HeaderSearchBarRef = {
+    focus: () => void;
+    blur: () => void;
+    setText: (text: string) => void;
+    clearText: () => void;
+    cancelSearch: () => void;
+  };
+
+  const searchBarRef = useRef<HeaderSearchBarRef>(null);
   const navigation = useNavigation();
   useLayoutEffect(() => {
-    if (Platform.OS === "ios")
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: t("search.search"),
-          onChangeText: (e: any) => {
-            router.setParams({ q: "" });
-            setSearch(e.nativeEvent.text);
-          },
-          hideWhenScrolling: false,
-          autoFocus: true,
+    navigation.setOptions({
+      headerSearchBarOptions: {
+        ref: searchBarRef,
+        placeholder: t("search.search"),
+        onChangeText: (e: any) => {
+          router.setParams({ q: "" });
+          setSearch(e.nativeEvent.text);
         },
-      });
+        hideWhenScrolling: false,
+        autoFocus: false,
+      },
+    });
   }, [navigation]);
+
+  useEffect(() => {
+    const unsubscribe = eventBus.on("searchTabPressed", () => {
+      // Screen not actuve
+      if (!searchBarRef.current) return;
+      // Screen is active, focus search bar
+      searchBarRef.current?.focus();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const { data: movies, isFetching: l1 } = useQuery({
     queryKey: ["search", "movies", debouncedSearch],
@@ -210,19 +234,12 @@ export default function search() {
           paddingRight: insets.right,
         }}
       >
-        <View className="flex flex-col">
-          {Platform.OS === "android" && (
-            <View className="mb-4 px-4">
-              <Input
-                autoCorrect={false}
-                returnKeyType="done"
-                keyboardType="web-search"
-                placeholder={t("search.search_here")}
-                value={search}
-                onChangeText={(text) => setSearch(text)}
-              />
-            </View>
-          )}
+        <View
+          className="flex flex-col"
+          style={{
+            marginTop: Platform.OS === "android" ? 16 : 0,
+          }}
+        >
           {jellyseerrApi && (
             <View className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
               <TouchableOpacity onPress={() => setSearchType("Library")}>

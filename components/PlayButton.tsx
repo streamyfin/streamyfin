@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, Pressable } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
@@ -32,9 +32,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { Button } from "./Button";
 import { SelectedOptions } from "./ItemContent";
-const chromecastProfile = !Platform.isTV
-  ? require("@/utils/profiles/chromecast")
-  : null;
+import { chromecast } from "@/utils/profiles/chromecast";
+import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { useTranslation } from "react-i18next";
 import { useHaptic } from "@/hooks/useHaptic";
 import { chromecastLoadMedia } from "@/utils/chromecastLoadMedia";
@@ -74,16 +73,13 @@ export const PlayButton: React.FC<Props> = ({
 
   const goToPlayer = useCallback(
     (q: string, bitrateValue: number | undefined) => {
-      if (!bitrateValue) {
-        router.push(`/player/direct-player?${q}`);
-        return;
-      }
-      router.push(`/player/transcoding-player?${q}`);
+      router.push(`/player/direct-player?${q}`);
     },
     [router]
   );
 
   const onPress = useCallback(async () => {
+    console.log("onPress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -118,16 +114,19 @@ export const PlayButton: React.FC<Props> = ({
 
         switch (selectedIndex) {
           case 0:
-            if (!Platform.isTV) {
-              await CastContext.getPlayServicesState().then(async (state) => {
-                if (state && state !== PlayServicesState.SUCCESS)
-                  CastContext.showPlayServicesErrorDialog(state);
-                else {
-                  // Get a new URL with the Chromecast device profile:
+            await CastContext.getPlayServicesState().then(async (state) => {
+              if (state && state !== PlayServicesState.SUCCESS) {
+                CastContext.showPlayServicesErrorDialog(state);
+              } else {
+                // Check if user wants H265 for Chromecast
+                const enableH265 = settings.enableH265ForChromecast;
+
+                // Get a new URL with the Chromecast device profile
+                try {
                   const data = await getStreamUrl({
                     api,
                     item,
-                    deviceProfile: chromecastProfile,
+                    deviceProfile: enableH265 ? chromecasth265 : chromecast,
                     startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
                     userId: user?.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
@@ -135,6 +134,8 @@ export const PlayButton: React.FC<Props> = ({
                     mediaSourceId: selectedOptions.mediaSource?.Id,
                     subtitleStreamIndex: selectedOptions.subtitleIndex,
                   });
+
+                  console.log("URL: ", data?.url, enableH265);
 
                   if (!data?.url) {
                     console.warn("No URL returned from getStreamUrl", data);
@@ -169,9 +170,11 @@ export const PlayButton: React.FC<Props> = ({
                     }
                     router.push("/player/google-cast-player");
                   });
+                } catch (e) {
+                  console.log(e);
                 }
-              });
-            }
+              }
+            });
             break;
           case 1:
             goToPlayer(queryString, selectedOptions.bitrate?.value);
@@ -283,75 +286,62 @@ export const PlayButton: React.FC<Props> = ({
    */
 
   return (
-    <View>
-      <TouchableOpacity
-        disabled={!item}
-        accessibilityLabel="Play button"
-        accessibilityHint="Tap to play the media"
-        onPress={onPress}
-        className={`relative`}
-        {...props}
-      >
-        <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
-          <Animated.View
-            style={[
-              animatedPrimaryStyle,
-              animatedWidthStyle,
-              {
-                height: "100%",
-              },
-            ]}
-          />
-        </View>
-
+    <TouchableOpacity
+      disabled={!item}
+      accessibilityLabel="Play button"
+      accessibilityHint="Tap to play the media"
+      onPress={onPress}
+      className={`relative`}
+      {...props}
+    >
+      <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
         <Animated.View
-          style={[animatedAverageStyle, { opacity: 0.5 }]}
-          className="absolute w-full h-full top-0 left-0 rounded-xl"
+          style={[
+            animatedPrimaryStyle,
+            animatedWidthStyle,
+            {
+              height: "100%",
+            },
+          ]}
         />
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: colorAtom.primary,
-            borderStyle: "solid",
-          }}
-          className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
-        >
-          <View className="flex flex-row items-center space-x-2">
-            <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-              {runtimeTicksToMinutes(item?.RunTimeTicks)}
-            </Animated.Text>
+      </View>
+
+      <Animated.View
+        style={[animatedAverageStyle, { opacity: 0.5 }]}
+        className="absolute w-full h-full top-0 left-0 rounded-xl"
+      />
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: colorAtom.primary,
+          borderStyle: "solid",
+        }}
+        className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
+      >
+        <View className="flex flex-row items-center space-x-2">
+          <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
+            {runtimeTicksToMinutes(item?.RunTimeTicks)}
+          </Animated.Text>
+          <Animated.Text style={animatedTextStyle}>
+            <Ionicons name="play-circle" size={24} />
+          </Animated.Text>
+          {client && (
             <Animated.Text style={animatedTextStyle}>
-              <Ionicons name="play-circle" size={24} />
+              <Feather name="cast" size={22} />
+              <CastButton tintColor="transparent" />
             </Animated.Text>
-            {client && (
-              <Animated.Text style={animatedTextStyle}>
-                <Feather name="cast" size={22} />
-                <CastButton tintColor="transparent" />
-              </Animated.Text>
-            )}
-            {!client && settings?.openInVLC && (
-              <Animated.Text style={animatedTextStyle}>
-                <MaterialCommunityIcons
-                  name="vlc"
-                  size={18}
-                  color={animatedTextStyle.color}
-                />
-              </Animated.Text>
-            )}
-          </View>
+          )}
+          {!client && settings?.openInVLC && (
+            <Animated.Text style={animatedTextStyle}>
+              <MaterialCommunityIcons
+                name="vlc"
+                size={18}
+                color={animatedTextStyle.color}
+              />
+            </Animated.Text>
+          )}
         </View>
-      </TouchableOpacity>
-      {/* <View className="mt-2 flex flex-row items-center">
-        <Ionicons
-          name="information-circle"
-          size={12}
-          className=""
-          color={"#9BA1A6"}
-        />
-        <Text className="text-neutral-500 ml-1">
-          {directStream ? "Direct stream" : "Transcoded stream"}
-        </Text>
-      </View> */}
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 };

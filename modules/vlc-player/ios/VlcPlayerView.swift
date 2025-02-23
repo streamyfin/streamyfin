@@ -1,54 +1,176 @@
 import ExpoModulesCore
-#if os(tvOS)
-import TVVLCKit
-#else
-import MobileVLCKit
-#endif
 import UIKit
+import VLCKit
+import os
+
+
+public class VLCPlayerView: UIView {
+    func setupView(parent: UIView) {
+        self.backgroundColor = .black
+        self.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            self.leadingAnchor.constraint(equalTo: parent.leadingAnchor),
+            self.trailingAnchor.constraint(equalTo: parent.trailingAnchor),
+            self.topAnchor.constraint(equalTo: parent.topAnchor),
+            self.bottomAnchor.constraint(equalTo: parent.bottomAnchor),
+        ])
+    }
+
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+
+        for subview in subviews {
+            subview.frame = bounds
+        }
+    }
+}
+
+class VLCPlayerWrapper: NSObject {
+    private var lastProgressCall = Date().timeIntervalSince1970
+    public var player: VLCMediaPlayer = VLCMediaPlayer()
+    private var updatePlayerState: (() -> Void)?
+    private var updateVideoProgress: (() -> Void)?
+    private var playerView: VLCPlayerView = VLCPlayerView()
+    public weak var pipController: VLCPictureInPictureWindowControlling?
+
+    override public init() {
+        super.init()
+        player.delegate = self
+        player.drawable = self
+        player.scaleFactor = 0
+    }
+
+    public func setup(
+        parent: UIView,
+        updatePlayerState: (() -> Void)?,
+        updateVideoProgress: (() -> Void)?
+    ) {
+        self.updatePlayerState = updatePlayerState
+        self.updateVideoProgress = updateVideoProgress
+
+        player.delegate = self
+        parent.addSubview(playerView)
+        playerView.setupView(parent: parent)
+    }
+
+    public func getPlayerView() -> UIView {
+        return playerView
+    }
+}
+
+// MARK: - VLCPictureInPictureDrawable
+extension VLCPlayerWrapper: VLCPictureInPictureDrawable {
+    public func mediaController() -> (any VLCPictureInPictureMediaControlling)! {
+        return self
+    }
+
+    public func pictureInPictureReady() -> (((any VLCPictureInPictureWindowControlling)?) -> Void)!
+    {
+        return { [weak self] controller in
+            self?.pipController = controller
+        }
+    }
+}
+
+// MARK: - VLCPictureInPictureMediaControlling
+extension VLCPlayerWrapper: VLCPictureInPictureMediaControlling {
+    func mediaTime() -> Int64 {
+        return player.time.value?.int64Value ?? 0
+    }
+
+    func mediaLength() -> Int64 {
+        return player.media?.length.value?.int64Value ?? 0
+    }
+
+    func play() {
+        player.play()
+    }
+
+    func pause() {
+        player.pause()
+    }
+
+    func seek(by offset: Int64, completion: @escaping () -> Void) {
+        player.jump(withOffset: Int32(offset), completion: completion)
+    }
+
+    func isMediaSeekable() -> Bool {
+        return player.isSeekable
+    }
+
+    func isMediaPlaying() -> Bool {
+        return player.isPlaying
+    }
+}
+
+// MARK: - VLCDrawable
+extension VLCPlayerWrapper: VLCDrawable {
+    public func addSubview(_ view: UIView) {
+        playerView.addSubview(view)
+    }
+
+    public func bounds() -> CGRect {
+        return playerView.bounds
+    }
+}
+
+// MARK: - VLCMediaPlayerDelegate
+extension VLCPlayerWrapper: VLCMediaPlayerDelegate {
+    func mediaPlayerTimeChanged(_ aNotification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let timeNow = Date().timeIntervalSince1970
+            if timeNow - self.lastProgressCall >= 1 {
+                self.lastProgressCall = timeNow
+                self.updateVideoProgress?()
+            }
+        }
+    }
+
+    func mediaPlayerStateChanged(_ state: VLCMediaPlayerState) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.updatePlayerState?()
+
+            guard let pipController = self.pipController else { return }
+            pipController.invalidatePlaybackState()
+        }
+    }
+}
+
+// MARK: - VLCMediaDelegate
+extension VLCPlayerWrapper: VLCMediaDelegate {
+    // Implement VLCMediaDelegate methods if needed
+}
 
 class VlcPlayerView: ExpoView {
-    private var mediaPlayer: VLCMediaPlayer?
-    private var videoView: UIView?
+    let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "VlcPlayerView")
+
+    private var vlc: VLCPlayerWrapper = VLCPlayerWrapper()
     private var progressUpdateInterval: TimeInterval = 1.0  // Update interval set to 1 second
     private var isPaused: Bool = false
-    private var currentGeometryCString: [CChar]?
-    private var lastReportedState: VLCMediaPlayerState?
-    private var lastReportedIsPlaying: Bool?
     private var customSubtitles: [(internalName: String, originalName: String)] = []
     private var startPosition: Int32 = 0
-    private var isMediaReady: Bool = false
     private var externalTrack: [String: String]?
-    private var progressTimer: DispatchSourceTimer?
     private var isStopping: Bool = false  // Define isStopping here
-    private var lastProgressCall = Date().timeIntervalSince1970
+    private var externalSubtitles: [[String: String]]?
     var hasSource = false
 
     // MARK: - Initialization
-
     required init(appContext: AppContext? = nil) {
         super.init(appContext: appContext)
-        setupView()
+        setupVLC()
         setupNotifications()
+        VLCManager.shared.listeners.append(self)
     }
 
     // MARK: - Setup
-
-    private func setupView() {
-        DispatchQueue.main.async {
-            self.backgroundColor = .black
-            self.videoView = UIView()
-            self.videoView?.translatesAutoresizingMaskIntoConstraints = false
-
-            if let videoView = self.videoView {
-                self.addSubview(videoView)
-                NSLayoutConstraint.activate([
-                    videoView.leadingAnchor.constraint(equalTo: self.leadingAnchor),
-                    videoView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
-                    videoView.topAnchor.constraint(equalTo: self.topAnchor),
-                    videoView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
-                ])
-            }
-        }
+    private func setupVLC() {
+        vlc.setup(
+            parent: self,
+            updatePlayerState: updatePlayerState,
+            updateVideoProgress: updateVideoProgress
+        )
     }
 
     private func setupNotifications() {
@@ -61,57 +183,71 @@ class VlcPlayerView: ExpoView {
     }
 
     // MARK: - Public Methods
+    func startPictureInPicture() {
+        self.vlc.pipController?.stateChangeEventHandler = { (isStarted: Bool) in
+            self.onPipStarted?(["pipStarted": isStarted])
+        }
+        self.vlc.pipController?.startPictureInPicture()
+    }
 
     @objc func play() {
-        self.mediaPlayer?.play()
+        self.vlc.player.play()
         self.isPaused = false
-        print("Play")
+        logger.debug("Play")
     }
 
     @objc func pause() {
-        self.mediaPlayer?.pause()
+        self.vlc.player.pause()
         self.isPaused = true
     }
 
     @objc func seekTo(_ time: Int32) {
-        guard let player = self.mediaPlayer else { return }
-
-        let wasPlaying = player.isPlaying
+        let wasPlaying = vlc.player.isPlaying
         if wasPlaying {
             self.pause()
         }
 
-        if let duration = player.media?.length.intValue {
-            print("Seeking to time: \(time) Video Duration \(duration)")
+        if let duration = vlc.player.media?.length.intValue {
+            logger.debug("Seeking to time: \(time) Video Duration \(duration)")
 
             // If the specified time is greater than the duration, seek to the end
             let seekTime = time > duration ? duration - 1000 : time
-            player.time = VLCTime(int: seekTime)
-
-            if wasPlaying {
-                self.play()
-            }
+            vlc.player.time = VLCTime(int: seekTime)
             self.updatePlayerState()
+
+            // Let mediaPlayerStateChanged handle play state change
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if wasPlaying {
+                    self.play()
+                }
+            }
         } else {
-            print("Error: Unable to retrieve video duration")
+            logger.error("Unable to retrieve video duration")
         }
     }
 
     @objc func setSource(_ source: [String: Any]) {
+        logger.debug("Setting source...")
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             if self.hasSource {
                 return
             }
 
-            let mediaOptions = source["mediaOptions"] as? [String: Any] ?? [:]
+            var mediaOptions = source["mediaOptions"] as? [String: Any] ?? [:]
             self.externalTrack = source["externalTrack"] as? [String: String]
-            var initOptions = source["initOptions"] as? [Any] ?? []
+            let initOptions: [String] = source["initOptions"] as? [String] ?? []
             self.startPosition = source["startPosition"] as? Int32 ?? 0
-            initOptions.append("--start-time=\(self.startPosition)")
+            self.externalSubtitles = source["externalSubtitles"] as? [[String: String]]
+
+            for item in initOptions {
+                let option = item.components(separatedBy: "=")
+                mediaOptions.updateValue(
+                    option[1], forKey: option[0].replacingOccurrences(of: "--", with: ""))
+            }
 
             guard let uri = source["uri"] as? String, !uri.isEmpty else {
-                print("Error: Invalid or empty URI")
+                logger.error("Invalid or empty URI")
                 self.onVideoError?(["error": "Invalid or empty URI"])
                 return
             }
@@ -120,17 +256,13 @@ class VlcPlayerView: ExpoView {
             let isNetwork = source["isNetwork"] as? Bool ?? false
 
             self.onVideoLoadStart?(["target": self.reactTag ?? NSNull()])
-            self.mediaPlayer = VLCMediaPlayer(options: initOptions)
-            self.mediaPlayer?.delegate = self
-            self.mediaPlayer?.drawable = self.videoView
-            self.mediaPlayer?.scaleFactor = 0
 
-            let media: VLCMedia
+            let media: VLCMedia!
             if isNetwork {
-                print("Loading network file: \(uri)")
+                logger.debug("Loading network file: \(uri)")
                 media = VLCMedia(url: URL(string: uri)!)
             } else {
-                print("Loading local file: \(uri)")
+                logger.debug("Loading local file: \(uri)")
                 if uri.starts(with: "file://"), let url = URL(string: uri) {
                     media = VLCMedia(url: url)
                 } else {
@@ -138,109 +270,84 @@ class VlcPlayerView: ExpoView {
                 }
             }
 
-            print("Debug: Media options: \(mediaOptions)")
+            logger.debug("Media options: \(mediaOptions)")
             media.addOptions(mediaOptions)
 
-            self.mediaPlayer?.media = media
+            self.vlc.player.media = media
+            self.setInitialExternalSubtitles()
             self.hasSource = true
-
             if autoplay {
-                print("Playing...")
+                logger.info("Playing...")
                 self.play()
+                self.vlc.player.time = VLCTime(number: NSNumber(value: self.startPosition * 1000))
             }
         }
     }
 
     @objc func setAudioTrack(_ trackIndex: Int) {
-        self.mediaPlayer?.currentAudioTrackIndex = Int32(trackIndex)
+        print("Setting audio track: \(trackIndex)")
+        let track = self.vlc.player.audioTracks[trackIndex]
+        track.isSelectedExclusively = true
     }
 
     @objc func getAudioTracks() -> [[String: Any]]? {
-        guard let trackNames = mediaPlayer?.audioTrackNames,
-            let trackIndexes = mediaPlayer?.audioTrackIndexes
-        else {
-            return nil
-        }
-
-        return zip(trackNames, trackIndexes).map { name, index in
-            return ["name": name, "index": index]
+        return vlc.player.audioTracks.enumerated().map {
+            return ["name": $1.trackName, "index": $0]
         }
     }
 
     @objc func setSubtitleTrack(_ trackIndex: Int) {
-        print("Debug: Attempting to set subtitle track to index: \(trackIndex)")
-        self.mediaPlayer?.currentVideoSubTitleIndex = Int32(trackIndex)
-        print(
-            "Debug: Current subtitle track index after setting: \(self.mediaPlayer?.currentVideoSubTitleIndex ?? -1)"
-        )
+        logger.debug("Attempting to set subtitle track to index: \(trackIndex)")
+        if trackIndex == -1 {
+            logger.debug("Disabling all subtitles")
+            for track in self.vlc.player.textTracks {
+                track.isSelected = false
+            }
+            return
+        }
+        let track = self.vlc.player.textTracks[trackIndex]
+        track.isSelectedExclusively = true;
+        logger.debug("Current subtitle track index after setting: \(track.trackName)")
     }
 
     @objc func setSubtitleURL(_ subtitleURL: String, name: String) {
         guard let url = URL(string: subtitleURL) else {
-            print("Error: Invalid subtitle URL")
+            logger.error("Invalid subtitle URL")
             return
         }
-
-        let result = self.mediaPlayer?.addPlaybackSlave(url, type: .subtitle, enforce: true)
-        if let result = result {
-            let internalName = "Track \(self.customSubtitles.count + 1)"
-            print("Subtitle added with result: \(result) \(internalName)")
+        let result = self.vlc.player.addPlaybackSlave(url, type: .subtitle, enforce: false)
+        if result == 0 {
+            let internalName = "Track \(self.customSubtitles.count)"
             self.customSubtitles.append((internalName: internalName, originalName: name))
+            logger.debug("Subtitle added with result: \(result) \(internalName)")
         } else {
-            print("Failed to add subtitle")
+            logger.debug("Failed to add subtitle")
         }
     }
 
     @objc func getSubtitleTracks() -> [[String: Any]]? {
-        guard let mediaPlayer = self.mediaPlayer else {
+        if self.vlc.player.textTracks.count == 0 {
             return nil
         }
 
-        let count = mediaPlayer.numberOfSubtitlesTracks
-        print("Debug: Number of subtitle tracks: \(count)")
+        logger.debug("Number of subtitle tracks: \(self.vlc.player.textTracks.count)")
 
-        guard count > 0 else {
-            return nil
-        }
-
-        var tracks: [[String: Any]] = []
-
-        if let names = mediaPlayer.videoSubTitlesNames as? [String],
-            let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
-        {
-            for (index, name) in zip(indexes, names) {
-                if let customSubtitle = customSubtitles.first(where: { $0.internalName == name }) {
-                    tracks.append(["name": customSubtitle.originalName, "index": index.intValue])
-                } else {
-                    tracks.append(["name": name, "index": index.intValue])
-                }
+        let tracks = self.vlc.player.textTracks.enumerated().map { (index, track) in
+            if let customSubtitle = customSubtitles.first(where: {
+                $0.internalName == track.trackName
+            }) {
+                return ["name": customSubtitle.originalName, "index": index]
+            } else {
+                return ["name": track.trackName, "index": index]
             }
         }
 
-        print("Debug: Subtitle tracks: \(tracks)")
-        return tracks
-    }
-
-    private func setSubtitleTrackByName(_ trackName: String) {
-        guard let mediaPlayer = self.mediaPlayer else { return }
-
-        // Get the subtitle tracks and their indexes
-        if let names = mediaPlayer.videoSubTitlesNames as? [String],
-            let indexes = mediaPlayer.videoSubTitlesIndexes as? [NSNumber]
-        {
-            for (index, name) in zip(indexes, names) {
-                if name.starts(with: trackName) {
-                    let trackIndex = index.intValue
-                    print("Track Index setting to: \(trackIndex)")
-                    setSubtitleTrack(trackIndex)
-                    return
-                }
-            }
-        }
-        print("Track not found for name: \(trackName)")
+       logger.debug("Subtitle tracks: \(tracks)")
+       return tracks
     }
 
     @objc func stop(completion: (() -> Void)? = nil) {
+        logger.debug("Stopping media...")
         guard !isStopping else {
             completion?()
             return
@@ -267,125 +374,98 @@ class VlcPlayerView: ExpoView {
 
     }
 
+    private func setInitialExternalSubtitles() {
+        if let externalSubtitles = self.externalSubtitles {
+            for subtitle in externalSubtitles {
+                if let subtitleName = subtitle["name"],
+                    let subtitleURL = subtitle["DeliveryUrl"]
+                {
+                    print("Setting external subtitle: \(subtitleName) \(subtitleURL)")
+                    self.setSubtitleURL(subtitleURL, name: subtitleName)
+                }
+            }
+        }
+    }
+
     private func performStop(completion: (() -> Void)? = nil) {
         // Stop the media player
-        mediaPlayer?.stop()
+        vlc.player.stop()
 
         // Remove observer
         NotificationCenter.default.removeObserver(self)
 
         // Clear the video view
-        videoView?.removeFromSuperview()
-        videoView = nil
-
-        // Release the media player
-        mediaPlayer?.delegate = nil
-        mediaPlayer = nil
+        vlc.getPlayerView().removeFromSuperview()
 
         isStopping = false
         completion?()
     }
 
     private func updateVideoProgress() {
-        guard let player = self.mediaPlayer else { return }
+        guard let media = self.vlc.player.media else { return }
 
-        let currentTimeMs = player.time.intValue
-        let durationMs = player.media?.length.intValue ?? 0
+        let currentTimeMs = self.vlc.player.time.intValue
+        let durationMs = self.vlc.player.media?.length.intValue ?? 0
 
-        print("Debug: Current time: \(currentTimeMs)")
-        if currentTimeMs >= 0 && currentTimeMs < durationMs {
-            if player.isPlaying && !self.isMediaReady {
-                self.isMediaReady = true
-                // Set external track subtitle when starting.
-                if let externalTrack = self.externalTrack {
-                    if let name = externalTrack["name"], !name.isEmpty {
-                        let deliveryUrl = externalTrack["DeliveryUrl"] ?? ""
-                        self.setSubtitleURL(deliveryUrl, name: name)
-                    }
-                }
-            }
-            self.onVideoProgress?([
-                "currentTime": currentTimeMs,
-                "duration": durationMs,
-            ])
-        }
+        logger.debug("Current time: \(currentTimeMs)")
+        self.onVideoProgress?([
+            "currentTime": currentTimeMs,
+            "duration": durationMs,
+        ])
+    }
+
+    private func updatePlayerState() {
+        let player = self.vlc.player
+        self.onVideoStateChange?([
+            "target": self.reactTag ?? NSNull(),
+            "currentTime": player.time.intValue,
+            "duration": player.media?.length.intValue ?? 0,
+            "error": false,
+            "isPlaying": player.isPlaying,
+            "isBuffering": !player.isPlaying && player.state == VLCMediaPlayerState.buffering,
+            "state": player.state.description,
+        ])
     }
 
     // MARK: - Expo Events
-
     @objc var onPlaybackStateChanged: RCTDirectEventBlock?
     @objc var onVideoLoadStart: RCTDirectEventBlock?
     @objc var onVideoStateChange: RCTDirectEventBlock?
     @objc var onVideoProgress: RCTDirectEventBlock?
     @objc var onVideoLoadEnd: RCTDirectEventBlock?
     @objc var onVideoError: RCTDirectEventBlock?
+    @objc var onPipStarted: RCTDirectEventBlock?
 
     // MARK: - Deinitialization
 
     deinit {
+        logger.debug("Deinitialization")
         performStop()
+        VLCManager.shared.listeners.removeAll()
     }
 }
 
-extension VlcPlayerView: VLCMediaPlayerDelegate {
-    func mediaPlayerTimeChanged(_ aNotification: Notification) {
-        // self?.updateVideoProgress()
-        let timeNow = Date().timeIntervalSince1970
-        if timeNow - lastProgressCall >= 1 {
-            lastProgressCall = timeNow
-            updateVideoProgress()
-        }
+// MARK: - SimpleAppLifecycleListener
+extension VlcPlayerView: SimpleAppLifecycleListener {
+    func applicationDidEnterBackground() {
+        logger.debug("Entering background")
     }
 
-    func mediaPlayerStateChanged(_ aNotification: Notification) {
-        self.updatePlayerState()
+    func applicationDidEnterForeground() {
+        logger.debug("Entering foreground, is player visible? \(self.vlc.getPlayerView().superview != nil)")
+        if !self.vlc.getPlayerView().isDescendant(of: self) {
+            logger.debug("Player view is missing. Adding back as subview")
+            self.addSubview(self.vlc.getPlayerView())
+        }
+
+        // Current solution to fixing black screen when re-entering application
+        if let videoTrack = self.vlc.player.videoTracks.first { $0.isSelected == true }, !self.vlc.isMediaPlaying() {
+            videoTrack.isSelected = false
+            videoTrack.isSelectedExclusively = true
+            self.vlc.player.play()
+            self.vlc.player.pause()
+        }
     }
-
-    private func updatePlayerState() {
-        guard let player = self.mediaPlayer else { return }
-        let currentState = player.state
-
-        var stateInfo: [String: Any] = [
-            "target": self.reactTag ?? NSNull(),
-            "currentTime": player.time.intValue,
-            "duration": player.media?.length.intValue ?? 0,
-            "error": false,
-        ]
-
-        if player.isPlaying {
-            stateInfo["isPlaying"] = true
-            stateInfo["isBuffering"] = false
-            stateInfo["state"] = "Playing"
-        } else {
-            stateInfo["isPlaying"] = false
-            stateInfo["state"] = "Paused"
-        }
-
-        if player.state == VLCMediaPlayerState.buffering {
-            stateInfo["isBuffering"] = true
-            stateInfo["state"] = "Buffering"
-        } else if player.state == VLCMediaPlayerState.error {
-            print("player.state ~ error")
-            stateInfo["state"] = "Error"
-            self.onVideoLoadEnd?(stateInfo)
-        } else if player.state == VLCMediaPlayerState.opening {
-            print("player.state ~ opening")
-            stateInfo["state"] = "Opening"
-        }
-
-        if self.lastReportedState != currentState
-            || self.lastReportedIsPlaying != player.isPlaying
-        {
-            self.lastReportedState = currentState
-            self.lastReportedIsPlaying = player.isPlaying
-            self.onVideoStateChange?(stateInfo)
-        }
-
-    }
-}
-
-extension VlcPlayerView: VLCMediaDelegate {
-    // Implement VLCMediaDelegate methods if needed
 }
 
 extension VLCMediaPlayerState {
@@ -396,9 +476,7 @@ extension VLCMediaPlayerState {
         case .playing: return "Playing"
         case .paused: return "Paused"
         case .stopped: return "Stopped"
-        case .ended: return "Ended"
         case .error: return "Error"
-        case .esAdded: return "ESAdded"
         @unknown default: return "Unknown"
         }
     }

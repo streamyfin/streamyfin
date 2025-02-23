@@ -1,5 +1,7 @@
 import "@/augmentations";
 import { useInterval } from "@/hooks/useInterval";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSettings } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
 import { Api, Jellyfin } from "@jellyfin/sdk";
 import { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
@@ -7,6 +9,7 @@ import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { router, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { atom, useAtom } from "jotai";
 import React, {
   createContext,
@@ -17,16 +20,10 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Platform } from "react-native";
-import uuid from "react-native-uuid";
-import { getDeviceName } from "react-native-device-info";
 import { useTranslation } from "react-i18next";
-import { useSettings } from "@/utils/atoms/settings";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  useSplashScreenLoading,
-  useSplashScreenVisible,
-} from "./SplashScreenProvider";
+import { Platform } from "react-native";
+import { getDeviceName } from "react-native-device-info";
+import uuid from "react-native-uuid";
 
 interface Server {
   address: string;
@@ -64,7 +61,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.25.0" },
+            clientInfo: { name: "Streamyfin", version: "0.27.0" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -88,28 +85,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   ] = useSettings();
   const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
 
-  useQuery({
-    queryKey: ["user", api],
-    queryFn: async () => {
-      if (!api) return null;
-      const response = await getUserApi(api).getCurrentUser();
-      if (response.data) setUser(response.data);
-      return user;
-    },
-    enabled: !!api,
-    refetchOnWindowFocus: true,
-    refetchInterval: 1000 * 60,
-    refetchIntervalInBackground: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-  });
-
   const headers = useMemo(() => {
     if (!deviceId) return {};
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.25.0"`,
+      }, DeviceId="${deviceId}", Version="0.27.0"`,
     };
   }, [deviceId]);
 
@@ -179,14 +160,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [api, secret, headers]);
 
-  useInterval(pollQuickConnect, isPolling ? 1000 : null);
-
   useEffect(() => {
     (async () => {
       await refreshStreamyfinPluginSettings();
     })();
   }, []);
 
+  useInterval(pollQuickConnect, isPolling ? 1000 : null);
   useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
 
   const discoverServers = async (url: string): Promise<Server[]> => {
@@ -303,6 +283,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async () => {
       storage.delete("token");
       setUser(null);
+      setApi(null);
       setPluginSettings(undefined);
       await clearAllJellyseerData();
     },
@@ -311,33 +292,44 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
-  const { isLoading, isFetching } = useQuery({
-    queryKey: [
-      "initializeJellyfin",
-      user?.Id,
-      api?.basePath,
-      jellyfin?.clientInfo,
-    ],
-    queryFn: async () => {
+  const [loaded, setLoaded] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
+  useEffect(() => {
+    if (initialLoaded) {
+      setLoaded(true);
+    }
+  }, [initialLoaded]);
+
+  useEffect(() => {
+    const initializeJellyfin = async () => {
+      if (!jellyfin) return;
+
       try {
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
-        const user = getUserFromStorage();
-        if (serverUrl && token && user?.Id && jellyfin) {
+        const storedUser = getUserFromStorage();
+
+        if (serverUrl && token) {
           const apiInstance = jellyfin.createApi(serverUrl, token);
           setApi(apiInstance);
-          setUser(user);
-        }
 
-        return true;
+          if (storedUser?.Id) {
+            setUser(storedUser);
+          }
+
+          const response = await getUserApi(apiInstance).getCurrentUser();
+          setUser(response.data);
+        }
       } catch (e) {
         console.error(e);
-        return false;
+      } finally {
+        setInitialLoaded(true);
       }
-    },
-    staleTime: 0,
-    enabled: !user?.Id || !api || !jellyfin,
-  });
+    };
+
+    initializeJellyfin();
+  }, [jellyfin]);
 
   const contextValue: JellyfinContextValue = {
     discoverServers,
@@ -349,17 +341,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     initiateQuickConnect,
   };
 
-  let isLoadingOrFetching = isLoading || isFetching;
-  useProtectedRoute(user, isLoadingOrFetching);
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
 
-  // show splash screen until everything loaded
-  useSplashScreenLoading(isLoadingOrFetching);
-  const splashScreenVisible = useSplashScreenVisible();
+  useProtectedRoute(user, loaded);
 
   return (
     <JellyfinContext.Provider value={contextValue}>
-      {/* don't render login page when loading and splash screen visible */}
-      {isLoadingOrFetching && splashScreenVisible ? undefined : children}
+      {children}
     </JellyfinContext.Provider>
   );
 };
@@ -371,20 +363,24 @@ export const useJellyfin = (): JellyfinContextValue => {
   return context;
 };
 
-function useProtectedRoute(user: UserDto | null, loading = false) {
+function useProtectedRoute(user: UserDto | null, loaded = false) {
   const segments = useSegments();
 
   useEffect(() => {
-    if (loading) return;
+    if (loaded === false) return;
+
+    console.log("Loaded", user);
 
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!user?.Id && inAuthGroup) {
+      console.log("Redirected to login");
       router.replace("/login");
     } else if (user?.Id && !inAuthGroup) {
+      console.log("Redirected to home");
       router.replace("/(auth)/(tabs)/(home)/");
     }
-  }, [user, segments, loading]);
+  }, [user, segments, loaded]);
 }
 
 export function getTokenFromStorage(): string | null {

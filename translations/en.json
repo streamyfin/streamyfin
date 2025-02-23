@@ -132,7 +132,8 @@
         "show_custom_menu_links": "Show Custom Menu Links",
         "hide_libraries": "Hide Libraries",
         "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
-        "disable_haptic_feedback": "Disable Haptic Feedback"
+        "disable_haptic_feedback": "Disable Haptic Feedback",
+        "default_quality": "Default quality"
       },
       "downloads": {
         "downloads_title": "Downloads",
@@ -210,7 +211,11 @@
         "connected": "Connected",
         "could_not_connect": "Could not connect",
         "invalid_url": "Invalid URL"
-      }
+      },
+    },
+    "sessions": {
+      "title": "Sessions",
+      "no_active_sessions": "No active sessions"
     },
     "downloads": {
       "downloads_title": "Downloads",

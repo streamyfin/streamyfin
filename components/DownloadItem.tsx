@@ -2,7 +2,7 @@ import { useRemuxHlsToMp4 } from "@/hooks/useRemuxHlsToMp4";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
@@ -21,7 +21,7 @@ import {
 import { Href, router, useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, View, ViewProps } from "react-native";
+import { Alert, Platform, View, ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { Bitrate, BitrateSelector } from "./BitrateSelector";
@@ -66,10 +66,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
   const [selectedSubtitleStream, setSelectedSubtitleStream] =
     useState<number>(0);
-  const [maxBitrate, setMaxBitrate] = useState<Bitrate>({
-    key: "Max",
-    value: undefined,
-  });
+  const [maxBitrate, setMaxBitrate] = useState<Bitrate>(
+    settings?.defaultBitrate ?? {
+      key: "Max",
+      value: undefined,
+    }
+  );
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
@@ -162,7 +164,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         );
       }
     } else {
-      toast.error(t("home.downloads.toasts.you_are_not_allowed_to_download_files"));
+      toast.error(
+        t("home.downloads.toasts.you_are_not_allowed_to_download_files")
+      );
     }
   }, [
     queue,
@@ -194,10 +198,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
       for (const item of items) {
         if (itemsNotDownloaded.length > 1) {
-          ({ mediaSource, audioIndex, subtitleIndex } = getDefaultPlaySettings(
-            item,
-            settings!
-          ));
+          const defaults = getDefaultPlaySettings(item, settings!);
+          mediaSource = defaults.mediaSource;
+          audioIndex = defaults.audioIndex;
+          subtitleIndex = defaults.subtitleIndex;
+          // Keep using the selected bitrate for consistency across all downloads
         }
 
         const res = await getStreamUrl({
@@ -332,7 +337,10 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 {title}
               </Text>
               <Text className="text-neutral-300">
-                {subtitle || t("item_card.download.download_x_item", {item_count: itemsNotDownloaded.length})}
+                {subtitle ||
+                  t("item_card.download.download_x_item", {
+                    item_count: itemsNotDownloaded.length,
+                  })}
               </Text>
             </View>
             <View className="flex flex-col space-y-2 w-full items-start">
@@ -390,12 +398,16 @@ export const DownloadSingleItem: React.FC<{
   size?: "default" | "large";
   item: BaseItemDto;
 }> = ({ item, size = "default" }) => {
+  if (Platform.isTV) return;
+
   return (
     <DownloadItems
       size={size}
-      title={item.Type == "Episode"
-        ? t("item_card.download.download_episode")
-        : t("item_card.download.download_movie")}
+      title={
+        item.Type == "Episode"
+          ? t("item_card.download.download_episode")
+          : t("item_card.download.download_movie")
+      }
       subtitle={item.Name!}
       items={[item]}
       MissingDownloadIconComponent={() => (

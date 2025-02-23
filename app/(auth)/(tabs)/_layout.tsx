@@ -10,7 +10,6 @@ import {
 } from "@bottom-tabs/react-navigation";
 
 const { Navigator } = createNativeBottomTabNavigator();
-
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 
 import { Colors } from "@/constants/Colors";
@@ -21,6 +20,7 @@ import type {
   TabNavigationState,
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { eventBus } from "@/utils/eventBus";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -55,12 +55,19 @@ export default function TabLayout() {
       <NativeTabs
         sidebarAdaptable={false}
         ignoresTopSafeArea
-        barTintColor={Platform.OS === "android" ? "#121212" : undefined}
+        tabBarStyle={{
+          backgroundColor: "#121212",
+        }}
         tabBarActiveTintColor={Colors.primary}
         scrollEdgeAppearance="default"
       >
         <NativeTabs.Screen redirect name="index" />
         <NativeTabs.Screen
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              eventBus.emit("scrollToTop");
+            },
+          })}
           name="(home)"
           options={{
             title: t("tabs.home"),
@@ -75,6 +82,11 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              eventBus.emit("searchTabPressed");
+            },
+          })}
           name="(search)"
           options={{
             title: t("tabs.search"),
