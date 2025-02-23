@@ -26,11 +26,15 @@ public class VLCPlayerView: UIView {
 }
 
 class VLCPlayerWrapper: NSObject {
+    let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "VLCPlayerWrapper")
+
     private var lastProgressCall = Date().timeIntervalSince1970
     public var player: VLCMediaPlayer = VLCMediaPlayer()
     private var updatePlayerState: (() -> Void)?
     private var updateVideoProgress: (() -> Void)?
+    private var onDiscoveryStateChanged: ((_ renderers: [[String : Any]]) -> Void)?
     private var playerView: VLCPlayerView = VLCPlayerView()
+    public var discoverer: VLCRendererDiscoverer?
     public weak var pipController: VLCPictureInPictureWindowControlling?
 
     override public init() {
@@ -38,15 +42,22 @@ class VLCPlayerWrapper: NSObject {
         player.delegate = self
         player.drawable = self
         player.scaleFactor = 0
+#if DEBUG
+        let consoleLogger = VLCConsoleLogger()
+        consoleLogger.level = VLCLogLevel.debug
+        player.libraryInstance.loggers = [consoleLogger]
+#endif
     }
 
     public func setup(
         parent: UIView,
         updatePlayerState: (() -> Void)?,
-        updateVideoProgress: (() -> Void)?
+        updateVideoProgress: (() -> Void)?,
+        onDiscoveryStateChanged: ((_ renderers: [[String : Any]]) -> Void)?
     ) {
         self.updatePlayerState = updatePlayerState
         self.updateVideoProgress = updateVideoProgress
+        self.onDiscoveryStateChanged = onDiscoveryStateChanged
 
         player.delegate = self
         parent.addSubview(playerView)
@@ -55,6 +66,50 @@ class VLCPlayerWrapper: NSObject {
 
     public func getPlayerView() -> UIView {
         return playerView
+    }
+
+    public func startDiscovery() {
+       if self.discoverer != nil {
+            self.discoverer!.stop()
+            self.discoverer!.start()
+            return
+        }
+        let _discoverer = VLCRendererDiscoverer(name: "bonjour renderer")
+        _discoverer!.delegate = self
+
+        self.discoverer = _discoverer
+        self.discoverer?.start()
+    }
+
+    public func stopDiscovery() {
+        guard let discoverer = self.discoverer else { return }
+        discoverer.stop()
+    }
+}
+
+extension VLCPlayerWrapper: VLCRendererDiscovererDelegate {
+    func rendererDiscovererItemAdded(_ rendererDiscoverer: VLCRendererDiscoverer?, item: VLCRendererItem?) {
+        logger.debug("Renderer item added: \(item)")
+        self.onDiscoveryStateChanged?(getRenderersMap(rendererDiscoverer: rendererDiscoverer))
+    }
+
+    func rendererDiscovererItemDeleted(_ rendererDiscoverer: VLCRendererDiscoverer?, item: VLCRendererItem?) {
+        logger.debug("Renderer item removed: \(item)")
+        self.onDiscoveryStateChanged?(getRenderersMap(rendererDiscoverer: rendererDiscoverer))
+    }
+
+    private func getRenderersMap(rendererDiscoverer: VLCRendererDiscoverer?) -> [[String : Any]] {
+         let renderers = (rendererDiscoverer ?? discoverer)?.renderers.enumerated().map { (index, rendererItem) in
+            return [
+                "index": index,
+                "name": rendererItem.name,
+                "type": rendererItem.type,
+                "iconURI": rendererItem.iconURI,
+                "flags": rendererItem.flags
+            ]
+        } ?? []
+        logger.debug("Renderers mapped to: \(renderers)")
+        return renderers
     }
 }
 
@@ -156,6 +211,16 @@ class VlcPlayerView: ExpoView {
     private var externalSubtitles: [[String: String]]?
     var hasSource = false
 
+    // MARK: - Expo Events
+    @objc var onPlaybackStateChanged: RCTDirectEventBlock?
+    @objc var onVideoLoadStart: RCTDirectEventBlock?
+    @objc var onVideoStateChange: RCTDirectEventBlock?
+    @objc var onVideoProgress: RCTDirectEventBlock?
+    @objc var onVideoLoadEnd: RCTDirectEventBlock?
+    @objc var onVideoError: RCTDirectEventBlock?
+    @objc var onPipStarted: RCTDirectEventBlock?
+    @objc var onDiscoveryStateChanged: RCTDirectEventBlock?
+
     // MARK: - Initialization
     required init(appContext: AppContext? = nil) {
         super.init(appContext: appContext)
@@ -169,8 +234,13 @@ class VlcPlayerView: ExpoView {
         vlc.setup(
             parent: self,
             updatePlayerState: updatePlayerState,
-            updateVideoProgress: updateVideoProgress
+            updateVideoProgress: updateVideoProgress,
+            onDiscoveryStateChanged: updateDiscoveryState
         )
+    }
+
+    private func updateDiscoveryState(renderers: [[String: Any]]) {
+        self.onDiscoveryStateChanged?(["renderers": renderers])
     }
 
     private func setupNotifications() {
@@ -188,6 +258,19 @@ class VlcPlayerView: ExpoView {
             self.onPipStarted?(["pipStarted": isStarted])
         }
         self.vlc.pipController?.startPictureInPicture()
+    }
+
+    func startDiscovery() {
+        logger.debug("Starting Discovery")
+        self.vlc.startDiscovery()
+        if self.vlc.discoverer != nil {
+            logger.debug("Discoverer description: \(self.vlc.discoverer!.description)")
+            logger.debug("Discoverer renderer: \(self.vlc.discoverer!.renderers)")
+        }
+    }
+
+    func stopDiscovery() {
+        self.vlc.stopDiscovery()
     }
 
     @objc func play() {
@@ -240,12 +323,6 @@ class VlcPlayerView: ExpoView {
             self.startPosition = source["startPosition"] as? Int32 ?? 0
             self.externalSubtitles = source["externalSubtitles"] as? [[String: String]]
 
-            for item in initOptions {
-                let option = item.components(separatedBy: "=")
-                mediaOptions.updateValue(
-                    option[1], forKey: option[0].replacingOccurrences(of: "--", with: ""))
-            }
-
             guard let uri = source["uri"] as? String, !uri.isEmpty else {
                 logger.error("Invalid or empty URI")
                 self.onVideoError?(["error": "Invalid or empty URI"])
@@ -267,6 +344,20 @@ class VlcPlayerView: ExpoView {
                     media = VLCMedia(url: url)
                 } else {
                     media = VLCMedia(path: uri)
+                }
+            }
+
+            for item in initOptions {
+                let option = item.components(separatedBy: "=")
+                var key = option[0].replacingOccurrences(of: "--", with: "")
+                if option.count > 1 {
+                    mediaOptions.updateValue(
+                        option[1],
+                        forKey: key
+                    )
+                }
+                else {
+                    media.addOption(key)
                 }
             }
 
@@ -426,15 +517,6 @@ class VlcPlayerView: ExpoView {
             "state": player.state.description,
         ])
     }
-
-    // MARK: - Expo Events
-    @objc var onPlaybackStateChanged: RCTDirectEventBlock?
-    @objc var onVideoLoadStart: RCTDirectEventBlock?
-    @objc var onVideoStateChange: RCTDirectEventBlock?
-    @objc var onVideoProgress: RCTDirectEventBlock?
-    @objc var onVideoLoadEnd: RCTDirectEventBlock?
-    @objc var onVideoError: RCTDirectEventBlock?
-    @objc var onPipStarted: RCTDirectEventBlock?
 
     // MARK: - Deinitialization
 

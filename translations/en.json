@@ -356,7 +356,8 @@
     "audio_tracks": "Audio Tracks:",
     "playback_state": "Playback State:",
     "no_data_available": "No data available",
-    "index": "Index:"
+    "index": "Index:",
+    "device_discovery": "Device discovery"
   },
   "item_card": {
     "next_up": "Next up",

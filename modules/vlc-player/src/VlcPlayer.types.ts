@@ -30,6 +30,18 @@ export type PipStartedPayload = {
   };
 };
 
+export type VLCRendererItem = {
+  index: number,
+  name: string,
+  type: string,
+  iconURI: string,
+  flags: number
+}
+
+export type OnDiscoveryStateChangedPayload = {
+  nativeEvent: { renderers: VLCRendererItem[] }
+}
+
 export type VideoStateChangePayload = PlaybackStatePayload;
 
 export type VideoProgressPayload = ProgressUpdatePayload;
@@ -71,9 +83,12 @@ export type VlcPlayerViewProps = {
   onVideoLoadEnd?: (event: VideoLoadStartPayload) => void;
   onVideoError?: (event: PlaybackStatePayload) => void;
   onPipStarted?: (event: PipStartedPayload) => void;
+  onDiscoveryStateChanged?: (event: OnDiscoveryStateChangedPayload) => void;
 };
 
 export interface VlcPlayerViewRef {
+  startDiscovery: () => Promise<void>;
+  stopDiscovery: () => Promise<void>;
   startPictureInPicture: () => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;

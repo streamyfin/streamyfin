@@ -23,7 +23,8 @@ public class VlcPlayerModule: Module {
                 "onVideoLoadEnd",
                 "onVideoProgress",
                 "onVideoError",
-                "onPipStarted"
+                "onPipStarted",
+                "onDiscoveryStateChanged"
             )
 
             AsyncFunction("startPictureInPicture") { (view: VlcPlayerView) in
@@ -40,6 +41,14 @@ public class VlcPlayerModule: Module {
 
             AsyncFunction("stop") { (view: VlcPlayerView) in
                 view.stop()
+            }
+
+            AsyncFunction("startDiscovery") { (view: VlcPlayerView) in
+                view.startDiscovery()
+            }
+
+            AsyncFunction("stopDiscovery") { (view: VlcPlayerView) in
+                view.stopDiscovery()
             }
 
             AsyncFunction("seekTo") { (view: VlcPlayerView, time: Int32) in

@@ -352,7 +352,8 @@
     "audio_tracks": "Audiospuren:",
     "playback_state": "Wiedergabestatus:",
     "no_data_available": "Keine Daten verfügbar",
-    "index": "Index:"
+    "index": "Index:",
+    "device_discovery": "Device discovery"
   },
   "item_card": {
     "next_up": "Als Nächstes",

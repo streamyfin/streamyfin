@@ -351,7 +351,8 @@
     "audio_tracks": "音声トラック:",
     "playback_state": "再生状態:",
     "no_data_available": "データなし",
-    "index": "インデックス:"
+    "index": "インデックス:",
+    "device_discovery": "Device discovery"
   },
   "item_card": {
     "next_up": "次",

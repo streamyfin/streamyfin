@@ -351,7 +351,8 @@
     "audio_tracks": "音頻軌道：",
     "playback_state": "播放狀態：",
     "no_data_available": "無可用數據",
-    "index": "索引："
+    "index": "索引：",
+    "device_discovery": "Device discovery"
   },
   "item_card": {
     "next_up": "下一個",
