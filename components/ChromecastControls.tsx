@@ -8,7 +8,6 @@ import { RoundButton } from "@/components/RoundButton";
 import {
   CastButton,
   CastContext,
-  MediaInfo,
   MediaStatus,
   RemoteMediaClient,
   useStreamPosition,
@@ -28,7 +27,6 @@ import { useSettings } from "@/utils/atoms/settings";
 import { useHaptic } from "@/hooks/useHaptic";
 import { writeToLog } from "@/utils/log";
 import { formatTimeString } from "@/utils/time";
-import { BlurView } from "expo-blur";
 import SkipButton from "@/components/video-player/controls/SkipButton";
 import NextEpisodeCountDownButton from "@/components/video-player/controls/NextEpisodeCountDownButton";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
@@ -56,12 +54,18 @@ import {
 import { useTranslation } from "react-i18next";
 import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
-
-const ANDROID_EXPERIMENTAL_BLUR: boolean =
-  process.env.ANDROID_EXPERIMENTAL_BLUR === "true";
-
-const BLURHASH =
-  "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { ItemImage } from "@/components/common/ItemImage";
+import { BitrateSelector } from "@/components/BitrateSelector";
+import { ItemHeader } from "@/components/ItemHeader";
+import { MediaSourceSelector } from "@/components/MediaSourceSelector";
+import { AudioTrackSelector } from "@/components/AudioTrackSelector";
+import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
+import { ItemTechnicalDetails } from "@/components/ItemTechnicalDetails";
+import { OverviewText } from "@/components/OverviewText";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PlayedStatus } from "./PlayedStatus";
+import { AddToFavorites } from "./AddToFavorites";
 
 export default function ChromecastControls({
   mediaStatus,
@@ -424,19 +428,6 @@ export default function ChromecastControls({
     false
   );
 
-  const ItemInfo = useMemo(() => {
-    switch (type) {
-      case "generic":
-        return <GenericInfo mediaMetadata={mediaMetadata} />;
-      case "movie":
-        return <MovieInfo mediaMetadata={mediaMetadata} />;
-      case "tvShow":
-        return <TvShowInfo mediaMetadata={mediaMetadata} item={item} />;
-      default:
-        return <Text>{type} not implemented yet!</Text>;
-    }
-  }, [type, mediaMetadata, item]);
-
   // Android requires the cast button to be present for startDiscovery to work
   const AndroidCastButton = useCallback(
     () =>
@@ -446,11 +437,6 @@ export default function ChromecastControls({
         <></>
       ),
     [Platform.OS]
-  );
-
-  const title = useMemo(
-    () => mediaMetadata?.title || "Title not found!",
-    [mediaMetadata?.title]
   );
 
   const TrickplaySliderMemoized = useMemo(
@@ -494,6 +480,13 @@ export default function ChromecastControls({
   const { t } = useTranslation();
   const router = useRouter();
 
+  const insets = useSafeAreaInsets();
+
+  const [loadingLogo, setLoadingLogo] = useState(true);
+  const [headerHeight, setHeaderHeight] = useState(350);
+
+  const logoUrl = useMemo(() => images[0]?.url, [images]);
+
   if (isErrorItem) {
     return (
       <View className="w-full h-full flex flex-col items-center justify-center bg-black">
@@ -531,155 +524,209 @@ export default function ChromecastControls({
     );
   }
 
+  if (!item) {
+    return <Text>Do something when item is undefined</Text>;
+  }
+
+  if (!playbackOptions) {
+    return <Text>Do something when playbackOptions is undefined</Text>;
+  }
+
   return (
-    <View className="w-full h-full flex flex-col items-center justify-center bg-black">
-      <View className="w-full h-full flex flex-col justify-between bg-black">
-        <BlurView
-          intensity={60}
-          tint="dark"
-          experimentalBlurMethod={
-            ANDROID_EXPERIMENTAL_BLUR ? "dimezisBlurView" : "none"
-          }
-        >
-          <View className="pt-6 pb-4 px-4">
-            <View className="flex flex-row flex-wrap-reverse justify-between w-full pb-1">
-              <Text className="text-white font-bold text-3xl">{title}</Text>
-              <RoundButton
-                size="large"
-                className="mr-4"
-                background={false}
-                onPress={() => {
-                  CastContext.showCastDialog();
+    <View
+      className="flex-1 relative"
+      style={{
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
+    >
+      {/* TODO do navigation header properly */}
+      <View
+        className="flex flex-row justify-between absolute w-full top-2 z-50"
+        style={{
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        }}
+      >
+        <RoundButton size="large" icon="arrow-back" />
+        {item.Type !== "Program" && (
+          <View className="flex flex-row items-center space-x-2">
+            <RoundButton
+              size="large"
+              onPress={() => {
+                CastContext.showCastDialog();
+              }}
+            >
+              <AndroidCastButton />
+              <Feather name="cast" size={24} color={"white"} />
+            </RoundButton>
+            <PlayedStatus items={[item]} size="large" />
+            <AddToFavorites item={item} />
+          </View>
+        )}
+      </View>
+      <ParallaxScrollView
+        className={`flex-1 ${loadingLogo ? "opacity-0" : "opacity-100"}`}
+        headerHeight={headerHeight}
+        headerImage={
+          <View style={[{ flex: 1 }]}>
+            <ItemImage
+              variant={
+                item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
+              }
+              item={item}
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+            />
+          </View>
+        }
+        logo={
+          <>
+            {logoUrl ? (
+              <Image
+                source={{
+                  uri: logoUrl,
                 }}
-              >
-                <AndroidCastButton />
-                <Feather name="cast" size={30} color={"white"} />
-              </RoundButton>
-            </View>
-            {ItemInfo}
+                style={{
+                  height: 130,
+                  width: "100%",
+                  resizeMode: "contain",
+                }}
+                onLoad={() => setLoadingLogo(false)}
+                onError={() => setLoadingLogo(false)}
+              />
+            ) : null}
+          </>
+        }
+      >
+        <View className="flex flex-col bg-transparent shrink">
+          <View className="flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink">
+            <ItemHeader item={item} className="mb-4" />
+            {item.Type !== "Program" && !Platform.isTV && (
+              <View className="flex flex-row items-center justify-start w-full h-16">
+                <BitrateSelector
+                  className="mr-1"
+                  onChange={(val) =>
+                    // setSelectedOptions(
+                    //   (prev) => prev && { ...prev, bitrate: val }
+                    // )
+                    console.log("new selected options", val)
+                  }
+                  selected={playbackOptions.bitrate}
+                />
+                <MediaSourceSelector
+                  className="mr-1"
+                  item={item}
+                  onChange={(val) =>
+                    // setSelectedOptions((prev) =>
+                    //   prev && {
+                    //     ...prev,
+                    //     mediaSource: val,
+                    //   }
+                    // )
+                    console.log("new selected options", val)
+                  }
+                  selected={playbackOptions.mediaSource}
+                />
+                <AudioTrackSelector
+                  className="mr-1"
+                  source={playbackOptions.mediaSource}
+                  onChange={(val) => {
+                    // setSelectedOptions((prev) =>
+                    //   prev && {
+                    //     ...prev,
+                    //     audioIndex: val,
+                    //   }
+                    // );
+                    console.log("new selected options", val);
+                  }}
+                  selected={playbackOptions.audioIndex}
+                />
+                <SubtitleTrackSelector
+                  source={playbackOptions.mediaSource}
+                  onChange={(val) =>
+                    // setSelectedOptions(
+                    //   (prev) =>
+                    //     prev && {
+                    //       ...prev,
+                    //       subtitleIndex: val,
+                    //     }
+                    // )
+                    console.log("new selected options", val)
+                  }
+                  selected={playbackOptions.subtitleIndex}
+                />
+              </View>
+            )}
           </View>
-        </BlurView>
-        <Image
-          className="flex h-full w-full bg-[#0553] absolute -z-50"
-          source={images[0]?.url}
-          placeholder={{ blurhash: BLURHASH }}
-          contentFit="cover"
-          transition={1000}
-        />
-        <View className="flex flex-col w-full">
-          <View className="flex flex-row w-full justify-end px-6 pb-6">
-            <SkipButton
-              showButton={showSkipButton}
-              onPress={skipIntro}
-              buttonText="Skip Intro"
+          <ItemTechnicalDetails source={playbackOptions.mediaSource} />
+          <OverviewText text={item.Overview} className="px-4 mb-4" />
+        </View>
+      </ParallaxScrollView>
+      <View className="pt-2">
+        {TrickplaySliderMemoized}
+        <View className="flex flex-row items-center justify-between mt-2">
+          <Text className="text-[12px] text-neutral-400">
+            {formatTimeString(currentTime, "s")}
+          </Text>
+          <Text className="text-[12px] text-neutral-400">
+            -{formatTimeString(remainingTime, "s")}
+          </Text>
+        </View>
+        <View className="flex flex-row w-full items-center justify-evenly mt-2 mb-10">
+          <TouchableOpacity onPress={goToPreviousItem} disabled={!previousItem}>
+            <Ionicons
+              name="play-skip-back-outline"
+              size={30}
+              color={previousItem ? "white" : "gray"}
             />
-            <SkipButton
-              showButton={showSkipCreditButton}
-              onPress={skipCredit}
-              buttonText="Skip Credits"
-            />
-            {NextEpisodeButtonMemoized}
-          </View>
-          <BlurView
-            intensity={ANDROID_EXPERIMENTAL_BLUR ? 5 : 70}
-            tint="dark"
-            // blurs buttons too. not wanted
-            experimentalBlurMethod={
-              ANDROID_EXPERIMENTAL_BLUR ? "dimezisBlurView" : "none"
-            }
-            className="pt-1"
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSkipBackward}>
+            <Ionicons name="play-back-outline" size={30} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => togglePlay()}
+            className="flex w-14 h-14 items-center justify-center"
           >
-            <View className={`flex flex-col w-full shrink px-2`}>
-              {TrickplaySliderMemoized}
-              <View className="flex flex-row items-center justify-between mt-2">
-                <Text className="text-[12px] text-neutral-400">
-                  {formatTimeString(currentTime, "s")}
-                </Text>
-                <Text className="text-[12px] text-neutral-400">
-                  -{formatTimeString(remainingTime, "s")}
-                </Text>
-              </View>
-              <View className="flex flex-row w-full items-center justify-evenly mt-2 mb-10">
-                <TouchableOpacity
-                  onPress={goToPreviousItem}
-                  disabled={!previousItem}
-                >
-                  <Ionicons
-                    name="play-skip-back-outline"
-                    size={30}
-                    color={previousItem ? "white" : "gray"}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleSkipBackward}>
-                  <Ionicons name="play-back-outline" size={30} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => togglePlay()}
-                  className="flex w-14 h-14 items-center justify-center"
-                >
-                  {!isBufferingOrLoading ? (
-                    <Ionicons
-                      name={isPlaying ? "pause" : "play"}
-                      size={50}
-                      color="white"
-                    />
-                  ) : (
-                    <Loader size={"large"} />
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleSkipForward}>
-                  <Ionicons
-                    name="play-forward-outline"
-                    size={30}
-                    color="white"
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={goToNextItem} disabled={!nextItem}>
-                  <Ionicons
-                    name="play-skip-forward-outline"
-                    size={30}
-                    color={nextItem ? "white" : "gray"}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </BlurView>
+            {!isBufferingOrLoading ? (
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={50}
+                color="white"
+              />
+            ) : (
+              <Loader size={"large"} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSkipForward}>
+            <Ionicons name="play-forward-outline" size={30} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={goToNextItem} disabled={!nextItem}>
+            <Ionicons
+              name="play-skip-forward-outline"
+              size={30}
+              color={nextItem ? "white" : "gray"}
+            />
+          </TouchableOpacity>
         </View>
       </View>
+      {/* TODO find proper placement for these buttons */}
+      {/* <View className="flex flex-row w-full justify-end px-6 pb-6">
+        <SkipButton
+          showButton={showSkipButton}
+          onPress={skipIntro}
+          buttonText="Skip Intro"
+        />
+        <SkipButton
+          showButton={showSkipCreditButton}
+          onPress={skipCredit}
+          buttonText="Skip Credits"
+        />
+        {NextEpisodeButtonMemoized}
+      </View> */}
     </View>
-  );
-}
-
-type MetadataInfoProps = { mediaMetadata: MediaInfo["metadata"] };
-
-function GenericInfo({ mediaMetadata }: MetadataInfoProps) {
-  // @ts-expect-error The metadata type doesn't have subtitle, but the object has
-  const subtitle = mediaMetadata?.subtitle;
-
-  return <>{subtitle && <Text className="opacity-50">{subtitle}</Text>}</>;
-}
-
-function MovieInfo({ mediaMetadata }: MetadataInfoProps) {
-  // @ts-expect-error The metadata type doesn't have subtitle, but the object has
-  const subtitle = mediaMetadata?.subtitle;
-
-  return <>{subtitle && <Text className="opacity-50">{subtitle}</Text>}</>;
-}
-
-function TvShowInfo({
-  mediaMetadata,
-  item,
-}: MetadataInfoProps & { item?: BaseItemDto }) {
-  const seriesTitle: string =
-    // @ts-expect-error
-    mediaMetadata?.seriesTitle || item?.SeriesName || "Title not found!";
-
-  return (
-    <>
-      <Text className="opacity-50">
-        {`${seriesTitle} - ${item?.SeasonName} Episode ${item?.IndexNumber}`}
-      </Text>
-    </>
   );
 }
 
