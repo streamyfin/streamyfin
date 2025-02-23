@@ -125,7 +125,7 @@ export const PlayButton: React.FC<Props> = ({
                   const data = await getStreamUrl({
                     api,
                     item,
-                    deviceProfile: enableH265 ? chromecast : chromecasth265,
+                    deviceProfile: enableH265 ? chromecasth265 : chromecast,
                     startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
                     userId: user?.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
