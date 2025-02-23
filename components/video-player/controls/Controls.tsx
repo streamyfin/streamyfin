@@ -87,40 +87,38 @@ interface Props {
   setSubtitleURL?: (url: string, customName: string) => void;
   setSubtitleTrack?: (index: number) => void;
   setAudioTrack?: (index: number) => void;
-  stop: (() => Promise<void>) | (() => void);
   isVlc?: boolean;
 }
 
 const CONTROLS_TIMEOUT = 4000;
 
 export const Controls: React.FC<Props> = ({
-  item,
-  seek,
-  startPictureInPicture,
-  play,
-  pause,
-  togglePlay,
-  isPlaying,
-  isSeeking,
-  progress,
-  isBuffering,
-  cacheProgress,
-  showControls,
-  setShowControls,
-  ignoreSafeAreas,
-  setIgnoreSafeAreas,
-  mediaSource,
-  isVideoLoaded,
-  getAudioTracks,
-  getSubtitleTracks,
-  setSubtitleURL,
-  setSubtitleTrack,
-  setAudioTrack,
-  stop,
-  offline = false,
-  enableTrickplay = true,
-  isVlc = false,
-}) => {
+                                            item,
+                                            seek,
+                                            startPictureInPicture,
+                                            play,
+                                            pause,
+                                            togglePlay,
+                                            isPlaying,
+                                            isSeeking,
+                                            progress,
+                                            isBuffering,
+                                            cacheProgress,
+                                            showControls,
+                                            setShowControls,
+                                            ignoreSafeAreas,
+                                            setIgnoreSafeAreas,
+                                            mediaSource,
+                                            isVideoLoaded,
+                                            getAudioTracks,
+                                            getSubtitleTracks,
+                                            setSubtitleURL,
+                                            setSubtitleTrack,
+                                            setAudioTrack,
+                                            offline = false,
+                                            enableTrickplay = true,
+                                            isVlc = false,
+                                          }) => {
   const [settings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -189,75 +187,60 @@ export const Controls: React.FC<Props> = ({
     isVlc
   );
 
+  const goToItemCommon = useCallback(
+    (item: BaseItemDto) => {
+      if (!item || !settings) return;
+
+      lightHapticFeedback();
+
+      const previousIndexes = {
+        subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
+        audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
+      };
+
+      const {
+        mediaSource: newMediaSource,
+        audioIndex: defaultAudioIndex,
+        subtitleIndex: defaultSubtitleIndex,
+      } = getDefaultPlaySettings(
+        item,
+        settings,
+        previousIndexes,
+        mediaSource ?? undefined
+      );
+
+      const queryParams = new URLSearchParams({
+        itemId: item.Id ?? "",
+        audioIndex: defaultAudioIndex?.toString() ?? "",
+        subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+        mediaSourceId: newMediaSource?.Id ?? "",
+        bitrateValue: bitrateValue.toString(),
+      }).toString();
+
+      // @ts-expect-error
+      router.replace(`player/direct-player?${queryParams}`);
+    },
+    [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router]
+  );
+
   const goToPreviousItem = useCallback(() => {
-    if (!previousItem || !settings) return;
-
-    lightHapticFeedback();
-
-    const previousIndexes: previousIndexes = {
-      subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
-      audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
-    };
-
-    const {
-      mediaSource: newMediaSource,
-      audioIndex: defaultAudioIndex,
-      subtitleIndex: defaultSubtitleIndex,
-    } = getDefaultPlaySettings(
-      previousItem,
-      settings,
-      previousIndexes,
-      mediaSource ?? undefined
-    );
-
-    const queryParams = new URLSearchParams({
-      itemId: previousItem.Id ?? "", // Ensure itemId is a string
-      audioIndex: defaultAudioIndex?.toString() ?? "",
-      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-      mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-      bitrateValue: bitrateValue.toString(),
-    }).toString();
-
-    stop();
-
-    // @ts-expect-error
-    router.replace(`player/direct-player?${queryParams}`);
-  }, [previousItem, settings, subtitleIndex, audioIndex]);
+    if (!previousItem) return;
+    goToItemCommon(previousItem);
+  }, [previousItem, goToItemCommon]);
 
   const goToNextItem = useCallback(() => {
-    if (!nextItem || !settings) return;
+    if (!nextItem) return;
+    goToItemCommon(nextItem);
+  }, [nextItem, goToItemCommon]);
 
-    lightHapticFeedback();
-
-    const previousIndexes: previousIndexes = {
-      subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
-      audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
-    };
-
-    const {
-      mediaSource: newMediaSource,
-      audioIndex: defaultAudioIndex,
-      subtitleIndex: defaultSubtitleIndex,
-    } = getDefaultPlaySettings(
-      nextItem,
-      settings,
-      previousIndexes,
-      mediaSource ?? undefined
-    );
-
-    const queryParams = new URLSearchParams({
-      itemId: nextItem.Id ?? "", // Ensure itemId is a string
-      audioIndex: defaultAudioIndex?.toString() ?? "",
-      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-      mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-      bitrateValue: bitrateValue.toString(),
-    }).toString();
-
-    stop();
-
-    // @ts-expect-error
-    router.replace(`player/direct-player?${queryParams}`);
-  }, [nextItem, settings, subtitleIndex, audioIndex]);
+  const goToItem = useCallback(
+    async (itemId: string) => {
+      const gotoItem = await getItemById(api, itemId);
+      if (!gotoItem) return;
+      goToItemCommon(gotoItem);
+    },
+    [goToItemCommon, api]
+  );
 
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
@@ -381,49 +364,6 @@ export const Controls: React.FC<Props> = ({
     }
   }, [settings, isPlaying, isVlc]);
 
-  const goToItem = useCallback(
-    async (itemId: string) => {
-      try {
-        const gotoItem = await getItemById(api, itemId);
-        if (!settings || !gotoItem) return;
-
-        lightHapticFeedback();
-
-        const previousIndexes: previousIndexes = {
-          subtitleIndex: subtitleIndex ? parseInt(subtitleIndex) : undefined,
-          audioIndex: audioIndex ? parseInt(audioIndex) : undefined,
-        };
-
-        const {
-          mediaSource: newMediaSource,
-          audioIndex: defaultAudioIndex,
-          subtitleIndex: defaultSubtitleIndex,
-        } = getDefaultPlaySettings(
-          gotoItem,
-          settings,
-          previousIndexes,
-          mediaSource ?? undefined
-        );
-
-        const queryParams = new URLSearchParams({
-          itemId: gotoItem.Id ?? "", // Ensure itemId is a string
-          audioIndex: defaultAudioIndex?.toString() ?? "",
-          subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-          mediaSourceId: newMediaSource?.Id ?? "", // Ensure mediaSourceId is a string
-          bitrateValue: bitrateValue.toString(),
-        }).toString();
-
-        stop();
-
-        // @ts-expect-error
-        router.replace(`player/direct-player?${queryParams}`);
-      } catch (error) {
-        console.error("Error in gotoEpisode:", error);
-      }
-    },
-    [settings, subtitleIndex, audioIndex]
-  );
-
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
     lightHapticFeedback();
@@ -497,7 +437,6 @@ export const Controls: React.FC<Props> = ({
   }, [trickPlayUrl, trickplayInfo, time]);
 
   const onClose = async () => {
-    stop();
     lightHapticFeedback();
     await ScreenOrientation.lockAsync(
       ScreenOrientation.OrientationLock.PORTRAIT_UP
@@ -549,7 +488,7 @@ export const Controls: React.FC<Props> = ({
                   setSubtitleTrack={setSubtitleTrack}
                   setSubtitleURL={setSubtitleURL}
                 >
-                  <DropdownView showControls={showControls} />
+                  <DropdownView />
                 </VideoProvider>
               </View>
             )}
@@ -790,8 +729,8 @@ export const Controls: React.FC<Props> = ({
                     !nextItem
                       ? false
                       : isVlc
-                      ? remainingTime < 10000
-                      : remainingTime < 10
+                        ? remainingTime < 10000
+                        : remainingTime < 10
                   }
                   onFinish={goToNextItem}
                   onPress={goToNextItem}

@@ -342,7 +342,7 @@
     "an_error_occured_while_playing_the_video": "動画の再生中にエラーが発生しました。設定でログを確認してください。",
     "client_error": "クライアントエラー",
     "could_not_create_stream_for_chromecast": "Chromecastのストリームを作成できませんでした",
-    "message_from_server": "サーバーからのメッセージ： {{message}}",
+    "message_from_server": "サーバーからのメッセージ",
     "video_has_finished_playing": "ビデオの再生が終了しました！",
     "no_video_source": "動画ソースがありません...",
     "next_episode": "次のエピソード",

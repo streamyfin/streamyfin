@@ -71,7 +71,7 @@ export const PlayButton: React.FC<Props> = ({
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
-    (q: string, bitrateValue: number | undefined) => {
+    (q: string) => {
       router.push(`/player/direct-player?${q}`);
     },
     [router]
@@ -94,7 +94,7 @@ export const PlayButton: React.FC<Props> = ({
     const queryString = queryParams.toString();
 
     if (!client) {
-      goToPlayer(queryString, selectedOptions.bitrate?.value);
+      goToPlayer(queryString);
       return;
     }
 
@@ -217,7 +217,7 @@ export const PlayButton: React.FC<Props> = ({
             });
             break;
           case 1:
-            goToPlayer(queryString, selectedOptions.bitrate?.value);
+            goToPlayer(queryString);
             break;
           case cancelButtonIndex:
             break;
