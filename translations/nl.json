@@ -9,13 +9,13 @@
     "login_button": "Aanmelden",
     "quick_connect": "Snel Verbinden",
     "enter_code_to_login": "Vul code {{code}} in om aan te melden",
-    "failed_to_initiate_quick_connect": "Gefaald om Snel Verbinden op te starten",
+    "failed_to_initiate_quick_connect": "Mislukt om Snel Verbinden op te starten",
     "got_it": "Begrepen",
-    "connection_failed": "Verbinding gefaald",
+    "connection_failed": "Verbinding mislukt",
     "could_not_connect_to_server": "Kon niet verbinden met de server. Controleer de URL en je netwerkverbinding.",
     "an_unexpected_error_occured": "Er is een onverwachte fout opgetreden",
-    "change_server": "Verander server",
-    "invalid_username_or_password": "Ongeldige gebruikersnaam of wachtwoord",
+    "change_server": "Server wijzigen",
+    "invalid_username_or_password": "Onjuiste gebruikersnaam of wachtwoord",
     "user_does_not_have_permission_to_log_in": "Gebruiker heeft geen rechten om aan te melden",
     "server_is_taking_too_long_to_respond_try_again_later": "De server doet er te lang over om te antwoorden, probeer later opnieuw",
     "server_received_too_many_requests_try_again_later": "De server heeft te veel aanvragen ontvangen, probeer later opnieuw",
@@ -42,7 +42,7 @@
     "continue_watching": "Verder Kijken",
     "next_up": "Volgende",
     "recently_added_in": "Recent toegevoegd in {{libraryName}}",
-    "suggested_movies": "Voorgestelde Films",
+    "suggested_movies": "Voorgestelde films",
     "suggested_episodes": "Voorgestelde Afleveringen",
     "intro": {
       "welcome_to_streamyfin": "Welkom bij Streamyfin",
@@ -56,7 +56,7 @@
       "centralised_settings_plugin_title": "Plugin voor gecentraliseerde instellingen",
       "centralised_settings_plugin_description": "Configureer instellingen vanaf een centrale locatie op je Jellyfin server. Alle clientinstellingen voor alle gebruikers worden automatisch gesynchroniseerd.",
       "done_button": "Gedaan",
-      "go_to_settings_button": "Go naar instellingen",
+      "go_to_settings_button": "Ga naar instellingen",
       "read_more": "Lees meer"
     },
     "settings": {
@@ -82,7 +82,7 @@
       "media_controls": {
         "media_controls_title": "Media Bedieningen",
         "forward_skip_length": "Duur voorwaarts overslaan",
-        "rewind_length": "Duur terugspeolen",
+        "rewind_length": "Duur terugspoelen",
         "seconds_unit": "s"
       },
       "audio": {
@@ -96,7 +96,7 @@
       "subtitles": {
         "subtitle_title": "Ondertitels",
         "subtitle_language": "Ondertitel taal",
-        "subtitle_mode": "Ondertitle Modus",
+        "subtitle_mode": "Ondertitelmodus",
         "set_subtitle_track": "Gebruik Ondertitel Track Van Vorig Item",
         "subtitle_size": "Ondertitel Grootte",
         "subtitle_hint": "Stel ondertitel voorkeuren in.",
@@ -108,7 +108,7 @@
           "Smart": "Slim",
           "Always": "Altijd",
           "None": "Geen",
-          "OnlyForced": "Alleen Geforceeerd"
+          "OnlyForced": "Alleen Geforceerd"
         }
       },
       "other": {
@@ -131,18 +131,18 @@
         "safe_area_in_controls": "Veilig gebied in bedieningen",
         "show_custom_menu_links": "Aangepaste menulinks tonen",
         "hide_libraries": "Verberg Bibliotheken",
-        "select_liraries_you_want_to_hide": "Selecteer de bibliotheken die je wil verbergen van de Bibliotheek tab en hoofdpagina onderdelen.",
+        "select_liraries_you_want_to_hide": "Selecteer de bibliotheken die je wil verbergen van de Bibliotheektab en hoofdpagina onderdelen.",
         "disable_haptic_feedback": "Haptische feedback uitschakelen",
         "default_quality": "Standaard kwaliteit"
       },
       "downloads": {
         "downloads_title": "Downloads",
         "download_method": "Download methode",
-        "remux_max_download": "Remux max download",
+        "remux_max_download": "Maximale Remux-download",
         "auto_download": "Auto download",
         "optimized_versions_server": "Geoptimaliseerde server versies",
         "save_button": "Opslaan",
-        "optimized_server": "Geoptimailseerde Server",
+        "optimized_server": "Geoptimaliseerde Server",
         "optimized": "Geoptimaliseerd",
         "default": "Standaard",
         "optimized_version_hint": "Vul de URL van de optimalisatieserver in. De URL moet http of https bevatten en eventueel de poort.",
@@ -161,7 +161,7 @@
           "password_placeholder": "Voeg het wachtwoord in voor de Jellyfin gebruiker {{username}}",
           "save_button": "Opslaan",
           "clear_button": "Wissen",
-          "login_button": "Aannmelden",
+          "login_button": "Aanmelden",
           "total_media_requests": "Totaal aantal mediaverzoeken",
           "movie_quota_limit": "Limiet filmquota",
           "movie_quota_days": "Filmquota dagen",
@@ -171,7 +171,7 @@
           "unlimited": "Ongelimiteerd"
         },
         "marlin_search": {
-          "enable_marlin_search": "Marlin Search inschakeln ",
+          "enable_marlin_search": "Marlin Search inschakelen ",
           "url": "URL",
           "server_url_placeholder": "http(s)://domein.org:poort",
           "marlin_search_hint": "Vul de URL van de Marlin Search server in. De URL moet http of https bevatten en eventueel de poort.",
@@ -205,7 +205,7 @@
         "system": "Systeem"
       },
       "toasts": {
-        "error_deleting_files": "Fout bij het verwijden van bestanden",
+        "error_deleting_files": "Fout bij het verwijderen van bestanden",
         "background_downloads_enabled": "Downloads op de achtergrond ingeschakeld",
         "background_downloads_disabled": "Downloads op de achtergrond uitgeschakeld",
         "connected": "Verbonden",
@@ -237,7 +237,7 @@
       "methods": "Methoden",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Je mag geen bestanden downloaden.",
-        "deleted_all_movies_successfully": "Alle filns succesvol verwijderd!",
+        "deleted_all_movies_successfully": "Alle films succesvol verwijderd!",
         "failed_to_delete_all_movies": "Alle films zijn niet verwijderd",
         "deleted_all_tvseries_successfully": "Alle series succesvol verwijderd!",
         "failed_to_delete_all_tvseries": "Alle series zijn niet verwijderd",
@@ -280,18 +280,18 @@
     "recent_requests": "Recent Aangevraagd",
     "plex_watchlist": "Plex Kijklijst",
     "trending": "Trending",
-    "popular_movies": "Populaire Films",
+    "popular_movies": "Populaire films",
     "movie_genres": "Film Genres",
-    "upcoming_movies": "Aankomende Movies",
+    "upcoming_movies": "Aankomende films",
     "studios": "Studios",
     "popular_tv": "Populaire TV",
     "tv_genres": "TV Genres",
-    "upcoming_tv": "Opkomend TV",
+    "upcoming_tv": "Aankomende TV",
     "networks": "Netwerken",
     "tmdb_movie_keyword": "TMDB Film Trefwoord",
-    "tmdb_movie_genre": "TMDB Film Genre",
+    "tmdb_movie_genre": "TMDB Filmgenres",
     "tmdb_tv_keyword": "TMDB TV Trefwoord",
-    "tmdb_tv_genre": "TMDB TV Genre",
+    "tmdb_tv_genre": "TMDB TV-Genres",
     "tmdb_search": "TMDB Zoeken",
     "tmdb_studio": "TMDB Studio",
     "tmdb_network": "TMDB Netwerk",
@@ -303,9 +303,9 @@
     "no_results": "Geen resultaten",
     "no_libraries_found": "Geen bibliotheken gevonden",
     "item_types": {
-      "movies": "films",
-      "series": "series",
-      "boxsets": "box sets",
+      "movies": "Films",
+      "series": "Series",
+      "boxsets": "Boxsets",
       "items": "items"
     },
     "options": {
@@ -345,7 +345,7 @@
     "could_not_create_stream_for_chromecast": "Kon geen stream maken voor Chromecast",
     "message_from_server": "Bericht van de server",
     "video_has_finished_playing": "Video is gedaan met spelen!",
-    "no_video_source": "Geen video bron...",
+    "no_video_source": "Geen videobron...",
     "next_episode": "Volgende Aflevering",
     "refresh_tracks": "Tracks verversen",
     "subtitle_tracks": "Ondertitel Tracks:",
@@ -372,7 +372,7 @@
     "audio": "Audio",
     "subtitles": "Ondertitel",
     "show_more": "Toon meer",
-    "show_less": "Toon minden",
+    "show_less": "Toon minder",
     "appeared_in": "Verschenen in",
     "could_not_load_item": "Kon item niet laden",
     "none": "Geen",
@@ -417,7 +417,7 @@
     "details": "Details",
     "status": "Status",
     "original_title": "Originele titel",
-    "series_type": "Serie Type",
+    "series_type": "Serietype",
     "release_dates": "Verschijningsdatums",
     "first_air_date": "Eerste uitzenddatum",
     "next_air_date": "Volgende uitzenddatum",
@@ -440,12 +440,12 @@
     "appearances": "Verschijningen",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Jellyseerr server voldoet niet aan de minimale versievereisten! Update naar minimaal 2.0.0",
-      "jellyseerr_test_failed": "Jellyseerr test gefaald. Probeer opnieuw.",
+      "jellyseerr_test_failed": "Jellyseerr test mislukt. Probeer opnieuw.",
       "failed_to_test_jellyseerr_server_url": "Mislukt bij het testen van jellyseerr server url",
       "issue_submitted": "Probleem ingediend!",
       "requested_item": "{{item}} aangevraagd!",
       "you_dont_have_permission_to_request": "Je hebt geen toestemming om aanvragen te doen!",
-      "something_went_wrong_requesting_media": "Er ging iets iets mis met het aavragen van media!"
+      "something_went_wrong_requesting_media": "Er ging iets mis met het aanvragen van media!"
     }
   },
   "tabs": {
