@@ -32,8 +32,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BaseItemDto,
   MediaSourceInfo,
+  PlaybackOrder,
   PlaybackProgressInfo,
   PlaybackStartInfo,
+  RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 
 export default function page() {
@@ -188,7 +190,7 @@ export default function page() {
     } else {
       videoRef.current?.play();
     }
-  }
+  };
 
   const reportPlaybackStopped = useCallback(async () => {
     if (offline) return;
@@ -226,6 +228,10 @@ export default function page() {
       isPaused: !isPlaying,
       playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
       playSessionId: stream.sessionId,
+      isMuted: false,
+      canSeek: true,
+      repeatMode: RepeatMode.RepeatNone,
+      playbackOrder: PlaybackOrder.Default,
     };
   };
 
