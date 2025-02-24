@@ -402,7 +402,7 @@ class VlcPlayerView: ExpoView {
     }
 
     private func updateVideoProgress() {
-        guard let media = self.vlc.player.media else { return }
+        guard self.vlc.player.media != nil else { return }
 
         let currentTimeMs = self.vlc.player.time.intValue
         let durationMs = self.vlc.player.media?.length.intValue ?? 0
@@ -459,7 +459,7 @@ extension VlcPlayerView: SimpleAppLifecycleListener {
         }
 
         // Current solution to fixing black screen when re-entering application
-        if let videoTrack = self.vlc.player.videoTracks.first { $0.isSelected == true },
+        if let videoTrack = self.vlc.player.videoTracks.first(where: { $0.isSelected == true }),
             !self.vlc.isMediaPlaying()
         {
             videoTrack.isSelected = false
@@ -479,6 +479,7 @@ extension VLCMediaPlayerState {
         case .paused: return "Paused"
         case .stopped: return "Stopped"
         case .error: return "Error"
+        case .stopping: return "Stopping"
         @unknown default: return "Unknown"
         }
     }
