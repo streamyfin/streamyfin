@@ -255,7 +255,7 @@ export default function page() {
   }, []);
 
   const reportPlaybackProgress = useCallback(async () => {
-    if (!api || offline || !stream) return;
+    if (!api || offline || !stream || !hasReportedRef.current) return;
     await getPlaystateApi(api).reportPlaybackProgress({
       playbackProgressInfo: currentPlayStateInfo() as PlaybackProgressInfo,
     });
@@ -276,7 +276,6 @@ export default function page() {
   useEffect(() => {
     if (stream && !hasReportedRef.current) {
       reportPlaybackStart();
-      hasReportedRef.current = true; // Mark as reported
     }
   }, [stream]);
 
