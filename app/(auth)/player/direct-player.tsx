@@ -180,16 +180,15 @@ export default function page() {
     fetchStreamData();
   }, [itemId, mediaSourceId, bitrateValue, api, item, user?.Id]);
 
-  const togglePlay = useCallback(async () => {
-    if (!api) return;
-
+  const togglePlay = async () => {
     lightHapticFeedback();
+    setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
     } else {
       videoRef.current?.play();
     }
-  }, [isPlaying, api, item, stream, videoRef, audioIndex, subtitleIndex, mediaSourceId, offline, progress]);
+  }
 
   const reportPlaybackStopped = useCallback(async () => {
     if (offline) return;
@@ -245,7 +244,7 @@ export default function page() {
 
       if (!item?.Id || !stream) return;
 
-      changePlaybackState();
+      reportPlaybackProgress();
     },
     [item?.Id, audioIndex, subtitleIndex, mediaSourceId, isPlaying, stream, isSeeking, isPlaybackStopped, isBuffering]
   );
@@ -255,12 +254,12 @@ export default function page() {
     setIsPipStarted(pipStarted);
   }, []);
 
-  const changePlaybackState = useCallback(async () => {
+  const reportPlaybackProgress = useCallback(async () => {
     if (!api || offline || !stream) return;
     await getPlaystateApi(api).reportPlaybackProgress({
       playbackProgressInfo: currentPlayStateInfo() as PlaybackProgressInfo,
     });
-  }, [api, offline, stream, item?.Id, audioIndex, subtitleIndex, mediaSourceId, progress]);
+  }, [api, isPlaying, offline, stream, item?.Id, audioIndex, subtitleIndex, mediaSourceId, progress]);
 
   const startPosition = useMemo(() => {
     if (offline) return 0;
@@ -291,17 +290,16 @@ export default function page() {
   const onPlaybackStateChanged = useCallback(
     async (e: PlaybackStatePayload) => {
       const { state, isBuffering, isPlaying } = e.nativeEvent;
-
       if (state === "Playing") {
         setIsPlaying(true);
-        await changePlaybackState();
+        reportPlaybackProgress();
         if (!Platform.isTV) await activateKeepAwakeAsync();
         return;
       }
 
       if (state === "Paused") {
         setIsPlaying(false);
-        await changePlaybackState();
+        reportPlaybackProgress();
         if (!Platform.isTV) await deactivateKeepAwake();
         return;
       }
@@ -313,7 +311,7 @@ export default function page() {
         setIsBuffering(true);
       }
     },
-    [changePlaybackState]
+    [reportPlaybackProgress]
   );
 
   const allAudio = stream?.mediaSource.MediaStreams?.filter((audio) => audio.Type === "Audio") || [];
