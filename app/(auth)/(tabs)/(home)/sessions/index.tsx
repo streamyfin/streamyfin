@@ -300,8 +300,8 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   }, [session.PlayState?.SubtitleStreamIndex]);
 
   const isTranscoding = useMemo(() => {
-    return session.PlayState?.PlayMethod == "Transcode";
-  }, [session.PlayState?.PlayMethod]);
+    return session.PlayState?.PlayMethod == "Transcode" && session.TranscodingInfo;
+  }, [session.PlayState?.PlayMethod, session.TranscodingInfo]);
 
   const videoStreamTitle = () => {
     return videoStream?.DisplayTitle?.split(" ")[0];

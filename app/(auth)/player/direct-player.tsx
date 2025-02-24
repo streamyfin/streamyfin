@@ -255,7 +255,7 @@ export default function page() {
   }, []);
 
   const reportPlaybackProgress = useCallback(async () => {
-    if (!api || offline || !stream || !hasReportedRef.current) return;
+    if (!api || offline || !stream) return;
     await getPlaystateApi(api).reportPlaybackProgress({
       playbackProgressInfo: currentPlayStateInfo() as PlaybackProgressInfo,
     });
@@ -265,19 +265,6 @@ export default function page() {
     if (offline) return 0;
     return item?.UserData?.PlaybackPositionTicks ? ticksToSeconds(item.UserData.PlaybackPositionTicks) : 0;
   }, [item]);
-
-  const reportPlaybackStart = useCallback(async () => {
-    if (offline || !stream) return;
-    await getPlaystateApi(api!).reportPlaybackStart({ playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo });
-    hasReportedRef.current = true;
-  }, [api, item, stream]);
-
-  const hasReportedRef = useRef(false);
-  useEffect(() => {
-    if (stream && !hasReportedRef.current) {
-      reportPlaybackStart();
-    }
-  }, [stream]);
 
   useWebSocket({
     isPlaying: isPlaying,
