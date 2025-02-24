@@ -29,7 +29,12 @@ import { useSharedValue } from "react-native-reanimated";
 import { useSettings } from "@/utils/atoms/settings";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BaseItemDto, MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client";
+import {
+  BaseItemDto,
+  MediaSourceInfo,
+  PlaybackProgressInfo,
+  PlaybackStartInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -212,6 +217,19 @@ export default function page() {
     };
   }, [navigation, stop]);
 
+  const currentPlayStateInfo = () => {
+    return {
+      itemId: item?.Id!,
+      audioStreamIndex: audioIndex ? audioIndex : undefined,
+      subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      mediaSourceId: mediaSourceId,
+      positionTicks: msToTicks(progress.get()),
+      isPaused: !isPlaying,
+      playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+      playSessionId: stream.sessionId,
+    };
+  };
+
   const onProgress = useCallback(
     async (data: ProgressUpdatePayload) => {
       if (isSeeking.get() || isPlaybackStopped) return;
@@ -225,20 +243,9 @@ export default function page() {
 
       if (offline) return;
 
-      const currentTimeInTicks = msToTicks(currentTime);
-
       if (!item?.Id || !stream) return;
 
-      await getPlaystateApi(api!).onPlaybackProgress({
-        itemId: item.Id,
-        audioStreamIndex: audioIndex ? audioIndex : undefined,
-        subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-        mediaSourceId: mediaSourceId,
-        positionTicks: Math.floor(currentTimeInTicks),
-        isPaused: !isPlaying,
-        playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
-        playSessionId: stream.sessionId,
-      });
+      changePlaybackState();
     },
     [item?.Id, audioIndex, subtitleIndex, mediaSourceId, isPlaying, stream, isSeeking, isPlaybackStopped, isBuffering]
   );
@@ -248,22 +255,12 @@ export default function page() {
     setIsPipStarted(pipStarted);
   }, []);
 
-  const changePlaybackState = useCallback(
-    async (isPlaying: boolean) => {
-      if (!api || offline || !stream) return;
-      await getPlaystateApi(api).onPlaybackProgress({
-        itemId: item?.Id!,
-        audioStreamIndex: audioIndex ? audioIndex : undefined,
-        subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-        mediaSourceId: mediaSourceId,
-        positionTicks: msToTicks(progress.get()),
-        isPaused: !isPlaying,
-        playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
-        playSessionId: stream.sessionId,
-      });
-    },
-    [api, offline, stream, item?.Id, audioIndex, subtitleIndex, mediaSourceId, progress]
-  );
+  const changePlaybackState = useCallback(async () => {
+    if (!api || offline || !stream) return;
+    await getPlaystateApi(api).reportPlaybackProgress({
+      playbackProgressInfo: currentPlayStateInfo() as PlaybackProgressInfo,
+    });
+  }, [api, offline, stream, item?.Id, audioIndex, subtitleIndex, mediaSourceId, progress]);
 
   const startPosition = useMemo(() => {
     if (offline) return 0;
@@ -272,14 +269,7 @@ export default function page() {
 
   const reportPlaybackStart = useCallback(async () => {
     if (offline || !stream) return;
-    await getPlaystateApi(api!).onPlaybackStart({
-      itemId: item?.Id!,
-      audioStreamIndex: audioIndex ? audioIndex : undefined,
-      subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-      mediaSourceId: mediaSourceId,
-      playMethod: stream.url?.includes("m3u8") ? "Transcode" : "DirectStream",
-      playSessionId: stream?.sessionId ? stream?.sessionId : undefined,
-    });
+    await getPlaystateApi(api!).reportPlaybackStart({ playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo });
     hasReportedRef.current = true;
   }, [api, item, stream]);
 
@@ -304,14 +294,14 @@ export default function page() {
 
       if (state === "Playing") {
         setIsPlaying(true);
-        await changePlaybackState(true);
+        await changePlaybackState();
         if (!Platform.isTV) await activateKeepAwakeAsync();
         return;
       }
 
       if (state === "Paused") {
         setIsPlaying(false);
-        await changePlaybackState(false);
+        await changePlaybackState();
         if (!Platform.isTV) await deactivateKeepAwake();
         return;
       }
