@@ -38,7 +38,7 @@ export default function page() {
       });
 
       return await getStatistics({
-        url: settings?.optimizedVersionsServerUrl,
+        url: updatedUrl,
         authHeader: api?.accessToken,
         deviceId: getOrSetDeviceId(),
       });
