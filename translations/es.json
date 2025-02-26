@@ -128,7 +128,12 @@
           "OTHER": "Otra",
           "UNKNOWN": "Desconocida"
         },
-        "safe_area_in_controls": "Área segura en controles",
+                "safe_area_in_controls": "Área segura en controles",
+        "video_player": "Video player",
+        "video_players": {
+          "VLC_3": "VLC 3",
+          "VLC_4": "VLC 4 (Experimental + PiP)"
+        },
         "show_custom_menu_links": "Mostrar enlaces de menú personalizados",
         "hide_libraries": "Ocultar bibliotecas",
         "select_liraries_you_want_to_hide": "Selecciona las bibliotecas que quieres ocultar de la pestaña Bibliotecas y de Inicio.",

@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
+import {ScreenOrientationEnum, useSettings, VideoPlayer} from "@/utils/atoms/settings";
 import { BitrateSelector, BITRATES } from "@/components/BitrateSelector";
 import {
   BACKGROUND_FETCH_TASK,
@@ -22,6 +22,7 @@ import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import Dropdown from "@/components/common/Dropdown";
+import {isNumber} from "lodash";
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
@@ -141,6 +142,36 @@ export const OtherSettings: React.FC = () => {
             }
           />
         </ListItem>
+
+        {(Platform.OS === "ios" || Platform.isTVOS)&& (
+          <ListItem
+            title={t("home.settings.other.video_player")}
+            disabled={pluginSettings?.defaultPlayer?.locked}
+          >
+            <Dropdown
+              data={Object.values(VideoPlayer).filter(isNumber)}
+              disabled={pluginSettings?.defaultPlayer?.locked}
+              keyExtractor={String}
+              titleExtractor={(item) => t(`home.settings.other.video_players.${VideoPlayer[item]}`)}
+              title={
+                <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
+                  <Text className="mr-1 text-[#8E8D91]">
+                    {t(`home.settings.other.video_players.${VideoPlayer[settings.defaultPlayer]}`)}
+                  </Text>
+                  <Ionicons
+                    name="chevron-expand-sharp"
+                    size={18}
+                    color="#5A5960"
+                  />
+                </TouchableOpacity>
+              }
+              label={t("home.settings.other.orientation")}
+              onSelected={(defaultPlayer) =>
+                updateSettings({ defaultPlayer })
+              }
+            />
+          </ListItem>
+        )}
 
         <ListItem
           title={t("home.settings.other.show_custom_menu_links")}

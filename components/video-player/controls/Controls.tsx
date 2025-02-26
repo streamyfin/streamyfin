@@ -1,65 +1,40 @@
-import { Text } from "@/components/common/Text";
-import { Loader } from "@/components/Loader";
-import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
-import { useHaptic } from "@/hooks/useHaptic";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
-import { useTrickplay } from "@/hooks/useTrickplay";
-import {
-  TrackInfo,
-  VlcPlayerViewRef,
-} from "@/modules/vlc-player/src/VlcPlayer.types";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import {
-  getDefaultPlaySettings,
-  previousIndexes,
-} from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
-import { writeToLog } from "@/utils/log";
-import {
-  formatTimeString,
-  msToTicks,
-  secondsToMs,
-  ticksToMs,
-  ticksToSeconds,
-} from "@/utils/time";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import {
-  BaseItemDto,
-  MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import {Text} from "@/components/common/Text";
+import {Loader} from "@/components/Loader";
+import {useAdjacentItems} from "@/hooks/useAdjacentEpisodes";
+import {useCreditSkipper} from "@/hooks/useCreditSkipper";
+import {useHaptic} from "@/hooks/useHaptic";
+import {useIntroSkipper} from "@/hooks/useIntroSkipper";
+import {useTrickplay} from "@/hooks/useTrickplay";
+import {TrackInfo, VlcPlayerViewRef,} from "@/modules/VlcPlayer.types";
+import {apiAtom} from "@/providers/JellyfinProvider";
+import {useSettings, VideoPlayer} from "@/utils/atoms/settings";
+import {getDefaultPlaySettings,} from "@/utils/jellyfin/getDefaultPlaySettings";
+import {getItemById} from "@/utils/jellyfin/user-library/getItemById";
+import {writeToLog} from "@/utils/log";
+import {formatTimeString, msToTicks, secondsToMs, ticksToMs, ticksToSeconds,} from "@/utils/time";
+import {Ionicons, MaterialIcons} from "@expo/vector-icons";
+import {BaseItemDto, MediaSourceInfo,} from "@jellyfin/sdk/lib/generated-client";
+import {Image} from "expo-image";
+import {useLocalSearchParams, useRouter} from "expo-router";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { useAtom } from "jotai";
-import { debounce } from "lodash";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Platform,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import { Slider } from "react-native-awesome-slider";
-import {
-  runOnJS,
-  SharedValue,
-  useAnimatedReaction,
-  useSharedValue,
-} from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { VideoRef } from "react-native-video";
+import {useAtom} from "jotai";
+import {debounce} from "lodash";
+import React, {useCallback, useEffect, useRef, useState} from "react";
+import {Platform, TouchableOpacity, useWindowDimensions, View,} from "react-native";
+import {Slider} from "react-native-awesome-slider";
+import {runOnJS, SharedValue, useAnimatedReaction, useSharedValue,} from "react-native-reanimated";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {VideoRef} from "react-native-video";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
-import { ControlProvider } from "./contexts/ControlContext";
-import { VideoProvider } from "./contexts/VideoContext";
+import {ControlProvider} from "./contexts/ControlContext";
+import {VideoProvider} from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
-import { EpisodeList } from "./EpisodeList";
+import {EpisodeList} from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
-import { useControlsTimeout } from "./useControlsTimeout";
-import { VideoTouchOverlay } from "./VideoTouchOverlay";
+import {useControlsTimeout} from "./useControlsTimeout";
+import {VideoTouchOverlay} from "./VideoTouchOverlay";
 
 interface Props {
   item: BaseItemDto;
@@ -494,7 +469,7 @@ export const Controls: React.FC<Props> = ({
             )}
 
             <View className="flex flex-row items-center space-x-2 ">
-              {!Platform.isTV && (
+              {!Platform.isTV && settings.defaultPlayer == VideoPlayer.VLC_4 && (
                 <TouchableOpacity
                   onPress={startPictureInPicture}
                   className="aspect-square flex flex-col rounded-xl items-center justify-center p-2"
