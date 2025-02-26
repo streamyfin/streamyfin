@@ -33,7 +33,9 @@
       "jsEngine": "hermes",
       "versionCode": 53,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive_icon.png"
+        "foregroundImage": "./assets/images/adaptive_icon.png",
+        "backgroundColor": "#464646"
+
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
