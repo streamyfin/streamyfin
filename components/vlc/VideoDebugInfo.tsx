@@ -1,7 +1,7 @@
 import {
   TrackInfo,
   VlcPlayerViewRef,
-} from "@/modules/vlc-player/src/VlcPlayer.types";
+} from "@/modules/VlcPlayer.types";
 import React, { useEffect, useState } from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
