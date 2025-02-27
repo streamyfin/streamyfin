@@ -12,7 +12,6 @@
     "android:tv": "EXPO_TV=1 expo run:android",
     "prebuild": "EXPO_TV=0 bun run clean",
     "prebuild:tv": "EXPO_TV=1 bun run clean",
-    "prebuild:tv-new": "EXPO_TV=1 node ./scripts/symlink-native-dirs.js; bun run prebuild:tv",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "postinstall": "patch-package"
