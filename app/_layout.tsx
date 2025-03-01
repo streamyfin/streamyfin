@@ -266,7 +266,7 @@ function Layout() {
     useEffect(() => {
       checkAndRequestPermissions();
       (async () => {
-        if (user && user.Policy?.IsAdministrator) {
+        if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
           registerBackgroundFetchAsyncSessions();
         }
       })();
