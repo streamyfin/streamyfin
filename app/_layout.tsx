@@ -95,10 +95,10 @@ function useNotificationObserver() {
 if (!Platform.isTV) {
   TaskManager.defineTask(BACKGROUND_FETCH_TASK_SESSIONS, async () => {
     console.log("TaskManager ~ sessions trigger");
-    if (apiAtom === null || apiAtom === undefined) return; 
+
     const api = store.get(apiAtom);
-    
-    if (api === null || api === undefined) return; 
+    if (api === null || api === undefined) return;
+
     const response = await getSessionApi(api).getSessions({
       activeWithinSeconds: 360,
     });
