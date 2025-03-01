@@ -2,7 +2,7 @@ import "@/augmentations";
 import { Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
-import { getOrSetDeviceId, getTokenFromStorage, JellyfinProvider } from "@/providers/JellyfinProvider";
+import { getOrSetDeviceId, getTokenFromStorage, JellyfinProvider, apiAtom } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
@@ -40,6 +40,7 @@ import { Toaster } from "sonner-native";
 import { useAtom } from "jotai";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
+import { store } from "@/utils/store";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -94,11 +95,14 @@ function useNotificationObserver() {
 if (!Platform.isTV) {
   TaskManager.defineTask(BACKGROUND_FETCH_TASK_SESSIONS, async () => {
     console.log("TaskManager ~ sessions trigger");
-
+    if (apiAtom === null || apiAtom === undefined) return; 
+    const api = store.get(apiAtom);
+    
+    if (api === null || api === undefined) return; 
     const response = await getSessionApi(api).getSessions({
       activeWithinSeconds: 360,
     });
-      
+
     const result = response.data.filter((s) => s.NowPlayingItem);
     Notifications.setBadgeCountAsync(result.length);
   
