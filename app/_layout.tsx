@@ -37,9 +37,9 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
-import { useSessions, useSessionsProps } from "@/hooks/useSessions";
 import { useAtom } from "jotai";
 import { userAtom } from "@/providers/JellyfinProvider";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -94,8 +94,14 @@ function useNotificationObserver() {
 if (!Platform.isTV) {
   TaskManager.defineTask(BACKGROUND_FETCH_TASK_SESSIONS, async () => {
     console.log("TaskManager ~ sessions trigger");
-    const { sessions = [] } = useSessions({} as useSessionsProps);
-    console.log(`TaskManager ~ ${sessions.length} sessions`);
+
+    const response = await getSessionApi(api).getSessions({
+      activeWithinSeconds: 360,
+    });
+      
+    const result = response.data.filter((s) => s.NowPlayingItem);
+    Notifications.setBadgeCountAsync(result.length);
+  
     return BackgroundFetch.BackgroundFetchResult.NewData;
   });
 
