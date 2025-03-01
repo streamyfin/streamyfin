@@ -29,7 +29,6 @@ export const BACKGROUND_FETCH_TASK_SESSIONS =
   "background-fetch-sessions";
 
 export async function registerBackgroundFetchAsyncSessions() {
-  console.log("setting");
   try {
     BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK_SESSIONS, {
       minimumInterval: 1 * 60, // 1 minutes
