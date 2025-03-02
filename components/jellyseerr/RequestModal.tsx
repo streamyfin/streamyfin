@@ -15,18 +15,22 @@ import { useTranslation } from "react-i18next";
 interface Props {
   id: number;
   title: string,
+  requestBody?: MediaRequestBody,
   type: MediaType;
   isAnime?: boolean;
   is4k?: boolean;
   onRequested?: () => void;
+  onDismiss?: () => void;
 }
 
 const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps, 'id'>>(({
   id,
   title,
+  requestBody,
   type,
   isAnime = false,
   onRequested,
+  onDismiss,
   ...props
 }, ref) => {
   const {jellyseerrApi, jellyseerrUser, requestMedia} = useJellyseerr();
@@ -38,8 +42,6 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
     });
 
   const { t } = useTranslation();
-
-  const [modalRequestProps, setModalRequestProps] = useState<MediaRequestBody>();
 
   const {data: serviceSettings} = useQuery({
     queryKey: ["jellyseerr", "request", type, 'service'],
@@ -98,16 +100,14 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
             : defaultServiceDetails?.server.activeTags
           )?.includes(t.id)
         ) ?? []
-
-      console.log(tags)
       return tags
     },
     [defaultServiceDetails]
   );
 
   const seasonTitle = useMemo(
-    () => modalRequestProps?.seasons?.length ? t("jellyseerr.season_x", {seasons: modalRequestProps?.seasons}) : undefined,
-    [modalRequestProps?.seasons]
+    () => requestBody?.seasons?.length ? t("jellyseerr.season_x", {seasons: requestBody?.seasons}) : undefined,
+    [requestBody?.seasons]
   );
 
   const request = useCallback(() => {requestMedia(
@@ -117,12 +117,12 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
         profileId: defaultProfile.id,
         rootFolder: defaultFolder.path,
         tags: defaultTags.map(t => t.id),
-        ...modalRequestProps,
+        ...requestBody,
         ...requestOverrides
       },
       onRequested
     )
-  }, [modalRequestProps, requestOverrides, defaultProfile, defaultFolder, defaultTags]);
+  }, [requestBody, requestOverrides, defaultProfile, defaultFolder, defaultTags]);
 
   const pathTitleExtractor = (item: RootFolder) => `${item.path} (${item.freeSpace.bytesToReadable()})`;
 
@@ -131,7 +131,7 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
       ref={ref}
       enableDynamicSizing
       enableDismissOnClose
-      onDismiss={() => setModalRequestProps(undefined)}
+      onDismiss={onDismiss}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}
@@ -146,89 +146,86 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
         />
       }
     >
-      {(data) => {
-        setModalRequestProps(data?.data as MediaRequestBody)
-        return <BottomSheetView>
-          <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
-            <View>
-              <Text className="font-bold text-2xl text-neutral-100">{t("jellyseerr.advanced")}</Text>
-              {seasonTitle &&
-                  <Text className="text-neutral-300">{seasonTitle}</Text>
-              }
-            </View>
-            <View className="flex flex-col space-y-2">
-              {(defaultService && defaultServiceDetails && users) && (
-                <>
-                  <Dropdown
-                    data={defaultServiceDetails.profiles}
-                    titleExtractor={(item) => item.name}
-                    placeholderText={defaultProfile.name}
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.quality_profile")}
-                    onSelected={(item) =>
-                      item && setRequestOverrides((prev) => ({
-                        ...prev,
-                        profileId: item?.id
-                      }))
-                    }
-                    title={t("jellyseerr.quality_profile")}
-                  />
-                  <Dropdown
-                    data={defaultServiceDetails.rootFolders}
-                    titleExtractor={pathTitleExtractor}
-                    placeholderText={defaultFolder ? pathTitleExtractor(defaultFolder) : ""}
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.root_folder")}
-                    onSelected={(item) =>
-                      item && setRequestOverrides((prev) => ({
-                        ...prev,
-                        rootFolder: item.path
-                      }))}
-                    title={t("jellyseerr.root_folder")}
-                  />
-                  <Dropdown
-                    multi={true}
-                    data={defaultServiceDetails.tags}
-                    titleExtractor={(item) => item.label}
-                    placeholderText={defaultTags.map(t => t.label).join(",")}
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.tags")}
-                    onSelected={(...item) =>
-                      item && setRequestOverrides((prev) => ({
-                        ...prev,
-                        tags: item.map(i => i.id)
-                      }))
-                    }
-                    title={t("jellyseerr.tags")}
-                  />
-                  <Dropdown
-                    data={users}
-                    titleExtractor={(item) => item.displayName}
-                    placeholderText={jellyseerrUser!!.displayName}
-                    keyExtractor={(item) => item.id.toString() || ""}
-                    label={t("jellyseerr.request_as")}
-                    onSelected={(item) =>
-                      item && setRequestOverrides((prev) => ({
-                        ...prev,
-                        userId: item?.id
-                      }))
-                    }
-                    title={t("jellyseerr.request_as")}
-                  />
-                </>
-              )
-              }
-            </View>
-            <Button
-              className="mt-auto"
-              onPress={request}
-              color="purple"
-            >
-              {t("jellyseerr.request_button")}
-            </Button>
+      <BottomSheetView>
+        <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
+          <View>
+            <Text className="font-bold text-2xl text-neutral-100">{t("jellyseerr.advanced")}</Text>
+            {seasonTitle &&
+                <Text className="text-neutral-300">{seasonTitle}</Text>
+            }
           </View>
-        </BottomSheetView>
-      }}
+          <View className="flex flex-col space-y-2">
+            {(defaultService && defaultServiceDetails && users) && (
+              <>
+                <Dropdown
+                  data={defaultServiceDetails.profiles}
+                  titleExtractor={(item) => item.name}
+                  placeholderText={requestOverrides.profileName || defaultProfile.name}
+                  keyExtractor={(item) => item.id.toString()}
+                  label={t("jellyseerr.quality_profile")}
+                  onSelected={(item) =>
+                    item && setRequestOverrides((prev) => ({
+                      ...prev,
+                      profileId: item?.id
+                    }))
+                  }
+                  title={t("jellyseerr.quality_profile")}
+                />
+                <Dropdown
+                  data={defaultServiceDetails.rootFolders}
+                  titleExtractor={pathTitleExtractor}
+                  placeholderText={defaultFolder ? pathTitleExtractor(defaultFolder) : ""}
+                  keyExtractor={(item) => item.id.toString()}
+                  label={t("jellyseerr.root_folder")}
+                  onSelected={(item) =>
+                    item && setRequestOverrides((prev) => ({
+                      ...prev,
+                      rootFolder: item.path
+                    }))}
+                  title={t("jellyseerr.root_folder")}
+                />
+                <Dropdown
+                  multiple
+                  data={defaultServiceDetails.tags}
+                  titleExtractor={(item) => item.label}
+                  placeholderText={defaultTags.map(t => t.label).join(",")}
+                  keyExtractor={(item) => item.id.toString()}
+                  label={t("jellyseerr.tags")}
+                  onSelected={(...selected) =>
+                    setRequestOverrides((prev) => ({
+                      ...prev,
+                      tags: selected.map(i => i.id)
+                    }))
+                  }
+                  title={t("jellyseerr.tags")}
+                />
+                <Dropdown
+                  data={users}
+                  titleExtractor={(item) => item.displayName}
+                  placeholderText={jellyseerrUser!!.displayName}
+                  keyExtractor={(item) => item.id.toString() || ""}
+                  label={t("jellyseerr.request_as")}
+                  onSelected={(item) =>
+                    item && setRequestOverrides((prev) => ({
+                      ...prev,
+                      userId: item?.id
+                    }))
+                  }
+                  title={t("jellyseerr.request_as")}
+                />
+              </>
+            )
+            }
+          </View>
+          <Button
+            className="mt-auto"
+            onPress={request}
+            color="purple"
+          >
+            {t("jellyseerr.request_button")}
+          </Button>
+        </View>
+      </BottomSheetView>
     </BottomSheetModal>
   );
 });
