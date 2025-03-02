@@ -21,6 +21,7 @@ import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
 import { useTranslation } from "react-i18next";
+import {uniqBy} from "lodash";
 
 interface Props extends ViewProps {
   searchQuery: string;
@@ -77,25 +78,28 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
 
   const jellyseerrMovieResults = useMemo(
     () =>
-      jellyseerrResults?.filter(
-        (r) => r.mediaType === MediaType.MOVIE
-      ) as MovieResult[],
+      uniqBy(
+        jellyseerrResults?.filter((r) => r.mediaType === MediaType.MOVIE) as MovieResult[],
+        "id"
+      ),
     [jellyseerrResults]
   );
 
   const jellyseerrTvResults = useMemo(
     () =>
-      jellyseerrResults?.filter(
-        (r) => r.mediaType === MediaType.TV
-      ) as TvResult[],
+      uniqBy(
+        jellyseerrResults?.filter((r) => r.mediaType === MediaType.TV) as TvResult[],
+        "id"
+      ),
     [jellyseerrResults]
   );
 
   const jellyseerrPersonResults = useMemo(
     () =>
-      jellyseerrResults?.filter(
-        (r) => r.mediaType === "person"
-      ) as PersonResult[],
+      uniqBy(
+        jellyseerrResults?.filter((r) => r.mediaType === "person") as PersonResult[],
+        "id"
+      ),
     [jellyseerrResults]
   );
 
