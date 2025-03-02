@@ -432,7 +432,7 @@
     "tags": "タグ",
     "quality_profile": "画質プロファイル",
     "root_folder": "ルートフォルダ",
-    "season_x": "シーズン{{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "シーズン{{season_number}}",
     "number_episodes": "エピソード{{episode_number}}",
     "born": "生まれ",

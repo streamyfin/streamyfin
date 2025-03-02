@@ -106,7 +106,12 @@ const RequestModal = forwardRef<BottomSheetModalMethods, Props & Omit<ViewProps,
   );
 
   const seasonTitle = useMemo(
-    () => requestBody?.seasons?.length ? t("jellyseerr.season_x", {seasons: requestBody?.seasons}) : undefined,
+     () => {
+      if (requestBody?.seasons && requestBody?.seasons?.length > 1) {
+          return t("jellyseerr.season_all")
+      }
+      return t("jellyseerr.season_number", {season_number: requestBody?.seasons})
+    },
     [requestBody?.seasons]
   );
 

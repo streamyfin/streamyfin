@@ -433,7 +433,7 @@
     "tags": "Etiquetas",
     "quality_profile": "Perfil de calidad",
     "root_folder": "Carpeta raíz",
-    "season_x": "Temporada {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Temporada {{season_number}}",
     "number_episodes": "{{episode_number}} episodios",
     "born": "Nacido",
