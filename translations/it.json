@@ -433,7 +433,7 @@
     "tags": "Tag",
     "quality_profile": "Profilo qualità",
     "root_folder": "Cartella radice",
-    "season_x": "Stagione {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Stagione {{season_number}}",
     "number_episodes": "{{episode_number}} Episodio",
     "born": "Nato",

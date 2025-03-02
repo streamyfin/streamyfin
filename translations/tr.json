@@ -432,7 +432,7 @@
     "tags": "Etiketler",
     "quality_profile": "Kalite Profili",
     "root_folder": "Kök Klasör",
-    "season_x": "Sezon {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Sezon {{season_number}}",
     "number_episodes": "Bölüm {{episode_number}}",
     "born": "Doğum",

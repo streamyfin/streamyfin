@@ -432,7 +432,7 @@
     "tags": "标签",
     "quality_profile": "质量配置文件",
     "root_folder": "根文件夹",
-    "season_x": "第 {{seasons}} 季",
+    "season_all": "Season (all)",
     "season_number": "第 {{season_number}} 季",
     "number_episodes": "{{episode_number}} 集",
     "born": "出生",

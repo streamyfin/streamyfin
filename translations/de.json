@@ -433,7 +433,7 @@
     "tags": "Tags",
     "quality_profile": "Qualitätsprofil",
     "root_folder": "Root-Ordner",
-    "season_x": "Staffel {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Staffel {{season_number}}",
     "number_episodes": "{{episode_number}} Episodes",
     "born": "Geboren",

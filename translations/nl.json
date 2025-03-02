@@ -433,7 +433,7 @@
     "tags": "Labels",
     "quality_profile": "Kwaliteitsprofiel",
     "root_folder": "Hoofdmap",
-    "season_x": "Seizoen {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Seizoen {{season_number}}",
     "number_episodes": "{{episode_number}} Afleveringen",
     "born": "Geboren",
