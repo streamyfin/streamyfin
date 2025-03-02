@@ -10,6 +10,7 @@ import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import Slide, {SlideProps} from "@/components/jellyseerr/discover/Slide";
 import {ViewProps} from "react-native";
+import {uniqBy} from "lodash";
 
 const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const { jellyseerrApi } = useJellyseerr();
@@ -57,7 +58,11 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => 
   });
 
   const flatData = useMemo(
-    () => data?.pages?.filter((p) => p?.results.length).flatMap((p) => p?.results),
+    () =>
+      uniqBy(
+        data?.pages?.filter((p) => p?.results.length).flatMap((p) => p?.results),
+        "id"
+      ),
     [data]
   );
 
@@ -74,7 +79,7 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => 
             fetchNextPage()
         }}
         renderItem={(item) =>
-          <JellyseerrPoster item={item as MovieResult | TvResult} />
+          <JellyseerrPoster item={item as MovieResult | TvResult} key={item?.id}/>
       }
       />
     )
