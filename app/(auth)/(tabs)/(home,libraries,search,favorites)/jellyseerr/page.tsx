@@ -61,6 +61,7 @@ const Page: React.FC = () => {
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
+  const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
   const advancedReqModalRef = useRef<BottomSheetModal>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -111,6 +112,11 @@ const Page: React.FC = () => {
     }
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
+  const setRequestBody = useCallback((body: MediaRequestBody) => {
+    _setRequestBody(body)
+    advancedReqModalRef?.current?.present?.();
+  }, [requestBody, _setRequestBody, advancedReqModalRef])
+
   const request = useCallback(async () => {
     const body: MediaRequestBody = {
       mediaId: Number(result.id!!),
@@ -122,7 +128,7 @@ const Page: React.FC = () => {
     };
 
     if (hasAdvancedRequestPermission) {
-      advancedReqModalRef?.current?.present?.(body);
+      setRequestBody(body)
       return;
     }
 
@@ -255,7 +261,7 @@ const Page: React.FC = () => {
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
                 onAdvancedRequest={(data) =>
-                  advancedReqModalRef?.current?.present(data)
+                  setRequestBody(data)
                 }
               />
             )}
@@ -269,14 +275,17 @@ const Page: React.FC = () => {
       </ParallaxScrollView>
       <RequestModal
         ref={advancedReqModalRef}
+        requestBody={requestBody}
         title={mediaTitle}
         id={result.id!!}
         type={result.mediaType as MediaType}
         isAnime={isAnime}
         onRequested={() => {
+          _setRequestBody(undefined)
           advancedReqModalRef?.current?.close();
           refetch();
         }}
+        onDismiss={() => _setRequestBody(undefined)}
       />
       <BottomSheetModal
         ref={bottomSheetModalRef}

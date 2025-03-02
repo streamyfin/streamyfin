@@ -18,7 +18,7 @@ interface Props<T> {
   title: string | ReactNode;
   label: string;
   onSelected: (...item: T[]) => void;
-  multi?: boolean;
+  multiple?: boolean;
 }
 
 const Dropdown = <T extends unknown>({
@@ -30,7 +30,7 @@ const Dropdown = <T extends unknown>({
   title,
   label,
   onSelected,
-  multi = false,
+  multiple = false,
   ...props
 }: PropsWithChildren<Props<T> & ViewProps>) => {
   if (Platform.isTV) return null;
@@ -72,7 +72,7 @@ const Dropdown = <T extends unknown>({
         >
           <DropdownMenu.Label>{label}</DropdownMenu.Label>
           {data.map((item, idx) =>
-            multi ? (
+            multiple ? (
               <DropdownMenu.CheckboxItem
                 value={
                   selected?.some((s) => keyExtractor(s) == keyExtractor(item))
@@ -80,7 +80,7 @@ const Dropdown = <T extends unknown>({
                     : "off"
                 }
                 key={keyExtractor(item)}
-                onValueChange={(next, previous) =>
+                onValueChange={(next: "on" | "off", previous: "on" | "off") => {
                   setSelected((p) => {
                     const prev = p || [];
                     if (next == "on") {
@@ -92,7 +92,7 @@ const Dropdown = <T extends unknown>({
                       ),
                     ];
                   })
-                }
+                }}
               >
                 <DropdownMenu.ItemTitle>
                   {titleExtractor(item)}
