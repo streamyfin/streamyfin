@@ -128,7 +128,12 @@
           "OTHER": "其他",
           "UNKNOWN": "未知"
         },
-        "safe_area_in_controls": "控制中的安全区域",
+                "safe_area_in_controls": "控制中的安全区域",
+        "video_player": "Video player",
+        "video_players": {
+          "VLC_3": "VLC 3",
+          "VLC_4": "VLC 4 (Experimental + PiP)"
+        },
         "show_custom_menu_links": "显示自定义菜单链接",
         "hide_libraries": "隐藏媒体库",
         "select_liraries_you_want_to_hide": "选择您想从媒体库页面和主页隐藏的媒体库。",

@@ -5,13 +5,13 @@ import { Controls } from "@/components/video-player/controls/Controls";
 import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import { VlcPlayerView } from "@/modules/vlc-player";
+import { VlcPlayerView } from "@/modules";
 import {
   PipStartedPayload,
   PlaybackStatePayload,
   ProgressUpdatePayload,
   VlcPlayerViewRef,
-} from "@/modules/vlc-player/src/VlcPlayer.types";
+} from "@/modules/VlcPlayer.types";
 const downloadProvider = !Platform.isTV ? require("@/providers/DownloadProvider") : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";

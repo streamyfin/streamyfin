@@ -14,6 +14,7 @@ import {
 import { Bitrate, BITRATES } from "@/components/BitrateSelector";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
+import {Video} from "@/utils/jellyseerr/server/models/Movie";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -112,6 +113,12 @@ export type HomeSectionNextUpResolver = {
   enableRewatching?: boolean;
 };
 
+export enum VideoPlayer {
+  // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
+  VLC_3,
+  VLC_4
+}
+
 export type Settings = {
   home?: Home | null;
   autoRotate?: boolean;
@@ -146,6 +153,7 @@ export type Settings = {
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
+  defaultPlayer: VideoPlayer;
 };
 
 export interface Lockable<T> {
@@ -200,6 +208,7 @@ const defaultValues: Settings = {
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
+  defaultPlayer: VideoPlayer.VLC_3, // ios only setting. does not matter what this is for android
 };
 
 const loadSettings = (): Partial<Settings> => {
