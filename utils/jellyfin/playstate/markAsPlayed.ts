@@ -15,26 +15,22 @@ interface MarkAsPlayedParams {
  * @param params - The parameters for marking an item as played
  * @returns A promise that resolves to true if the operation was successful, false otherwise
  */
-export const markAsPlayed = async ({
-  api,
-  item,
-  userId,
-}: MarkAsPlayedParams): Promise<boolean> => {
+export const markAsPlayed = async ({ api, item, userId }: MarkAsPlayedParams): Promise<boolean> => {
   if (!api || !item?.Id || !userId || !item.RunTimeTicks) {
     console.error("Invalid parameters for markAsPlayed");
     return false;
   }
 
   try {
-    const [playedResponse, progressResponse] = await Promise.all([
+    const [playedResponse] = await Promise.all([
       api.axiosInstance.post(
         `${api.basePath}/UserPlayedItems/${item.Id}`,
         { userId, datePlayed: new Date().toISOString() },
-        { headers: getAuthHeaders(api) },
+        { headers: getAuthHeaders(api) }
       ),
     ]);
 
-    return playedResponse.status === 200 && progressResponse.status === 200;
+    return playedResponse.status === 200;
   } catch (error) {
     return false;
   }
