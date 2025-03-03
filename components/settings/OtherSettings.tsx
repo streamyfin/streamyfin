@@ -176,7 +176,6 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.defaultBitrate?.locked}
             keyExtractor={(item) => item.key}
             titleExtractor={(item) => item.key}
-            selected={settings.defaultBitrate}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">{settings.defaultBitrate?.key}</Text>
