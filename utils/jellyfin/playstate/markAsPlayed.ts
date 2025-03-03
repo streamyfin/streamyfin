@@ -1,7 +1,6 @@
 import { Api } from "@jellyfin/sdk";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { AxiosError } from "axios";
-import { getAuthHeaders } from "../jellyfin";
+import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 
 interface MarkAsPlayedParams {
   api: Api | null | undefined;
@@ -12,7 +11,7 @@ interface MarkAsPlayedParams {
 /**
  * Marks a media item as played and updates its progress to completion.
  *
- * @param params - The parameters for marking an item as played
+ * @param params - The parameters for marking an item as played∏
  * @returns A promise that resolves to true if the operation was successful, false otherwise
  */
 export const markAsPlayed = async ({ api, item, userId }: MarkAsPlayedParams): Promise<boolean> => {
@@ -22,15 +21,12 @@ export const markAsPlayed = async ({ api, item, userId }: MarkAsPlayedParams): P
   }
 
   try {
-    const [playedResponse] = await Promise.all([
-      api.axiosInstance.post(
-        `${api.basePath}/UserPlayedItems/${item.Id}`,
-        { userId, datePlayed: new Date().toISOString() },
-        { headers: getAuthHeaders(api) }
-      ),
-    ]);
+    const response = await getPlaystateApi(api).markPlayedItem({
+      itemId: item.Id,
+      datePlayed: new Date().toISOString(),
+    });
 
-    return playedResponse.status === 200;
+    return response.status === 200;
   } catch (error) {
     return false;
   }
