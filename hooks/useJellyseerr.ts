@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
-import { Results } from "@/utils/jellyseerr/server/models/Search";
+import {MovieResult, Results, TvResult} from "@/utils/jellyseerr/server/models/Search";
 import { storage } from "@/utils/mmkv";
 import { inRange } from "lodash";
 import { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
@@ -14,7 +14,7 @@ import {
   MediaType,
 } from "@/utils/jellyseerr/server/constants/media";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import {MediaRequestBody, RequestResultsResponse} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
 import { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import {
   SeasonWithEpisodes,
@@ -225,6 +225,23 @@ export class JellyseerrApi {
     return this.axios
       ?.post<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST, request)
       .then(({ data }) => data);
+  }
+
+  async getRequest(id: number): Promise<MediaRequest> {
+    return this.axios
+      ?.get<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST + `/${id}`)
+      .then(({ data }) => data);
+  }
+
+  async requests(params = {
+    filter: "all",
+    take: 10,
+    sort: "modified",
+    skip: 0
+  }): Promise<RequestResultsResponse> {
+    return this.axios
+      ?.get<RequestResultsResponse>(Endpoints.API_V1 + Endpoints.REQUEST, {params})
+      .then(({data}) => data);
   }
 
   async movieDetails(id: number) {
@@ -439,14 +456,34 @@ export const useJellyseerr = () => {
   );
 
   const isJellyseerrResult = (
-    items: any[] | null | undefined
-  ): items is Results[] => {
+    items: any | null | undefined
+  ): items is Results => {
     return (
-      !items ||
-      (items.length >= 0 &&
-        Object.hasOwn(items[0], "mediaType") &&
-        Object.values(MediaType).includes(items[0]["mediaType"]))
-    );
+      items &&
+        Object.hasOwn(items, "mediaType") &&
+        Object.values(MediaType).includes(items["mediaType"])
+    )
+  };
+
+  const getTitle = (item: TvResult | TvDetails | MovieResult | MovieDetails) => {
+    return isJellyseerrResult(item)
+      ? (item.mediaType == MediaType.MOVIE ? item?.originalTitle : item?.name)
+      : (item.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.title : (item as TvDetails)?.name)
+  };
+
+  const getYear = (item: TvResult | TvDetails | MovieResult | MovieDetails) => {
+    return new Date((
+      isJellyseerrResult(item)
+      ? (item.mediaType == MediaType.MOVIE ? item?.releaseDate : item?.firstAirDate)
+      : (item.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.releaseDate : (item as TvDetails)?.firstAirDate))
+      || ""
+    )?.getFullYear?.()
+  };
+
+  const getMediaType = (item: TvResult | TvDetails | MovieResult | MovieDetails): MediaType => {
+    return isJellyseerrResult(item)
+      ? item.mediaType
+      : item?.mediaInfo?.mediaType
   };
 
   const jellyseerrRegion = useMemo(
@@ -464,6 +501,9 @@ export const useJellyseerr = () => {
     setJellyseerrUser,
     clearAllJellyseerData,
     isJellyseerrResult,
+    getTitle,
+    getYear,
+    getMediaType,
     jellyseerrRegion,
     jellyseerrLocale,
     requestMedia,

@@ -9,13 +9,16 @@ import {
   Permission,
 } from "@/utils/jellyseerr/server/lib/permissions";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import {TvDetails} from "@/utils/jellyseerr/server/models/Tv";
+import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
 
 interface Props extends TouchableOpacityProps {
-  result: MovieResult | TvResult;
+  result: MovieResult | TvResult | MovieDetails | TvDetails;
   mediaTitle: string;
   releaseYear: number;
   canRequest: boolean;
   posterSrc: string;
+  mediaType: MediaType;
 }
 
 export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
@@ -24,6 +27,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
   releaseYear,
   canRequest,
   posterSrc,
+  mediaType,
   children,
   ...props
 }) => {
@@ -46,7 +50,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
     () =>
       requestMedia(mediaTitle, {
         mediaId: result.id,
-        mediaType: result.mediaType,
+        mediaType,
       }),
     [jellyseerrApi, result]
   );
@@ -67,6 +71,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
                     releaseYear,
                     canRequest,
                     posterSrc,
+                    mediaType
                   },
                 });
               }}
@@ -83,7 +88,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
             key={"content"}
           >
             <ContextMenu.Label key="label-1">Actions</ContextMenu.Label>
-            {canRequest && result.mediaType === MediaType.MOVIE && (
+            {canRequest && mediaType === MediaType.MOVIE && (
               <ContextMenu.Item
                 key="item-1"
                 onSelect={() => {

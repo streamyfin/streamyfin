@@ -167,7 +167,8 @@
           "tv_quota_limit": "TV kota limiti",
           "tv_quota_days": "TV kota günleri",
           "reset_jellyseerr_config_button": "Jellyseerr yapılandırmasını sıfırla",
-          "unlimited": "Sınırsız"
+          "unlimited": "Sınırsız",
+          "plus_n_more": "+{{n}} more"
         },
         "marlin_search": {
           "enable_marlin_search": "Marlin Aramasını Etkinleştir ",

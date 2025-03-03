@@ -169,7 +169,8 @@
           "tv_quota_limit": "Limite de quota TV",
           "tv_quota_days": "Jours de quota TV",
           "reset_jellyseerr_config_button": "Réinitialiser la configuration Jellyseerr",
-          "unlimited": "Illimité"
+          "unlimited": "Illimité",
+          "plus_n_more": "+{{n}} more"
         },
         "marlin_search": {
           "enable_marlin_search": "Activer Marlin Search ",

@@ -168,7 +168,8 @@
           "tv_quota_limit": "TV quota limit",
           "tv_quota_days": "TV quota days",
           "reset_jellyseerr_config_button": "Reset Jellyseerr config",
-          "unlimited": "Unlimited"
+          "unlimited": "Unlimited",
+          "plus_n_more": "+{{n}} more"
         },
         "marlin_search": {
           "enable_marlin_search": "Enable Marlin Search ",

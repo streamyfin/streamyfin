@@ -167,7 +167,8 @@
           "tv_quota_limit": "剧集配额限制",
           "tv_quota_days": "剧集配额天数",
           "reset_jellyseerr_config_button": "重置 Jellyseerr 设置",
-          "unlimited": "无限制"
+          "unlimited": "无限制",
+          "plus_n_more": "+{{n}} more"
         },
         "marlin_search": {
           "enable_marlin_search": "启用 Marlin 搜索",

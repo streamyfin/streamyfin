@@ -168,7 +168,8 @@
           "tv_quota_limit": "TV-Anfragelimit",
           "tv_quota_days": "TV-Anfragetage",
           "reset_jellyseerr_config_button": "Setze Jellyseerr-Konfiguration zurück",
-          "unlimited": "Unlimitiert"
+          "unlimited": "Unlimitiert",
+          "plus_n_more": "+{{n}} more"
         },
         "marlin_search": {
           "enable_marlin_search": "Aktiviere Marlin Search",

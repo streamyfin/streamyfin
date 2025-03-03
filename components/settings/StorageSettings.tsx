@@ -8,6 +8,7 @@ import { toast } from "sonner-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
+import {Colors} from "@/constants/Colors";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
@@ -61,7 +62,7 @@ export const StorageSettings = () => {
               <View
                 style={{
                   width: `${(size.app / size.total) * 100}%`,
-                  backgroundColor: "rgb(147 51 234)",
+                  backgroundColor: Colors.primaryRGB,
                 }}
               />
               <View
@@ -70,7 +71,7 @@ export const StorageSettings = () => {
                     ((size.total - size.remaining - size.app) / size.total) *
                     100
                   }%`,
-                  backgroundColor: "rgb(192 132 252)",
+                  backgroundColor: Colors.primaryLightRGB,
                 }}
               />
             </>
