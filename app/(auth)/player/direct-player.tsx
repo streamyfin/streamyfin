@@ -3,6 +3,7 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules";
@@ -12,31 +13,29 @@ import {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/VlcPlayer.types";
-const downloadProvider = !Platform.isTV ? require("@/providers/DownloadProvider") : null;
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import native from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
-import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { getPlaystateApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { useHaptic } from "@/hooks/useHaptic";
-import { useGlobalSearchParams, useNavigation } from "expo-router";
-import { useAtomValue } from "jotai";
-import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { Alert, View, Platform } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
-import { useSettings } from "@/utils/atoms/settings";
-import { useTranslation } from "react-i18next";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BaseItemDto,
   MediaSourceInfo,
   PlaybackOrder,
   PlaybackProgressInfo,
-  PlaybackStartInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import { getPlaystateApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import { useGlobalSearchParams, useNavigation } from "expo-router";
+import { useAtomValue } from "jotai";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert, Platform, View } from "react-native";
+import { useSharedValue } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+const downloadProvider = !Platform.isTV ? require("@/providers/DownloadProvider") : null;
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -219,6 +218,7 @@ export default function page() {
   }, [navigation, stop]);
 
   const currentPlayStateInfo = () => {
+    if (!stream) return;
     return {
       itemId: item?.Id!,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
