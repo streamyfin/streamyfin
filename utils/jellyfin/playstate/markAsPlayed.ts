@@ -32,15 +32,6 @@ export const markAsPlayed = async ({
         { userId, datePlayed: new Date().toISOString() },
         { headers: getAuthHeaders(api) },
       ),
-      api.axiosInstance.post(
-        `${api.basePath}/Sessions/Playing/Progress`,
-        {
-          ItemId: item.Id,
-          PositionTicks: item.RunTimeTicks,
-          MediaSourceId: item.Id,
-        },
-        { headers: getAuthHeaders(api) },
-      ),
     ]);
 
     return playedResponse.status === 200 && progressResponse.status === 200;
