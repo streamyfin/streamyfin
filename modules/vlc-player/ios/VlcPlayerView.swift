@@ -3,7 +3,6 @@ import UIKit
 import VLCKit
 import os
 
-
 public class VLCPlayerView: UIView {
     func setupView(parent: UIView) {
         self.backgroundColor = .black

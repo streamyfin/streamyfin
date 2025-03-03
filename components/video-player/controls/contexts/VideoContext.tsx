@@ -1,4 +1,4 @@
-import { TrackInfo } from "@/modules/vlc-player";
+import { TrackInfo } from "@/modules/VlcPlayer.types";
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from "react";
 import { useControlContext } from "./ControlContext";
 import { Track } from "../types";

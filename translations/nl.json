@@ -128,7 +128,12 @@
           "OTHER": "Andere",
           "UNKNOWN": "Onbekend"
         },
-        "safe_area_in_controls": "Veilig gebied in bedieningen",
+                "safe_area_in_controls": "Veilig gebied in bedieningen",
+        "video_player": "Video player",
+        "video_players": {
+          "VLC_3": "VLC 3",
+          "VLC_4": "VLC 4 (Experimental + PiP)"
+        },
         "show_custom_menu_links": "Aangepaste menulinks tonen",
         "hide_libraries": "Verberg Bibliotheken",
         "select_liraries_you_want_to_hide": "Selecteer de bibliotheken die je wil verbergen van de Bibliotheektab en hoofdpagina onderdelen.",
