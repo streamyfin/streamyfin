@@ -1,26 +1,24 @@
-import { Platform } from "react-native";
-import { ScreenOrientationEnum, useSettings, VideoPlayer } from "@/utils/atoms/settings";
-import { BitrateSelector, BITRATES } from "@/components/BitrateSelector";
+import { BITRATES } from "@/components/BitrateSelector";
+import Dropdown from "@/components/common/Dropdown";
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   registerBackgroundFetchAsync,
   unregisterBackgroundFetchAsync,
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
-const BackgroundFetch = !Platform.isTV ? require("expo-background-fetch") : null;
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo } from "react";
-import { Linking, Switch, TouchableOpacity } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Linking, Platform, Switch, TouchableOpacity } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { useTranslation } from "react-i18next";
-import DisabledSetting from "@/components/settings/DisabledSetting";
-import Dropdown from "@/components/common/Dropdown";
-import { isNumber } from "lodash";
+const BackgroundFetch = !Platform.isTV ? require("expo-background-fetch") : null;
+const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
