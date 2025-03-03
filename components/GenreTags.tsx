@@ -21,14 +21,19 @@ export const Tag: React.FC<{ text: string, textClass?: ViewProps["className"], t
   );
 };
 
-export const Tags: React.FC<TagProps & ViewProps> = ({ tags, textClass = "text-xs", ...props }) => {
+export const Tags: React.FC<TagProps & {tagProps?: ViewProps} & ViewProps> = ({
+  tags,
+  textClass = "text-xs",
+  tagProps,
+  ...props
+}) => {
   if (!tags || tags.length === 0) return null;
 
   return (
     <View className={`flex flex-row flex-wrap gap-1 ${props.className}`} {...props}>
       {tags.map((tag, idx) => (
         <View key={idx}>
-          <Tag key={idx} textClass={textClass} text={tag}/>
+          <Tag key={idx} textClass={textClass} text={tag} {...tagProps}/>
         </View>
       ))}
     </View>

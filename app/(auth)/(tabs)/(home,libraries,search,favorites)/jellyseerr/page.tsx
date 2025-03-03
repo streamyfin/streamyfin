@@ -42,19 +42,21 @@ const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import RequestModal from "@/components/jellyseerr/RequestModal";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
 
-  const { mediaTitle, releaseYear, posterSrc, ...result } =
+  const { mediaTitle, releaseYear, posterSrc, mediaType, ...result } =
     params as unknown as {
       mediaTitle: string;
       releaseYear: number;
       canRequest: string;
       posterSrc: string;
-    } & Partial<MovieResult | TvResult>;
+      mediaType: MediaType;
+    } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
   const { jellyseerrApi, requestMedia } = useJellyseerr();
@@ -72,7 +74,7 @@ const Page: React.FC = () => {
     refetch,
   } = useQuery({
     enabled: !!jellyseerrApi && !!result && !!result.id,
-    queryKey: ["jellyseerr", "detail", result.mediaType, result.id],
+    queryKey: ["jellyseerr", "detail", mediaType, result.id],
     staleTime: 0,
     refetchOnMount: true,
     refetchOnReconnect: true,
@@ -80,7 +82,7 @@ const Page: React.FC = () => {
     retryOnMount: true,
     refetchInterval: 0,
     queryFn: async () => {
-      return result.mediaType === MediaType.MOVIE
+      return mediaType === MediaType.MOVIE
         ? jellyseerrApi?.movieDetails(result.id!!)
         : jellyseerrApi?.tvDetails(result.id!!);
     },
@@ -120,7 +122,7 @@ const Page: React.FC = () => {
   const request = useCallback(async () => {
     const body: MediaRequestBody = {
       mediaId: Number(result.id!!),
-      mediaType: result.mediaType!!,
+      mediaType: mediaType!!,
       tvdbId: details?.externalIds?.tvdbId,
       seasons: (details as TvDetails)?.seasons
         ?.filter?.((s) => s.seasonNumber !== 0)
@@ -138,7 +140,7 @@ const Page: React.FC = () => {
   const isAnime = useMemo(
     () =>
       (details?.keywords.some((k) => k.id === ANIME_KEYWORD_ID) || false) &&
-      result.mediaType === MediaType.TV,
+      mediaType === MediaType.TV,
     [details]
   );
 
@@ -206,7 +208,7 @@ const Page: React.FC = () => {
             <View className="px-4">
               <View className="flex flex-row justify-between w-full">
                 <View className="flex flex-col w-56">
-                  <JellyserrRatings result={result as MovieResult | TvResult} />
+                  <JellyserrRatings result={result as MovieResult | TvResult | MovieDetails | TvDetails} />
                   <Text
                     uiTextView
                     selectable
@@ -253,10 +255,9 @@ const Page: React.FC = () => {
               <OverviewText text={result.overview} className="mt-4" />
             </View>
 
-            {result.mediaType === MediaType.TV && (
+            {mediaType === MediaType.TV && (
               <JellyseerrSeasons
                 isLoading={isLoading || isFetching}
-                result={result as TvResult}
                 details={details as TvDetails}
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
@@ -278,7 +279,7 @@ const Page: React.FC = () => {
         requestBody={requestBody}
         title={mediaTitle}
         id={result.id!!}
-        type={result.mediaType as MediaType}
+        type={mediaType}
         isAnime={isAnime}
         onRequested={() => {
           _setRequestBody(undefined)

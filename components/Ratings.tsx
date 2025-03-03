@@ -7,6 +7,9 @@ import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useQuery } from "@tanstack/react-query";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
+import {TvDetails} from "@/utils/jellyseerr/server/models/Tv";
+import {useMemo} from "react";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -49,14 +52,17 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
   );
 };
 
-export const JellyserrRatings: React.FC<{ result: MovieResult | TvResult }> = ({
+export const JellyserrRatings: React.FC<{ result: MovieResult | TvResult | TvDetails | MovieDetails }> = ({
   result,
 }) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, getMediaType } = useJellyseerr();
+
+  const mediaType = useMemo(() => getMediaType(result), [result]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["jellyseerr", result.id, result.mediaType, "ratings"],
+    queryKey: ["jellyseerr", result.id, mediaType, "ratings"],
     queryFn: async () => {
-      return result.mediaType === MediaType.MOVIE
+      return mediaType === MediaType.MOVIE
         ? jellyseerrApi?.movieRatings(result.id)
         : jellyseerrApi?.tvRatings(result.id);
     },

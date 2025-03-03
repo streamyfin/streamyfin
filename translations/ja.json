@@ -167,7 +167,8 @@
           "tv_quota_limit": "テレビのクオータ制限",
           "tv_quota_days": "テレビのクオータ日数",
           "reset_jellyseerr_config_button": "Jellyseerrの設定をリセット",
-          "unlimited": "無制限"
+          "unlimited": "無制限",
+          "plus_n_more": "+{{n}} more"
         },
         "marlin_search": {
           "enable_marlin_search": "マーリン検索を有効にする ",

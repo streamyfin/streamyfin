@@ -128,14 +128,12 @@ const RenderItem = ({ item, index }: any) => {
 
 const JellyseerrSeasons: React.FC<{
   isLoading: boolean;
-  result?: TvResult;
   details?: TvDetails;
   hasAdvancedRequest?: boolean,
   onAdvancedRequest?: (data: MediaRequestBody) => void;
   refetch:  (options?: (RefetchOptions | undefined)) => Promise<QueryObserverResult<TvDetails | MovieDetails | undefined, Error>>;
 }> = ({
   isLoading,
-  result,
   details,
   refetch,
   hasAdvancedRequest,
@@ -195,7 +193,7 @@ const JellyseerrSeasons: React.FC<{
         return onAdvancedRequest?.(body)
       }
 
-      requestMedia(result?.name!!, body, refetch);
+      requestMedia(details.name, body, refetch);
     }
   }, [jellyseerrApi, seasons, details, hasAdvancedRequest, onAdvancedRequest]);
 
@@ -227,7 +225,7 @@ const JellyseerrSeasons: React.FC<{
         return onAdvancedRequest?.(body)
       }
 
-      requestMedia(`${result?.name!!}, Season ${seasonNumber}`, body, refetch);
+      requestMedia(`${details.name}, Season ${seasonNumber}`, body, refetch);
     }
   }, [requestMedia, hasAdvancedRequest, onAdvancedRequest]);
 

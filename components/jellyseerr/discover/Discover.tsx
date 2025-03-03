@@ -8,6 +8,7 @@ import {View} from "react-native";
 import {networks} from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 import {studios} from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
 import GenreSlide from "@/components/jellyseerr/discover/GenreSlide";
+import RecentRequestsSlide from "@/components/jellyseerr/discover/RecentRequestsSlide";
 
 interface Props {
   sliders?: DiscoverSlider[];
@@ -25,6 +26,8 @@ const Discover: React.FC<Props> = ({ sliders }) => {
     <View className="flex flex-col space-y-4 mb-8">
       {sortedSliders.map(slide => {
         switch (slide.type) {
+          case DiscoverSliderType.RECENT_REQUESTS:
+            return <RecentRequestsSlide key={slide.id} slide={slide} />
           case DiscoverSliderType.NETWORKS:
             return <CompanySlide key={slide.id} slide={slide} data={networks}/>
           case DiscoverSliderType.STUDIOS:

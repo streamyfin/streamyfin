@@ -168,7 +168,8 @@
           "tv_quota_limit": "Limiet serie quota",
           "tv_quota_days": "Serie Quota dagen",
           "reset_jellyseerr_config_button": "Jellyseerr opnieuw instellen",
-          "unlimited": "Ongelimiteerd"
+          "unlimited": "Ongelimiteerd",
+          "plus_n_more": "+{{n}} more"
         },
         "marlin_search": {
           "enable_marlin_search": "Marlin Search inschakelen ",
