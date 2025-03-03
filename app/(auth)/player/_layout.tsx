@@ -21,12 +21,10 @@ export default function Layout() {
       if (settings.autoRotate === true) {
         ScreenOrientation.unlockAsync();
       } else {
-        ScreenOrientation.lockAsync(
-          ScreenOrientation.OrientationLock.PORTRAIT_UP
-        );
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       }
     };
-  }, [settings]);
+  }, [settings.defaultVideoOrientation, settings.autoRotate]);
 
   return (
     <>
