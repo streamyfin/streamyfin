@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import {ScreenOrientationEnum, useSettings, VideoPlayer} from "@/utils/atoms/settings";
+import { ScreenOrientationEnum, useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import { BitrateSelector, BITRATES } from "@/components/BitrateSelector";
 import {
   BACKGROUND_FETCH_TASK,
@@ -7,9 +7,7 @@ import {
   unregisterBackgroundFetchAsync,
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
+const BackgroundFetch = !Platform.isTV ? require("expo-background-fetch") : null;
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { useRouter } from "expo-router";
@@ -22,7 +20,7 @@ import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import Dropdown from "@/components/common/Dropdown";
-import {isNumber} from "lodash";
+import { isNumber } from "lodash";
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
@@ -85,10 +83,7 @@ export const OtherSettings: React.FC = () => {
   return (
     <DisabledSetting disabled={disabled}>
       <ListGroup title={t("home.settings.other.other_title")} className="">
-        <ListItem
-          title={t("home.settings.other.auto_rotate")}
-          disabled={pluginSettings?.autoRotate?.locked}
-        >
+        <ListItem title={t("home.settings.other.auto_rotate")} disabled={pluginSettings?.autoRotate?.locked}>
           <Switch
             value={settings.autoRotate}
             disabled={pluginSettings?.autoRotate?.locked}
@@ -98,17 +93,11 @@ export const OtherSettings: React.FC = () => {
 
         <ListItem
           title={t("home.settings.other.video_orientation")}
-          disabled={
-            pluginSettings?.defaultVideoOrientation?.locked ||
-            settings.autoRotate
-          }
+          disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.autoRotate}
         >
           <Dropdown
             data={orientations}
-            disabled={
-              pluginSettings?.defaultVideoOrientation?.locked ||
-              settings.autoRotate
-            }
+            disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.autoRotate}
             keyExtractor={String}
             titleExtractor={(item) => ScreenOrientationEnum[item]}
             title={
@@ -116,17 +105,11 @@ export const OtherSettings: React.FC = () => {
                 <Text className="mr-1 text-[#8E8D91]">
                   {t(ScreenOrientationEnum[settings.defaultVideoOrientation])}
                 </Text>
-                <Ionicons
-                  name="chevron-expand-sharp"
-                  size={18}
-                  color="#5A5960"
-                />
+                <Ionicons name="chevron-expand-sharp" size={18} color="#5A5960" />
               </TouchableOpacity>
             }
             label={t("home.settings.other.orientation")}
-            onSelected={(defaultVideoOrientation) =>
-              updateSettings({ defaultVideoOrientation })
-            }
+            onSelected={(defaultVideoOrientation) => updateSettings({ defaultVideoOrientation })}
           />
         </ListItem>
 
@@ -137,13 +120,11 @@ export const OtherSettings: React.FC = () => {
           <Switch
             value={settings.safeAreaInControlsEnabled}
             disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
-            onValueChange={(value) =>
-              updateSettings({ safeAreaInControlsEnabled: value })
-            }
+            onValueChange={(value) => updateSettings({ safeAreaInControlsEnabled: value })}
           />
         </ListItem>
 
-        {(Platform.OS === "ios" || Platform.isTVOS)&& (
+        {/* {(Platform.OS === "ios" || Platform.isTVOS)&& (
           <ListItem
             title={t("home.settings.other.video_player")}
             disabled={pluginSettings?.defaultPlayer?.locked}
@@ -171,23 +152,17 @@ export const OtherSettings: React.FC = () => {
               }
             />
           </ListItem>
-        )}
+        )} */}
 
         <ListItem
           title={t("home.settings.other.show_custom_menu_links")}
           disabled={pluginSettings?.showCustomMenuLinks?.locked}
-          onPress={() =>
-            Linking.openURL(
-              "https://jellyfin.org/docs/general/clients/web-config/#custom-menu-links"
-            )
-          }
+          onPress={() => Linking.openURL("https://jellyfin.org/docs/general/clients/web-config/#custom-menu-links")}
         >
           <Switch
             value={settings.showCustomMenuLinks}
             disabled={pluginSettings?.showCustomMenuLinks?.locked}
-            onValueChange={(value) =>
-              updateSettings({ showCustomMenuLinks: value })
-            }
+            onValueChange={(value) => updateSettings({ showCustomMenuLinks: value })}
           />
         </ListItem>
         <ListItem
@@ -195,10 +170,7 @@ export const OtherSettings: React.FC = () => {
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
-        <ListItem
-          title={t("home.settings.other.default_quality")}
-          disabled={pluginSettings?.defaultBitrate?.locked}
-        >
+        <ListItem title={t("home.settings.other.default_quality")} disabled={pluginSettings?.defaultBitrate?.locked}>
           <Dropdown
             data={BITRATES}
             disabled={pluginSettings?.defaultBitrate?.locked}
@@ -207,14 +179,8 @@ export const OtherSettings: React.FC = () => {
             selected={settings.defaultBitrate}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
-                <Text className="mr-1 text-[#8E8D91]">
-                  {settings.defaultBitrate?.key}
-                </Text>
-                <Ionicons
-                  name="chevron-expand-sharp"
-                  size={18}
-                  color="#5A5960"
-                />
+                <Text className="mr-1 text-[#8E8D91]">{settings.defaultBitrate?.key}</Text>
+                <Ionicons name="chevron-expand-sharp" size={18} color="#5A5960" />
               </TouchableOpacity>
             }
             label={t("home.settings.other.default_quality")}
@@ -228,9 +194,7 @@ export const OtherSettings: React.FC = () => {
           <Switch
             value={settings.disableHapticFeedback}
             disabled={pluginSettings?.disableHapticFeedback?.locked}
-            onValueChange={(disableHapticFeedback) =>
-              updateSettings({ disableHapticFeedback })
-            }
+            onValueChange={(disableHapticFeedback) => updateSettings({ disableHapticFeedback })}
           />
         </ListItem>
       </ListGroup>
