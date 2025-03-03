@@ -34,7 +34,7 @@ const RequestCard: React.FC<{request: MediaRequest}> = ({request}) => {
   });
 
   return (
-    details && <JellyseerrPoster horizontal showDownloadInfo item={details} mediaRequest={refreshedRequest} />
+    !isLoading && details && <JellyseerrPoster horizontal showDownloadInfo item={details} mediaRequest={refreshedRequest} />
   )
 }
 
