@@ -137,7 +137,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
     () =>
       orderBy(
         jellyseerrResults?.filter((r) => r.mediaType === MediaType.TV) as TvResult[],
-        sortingType || [t => t.originalName.toLowerCase() == searchQuery.toLowerCase()],
+        sortingType || [t => t.name.toLowerCase() == searchQuery.toLowerCase()],
         order || "desc"
       ),
     [jellyseerrResults, sortingType, order]
