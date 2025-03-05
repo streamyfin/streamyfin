@@ -24,3 +24,26 @@ export async function unregisterBackgroundFetchAsync() {
     console.log("Error unregistering background fetch task", error);
   }
 }
+
+export const BACKGROUND_FETCH_TASK_SESSIONS =
+  "background-fetch-sessions";
+
+export async function registerBackgroundFetchAsyncSessions() {
+  try {
+    BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK_SESSIONS, {
+      minimumInterval: 1 * 60, // 1 minutes
+      stopOnTerminate: false, // android only,
+      startOnBoot: true, // android only
+    });
+  } catch (error) {
+    console.log("Error registering background fetch task", error);
+  }
+}
+
+export async function unregisterBackgroundFetchAsyncSessions() {
+  try {
+    BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK_SESSIONS);
+  } catch (error) {
+    console.log("Error unregistering background fetch task", error);
+  }
+}
