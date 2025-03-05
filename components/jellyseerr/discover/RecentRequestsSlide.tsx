@@ -34,7 +34,7 @@ const RequestCard: React.FC<{request: MediaRequest}> = ({request}) => {
   });
 
   return (
-    !isLoading && details && <JellyseerrPoster horizontal showDownloadInfo item={details} mediaRequest={refreshedRequest} />
+    details && <JellyseerrPoster horizontal showDownloadInfo item={details} mediaRequest={refreshedRequest} />
   )
 }
 
@@ -50,9 +50,7 @@ const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props
   });
 
   return (
-    requests &&
-    requests.results.length > 0 &&
-    !isError && (
+    requests && (
       <Slide
         {...props}
         slide={slide}

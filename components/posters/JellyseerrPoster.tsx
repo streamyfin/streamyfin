@@ -33,14 +33,10 @@ const JellyseerrPoster: React.FC<Props> = ({
   mediaRequest,
   ...props
 }) => {
-  const { jellyseerrApi, getTitle, getYear, getMediaType, isJellyseerrResult } = useJellyseerr();
+  const { jellyseerrApi, getTitle, getYear, getMediaType } = useJellyseerr();
   const loadingOpacity = useSharedValue(1);
   const imageOpacity = useSharedValue(0);
   const {t} = useTranslation();
-
-  const loadingAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: loadingOpacity.value,
-  }));
 
   const imageAnimatedStyle = useAnimatedStyle(() => ({
     opacity: imageOpacity.value,
@@ -51,11 +47,13 @@ const JellyseerrPoster: React.FC<Props> = ({
     imageOpacity.value = withTiming(1, { duration: 300 });
   };
 
-  const imageSrc = useMemo(
-    () => jellyseerrApi?.imageProxy(
-      horizontal ? item.backdropPath : item.posterPath,
-      horizontal ? "w1920_and_h800_multi_faces" : "w300_and_h450_face"
-    ),
+  const backdropSrc = useMemo(
+    () => jellyseerrApi?.imageProxy(item.backdropPath, "w1920_and_h800_multi_faces"),
+    [item, jellyseerrApi, horizontal]
+  );
+
+  const posterSrc = useMemo(
+    () => jellyseerrApi?.imageProxy(item.posterPath, "w300_and_h450_face",),
     [item, jellyseerrApi, horizontal]
   );
 
@@ -116,16 +114,17 @@ const JellyseerrPoster: React.FC<Props> = ({
       mediaTitle={title}
       releaseYear={releaseYear}
       canRequest={canRequest}
-      posterSrc={imageSrc!!}
+      posterSrc={posterSrc!!}
       mediaType={mediaType}
     >
       <View className={`flex flex-col mr-2 h-auto`}>
         <View className={`relative rounded-lg overflow-hidden border border-neutral-900 ${size} aspect-[${ratio}]`}>
           <Animated.View style={imageAnimatedStyle}>
             <Image
+              className="w-full"
               key={item.id}
               id={item.id.toString()}
-              source={{ uri: imageSrc }}
+              source={{ uri: horizontal ? backdropSrc : posterSrc }}
               cachePolicy={"memory-disk"}
               contentFit="cover"
               style={{
