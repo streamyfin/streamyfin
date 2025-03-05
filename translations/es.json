@@ -174,7 +174,12 @@
           "tv_quota_days": "Días de cuota de series",
           "reset_jellyseerr_config_button": "Restablecer configuración de Jellyseerr",
           "unlimited": "Ilimitado",
-          "plus_n_more": "+{{n}} more"
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Habilitar búsqueda de Marlin",
@@ -329,6 +334,8 @@
       "years": "Años",
       "sort_by": "Ordenar por",
       "sort_order": "Ordenar",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Etiquetas"
     }
   },

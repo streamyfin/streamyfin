@@ -174,7 +174,12 @@
           "tv_quota_days": "Serie Quota dagen",
           "reset_jellyseerr_config_button": "Jellyseerr opnieuw instellen",
           "unlimited": "Ongelimiteerd",
-          "plus_n_more": "+{{n}} more"
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Marlin Search inschakelen ",
@@ -329,6 +334,8 @@
       "years": "Jaren",
       "sort_by": "Sorteren op",
       "sort_order": "Sorteer volgorde",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Labels"
     }
   },

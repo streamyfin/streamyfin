@@ -1,12 +1,8 @@
-import {router, useLocalSearchParams, useSegments,} from "expo-router";
+import {useLocalSearchParams} from "expo-router";
 import React, {useMemo,} from "react";
-import {TouchableOpacity} from "react-native";
 import {useInfiniteQuery} from "@tanstack/react-query";
 import {Endpoints, useJellyseerr} from "@/hooks/useJellyseerr";
-import {Text} from "@/components/common/Text";
 import {Image} from "expo-image";
-import Poster from "@/components/posters/Poster";
-import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
 import {DiscoverSliderType} from "@/utils/jellyseerr/server/constants/discover";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import {MovieResult, Results, TvResult} from "@/utils/jellyseerr/server/models/Search";

@@ -7,7 +7,7 @@ import {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
-import React, { useMemo } from "react";
+import React, {useMemo, useState} from "react";
 import { View, ViewProps } from "react-native";
 import {
   useAnimatedReaction,
@@ -21,16 +21,31 @@ import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
 import { useTranslation } from "react-i18next";
-import {uniqBy} from "lodash";
+import {orderBy, uniqBy} from "lodash";
+import {useInfiniteQuery} from "@tanstack/react-query";
 
 interface Props extends ViewProps {
   searchQuery: string;
+  sortType?: JellyseerrSearchSort;
+  order?: "asc" | "desc";
 }
 
-export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
+export enum JellyseerrSearchSort {
+  DEFAULT,
+  VOTE_COUNT_AND_AVERAGE,
+  POPULARITY
+}
+
+export const JellyserrIndexPage: React.FC<Props> = ({
+  searchQuery,
+  sortType,
+  order
+}) => {
   const { jellyseerrApi } = useJellyseerr();
   const opacity = useSharedValue(1);
   const { t } = useTranslation();
+
+  const [loadInitialPages, setLoadInitialPages] = useState<Boolean>(false)
 
   const {
     data: jellyseerrDiscoverSettings,
@@ -43,30 +58,33 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
   });
 
   const {
-    data: jellyseerrResults,
+    data: jellyseerrResultPages,
     isFetching: f2,
     isLoading: l2,
-  } = useReactNavigationQuery({
+    isFetchingNextPage: n2,
+    hasNextPage,
+    fetchNextPage
+  } = useInfiniteQuery({
     queryKey: ["search", "jellyseerr", "results", searchQuery],
-    queryFn: async () => {
-      const response = await jellyseerrApi?.search({
-        query: new URLSearchParams(searchQuery).toString(),
-        page: 1,
-        language: "en",
-      });
-      return response?.results;
-    },
+    queryFn: async ({pageParam}) =>
+      jellyseerrApi?.search({
+        query: new URLSearchParams(searchQuery || "").toString(),
+        page: Number(pageParam),
+      }),
     enabled: !!jellyseerrApi && searchQuery.length > 0,
-  });
+    staleTime: 0,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => {
+      const firstPage = pages?.[0]
+      const mostRecentPage = lastPage || pages?.[pages?.length - 1]
+      const currentPage = mostRecentPage?.page || 1
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacity.value,
-    };
+      return Math.min(currentPage + 1, firstPage?.totalPages || 1)
+    },
   });
 
   useAnimatedReaction(
-    () => f1 || f2 || l1 || l2,
+    () => f1 || f2 || l1 || l2 || n2,
     (isLoading) => {
       if (isLoading) {
         opacity.value = withTiming(1, { duration: 200 });
@@ -76,31 +94,63 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
     }
   );
 
+  const sortingType = useMemo(
+    () => {
+      if (!sortType) return;
+      switch (Number(JellyseerrSearchSort[sortType])) {
+        case JellyseerrSearchSort.VOTE_COUNT_AND_AVERAGE:
+          return ["voteCount", "voteAverage"];
+        case JellyseerrSearchSort.POPULARITY:
+          return ["voteCount", "popularity"]
+        default:
+          return undefined
+      }
+    },
+    [sortType, order]
+  )
+
+  const jellyseerrResults = useMemo(
+    () => {
+      const lastPage = jellyseerrResultPages?.pages?.[jellyseerrResultPages?.pages?.length - 1]
+
+      if ((lastPage?.page || 0) % 5 !== 0 && hasNextPage && !loadInitialPages) {
+        fetchNextPage()
+        setLoadInitialPages(lastPage?.page === 4 || (lastPage !== undefined && lastPage.totalPages == lastPage.page))
+      }
+
+      return uniqBy(jellyseerrResultPages?.pages?.flatMap?.(page => page?.results || []), "id")
+    },
+    [jellyseerrResultPages, fetchNextPage, hasNextPage]
+  );
+
   const jellyseerrMovieResults = useMemo(
     () =>
-      uniqBy(
+      orderBy(
         jellyseerrResults?.filter((r) => r.mediaType === MediaType.MOVIE) as MovieResult[],
-        "id"
+        sortingType || [m => m.title.toLowerCase() == searchQuery.toLowerCase()],
+        order || "desc"
       ),
-    [jellyseerrResults]
+    [jellyseerrResults, sortingType, order]
   );
 
   const jellyseerrTvResults = useMemo(
     () =>
-      uniqBy(
+      orderBy(
         jellyseerrResults?.filter((r) => r.mediaType === MediaType.TV) as TvResult[],
-        "id"
+        sortingType || [t => t.originalName.toLowerCase() == searchQuery.toLowerCase()],
+        order || "desc"
       ),
-    [jellyseerrResults]
+    [jellyseerrResults, sortingType, order]
   );
 
   const jellyseerrPersonResults = useMemo(
     () =>
-      uniqBy(
+      orderBy(
         jellyseerrResults?.filter((r) => r.mediaType === "person") as PersonResult[],
-        "id"
+        sortingType || [p => p.name.toLowerCase() == searchQuery.toLowerCase()],
+        order || "desc"
       ),
-    [jellyseerrResults]
+    [jellyseerrResults, sortingType, order]
   );
 
   if (!searchQuery.length)
@@ -112,7 +162,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
 
   return (
     <View>
-      <LoadingSkeleton isLoading={f1 || f2 || l1 || l2} />
+      <LoadingSkeleton isLoading={(f1 || f2 || l1 || l2) && !loadInitialPages} />
 
       {!jellyseerrMovieResults?.length &&
         !jellyseerrTvResults?.length &&
@@ -120,7 +170,8 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
         !f1 &&
         !f2 &&
         !l1 &&
-        !l2 && (
+        !l2 &&
+        !loadInitialPages && (
           <View>
             <Text className="text-center text-lg font-bold mt-4">
               {t("search.no_results_found_for")}
@@ -131,7 +182,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({ searchQuery }) => {
           </View>
         )}
 
-      <View className={f1 || f2 || l1 || l2 ? "opacity-0" : "opacity-100"}>
+      <View className={(f1 || f2 || l1 || l2) && !loadInitialPages ? "opacity-0" : "opacity-100"}>
         <SearchItemWrapper
           header={t("search.request_movies")}
           items={jellyseerrMovieResults}

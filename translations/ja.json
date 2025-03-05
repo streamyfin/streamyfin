@@ -173,7 +173,12 @@
           "tv_quota_days": "テレビのクオータ日数",
           "reset_jellyseerr_config_button": "Jellyseerrの設定をリセット",
           "unlimited": "無制限",
-          "plus_n_more": "+{{n}} more"
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "マーリン検索を有効にする ",
@@ -328,6 +333,8 @@
       "years": "年",
       "sort_by": "ソート",
       "sort_order": "ソート順",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "タグ"
     }
   },

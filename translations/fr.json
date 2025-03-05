@@ -175,7 +175,12 @@
           "tv_quota_days": "Jours de quota TV",
           "reset_jellyseerr_config_button": "Réinitialiser la configuration Jellyseerr",
           "unlimited": "Illimité",
-          "plus_n_more": "+{{n}} more"
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Activer Marlin Search ",
@@ -330,6 +335,8 @@
       "years": "Années",
       "sort_by": "Trier par",
       "sort_order": "Ordre de tri",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Tags"
     }
   },
