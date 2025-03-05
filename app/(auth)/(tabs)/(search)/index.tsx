@@ -254,7 +254,7 @@ export default function search() {
                     }
                   />
                 </TouchableOpacity>
-                {!loading && noResults && debouncedSearch.length > 0 && (
+                {searchType === "Discover" && !loading && noResults && debouncedSearch.length > 0 && (
                   <View className="flex flex-row justify-end items-center space-x-1">
                     <FilterButton
                       collectionId="search"
