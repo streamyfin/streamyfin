@@ -3,15 +3,16 @@ import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { PropsWithChildren } from "react";
-import { ScrollView } from "react-native";
+import React, { PropsWithChildren } from "react";
 import { Text } from "../common/Text";
+import {FlashList} from "@shopify/flash-list";
 
 type SearchItemWrapperProps<T> = {
   ids?: string[] | null;
   items?: T[];
   renderItem: (item: any) => React.ReactNode;
   header?: string;
+  onEndReached?: (() => void) | null | undefined;
 };
 
 export const SearchItemWrapper = <T extends unknown>({
@@ -19,6 +20,7 @@ export const SearchItemWrapper = <T extends unknown>({
   items,
   renderItem,
   header,
+  onEndReached
 }: PropsWithChildren<SearchItemWrapperProps<T>>) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -54,17 +56,22 @@ export const SearchItemWrapper = <T extends unknown>({
   return (
     <>
       <Text className="font-bold text-lg px-4 mb-2">{header}</Text>
-      <ScrollView
+      <FlashList
         horizontal
-        className="px-4 mb-2"
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 8,
+        }}
         showsHorizontalScrollIndicator={false}
-      >
-        {data && data?.length > 0
-          ? data.map((item) => renderItem(item))
-          : items && items?.length > 0
-          ? items.map((i) => renderItem(i))
-          : undefined}
-      </ScrollView>
+        keyExtractor={(_, index) => index.toString()}
+        estimatedItemSize={250}
+        /*@ts-ignore */
+        data={data || items}
+        onEndReachedThreshold={1}
+        onEndReached={onEndReached}
+        //@ts-ignore
+        renderItem={({item, index}) => item ? renderItem(item) : <></>}
+      />
     </>
   );
 };

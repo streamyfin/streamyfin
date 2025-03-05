@@ -174,7 +174,12 @@
           "tv_quota_days": "TV-Anfragetage",
           "reset_jellyseerr_config_button": "Setze Jellyseerr-Konfiguration zurück",
           "unlimited": "Unlimitiert",
-          "plus_n_more": "+{{n}} more"
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Aktiviere Marlin Search",
@@ -329,6 +334,8 @@
       "years": "Jahre",
       "sort_by": "Sortieren nach",
       "sort_order": "Sortierreihenfolge",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Tags"
     }
   },

@@ -1,39 +1,30 @@
-import { Input } from "@/components/common/Input";
-import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import {Text} from "@/components/common/Text";
+import {TouchableItemRouter} from "@/components/common/TouchableItemRouter";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
-import { Tag } from "@/components/GenreTags";
-import { ItemCardText } from "@/components/ItemCardText";
-import { JellyserrIndexPage } from "@/components/jellyseerr/JellyseerrIndexPage";
+import {Tag} from "@/components/GenreTags";
+import {ItemCardText} from "@/components/ItemCardText";
+import {JellyseerrSearchSort, JellyserrIndexPage} from "@/components/jellyseerr/JellyseerrIndexPage";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
-import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
-import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import {
-  BaseItemDto,
-  BaseItemKind,
-} from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getSearchApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
+import {LoadingSkeleton} from "@/components/search/LoadingSkeleton";
+import {SearchItemWrapper} from "@/components/search/SearchItemWrapper";
+import {useJellyseerr} from "@/hooks/useJellyseerr";
+import {apiAtom, userAtom} from "@/providers/JellyfinProvider";
+import {useSettings} from "@/utils/atoms/settings";
+import {BaseItemDto, BaseItemKind,} from "@jellyfin/sdk/lib/generated-client/models";
+import {getItemsApi, getSearchApi} from "@jellyfin/sdk/lib/utils/api";
+import {useQuery} from "@tanstack/react-query";
 import axios from "axios";
-import { Href, router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDebounce } from "use-debounce";
-import { useTranslation } from "react-i18next";
-import { eventBus } from "@/utils/eventBus";
+import {router, useLocalSearchParams, useNavigation} from "expo-router";
+import {useAtom} from "jotai";
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,} from "react";
+import {Platform, ScrollView, TouchableOpacity, View} from "react-native";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {useDebounce} from "use-debounce";
+import {useTranslation} from "react-i18next";
+import {eventBus} from "@/utils/eventBus";
+import {sortOrderOptions} from "@/utils/atoms/filters";
+import {FilterButton} from "@/components/filters/FilterButton";
 
 type SearchType = "Library" | "Discover";
 
@@ -64,6 +55,8 @@ export default function search() {
 
   const [settings] = useSettings();
   const { jellyseerrApi } = useJellyseerr();
+  const [jellyseerrOrderBy, setJellyseerrOrderBy] = useState<JellyseerrSearchSort>(JellyseerrSearchSort.DEFAULT)
+  const [jellyseerrSortOrder, setJellyseerrSortOrder] = useState<"asc" | "desc">("desc")
 
   const searchEngine = useMemo(() => {
     return settings?.searchEngine || "Jellyfin";
@@ -241,26 +234,52 @@ export default function search() {
           }}
         >
           {jellyseerrApi && (
-            <View className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
-              <TouchableOpacity onPress={() => setSearchType("Library")}>
-                <Tag
-                  text={t("search.library")}
-                  textClass="p-1"
-                  className={
-                    searchType === "Library" ? "bg-purple-600" : undefined
-                  }
-                />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSearchType("Discover")}>
-                <Tag
-                  text={t("search.discover")}
-                  textClass="p-1"
-                  className={
-                    searchType === "Discover" ? "bg-purple-600" : undefined
-                  }
-                />
-              </TouchableOpacity>
-            </View>
+            <>
+              <ScrollView horizontal className="flex flex-row flex-wrap space-x-2 px-4 mb-2">
+                <TouchableOpacity onPress={() => setSearchType("Library")}>
+                  <Tag
+                    text={t("search.library")}
+                    textClass="p-1"
+                    className={
+                      searchType === "Library" ? "bg-purple-600" : undefined
+                    }
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setSearchType("Discover")}>
+                  <Tag
+                    text={t("search.discover")}
+                    textClass="p-1"
+                    className={
+                      searchType === "Discover" ? "bg-purple-600" : undefined
+                    }
+                  />
+                </TouchableOpacity>
+                {!loading && noResults && debouncedSearch.length > 0 && (
+                  <View className="flex flex-row justify-end items-center space-x-1">
+                    <FilterButton
+                      collectionId="search"
+                      queryKey="jellyseerr_search"
+                      queryFn={async () => Object.keys(JellyseerrSearchSort).filter(v => isNaN(Number(v)))}
+                      set={value => setJellyseerrOrderBy(value[0])}
+                      values={[jellyseerrOrderBy]}
+                      title={t("library.filters.sort_by")}
+                      renderItemLabel={(item) => t(`home.settings.plugins.jellyseerr.order_by.${item}`)}
+                      showSearch={false}
+                    />
+                    <FilterButton
+                      collectionId="order"
+                      queryKey="jellysearr_search"
+                      queryFn={async () => ["asc", "desc"]}
+                      set={value => setJellyseerrSortOrder(value[0])}
+                      values={[jellyseerrSortOrder]}
+                      title={t("library.filters.sort_order")}
+                      renderItemLabel={(item) => t(`library.filters.${item}`)}
+                      showSearch={false}
+                    />
+                  </View>
+                )}
+              </ScrollView>
+            </>
           )}
 
           <View className="mt-2">
@@ -353,7 +372,11 @@ export default function search() {
               />
             </View>
           ) : (
-            <JellyserrIndexPage searchQuery={debouncedSearch} />
+            <JellyserrIndexPage
+              searchQuery={debouncedSearch}
+              sortType={jellyseerrOrderBy}
+              order={jellyseerrSortOrder}
+            />
           )}
 
           {searchType === "Library" && (

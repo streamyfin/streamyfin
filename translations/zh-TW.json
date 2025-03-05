@@ -173,7 +173,12 @@
           "tv_quota_days": "電視配額天數",
           "reset_jellyseerr_config_button": "重置 Jellyseerr 配置",
           "unlimited": "無限制",
-          "plus_n_more": "+{{n}} more"
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "啟用 Marlin 搜索",
@@ -328,6 +333,8 @@
       "years": "年份",
       "sort_by": "排序依據",
       "sort_order": "排序順序",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "標籤"
     }
   },

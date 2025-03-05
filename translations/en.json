@@ -174,7 +174,12 @@
           "tv_quota_days": "TV quota days",
           "reset_jellyseerr_config_button": "Reset Jellyseerr config",
           "unlimited": "Unlimited",
-          "plus_n_more": "+{{n}} more"
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Enable Marlin Search ",
@@ -333,6 +338,8 @@
       "years": "Years",
       "sort_by": "Sort By",
       "sort_order": "Sort Order",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Tags"
     }
   },

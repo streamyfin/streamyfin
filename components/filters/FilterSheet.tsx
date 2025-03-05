@@ -28,7 +28,7 @@ interface Props<T> extends ViewProps {
   values: T[];
   set: (value: T[]) => void;
   title: string;
-  searchFilter: (item: T, query: string) => boolean;
+  searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
   showSearch?: boolean;
 }
@@ -88,7 +88,7 @@ export const FilterSheet = <T,>({
     if (!search) return _data;
     const results = [];
     for (let i = 0; i < (_data?.length || 0); i++) {
-      if (_data && searchFilter(_data[i], search)) {
+      if (_data && searchFilter?.(_data[i], search)) {
         results.push(_data[i]);
       }
     }

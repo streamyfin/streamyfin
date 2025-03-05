@@ -13,7 +13,7 @@ interface FilterButtonProps<T> extends ViewProps {
   title: string;
   set: (value: T[]) => void;
   queryFn: (params: any) => Promise<any>;
-  searchFilter: (item: T, query: string) => boolean;
+  searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
   icon?: "filter" | "sort";
 }

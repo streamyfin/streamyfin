@@ -44,7 +44,7 @@ import {
 interface SearchParams {
   query: string;
   page: number;
-  language: string;
+  // language: string;
 }
 
 interface SearchResults {
@@ -214,11 +214,10 @@ export class JellyseerrApi {
   }
 
   async search(params: SearchParams): Promise<SearchResults> {
-    const response = await this.axios?.get<SearchResults>(
+    return this.axios?.get<SearchResults>(
       Endpoints.API_V1 + Endpoints.SEARCH,
       { params }
-    );
-    return response?.data;
+    ).then(({ data }) => data)
   }
 
   async request(request: MediaRequestBody): Promise<MediaRequest> {
@@ -467,7 +466,7 @@ export const useJellyseerr = () => {
 
   const getTitle = (item: TvResult | TvDetails | MovieResult | MovieDetails) => {
     return isJellyseerrResult(item)
-      ? (item.mediaType == MediaType.MOVIE ? item?.originalTitle : item?.name)
+      ? (item.mediaType == MediaType.MOVIE ? item?.title : item?.name)
       : (item.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.title : (item as TvDetails)?.name)
   };
 
