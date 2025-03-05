@@ -2,24 +2,24 @@ import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Slider } from "react-native-awesome-slider";
-// import { VolumeManager } from "react-native-volume-manager";
-const VolumeManager = !Platform.isTV
-  ? require("react-native-volume-manager")
-  : null;
+const VolumeManager = Platform.isTV ? null : require("react-native-volume-manager");
 import { Ionicons } from "@expo/vector-icons";
+import { VolumeResult } from "react-native-volume-manager";
 
 interface AudioSliderProps {
   setVisibility: (show: boolean) => void;
 }
 
 const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
-  if (Platform.isTV) return;
+  if (Platform.isTV) {
+    return;
+  }
 
   const volume = useSharedValue<number>(50); // Explicitly type as number
   const min = useSharedValue<number>(0); // Explicitly type as number
   const max = useSharedValue<number>(100); // Explicitly type as number
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null); // Use a ref to store the timeout ID
+  const timeoutRef = useRef<number | null>(null); // Use a ref to store the timeout ID
 
   useEffect(() => {
     const fetchInitialVolume = async () => {
@@ -50,7 +50,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   };
 
   useEffect(() => {
-    const volumeListener = VolumeManager.addVolumeListener((result) => {
+    const volumeListener = VolumeManager.addVolumeListener((result: VolumeResult) => {
       volume.value = result.volume * 100;
       setVisibility(true);
 
