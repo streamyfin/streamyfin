@@ -5,9 +5,11 @@ import { Text } from "@/components/common/Text";
 import { FlashList } from "@shopify/flash-list";
 import {View, ViewProps} from "react-native";
 import { t } from "i18next";
+import {ContentStyle} from "@shopify/flash-list/src/FlashListProps";
 
 export interface SlideProps {
   slide: DiscoverSlider;
+  contentContainerStyle?: ContentStyle;
 }
 
 interface Props<T> extends SlideProps {
@@ -27,6 +29,7 @@ const Slide = <T extends unknown>({
   renderItem,
   keyExtractor,
   onEndReached,
+  contentContainerStyle,
   ...props
 }: PropsWithChildren<Props<T> & ViewProps>
 ) => {
@@ -39,6 +42,7 @@ const Slide = <T extends unknown>({
         horizontal
         contentContainerStyle={{
           paddingHorizontal: 16,
+          ...(contentContainerStyle ? contentContainerStyle : {})
         }}
         showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}

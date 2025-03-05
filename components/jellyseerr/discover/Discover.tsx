@@ -27,7 +27,7 @@ const Discover: React.FC<Props> = ({ sliders }) => {
       {sortedSliders.map(slide => {
         switch (slide.type) {
           case DiscoverSliderType.RECENT_REQUESTS:
-            return <RecentRequestsSlide key={slide.id} slide={slide} />
+            return <RecentRequestsSlide key={slide.id} slide={slide} contentContainerStyle={{paddingBottom: 16}}/>
           case DiscoverSliderType.NETWORKS:
             return <CompanySlide key={slide.id} slide={slide} data={networks}/>
           case DiscoverSliderType.STUDIOS:
@@ -40,7 +40,7 @@ const Discover: React.FC<Props> = ({ sliders }) => {
           case DiscoverSliderType.UPCOMING_MOVIES:
           case DiscoverSliderType.POPULAR_TV:
           case DiscoverSliderType.UPCOMING_TV:
-            return <MovieTvSlide key={slide.id} slide={slide}/>
+            return <MovieTvSlide key={slide.id} slide={slide} contentContainerStyle={{paddingBottom: 16}}/>
         }
       })}
     </View>
