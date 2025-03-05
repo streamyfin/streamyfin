@@ -3,6 +3,7 @@ import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
+import { store } from "@/utils/store";
 import { Api, Jellyfin } from "@jellyfin/sdk";
 import { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
@@ -165,6 +166,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       await refreshStreamyfinPluginSettings();
     })();
   }, []);
+  
+  useEffect(() => {
+    store.set(apiAtom, api);
+  }, [api]);
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
   useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
