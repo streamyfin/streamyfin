@@ -55,7 +55,7 @@ export default function search() {
 
   const [settings] = useSettings();
   const { jellyseerrApi } = useJellyseerr();
-  const [jellyseerrOrderBy, setJellyseerrOrderBy] = useState<JellyseerrSearchSort>(JellyseerrSearchSort.DEFAULT)
+  const [jellyseerrOrderBy, setJellyseerrOrderBy] = useState<JellyseerrSearchSort>(JellyseerrSearchSort[JellyseerrSearchSort.DEFAULT] as unknown as JellyseerrSearchSort)
   const [jellyseerrSortOrder, setJellyseerrSortOrder] = useState<"asc" | "desc">("desc")
 
   const searchEngine = useMemo(() => {
