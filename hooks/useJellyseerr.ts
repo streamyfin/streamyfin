@@ -464,22 +464,22 @@ export const useJellyseerr = () => {
     )
   };
 
-  const getTitle = (item: TvResult | TvDetails | MovieResult | MovieDetails) => {
+  const getTitle = (item?: TvResult | TvDetails | MovieResult | MovieDetails) => {
     return isJellyseerrResult(item)
       ? (item.mediaType == MediaType.MOVIE ? item?.title : item?.name)
-      : (item.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.title : (item as TvDetails)?.name)
+      : (item?.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.title : (item as TvDetails)?.name)
   };
 
-  const getYear = (item: TvResult | TvDetails | MovieResult | MovieDetails) => {
+  const getYear = (item?: TvResult | TvDetails | MovieResult | MovieDetails) => {
     return new Date((
       isJellyseerrResult(item)
       ? (item.mediaType == MediaType.MOVIE ? item?.releaseDate : item?.firstAirDate)
-      : (item.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.releaseDate : (item as TvDetails)?.firstAirDate))
+      : (item?.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.releaseDate : (item as TvDetails)?.firstAirDate))
       || ""
     )?.getFullYear?.()
   };
 
-  const getMediaType = (item: TvResult | TvDetails | MovieResult | MovieDetails): MediaType => {
+  const getMediaType = (item?: TvResult | TvDetails | MovieResult | MovieDetails): MediaType => {
     return isJellyseerrResult(item)
       ? item.mediaType
       : item?.mediaInfo?.mediaType

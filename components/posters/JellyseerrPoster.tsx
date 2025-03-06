@@ -20,7 +20,7 @@ import {Colors} from "@/constants/Colors";
 import {Tags} from "@/components/GenreTags";
 
 interface Props extends ViewProps {
-  item: MovieResult | TvResult | MovieDetails | TvDetails;
+  item?: MovieResult | TvResult | MovieDetails | TvDetails;
   horizontal?: boolean;
   showDownloadInfo?: boolean;
   mediaRequest?: MediaRequest;
@@ -48,12 +48,12 @@ const JellyseerrPoster: React.FC<Props> = ({
   };
 
   const backdropSrc = useMemo(
-    () => jellyseerrApi?.imageProxy(item.backdropPath, "w1920_and_h800_multi_faces"),
+    () => jellyseerrApi?.imageProxy(item?.backdropPath, "w1920_and_h800_multi_faces"),
     [item, jellyseerrApi, horizontal]
   );
 
   const posterSrc = useMemo(
-    () => jellyseerrApi?.imageProxy(item.posterPath, "w300_and_h450_face",),
+    () => jellyseerrApi?.imageProxy(item?.posterPath, "w300_and_h450_face",),
     [item, jellyseerrApi, horizontal]
   );
 
@@ -122,8 +122,8 @@ const JellyseerrPoster: React.FC<Props> = ({
           <Animated.View style={imageAnimatedStyle}>
             <Image
               className="w-full"
-              key={item.id}
-              id={item.id.toString()}
+              key={item?.id}
+              id={item?.id.toString()}
               source={{ uri: horizontal ? backdropSrc : posterSrc }}
               cachePolicy={"memory-disk"}
               contentFit="cover"
@@ -184,10 +184,12 @@ const JellyseerrPoster: React.FC<Props> = ({
           />
         </View>
       </View>
-      <View className={`mt-2 flex flex-col ${horizontal ? 'w-44' : 'w-28'}`}>
-        <Text numberOfLines={2}>{title}</Text>
-        <Text className="text-xs opacity-50 align-bottom">{releaseYear}</Text>
-      </View>
+      {item && (
+        <View className={`mt-2 flex flex-col ${horizontal ? 'w-44' : 'w-28'}`}>
+          <Text numberOfLines={2}>{title}</Text>
+          <Text className="text-xs opacity-50 align-bottom">{releaseYear}</Text>
+        </View>
+      )}
     </TouchableJellyseerrRouter>
   );
 };

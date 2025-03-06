@@ -13,7 +13,7 @@ import {TvDetails} from "@/utils/jellyseerr/server/models/Tv";
 import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
 
 interface Props extends TouchableOpacityProps {
-  result: MovieResult | TvResult | MovieDetails | TvDetails;
+  result?: MovieResult | TvResult | MovieDetails | TvDetails;
   mediaTitle: string;
   releaseYear: number;
   canRequest: boolean;
@@ -47,11 +47,13 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
   }, [jellyseerrApi, jellyseerrUser]);
 
   const request = useCallback(
-    () =>
+    () => {
+      if (!result) return;
       requestMedia(mediaTitle, {
         mediaId: result.id,
         mediaType,
-      }),
+      })
+    },
     [jellyseerrApi, result]
   );
 
@@ -62,6 +64,8 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
           <ContextMenu.Trigger>
             <TouchableOpacity
               onPress={() => {
+                if (!result) return;
+
                 // @ts-ignore
                 router.push({
                   pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
