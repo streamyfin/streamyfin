@@ -17,7 +17,7 @@ import {useTranslation} from "react-i18next";
 import {MediaStatus} from "@/utils/jellyseerr/server/constants/media";
 import {textShadowStyle} from "@/components/jellyseerr/discover/GenericSlideCard";
 import {Colors} from "@/constants/Colors";
-import {Tags} from "@/components/GenreTags";
+import {Tag, Tags} from "@/components/GenreTags";
 
 interface Props extends ViewProps {
   item?: MovieResult | TvResult | MovieDetails | TvDetails;
@@ -156,12 +156,10 @@ const JellyseerrPoster: React.FC<Props> = ({
                   </View>
                 </>
               )}
-              <Text
-                className="absolute right-1 top-1 text-right font-bold"
-                style={textShadowStyle.shadow}
-              >
-                {mediaRequest?.requestedBy.displayName}
-              </Text>
+              <Tag
+                className="absolute right-1 top-1 text-right bg-black border border-neutral-800/50"
+                text={mediaRequest?.requestedBy.displayName}
+              />
               {requestedSeasons.length > 0 && (
                 <Tags
                   className="absolute bottom-1 left-0.5 w-32"
