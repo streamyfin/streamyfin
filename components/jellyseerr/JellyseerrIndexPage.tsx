@@ -22,7 +22,6 @@ import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
 import { useTranslation } from "react-i18next";
 import {orderBy, uniqBy} from "lodash";
-import {useInfiniteQuery} from "@tanstack/react-query";
 
 interface Props extends ViewProps {
   searchQuery: string;
@@ -45,8 +44,6 @@ export const JellyserrIndexPage: React.FC<Props> = ({
   const opacity = useSharedValue(1);
   const { t } = useTranslation();
 
-  const [loadInitialPages, setLoadInitialPages] = useState<Boolean>(false)
-
   const {
     data: jellyseerrDiscoverSettings,
     isFetching: f1,
@@ -58,33 +55,27 @@ export const JellyserrIndexPage: React.FC<Props> = ({
   });
 
   const {
-    data: jellyseerrResultPages,
+    data: jellyseerrResults,
     isFetching: f2,
-    isLoading: l2,
-    isFetchingNextPage: n2,
-    hasNextPage,
-    fetchNextPage
-  } = useInfiniteQuery({
+    isLoading: l2
+  } = useReactNavigationQuery({
     queryKey: ["search", "jellyseerr", "results", searchQuery],
-    queryFn: async ({pageParam}) =>
-      jellyseerrApi?.search({
-        query: new URLSearchParams(searchQuery || "").toString(),
-        page: Number(pageParam),
-      }),
-    enabled: !!jellyseerrApi && searchQuery.length > 0,
-    staleTime: 0,
-    initialPageParam: 1,
-    getNextPageParam: (lastPage, pages) => {
-      const firstPage = pages?.[0]
-      const mostRecentPage = lastPage || pages?.[pages?.length - 1]
-      const currentPage = mostRecentPage?.page || 1
-
-      return Math.min(currentPage + 1, firstPage?.totalPages || 1)
+    queryFn: async () => {
+      const params = {
+        query: new URLSearchParams(searchQuery || "").toString()
+      }
+      return await Promise.all([
+        jellyseerrApi?.search({...params, page: 1}),
+        jellyseerrApi?.search({...params, page: 2}),
+        jellyseerrApi?.search({...params, page: 3}),
+        jellyseerrApi?.search({...params, page: 4})
+      ]).then(all => uniqBy(all.flatMap(v => v?.results || []), "id"))
     },
+    enabled: !!jellyseerrApi && searchQuery.length > 0,
   });
 
   useAnimatedReaction(
-    () => f1 || f2 || l1 || l2 || n2,
+    () => f1 || f2 || l1 || l2,
     (isLoading) => {
       if (isLoading) {
         opacity.value = withTiming(1, { duration: 200 });
@@ -108,20 +99,6 @@ export const JellyserrIndexPage: React.FC<Props> = ({
     },
     [sortType, order]
   )
-
-  const jellyseerrResults = useMemo(
-    () => {
-      const lastPage = jellyseerrResultPages?.pages?.[jellyseerrResultPages?.pages?.length - 1]
-
-      if ((lastPage?.page || 0) % 5 !== 0 && hasNextPage && !loadInitialPages) {
-        fetchNextPage()
-        setLoadInitialPages(lastPage?.page === 4 || (lastPage !== undefined && lastPage.totalPages == lastPage.page))
-      }
-
-      return uniqBy(jellyseerrResultPages?.pages?.flatMap?.(page => page?.results || []), "id")
-    },
-    [jellyseerrResultPages, fetchNextPage, hasNextPage]
-  );
 
   const jellyseerrMovieResults = useMemo(
     () =>
@@ -162,7 +139,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
 
   return (
     <View>
-      <LoadingSkeleton isLoading={(f1 || f2 || l1 || l2) && !loadInitialPages} />
+      <LoadingSkeleton isLoading={f1 || f2 || l1 || l2} />
 
       {!jellyseerrMovieResults?.length &&
         !jellyseerrTvResults?.length &&
@@ -170,8 +147,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
         !f1 &&
         !f2 &&
         !l1 &&
-        !l2 &&
-        !loadInitialPages && (
+        !l2 && (
           <View>
             <Text className="text-center text-lg font-bold mt-4">
               {t("search.no_results_found_for")}
@@ -182,7 +158,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
           </View>
         )}
 
-      <View className={(f1 || f2 || l1 || l2) && !loadInitialPages ? "opacity-0" : "opacity-100"}>
+      <View className={f1 || f2 || l1 || l2 ? "opacity-0" : "opacity-100"}>
         <SearchItemWrapper
           header={t("search.request_movies")}
           items={jellyseerrMovieResults}
