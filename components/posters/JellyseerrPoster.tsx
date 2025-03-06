@@ -182,12 +182,10 @@ const JellyseerrPoster: React.FC<Props> = ({
           />
         </View>
       </View>
-      {item && (
-        <View className={`mt-2 flex flex-col ${horizontal ? 'w-44' : 'w-28'}`}>
-          <Text numberOfLines={2}>{title}</Text>
-          <Text className="text-xs opacity-50 align-bottom">{releaseYear}</Text>
-        </View>
-      )}
+      <View className={`mt-2 flex flex-col ${horizontal ? 'w-44' : 'w-28'}`}>
+        <Text numberOfLines={2}>{title || ""}</Text>
+        <Text className="text-xs opacity-50 align-bottom">{releaseYear || ""}</Text>
+      </View>
     </TouchableJellyseerrRouter>
   );
 };
