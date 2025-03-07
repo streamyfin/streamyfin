@@ -14,7 +14,7 @@ import {
 import { Bitrate, BITRATES } from "@/components/BitrateSelector";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
-import {Video} from "@/utils/jellyseerr/server/models/Movie";
+import { Video } from "@/utils/jellyseerr/server/models/Movie";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -26,30 +26,17 @@ export type DownloadOption = {
   value: DownloadQuality;
 };
 
-export const ScreenOrientationEnum: Record<
-  ScreenOrientation.OrientationLock,
-  string
-> = {
-  [ScreenOrientation.OrientationLock.DEFAULT]:
-    "home.settings.other.orientations.DEFAULT",
-  [ScreenOrientation.OrientationLock.ALL]:
-    "home.settings.other.orientations.ALL",
-  [ScreenOrientation.OrientationLock.PORTRAIT]:
-    "home.settings.other.orientations.PORTRAIT",
-  [ScreenOrientation.OrientationLock.PORTRAIT_UP]:
-    "home.settings.other.orientations.PORTRAIT_UP",
-  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]:
-    "home.settings.other.orientations.PORTRAIT_DOWN",
-  [ScreenOrientation.OrientationLock.LANDSCAPE]:
-    "home.settings.other.orientations.LANDSCAPE",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]:
-    "home.settings.other.orientations.LANDSCAPE_LEFT",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]:
-    "home.settings.other.orientations.LANDSCAPE_RIGHT",
-  [ScreenOrientation.OrientationLock.OTHER]:
-    "home.settings.other.orientations.OTHER",
-  [ScreenOrientation.OrientationLock.UNKNOWN]:
-    "home.settings.other.orientations.UNKNOWN",
+export const ScreenOrientationEnum: Record<ScreenOrientation.OrientationLock, string> = {
+  [ScreenOrientation.OrientationLock.DEFAULT]: "home.settings.other.orientations.DEFAULT",
+  [ScreenOrientation.OrientationLock.ALL]: "home.settings.other.orientations.ALL",
+  [ScreenOrientation.OrientationLock.PORTRAIT]: "home.settings.other.orientations.PORTRAIT",
+  [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "home.settings.other.orientations.PORTRAIT_UP",
+  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]: "home.settings.other.orientations.PORTRAIT_DOWN",
+  [ScreenOrientation.OrientationLock.LANDSCAPE]: "home.settings.other.orientations.LANDSCAPE",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "home.settings.other.orientations.LANDSCAPE_LEFT",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "home.settings.other.orientations.LANDSCAPE_RIGHT",
+  [ScreenOrientation.OrientationLock.OTHER]: "home.settings.other.orientations.OTHER",
+  [ScreenOrientation.OrientationLock.UNKNOWN]: "home.settings.other.orientations.UNKNOWN",
 };
 
 export const DownloadOptions: DownloadOption[] = [
@@ -116,12 +103,12 @@ export type HomeSectionNextUpResolver = {
 export enum VideoPlayer {
   // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
   VLC_3,
-  VLC_4
+  VLC_4,
 }
 
 export type Settings = {
   home?: Home | null;
-  autoRotate?: boolean;
+  followDeviceOrientation?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
@@ -170,7 +157,7 @@ export type StreamyfinPluginConfig = {
 
 const defaultValues: Settings = {
   home: null,
-  autoRotate: true,
+  followDeviceOrientation: true,
   forceLandscapeInVideoPlayer: false,
   deviceProfile: "Expo",
   mediaListCollectionIds: [],
@@ -214,8 +201,7 @@ const defaultValues: Settings = {
 const loadSettings = (): Partial<Settings> => {
   try {
     const jsonValue = storage.getString("settings");
-    const loadedValues: Partial<Settings> =
-      jsonValue != null ? JSON.parse(jsonValue) : {};
+    const loadedValues: Partial<Settings> = jsonValue != null ? JSON.parse(jsonValue) : {};
 
     return loadedValues;
   } catch (error) {
@@ -237,9 +223,7 @@ const saveSettings = (settings: Settings) => {
 };
 
 export const settingsAtom = atom<Partial<Settings> | null>(null);
-export const pluginSettingsAtom = atom(
-  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS)
-);
+export const pluginSettingsAtom = atom(storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS));
 
 export const useSettings = () => {
   const [api] = useAtom(apiAtom);
@@ -275,12 +259,13 @@ export const useSettings = () => {
   }, [api]);
 
   const updateSettings = (update: Partial<Settings>) => {
-    if (settings) {
-      const newSettings = { ..._settings, ...update };
+    if (!_settings) return;
+    const hasChanges = Object.entries(update).some(([key, value]) => _settings[key as keyof Settings] !== value);
 
+    if (hasChanges) {
+      // Merge default settings, current settings, and updates to ensure all required properties exist
+      const newSettings = { ...defaultValues, ..._settings, ...update } as Settings;
       setSettings(newSettings);
-
-      // @ts-expect-error
       saveSettings(newSettings);
     }
   };
@@ -290,31 +275,24 @@ export const useSettings = () => {
   // use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
     let unlockedPluginDefaults = {} as Settings;
-    const overrideSettings = Object.entries(pluginSettings || {}).reduce(
-      (acc, [key, setting]) => {
-        if (setting) {
-          const { value, locked } = setting;
+    const overrideSettings = Object.entries(pluginSettings || {}).reduce((acc, [key, setting]) => {
+      if (setting) {
+        const { value, locked } = setting;
 
-          // Make sure we override default settings with plugin settings when they are not locked.
-          //  Admin decided what users defaults should be and grants them the ability to change them too.
-          if (
-            locked === false &&
-            value &&
-            _settings?.[key as keyof Settings] !== value
-          ) {
-            unlockedPluginDefaults = Object.assign(unlockedPluginDefaults, {
-              [key as keyof Settings]: value,
-            });
-          }
-
-          acc = Object.assign(acc, {
-            [key]: locked ? value : _settings?.[key as keyof Settings] ?? value,
+        // Make sure we override default settings with plugin settings when they are not locked.
+        //  Admin decided what users defaults should be and grants them the ability to change them too.
+        if (locked === false && value && _settings?.[key as keyof Settings] !== value) {
+          unlockedPluginDefaults = Object.assign(unlockedPluginDefaults, {
+            [key as keyof Settings]: value,
           });
         }
-        return acc;
-      },
-      {} as Settings
-    );
+
+        acc = Object.assign(acc, {
+          [key]: locked ? value : _settings?.[key as keyof Settings] ?? value,
+        });
+      }
+      return acc;
+    }, {} as Settings);
 
     return {
       ...defaultValues,
@@ -323,11 +301,5 @@ export const useSettings = () => {
     };
   }, [_settings, pluginSettings]);
 
-  return [
-    settings,
-    updateSettings,
-    pluginSettings,
-    setPluginSettings,
-    refreshStreamyfinPluginSettings,
-  ] as const;
+  return [settings, updateSettings, pluginSettings, setPluginSettings, refreshStreamyfinPluginSettings] as const;
 };

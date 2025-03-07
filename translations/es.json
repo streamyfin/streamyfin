@@ -20,7 +20,7 @@
     "server_is_taking_too_long_to_respond_try_again_later": "El servidor está tardando mucho en responder, inténtalo de nuevo más tarde.",
     "server_received_too_many_requests_try_again_later": "El servidor está recibiendo muchas peticiones, inténtalo de nuevo más tarde.",
     "there_is_a_server_error": "Hay un error en el servidor",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url":  "Ha ocurrido un error inesperado. ¿Has introducido la URL correcta?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Ha ocurrido un error inesperado. ¿Has introducido la URL correcta?"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Introduce la URL de tu servidor Jellyfin",
@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Otros",
-        "auto_rotate": "Rotación automática",
+        "follow_device_orientation": "Rotación automática",
         "video_orientation": "Orientación de vídeo",
         "orientation": "Orientación",
         "orientations": {
@@ -128,7 +128,7 @@
           "OTHER": "Otra",
           "UNKNOWN": "Desconocida"
         },
-                "safe_area_in_controls": "Área segura en controles",
+        "safe_area_in_controls": "Área segura en controles",
         "video_player": "Video player",
         "video_players": {
           "VLC_3": "VLC 3",
@@ -215,7 +215,7 @@
         "app_language_description": "Selecciona el idioma de la app.",
         "system": "Sistema"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Error al eliminar archivos",
         "background_downloads_enabled": "Descargas en segundo plano habilitadas",
         "background_downloads_disabled": "Descargas en segundo plano deshabilitadas",
@@ -412,7 +412,7 @@
     "for_kids": "Para niños",
     "news": "Noticias"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Confirmar",
     "cancel": "Cancelar",
     "yes": "Sí",

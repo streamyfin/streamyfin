@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Diğer",
-        "auto_rotate": "Otomatik Döndürme",
+        "follow_device_orientation": "Otomatik Döndürme",
         "video_orientation": "Video Yönü",
         "orientation": "Yön",
         "orientations": {
@@ -128,7 +128,7 @@
           "OTHER": "Diğer",
           "UNKNOWN": "Bilinmeyen"
         },
-                "safe_area_in_controls": "Kontrollerde Güvenli Alan",
+        "safe_area_in_controls": "Kontrollerde Güvenli Alan",
         "video_player": "Video player",
         "video_players": {
           "VLC_3": "VLC 3",

@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "その他",
-        "auto_rotate": "画面の自動回転",
+        "follow_device_orientation": "画面の自動回転",
         "video_orientation": "動画の向き",
         "orientation": "向き",
         "orientations": {
@@ -128,7 +128,7 @@
           "OTHER": "その他",
           "UNKNOWN": "不明"
         },
-                "safe_area_in_controls": "コントロールの安全エリア",
+        "safe_area_in_controls": "コントロールの安全エリア",
         "video_player": "Video player",
         "video_players": {
           "VLC_3": "VLC 3",

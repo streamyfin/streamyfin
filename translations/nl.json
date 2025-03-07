@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Andere",
-        "auto_rotate": "Automatisch draaien",
+        "follow_device_orientation": "Automatisch draaien",
         "video_orientation": "Video oriëntatie",
         "orientation": "Oriëntatie",
         "orientations": {
@@ -128,7 +128,7 @@
           "OTHER": "Andere",
           "UNKNOWN": "Onbekend"
         },
-                "safe_area_in_controls": "Veilig gebied in bedieningen",
+        "safe_area_in_controls": "Veilig gebied in bedieningen",
         "video_player": "Video player",
         "video_players": {
           "VLC_3": "VLC 3",
