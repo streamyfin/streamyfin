@@ -60,7 +60,7 @@ export const OtherSettings: React.FC = () => {
 
   const disabled = useMemo(
     () =>
-      pluginSettings?.autoRotate?.locked === true &&
+      pluginSettings?.followDeviceOrientation?.locked === true &&
       pluginSettings?.defaultVideoOrientation?.locked === true &&
       pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
       pluginSettings?.showCustomMenuLinks?.locked === true &&
@@ -76,32 +76,47 @@ export const OtherSettings: React.FC = () => {
     ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT,
   ];
 
+  const orientationTranslations = useMemo(
+    () => ({
+      [ScreenOrientation.OrientationLock.DEFAULT]: "home.settings.other.orientations.DEFAULT",
+      [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "home.settings.other.orientations.PORTRAIT_UP",
+      [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "home.settings.other.orientations.LANDSCAPE_LEFT",
+      [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "home.settings.other.orientations.LANDSCAPE_RIGHT",
+    }),
+    []
+  );
+
   if (!settings) return null;
 
   return (
     <DisabledSetting disabled={disabled}>
       <ListGroup title={t("home.settings.other.other_title")} className="">
-        <ListItem title={t("home.settings.other.auto_rotate")} disabled={pluginSettings?.autoRotate?.locked}>
+        <ListItem
+          title={t("home.settings.other.follow_device_orientation")}
+          disabled={pluginSettings?.followDeviceOrientation?.locked}
+        >
           <Switch
-            value={settings.autoRotate}
-            disabled={pluginSettings?.autoRotate?.locked}
-            onValueChange={(value) => updateSettings({ autoRotate: value })}
+            value={settings.followDeviceOrientation}
+            disabled={pluginSettings?.followDeviceOrientation?.locked}
+            onValueChange={(value) => updateSettings({ followDeviceOrientation: value })}
           />
         </ListItem>
 
         <ListItem
           title={t("home.settings.other.video_orientation")}
-          disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.autoRotate}
+          disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.followDeviceOrientation}
         >
           <Dropdown
             data={orientations}
-            disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.autoRotate}
+            disabled={pluginSettings?.defaultVideoOrientation?.locked || settings.followDeviceOrientation}
             keyExtractor={String}
-            titleExtractor={(item) => ScreenOrientationEnum[item]}
+            titleExtractor={(item) => t(ScreenOrientationEnum[item])}
             title={
               <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
                 <Text className="mr-1 text-[#8E8D91]">
-                  {t(ScreenOrientationEnum[settings.defaultVideoOrientation])}
+                  {t(
+                    orientationTranslations[settings.defaultVideoOrientation as keyof typeof orientationTranslations]
+                  ) || "Unknown Orientation"}
                 </Text>
                 <Ionicons name="chevron-expand-sharp" size={18} color="#5A5960" />
               </TouchableOpacity>

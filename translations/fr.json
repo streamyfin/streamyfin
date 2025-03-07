@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Autres",
-        "auto_rotate": "Rotation automatique",
+        "follow_device_orientation": "Rotation automatique",
         "video_orientation": "Orientation vidéo",
         "orientation": "Orientation",
         "orientations": {
@@ -128,7 +128,7 @@
           "OTHER": "Autre",
           "UNKNOWN": "Inconnu"
         },
-                "safe_area_in_controls": "Zone de sécurité dans les contrôles",
+        "safe_area_in_controls": "Zone de sécurité dans les contrôles",
         "video_player": "Video player",
         "video_players": {
           "VLC_3": "VLC 3",
@@ -139,7 +139,6 @@
         "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l’onglet Bibliothèque et les sections de la page d’accueil.",
         "disable_haptic_feedback": "Désactiver le retour haptique",
         "default_quality": "Qualité par défaut"
-
       },
       "downloads": {
         "downloads_title": "Téléchargements",
@@ -216,7 +215,7 @@
         "app_language_description": "Sélectionnez la langue de l'application",
         "system": "Système"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Erreur lors de la suppression des fichiers",
         "background_downloads_enabled": "Téléchargements en arrière-plan activés",
         "background_downloads_disabled": "Téléchargements en arrière-plan désactivés",
@@ -413,7 +412,7 @@
     "for_kids": "Pour enfants",
     "news": "Actualités"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Confirmer",
     "cancel": "Annuler",
     "yes": "Oui",

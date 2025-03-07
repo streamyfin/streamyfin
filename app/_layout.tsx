@@ -105,7 +105,7 @@ if (!Platform.isTV) {
 
     const result = response.data.filter((s) => s.NowPlayingItem);
     Notifications.setBadgeCountAsync(result.length);
-  
+
     return BackgroundFetch.BackgroundFetchResult.NewData;
   });
 
@@ -279,7 +279,7 @@ function Layout() {
     useEffect(() => {
       // If the user has auto rotate enabled, unlock the orientation
       if (Platform.isTV) return;
-      if (settings.autoRotate === true) {
+      if (settings.followDeviceOrientation === true) {
         ScreenOrientation.unlockAsync();
       } else {
         // If the user has auto rotate disabled, lock the orientation to portrait

@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Sonstiges",
-        "auto_rotate": "Automatische Drehung",
+        "follow_device_orientation": "Automatische Drehung",
         "video_orientation": "Videoausrichtung",
         "orientation": "Ausrichtung",
         "orientations": {
@@ -128,7 +128,7 @@
           "OTHER": "Andere",
           "UNKNOWN": "Unbekannt"
         },
-                "safe_area_in_controls": "Sicherer Bereich in den Steuerungen",
+        "safe_area_in_controls": "Sicherer Bereich in den Steuerungen",
         "video_player": "Video player",
         "video_players": {
           "VLC_3": "VLC 3",
@@ -152,7 +152,7 @@
         "default": "Standard",
         "optimized_version_hint": "Gib die URL für den optimierten Server ein. Die URL sollte http oder https enthalten und optional den Port.",
         "read_more_about_optimized_server": "Mehr über den optimierten Server lesen.",
-        "url":"URL",
+        "url": "URL",
         "server_url_placeholder": "http(s)://domain.org:port"
       },
       "plugins": {
@@ -215,7 +215,7 @@
         "app_language_description": "Wähle die Sprache für die App aus.",
         "system": "System"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Fehler beim Löschen von Dateien",
         "background_downloads_enabled": "Hintergrunddownloads aktiviert",
         "background_downloads_disabled": "Hintergrunddownloads deaktiviert",
@@ -412,7 +412,7 @@
     "for_kids": "Für Kinder",
     "news": "Nachrichten"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Bestätigen",
     "cancel": "Abbrechen",
     "yes": "Ja",

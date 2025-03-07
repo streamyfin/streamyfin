@@ -9,21 +9,17 @@ export const useOrientationSettings = () => {
   const [settings] = useSettings();
 
   useEffect(() => {
-    if (settings?.autoRotate) {
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
-      );
+    if (settings?.followDeviceOrientation) {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT);
     } else if (settings?.defaultVideoOrientation) {
       ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
     }
 
     return () => {
-      if (settings?.autoRotate) {
+      if (settings?.followDeviceOrientation) {
         ScreenOrientation.unlockAsync();
       } else {
-        ScreenOrientation.lockAsync(
-          ScreenOrientation.OrientationLock.PORTRAIT_UP
-        );
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       }
     };
   }, [settings]);
