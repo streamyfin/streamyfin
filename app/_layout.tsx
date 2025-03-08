@@ -279,7 +279,9 @@ function Layout() {
 
     useEffect(() => {
       if (Platform.isTV) return;
-      if ("direct-player" in segments) return;
+      if (segments.includes("direct-player" as never)) {
+        return;
+      }
 
       // If the user has auto rotate enabled, unlock the orientation
       if (settings.followDeviceOrientation === true) {
