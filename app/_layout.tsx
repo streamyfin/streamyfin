@@ -24,7 +24,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const BackgroundFetch = !Platform.isTV ? require("expo-background-fetch") : null;
 import * as FileSystem from "expo-file-system";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
-import { router, Stack } from "expo-router";
+import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
@@ -259,6 +259,7 @@ function Layout() {
   const [settings] = useSettings();
   const [user] = useAtom(userAtom);
   const appState = useRef(AppState.currentState);
+  const segments = useSegments();
 
   useEffect(() => {
     i18n.changeLanguage(settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en");
@@ -277,15 +278,17 @@ function Layout() {
     }, []);
 
     useEffect(() => {
-      // If the user has auto rotate enabled, unlock the orientation
       if (Platform.isTV) return;
+      if ("direct-player" in segments) return;
+
+      // If the user has auto rotate enabled, unlock the orientation
       if (settings.followDeviceOrientation === true) {
         ScreenOrientation.unlockAsync();
       } else {
         // If the user has auto rotate disabled, lock the orientation to portrait
         ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       }
-    }, [settings]);
+    }, [settings.followDeviceOrientation, segments]);
 
     useEffect(() => {
       const subscription = AppState.addEventListener("change", (nextAppState) => {
