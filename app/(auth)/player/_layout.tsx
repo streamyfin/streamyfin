@@ -24,7 +24,7 @@ export default function Layout() {
         ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       }
     };
-  }, [settings.autoDownload, settings.defaultVideoOrientation]);
+  });
 
   return (
     <>
