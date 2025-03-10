@@ -13,13 +13,9 @@ import { useInterval } from "@/hooks/useInterval";
 import React, { useEffect, useMemo, useState } from "react";
 import { formatTimeString } from "@/utils/time";
 import { formatBitrate } from "@/utils/bitrate";
-import {
-  Ionicons,
-  Entypo,
-  AntDesign,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
+import { Ionicons, Entypo, AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Badge } from "@/components/Badge";
+import { useQuery } from "@tanstack/react-query";
 
 export default function page() {
   const { sessions, isLoading } = useSessions({} as useSessionsProps);
@@ -35,9 +31,7 @@ export default function page() {
   if (!sessions || sessions.length == 0)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">
-          {t("home.sessions.no_active_sessions")}
-        </Text>
+        <Text className="text-lg text-neutral-500">{t("home.sessions.no_active_sessions")}</Text>
       </View>
     );
 
@@ -76,24 +70,27 @@ const SessionCard = ({ session }: SessionCardProps) => {
     }
 
     return Math.round(
-      (100 / session.NowPlayingItem?.RunTimeTicks) *
-        (session.NowPlayingItem?.RunTimeTicks - remainingTicks)
+      (100 / session.NowPlayingItem?.RunTimeTicks) * (session.NowPlayingItem?.RunTimeTicks - remainingTicks)
     );
   };
 
   useEffect(() => {
     const currentTime = session.PlayState?.PositionTicks;
     const duration = session.NowPlayingItem?.RunTimeTicks;
-    if (
-      duration !== null &&
-      duration !== undefined &&
-      currentTime !== null &&
-      currentTime !== undefined
-    ) {
+    if (duration !== null && duration !== undefined && currentTime !== null && currentTime !== undefined) {
       const remainingTimeTicks = duration - currentTime;
       setRemainingTicks(remainingTimeTicks);
     }
   }, [session]);
+
+  const { data: ipInfo } = useQuery({
+    queryKey: ["ipinfo", session.RemoteEndPoint],
+    cacheTime: Infinity,
+    queryFn: async () => {
+      const resp = await api.axiosInstance.get(`https://freeipapi.com/api/json/${session.RemoteEndPoint}`);
+      return resp.data;
+    },
+  });
 
   useInterval(tick, 1000);
 
@@ -101,19 +98,14 @@ const SessionCard = ({ session }: SessionCardProps) => {
     <View className="flex flex-col shadow-md bg-neutral-900 rounded-2xl mb-4">
       <View className="flex flex-row p-4">
         <View className="w-20 pr-4">
-          <Poster
-            id={session.NowPlayingItem?.Id}
-            url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })}
-          />
+          <Poster id={session.NowPlayingItem?.Id} url={getPrimaryImageUrl({ api, item: session.NowPlayingItem })} />
         </View>
         <View className="w-full flex-1">
           <View className="flex flex-row justify-between">
             <View className="flex-1 pr-4">
               {session.NowPlayingItem?.Type === "Episode" ? (
                 <>
-                  <Text className="font-bold">
-                    {session.NowPlayingItem?.Name}
-                  </Text>
+                  <Text className="font-bold">{session.NowPlayingItem?.Name}</Text>
                   <Text numberOfLines={1} className="text-xs opacity-50">
                     {`S${session.NowPlayingItem.ParentIndexNumber?.toString()}:E${session.NowPlayingItem.IndexNumber?.toString()}`}
                     {" - "}
@@ -122,15 +114,9 @@ const SessionCard = ({ session }: SessionCardProps) => {
                 </>
               ) : (
                 <>
-                  <Text className="font-bold">
-                    {session.NowPlayingItem?.Name}
-                  </Text>
-                  <Text className="text-xs opacity-50">
-                    {session.NowPlayingItem?.ProductionYear}
-                  </Text>
-                  <Text className="text-xs opacity-50">
-                    {session.NowPlayingItem?.SeriesName}
-                  </Text>
+                  <Text className="font-bold">{session.NowPlayingItem?.Name}</Text>
+                  <Text className="text-xs opacity-50">{session.NowPlayingItem?.ProductionYear}</Text>
+                  <Text className="text-xs opacity-50">{session.NowPlayingItem?.SeriesName}</Text>
                 </>
               )}
             </View>
@@ -140,6 +126,8 @@ const SessionCard = ({ session }: SessionCardProps) => {
               {session.Client}
               {"\n"}
               {session.DeviceName}
+              {"\n"}
+              {ipInfo?.cityName} {ipInfo?.countryCode}
             </Text>
           </View>
           <View className="flex-1" />
@@ -180,9 +168,7 @@ const TranscodingBadges = ({ properties }: TranscodingBadgesProps) => {
   const iconMap = {
     bitrate: <Ionicons name="speedometer-outline" size={12} color="white" />,
     codec: <Ionicons name="layers-outline" size={12} color="white" />,
-    videoRange: (
-      <Ionicons name="color-palette-outline" size={12} color="white" />
-    ),
+    videoRange: <Ionicons name="color-palette-outline" size={12} color="white" />,
     resolution: <Ionicons name="film-outline" size={12} color="white" />,
     language: <Ionicons name="language-outline" size={12} color="white" />,
     audioChannels: <Ionicons name="mic-outline" size={12} color="white" />,
@@ -190,11 +176,7 @@ const TranscodingBadges = ({ properties }: TranscodingBadgesProps) => {
   } as const;
 
   const icon = (val: string) => {
-    return (
-      iconMap[val as keyof typeof iconMap] ?? (
-        <Ionicons name="layers-outline" size={12} color="white" />
-      )
-    );
+    return iconMap[val as keyof typeof iconMap] ?? <Ionicons name="layers-outline" size={12} color="white" />;
   };
 
   const formatVal = (key: string, val: any) => {
@@ -251,9 +233,7 @@ const TranscodingStreamView = ({
   return (
     <View className="flex flex-col pt-2 first:pt-0">
       <View className="flex flex-row">
-        <Text className="text-xs opacity-50 w-20 font-bold text-right pr-4">
-          {title}
-        </Text>
+        <Text className="text-xs opacity-50 w-20 font-bold text-right pr-4">{title}</Text>
         <Text className="flex-1">
           <TranscodingBadges properties={properties} />
         </Text>
@@ -262,11 +242,7 @@ const TranscodingStreamView = ({
         <>
           <View className="flex flex-row">
             <Text className="-mt-0 text-xs opacity-50 w-20 font-bold text-right pr-4">
-              <MaterialCommunityIcons
-                name="arrow-right-bottom"
-                size={14}
-                color="white"
-              />
+              <MaterialCommunityIcons name="arrow-right-bottom" size={14} color="white" />
             </Text>
             <Text className="flex-1 text-sm mt-1">
               <TranscodingBadges properties={transcodeProperties} />
@@ -280,23 +256,17 @@ const TranscodingStreamView = ({
 
 const TranscodingView = ({ session }: SessionCardProps) => {
   const videoStream = useMemo(() => {
-    return session.NowPlayingItem?.MediaStreams?.filter(
-      (s) => s.Type == "Video"
-    )[0];
+    return session.NowPlayingItem?.MediaStreams?.filter((s) => s.Type == "Video")[0];
   }, [session]);
 
   const audioStream = useMemo(() => {
     const index = session.PlayState?.AudioStreamIndex;
-    return index !== null && index !== undefined
-      ? session.NowPlayingItem?.MediaStreams?.[index]
-      : undefined;
+    return index !== null && index !== undefined ? session.NowPlayingItem?.MediaStreams?.[index] : undefined;
   }, [session.PlayState?.AudioStreamIndex]);
 
   const subtitleStream = useMemo(() => {
     const index = session.PlayState?.SubtitleStreamIndex;
-    return index !== null && index !== undefined
-      ? session.NowPlayingItem?.MediaStreams?.[index]
-      : undefined;
+    return index !== null && index !== undefined ? session.NowPlayingItem?.MediaStreams?.[index] : undefined;
   }, [session.PlayState?.SubtitleStreamIndex]);
 
   const isTranscoding = useMemo(() => {
@@ -321,11 +291,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           bitrate: session.TranscodingInfo?.Bitrate,
           codec: session.TranscodingInfo?.VideoCodec,
         }}
-        isTranscoding={
-          isTranscoding && !session.TranscodingInfo?.IsVideoDirect
-            ? true
-            : false
-        }
+        isTranscoding={isTranscoding && !session.TranscodingInfo?.IsVideoDirect ? true : false}
       />
 
       <TranscodingStreamView
@@ -340,11 +306,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           codec: session.TranscodingInfo?.AudioCodec,
           audioChannels: session.TranscodingInfo?.AudioChannels?.toString(),
         }}
-        isTranscoding={
-          isTranscoding && !session.TranscodingInfo?.IsVideoDirect
-            ? true
-            : false
-        }
+        isTranscoding={isTranscoding && !session.TranscodingInfo?.IsVideoDirect ? true : false}
       />
 
       {subtitleStream && (
