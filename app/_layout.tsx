@@ -12,7 +12,7 @@ import {
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import { LogProvider, writeToLog } from "@/utils/log";
+import {LogProvider, writeErrorLog, writeToLog} from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
@@ -30,7 +30,7 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { getLocales } from "expo-localization";
 import { Provider as JotaiProvider } from "jotai";
-import { useEffect, useRef } from "react";
+import {useEffect, useRef, useState} from "react";
 import { I18nextProvider } from "react-i18next";
 import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
@@ -41,6 +41,9 @@ import { useAtom } from "jotai";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { store } from "@/utils/store";
+import {EventSubscription} from "expo-modules-core";
+import {ExpoPushToken} from "expo-notifications/build/Tokens.types";
+import {Notification, NotificationResponse} from "expo-notifications/build/Notifications.types";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -258,6 +261,7 @@ const queryClient = new QueryClient({
 function Layout() {
   const [settings] = useSettings();
   const [user] = useAtom(userAtom);
+  const [api] = useAtom(apiAtom);
   const appState = useRef(AppState.currentState);
   const segments = useSegments();
 
@@ -268,13 +272,58 @@ function Layout() {
   if (!Platform.isTV) {
     useNotificationObserver();
 
+    const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
+    const notificationListener = useRef<EventSubscription>();
+    const responseListener = useRef<EventSubscription>();
+
     useEffect(() => {
-      checkAndRequestPermissions();
-      (async () => {
-        if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
-          registerBackgroundFetchAsyncSessions();
-        }
-      })();
+      if (expoPushToken && api && user) {
+        api?.post("/Streamyfin/device", {
+          token: expoPushToken.data,
+          deviceId: getOrSetDeviceId(),
+          userId: user.Id
+        }).then(_ => console.log("Posted expo push token"))
+          .catch(_ => writeErrorLog("Failed to push expo push token to plugin"))
+      }
+      else console.log("No token available")
+    }, [api, expoPushToken, user]);
+
+    async function registerNotifications() {
+      if (Platform.OS === 'android') {
+        console.log("Setting android notification channel 'default'")
+        await Notifications?.setNotificationChannelAsync('default', {
+          name: 'default'
+        });
+      }
+
+      await checkAndRequestPermissions();
+
+      if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
+        await registerBackgroundFetchAsyncSessions();
+      }
+
+      Notifications?.getExpoPushTokenAsync()
+        .then((token: ExpoPushToken) => token && setExpoPushToken(token))
+        .catch((reason: any) => console.log("Failed to get token", reason));
+    }
+
+    useEffect(() => {
+      registerNotifications()
+
+      notificationListener.current = Notifications?.addNotificationReceivedListener((notification: Notification) => {
+        console.log("Notification received while app running", notification);
+      });
+
+      responseListener.current = Notifications?.addNotificationResponseReceivedListener((response: NotificationResponse) => {
+        console.log("Notification interacted with", response);
+      });
+
+      return () => {
+        notificationListener.current &&
+        Notifications?.removeNotificationSubscription(notificationListener.current);
+        responseListener.current &&
+        Notifications?.removeNotificationSubscription(responseListener.current);
+      }
     }, []);
 
     useEffect(() => {
