@@ -13,6 +13,10 @@ declare module "@jellyfin/sdk" {
       data: D,
       config?: AxiosRequestConfig<D>
     ): Promise<AxiosResponse<T>>;
+    delete<T, D = any>(
+      url: string,
+      config?: AxiosRequestConfig<D>
+    ): Promise<AxiosResponse<T>>;
     getStreamyfinPluginConfig(): Promise<AxiosResponse<StreamyfinPluginConfig>>;
   }
 }
@@ -32,9 +36,18 @@ Api.prototype.post = function <T, D = any>(
   data: D,
   config: AxiosRequestConfig<D>
 ): Promise<AxiosResponse<T>> {
-  return this.axiosInstance.post<T>(`${this.basePath}${url}`, {
+  return this.axiosInstance.post<T>(`${this.basePath}${url}`, data, {
     ...(config || {}),
-    data,
+    headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
+  });
+};
+
+Api.prototype.delete = function <T, D = any>(
+  url: string,
+  config: AxiosRequestConfig<D>
+): Promise<AxiosResponse<T>> {
+  return this.axiosInstance.delete<T>(`${this.basePath}${url}`, {
+    ...(config || {}),
     headers: { [AUTHORIZATION_HEADER]: this.authorizationHeader },
   });
 };
