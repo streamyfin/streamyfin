@@ -13,9 +13,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
-import { TouchableOpacityProps, View } from "react-native";
+import { TouchableOpacityProps, View, Platform } from "react-native";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { useTranslation } from "react-i18next"; 
+
+// Check if we're running on a TV platform
+const isTV = Platform.isTV || Platform.OS === 'android' && !!Platform.constants.uiMode && 
+  (Platform.constants.uiMode & 15) === 4;
 
 interface Props extends TouchableOpacityProps {
   library: BaseItemDto;
@@ -100,6 +104,70 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
 
   if (!url) return null;
 
+  // For TV, always use the grid layout with taller rectangles
+  if (isTV) {
+    return (
+      <TouchableItemRouter 
+        item={library} 
+        className="w-full h-48" 
+        {...props}
+        {...(isTV && {
+          hasTVPreferredFocus: false,
+          tvParallaxProperties: { enabled: false },
+        })}
+      >
+        <View className="flex flex-col justify-between rounded-xl w-full h-full relative border border-neutral-800 bg-neutral-900 overflow-hidden">
+          <View
+            style={{
+              width: "100%",
+              height: "70%",
+              overflow: "hidden",
+            }}
+          >
+            <Image
+              source={{ uri: url }}
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+              contentFit="cover"
+              cachePolicy={"memory-disk"}
+            />
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.2)",
+              }}
+            />
+          </View>
+          <View className="flex flex-col justify-center p-4 h-[30%]">
+            <View className="flex flex-row items-center">
+              <Ionicons
+                name={icons[library.CollectionType!] || "folder"}
+                size={22}
+                color={"#e5e5e5"}
+                style={{ marginRight: 8 }}
+              />
+              <Text className="font-bold text-lg text-neutral-100 flex-1" numberOfLines={1}>
+                {library.Name}
+              </Text>
+            </View>
+            {settings?.libraryOptions?.showStats && (
+              <Text className="text-sm text-neutral-400 mt-1">
+                {itemsCount} {itemTypeName}
+              </Text>
+            )}
+          </View>
+        </View>
+      </TouchableItemRouter>
+    );
+  }
+
+  // Original mobile layouts below
   if (settings?.libraryOptions?.display === "row") {
     return (
       <TouchableItemRouter item={library} className="w-full px-4">
@@ -152,7 +220,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: "rgba(0, 0, 0, 0.3)", // Adjust the alpha value (0.3) to control darkness
+                backgroundColor: "rgba(0, 0, 0, 0.3)",
               }}
             />
           </View>
@@ -162,7 +230,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
             </Text>
           )}
           {settings?.libraryOptions?.showStats && (
-            <Text className="font-bold text-xs  text-start px-4">
+            <Text className="font-bold text-xs text-start px-4">
               {itemsCount} {itemTypeName}
             </Text>
           )}
