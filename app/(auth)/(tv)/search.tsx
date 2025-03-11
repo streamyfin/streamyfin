@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, TVFocusGuideView } from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { useJellyfin } from "@/providers/JellyfinProvider";
@@ -9,13 +9,26 @@ import { Image } from "expo-image";
 import { Colors } from "@/constants/Colors";
 import { TVSearchInput } from "@/components/tv/TVSearchInput";
 
+// Simple suggested searches
+const SUGGESTED_SEARCHES = [
+  "Action",
+  "Comedy",
+  "Drama",
+  "Sci-Fi",
+  "Animation",
+  "Documentary"
+];
+
 export default function TVSearchPage() {
   const { t } = useTranslation();
   const { api, user } = useJellyfin();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<BaseItemDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
+  const [activeTab, setActiveTab] = useState<'library' | 'discover'>('library');
+  
+  // Simple focus tracking
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const performSearch = useCallback(async (query: string) => {
     if (!api || !user || !query) {
@@ -45,15 +58,15 @@ export default function TVSearchPage() {
   }, [api, user]);
 
   useEffect(() => {
-    if (searchQuery) {
+    if (searchQuery && activeTab === 'library') {
       const timer = setTimeout(() => {
         performSearch(searchQuery);
       }, 500);
       return () => clearTimeout(timer);
-    } else {
+    } else if (activeTab === 'library') {
       setSearchResults([]);
     }
-  }, [searchQuery, performSearch]);
+  }, [searchQuery, performSearch, activeTab]);
 
   const handleItemPress = useCallback((item: BaseItemDto) => {
     router.push({
@@ -62,14 +75,38 @@ export default function TVSearchPage() {
     });
   }, []);
 
-  const handleItemFocus = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: true}));
+  const handleSuggestionPress = useCallback((suggestion: string) => {
+    setSearchQuery(suggestion);
+    if (activeTab === 'library') {
+      performSearch(suggestion);
+    }
+  }, [performSearch, activeTab]);
+
+  const handleTabPress = useCallback((tab: 'library' | 'discover') => {
+    setActiveTab(tab);
   }, []);
 
-  const handleItemBlur = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: false}));
-  }, []);
+  // Tab buttons
+  const renderTabButton = (tab: 'library' | 'discover') => (
+    <Pressable
+      onPress={() => handleTabPress(tab)}
+      onFocus={() => setFocusedId(`tab-${tab}`)}
+      style={[
+        styles.tabButton,
+        activeTab === tab && styles.activeTabButton,
+        focusedId === `tab-${tab}` && styles.focusedTabButton
+      ]}
+    >
+      <Text style={[
+        styles.tabButtonText,
+        activeTab === tab && styles.activeTabButtonText
+      ]}>
+        {tab === 'library' ? t('search.library') : t('search.discover')}
+      </Text>
+    </Pressable>
+  );
 
+  // Render a search result item
   const renderSearchItem = ({ item }: { item: BaseItemDto }) => {
     const imageUrl = api?.getImageUrl(item.Id || "", { 
       fillHeight: 300, 
@@ -78,44 +115,52 @@ export default function TVSearchPage() {
     });
 
     return (
-      <TVFocusGuideView style={styles.mediaItemContainer}>
-        <Pressable
-          onFocus={() => handleItemFocus(item.Id!)}
-          onBlur={() => handleItemBlur(item.Id!)}
-          onPress={() => handleItemPress(item)}
-          style={[
-            styles.mediaItem,
-            isFocused[item.Id!] && styles.focusedItem
-          ]}
-        >
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.mediaImage}
-            contentFit="cover"
-          />
-          <Text style={styles.mediaTitle} numberOfLines={1}>
-            {item.Name}
-          </Text>
-        </Pressable>
-      </TVFocusGuideView>
+      <Pressable
+        onFocus={() => setFocusedId(item.Id!)}
+        onBlur={() => setFocusedId(null)}
+        onPress={() => handleItemPress(item)}
+        style={[
+          styles.mediaItem,
+          focusedId === item.Id && styles.focusedMediaItem
+        ]}
+      >
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.mediaImage}
+          contentFit="cover"
+        />
+        <Text style={styles.mediaTitle} numberOfLines={1}>
+          {item.Name}
+        </Text>
+      </Pressable>
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <TVSearchInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder={t("search_placeholder")}
-        />
-      </View>
+  // Render a suggested search item
+  const renderSuggestion = ({ item, index }: { item: string, index: number }) => (
+    <Pressable
+      onFocus={() => setFocusedId(`suggestion-${index}`)}
+      onBlur={() => setFocusedId(null)}
+      onPress={() => handleSuggestionPress(item)}
+      style={[
+        styles.suggestionItem,
+        focusedId === `suggestion-${index}` && styles.focusedSuggestionItem
+      ]}
+    >
+      <Text style={styles.suggestionText}>{item}</Text>
+    </Pressable>
+  );
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{t("loading")}</Text>
+  // Render Library content
+  const renderLibraryContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.centerContent}>
+          <Text style={styles.messageText}>{t("loading")}</Text>
         </View>
-      ) : searchResults.length > 0 ? (
+      );
+    } else if (searchResults.length > 0) {
+      return (
         <FlatList
           data={searchResults}
           renderItem={renderSearchItem}
@@ -123,11 +168,69 @@ export default function TVSearchPage() {
           numColumns={5}
           contentContainerStyle={styles.resultsGrid}
         />
-      ) : searchQuery ? (
-        <View style={styles.noResultsContainer}>
-          <Text style={styles.noResultsText}>{t("no_results_found")}</Text>
+      );
+    } else if (searchQuery) {
+      return (
+        <View style={styles.centerContent}>
+          <Text style={styles.messageText}>{t("search.no_results")}</Text>
         </View>
-      ) : null}
+      );
+    } else {
+      return (
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.sectionTitle}>{t("search.suggestions")}</Text>
+          <FlatList
+            data={SUGGESTED_SEARCHES}
+            renderItem={renderSuggestion}
+            keyExtractor={(item, index) => `suggestion-${index}`}
+            horizontal={false}
+            numColumns={3}
+            contentContainerStyle={styles.suggestionsGrid}
+          />
+        </View>
+      );
+    }
+  };
+
+  // Render Discover content (Jellyseerr)
+  const renderDiscoverContent = () => {
+    // Simple wrapper for Jellyseerr content
+    return (
+      <View style={styles.jellyseerrContainer}>
+        <Text style={styles.jellyseerrTitle}>
+          {searchQuery ? t("search.jellyseerr_results") : t("search.jellyseerr_discover")}
+        </Text>
+        <View style={styles.jellyseerrContent}>
+          <Text style={styles.jellyseerrMessage}>
+            {t("search.jellyseerr_not_available_tv")}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        {renderTabButton('library')}
+        {renderTabButton('discover')}
+      </View>
+
+      {/* Search Input */}
+      <View style={styles.searchInputContainer}>
+        <TVSearchInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t("search.placeholder")}
+          onFocus={() => setFocusedId("search-input")}
+        />
+      </View>
+
+      {/* Content Area */}
+      <View style={styles.contentContainer}>
+        {activeTab === 'library' ? renderLibraryContent() : renderDiscoverContent()}
+      </View>
     </View>
   );
 }
@@ -138,47 +241,93 @@ const styles = StyleSheet.create({
     backgroundColor: "#121212",
     padding: 40,
   },
-  searchContainer: {
+  tabsContainer: {
+    flexDirection: "row",
+    marginBottom: 20,
+  },
+  tabButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginRight: 16,
+    borderRadius: 8,
+    backgroundColor: "#1a1a1a",
+  },
+  activeTabButton: {
+    backgroundColor: Colors.primary,
+  },
+  focusedTabButton: {
+    borderWidth: 2,
+    borderColor: "white",
+    transform: [{ scale: 1.05 }],
+  },
+  tabButtonText: {
+    color: "white",
+    fontSize: 18,
+  },
+  activeTabButtonText: {
+    fontWeight: "bold",
+  },
+  searchInputContainer: {
     marginBottom: 30,
   },
-  loadingContainer: {
+  contentContainer: {
+    flex: 1,
+  },
+  centerContent: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingText: {
+  messageText: {
     color: "white",
     fontSize: 20,
   },
-  noResultsContainer: {
+  suggestionsContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
-  noResultsText: {
+  sectionTitle: {
     color: "white",
-    fontSize: 20,
+    fontSize: 24,
+    marginBottom: 20,
+  },
+  suggestionsGrid: {
+    padding: 10,
+  },
+  suggestionItem: {
+    flex: 1,
+    margin: 10,
+    padding: 20,
+    backgroundColor: "#1a1a1a",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  focusedSuggestionItem: {
+    backgroundColor: Colors.primary,
+    transform: [{ scale: 1.05 }],
+  },
+  suggestionText: {
+    color: "white",
+    fontSize: 18,
   },
   resultsGrid: {
-    paddingVertical: 20,
-  },
-  mediaItemContainer: {
-    width: "20%",
     padding: 10,
   },
   mediaItem: {
+    width: "20%",
+    padding: 10,
     borderRadius: 8,
-    overflow: "hidden",
   },
-  focusedItem: {
-    transform: [{ scale: 1.1 }],
-    borderWidth: 4,
+  focusedMediaItem: {
+    transform: [{ scale: 1.05 }],
+    borderWidth: 2,
     borderColor: Colors.primary,
   },
   mediaImage: {
     width: "100%",
     aspectRatio: 2/3,
     borderRadius: 8,
+    borderWidth: 0,
   },
   mediaTitle: {
     color: "white",
@@ -186,4 +335,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
   },
+  jellyseerrContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  jellyseerrTitle: {
+    color: "white",
+    fontSize: 24,
+    marginBottom: 20,
+  },
+  jellyseerrContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  jellyseerrMessage: {
+    color: "white",
+    fontSize: 18,
+    textAlign: "center",
+  }
 });

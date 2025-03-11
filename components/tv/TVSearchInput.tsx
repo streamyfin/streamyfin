@@ -6,9 +6,15 @@ interface TVSearchInputProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
+  onFocus?: () => void;
 }
 
-export function TVSearchInput({ value, onChangeText, placeholder }: TVSearchInputProps) {
+export function TVSearchInput({ 
+  value, 
+  onChangeText, 
+  placeholder,
+  onFocus 
+}: TVSearchInputProps) {
   return (
     <View style={styles.container}>
       <TextInput
@@ -17,6 +23,7 @@ export function TVSearchInput({ value, onChangeText, placeholder }: TVSearchInpu
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#666"
+        onFocus={onFocus}
         autoComplete="off"
         autoCorrect={false}
         autoCapitalize="none"
