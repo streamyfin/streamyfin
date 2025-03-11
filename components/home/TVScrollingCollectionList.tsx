@@ -7,8 +7,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useJellyfin } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { WatchedIndicator } from "../WatchedIndicator";
+import { useAtom } from "jotai";
 
 interface TVScrollingCollectionListProps {
   queryFn: () => Promise<BaseItemDto[]>;
@@ -28,7 +29,7 @@ export const TVScrollingCollectionList = ({
   disabled = false,
 }: TVScrollingCollectionListProps) => {
   const { t } = useTranslation();
-  const { api } = useJellyfin();
+  const [api] = useAtom(apiAtom);
   const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   
@@ -81,48 +82,67 @@ export const TVScrollingCollectionList = ({
   }, []);
 
   const getImageUrl = useCallback((item: BaseItemDto) => {
-    if (item.Type === "Episode") {
-      if (orientation === "horizontal") {
-        if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
-          return api?.getImageUrl(item.ParentBackdropItemId, {
-            tag: item.ParentThumbImageTag,
-            fillHeight: 389,
-            quality: 90,
-            imageType: "Thumb"
-          });
+    if (!api || !item.Id) {
+      console.log(`Missing API or item ID for ${item.Name}`);
+      return undefined;
+    }
+
+    try {
+      // For episodes in horizontal orientation
+      if (item.Type === "Episode" && orientation === "horizontal") {
+        // Try parent backdrop first
+        if (item.ParentBackdropItemId && item.ParentBackdropImageTags?.[0]) {
+          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?tag=${item.ParentBackdropImageTags[0]}&fillHeight=389&quality=90`;
         }
-      } else {
-        return api?.getImageUrl(item.SeriesId || "", {
-          tag: item.SeriesPrimaryImageTag,
-          fillHeight: 389,
-          quality: 90,
-          imageType: "Primary"
-        });
+        // Try series thumb
+        if (item.SeriesId && item.SeriesThumbImageTag) {
+          return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?tag=${item.SeriesThumbImageTag}&fillHeight=389&quality=90`;
+        }
       }
-    }
 
-    // For horizontal orientation, try to use thumb image first
-    if (orientation === "horizontal" && item.ImageTags?.["Thumb"]) {
-      return api?.getImageUrl(item.Id || "", {
-        tag: item.ImageTags["Thumb"],
-        fillHeight: 389,
-        quality: 90,
-        imageType: "Thumb"
-      });
-    }
+      // For episodes in vertical orientation or if no parent images available
+      if (item.Type === "Episode") {
+        // Try series primary image
+        if (item.SeriesId && item.SeriesPrimaryImageTag) {
+          return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?tag=${item.SeriesPrimaryImageTag}&fillHeight=389&quality=90`;
+        }
+      }
 
-    // Default to primary image
-    return api?.getImageUrl(item.Id || "", {
-      fillHeight: orientation === "horizontal" ? 389 : 300,
-      fillWidth: orientation === "horizontal" ? 600 : 200,
-      quality: 90,
-      imageType: "Primary"
-    });
+      // For horizontal orientation of other types, try thumb image first
+      if (orientation === "horizontal") {
+        if (item.ImageTags?.["Thumb"]) {
+          return `${api.basePath}/Items/${item.Id}/Images/Thumb?tag=${item.ImageTags["Thumb"]}&fillHeight=389&quality=90`;
+        }
+        // Try backdrop if available
+        if (item.BackdropImageTags?.[0]) {
+          return `${api.basePath}/Items/${item.Id}/Images/Backdrop?tag=${item.BackdropImageTags[0]}&fillHeight=389&quality=90`;
+        }
+      }
+
+      // Default to primary image if available
+      if (item.ImageTags?.["Primary"]) {
+        return `${api.basePath}/Items/${item.Id}/Images/Primary?tag=${item.ImageTags["Primary"]}&fillHeight=${orientation === "horizontal" ? 389 : 300}&fillWidth=${orientation === "horizontal" ? 600 : 200}&quality=90`;
+      }
+
+      // Fallback to parent primary image for episodes
+      if (item.Type === "Episode" && item.SeriesId && item.SeriesPrimaryImageTag) {
+        return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?tag=${item.SeriesPrimaryImageTag}&fillHeight=${orientation === "horizontal" ? 389 : 300}&fillWidth=${orientation === "horizontal" ? 600 : 200}&quality=90`;
+      }
+
+      console.log(`No suitable image found for ${item.Name} (${item.Type})`);
+      return undefined;
+    } catch (error) {
+      console.error(`Error generating image URL for ${item.Name}:`, error);
+      return undefined;
+    }
   }, [api, orientation]);
 
   const renderMediaItem = useCallback(({ item }: { item: BaseItemDto }) => {
     const imageUrl = getImageUrl(item);
     const progress = item.UserData?.PlayedPercentage || 0;
+    
+    // Log image URL for debugging
+    console.log(`Item ${item.Name} (${item.Type}) image URL:`, imageUrl);
     
     return (
       <TVFocusGuideView style={styles.mediaItemContainer}>
@@ -137,14 +157,23 @@ export const TVScrollingCollectionList = ({
           ]}
         >
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: imageUrl }}
-              style={[
-                styles.mediaImage,
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={[
+                  styles.mediaImage,
+                  orientation === "horizontal" ? styles.mediaImageHorizontal : styles.mediaImageVertical
+                ]}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={[
+                styles.placeholderImage,
                 orientation === "horizontal" ? styles.mediaImageHorizontal : styles.mediaImageVertical
-              ]}
-              contentFit="cover"
-            />
+              ]}>
+                <Text style={styles.placeholderText}>{item.Name?.substring(0, 1).toUpperCase()}</Text>
+              </View>
+            )}
             
             {!progress && <WatchedIndicator item={item} />}
             
@@ -278,6 +307,17 @@ const styles = StyleSheet.create({
   },
   mediaImageHorizontal: {
     aspectRatio: 16/9,
+  },
+  placeholderImage: {
+    width: "100%",
+    backgroundColor: "#333",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    color: "white",
+    fontSize: 40,
+    fontWeight: "bold",
   },
   focusedItem: {
     transform: [{ scale: 1.1 }],

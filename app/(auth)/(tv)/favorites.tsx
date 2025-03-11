@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo } from "react";
 import { View, StyleSheet, FlatList } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useJellyfin } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { TVScrollingCollectionList } from "@/components/home/TVScrollingCollectionList";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useAtom } from "jotai";
 
 // Define section type
 type Section = {
@@ -16,36 +17,64 @@ type Section = {
 
 export default function TVFavoritesPage() {
   const { t } = useTranslation();
-  const { api, user } = useJellyfin();
+  const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
 
   const fetchFavoritesByType = useCallback(
     async (itemType: BaseItemKind) => {
-      if (!api || !user?.Id) return [];
+      if (!api || !user?.Id) {
+        console.log(`No API or user ID available for ${itemType} favorites`);
+        return [];
+      }
       
-      const response = await getItemsApi(api).getItems({
-        userId: user.Id,
-        sortBy: ["SeriesSortName", "SortName"],
-        sortOrder: ["Ascending"],
-        filters: ["IsFavorite"],
-        recursive: true,
-        fields: [
-          "Overview", 
-          "PrimaryImageAspectRatio", 
-          "ImageTags", 
-          "ImageBlurHashes",
-          "ParentThumbImageTag",
-          "ParentBackdropItemId",
-          "SeriesPrimaryImageTag"
-        ],
-        collapseBoxSetItems: false,
-        excludeLocationTypes: ["Virtual"],
-        enableTotalRecordCount: false,
-        limit: 20,
-        includeItemTypes: [itemType],
-        imageTypeLimit: 1,
-        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-      });
-      return response.data.Items || [];
+      try {
+        console.log(`Fetching ${itemType} favorites for user ${user.Id}`);
+        const response = await getItemsApi(api).getItems({
+          userId: user.Id,
+          sortBy: ["SeriesSortName", "SortName"],
+          sortOrder: ["Ascending"],
+          filters: ["IsFavorite"],
+          recursive: true,
+          fields: [
+            "Overview", 
+            "PrimaryImageAspectRatio", 
+            "ImageTags", 
+            "ImageBlurHashes",
+            "ParentThumbImageTag",
+            "ParentBackdropItemId",
+            "ParentBackdropImageTags",
+            "SeriesPrimaryImageTag",
+            "SeriesThumbImageTag",
+            "SeriesId",
+            "BackdropImageTags"
+          ],
+          collapseBoxSetItems: false,
+          excludeLocationTypes: ["Virtual"],
+          enableTotalRecordCount: false,
+          limit: 20,
+          includeItemTypes: [itemType],
+          imageTypeLimit: 3,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        });
+        
+        // Log the first item to help with debugging
+        if (response.data.Items && response.data.Items.length > 0) {
+          console.log(`Found ${response.data.Items.length} ${itemType} favorites`);
+          console.log(`First ${itemType} favorite item:`, JSON.stringify({
+            id: response.data.Items[0].Id,
+            name: response.data.Items[0].Name,
+            type: response.data.Items[0].Type,
+            imageTags: response.data.Items[0].ImageTags,
+          }, null, 2));
+        } else {
+          console.log(`No ${itemType} favorites found`);
+        }
+        
+        return response.data.Items || [];
+      } catch (error) {
+        console.error(`Error fetching ${itemType} favorites:`, error);
+        return [];
+      }
     },
     [api, user]
   );
