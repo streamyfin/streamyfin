@@ -1,58 +1,34 @@
-import {
-  PropsWithChildren,
-  Children,
-  isValidElement,
-  cloneElement,
-  ReactElement,
-} from "react";
-import { StyleSheet, View, ViewProps, ViewStyle } from "react-native";
-import { ListItem } from "./ListItem";
+import { PropsWithChildren } from "react";
+import { View, ViewProps } from "react-native";
 import { Text } from "../common/Text";
 
 interface Props extends ViewProps {
-  title?: string | null | undefined;
-  description?: ReactElement;
+  title?: string;
+  subtitle?: string;
 }
 
 export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
   title,
+  subtitle,
   children,
-  description,
+  className,
   ...props
 }) => {
-  const childrenArray = Children.toArray(children);
-
   return (
-    <View {...props}>
-      <Text className="ml-4 mb-1 uppercase text-[#8E8D91] text-xs">
-        {title}
-      </Text>
-      <View
-        style={[]}
-        className="flex flex-col rounded-xl overflow-hidden pl-0 bg-neutral-900"
-      >
-        {Children.map(childrenArray, (child, index) => {
-          if (isValidElement<{ style?: ViewStyle }>(child)) {
-            return cloneElement(child as any, {
-              style: StyleSheet.compose(
-                child.props.style,
-                index < childrenArray.length - 1
-                  ? styles.borderBottom
-                  : undefined
-              ),
-            });
-          }
-          return child;
-        })}
+    <View className={`mb-4 ${className || ""}`} {...props}>
+      {title && (
+        <View className="px-4 mb-1">
+          <Text className="text-neutral-500 text-xs uppercase">{title}</Text>
+        </View>
+      )}
+      <View className="rounded-xl overflow-hidden">
+        {children}
       </View>
-      {description && <View className="pl-4 mt-1">{description}</View>}
+      {subtitle && (
+        <View className="px-4 mt-1">
+          <Text className="text-neutral-500 text-xs">{subtitle}</Text>
+        </View>
+      )}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  borderBottom: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#3D3C40",
-  },
-});

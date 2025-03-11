@@ -41,12 +41,12 @@ export const TVMediaItem = ({
       });
     } else if (item.Type === "BoxSet") {
       router.push({
-        pathname: "/(auth)/(tv)/boxset/[boxsetId]",
+        pathname: "/(auth)/(tabs)/(home)/collections/[boxsetId]",
         params: { boxsetId: item.Id },
       });
     } else if (item.Type === "Playlist") {
       router.push({
-        pathname: "/(auth)/(tv)/playlist/[playlistId]",
+        pathname: "/(auth)/(tabs)/(libraries)/[playlistId]",
         params: { playlistId: item.Id },
       });
     }

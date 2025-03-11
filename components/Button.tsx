@@ -15,6 +15,15 @@ export interface ButtonProps
   iconRight?: ReactNode;
   iconLeft?: ReactNode;
   justify?: "center" | "between";
+  // TV-specific props
+  tvParallaxProperties?: object;
+  isTVSelectable?: boolean;
+  hasTVPreferredFocus?: boolean;
+  nextFocusDown?: string;
+  nextFocusUp?: string;
+  nextFocusLeft?: string;
+  nextFocusRight?: string;
+  nativeID?: string;
 }
 
 export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
@@ -28,6 +37,15 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
   iconLeft,
   children,
   justify = "center",
+  // Extract TV-specific props
+  tvParallaxProperties,
+  isTVSelectable,
+  hasTVPreferredFocus,
+  nextFocusDown,
+  nextFocusUp,
+  nextFocusLeft,
+  nextFocusRight,
+  nativeID,
   ...props
 }) => {
   const colorClasses = useMemo(() => {
@@ -45,6 +63,18 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
 
   const lightHapticFeedback = useHaptic("light");
 
+  // Create TV props object
+  const tvProps = Platform.isTV ? {
+    tvParallaxProperties,
+    isTVSelectable,
+    hasTVPreferredFocus,
+    nativeID,
+    nextFocusDown,
+    nextFocusUp,
+    nextFocusLeft,
+    nextFocusRight
+  } : {};
+
   return (
     <TouchableOpacity
       className={`
@@ -60,6 +90,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         }
       }}
       disabled={disabled || loading}
+      {...tvProps}
       {...props}
     >
       {loading ? (

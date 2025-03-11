@@ -1,126 +1,89 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useEffect, useMemo } from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+import { useTranslation } from "react-i18next";
+import { TouchableOpacity, View, Platform } from "react-native";
 import { Text } from "../common/Text";
-import { t } from "i18next";
+import { Ionicons } from "@expo/vector-icons";
+import { TVFocusable } from "../common/TVFocusable";
+
+export type SeasonIndexState = {
+  [key: string]: number | string;
+};
 
 type Props = {
   item: BaseItemDto;
   seasons: BaseItemDto[];
-  initialSeasonIndex?: number;
-  state: SeasonIndexState;
+  selectedSeason?: BaseItemDto;
   onSelect: (season: BaseItemDto) => void;
-};
-
-type SeasonKeys = {
-  id: keyof BaseItemDto;
-  title: keyof BaseItemDto;
-  index: keyof BaseItemDto;
-};
-
-export type SeasonIndexState = {
-  [seriesId: string]: number | string | null | undefined;
 };
 
 export const SeasonDropdown: React.FC<Props> = ({
   item,
   seasons,
-  initialSeasonIndex,
-  state,
+  selectedSeason,
   onSelect,
 }) => {
-  if (Platform.isTV) return null;
+  const { t } = useTranslation();
 
-  const keys = useMemo<SeasonKeys>(
-    () =>
-      item.Type === "Episode"
-        ? {
-            id: "ParentId",
-            title: "SeasonName",
-            index: "ParentIndexNumber",
-          }
-        : {
-            id: "Id",
-            title: "Name",
-            index: "IndexNumber",
-          },
-    [item]
-  );
+  // If no season is selected, use the first one
+  const currentSeason = selectedSeason || seasons[0];
+  const currentIndex = seasons.findIndex(s => s.Id === currentSeason.Id);
+  
+  const handlePrevious = () => {
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : seasons.length - 1;
+    onSelect(seasons[prevIndex]);
+  };
 
-  const seasonIndex = useMemo(
-    () => state[(item[keys.id] as string) ?? ""],
-    [state]
-  );
+  const handleNext = () => {
+    const nextIndex = (currentIndex + 1) % seasons.length;
+    onSelect(seasons[nextIndex]);
+  };
 
-  useEffect(() => {
-    if (seasons && seasons.length > 0 && seasonIndex === undefined) {
-      let initialIndex: number | undefined;
-
-      if (initialSeasonIndex !== undefined) {
-        // Use the provided initialSeasonIndex if it exists in the seasons
-        const seasonExists = seasons.some(
-          (season: any) => season[keys.index] === initialSeasonIndex
-        );
-        if (seasonExists) {
-          initialIndex = initialSeasonIndex;
-        }
-      }
-
-      if (initialIndex === undefined) {
-        // Fall back to the previous logic if initialIndex is not set
-        const season1 = seasons.find((season: any) => season[keys.index] === 1);
-        const season0 = seasons.find((season: any) => season[keys.index] === 0);
-        const firstSeason = season1 || season0 || seasons[0];
-        onSelect(firstSeason);
-      }
-
-      if (initialIndex !== undefined) {
-        const initialSeason = seasons.find(
-          (season: any) => season[keys.index] === initialIndex
-        );
-
-        if (initialSeason) onSelect(initialSeason!);
-        else throw Error("Initial index could not be found!");
-      }
-    }
-  }, [seasons, seasonIndex, item[keys.id], initialSeasonIndex]);
-
-  const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
-    Number(a[keys.index]) - Number(b[keys.index]);
+  if (Platform.isTV) {
+    return (
+      <View className="flex flex-row items-center">
+        <TVFocusable
+          hasTVPreferredFocus={true}
+          onSelect={handlePrevious}
+        >
+          <View className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 mr-2">
+            <Ionicons name="chevron-back" size={20} color="white" />
+          </View>
+        </TVFocusable>
+        
+        <View className="flex items-center justify-center bg-neutral-800 rounded-xl px-4 py-2 mx-1">
+          <Text>{currentSeason.Name}</Text>
+        </View>
+        
+        <TVFocusable
+          onSelect={handleNext}
+        >
+          <View className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 ml-2">
+            <Ionicons name="chevron-forward" size={20} color="white" />
+          </View>
+        </TVFocusable>
+      </View>
+    );
+  }
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <View className="flex flex-row">
-          <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
-            <Text>
-              {t("item_card.season")} {seasonIndex}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content
-        loop={true}
-        side="bottom"
-        align="start"
-        alignOffset={0}
-        avoidCollisions={true}
-        collisionPadding={8}
-        sideOffset={8}
+    <View className="flex flex-row items-center">
+      <TouchableOpacity
+        onPress={handlePrevious}
+        className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 mr-2"
       >
-        <DropdownMenu.Label>{t("item_card.seasons")}</DropdownMenu.Label>
-        {seasons?.sort(sortByIndex).map((season: any) => (
-          <DropdownMenu.Item
-            key={season[keys.title]}
-            onSelect={() => onSelect(season)}
-          >
-            <DropdownMenu.ItemTitle>
-              {season[keys.title]}
-            </DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-        ))}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        <Ionicons name="chevron-back" size={20} color="white" />
+      </TouchableOpacity>
+      
+      <View className="flex items-center justify-center bg-neutral-800 rounded-xl px-4 py-2 mx-1">
+        <Text>{currentSeason.Name}</Text>
+      </View>
+      
+      <TouchableOpacity
+        onPress={handleNext}
+        className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 ml-2"
+      >
+        <Ionicons name="chevron-forward" size={20} color="white" />
+      </TouchableOpacity>
+    </View>
   );
 };

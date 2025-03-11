@@ -1,5 +1,5 @@
 import React from "react";
-import { View, ViewProps } from "react-native";
+import { View, ViewProps, Platform } from "react-native";
 import { Text } from "@/components/common/Text";
 import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
@@ -12,6 +12,8 @@ import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery } from "@tanstack/react-query";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { useTranslation } from "react-i18next";
+import { TVFocusable } from "./common/TVFocusable";
+import { router } from "expo-router";
 
 interface Props extends ViewProps {
   actorId: string;
@@ -75,6 +77,44 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
 
   if (items?.length === 0) return null;
 
+  const handleItemSelect = (item: BaseItemDto) => {
+    if (item.Id) {
+      const url = item.Type === "Series" ? `/series/${item.Id}` : `/item/${item.Id}`;
+      router.push(url);
+    }
+  };
+
+  const renderItem = (item: BaseItemDto, index: number) => {
+    const content = (
+      <View className="flex flex-col w-28">
+        <MoviePoster item={item} />
+        <ItemCardText item={item} />
+      </View>
+    );
+
+    if (Platform.isTV) {
+      return (
+        <TVFocusable
+          key={item.Id || index}
+          hasTVPreferredFocus={index === 0}
+          onSelect={() => handleItemSelect(item)}
+        >
+          {content}
+        </TVFocusable>
+      );
+    }
+
+    return (
+      <TouchableItemRouter
+        key={item.Id || index}
+        item={item}
+        className="flex flex-col w-28"
+      >
+        {content}
+      </TouchableItemRouter>
+    );
+  };
+
   return (
     <View {...props}>
       <Text className="text-lg font-bold mb-2 px-4">
@@ -84,18 +124,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
         data={items}
         loading={isLoading}
         height={247}
-        renderItem={(item: BaseItemDto, idx: number) => (
-          <TouchableItemRouter
-            key={idx}
-            item={item}
-            className="flex flex-col w-28"
-          >
-            <View>
-              <MoviePoster item={item} />
-              <ItemCardText item={item} />
-            </View>
-          </TouchableItemRouter>
-        )}
+        renderItem={renderItem}
       />
     </View>
   );

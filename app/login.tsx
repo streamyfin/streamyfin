@@ -1,6 +1,9 @@
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
+import { TVFocusable } from "@/components/common/TVFocusable";
+import { TVButton } from "@/components/TVButton";
+import { TVInput } from "@/components/TVInput";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { PreviousServersList } from "@/components/PreviousServersList";
 import { Colors } from "@/constants/Colors";
@@ -10,7 +13,7 @@ import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -18,8 +21,9 @@ import {
   SafeAreaView,
   TouchableOpacity,
   View,
+  TextInput,
+  Keyboard,
 } from "react-native";
-import { Keyboard } from "react-native";
 
 import { z } from "zod";
 import { t } from "i18next";
@@ -33,6 +37,14 @@ const Login: React.FC = () => {
   const params = useLocalSearchParams();
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
+
+  // Refs for TV navigation
+  const serverUrlInputRef = useRef<TextInput>(null);
+  const connectButtonRef = useRef<any>(null);
+  const usernameInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const loginButtonRef = useRef<any>(null);
+  const quickConnectButtonRef = useRef<any>(null);
 
   const {
     apiUrl: _apiUrl,
@@ -117,18 +129,6 @@ const Login: React.FC = () => {
 
   /**
    * Checks the availability and validity of a Jellyfin server URL.
-   *
-   * This function attempts to connect to a Jellyfin server using the provided URL.
-   * It tries both HTTPS and HTTP protocols, with a timeout to handle long 404 responses.
-   *
-   * @param {string} url - The base URL of the Jellyfin server to check.
-   * @returns {Promise<string | undefined>} A Promise that resolves to:
-   *   - The full URL (including protocol) if a valid Jellyfin server is found.
-   *   - undefined if no valid server is found at the given URL.
-   *
-   * Side effects:
-   * - Sets loadingServerCheck state to true at the beginning and false at the end.
-   * - Logs errors and timeout information to the console.
    */
   const checkUrl = useCallback(async (url: string) => {
     setLoadingServerCheck(true);
@@ -155,19 +155,6 @@ const Login: React.FC = () => {
 
   /**
    * Handles the connection attempt to a Jellyfin server.
-   *
-   * This function trims the input URL, checks its validity using the `checkUrl` function,
-   * and sets the server address if a valid connection is established.
-   *
-   * @param {string} url - The URL of the Jellyfin server to connect to.
-   *
-   * @returns {Promise<void>}
-   *
-   * Side effects:
-   * - Calls `checkUrl` to validate the server URL.
-   * - Shows an alert if the connection fails.
-   * - Sets the server address using `setServer` if the connection is successful.
-   *
    */
   const handleConnect = useCallback(async (url: string) => {
     url = url.trim().replace(/\/$/, "");
@@ -231,7 +218,8 @@ const Login: React.FC = () => {
                   <Text className="text-xs text-neutral-400">
                     {api.basePath}
                   </Text>
-                  <Input
+                  <TVInput
+                    ref={usernameInputRef}
                     placeholder={t("login.username_placeholder")}
                     onChangeText={(text) =>
                       setCredentials({ ...credentials, username: text })
@@ -239,14 +227,19 @@ const Login: React.FC = () => {
                     value={credentials.username}
                     secureTextEntry={false}
                     keyboardType="default"
-                    returnKeyType="done"
+                    returnKeyType="next"
                     autoCapitalize="none"
                     textContentType="username"
                     clearButtonMode="while-editing"
                     maxLength={500}
+                    hasTVPreferredFocus={true}
+                    onSubmitEditing={() => {
+                      passwordInputRef.current?.focus();
+                    }}
                   />
 
-                  <Input
+                  <TVInput
+                    ref={passwordInputRef}
                     placeholder={t("login.password_placeholder")}
                     onChangeText={(text) =>
                       setCredentials({ ...credentials, password: text })
@@ -259,25 +252,29 @@ const Login: React.FC = () => {
                     textContentType="password"
                     clearButtonMode="while-editing"
                     maxLength={500}
+                    onSubmitEditing={handleLogin}
                   />
                   <View className="flex flex-row items-center justify-between">
-                    <Button
+                    <TVButton
+                      ref={loginButtonRef}
                       onPress={handleLogin}
                       loading={loading}
                       className="flex-1 mr-2"
                     >
                       {t("login.login_button")}
-                    </Button>
-                    <TouchableOpacity
-                      onPress={handleQuickConnect}
-                      className="p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center"
+                    </TVButton>
+                    <TVFocusable
+                      ref={quickConnectButtonRef}
+                      onSelect={handleQuickConnect}
                     >
-                      <MaterialCommunityIcons
-                        name="cellphone-lock"
-                        size={24}
-                        color="white"
-                      />
-                    </TouchableOpacity>
+                      <View className="p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center">
+                        <MaterialCommunityIcons
+                          name="cellphone-lock"
+                          size={24}
+                          color="white"
+                        />
+                      </View>
+                    </TVFocusable>
                   </View>
                 </View>
               </View>
@@ -302,7 +299,9 @@ const Login: React.FC = () => {
                 <Text className="text-neutral-500">
                   {t("server.enter_url_to_jellyfin_server")}
                 </Text>
-                <Input
+                <TVInput
+                  ref={serverUrlInputRef}
+                  hasTVPreferredFocus={true}
                   aria-label="Server URL"
                   placeholder={t("server.server_url_placeholder")}
                   onChangeText={setServerURL}
@@ -312,8 +311,10 @@ const Login: React.FC = () => {
                   autoCapitalize="none"
                   textContentType="URL"
                   maxLength={500}
+                  onSubmitEditing={() => handleConnect(serverURL)}
                 />
-                <Button
+                <TVButton
+                  ref={connectButtonRef}
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
                   onPress={async () => {
@@ -322,21 +323,25 @@ const Login: React.FC = () => {
                   className="w-full grow"
                 >
                   {t("server.connect_button")}
-                </Button>
-                <JellyfinServerDiscovery
-                  onServerSelect={(server) => {
-                    setServerURL(server.address);
-                    if (server.serverName) {
-                      setServerName(server.serverName);
-                    }
-                    handleConnect(server.address);
-                  }}
-                />
-                <PreviousServersList
-                  onServerSelect={(s) => {
-                    handleConnect(s.address);
-                  }}
-                />
+                </TVButton>
+                <TVFocusable>
+                  <JellyfinServerDiscovery
+                    onServerSelect={(server) => {
+                      setServerURL(server.address);
+                      if (server.serverName) {
+                        setServerName(server.serverName);
+                      }
+                      handleConnect(server.address);
+                    }}
+                  />
+                </TVFocusable>
+                <TVFocusable>
+                  <PreviousServersList
+                    onServerSelect={(s) => {
+                      handleConnect(s.address);
+                    }}
+                  />
+                </TVFocusable>
               </View>
             </View>
           </>

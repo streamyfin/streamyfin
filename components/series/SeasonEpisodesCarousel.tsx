@@ -5,13 +5,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
-import { TouchableOpacity, View, ViewProps } from "react-native";
+import { TouchableOpacity, View, ViewProps, Platform } from "react-native";
 import {
   HorizontalScroll,
   HorizontalScrollRef,
 } from "../common/HorrizontalScroll";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
+import { TVFocusable } from "../common/TVFocusable";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -117,26 +118,50 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     }
   }, [episodes, item]);
 
+  const handleEpisodeSelect = (episode: BaseItemDto) => {
+    router.setParams({ id: episode.Id });
+  };
+
+  const renderEpisode = (episode: BaseItemDto, index: number) => {
+    const isCurrentEpisode = item?.Id === episode.Id;
+    
+    const content = (
+      <View className={`flex flex-col w-44 ${isCurrentEpisode ? "" : "opacity-50"}`}>
+        <ContinueWatchingPoster item={episode} useEpisodePoster />
+        <ItemCardText item={episode} />
+      </View>
+    );
+
+    if (Platform.isTV) {
+      return (
+        <TVFocusable
+          key={episode.Id}
+          hasTVPreferredFocus={isCurrentEpisode}
+          onSelect={() => handleEpisodeSelect(episode)}
+        >
+          {content}
+        </TVFocusable>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        key={episode.Id}
+        onPress={() => handleEpisodeSelect(episode)}
+        className={`flex flex-col w-44 ${isCurrentEpisode ? "" : "opacity-50"}`}
+      >
+        {content}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <HorizontalScroll
       ref={scrollRef}
       data={episodes}
       extraData={item}
       loading={loading || isLoading || isFetching}
-      renderItem={(_item, idx) => (
-        <TouchableOpacity
-          key={_item.Id}
-          onPress={() => {
-            router.setParams({ id: _item.Id });
-          }}
-          className={`flex flex-col w-44 
-                  ${item?.Id === _item.Id ? "" : "opacity-50"}
-                `}
-        >
-          <ContinueWatchingPoster item={_item} useEpisodePoster />
-          <ItemCardText item={_item} />
-        </TouchableOpacity>
-      )}
+      renderItem={renderEpisode}
       {...props}
     />
   );
