@@ -18,8 +18,11 @@ import { Text } from "./Text";
 import { t } from "i18next";
 
 // Check if we're running on a TV platform
-const isTV = Platform.isTV || Platform.OS === 'android' && !!Platform.constants.uiMode && 
-  (Platform.constants.uiMode & 15) === 4;
+const isTV =
+  Platform.isTV ||
+  (Platform.OS === "android" &&
+    !!Platform.constants.uiMode &&
+    (Platform.constants.uiMode & 15) === 4);
 
 interface HorizontalScrollProps
   extends Omit<FlashListProps<BaseItemDto>, "renderItem" | "data" | "style"> {
@@ -79,7 +82,7 @@ export function InfiniteHorizontalScroll({
       const totalItems = lastPage.TotalRecordCount;
       const accumulatedItems = pages.reduce(
         (acc, curr) => acc + (curr?.Items?.length || 0),
-        0
+        0,
       );
 
       if (accumulatedItems < totalItems) {
@@ -115,7 +118,7 @@ export function InfiniteHorizontalScroll({
   // Handle focus change for TV navigation
   const handleItemFocus = (index: number) => {
     setFocusedIndex(index);
-    
+
     // Ensure the focused item is visible by scrolling if needed
     if (isTV && flashListRef.current) {
       flashListRef.current.scrollToIndex({
@@ -149,9 +152,11 @@ export function InfiniteHorizontalScroll({
         ref={flashListRef}
         data={flatData}
         renderItem={({ item, index }) => (
-          <View 
+          <View
             className="mr-2"
-            ref={ref => { itemRefs.current[index] = ref; }}
+            ref={(ref) => {
+              itemRefs.current[index] = ref;
+            }}
             onFocus={() => handleItemFocus(index)}
             // Add TV-specific props for better focus handling
             {...(isTV && {
@@ -176,16 +181,22 @@ export function InfiniteHorizontalScroll({
         }}
         showsHorizontalScrollIndicator={false}
         // Add TV-specific props for better focus management
-        maintainVisibleContentPosition={isTV ? {
-          minIndexForVisible: 0,
-          autoscrollToTopThreshold: 10
-        } : undefined}
+        maintainVisibleContentPosition={
+          isTV
+            ? {
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: 10,
+              }
+            : undefined
+        }
         // Ensure we have enough items visible for TV navigation
         initialScrollIndex={0}
         extraData={focusedIndex} // Include focusedIndex in extraData to trigger re-renders
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center">
-            <Text className="text-center text-gray-500">{t("item_card.no_data_available")}</Text>
+            <Text className="text-center text-gray-500">
+              {t("item_card.no_data_available")}
+            </Text>
           </View>
         }
         {...props}

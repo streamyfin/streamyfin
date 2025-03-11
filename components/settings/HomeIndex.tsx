@@ -108,7 +108,7 @@ export const HomeIndex = () => {
 
   useEffect(() => {
     cleanCacheDirectory().catch((e) =>
-      console.error("Something went wrong cleaning cache directory")
+      console.error("Something went wrong cleaning cache directory"),
     );
   }, []);
 
@@ -174,14 +174,14 @@ export const HomeIndex = () => {
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
-    [data, settings?.hiddenLibraries]
+    [data, settings?.hiddenLibraries],
   );
 
   const collections = useMemo(() => {
     const allow = ["movies", "tvshows"];
     return (
       userViews?.filter(
-        (c) => c.CollectionType && allow.includes(c.CollectionType)
+        (c) => c.CollectionType && allow.includes(c.CollectionType),
       ) || []
     );
   }, [userViews]);
@@ -200,7 +200,7 @@ export const HomeIndex = () => {
       title: string,
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
-      parentId: string | undefined
+      parentId: string | undefined,
     ): ScrollingCollectionListSection => ({
       title,
       queryKey,
@@ -222,7 +222,7 @@ export const HomeIndex = () => {
       },
       type: "ScrollingCollectionList",
     }),
-    [api, user?.Id]
+    [api, user?.Id],
   );
 
   let sections: Section[] = [];
@@ -244,7 +244,7 @@ export const HomeIndex = () => {
           title || "",
           queryKey,
           includeItemTypes,
-          c.Id
+          c.Id,
         );
       });
 
@@ -312,7 +312,7 @@ export const HomeIndex = () => {
             try {
               const suggestions = await getSuggestions(api, user.Id);
               const nextUpPromises = suggestions.map((series) =>
-                getNextUp(api, user.Id, series.Id)
+                getNextUp(api, user.Id, series.Id),
               );
               const nextUpResults = await Promise.all(nextUpPromises);
 
@@ -495,7 +495,7 @@ async function getSuggestions(api: Api, userId: string | undefined) {
 async function getNextUp(
   api: Api,
   userId: string | undefined,
-  seriesId: string | undefined
+  seriesId: string | undefined,
 ) {
   if (!userId || !seriesId) return null;
   const response = await getTvShowsApi(api).getNextUp({

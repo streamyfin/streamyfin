@@ -16,7 +16,7 @@ const SUGGESTED_SEARCHES = [
   "Drama",
   "Sci-Fi",
   "Animation",
-  "Documentary"
+  "Documentary",
 ];
 
 export default function TVSearchPage() {
@@ -25,43 +25,46 @@ export default function TVSearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<BaseItemDto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'library' | 'discover'>('library');
+  const [activeTab, setActiveTab] = useState<"library" | "discover">("library");
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
-  const performSearch = useCallback(async (query: string) => {
-    if (!api || !user || !query) {
-      setSearchResults([]);
-      return;
-    }
+  const performSearch = useCallback(
+    async (query: string) => {
+      if (!api || !user || !query) {
+        setSearchResults([]);
+        return;
+      }
 
-    setLoading(true);
-    try {
-      const response = await getSearchApi(api).get({
-        userId: user.Id!,
-        searchTerm: query,
-        includeItemTypes: ["Movie", "Series", "Episode"],
-        limit: 50,
-        recursive: true,
-        fields: ["Overview", "PrimaryImageAspectRatio"],
-        imageTypeLimit: 1,
-        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-      });
-      setSearchResults(response.data.SearchHints || []);
-    } catch (error) {
-      console.error("Search failed:", error);
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, user]);
+      setLoading(true);
+      try {
+        const response = await getSearchApi(api).get({
+          userId: user.Id!,
+          searchTerm: query,
+          includeItemTypes: ["Movie", "Series", "Episode"],
+          limit: 50,
+          recursive: true,
+          fields: ["Overview", "PrimaryImageAspectRatio"],
+          imageTypeLimit: 1,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        });
+        setSearchResults(response.data.SearchHints || []);
+      } catch (error) {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [api, user],
+  );
 
   useEffect(() => {
-    if (searchQuery && activeTab === 'library') {
+    if (searchQuery && activeTab === "library") {
       const timer = setTimeout(() => {
         performSearch(searchQuery);
       }, 500);
       return () => clearTimeout(timer);
-    } else if (activeTab === 'library') {
+    } else if (activeTab === "library") {
       setSearchResults([]);
     }
   }, [searchQuery, performSearch, activeTab]);
@@ -73,41 +76,46 @@ export default function TVSearchPage() {
     });
   }, []);
 
-  const handleSuggestionPress = useCallback((suggestion: string) => {
-    setSearchQuery(suggestion);
-    if (activeTab === 'library') {
-      performSearch(suggestion);
-    }
-  }, [performSearch, activeTab]);
+  const handleSuggestionPress = useCallback(
+    (suggestion: string) => {
+      setSearchQuery(suggestion);
+      if (activeTab === "library") {
+        performSearch(suggestion);
+      }
+    },
+    [performSearch, activeTab],
+  );
 
-  const handleTabPress = useCallback((tab: 'library' | 'discover') => {
+  const handleTabPress = useCallback((tab: "library" | "discover") => {
     setActiveTab(tab);
   }, []);
 
-  const renderTabButton = (tab: 'library' | 'discover') => (
+  const renderTabButton = (tab: "library" | "discover") => (
     <Pressable
       onPress={() => handleTabPress(tab)}
       onFocus={() => setFocusedId(`tab-${tab}`)}
       style={[
         styles.tabButton,
         activeTab === tab && styles.activeTabButton,
-        focusedId === `tab-${tab}` && styles.focusedTabButton
+        focusedId === `tab-${tab}` && styles.focusedTabButton,
       ]}
     >
-      <Text style={[
-        styles.tabButtonText,
-        activeTab === tab && styles.activeTabButtonText
-      ]}>
-        {tab === 'library' ? t('search.library') : t('search.discover')}
+      <Text
+        style={[
+          styles.tabButtonText,
+          activeTab === tab && styles.activeTabButtonText,
+        ]}
+      >
+        {tab === "library" ? t("search.library") : t("search.discover")}
       </Text>
     </Pressable>
   );
 
   const renderSearchItem = ({ item }: { item: BaseItemDto }) => {
-    const imageUrl = api?.getImageUrl(item.Id || "", { 
-      fillHeight: 300, 
-      fillWidth: 200, 
-      quality: 90 
+    const imageUrl = api?.getImageUrl(item.Id || "", {
+      fillHeight: 300,
+      fillWidth: 200,
+      quality: 90,
     });
 
     return (
@@ -117,7 +125,7 @@ export default function TVSearchPage() {
         onPress={() => handleItemPress(item)}
         style={[
           styles.mediaItem,
-          focusedId === item.Id && styles.focusedMediaItem
+          focusedId === item.Id && styles.focusedMediaItem,
         ]}
       >
         <Image
@@ -132,14 +140,20 @@ export default function TVSearchPage() {
     );
   };
 
-  const renderSuggestion = ({ item, index }: { item: string, index: number }) => (
+  const renderSuggestion = ({
+    item,
+    index,
+  }: {
+    item: string;
+    index: number;
+  }) => (
     <Pressable
       onFocus={() => setFocusedId(`suggestion-${index}`)}
       onBlur={() => setFocusedId(null)}
       onPress={() => handleSuggestionPress(item)}
       style={[
         styles.suggestionItem,
-        focusedId === `suggestion-${index}` && styles.focusedSuggestionItem
+        focusedId === `suggestion-${index}` && styles.focusedSuggestionItem,
       ]}
     >
       <Text style={styles.suggestionText}>{item}</Text>
@@ -157,7 +171,7 @@ export default function TVSearchPage() {
       return (
         <View style={styles.resultsContainer}>
           <View style={styles.resultsGrid}>
-            {searchResults.map(item => (
+            {searchResults.map((item) => (
               <View key={item.Id} style={styles.mediaItemContainer}>
                 {renderSearchItem({ item })}
               </View>
@@ -177,7 +191,10 @@ export default function TVSearchPage() {
           <Text style={styles.sectionTitle}>{t("search.suggestions")}</Text>
           <View style={styles.suggestionsGrid}>
             {SUGGESTED_SEARCHES.map((item, index) => (
-              <View key={`suggestion-${index}`} style={styles.suggestionItemContainer}>
+              <View
+                key={`suggestion-${index}`}
+                style={styles.suggestionItemContainer}
+              >
                 {renderSuggestion({ item, index })}
               </View>
             ))}
@@ -191,7 +208,9 @@ export default function TVSearchPage() {
     return (
       <View style={styles.jellyseerrContainer}>
         <Text style={styles.jellyseerrTitle}>
-          {searchQuery ? t("search.jellyseerr_results") : t("search.jellyseerr_discover")}
+          {searchQuery
+            ? t("search.jellyseerr_results")
+            : t("search.jellyseerr_discover")}
         </Text>
         <View style={styles.jellyseerrContent}>
           <Text style={styles.jellyseerrMessage}>
@@ -205,8 +224,8 @@ export default function TVSearchPage() {
   return (
     <View style={styles.container}>
       <View style={styles.tabsContainer}>
-        {renderTabButton('library')}
-        {renderTabButton('discover')}
+        {renderTabButton("library")}
+        {renderTabButton("discover")}
       </View>
 
       <View style={styles.searchInputContainer}>
@@ -219,7 +238,9 @@ export default function TVSearchPage() {
       </View>
 
       <View style={styles.contentContainer}>
-        {activeTab === 'library' ? renderLibraryContent() : renderDiscoverContent()}
+        {activeTab === "library"
+          ? renderLibraryContent()
+          : renderDiscoverContent()}
       </View>
     </View>
   );
@@ -281,12 +302,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   suggestionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     padding: 10,
   },
   suggestionItemContainer: {
-    width: '33.33%',
+    width: "33.33%",
     padding: 10,
   },
   suggestionItem: {
@@ -309,12 +330,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resultsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     padding: 10,
   },
   mediaItemContainer: {
-    width: '20%',
+    width: "20%",
     padding: 10,
   },
   mediaItem: {
@@ -327,7 +348,7 @@ const styles = StyleSheet.create({
   },
   mediaImage: {
     width: "100%",
-    aspectRatio: 2/3,
+    aspectRatio: 2 / 3,
     borderRadius: 8,
   },
   mediaTitle: {
@@ -354,5 +375,5 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     textAlign: "center",
-  }
+  },
 });

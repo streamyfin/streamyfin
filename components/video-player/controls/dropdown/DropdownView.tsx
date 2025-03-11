@@ -11,7 +11,10 @@ const DropdownView = () => {
   const videoContext = useVideoContext();
   const { subtitleTracks, audioTracks } = videoContext;
   const ControlContext = useControlContext();
-  const [item, mediaSource] = [ControlContext?.item, ControlContext?.mediaSource];
+  const [item, mediaSource] = [
+    ControlContext?.item,
+    ControlContext?.mediaSource,
+  ];
   const router = useRouter();
 
   const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
@@ -34,7 +37,7 @@ const DropdownView = () => {
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
     },
-    [item, mediaSource, subtitleIndex, audioIndex]
+    [item, mediaSource, subtitleIndex, audioIndex],
   );
 
   return (
@@ -54,7 +57,9 @@ const DropdownView = () => {
         sideOffset={8}
       >
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="qualitytrigger">Quality</DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger key="qualitytrigger">
+            Quality
+          </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent
             alignOffset={-10}
             avoidCollisions={true}
@@ -66,15 +71,21 @@ const DropdownView = () => {
               <DropdownMenu.CheckboxItem
                 key={`quality-item-${idx}`}
                 value={bitrateValue === (bitrate.value?.toString() ?? "")}
-                onValueChange={() => changeBitrate(bitrate.value?.toString() ?? "")}
+                onValueChange={() =>
+                  changeBitrate(bitrate.value?.toString() ?? "")
+                }
               >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>{bitrate.key}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                  {bitrate.key}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.CheckboxItem>
             ))}
           </DropdownMenu.SubContent>
         </DropdownMenu.Sub>
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="subtitle-trigger">Subtitle</DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger key="subtitle-trigger">
+            Subtitle
+          </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent
             alignOffset={-10}
             avoidCollisions={true}
@@ -88,13 +99,17 @@ const DropdownView = () => {
                 value={subtitleIndex === sub.index.toString()}
                 onValueChange={() => sub.setTrack()}
               >
-                <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>{sub.name}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
+                  {sub.name}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.CheckboxItem>
             ))}
           </DropdownMenu.SubContent>
         </DropdownMenu.Sub>
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="audio-trigger">Audio</DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger key="audio-trigger">
+            Audio
+          </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent
             alignOffset={-10}
             avoidCollisions={true}
@@ -108,7 +123,9 @@ const DropdownView = () => {
                 value={audioIndex === track.index.toString()}
                 onValueChange={() => track.setTrack()}
               >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>{track.name}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                  {track.name}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.CheckboxItem>
             ))}
           </DropdownMenu.SubContent>

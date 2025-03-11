@@ -25,7 +25,7 @@ export const AppLanguageSelector: React.FC<Props> = ({ ...props }) => {
               <TouchableOpacity className="bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
                 <Text>
                   {APP_LANGUAGES.find(
-                    (l) => l.value === settings?.preferedLanguage
+                    (l) => l.value === settings?.preferedLanguage,
                   )?.label || t("home.settings.languages.system")}
                 </Text>
               </TouchableOpacity>

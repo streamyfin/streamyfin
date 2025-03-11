@@ -37,7 +37,7 @@ const Page: React.FC = () => {
         {
           paddingLeft: insets.left,
           paddingRight: insets.right,
-        }
+        },
       ]}
     >
       <View style={styles.content}>
@@ -45,22 +45,24 @@ const Page: React.FC = () => {
           <Text style={styles.title}>{mediaTitle}</Text>
           <Text style={styles.year}>{releaseYear}</Text>
         </View>
-        
+
         <View style={styles.posterContainer}>
           {posterSrc ? (
-            <Image
-              style={styles.poster}
-              source={{ uri: posterSrc }}
-            />
+            <Image style={styles.poster} source={{ uri: posterSrc }} />
           ) : (
             <View style={styles.noPoster}>
               <Ionicons name="image-outline" size={48} color="white" />
             </View>
           )}
         </View>
-        
+
         <View style={styles.messageContainer}>
-          <Ionicons name="tv-outline" size={48} color={Colors.primary} style={styles.icon} />
+          <Ionicons
+            name="tv-outline"
+            size={48}
+            color={Colors.primary}
+            style={styles.icon}
+          />
           <Text style={styles.message}>
             {t("jellyseerr.not_available_on_tv")}
           </Text>
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#888",
     textAlign: "center",
-  }
+  },
 });
 
 export default Page;

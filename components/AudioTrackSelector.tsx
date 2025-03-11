@@ -20,12 +20,12 @@ export const AudioTrackSelector: React.FC<Props> = ({
   if (Platform.isTV) return null;
   const audioStreams = useMemo(
     () => source?.MediaStreams?.filter((x) => x.Type === "Audio"),
-    [source]
+    [source],
   );
 
   const selectedAudioSteam = useMemo(
     () => audioStreams?.find((x) => x.Index === selected),
-    [audioStreams, selected]
+    [audioStreams, selected],
   );
 
   const { t } = useTranslation();

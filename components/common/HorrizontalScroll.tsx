@@ -19,7 +19,10 @@ interface Props<T> {
 }
 
 export const HorizontalScroll = forwardRef<HorizontalScrollRef, Props<any>>(
-  ({ data, renderItem, keyExtractor, loading, noItemsText, height, extraData }, ref) => {
+  (
+    { data, renderItem, keyExtractor, loading, noItemsText, height, extraData },
+    ref,
+  ) => {
     const scrollRef = useRef<ScrollView>(null);
     const itemRefs = useRef<View[]>([]);
 
@@ -35,7 +38,7 @@ export const HorizontalScroll = forwardRef<HorizontalScrollRef, Props<any>>(
                 animated: true,
               });
             },
-            () => {}
+            () => {},
           );
         }
       },
@@ -79,10 +82,13 @@ export const HorizontalScroll = forwardRef<HorizontalScrollRef, Props<any>>(
           {data.map((item, index) => {
             // Extract the rendered item
             const renderedItem = renderItem(item, index);
-            
+
             // If the rendered item is already a TVFocusable, return it as is
-            if (Platform.isTV && React.isValidElement(renderedItem) && 
-                renderedItem.type === TVFocusable) {
+            if (
+              Platform.isTV &&
+              React.isValidElement(renderedItem) &&
+              renderedItem.type === TVFocusable
+            ) {
               return (
                 <View
                   key={keyExtractor?.(item, index) || index}
@@ -93,7 +99,7 @@ export const HorizontalScroll = forwardRef<HorizontalScrollRef, Props<any>>(
                 </View>
               );
             }
-            
+
             // Otherwise wrap it in a TVFocusable if on TV platform
             return (
               <View
@@ -117,5 +123,5 @@ export const HorizontalScroll = forwardRef<HorizontalScrollRef, Props<any>>(
         </View>
       </ScrollView>
     );
-  }
+  },
 );

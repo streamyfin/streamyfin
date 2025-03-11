@@ -19,16 +19,16 @@ import { Ionicons } from "@expo/vector-icons";
 // This is a completely new implementation for TV series detail page
 export default function TVSeriesDetailPage() {
   console.log("RENDERING TV SERIES DETAIL PAGE - COMPLETELY NEW VERSION");
-  
+
   const { t } = useTranslation();
   const params = useLocalSearchParams();
   const { seriesId } = params as { seriesId: string };
   console.log("Series ID from params:", seriesId);
-  
+
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [currentSeasonIndex, setCurrentSeasonIndex] = useState(0);
-  
+
   // Fetch series details
   const { data: series } = useQuery({
     queryKey: ["series", seriesId],
@@ -53,18 +53,18 @@ export default function TVSeriesDetailPage() {
     },
     enabled: !!api && !!user?.Id && !!seriesId,
   });
-  
+
   // Fetch seasons
   const { data: seasons, isLoading: loadingSeasons } = useQuery({
     queryKey: ["seasons", seriesId],
     queryFn: async () => {
       console.log(`Fetching seasons for series ${series?.Name || seriesId}`);
-      
+
       if (!api || !user?.Id || !seriesId) {
         console.log("Missing API, user ID, or series ID for seasons");
         return [];
       }
-      
+
       try {
         const response = await api.axiosInstance.get(
           `${api.basePath}/Shows/${seriesId}/Seasons`,
@@ -72,25 +72,28 @@ export default function TVSeriesDetailPage() {
             params: {
               userId: user.Id,
               itemId: seriesId,
-              Fields: "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
+              Fields:
+                "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
             },
             headers: {
               Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
             },
-          }
+          },
         );
 
         const items = response.data.Items || [];
-        console.log(`Found ${items.length} seasons for ${series?.Name || seriesId}`);
-        
+        console.log(
+          `Found ${items.length} seasons for ${series?.Name || seriesId}`,
+        );
+
         if (items.length > 0) {
           console.log("First season:", {
             name: items[0].Name,
             index: items[0].IndexNumber,
-            id: items[0].Id
+            id: items[0].Id,
           });
         }
-        
+
         // Sort seasons by index number
         return items.sort((a, b) => {
           const aIndex = a.IndexNumber || 999;
@@ -98,24 +101,33 @@ export default function TVSeriesDetailPage() {
           return aIndex - bIndex;
         });
       } catch (error) {
-        console.error(`Error fetching seasons for ${series?.Name || seriesId}:`, error);
+        console.error(
+          `Error fetching seasons for ${series?.Name || seriesId}:`,
+          error,
+        );
         return [];
       }
     },
     enabled: !!api && !!user?.Id && !!seriesId,
   });
-  
+
   // Fetch episodes for current season
   const { data: episodes, isLoading: loadingEpisodes } = useQuery({
     queryKey: ["episodes", seriesId, seasons?.[currentSeasonIndex]?.Id],
     queryFn: async () => {
-      if (!api || !user?.Id || !seriesId || !seasons || !seasons[currentSeasonIndex]?.Id) {
+      if (
+        !api ||
+        !user?.Id ||
+        !seriesId ||
+        !seasons ||
+        !seasons[currentSeasonIndex]?.Id
+      ) {
         console.log("Missing data for episode fetch:", {
           hasApi: !!api,
           hasUserId: !!user?.Id,
           hasSeriesId: !!seriesId,
           hasSeasons: !!seasons,
-          seasonId: seasons?.[currentSeasonIndex]?.Id
+          seasonId: seasons?.[currentSeasonIndex]?.Id,
         });
         return [];
       }
@@ -123,32 +135,46 @@ export default function TVSeriesDetailPage() {
       const seasonId = seasons[currentSeasonIndex].Id;
       const seasonName = seasons[currentSeasonIndex].Name;
       console.log(`Fetching episodes for ${seasonName} (${seasonId})`);
-      
+
       try {
         const res = await getTvShowsApi(api).getEpisodes({
           seriesId: seriesId,
           userId: user.Id,
           seasonId: seasonId,
           enableUserData: true,
-          fields: ["MediaSources", "MediaStreams", "Overview", "PrimaryImageAspectRatio", "ImageTags"],
+          fields: [
+            "MediaSources",
+            "MediaStreams",
+            "Overview",
+            "PrimaryImageAspectRatio",
+            "ImageTags",
+          ],
         });
 
-        console.log(`Found ${res.data.Items?.length || 0} episodes for ${seasonName}`);
+        console.log(
+          `Found ${res.data.Items?.length || 0} episodes for ${seasonName}`,
+        );
         return res.data.Items || [];
       } catch (error) {
         console.error(`Error fetching episodes for ${seasonName}:`, error);
         return [];
       }
     },
-    enabled: !!api && !!user?.Id && !!seriesId && !!seasons && seasons.length > 0 && !!seasons[currentSeasonIndex]?.Id,
+    enabled:
+      !!api &&
+      !!user?.Id &&
+      !!seriesId &&
+      !!seasons &&
+      seasons.length > 0 &&
+      !!seasons[currentSeasonIndex]?.Id,
   });
-  
+
   // Fetch next up episodes
   const { data: nextUp } = useQuery({
     queryKey: ["nextUp", seriesId],
     queryFn: async () => {
       if (!api || !user?.Id || !seriesId) return [];
-      
+
       try {
         const response = await api.axiosInstance.get(
           `${api.basePath}/Shows/NextUp`,
@@ -157,15 +183,18 @@ export default function TVSeriesDetailPage() {
               userId: user.Id,
               seriesId: seriesId,
               limit: 1,
-              Fields: "MediaSources,MediaStreams,Overview,PrimaryImageAspectRatio,ImageTags",
+              Fields:
+                "MediaSources,MediaStreams,Overview,PrimaryImageAspectRatio,ImageTags",
             },
             headers: {
               Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
             },
-          }
+          },
         );
-        
-        console.log(`Found ${response.data.Items?.length || 0} next up episodes`);
+
+        console.log(
+          `Found ${response.data.Items?.length || 0} next up episodes`,
+        );
         return response.data.Items || [];
       } catch (error) {
         console.error("Error fetching next up:", error);
@@ -174,7 +203,7 @@ export default function TVSeriesDetailPage() {
     },
     enabled: !!api && !!user?.Id && !!seriesId,
   });
-  
+
   const backdropUrl = useMemo(() => {
     if (!api || !series) return undefined;
     return getBackdropUrl({
@@ -184,7 +213,7 @@ export default function TVSeriesDetailPage() {
       width: 1920,
     });
   }, [api, series]);
-  
+
   const logoUrl = useMemo(() => {
     if (!api || !series) return undefined;
     return getLogoImageUrlById({
@@ -196,20 +225,22 @@ export default function TVSeriesDetailPage() {
   const handlePrevSeason = useCallback(() => {
     console.log("Previous season button pressed");
     if (!seasons || seasons.length === 0) return;
-    setCurrentSeasonIndex(prev => (prev > 0 ? prev - 1 : prev));
+    setCurrentSeasonIndex((prev) => (prev > 0 ? prev - 1 : prev));
   }, [seasons]);
 
   const handleNextSeason = useCallback(() => {
     console.log("Next season button pressed");
     if (!seasons || seasons.length === 0) return;
-    setCurrentSeasonIndex(prev => (prev < seasons.length - 1 ? prev + 1 : prev));
+    setCurrentSeasonIndex((prev) =>
+      prev < seasons.length - 1 ? prev + 1 : prev,
+    );
   }, [seasons]);
 
   const currentSeason = useMemo(() => {
     if (!seasons || seasons.length === 0) return null;
     return seasons[currentSeasonIndex];
   }, [seasons, currentSeasonIndex]);
-  
+
   console.log("Current render state:", {
     hasSeasons: !!seasons && seasons.length > 0,
     seasonsCount: seasons?.length || 0,
@@ -217,9 +248,9 @@ export default function TVSeriesDetailPage() {
     currentSeasonName: currentSeason?.Name,
     loadingSeasons,
     loadingEpisodes,
-    episodesCount: episodes?.length || 0
+    episodesCount: episodes?.length || 0,
   });
-  
+
   if (!series) {
     return (
       <View style={styles.loadingContainer}>
@@ -227,16 +258,18 @@ export default function TVSeriesDetailPage() {
       </View>
     );
   }
-  
+
   return (
     <ScrollView style={styles.container}>
       {/* Debug banner */}
       <View style={styles.debugBanner}>
         <Text style={styles.debugText}>
-          DEBUG: Series: {series.Name} | Seasons: {seasons?.length || 0} | Current Season: {currentSeason?.Name || "None"} | Episodes: {episodes?.length || 0}
+          DEBUG: Series: {series.Name} | Seasons: {seasons?.length || 0} |
+          Current Season: {currentSeason?.Name || "None"} | Episodes:{" "}
+          {episodes?.length || 0}
         </Text>
       </View>
-      
+
       {/* Hero section with backdrop */}
       <View style={styles.heroContainer}>
         {backdropUrl && (
@@ -256,7 +289,7 @@ export default function TVSeriesDetailPage() {
           ) : (
             <Text style={styles.seriesTitle}>{series.Name}</Text>
           )}
-          
+
           <View style={styles.seriesInfo}>
             {series.ProductionYear && (
               <Text style={styles.seriesInfoText}>{series.ProductionYear}</Text>
@@ -266,13 +299,13 @@ export default function TVSeriesDetailPage() {
             )}
             <AddToFavorites item={series} size="large" />
           </View>
-          
+
           <Text style={styles.seriesOverview} numberOfLines={3}>
             {series.Overview}
           </Text>
         </View>
       </View>
-      
+
       {/* Next Up section */}
       {nextUp && nextUp.length > 0 && (
         <View style={styles.section}>
@@ -284,57 +317,64 @@ export default function TVSeriesDetailPage() {
           </View>
         </View>
       )}
-      
+
       {/* Season selector and episodes */}
       <View style={styles.section}>
         {loadingSeasons ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>{t("library.options.loading_seasons")}</Text>
+            <Text style={styles.loadingText}>
+              {t("library.options.loading_seasons")}
+            </Text>
           </View>
         ) : seasons && seasons.length > 0 ? (
           <>
             {/* Season navigation - always visible */}
             <View style={styles.seasonHeader}>
-              <Pressable 
+              <Pressable
                 style={[
-                  styles.seasonNavButton, 
-                  currentSeasonIndex === 0 && styles.seasonNavButtonDisabled
-                ]} 
+                  styles.seasonNavButton,
+                  currentSeasonIndex === 0 && styles.seasonNavButtonDisabled,
+                ]}
                 onPress={handlePrevSeason}
                 disabled={currentSeasonIndex === 0}
               >
-                <Ionicons 
-                  name="chevron-back" 
-                  size={24} 
-                  color={currentSeasonIndex === 0 ? "#555" : "white"} 
+                <Ionicons
+                  name="chevron-back"
+                  size={24}
+                  color={currentSeasonIndex === 0 ? "#555" : "white"}
                 />
                 <Text style={styles.seasonNavText}>Previous Season</Text>
               </Pressable>
-              
+
               <Text style={styles.seasonTitle}>
                 {currentSeason?.Name || "Loading..."}
               </Text>
-              
-              <Pressable 
+
+              <Pressable
                 style={[
-                  styles.seasonNavButton, 
-                  currentSeasonIndex === seasons.length - 1 && styles.seasonNavButtonDisabled
-                ]} 
+                  styles.seasonNavButton,
+                  currentSeasonIndex === seasons.length - 1 &&
+                    styles.seasonNavButtonDisabled,
+                ]}
                 onPress={handleNextSeason}
                 disabled={currentSeasonIndex === seasons.length - 1}
               >
                 <Text style={styles.seasonNavText}>Next Season</Text>
-                <Ionicons 
-                  name="chevron-forward" 
-                  size={24} 
-                  color={currentSeasonIndex === seasons.length - 1 ? "#555" : "white"} 
+                <Ionicons
+                  name="chevron-forward"
+                  size={24}
+                  color={
+                    currentSeasonIndex === seasons.length - 1 ? "#555" : "white"
+                  }
                 />
               </Pressable>
             </View>
-            
+
             {loadingEpisodes ? (
               <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>{t("library.options.loading_episodes")}</Text>
+                <Text style={styles.loadingText}>
+                  {t("library.options.loading_episodes")}
+                </Text>
               </View>
             ) : episodes && episodes.length > 0 ? (
               <View style={styles.episodeList}>
@@ -344,13 +384,17 @@ export default function TVSeriesDetailPage() {
               </View>
             ) : (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>{t("item_card.no_episodes_for_this_season")}</Text>
+                <Text style={styles.emptyText}>
+                  {t("item_card.no_episodes_for_this_season")}
+                </Text>
               </View>
             )}
           </>
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>{t("item_card.no_seasons_available")}</Text>
+            <Text style={styles.emptyText}>
+              {t("item_card.no_seasons_available")}
+            </Text>
           </View>
         )}
       </View>

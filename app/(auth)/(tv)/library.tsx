@@ -1,5 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, TVFocusGuideView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  TVFocusGuideView,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { useJellyfin } from "@/providers/JellyfinProvider";
@@ -13,9 +20,11 @@ export default function TVLibraryPage() {
   const { t } = useTranslation();
   const { api, user } = useJellyfin();
   const [libraries, setLibraries] = useState<BaseItemDto[]>([]);
-  const [selectedLibrary, setSelectedLibrary] = useState<BaseItemDto | null>(null);
+  const [selectedLibrary, setSelectedLibrary] = useState<BaseItemDto | null>(
+    null,
+  );
   const [libraryItems, setLibraryItems] = useState<BaseItemDto[]>([]);
-  const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
+  const [isFocused, setIsFocused] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -27,7 +36,7 @@ export default function TVLibraryPage() {
           userId: user.Id!,
         });
         setLibraries(response.data.Items || []);
-        
+
         // Select first library by default
         if (response.data.Items && response.data.Items.length > 0) {
           setSelectedLibrary(response.data.Items[0]);
@@ -86,16 +95,16 @@ export default function TVLibraryPage() {
   }, []);
 
   const handleItemFocus = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: true}));
+    setIsFocused((prev) => ({ ...prev, [id]: true }));
   }, []);
 
   const handleItemBlur = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: false}));
+    setIsFocused((prev) => ({ ...prev, [id]: false }));
   }, []);
 
   const renderLibraryItem = ({ item }: { item: BaseItemDto }) => {
     const isSelected = selectedLibrary?.Id === item.Id;
-    
+
     return (
       <Pressable
         onFocus={() => handleItemFocus(item.Id!)}
@@ -104,7 +113,7 @@ export default function TVLibraryPage() {
         style={[
           styles.libraryItem,
           isSelected && styles.selectedLibrary,
-          isFocused[item.Id!] && styles.focusedLibraryItem
+          isFocused[item.Id!] && styles.focusedLibraryItem,
         ]}
       >
         <Text style={styles.libraryName}>{item.Name}</Text>
@@ -113,10 +122,10 @@ export default function TVLibraryPage() {
   };
 
   const renderMediaItem = ({ item }: { item: BaseItemDto }) => {
-    const imageUrl = api?.getImageUrl(item.Id || "", { 
-      fillHeight: 300, 
-      fillWidth: 200, 
-      quality: 90 
+    const imageUrl = api?.getImageUrl(item.Id || "", {
+      fillHeight: 300,
+      fillWidth: 200,
+      quality: 90,
     });
 
     return (
@@ -127,7 +136,7 @@ export default function TVLibraryPage() {
           onPress={() => handleItemPress(item)}
           style={[
             styles.mediaItem,
-            isFocused[`media-${item.Id!}`] && styles.focusedItem
+            isFocused[`media-${item.Id!}`] && styles.focusedItem,
           ]}
         >
           <Image
@@ -154,12 +163,12 @@ export default function TVLibraryPage() {
           contentContainerStyle={styles.libraryList}
         />
       </View>
-      
+
       <View style={styles.content}>
         {selectedLibrary && (
           <Text style={styles.contentTitle}>{selectedLibrary.Name}</Text>
         )}
-        
+
         {loading ? (
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>{t("loading")}</Text>
@@ -253,7 +262,7 @@ const styles = StyleSheet.create({
   },
   mediaImage: {
     width: "100%",
-    aspectRatio: 2/3,
+    aspectRatio: 2 / 3,
     borderRadius: 8,
   },
   mediaTitle: {

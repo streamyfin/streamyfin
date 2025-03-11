@@ -14,7 +14,11 @@ const GenrePage: React.FC = () => {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const { genreId, type, name } = params as { genreId: string; type: string; name: string };
+  const { genreId, type, name } = params as {
+    genreId: string;
+    type: string;
+    name: string;
+  };
   const [focusedButton, setFocusedButton] = useState<string | null>(null);
   const [focusedItem, setFocusedItem] = useState<string | null>(null);
   const { jellyseerrApi } = useJellyseerr();
@@ -29,36 +33,36 @@ const GenrePage: React.FC = () => {
     queryKey: ["jellyseerr", "genre", type, genreId],
     queryFn: async () => {
       // Use trending endpoint as base data source
-      const endpoint = type.includes("MOVIE") 
-        ? Endpoints.DISCOVER_TRENDING + "/movies" 
+      const endpoint = type.includes("MOVIE")
+        ? Endpoints.DISCOVER_TRENDING + "/movies"
         : Endpoints.DISCOVER_TRENDING + "/tv";
-      
+
       const trendingResults = await jellyseerrApi?.discover(endpoint, {
         page: 1,
-        language: "en"
+        language: "en",
       });
-      
+
       // Also get popular content
-      const popularEndpoint = type.includes("MOVIE") 
+      const popularEndpoint = type.includes("MOVIE")
         ? Endpoints.DISCOVER_MOVIES
         : Endpoints.DISCOVER_TV;
-        
+
       const popularResults = await jellyseerrApi?.discover(popularEndpoint, {
         page: 1,
-        language: "en"
+        language: "en",
       });
-      
+
       // Combine results
       const combinedResults = [
         ...(trendingResults?.results || []),
-        ...(popularResults?.results || [])
+        ...(popularResults?.results || []),
       ];
-      
+
       // Filter by genre ID and remove duplicates
       const uniqueIds = new Set();
-      const filteredResults = combinedResults.filter(item => {
+      const filteredResults = combinedResults.filter((item) => {
         if (
-          item.genreIds && 
+          item.genreIds &&
           item.genreIds.includes(parseInt(genreId)) &&
           !uniqueIds.has(item.id)
         ) {
@@ -67,10 +71,10 @@ const GenrePage: React.FC = () => {
         }
         return false;
       });
-      
+
       return {
         results: filteredResults,
-        totalResults: filteredResults.length
+        totalResults: filteredResults.length,
       };
     },
     enabled: !!jellyseerrApi && !!genreId,
@@ -86,16 +90,16 @@ const GenrePage: React.FC = () => {
     <View style={styles.header}>
       <Text style={styles.title}>{name || t("jellyseerr.genre_details")}</Text>
       <Text style={styles.subtitle}>
-        {data?.totalResults 
-          ? t("search.x_items", { count: data.totalResults }) 
-          : isLoading 
-            ? t("library.options.loading") 
+        {data?.totalResults
+          ? t("search.x_items", { count: data.totalResults })
+          : isLoading
+            ? t("library.options.loading")
             : t("library.no_items_found")}
       </Text>
     </View>
   );
 
-  const ListEmptyComponent = () => (
+  const ListEmptyComponent = () =>
     isLoading ? (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>{t("library.options.loading")}</Text>
@@ -105,18 +109,19 @@ const GenrePage: React.FC = () => {
         <Ionicons name="alert-circle-outline" size={64} color="#888" />
         <Text style={styles.emptyText}>{t("library.no_items_found")}</Text>
       </View>
-    )
-  );
+    );
 
   const renderItem = ({ item }) => (
-    <View 
+    <View
       style={[
         styles.posterContainer,
-        Platform.isTV && focusedItem === item.id.toString() && styles.focusedItem
+        Platform.isTV &&
+          focusedItem === item.id.toString() &&
+          styles.focusedItem,
       ]}
     >
-      <JellyseerrPoster 
-        item={item} 
+      <JellyseerrPoster
+        item={item}
         key={item.id}
         onFocus={() => Platform.isTV && setFocusedItem(item.id.toString())}
         onBlur={() => Platform.isTV && setFocusedItem(null)}
@@ -125,7 +130,7 @@ const GenrePage: React.FC = () => {
   );
 
   return (
-    <View 
+    <View
       style={[
         styles.container,
         {
@@ -133,7 +138,7 @@ const GenrePage: React.FC = () => {
           paddingRight: insets.right,
           paddingTop: insets.top,
           paddingBottom: insets.bottom,
-        }
+        },
       ]}
     >
       <FlatList
@@ -142,7 +147,8 @@ const GenrePage: React.FC = () => {
         numColumns={Platform.isTV ? 4 : 3}
         contentContainerStyle={[
           styles.gridContainer,
-          (!data?.results || data.results.length === 0) && styles.emptyGridContainer
+          (!data?.results || data.results.length === 0) &&
+            styles.emptyGridContainer,
         ]}
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={ListEmptyComponent}
@@ -153,13 +159,18 @@ const GenrePage: React.FC = () => {
         <Pressable
           style={[
             styles.backButton,
-            focusedButton === 'back' && styles.focusedButton
+            focusedButton === "back" && styles.focusedButton,
           ]}
-          onFocus={() => setFocusedButton('back')}
+          onFocus={() => setFocusedButton("back")}
           onBlur={() => setFocusedButton(null)}
           onPress={handleBackPress}
         >
-          <Ionicons name="arrow-back" size={24} color="white" style={styles.backIcon} />
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color="white"
+            style={styles.backIcon}
+          />
           <Text style={styles.backButtonText}>{t("home.downloads.back")}</Text>
         </Pressable>
       )}
@@ -220,13 +231,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 40,
     left: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#333',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#333",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
@@ -241,10 +252,10 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   backButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 18,
-    fontWeight: 'bold',
-  }
+    fontWeight: "bold",
+  },
 });
 
 export default GenrePage;

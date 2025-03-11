@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Platform, Pressable, ScrollView } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Platform,
+  Pressable,
+  ScrollView,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,7 +19,8 @@ const JellyseerrSettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const [focusedButton, setFocusedButton] = useState<string | null>(null);
-  const { jellyseerrApi, jellyseerrUser, clearAllJellyseerData } = useJellyseerr();
+  const { jellyseerrApi, jellyseerrUser, clearAllJellyseerData } =
+    useJellyseerr();
   const insets = useSafeAreaInsets();
 
   const handleBackPress = () => {
@@ -23,7 +30,9 @@ const JellyseerrSettingsPage: React.FC = () => {
   const { data: settings, isLoading: isSettingsLoading } = useQuery({
     queryKey: ["jellyseerr", "settings"],
     queryFn: async () => {
-      return jellyseerrApi?.axios.get(Endpoints.API_V1 + Endpoints.SETTINGS).then(({data}) => data);
+      return jellyseerrApi?.axios
+        .get(Endpoints.API_V1 + Endpoints.SETTINGS)
+        .then(({ data }) => data);
     },
     enabled: !!jellyseerrApi,
   });
@@ -42,102 +51,147 @@ const JellyseerrSettingsPage: React.FC = () => {
       ) : (
         <>
           <View style={styles.settingsSection}>
-            <Text style={styles.sectionTitle}>{t("jellyseerr.user_settings")}</Text>
-            
+            <Text style={styles.sectionTitle}>
+              {t("jellyseerr.user_settings")}
+            </Text>
+
             {jellyseerrUser && (
               <>
                 <View style={styles.settingRow}>
-                  <Text style={styles.settingLabel}>{t("jellyseerr.username")}:</Text>
-                  <Text style={styles.settingValue}>{jellyseerrUser.displayName}</Text>
+                  <Text style={styles.settingLabel}>
+                    {t("jellyseerr.username")}:
+                  </Text>
+                  <Text style={styles.settingValue}>
+                    {jellyseerrUser.displayName}
+                  </Text>
                 </View>
-                
+
                 <View style={styles.settingRow}>
-                  <Text style={styles.settingLabel}>{t("jellyseerr.email")}:</Text>
-                  <Text style={styles.settingValue}>{jellyseerrUser.email}</Text>
+                  <Text style={styles.settingLabel}>
+                    {t("jellyseerr.email")}:
+                  </Text>
+                  <Text style={styles.settingValue}>
+                    {jellyseerrUser.email}
+                  </Text>
                 </View>
-                
+
                 <View style={styles.settingRow}>
-                  <Text style={styles.settingLabel}>{t("jellyseerr.user_type")}:</Text>
-                  <Text style={styles.settingValue}>{jellyseerrUser.userType}</Text>
+                  <Text style={styles.settingLabel}>
+                    {t("jellyseerr.user_type")}:
+                  </Text>
+                  <Text style={styles.settingValue}>
+                    {jellyseerrUser.userType}
+                  </Text>
                 </View>
               </>
             )}
           </View>
-          
+
           {jellyseerrUser?.requestCount !== undefined && (
             <View style={styles.settingsSection}>
-              <Text style={styles.sectionTitle}>{t("jellyseerr.request_settings")}</Text>
-              
+              <Text style={styles.sectionTitle}>
+                {t("jellyseerr.request_settings")}
+              </Text>
+
               <View style={styles.settingRow}>
-                <Text style={styles.settingLabel}>{t("home.settings.plugins.jellyseerr.total_media_requests")}:</Text>
-                <Text style={styles.settingValue}>{jellyseerrUser.requestCount}</Text>
-              </View>
-              
-              <View style={styles.settingRow}>
-                <Text style={styles.settingLabel}>{t("home.settings.plugins.jellyseerr.movie_quota_limit")}:</Text>
+                <Text style={styles.settingLabel}>
+                  {t("home.settings.plugins.jellyseerr.total_media_requests")}:
+                </Text>
                 <Text style={styles.settingValue}>
-                  {jellyseerrUser.movieQuotaLimit === 0 
-                    ? t("home.settings.plugins.jellyseerr.unlimited") 
+                  {jellyseerrUser.requestCount}
+                </Text>
+              </View>
+
+              <View style={styles.settingRow}>
+                <Text style={styles.settingLabel}>
+                  {t("home.settings.plugins.jellyseerr.movie_quota_limit")}:
+                </Text>
+                <Text style={styles.settingValue}>
+                  {jellyseerrUser.movieQuotaLimit === 0
+                    ? t("home.settings.plugins.jellyseerr.unlimited")
                     : jellyseerrUser.movieQuotaLimit}
                 </Text>
               </View>
-              
+
               <View style={styles.settingRow}>
-                <Text style={styles.settingLabel}>{t("home.settings.plugins.jellyseerr.movie_quota_days")}:</Text>
+                <Text style={styles.settingLabel}>
+                  {t("home.settings.plugins.jellyseerr.movie_quota_days")}:
+                </Text>
                 <Text style={styles.settingValue}>
-                  {jellyseerrUser.movieQuotaDays === 0 
-                    ? t("home.settings.plugins.jellyseerr.unlimited") 
+                  {jellyseerrUser.movieQuotaDays === 0
+                    ? t("home.settings.plugins.jellyseerr.unlimited")
                     : jellyseerrUser.movieQuotaDays}
                 </Text>
               </View>
-              
+
               <View style={styles.settingRow}>
-                <Text style={styles.settingLabel}>{t("home.settings.plugins.jellyseerr.tv_quota_limit")}:</Text>
+                <Text style={styles.settingLabel}>
+                  {t("home.settings.plugins.jellyseerr.tv_quota_limit")}:
+                </Text>
                 <Text style={styles.settingValue}>
-                  {jellyseerrUser.tvQuotaLimit === 0 
-                    ? t("home.settings.plugins.jellyseerr.unlimited") 
+                  {jellyseerrUser.tvQuotaLimit === 0
+                    ? t("home.settings.plugins.jellyseerr.unlimited")
                     : jellyseerrUser.tvQuotaLimit}
                 </Text>
               </View>
-              
+
               <View style={styles.settingRow}>
-                <Text style={styles.settingLabel}>{t("home.settings.plugins.jellyseerr.tv_quota_days")}:</Text>
+                <Text style={styles.settingLabel}>
+                  {t("home.settings.plugins.jellyseerr.tv_quota_days")}:
+                </Text>
                 <Text style={styles.settingValue}>
-                  {jellyseerrUser.tvQuotaDays === 0 
-                    ? t("home.settings.plugins.jellyseerr.unlimited") 
+                  {jellyseerrUser.tvQuotaDays === 0
+                    ? t("home.settings.plugins.jellyseerr.unlimited")
                     : jellyseerrUser.tvQuotaDays}
                 </Text>
               </View>
             </View>
           )}
-          
+
           <View style={styles.settingsSection}>
-            <Text style={styles.sectionTitle}>{t("jellyseerr.server_settings")}</Text>
-            
+            <Text style={styles.sectionTitle}>
+              {t("jellyseerr.server_settings")}
+            </Text>
+
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>{t("jellyseerr.server_version")}:</Text>
-              <Text style={styles.settingValue}>{settings?.version || "Unknown"}</Text>
+              <Text style={styles.settingLabel}>
+                {t("jellyseerr.server_version")}:
+              </Text>
+              <Text style={styles.settingValue}>
+                {settings?.version || "Unknown"}
+              </Text>
             </View>
-            
+
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>{t("jellyseerr.server_url")}:</Text>
-              <Text style={styles.settingValue}>{jellyseerrApi?.axios.defaults.baseURL}</Text>
+              <Text style={styles.settingLabel}>
+                {t("jellyseerr.server_url")}:
+              </Text>
+              <Text style={styles.settingValue}>
+                {jellyseerrApi?.axios.defaults.baseURL}
+              </Text>
             </View>
           </View>
-          
+
           <View style={styles.buttonContainer}>
             <Pressable
               style={[
                 styles.actionButton,
                 styles.logoutButton,
-                Platform.isTV && focusedButton === 'logout' && styles.focusedButton
+                Platform.isTV &&
+                  focusedButton === "logout" &&
+                  styles.focusedButton,
               ]}
-              onFocus={() => Platform.isTV && setFocusedButton('logout')}
+              onFocus={() => Platform.isTV && setFocusedButton("logout")}
               onBlur={() => Platform.isTV && setFocusedButton(null)}
               onPress={clearAllJellyseerData}
               hasTVPreferredFocus={Platform.isTV}
             >
-              <Ionicons name="log-out-outline" size={24} color="white" style={styles.buttonIcon} />
+              <Ionicons
+                name="log-out-outline"
+                size={24}
+                color="white"
+                style={styles.buttonIcon}
+              />
               <Text style={styles.buttonText}>{t("jellyseerr.logout")}</Text>
             </Pressable>
           </View>
@@ -149,7 +203,7 @@ const JellyseerrSettingsPage: React.FC = () => {
   // TV-specific rendering
   if (Platform.isTV) {
     return (
-      <View 
+      <View
         style={[
           styles.container,
           {
@@ -157,22 +211,27 @@ const JellyseerrSettingsPage: React.FC = () => {
             paddingRight: insets.right,
             paddingTop: insets.top,
             paddingBottom: insets.bottom,
-          }
+          },
         ]}
       >
         <ScrollView contentContainerStyle={styles.tvScrollContent}>
           {renderSettingsContent()}
-          
+
           <Pressable
             style={[
               styles.backButton,
-              focusedButton === 'back' && styles.focusedButton
+              focusedButton === "back" && styles.focusedButton,
             ]}
-            onFocus={() => setFocusedButton('back')}
+            onFocus={() => setFocusedButton("back")}
             onBlur={() => setFocusedButton(null)}
             onPress={handleBackPress}
           >
-            <Ionicons name="arrow-back" size={24} color="white" style={styles.backIcon} />
+            <Ionicons
+              name="arrow-back"
+              size={24}
+              color="white"
+              style={styles.backIcon}
+            />
             <Text style={styles.buttonText}>{t("home.downloads.back")}</Text>
           </Pressable>
         </ScrollView>
@@ -257,25 +316,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
     minWidth: 200,
   },
   logoutButton: {
-    backgroundColor: '#8B0000',
+    backgroundColor: "#8B0000",
   },
   backButton: {
-    position: Platform.isTV ? 'absolute' : 'relative',
+    position: Platform.isTV ? "absolute" : "relative",
     bottom: Platform.isTV ? 40 : undefined,
     left: Platform.isTV ? 40 : undefined,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#333',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#333",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
@@ -289,10 +348,10 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   buttonText: {
-    color: 'white',
+    color: "white",
     fontSize: 18,
-    fontWeight: 'bold',
-  }
+    fontWeight: "bold",
+  },
 });
 
 export default JellyseerrSettingsPage;

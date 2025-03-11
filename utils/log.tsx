@@ -20,10 +20,10 @@ const mmkvStorage = createJSONStorage(() => ({
 const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 
 const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null
+  null,
 );
 const DownloadContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null
+  null,
 );
 
 function useLogProvider() {

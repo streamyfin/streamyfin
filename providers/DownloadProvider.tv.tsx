@@ -38,7 +38,7 @@ function useDownloadProvider() {
     async (url: string, item: BaseItemDto, mediaSource: MediaSourceInfo) => {
       return null;
     },
-    []
+    [],
   );
 
   const deleteAllFiles = async (): Promise<void> => {};

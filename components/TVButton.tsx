@@ -8,11 +8,7 @@ export const TVButton = forwardRef<any, ButtonProps>((props, ref) => {
 
   if (Platform.isTV) {
     return (
-      <TVFocusable
-        ref={ref}
-        onSelect={onPress}
-        style={style}
-      >
+      <TVFocusable ref={ref} onSelect={onPress} style={style}>
         <Button {...rest} onPress={onPress}>
           {children}
         </Button>
@@ -20,5 +16,9 @@ export const TVButton = forwardRef<any, ButtonProps>((props, ref) => {
     );
   }
 
-  return <Button ref={ref} onPress={onPress} style={style} {...rest}>{children}</Button>;
+  return (
+    <Button ref={ref} onPress={onPress} style={style} {...rest}>
+      {children}
+    </Button>
+  );
 });

@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, TVFocusGuideView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  TVFocusGuideView,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { useJellyfin } from "@/providers/JellyfinProvider";
@@ -18,7 +25,7 @@ export default function TVHomePage() {
   const [continueWatching, setContinueWatching] = useState<BaseItemDto[]>([]);
   const [latestMedia, setLatestMedia] = useState<BaseItemDto[]>([]);
   const [featuredItem, setFeaturedItem] = useState<BaseItemDto | null>(null);
-  const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
+  const [isFocused, setIsFocused] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     if (!api || !user) return;
@@ -30,7 +37,7 @@ export default function TVHomePage() {
           limit: 10,
         });
         setContinueWatching(response.data.Items || []);
-        
+
         // Set the first item as featured
         if (response.data.Items && response.data.Items.length > 0) {
           setFeaturedItem(response.data.Items[0]);
@@ -70,18 +77,18 @@ export default function TVHomePage() {
   }, []);
 
   const handleItemFocus = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: true}));
+    setIsFocused((prev) => ({ ...prev, [id]: true }));
   }, []);
 
   const handleItemBlur = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: false}));
+    setIsFocused((prev) => ({ ...prev, [id]: false }));
   }, []);
 
   const renderMediaItem = ({ item }: { item: BaseItemDto }) => {
-    const imageUrl = api?.getImageUrl(item.Id || "", { 
-      fillHeight: 300, 
-      fillWidth: 200, 
-      quality: 90 
+    const imageUrl = api?.getImageUrl(item.Id || "", {
+      fillHeight: 300,
+      fillWidth: 200,
+      quality: 90,
     });
 
     return (
@@ -90,10 +97,7 @@ export default function TVHomePage() {
           onFocus={() => handleItemFocus(item.Id!)}
           onBlur={() => handleItemBlur(item.Id!)}
           onPress={() => handleItemPress(item)}
-          style={[
-            styles.mediaItem,
-            isFocused[item.Id!] && styles.focusedItem
-          ]}
+          style={[styles.mediaItem, isFocused[item.Id!] && styles.focusedItem]}
           hasTVPreferredFocus={false}
         >
           <Image
@@ -130,7 +134,7 @@ export default function TVHomePage() {
           contentFit="cover"
         />
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          colors={["transparent", "rgba(0,0,0,0.8)"]}
           style={styles.featuredGradient}
         >
           <View style={styles.featuredContent}>
@@ -160,7 +164,7 @@ export default function TVHomePage() {
         ListHeaderComponent={
           <>
             {renderFeaturedItem()}
-            
+
             <Text style={styles.sectionTitle}>{t("continue_watching")}</Text>
             <FlatList
               horizontal
@@ -170,7 +174,7 @@ export default function TVHomePage() {
               contentContainerStyle={styles.horizontalList}
               showsHorizontalScrollIndicator={false}
             />
-            
+
             <Text style={styles.sectionTitle}>{t("latest_additions")}</Text>
             <FlatList
               horizontal

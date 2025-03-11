@@ -15,11 +15,14 @@ import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { TouchableOpacityProps, View, Platform } from "react-native";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { useTranslation } from "react-i18next"; 
+import { useTranslation } from "react-i18next";
 
 // Check if we're running on a TV platform
-const isTV = Platform.isTV || Platform.OS === 'android' && !!Platform.constants.uiMode && 
-  (Platform.constants.uiMode & 15) === 4;
+const isTV =
+  Platform.isTV ||
+  (Platform.OS === "android" &&
+    !!Platform.constants.uiMode &&
+    (Platform.constants.uiMode & 15) === 4);
 
 interface Props extends TouchableOpacityProps {
   library: BaseItemDto;
@@ -55,7 +58,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
         api,
         item: library,
       }),
-    [library]
+    [library],
   );
 
   const itemType = useMemo(() => {
@@ -107,9 +110,9 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   // For TV, always use the grid layout with taller rectangles
   if (isTV) {
     return (
-      <TouchableItemRouter 
-        item={library} 
-        className="w-full h-48" 
+      <TouchableItemRouter
+        item={library}
+        className="w-full h-48"
         {...props}
         {...(isTV && {
           hasTVPreferredFocus: false,
@@ -152,7 +155,10 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
                 color={"#e5e5e5"}
                 style={{ marginRight: 8 }}
               />
-              <Text className="font-bold text-lg text-neutral-100 flex-1" numberOfLines={1}>
+              <Text
+                className="font-bold text-lg text-neutral-100 flex-1"
+                numberOfLines={1}
+              >
                 {library.Name}
               </Text>
             </View>

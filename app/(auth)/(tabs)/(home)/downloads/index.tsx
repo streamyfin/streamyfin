@@ -4,7 +4,7 @@ import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
 import { DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtom } from "jotai";
@@ -13,7 +13,7 @@ import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { Button } from "@/components/Button";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { t } from 'i18next';
+import { t } from "i18next";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import {
   BottomSheetBackdrop,
@@ -45,7 +45,7 @@ export default function page() {
   const groupedBySeries = useMemo(() => {
     try {
       const episodes = downloadedFiles?.filter(
-        (f) => f.item.Type === "Episode"
+        (f) => f.item.Type === "Episode",
       );
       const series: { [key: string]: DownloadedItem[] } = {};
       episodes?.forEach((e) => {
@@ -73,14 +73,22 @@ export default function page() {
 
   const deleteMovies = () =>
     deleteFileByType("Movie")
-      .then(() => toast.success(t("home.downloads.toasts.deleted_all_movies_successfully")))
+      .then(() =>
+        toast.success(
+          t("home.downloads.toasts.deleted_all_movies_successfully"),
+        ),
+      )
       .catch((reason) => {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_movies"));
       });
   const deleteShows = () =>
     deleteFileByType("Episode")
-      .then(() => toast.success(t("home.downloads.toasts.deleted_all_tvseries_successfully")))
+      .then(() =>
+        toast.success(
+          t("home.downloads.toasts.deleted_all_tvseries_successfully"),
+        ),
+      )
       .catch((reason) => {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
@@ -101,7 +109,9 @@ export default function page() {
           <View className="mb-4 flex flex-col space-y-4 px-4">
             {settings?.downloadMethod === DownloadMethod.Remux && (
               <View className="bg-neutral-900 p-4 rounded-2xl">
-                <Text className="text-lg font-bold">{t("home.downloads.queue")}</Text>
+                <Text className="text-lg font-bold">
+                  {t("home.downloads.queue")}
+                </Text>
                 <Text className="text-xs opacity-70 text-red-600">
                   {t("home.downloads.queue_hint")}
                 </Text>
@@ -136,7 +146,9 @@ export default function page() {
                 </View>
 
                 {queue.length === 0 && (
-                  <Text className="opacity-50">{t("home.downloads.no_items_in_queue")}</Text>
+                  <Text className="opacity-50">
+                    {t("home.downloads.no_items_in_queue")}
+                  </Text>
                 )}
               </View>
             )}
@@ -147,7 +159,9 @@ export default function page() {
           {movies.length > 0 && (
             <View className="mb-4">
               <View className="flex flex-row items-center justify-between mb-2 px-4">
-                <Text className="text-lg font-bold">{t("home.downloads.movies")}</Text>
+                <Text className="text-lg font-bold">
+                  {t("home.downloads.movies")}
+                </Text>
                 <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
                   <Text className="text-xs font-bold">{movies?.length}</Text>
                 </View>
@@ -166,7 +180,9 @@ export default function page() {
           {groupedBySeries.length > 0 && (
             <View className="mb-4">
               <View className="flex flex-row items-center justify-between mb-2 px-4">
-                <Text className="text-lg font-bold">{t("home.downloads.tvseries")}</Text>
+                <Text className="text-lg font-bold">
+                  {t("home.downloads.tvseries")}
+                </Text>
                 <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center">
                   <Text className="text-xs font-bold">
                     {groupedBySeries?.length}
@@ -192,7 +208,9 @@ export default function page() {
           )}
           {downloadedFiles?.length === 0 && (
             <View className="flex px-4">
-              <Text className="opacity-50">{t("home.downloads.no_downloaded_items")}</Text>
+              <Text className="opacity-50">
+                {t("home.downloads.no_downloaded_items")}
+              </Text>
             </View>
           )}
         </View>
@@ -248,6 +266,6 @@ function migration_20241124() {
         style: "destructive",
         onPress: async () => await deleteAllFiles(),
       },
-    ]
+    ],
   );
 }

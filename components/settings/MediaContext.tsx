@@ -40,7 +40,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSetingsWrapper = (update: Partial<Settings>) => {
     const updateUserConfiguration = async (
-      update: Partial<UserConfiguration>
+      update: Partial<UserConfiguration>,
     ) => {
       if (api && user) {
         try {
@@ -116,10 +116,10 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
 
     const subtitlePreference = cultures.find(
-      (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference
+      (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference,
     );
     const audioPreference = cultures.find(
-      (x) => x.ThreeLetterISOLanguageName === userAudioPreference
+      (x) => x.ThreeLetterISOLanguageName === userAudioPreference,
     );
 
     updateSettings({

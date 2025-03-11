@@ -15,8 +15,11 @@ import SeriesPoster from "../posters/SeriesPoster";
 import { useTranslation } from "react-i18next";
 
 // Check if we're running on a TV platform
-const isTV = Platform.isTV || Platform.OS === 'android' && !!Platform.constants.uiMode && 
-  (Platform.constants.uiMode & 15) === 4;
+const isTV =
+  Platform.isTV ||
+  (Platform.OS === "android" &&
+    !!Platform.constants.uiMode &&
+    (Platform.constants.uiMode & 15) === 4);
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -61,14 +64,14 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   // Handle focus change for TV navigation
   const handleItemFocus = (index: number) => {
     setFocusedIndex(index);
-    
+
     // Ensure the focused item is visible by scrolling if needed
     if (isTV && scrollViewRef.current) {
       // Calculate the scroll position to make the focused item visible
       const scrollX = index * (itemWidth + 8) - 16; // 8px for margin, 16px for padding
       scrollViewRef.current.scrollTo({
         x: scrollX,
-        animated: true
+        animated: true,
       });
     }
   };
@@ -115,9 +118,9 @@ export const ScrollingCollectionList: React.FC<Props> = ({
           ))}
         </View>
       ) : (
-        <ScrollView 
+        <ScrollView
           ref={scrollViewRef}
-          horizontal 
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16 }}
         >
@@ -129,7 +132,9 @@ export const ScrollingCollectionList: React.FC<Props> = ({
                 className={`mr-2 
                   ${orientation === "horizontal" ? "w-44" : "w-28"}
                 `}
-                ref={ref => { itemRefs.current[index] = ref; }}
+                ref={(ref) => {
+                  itemRefs.current[index] = ref;
+                }}
                 onFocus={() => handleItemFocus(index)}
                 {...(isTV && {
                   hasTVPreferredFocus: index === 0,

@@ -20,7 +20,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
         pathname: `/(auth)/(tabs)/${from}/jellyseerr/genre/${genre.id}`,
         params: { type: slide.type, name: genre.name },
       }),
-    [slide]
+    [slide],
   );
 
   const { data, isFetching, isLoading } = useQuery({
@@ -29,7 +29,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
       return jellyseerrApi?.getGenreSliders(
         slide.type == DiscoverSliderType.MOVIE_GENRES
           ? Endpoints.MOVIE
-          : Endpoints.TV
+          : Endpoints.TV,
       );
     },
     enabled: !!jellyseerrApi,
@@ -48,13 +48,13 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
               className="w-28 rounded-lg overflow-hidden border border-neutral-900"
               id={item.id.toString()}
               title={item.name}
-              colors={['transparent', 'transparent']}
+              colors={["transparent", "transparent"]}
               contentFit={"cover"}
               url={jellyseerrApi?.imageProxy(
                 item.backdrops?.[0],
                 `w780_filter(duotone,${
                   genreColorMap[item.id] ?? genreColorMap[0]
-                })`
+                })`,
               )}
             />
           </TouchableOpacity>

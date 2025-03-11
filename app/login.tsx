@@ -119,7 +119,7 @@ const Login: React.FC = () => {
       } else {
         Alert.alert(
           t("login.connection_failed"),
-          t("login.an_unexpected_error_occured")
+          t("login.an_unexpected_error_occured"),
         );
       }
     } finally {
@@ -163,7 +163,7 @@ const Login: React.FC = () => {
     if (result === undefined) {
       Alert.alert(
         t("login.connection_failed"),
-        t("login.could_not_connect_to_server")
+        t("login.could_not_connect_to_server"),
       );
       return;
     }
@@ -182,13 +182,13 @@ const Login: React.FC = () => {
             {
               text: t("login.got_it"),
             },
-          ]
+          ],
         );
       }
     } catch (error) {
       Alert.alert(
         t("login.error_title"),
-        t("login.failed_to_initiate_quick_connect")
+        t("login.failed_to_initiate_quick_connect"),
       );
     }
   };

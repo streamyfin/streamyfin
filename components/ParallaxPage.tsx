@@ -1,6 +1,11 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { type PropsWithChildren, type ReactElement } from "react";
-import {NativeScrollEvent, NativeSyntheticEvent, View, ViewProps} from "react-native";
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  View,
+  ViewProps,
+} from "react-native";
 import Animated, {
   interpolate,
   useAnimatedRef,
@@ -35,23 +40,28 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
           translateY: interpolate(
             scrollOffset.value,
             [-headerHeight, 0, headerHeight],
-            [-headerHeight / 2, 0, headerHeight * 0.75]
+            [-headerHeight / 2, 0, headerHeight * 0.75],
           ),
         },
         {
           scale: interpolate(
             scrollOffset.value,
             [-headerHeight, 0, headerHeight],
-            [2, 1, 1]
+            [2, 1, 1],
           ),
         },
       ],
     };
   });
 
-
-  function isCloseToBottom({layoutMeasurement, contentOffset, contentSize}: NativeScrollEvent) {
-    return layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+  function isCloseToBottom({
+    layoutMeasurement,
+    contentOffset,
+    contentSize,
+  }: NativeScrollEvent) {
+    return (
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - 20
+    );
   }
 
   return (
@@ -62,9 +72,8 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
         }}
         ref={scrollRef}
         scrollEventThrottle={16}
-        onScroll={e => {
-          if (isCloseToBottom(e.nativeEvent))
-            onEndReached?.()
+        onScroll={(e) => {
+          if (isCloseToBottom(e.nativeEvent)) onEndReached?.();
         }}
       >
         {logo && (

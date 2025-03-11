@@ -44,7 +44,7 @@ interface JellyfinContextValue {
 }
 
 const JellyfinContext = createContext<JellyfinContextValue | undefined>(
-  undefined
+  undefined,
 );
 
 export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
@@ -67,7 +67,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               name: deviceName,
               id,
             },
-          })
+          }),
       );
       setDeviceId(id);
     })();
@@ -103,7 +103,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         null,
         {
           headers,
-        }
+        },
       );
       if (response?.status === 200) {
         setSecret(response?.data?.Secret);
@@ -123,7 +123,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
     try {
       const response = await api.axiosInstance.get(
-        `${api.basePath}/QuickConnect/Connect?Secret=${secret}`
+        `${api.basePath}/QuickConnect/Connect?Secret=${secret}`,
       );
 
       if (response.status === 200) {
@@ -137,7 +137,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             },
             {
               headers,
-            }
+            },
           );
 
           const { AccessToken, User } = authResponse.data;
@@ -166,7 +166,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       await refreshStreamyfinPluginSettings();
     })();
   }, []);
-  
+
   useEffect(() => {
     store.set(apiAtom, api);
   }, [api]);
@@ -175,9 +175,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
 
   const discoverServers = async (url: string): Promise<Server[]> => {
-    const servers = await jellyfin?.discovery.getRecommendedServerCandidates(
-      url
-    );
+    const servers =
+      await jellyfin?.discovery.getRecommendedServerCandidates(url);
     return servers?.map((server) => ({ address: server.address })) || [];
   };
 
@@ -192,7 +191,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
     onSuccess: (_, server) => {
       const previousServers = JSON.parse(
-        storage.getString("previousServers") || "[]"
+        storage.getString("previousServers") || "[]",
       );
       const updatedServers = [
         server,
@@ -200,7 +199,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       ];
       storage.set(
         "previousServers",
-        JSON.stringify(updatedServers.slice(0, 5))
+        JSON.stringify(updatedServers.slice(0, 5)),
       );
     },
     onError: (error) => {
@@ -240,7 +239,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           if (recentPluginSettings?.jellyseerrServerUrl?.value) {
             const jellyseerrApi = new JellyseerrApi(
-              recentPluginSettings.jellyseerrServerUrl.value
+              recentPluginSettings.jellyseerrServerUrl.value,
             );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
@@ -256,23 +255,23 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               throw new Error(t("login.invalid_username_or_password"));
             case 403:
               throw new Error(
-                t("login.user_does_not_have_permission_to_log_in")
+                t("login.user_does_not_have_permission_to_log_in"),
               );
             case 408:
               throw new Error(
-                t("login.server_is_taking_too_long_to_respond_try_again_later")
+                t("login.server_is_taking_too_long_to_respond_try_again_later"),
               );
             case 429:
               throw new Error(
-                t("login.server_received_too_many_requests_try_again_later")
+                t("login.server_received_too_many_requests_try_again_later"),
               );
             case 500:
               throw new Error(t("login.there_is_a_server_error"));
             default:
               throw new Error(
                 t(
-                  "login.an_unexpected_error_occured_did_you_enter_the_correct_url"
-                )
+                  "login.an_unexpected_error_occured_did_you_enter_the_correct_url",
+                ),
               );
           }
         }

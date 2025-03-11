@@ -6,7 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
-import { ScrollView, TouchableOpacity, View, ViewProps, Platform } from "react-native";
+import {
+  ScrollView,
+  TouchableOpacity,
+  View,
+  ViewProps,
+  Platform,
+} from "react-native";
 import { Text } from "./common/Text";
 import { ItemCardText } from "./ItemCardText";
 import { Loader } from "./Loader";
@@ -45,7 +51,7 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
 
   const movies = useMemo(
     () => similarItems?.filter((i) => i.Type === "Movie") || [],
-    [similarItems]
+    [similarItems],
   );
 
   const renderItem = (item: BaseItemDto, index: number) => {
@@ -86,7 +92,9 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
 
   return (
     <View {...props}>
-      <Text className="px-4 text-lg font-bold mb-2">{t("item_card.similar_items")}</Text>
+      <Text className="px-4 text-lg font-bold mb-2">
+        {t("item_card.similar_items")}
+      </Text>
       <HorizontalScroll
         data={movies}
         loading={isLoading}

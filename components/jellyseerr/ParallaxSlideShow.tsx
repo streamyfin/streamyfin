@@ -5,25 +5,22 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {Dimensions, View, ViewProps} from "react-native";
+import { Dimensions, View, ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { Text } from "@/components/common/Text";
 import { Animated } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import {useFocusEffect} from "expo-router";
+import { useFocusEffect } from "expo-router";
 
 const ANIMATION_ENTER = 250;
 const ANIMATION_EXIT = 250;
 const BACKDROP_DURATION = 5000;
 
-type Render = React.ComponentType<any>
-  | React.ReactElement
-  | null
-  | undefined;
+type Render = React.ComponentType<any> | React.ReactElement | null | undefined;
 
 interface Props<T> {
-  data: T[]
+  data: T[];
   images: string[];
   logo?: React.ReactElement;
   HeaderContent?: () => React.ReactElement;
@@ -45,8 +42,7 @@ const ParallaxSlideShow = <T extends unknown>({
   keyExtractor,
   onEndReached,
   ...props
-}: PropsWithChildren<Props<T> & ViewProps>
-) => {
+}: PropsWithChildren<Props<T> & ViewProps>) => {
   const insets = useSafeAreaInsets();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -59,7 +55,7 @@ const ParallaxSlideShow = <T extends unknown>({
         duration: ANIMATION_ENTER,
         useNativeDriver: true,
       }),
-    [fadeAnim]
+    [fadeAnim],
   );
 
   const exitAnimation = useCallback(
@@ -69,7 +65,7 @@ const ParallaxSlideShow = <T extends unknown>({
         duration: ANIMATION_EXIT,
         useNativeDriver: true,
       }),
-    [fadeAnim]
+    [fadeAnim],
   );
 
   useEffect(() => {
@@ -77,20 +73,24 @@ const ParallaxSlideShow = <T extends unknown>({
       enterAnimation().start();
 
       const intervalId = setInterval(() => {
-        Animated.sequence([
-          enterAnimation(),
-          exitAnimation()
-        ]).start(() => {
+        Animated.sequence([enterAnimation(), exitAnimation()]).start(() => {
           fadeAnim.setValue(0);
           setCurrentIndex((prevIndex) => (prevIndex + 1) % images?.length);
-        })
+        });
       }, BACKDROP_DURATION);
 
       return () => {
-        clearInterval(intervalId)
+        clearInterval(intervalId);
       };
     }
-  }, [fadeAnim, images, enterAnimation, exitAnimation, setCurrentIndex, currentIndex]);
+  }, [
+    fadeAnim,
+    images,
+    enterAnimation,
+    exitAnimation,
+    setCurrentIndex,
+    currentIndex,
+  ]);
 
   return (
     <View
@@ -144,7 +144,7 @@ const ParallaxSlideShow = <T extends unknown>({
               nestedScrollEnabled
               showsVerticalScrollIndicator={false}
               //@ts-ignore
-              renderItem={({ item, index}) => renderItem(item, index)}
+              renderItem={({ item, index }) => renderItem(item, index)}
               keyExtractor={keyExtractor}
               numColumns={3}
               estimatedItemSize={214}
@@ -155,6 +155,6 @@ const ParallaxSlideShow = <T extends unknown>({
       </ParallaxScrollView>
     </View>
   );
-}
+};
 
 export default ParallaxSlideShow;

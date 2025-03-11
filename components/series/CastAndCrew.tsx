@@ -51,7 +51,10 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const renderPerson = (person: BaseItemPerson, index: number) => {
     const content = (
       <View className="flex flex-col w-28">
-        <Poster id={person.id} url={getPrimaryImageUrl({ api, item: person })} />
+        <Poster
+          id={person.id}
+          url={getPrimaryImageUrl({ api, item: person })}
+        />
         <Text className="mt-2">{person.Name}</Text>
         <Text className="text-xs opacity-50">{person.Role}</Text>
       </View>
@@ -81,10 +84,12 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
 
   return (
     <View {...props} className="flex flex-col">
-      <Text className="text-lg font-bold mb-2 px-4">{t("item_card.cast_and_crew")}</Text>
+      <Text className="text-lg font-bold mb-2 px-4">
+        {t("item_card.cast_and_crew")}
+      </Text>
       <HorizontalScroll
         loading={loading}
-        keyExtractor={(i) => i.Id?.toString() || ''}
+        keyExtractor={(i) => i.Id?.toString() || ""}
         height={247}
         data={distinctPeople}
         renderItem={renderPerson}

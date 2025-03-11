@@ -57,7 +57,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           headers: {
             Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
           },
-        }
+        },
       );
 
       return response.data.Items as BaseItemDto[];
@@ -75,7 +75,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     }
 
     const previousId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! - 1
+      (ep) => ep.IndexNumber === item.IndexNumber! - 1,
     )?.Id;
     if (previousId) {
       queryClient.prefetchQuery({
@@ -91,7 +91,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     }
 
     const nextId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! + 1
+      (ep) => ep.IndexNumber === item.IndexNumber! + 1,
     )?.Id;
     if (nextId) {
       queryClient.prefetchQuery({
@@ -124,9 +124,11 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
 
   const renderEpisode = (episode: BaseItemDto, index: number) => {
     const isCurrentEpisode = item?.Id === episode.Id;
-    
+
     const content = (
-      <View className={`flex flex-col w-44 ${isCurrentEpisode ? "" : "opacity-50"}`}>
+      <View
+        className={`flex flex-col w-44 ${isCurrentEpisode ? "" : "opacity-50"}`}
+      >
         <ContinueWatchingPoster item={episode} useEpisodePoster />
         <ItemCardText item={episode} />
       </View>

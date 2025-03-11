@@ -1,7 +1,7 @@
-import React, { forwardRef, useRef } from 'react';
-import { Platform, TextInput, TextInputProps, View } from 'react-native';
-import { TVFocusable } from './common/TVFocusable';
-import { Input } from './common/Input';
+import React, { forwardRef, useRef } from "react";
+import { Platform, TextInput, TextInputProps, View } from "react-native";
+import { TVFocusable } from "./common/TVFocusable";
+import { Input } from "./common/Input";
 
 interface TVInputProps extends TextInputProps {
   hasTVPreferredFocus?: boolean;
@@ -25,7 +25,7 @@ export const TVInput = forwardRef<TextInput, TVInputProps>((props, ref) => {
 
   const localInputRef = useRef<TextInput>(null);
   const tvFocusableRef = useRef(null);
-  
+
   // Combine the forwarded ref with our local ref
   const inputRef = (ref || localInputRef) as React.RefObject<TextInput>;
 
@@ -39,7 +39,7 @@ export const TVInput = forwardRef<TextInput, TVInputProps>((props, ref) => {
     if (onSubmitEditing) {
       onSubmitEditing(e);
     }
-    
+
     // If we have a nextFocusDown ref, focus it
     if (Platform.isTV && nextFocusDown?.current) {
       // @ts-ignore - requestTVFocus is not in the type definitions
@@ -49,13 +49,13 @@ export const TVInput = forwardRef<TextInput, TVInputProps>((props, ref) => {
 
   if (Platform.isTV) {
     return (
-      <TVFocusable 
+      <TVFocusable
         ref={tvFocusableRef}
         hasTVPreferredFocus={hasTVPreferredFocus}
         onSelect={handleSelect}
         style={[
           { borderRadius: 12 }, // Match the Input component's border radius
-          style
+          style,
         ]}
       >
         <Input
@@ -68,5 +68,7 @@ export const TVInput = forwardRef<TextInput, TVInputProps>((props, ref) => {
     );
   }
 
-  return <Input ref={inputRef} onSubmitEditing={onSubmitEditing} {...inputProps} />;
+  return (
+    <Input ref={inputRef} onSubmitEditing={onSubmitEditing} {...inputProps} />
+  );
 });

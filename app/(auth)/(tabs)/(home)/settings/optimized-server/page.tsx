@@ -67,8 +67,12 @@ export default function page() {
           saveMutation.isPending ? (
             <ActivityIndicator size={"small"} color={"white"} />
           ) : (
-            <TouchableOpacity onPress={() => onSave(optimizedVersionsServerUrl)}>
-              <Text className="text-blue-500">{t("home.settings.downloads.save_button")}</Text>
+            <TouchableOpacity
+              onPress={() => onSave(optimizedVersionsServerUrl)}
+            >
+              <Text className="text-blue-500">
+                {t("home.settings.downloads.save_button")}
+              </Text>
             </TouchableOpacity>
           ),
       });

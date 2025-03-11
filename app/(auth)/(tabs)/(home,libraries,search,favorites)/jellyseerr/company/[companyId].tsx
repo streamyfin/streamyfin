@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Platform, Pressable, FlatList, Image } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Platform,
+  Pressable,
+  FlatList,
+  Image,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,33 +40,43 @@ const CompanyPage: React.FC = () => {
         const studioEndpoint = `${Endpoints.DISCOVER_MOVIES_STUDIO}/${companyId}`;
         const studioResults = await jellyseerrApi?.discover(studioEndpoint, {
           page: 1,
-          language: "en"
+          language: "en",
         });
-        
-        if (studioResults && studioResults.results && studioResults.results.length > 0) {
+
+        if (
+          studioResults &&
+          studioResults.results &&
+          studioResults.results.length > 0
+        ) {
           return studioResults;
         }
       } catch (error) {
         console.log("Studio endpoint failed, trying alternative approach");
       }
-      
+
       // If that fails, try to get trending and popular movies and filter them
-      const trendingResults = await jellyseerrApi?.discover(Endpoints.DISCOVER_TRENDING + "/movies", {
-        page: 1,
-        language: "en"
-      });
-      
-      const popularResults = await jellyseerrApi?.discover(Endpoints.DISCOVER_MOVIES, {
-        page: 1,
-        language: "en"
-      });
-      
+      const trendingResults = await jellyseerrApi?.discover(
+        Endpoints.DISCOVER_TRENDING + "/movies",
+        {
+          page: 1,
+          language: "en",
+        },
+      );
+
+      const popularResults = await jellyseerrApi?.discover(
+        Endpoints.DISCOVER_MOVIES,
+        {
+          page: 1,
+          language: "en",
+        },
+      );
+
       // Combine results
       const combinedResults = [
         ...(trendingResults?.results || []),
-        ...(popularResults?.results || [])
+        ...(popularResults?.results || []),
       ];
-      
+
       // Get details for each movie to check production companies
       const detailedResults = await Promise.all(
         combinedResults
@@ -68,29 +85,35 @@ const CompanyPage: React.FC = () => {
             try {
               return await jellyseerrApi?.movieDetails(item.id);
             } catch (error) {
-              console.error(`Error fetching details for movie ${item.id}:`, error);
+              console.error(
+                `Error fetching details for movie ${item.id}:`,
+                error,
+              );
               return null;
             }
-          })
+          }),
       );
-      
+
       // Filter results by production company ID
       const uniqueIds = new Set();
       const filteredResults = detailedResults
-        .filter(item => 
-          item && 
-          item.productionCompanies && 
-          item.productionCompanies.some(company => company.id.toString() === companyId) &&
-          !uniqueIds.has(item.id)
+        .filter(
+          (item) =>
+            item &&
+            item.productionCompanies &&
+            item.productionCompanies.some(
+              (company) => company.id.toString() === companyId,
+            ) &&
+            !uniqueIds.has(item.id),
         )
-        .map(item => {
+        .map((item) => {
           uniqueIds.add(item.id);
           return item;
         });
-      
+
       return {
         results: filteredResults.filter(Boolean),
-        totalResults: filteredResults.length
+        totalResults: filteredResults.length,
       };
     },
     enabled: !!jellyseerrApi && !!companyId,
@@ -99,7 +122,7 @@ const CompanyPage: React.FC = () => {
   useEffect(() => {
     if (moviesData?.results?.[0]?.productionCompanies) {
       const company = moviesData.results[0].productionCompanies.find(
-        (c) => c.id.toString() === companyId
+        (c) => c.id.toString() === companyId,
       );
       if (company) {
         navigation.setOptions({
@@ -111,7 +134,7 @@ const CompanyPage: React.FC = () => {
 
   // Find company details from the first movie result
   const company = moviesData?.results?.[0]?.productionCompanies?.find(
-    (c) => c.id.toString() === companyId
+    (c) => c.id.toString() === companyId,
   );
 
   const ListHeaderComponent = () => (
@@ -121,7 +144,9 @@ const CompanyPage: React.FC = () => {
           <View style={styles.logoContainer}>
             {company.logoPath ? (
               <Image
-                source={{ uri: jellyseerrApi?.imageProxy(company.logoPath, 'w500') }}
+                source={{
+                  uri: jellyseerrApi?.imageProxy(company.logoPath, "w500"),
+                }}
                 style={styles.logo}
                 resizeMode="contain"
               />
@@ -131,13 +156,15 @@ const CompanyPage: React.FC = () => {
               </View>
             )}
           </View>
-          
+
           <View style={styles.detailsContainer}>
             <Text style={styles.name}>{company.name}</Text>
-            
+
             {company.originCountry && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t("jellyseerr.production_country")}:</Text>
+                <Text style={styles.infoLabel}>
+                  {t("jellyseerr.production_country")}:
+                </Text>
                 <Text style={styles.infoValue}>{company.originCountry}</Text>
               </View>
             )}
@@ -148,17 +175,17 @@ const CompanyPage: React.FC = () => {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{t("jellyseerr.productions")}</Text>
         <Text style={styles.subtitle}>
-          {moviesData?.totalResults 
-            ? t("search.x_items", { count: moviesData.totalResults }) 
-            : isMoviesLoading 
-              ? t("library.options.loading") 
+          {moviesData?.totalResults
+            ? t("search.x_items", { count: moviesData.totalResults })
+            : isMoviesLoading
+              ? t("library.options.loading")
               : t("library.no_items_found")}
         </Text>
       </View>
     </>
   );
 
-  const ListEmptyComponent = () => (
+  const ListEmptyComponent = () =>
     isMoviesLoading ? (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>{t("library.options.loading")}</Text>
@@ -168,18 +195,19 @@ const CompanyPage: React.FC = () => {
         <Ionicons name="alert-circle-outline" size={64} color="#888" />
         <Text style={styles.emptyText}>{t("library.no_items_found")}</Text>
       </View>
-    )
-  );
+    );
 
   const renderItem = ({ item }) => (
-    <View 
+    <View
       style={[
         styles.movieItem,
-        Platform.isTV && focusedItem === item.id.toString() && styles.focusedItem
+        Platform.isTV &&
+          focusedItem === item.id.toString() &&
+          styles.focusedItem,
       ]}
     >
-      <JellyseerrPoster 
-        item={item} 
+      <JellyseerrPoster
+        item={item}
         key={item.id}
         onFocus={() => Platform.isTV && setFocusedItem(item.id.toString())}
         onBlur={() => Platform.isTV && setFocusedItem(null)}
@@ -188,7 +216,7 @@ const CompanyPage: React.FC = () => {
   );
 
   return (
-    <View 
+    <View
       style={[
         styles.container,
         {
@@ -196,7 +224,7 @@ const CompanyPage: React.FC = () => {
           paddingRight: insets.right,
           paddingTop: insets.top,
           paddingBottom: insets.bottom,
-        }
+        },
       ]}
     >
       <FlatList
@@ -207,7 +235,8 @@ const CompanyPage: React.FC = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[
           Platform.isTV ? styles.tvGridContainer : styles.gridContainer,
-          (!moviesData?.results || moviesData.results.length === 0) && styles.emptyGridContainer
+          (!moviesData?.results || moviesData.results.length === 0) &&
+            styles.emptyGridContainer,
         ]}
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={ListEmptyComponent}
@@ -218,14 +247,19 @@ const CompanyPage: React.FC = () => {
         <Pressable
           style={[
             styles.backButton,
-            focusedButton === 'back' && styles.focusedButton
+            focusedButton === "back" && styles.focusedButton,
           ]}
-          onFocus={() => setFocusedButton('back')}
+          onFocus={() => setFocusedButton("back")}
           onBlur={() => setFocusedButton(null)}
           onPress={handleBackPress}
           hasTVPreferredFocus={true}
         >
-          <Ionicons name="arrow-back" size={24} color="white" style={styles.backIcon} />
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color="white"
+            style={styles.backIcon}
+          />
           <Text style={styles.backButtonText}>{t("home.downloads.back")}</Text>
         </Pressable>
       )}
@@ -250,9 +284,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   companyInfoContainer: {
-    flexDirection: Platform.isTV ? 'row' : 'column',
+    flexDirection: Platform.isTV ? "row" : "column",
     marginBottom: 24,
-    alignItems: Platform.isTV ? 'flex-start' : 'center',
+    alignItems: Platform.isTV ? "flex-start" : "center",
   },
   logoContainer: {
     marginRight: Platform.isTV ? 30 : 0,
@@ -284,7 +318,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "white",
     marginBottom: 16,
-    textAlign: Platform.isTV ? 'left' : 'center',
+    textAlign: Platform.isTV ? "left" : "center",
   },
   infoRow: {
     flexDirection: "row",
@@ -342,13 +376,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 40,
     left: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#333',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#333",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
@@ -363,10 +397,10 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   backButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 18,
-    fontWeight: 'bold',
-  }
+    fontWeight: "bold",
+  },
 });
 
 export default CompanyPage;

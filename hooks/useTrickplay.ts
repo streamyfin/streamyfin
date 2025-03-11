@@ -107,7 +107,7 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
       setTrickPlayUrl(newTrickPlayUrl);
       return newTrickPlayUrl;
     },
-    [trickplayInfo, item, api, enabled]
+    [trickplayInfo, item, api, enabled],
   );
 
   const prefetchAllTrickplayImages = useCallback(() => {

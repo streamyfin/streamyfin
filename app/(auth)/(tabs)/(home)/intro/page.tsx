@@ -8,7 +8,13 @@ import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, TouchableOpacity, View, ScrollView, Platform } from "react-native";
+import {
+  Linking,
+  TouchableOpacity,
+  View,
+  ScrollView,
+  Platform,
+} from "react-native";
 
 export default function page() {
   const router = useRouter();
@@ -17,7 +23,7 @@ export default function page() {
   useFocusEffect(
     useCallback(() => {
       storage.set("hasShownIntro", true);
-    }, [])
+    }, []),
   );
 
   const handleDone = () => {
@@ -30,7 +36,7 @@ export default function page() {
   };
 
   return (
-    <ScrollView 
+    <ScrollView
       className="bg-neutral-900"
       contentContainerStyle={{ paddingVertical: 64, paddingHorizontal: 16 }}
     >
@@ -48,7 +54,9 @@ export default function page() {
           <Text className="text-lg font-bold">
             {t("home.intro.features_title")}
           </Text>
-          <Text className="text-xs">{t("home.intro.features_description")}</Text>
+          <Text className="text-xs">
+            {t("home.intro.features_description")}
+          </Text>
           <View className="flex flex-row items-center mt-4">
             <Image
               source={require("@/assets/icons/jellyseerr-logo.svg")}
@@ -120,7 +128,7 @@ export default function page() {
                   className="text-purple-600"
                   onPress={() => {
                     Linking.openURL(
-                      "https://github.com/streamyfin/jellyfin-plugin-streamyfin"
+                      "https://github.com/streamyfin/jellyfin-plugin-streamyfin",
                     );
                   }}
                 >
@@ -150,16 +158,10 @@ export default function page() {
             </>
           ) : (
             <>
-              <Button
-                onPress={handleDone}
-                className="mt-4"
-              >
+              <Button onPress={handleDone} className="mt-4">
                 {t("home.intro.done_button")}
               </Button>
-              <TouchableOpacity
-                onPress={handleGoToSettings}
-                className="mt-4"
-              >
+              <TouchableOpacity onPress={handleGoToSettings} className="mt-4">
                 <Text className="text-purple-600 text-center">
                   {t("home.intro.go_to_settings_button")}
                 </Text>

@@ -1,11 +1,11 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
-labels: '✨ enhancement'
-assignees: ''
+title: ""
+labels: "✨ enhancement"
+assignees: ""
 projects:
- - streamyfin/3
+  - streamyfin/3
 ---
 
 **Describe the solution you'd like**

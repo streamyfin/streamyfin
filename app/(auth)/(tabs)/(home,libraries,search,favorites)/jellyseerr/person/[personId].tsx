@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Platform, Pressable, ScrollView, FlatList, Image } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Platform,
+  Pressable,
+  ScrollView,
+  FlatList,
+  Image,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
@@ -49,9 +57,13 @@ const PersonPage: React.FC = () => {
   }, [personData]);
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   const isLoading = isPersonLoading || isCreditsLoading;
@@ -64,7 +76,12 @@ const PersonPage: React.FC = () => {
           <View style={styles.profileImageContainer}>
             {personData.profilePath ? (
               <Image
-                source={{ uri: jellyseerrApi?.imageProxy(personData.profilePath, 'w600_and_h900_bestv2') }}
+                source={{
+                  uri: jellyseerrApi?.imageProxy(
+                    personData.profilePath,
+                    "w600_and_h900_bestv2",
+                  ),
+                }}
                 style={styles.profileImage}
               />
             ) : (
@@ -73,28 +90,36 @@ const PersonPage: React.FC = () => {
               </View>
             )}
           </View>
-          
+
           <View style={styles.detailsContainer}>
             <Text style={styles.name}>{personData.name}</Text>
-            
+
             {personData.birthday && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>{t("jellyseerr.born")}:</Text>
-                <Text style={styles.infoValue}>{formatDate(personData.birthday)}</Text>
+                <Text style={styles.infoValue}>
+                  {formatDate(personData.birthday)}
+                </Text>
               </View>
             )}
-            
+
             {personData.placeOfBirth && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t("jellyseerr.place_of_birth")}:</Text>
+                <Text style={styles.infoLabel}>
+                  {t("jellyseerr.place_of_birth")}:
+                </Text>
                 <Text style={styles.infoValue}>{personData.placeOfBirth}</Text>
               </View>
             )}
-            
+
             {personData.knownForDepartment && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t("jellyseerr.known_for")}:</Text>
-                <Text style={styles.infoValue}>{personData.knownForDepartment}</Text>
+                <Text style={styles.infoLabel}>
+                  {t("jellyseerr.known_for")}:
+                </Text>
+                <Text style={styles.infoValue}>
+                  {personData.knownForDepartment}
+                </Text>
               </View>
             )}
           </View>
@@ -117,18 +142,25 @@ const PersonPage: React.FC = () => {
             horizontal={!Platform.isTV}
             numColumns={Platform.isTV ? 4 : undefined}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={Platform.isTV ? styles.tvCreditsGrid : styles.creditsRow}
+            contentContainerStyle={
+              Platform.isTV ? styles.tvCreditsGrid : styles.creditsRow
+            }
             renderItem={({ item }) => (
-              <View 
+              <View
                 style={[
                   styles.creditItem,
-                  Platform.isTV && focusedItem === `${item.id}-${item.mediaType}` && styles.focusedItem
+                  Platform.isTV &&
+                    focusedItem === `${item.id}-${item.mediaType}` &&
+                    styles.focusedItem,
                 ]}
               >
-                <JellyseerrPoster 
-                  item={item} 
+                <JellyseerrPoster
+                  item={item}
                   key={`${item.id}-${item.mediaType}`}
-                  onFocus={() => Platform.isTV && setFocusedItem(`${item.id}-${item.mediaType}`)}
+                  onFocus={() =>
+                    Platform.isTV &&
+                    setFocusedItem(`${item.id}-${item.mediaType}`)
+                  }
                   onBlur={() => Platform.isTV && setFocusedItem(null)}
                 />
               </View>
@@ -142,7 +174,7 @@ const PersonPage: React.FC = () => {
   // TV-specific rendering
   if (Platform.isTV) {
     return (
-      <View 
+      <View
         style={[
           styles.container,
           {
@@ -150,29 +182,38 @@ const PersonPage: React.FC = () => {
             paddingRight: insets.right,
             paddingTop: insets.top,
             paddingBottom: insets.bottom,
-          }
+          },
         ]}
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>{t("library.options.loading")}</Text>
+            <Text style={styles.loadingText}>
+              {t("library.options.loading")}
+            </Text>
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.tvScrollContent}>
             {renderPersonDetails()}
-            
+
             <Pressable
               style={[
                 styles.backButton,
-                focusedButton === 'back' && styles.focusedButton
+                focusedButton === "back" && styles.focusedButton,
               ]}
-              onFocus={() => setFocusedButton('back')}
+              onFocus={() => setFocusedButton("back")}
               onBlur={() => setFocusedButton(null)}
               onPress={handleBackPress}
               hasTVPreferredFocus={!personData?.biography}
             >
-              <Ionicons name="arrow-back" size={24} color="white" style={styles.backIcon} />
-              <Text style={styles.backButtonText}>{t("home.downloads.back")}</Text>
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color="white"
+                style={styles.backIcon}
+              />
+              <Text style={styles.backButtonText}>
+                {t("home.downloads.back")}
+              </Text>
             </Pressable>
           </ScrollView>
         )}
@@ -218,9 +259,9 @@ const styles = StyleSheet.create({
     color: "white",
   },
   personInfoContainer: {
-    flexDirection: Platform.isTV ? 'row' : 'column',
+    flexDirection: Platform.isTV ? "row" : "column",
     marginBottom: 24,
-    alignItems: Platform.isTV ? 'flex-start' : 'center',
+    alignItems: Platform.isTV ? "flex-start" : "center",
   },
   profileImageContainer: {
     marginRight: Platform.isTV ? 30 : 0,
@@ -247,7 +288,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "white",
     marginBottom: 16,
-    textAlign: Platform.isTV ? 'left' : 'center',
+    textAlign: Platform.isTV ? "left" : "center",
   },
   infoRow: {
     flexDirection: "row",
@@ -294,17 +335,17 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   backButton: {
-    position: Platform.isTV ? 'absolute' : 'relative',
+    position: Platform.isTV ? "absolute" : "relative",
     bottom: Platform.isTV ? 40 : undefined,
     left: Platform.isTV ? 40 : undefined,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#333',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#333",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
-    alignSelf: Platform.isTV ? undefined : 'center',
+    alignSelf: Platform.isTV ? undefined : "center",
     marginTop: Platform.isTV ? 0 : 20,
   },
   focusedButton: {
@@ -317,10 +358,10 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   backButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 18,
-    fontWeight: 'bold',
-  }
+    fontWeight: "bold",
+  },
 });
 
 export default PersonPage;

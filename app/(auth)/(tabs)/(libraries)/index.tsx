@@ -16,8 +16,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
 // Check if we're running on a TV platform
-const isTV = Platform.isTV || Platform.OS === 'android' && !!Platform.constants.uiMode && 
-  (Platform.constants.uiMode & 15) === 4;
+const isTV =
+  Platform.isTV ||
+  (Platform.OS === "android" &&
+    !!Platform.constants.uiMode &&
+    (Platform.constants.uiMode & 15) === 4);
 
 export default function index() {
   const [api] = useAtom(apiAtom);
@@ -45,7 +48,7 @@ export default function index() {
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
         .filter((l) => l.CollectionType !== "music")
         .filter((l) => l.CollectionType !== "books") || [],
-    [data, settings?.hiddenLibraries]
+    [data, settings?.hiddenLibraries],
   );
 
   useEffect(() => {
@@ -77,7 +80,9 @@ export default function index() {
   if (!libraries)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">{t("library.no_libraries_found")}</Text>
+        <Text className="text-lg text-neutral-500">
+          {t("library.no_libraries_found")}
+        </Text>
       </View>
     );
 
@@ -87,7 +92,11 @@ export default function index() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{
         paddingTop: 17,
-        paddingHorizontal: isTV ? 24 : (settings?.libraryOptions?.display === "row" ? 0 : 17),
+        paddingHorizontal: isTV
+          ? 24
+          : settings?.libraryOptions?.display === "row"
+            ? 0
+            : 17,
         paddingBottom: 150,
         paddingLeft: insets.left,
         paddingRight: insets.right,
@@ -111,10 +120,14 @@ export default function index() {
       }
       estimatedItemSize={isTV ? 200 : 100}
       // Add TV-specific props for better focus management
-      maintainVisibleContentPosition={isTV ? {
-        minIndexForVisible: 0,
-        autoscrollToTopThreshold: 10
-      } : undefined}
+      maintainVisibleContentPosition={
+        isTV
+          ? {
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 10,
+            }
+          : undefined
+      }
     />
   );
 }

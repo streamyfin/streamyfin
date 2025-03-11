@@ -88,10 +88,10 @@ const Dropdown = <T extends unknown>({
                     }
                     return [
                       ...prev.filter(
-                        (p) => keyExtractor(p) !== keyExtractor(item)
+                        (p) => keyExtractor(p) !== keyExtractor(item),
                       ),
                     ];
-                  })
+                  });
                 }}
               >
                 <DropdownMenu.ItemTitle>
@@ -107,7 +107,7 @@ const Dropdown = <T extends unknown>({
                   {titleExtractor(item)}
                 </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
-            )
+            ),
           )}
         </DropdownMenu.Content>
       </DropdownMenu.Root>

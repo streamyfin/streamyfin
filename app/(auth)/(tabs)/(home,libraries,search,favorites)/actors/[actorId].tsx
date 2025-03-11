@@ -68,7 +68,7 @@ const page: React.FC = () => {
 
       return response.data;
     },
-    [api, user?.Id, actorId]
+    [api, user?.Id, actorId],
   );
 
   const backdropUrl = useMemo(
@@ -79,7 +79,7 @@ const page: React.FC = () => {
         quality: 90,
         width: 1000,
       }),
-    [item]
+    [item],
   );
 
   if (l1)

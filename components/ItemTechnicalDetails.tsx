@@ -70,7 +70,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
               <AudioStreamInfo
                 audioStreams={
                   source?.MediaStreams?.filter(
-                    (stream) => stream.Type === "Audio"
+                    (stream) => stream.Type === "Audio",
                   ) || []
                 }
               />
@@ -83,7 +83,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
               <SubtitleStreamInfo
                 subtitleStreams={
                   source?.MediaStreams?.filter(
-                    (stream) => stream.Type === "Subtitle"
+                    (stream) => stream.Type === "Subtitle",
                   ) || []
                 }
               />
@@ -180,7 +180,7 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
 
   const videoStream = useMemo(() => {
     return source.MediaStreams?.find(
-      (stream) => stream.Type === "Video"
+      (stream) => stream.Type === "Video",
     ) as MediaStream;
   }, [source.MediaStreams]);
 

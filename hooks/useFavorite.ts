@@ -26,7 +26,7 @@ export const useFavorite = (item: BaseItemDto) => {
           ...newData,
           UserData: { ...old.UserData, ...newData.UserData },
         };
-      }
+      },
     );
   };
 

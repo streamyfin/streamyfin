@@ -11,7 +11,7 @@ interface ControlContextProps {
 }
 
 const ControlContext = createContext<ControlContextProps | undefined>(
-  undefined
+  undefined,
 );
 
 interface ControlProviderProps {

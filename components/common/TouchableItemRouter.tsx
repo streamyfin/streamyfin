@@ -15,11 +15,11 @@ interface Props extends TouchableOpacityProps {
 
 export const itemRouter = (
   item: BaseItemDto | BaseItemPerson,
-  from: string
+  from: string,
 ) => {
   // Use (home) as the base path for favorites to ensure proper navigation
   const basePath = from === "(favorites)" ? "(home)" : from;
-  
+
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${basePath}/livetv`;
   }
@@ -51,67 +51,77 @@ export const itemRouter = (
   return `/(auth)/(tabs)/${basePath}/items/page?id=${item.Id}`;
 };
 
-export const TouchableItemRouter = forwardRef<TouchableOpacity, PropsWithChildren<Props>>(
-  ({ item, children, ...props }, ref) => {
-    const router = useRouter();
-    const segments = useSegments();
-    const { showActionSheetWithOptions } = useActionSheet();
-    const markAsPlayedStatus = useMarkAsPlayed([item]);
-    const { isFavorite, toggleFavorite } = useFavorite(item);
-    
-    const from = segments[2];
+export const TouchableItemRouter = forwardRef<
+  TouchableOpacity,
+  PropsWithChildren<Props>
+>(({ item, children, ...props }, ref) => {
+  const router = useRouter();
+  const segments = useSegments();
+  const { showActionSheetWithOptions } = useActionSheet();
+  const markAsPlayedStatus = useMarkAsPlayed([item]);
+  const { isFavorite, toggleFavorite } = useFavorite(item);
 
-    const showActionSheet = useCallback(() => {
-      if (!(item.Type === "Movie" || item.Type === "Episode" || item.Type === "Series")) return;
-      const options = ["Mark as Played", "Mark as Not Played", isFavorite ? "Unmark as Favorite" : "Mark as Favorite", "Cancel"];
-      const cancelButtonIndex = 3;
+  const from = segments[2];
 
-      showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex,
-        },
-        async (selectedIndex) => {
-          if (selectedIndex === 0) {
-            await markAsPlayedStatus(true);
-          } else if (selectedIndex === 1) {
-            await markAsPlayedStatus(false);
-          } else if (selectedIndex === 2) {
-            toggleFavorite()
-          }
-        }
-      );
-    }, [showActionSheetWithOptions, isFavorite, markAsPlayedStatus]);
-
+  const showActionSheet = useCallback(() => {
     if (
-      from === "(home)" ||
-      from === "(search)" ||
-      from === "(libraries)" ||
-      from === "(favorites)"
+      !(
+        item.Type === "Movie" ||
+        item.Type === "Episode" ||
+        item.Type === "Series"
+      )
     )
-      return (
-        <TouchableOpacity
-          ref={ref}
-          onLongPress={showActionSheet}
-          onPress={() => {
-            const url = itemRouter(item, from);
-            // @ts-expect-error
-            router.push(url);
-          }}
-          {...props}
-        >
-          {children}
-        </TouchableOpacity>
-      );
-      
-    // Return a default component for other cases
+      return;
+    const options = [
+      "Mark as Played",
+      "Mark as Not Played",
+      isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
+      "Cancel",
+    ];
+    const cancelButtonIndex = 3;
+
+    showActionSheetWithOptions(
+      {
+        options,
+        cancelButtonIndex,
+      },
+      async (selectedIndex) => {
+        if (selectedIndex === 0) {
+          await markAsPlayedStatus(true);
+        } else if (selectedIndex === 1) {
+          await markAsPlayedStatus(false);
+        } else if (selectedIndex === 2) {
+          toggleFavorite();
+        }
+      },
+    );
+  }, [showActionSheetWithOptions, isFavorite, markAsPlayedStatus]);
+
+  if (
+    from === "(home)" ||
+    from === "(search)" ||
+    from === "(libraries)" ||
+    from === "(favorites)"
+  )
     return (
       <TouchableOpacity
         ref={ref}
+        onLongPress={showActionSheet}
+        onPress={() => {
+          const url = itemRouter(item, from);
+          // @ts-expect-error
+          router.push(url);
+        }}
         {...props}
       >
         {children}
       </TouchableOpacity>
     );
-  }
-);
+
+  // Return a default component for other cases
+  return (
+    <TouchableOpacity ref={ref} {...props}>
+      {children}
+    </TouchableOpacity>
+  );
+});

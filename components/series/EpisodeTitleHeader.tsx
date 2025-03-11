@@ -20,7 +20,7 @@ export const EpisodeTitleHeader: React.FC<Props> = ({ item, ...props }) => {
           onPress={() => {
             router.push(
               // @ts-ignore
-              `/(auth)/series/${item.SeriesId}?seasonIndex=${item?.ParentIndexNumber}`
+              `/(auth)/series/${item.SeriesId}?seasonIndex=${item?.ParentIndexNumber}`,
             );
           }}
         >

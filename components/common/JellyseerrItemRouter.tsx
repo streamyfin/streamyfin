@@ -1,6 +1,16 @@
 import { useRouter, useSegments } from "expo-router";
-import React, { PropsWithChildren, useCallback, useMemo, useState } from "react";
-import { TouchableOpacity, TouchableOpacityProps, Platform, Pressable } from "react-native";
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
+import {
+  TouchableOpacity,
+  TouchableOpacityProps,
+  Platform,
+  Pressable,
+} from "react-native";
 import * as ContextMenu from "@/components/ContextMenu";
 import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
@@ -49,16 +59,13 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
     );
   }, [jellyseerrApi, jellyseerrUser]);
 
-  const request = useCallback(
-    () => {
-      if (!result) return;
-      requestMedia(mediaTitle, {
-        mediaId: result.id,
-        mediaType,
-      })
-    },
-    [jellyseerrApi, result]
-  );
+  const request = useCallback(() => {
+    if (!result) return;
+    requestMedia(mediaTitle, {
+      mediaId: result.id,
+      mediaType,
+    });
+  }, [jellyseerrApi, result]);
 
   const handlePress = () => {
     if (!result) return;
@@ -72,7 +79,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
         releaseYear,
         canRequest,
         posterSrc,
-        mediaType
+        mediaType,
       },
     });
   };
@@ -86,13 +93,13 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
         onPress={handlePress}
         style={[
           { padding: 4 },
-          isFocused && { 
+          isFocused && {
             transform: [{ scale: 1.05 }],
             borderWidth: 2,
             borderColor: Colors.primary,
             borderRadius: 8,
           },
-          style
+          style,
         ]}
         {...props}
       >
@@ -107,11 +114,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
       <>
         <ContextMenu.Root>
           <ContextMenu.Trigger>
-            <TouchableOpacity
-              onPress={handlePress}
-              style={style}
-              {...props}
-            >
+            <TouchableOpacity onPress={handlePress} style={style} {...props}>
               {children}
             </TouchableOpacity>
           </ContextMenu.Trigger>

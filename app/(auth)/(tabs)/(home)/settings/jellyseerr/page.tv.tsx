@@ -12,7 +12,12 @@ const JellyseerrSettingsPage: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Ionicons name="settings-outline" size={64} color={Colors.primary} style={styles.icon} />
+        <Ionicons
+          name="settings-outline"
+          size={64}
+          color={Colors.primary}
+          style={styles.icon}
+        />
         <Text style={styles.title}>{t("jellyseerr.settings")}</Text>
         <Text style={styles.message}>
           {t("jellyseerr.settings_not_available_on_tv")}
@@ -56,7 +61,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#888",
     textAlign: "center",
-  }
+  },
 });
 
 export default JellyseerrSettingsPage;

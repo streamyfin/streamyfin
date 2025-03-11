@@ -31,17 +31,17 @@ export const TVEpisodeItem = ({ episode }: TVEpisodeItemProps) => {
     if (episode.ImageTags?.["Primary"]) {
       return `${api.basePath}/Items/${episode.Id}/Images/Primary?tag=${episode.ImageTags["Primary"]}&quality=90&fillWidth=400`;
     }
-    
+
     // Try parent backdrop
     if (episode.ParentBackdropItemId && episode.ParentBackdropImageTags?.[0]) {
       return `${api.basePath}/Items/${episode.ParentBackdropItemId}/Images/Backdrop?tag=${episode.ParentBackdropImageTags[0]}&quality=90&fillWidth=400`;
     }
-    
+
     // Try series image
     if (episode.SeriesId && episode.SeriesPrimaryImageTag) {
       return `${api.basePath}/Items/${episode.SeriesId}/Images/Primary?tag=${episode.SeriesPrimaryImageTag}&quality=90&fillWidth=400`;
     }
-    
+
     return undefined;
   }, [api, episode]);
 
@@ -83,10 +83,12 @@ export const TVEpisodeItem = ({ episode }: TVEpisodeItemProps) => {
           />
         ) : (
           <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>{episode.Name?.substring(0, 1).toUpperCase()}</Text>
+            <Text style={styles.placeholderText}>
+              {episode.Name?.substring(0, 1).toUpperCase()}
+            </Text>
           </View>
         )}
-        
+
         {progress > 0 && (
           <>
             <View style={styles.progressBackground} />
@@ -94,22 +96,24 @@ export const TVEpisodeItem = ({ episode }: TVEpisodeItemProps) => {
           </>
         )}
       </View>
-      
+
       <View style={styles.infoContainer}>
-        <Text style={styles.title} numberOfLines={1}>{episode.Name}</Text>
-        
+        <Text style={styles.title} numberOfLines={1}>
+          {episode.Name}
+        </Text>
+
         <View style={styles.metaContainer}>
           {(seasonNumber || episodeNumber) && (
             <Text style={styles.metaText}>
-              {seasonNumber}{seasonNumber && episodeNumber ? ":" : ""}{episodeNumber}
+              {seasonNumber}
+              {seasonNumber && episodeNumber ? ":" : ""}
+              {episodeNumber}
             </Text>
           )}
-          
-          {runtime && (
-            <Text style={styles.metaText}>{runtime}</Text>
-          )}
+
+          {runtime && <Text style={styles.metaText}>{runtime}</Text>}
         </View>
-        
+
         <Text style={styles.overview} numberOfLines={2}>
           {episode.Overview || ""}
         </Text>

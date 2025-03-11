@@ -79,7 +79,8 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
 
   const handleItemSelect = (item: BaseItemDto) => {
     if (item.Id) {
-      const url = item.Type === "Series" ? `/series/${item.Id}` : `/item/${item.Id}`;
+      const url =
+        item.Type === "Series" ? `/series/${item.Id}` : `/item/${item.Id}`;
       router.push(url);
     }
   };
@@ -118,7 +119,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
   return (
     <View {...props}>
       <Text className="text-lg font-bold mb-2 px-4">
-        {t("item_card.more_with", {name: actor?.Name})}
+        {t("item_card.more_with", { name: actor?.Name })}
       </Text>
       <HorizontalScroll
         data={items}

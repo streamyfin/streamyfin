@@ -28,7 +28,7 @@ export const LoadingSkeleton: React.FC<Props> = ({ isLoading }) => {
       } else {
         opacity.value = withTiming(0, { duration: 200 });
       }
-    }
+    },
   );
 
   return (

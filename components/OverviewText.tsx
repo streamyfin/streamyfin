@@ -22,20 +22,21 @@ export const OverviewText: React.FC<Props> = ({
 
   const toggleTextExpansion = () => {
     setLimit((prev) =>
-      prev === characterLimit ? text.length : characterLimit
+      prev === characterLimit ? text.length : characterLimit,
     );
   };
 
-  const showMoreText = limit === characterLimit ? t("item_card.show_more") : t("item_card.show_less");
+  const showMoreText =
+    limit === characterLimit
+      ? t("item_card.show_more")
+      : t("item_card.show_less");
   const shouldShowToggle = text.length > characterLimit;
 
   const content = (
     <View>
       <Text>{tc(text, limit)}</Text>
       {shouldShowToggle && (
-        <Text className="text-purple-600 mt-1">
-          {showMoreText}
-        </Text>
+        <Text className="text-purple-600 mt-1">{showMoreText}</Text>
       )}
     </View>
   );
@@ -43,12 +44,9 @@ export const OverviewText: React.FC<Props> = ({
   return (
     <View className="flex flex-col" {...props}>
       <Text className="text-lg font-bold mb-2">{t("item_card.overview")}</Text>
-      
+
       {Platform.isTV && shouldShowToggle ? (
-        <TVFocusable
-          hasTVPreferredFocus={false}
-          onSelect={toggleTextExpansion}
-        >
+        <TVFocusable hasTVPreferredFocus={false} onSelect={toggleTextExpansion}>
           {content}
         </TVFocusable>
       ) : (

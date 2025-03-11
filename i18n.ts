@@ -10,8 +10,8 @@ import ja from "./translations/ja.json";
 import tr from "./translations/tr.json";
 import nl from "./translations/nl.json";
 import sv from "./translations/sv.json";
-import zhCN from './translations/zh-CN.json';
-import zhTW from './translations/zh-TW.json';
+import zhCN from "./translations/zh-CN.json";
+import zhTW from "./translations/zh-TW.json";
 import { getLocales } from "expo-localization";
 
 export const APP_LANGUAGES = [

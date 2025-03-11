@@ -7,7 +7,7 @@ export const useOrientation = () => {
   const [orientation, setOrientation] = useState(
     Platform.isTV
       ? ScreenOrientation.OrientationLock.LANDSCAPE
-      : ScreenOrientation.OrientationLock.UNKNOWN
+      : ScreenOrientation.OrientationLock.UNKNOWN,
   );
 
   if (Platform.isTV) return { orientation, setOrientation };
@@ -16,7 +16,7 @@ export const useOrientation = () => {
     const orientationSubscription =
       ScreenOrientation.addOrientationChangeListener((event) => {
         setOrientation(
-          orientationToOrientationLock(event.orientationInfo.orientation)
+          orientationToOrientationLock(event.orientationInfo.orientation),
         );
       });
 

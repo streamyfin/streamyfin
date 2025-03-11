@@ -26,8 +26,8 @@ export const SeasonDropdown: React.FC<Props> = ({
 
   // If no season is selected, use the first one
   const currentSeason = selectedSeason || seasons[0];
-  const currentIndex = seasons.findIndex(s => s.Id === currentSeason.Id);
-  
+  const currentIndex = seasons.findIndex((s) => s.Id === currentSeason.Id);
+
   const handlePrevious = () => {
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : seasons.length - 1;
     onSelect(seasons[prevIndex]);
@@ -41,22 +41,17 @@ export const SeasonDropdown: React.FC<Props> = ({
   if (Platform.isTV) {
     return (
       <View className="flex flex-row items-center">
-        <TVFocusable
-          hasTVPreferredFocus={true}
-          onSelect={handlePrevious}
-        >
+        <TVFocusable hasTVPreferredFocus={true} onSelect={handlePrevious}>
           <View className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 mr-2">
             <Ionicons name="chevron-back" size={20} color="white" />
           </View>
         </TVFocusable>
-        
+
         <View className="flex items-center justify-center bg-neutral-800 rounded-xl px-4 py-2 mx-1">
           <Text>{currentSeason.Name}</Text>
         </View>
-        
-        <TVFocusable
-          onSelect={handleNext}
-        >
+
+        <TVFocusable onSelect={handleNext}>
           <View className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 ml-2">
             <Ionicons name="chevron-forward" size={20} color="white" />
           </View>
@@ -73,11 +68,11 @@ export const SeasonDropdown: React.FC<Props> = ({
       >
         <Ionicons name="chevron-back" size={20} color="white" />
       </TouchableOpacity>
-      
+
       <View className="flex items-center justify-center bg-neutral-800 rounded-xl px-4 py-2 mx-1">
         <Text>{currentSeason.Name}</Text>
       </View>
-      
+
       <TouchableOpacity
         onPress={handleNext}
         className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 ml-2"

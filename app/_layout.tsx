@@ -2,7 +2,12 @@ import "@/augmentations";
 import { Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
-import { getOrSetDeviceId, getTokenFromStorage, JellyfinProvider, apiAtom } from "@/providers/JellyfinProvider";
+import {
+  getOrSetDeviceId,
+  getTokenFromStorage,
+  JellyfinProvider,
+  apiAtom,
+} from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
@@ -18,10 +23,14 @@ import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-const BackGroundDownloader = !Platform.isTV ? require("@kesha-antonov/react-native-background-downloader") : null;
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const BackgroundFetch = !Platform.isTV ? require("expo-background-fetch") : null;
+const BackgroundFetch = !Platform.isTV
+  ? require("expo-background-fetch")
+  : null;
 import * as FileSystem from "expo-file-system";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { router, Stack, useSegments } from "expo-router";
@@ -74,16 +83,20 @@ function useNotificationObserver() {
       }
     }
 
-    Notifications.getLastNotificationResponseAsync().then((response: { notification: any }) => {
-      if (!isMounted || !response?.notification) {
-        return;
-      }
-      redirect(response?.notification);
-    });
+    Notifications.getLastNotificationResponseAsync().then(
+      (response: { notification: any }) => {
+        if (!isMounted || !response?.notification) {
+          return;
+        }
+        redirect(response?.notification);
+      },
+    );
 
-    const subscription = Notifications.addNotificationResponseReceivedListener((response: { notification: any }) => {
-      redirect(response.notification);
-    });
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response: { notification: any }) => {
+        redirect(response.notification);
+      },
+    );
 
     return () => {
       isMounted = false;
@@ -121,13 +134,15 @@ if (!Platform.isTV) {
     const settings: Partial<Settings> = JSON.parse(settingsData);
     const url = settings?.optimizedVersionsServerUrl;
 
-    if (!settings?.autoDownload || !url) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!settings?.autoDownload || !url)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const token = getTokenFromStorage();
     const deviceId = getOrSetDeviceId();
     const baseDirectory = FileSystem.documentDirectory;
 
-    if (!token || !deviceId || !baseDirectory) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!token || !deviceId || !baseDirectory)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const jobs = await getAllJobsByDeviceId({
       deviceId,
@@ -204,7 +219,9 @@ if (!Platform.isTV) {
 
 const checkAndRequestPermissions = async () => {
   try {
-    const hasAskedBefore = storage.getString("hasAskedForNotificationPermission");
+    const hasAskedBefore = storage.getString(
+      "hasAskedForNotificationPermission",
+    );
 
     if (hasAskedBefore !== "true") {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -222,7 +239,11 @@ const checkAndRequestPermissions = async () => {
       console.log("Already asked for notification permissions before.");
     }
   } catch (error) {
-    writeToLog("ERROR", "Error checking/requesting notification permissions:", error);
+    writeToLog(
+      "ERROR",
+      "Error checking/requesting notification permissions:",
+      error,
+    );
     console.error("Error checking/requesting notification permissions:", error);
   }
 };
@@ -262,7 +283,9 @@ function Layout() {
   const segments = useSegments();
 
   useEffect(() => {
-    i18n.changeLanguage(settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en");
+    i18n.changeLanguage(
+      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
+    );
   }, [settings?.preferedLanguage, i18n]);
 
   if (!Platform.isTV) {
@@ -286,16 +309,24 @@ function Layout() {
         ScreenOrientation.unlockAsync();
       } else {
         // If the user has auto rotate disabled, lock the orientation to portrait
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP,
+        );
       }
     }, [settings.followDeviceOrientation, segments]);
 
     useEffect(() => {
-      const subscription = AppState.addEventListener("change", (nextAppState) => {
-        if (appState.current.match(/inactive|background/) && nextAppState === "active") {
-          BackGroundDownloader.checkForExistingDownloads();
-        }
-      });
+      const subscription = AppState.addEventListener(
+        "change",
+        (nextAppState) => {
+          if (
+            appState.current.match(/inactive|background/) &&
+            nextAppState === "active"
+          ) {
+            BackGroundDownloader.checkForExistingDownloads();
+          }
+        },
+      );
 
       BackGroundDownloader.checkForExistingDownloads();
 
@@ -372,7 +403,9 @@ function Layout() {
 function saveDownloadedItemInfo(item: BaseItemDto) {
   try {
     const downloadedItems = storage.getString("downloadedItems");
-    let items: BaseItemDto[] = downloadedItems ? JSON.parse(downloadedItems) : [];
+    let items: BaseItemDto[] = downloadedItems
+      ? JSON.parse(downloadedItems)
+      : [];
 
     const existingItemIndex = items.findIndex((i) => i.Id === item.Id);
     if (existingItemIndex !== -1) {

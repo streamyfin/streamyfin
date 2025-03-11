@@ -12,7 +12,12 @@ const GenrePage: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Ionicons name="film-outline" size={64} color={Colors.primary} style={styles.icon} />
+        <Ionicons
+          name="film-outline"
+          size={64}
+          color={Colors.primary}
+          style={styles.icon}
+        />
         <Text style={styles.title}>{t("jellyseerr.genre_details")}</Text>
         <Text style={styles.message}>
           {t("jellyseerr.not_available_on_tv")}
@@ -56,7 +61,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#888",
     textAlign: "center",
-  }
+  },
 });
 
 export default GenrePage;

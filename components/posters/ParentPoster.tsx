@@ -14,7 +14,7 @@ const ParentPoster: React.FC<PosterProps> = ({ id }) => {
 
   const url = useMemo(
     () => `${api?.basePath}/Items/${id}/Images/Primary`,
-    [id]
+    [id],
   );
 
   if (!url || !id)

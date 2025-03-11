@@ -28,32 +28,32 @@ export const Favorites = () => {
       });
       return response.data.Items || [];
     },
-    [api, user]
+    [api, user],
   );
 
   const fetchFavoriteSeries = useCallback(
     () => fetchFavoritesByType("Series"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteMovies = useCallback(
     () => fetchFavoritesByType("Movie"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteEpisodes = useCallback(
     () => fetchFavoritesByType("Episode"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteVideos = useCallback(
     () => fetchFavoritesByType("Video"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteBoxsets = useCallback(
     () => fetchFavoritesByType("BoxSet"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoritePlaylists = useCallback(
     () => fetchFavoritesByType("Playlist"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
 
   return (

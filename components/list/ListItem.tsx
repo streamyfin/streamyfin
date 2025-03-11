@@ -22,76 +22,81 @@ interface Props extends TouchableOpacityProps, ViewProps {
   hasTVPreferredFocus?: boolean;
 }
 
-export const ListItem = forwardRef<any, PropsWithChildren<Props>>(({
-  title,
-  value,
-  iconAfter,
-  children,
-  showArrow = false,
-  icon,
-  textColor = "default",
-  onPress,
-  disabled = false,
-  hasTVPreferredFocus = false,
-  ...props
-}, ref) => {
-  const content = (
-    <ListItemContent
-      title={title}
-      value={value}
-      icon={icon}
-      textColor={textColor}
-      showArrow={showArrow}
-      iconAfter={iconAfter}
-    >
-      {children}
-    </ListItemContent>
-  );
+export const ListItem = forwardRef<any, PropsWithChildren<Props>>(
+  (
+    {
+      title,
+      value,
+      iconAfter,
+      children,
+      showArrow = false,
+      icon,
+      textColor = "default",
+      onPress,
+      disabled = false,
+      hasTVPreferredFocus = false,
+      ...props
+    },
+    ref,
+  ) => {
+    const content = (
+      <ListItemContent
+        title={title}
+        value={value}
+        icon={icon}
+        textColor={textColor}
+        showArrow={showArrow}
+        iconAfter={iconAfter}
+      >
+        {children}
+      </ListItemContent>
+    );
 
-  if (onPress) {
-    if (Platform.isTV) {
+    if (onPress) {
+      if (Platform.isTV) {
+        return (
+          <TVFocusable
+            ref={ref}
+            hasTVPreferredFocus={hasTVPreferredFocus}
+            onSelect={onPress}
+            className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
+              disabled ? "opacity-50" : ""
+            }`}
+            {...props}
+          >
+            {content}
+          </TVFocusable>
+        );
+      }
+
       return (
-        <TVFocusable
+        <TouchableOpacity
           ref={ref}
-          hasTVPreferredFocus={hasTVPreferredFocus}
-          onSelect={onPress}
+          disabled={disabled}
+          onPress={onPress}
           className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
             disabled ? "opacity-50" : ""
           }`}
           {...props}
         >
           {content}
-        </TVFocusable>
+        </TouchableOpacity>
       );
     }
-    
+
     return (
-      <TouchableOpacity
+      <View
         ref={ref}
-        disabled={disabled}
-        onPress={onPress}
         className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
           disabled ? "opacity-50" : ""
         }`}
         {...props}
       >
         {content}
-      </TouchableOpacity>
+      </View>
     );
-  }
-  
-  return (
-    <View
-      ref={ref}
-      className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
-        disabled ? "opacity-50" : ""
-      }`}
-      {...props}
-    >
-      {content}
-    </View>
-  );
-});
+  },
+);
 
 const ListItemContent = ({
   title,
@@ -116,8 +121,8 @@ const ListItemContent = ({
             textColor === "blue"
               ? "text-[#0584FE]"
               : textColor === "red"
-              ? "text-red-600"
-              : "text-white"
+                ? "text-red-600"
+                : "text-white"
           }
           numberOfLines={1}
         >

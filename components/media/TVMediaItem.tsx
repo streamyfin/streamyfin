@@ -14,11 +14,11 @@ interface TVMediaItemProps {
   onBlur?: () => void;
 }
 
-export const TVMediaItem = ({ 
-  item, 
+export const TVMediaItem = ({
+  item,
   orientation = "vertical",
   onFocus,
-  onBlur
+  onBlur,
 }: TVMediaItemProps) => {
   const { api } = useJellyfin();
   const [isFocused, setIsFocused] = useState(false);
@@ -87,7 +87,7 @@ export const TVMediaItem = ({
         tag: item.ImageTags["Thumb"],
         fillHeight: 389,
         quality: 90,
-        imageType: "Thumb"
+        imageType: "Thumb",
       });
     }
 
@@ -96,7 +96,7 @@ export const TVMediaItem = ({
       fillHeight: orientation === "horizontal" ? 389 : 300,
       fillWidth: orientation === "horizontal" ? 600 : 200,
       quality: 90,
-      imageType: "Primary"
+      imageType: "Primary",
     });
   }, [item, orientation]);
 
@@ -119,10 +119,14 @@ export const TVMediaItem = ({
   }, [item]);
 
   return (
-    <View style={[
-      styles.container,
-      orientation === "horizontal" ? styles.containerHorizontal : styles.containerVertical
-    ]}>
+    <View
+      style={[
+        styles.container,
+        orientation === "horizontal"
+          ? styles.containerHorizontal
+          : styles.containerVertical,
+      ]}
+    >
       <Pressable
         onFocus={handleFocus}
         onBlur={handleBlur}
@@ -130,19 +134,27 @@ export const TVMediaItem = ({
         style={[
           styles.pressable,
           isFocused && styles.focused,
-          orientation === "horizontal" ? styles.pressableHorizontal : styles.pressableVertical
+          orientation === "horizontal"
+            ? styles.pressableHorizontal
+            : styles.pressableVertical,
         ]}
       >
-        <View style={[
-          styles.imageContainer,
-          orientation === "horizontal" ? styles.imageContainerHorizontal : styles.imageContainerVertical
-        ]}>
+        <View
+          style={[
+            styles.imageContainer,
+            orientation === "horizontal"
+              ? styles.imageContainerHorizontal
+              : styles.imageContainerVertical,
+          ]}
+        >
           <Image
             source={{ uri: imageUrl }}
             placeholder={{ blurhash }}
             style={[
               styles.image,
-              orientation === "horizontal" ? styles.imageHorizontal : styles.imageVertical
+              orientation === "horizontal"
+                ? styles.imageHorizontal
+                : styles.imageVertical,
             ]}
             contentFit="cover"
             cachePolicy="memory-disk"
@@ -178,10 +190,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   pressableVertical: {
-    aspectRatio: 2/3,
+    aspectRatio: 2 / 3,
   },
   pressableHorizontal: {
-    aspectRatio: 16/9,
+    aspectRatio: 16 / 9,
   },
   focused: {
     transform: [{ scale: 1.05 }],
@@ -189,26 +201,26 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   imageContainer: {
-    position: 'relative',
+    position: "relative",
     width: "100%",
     overflow: "hidden",
     borderRadius: 8,
   },
   imageContainerVertical: {
-    aspectRatio: 2/3,
+    aspectRatio: 2 / 3,
   },
   imageContainerHorizontal: {
-    aspectRatio: 16/9,
+    aspectRatio: 16 / 9,
   },
   image: {
     width: "100%",
     height: "100%",
   },
   imageVertical: {
-    aspectRatio: 2/3,
+    aspectRatio: 2 / 3,
   },
   imageHorizontal: {
-    aspectRatio: 16/9,
+    aspectRatio: 16 / 9,
   },
   title: {
     marginTop: 8,
@@ -217,15 +229,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   progressBackground: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
   },
   progressBar: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     height: 4,

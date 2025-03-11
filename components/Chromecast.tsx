@@ -49,7 +49,7 @@ export function Chromecast({
       ) : (
         <></>
       ),
-    [Platform.OS]
+    [Platform.OS],
   );
 
   if (background === "transparent")

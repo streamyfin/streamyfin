@@ -41,7 +41,7 @@ export const JellyseerrSettings = () => {
       if (!user?.Name)
         throw new Error("Missing required information for login");
       const jellyseerrTempApi = new JellyseerrApi(
-        jellyseerrServerUrl || settings.jellyseerrServerUrl || ""
+        jellyseerrServerUrl || settings.jellyseerrServerUrl || "",
       );
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid) throw new Error("Invalid server url");
@@ -75,7 +75,7 @@ export const JellyseerrSettings = () => {
             <ListGroup title={"Jellyseerr"}>
               <ListItem
                 title={t(
-                  "home.settings.plugins.jellyseerr.total_media_requests"
+                  "home.settings.plugins.jellyseerr.total_media_requests",
                 )}
                 value={jellyseerrUser?.requestCount?.toString()}
               />
@@ -112,7 +112,7 @@ export const JellyseerrSettings = () => {
             <View className="p-4">
               <Button color="red" onPress={clearData}>
                 {t(
-                  "home.settings.plugins.jellyseerr.reset_jellyseerr_config_button"
+                  "home.settings.plugins.jellyseerr.reset_jellyseerr_config_button",
                 )}
               </Button>
             </View>
@@ -133,7 +133,7 @@ export const JellyseerrSettings = () => {
             <Input
               className="border border-neutral-800 mb-2"
               placeholder={t(
-                "home.settings.plugins.jellyseerr.server_url_placeholder"
+                "home.settings.plugins.jellyseerr.server_url_placeholder",
               )}
               value={jellyseerrServerUrl ?? settings?.jellyseerrServerUrl}
               defaultValue={
@@ -156,7 +156,7 @@ export const JellyseerrSettings = () => {
                 focusable={true}
                 placeholder={t(
                   "home.settings.plugins.jellyseerr.password_placeholder",
-                  { username: user?.Name }
+                  { username: user?.Name },
                 )}
                 value={jellyseerrPassword}
                 keyboardType="default"

@@ -64,16 +64,18 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
   const lightHapticFeedback = useHaptic("light");
 
   // Create TV props object
-  const tvProps = Platform.isTV ? {
-    tvParallaxProperties,
-    isTVSelectable,
-    hasTVPreferredFocus,
-    nativeID,
-    nextFocusDown,
-    nextFocusUp,
-    nextFocusLeft,
-    nextFocusRight
-  } : {};
+  const tvProps = Platform.isTV
+    ? {
+        tvParallaxProperties,
+        isTVSelectable,
+        hasTVPreferredFocus,
+        nativeID,
+        nextFocusDown,
+        nextFocusUp,
+        nextFocusLeft,
+        nextFocusRight,
+      }
+    : {};
 
   return (
     <TouchableOpacity

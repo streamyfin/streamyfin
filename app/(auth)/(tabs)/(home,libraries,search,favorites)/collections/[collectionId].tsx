@@ -43,7 +43,7 @@ const page: React.FC = () => {
   const [user] = useAtom(userAtom);
   const navigation = useNavigation();
   const [orientation, setOrientation] = useState(
-    ScreenOrientation.Orientation.PORTRAIT_UP
+    ScreenOrientation.Orientation.PORTRAIT_UP,
   );
 
   const { t } = useTranslation();
@@ -126,7 +126,7 @@ const page: React.FC = () => {
       selectedTags,
       sortBy,
       sortOrder,
-    ]
+    ],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
@@ -151,7 +151,7 @@ const page: React.FC = () => {
       const totalItems = lastPage.TotalRecordCount;
       const accumulatedItems = pages.reduce(
         (acc, curr) => acc + (curr?.Items?.length || 0),
-        0
+        0,
       );
 
       if (accumulatedItems < totalItems) {
@@ -188,8 +188,8 @@ const page: React.FC = () => {
               index % 3 === 0
                 ? "flex-end"
                 : (index + 1) % 3 === 0
-                ? "flex-start"
-                : "center",
+                  ? "flex-start"
+                  : "center",
             width: "89%",
           }}
         >
@@ -199,7 +199,7 @@ const page: React.FC = () => {
         </View>
       </TouchableItemRouter>
     ),
-    [orientation]
+    [orientation],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
@@ -238,7 +238,7 @@ const page: React.FC = () => {
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: collectionId,
@@ -265,7 +265,7 @@ const page: React.FC = () => {
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: collectionId,
@@ -290,7 +290,7 @@ const page: React.FC = () => {
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: collectionId,
@@ -368,7 +368,7 @@ const page: React.FC = () => {
       sortOrder,
       setSortOrder,
       isFetching,
-    ]
+    ],
   );
 
   if (!collection) return null;
@@ -377,7 +377,9 @@ const page: React.FC = () => {
     <FlashList
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("search.no_results")}</Text>
+          <Text className="font-bold text-xl text-neutral-500">
+            {t("search.no_results")}
+          </Text>
         </View>
       }
       extraData={[

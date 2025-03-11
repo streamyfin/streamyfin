@@ -8,7 +8,7 @@ import { toast } from "sonner-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { useTranslation } from "react-i18next";
-import {Colors} from "@/constants/Colors";
+import { Colors } from "@/constants/Colors";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
@@ -94,7 +94,7 @@ export const StorageSettings = () => {
                   {t("home.settings.storage.device_usage", {
                     availableSpace: calculatePercentage(
                       size.total - size.remaining - size.app,
-                      size.total
+                      size.total,
                     ),
                   })}
                 </Text>

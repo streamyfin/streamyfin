@@ -1,5 +1,12 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, TVFocusGuideView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  TVFocusGuideView,
+} from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Colors } from "@/constants/Colors";
@@ -30,9 +37,9 @@ export const TVScrollingCollectionList = ({
 }: TVScrollingCollectionListProps) => {
   const { t } = useTranslation();
   const [api] = useAtom(apiAtom);
-  const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
+  const [isFocused, setIsFocused] = useState<{ [key: string]: boolean }>({});
   const [isTitleFocused, setIsTitleFocused] = useState(false);
-  
+
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn,
@@ -74,124 +81,153 @@ export const TVScrollingCollectionList = ({
   }, []);
 
   const handleItemFocus = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: true}));
+    setIsFocused((prev) => ({ ...prev, [id]: true }));
   }, []);
 
   const handleItemBlur = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: false}));
+    setIsFocused((prev) => ({ ...prev, [id]: false }));
   }, []);
 
-  const getImageUrl = useCallback((item: BaseItemDto) => {
-    if (!api || !item.Id) {
-      console.log(`Missing API or item ID for ${item.Name}`);
-      return undefined;
-    }
-
-    try {
-      // For episodes in horizontal orientation
-      if (item.Type === "Episode" && orientation === "horizontal") {
-        // Try parent backdrop first
-        if (item.ParentBackdropItemId && item.ParentBackdropImageTags?.[0]) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?tag=${item.ParentBackdropImageTags[0]}&fillHeight=389&quality=90`;
-        }
-        // Try series thumb
-        if (item.SeriesId && item.SeriesThumbImageTag) {
-          return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?tag=${item.SeriesThumbImageTag}&fillHeight=389&quality=90`;
-        }
+  const getImageUrl = useCallback(
+    (item: BaseItemDto) => {
+      if (!api || !item.Id) {
+        console.log(`Missing API or item ID for ${item.Name}`);
+        return undefined;
       }
 
-      // For episodes in vertical orientation or if no parent images available
-      if (item.Type === "Episode") {
-        // Try series primary image
-        if (item.SeriesId && item.SeriesPrimaryImageTag) {
-          return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?tag=${item.SeriesPrimaryImageTag}&fillHeight=389&quality=90`;
+      try {
+        // For episodes in horizontal orientation
+        if (item.Type === "Episode" && orientation === "horizontal") {
+          // Try parent backdrop first
+          if (item.ParentBackdropItemId && item.ParentBackdropImageTags?.[0]) {
+            return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?tag=${item.ParentBackdropImageTags[0]}&fillHeight=389&quality=90`;
+          }
+          // Try series thumb
+          if (item.SeriesId && item.SeriesThumbImageTag) {
+            return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?tag=${item.SeriesThumbImageTag}&fillHeight=389&quality=90`;
+          }
         }
-      }
 
-      // For horizontal orientation of other types, try thumb image first
-      if (orientation === "horizontal") {
-        if (item.ImageTags?.["Thumb"]) {
-          return `${api.basePath}/Items/${item.Id}/Images/Thumb?tag=${item.ImageTags["Thumb"]}&fillHeight=389&quality=90`;
+        // For episodes in vertical orientation or if no parent images available
+        if (item.Type === "Episode") {
+          // Try series primary image
+          if (item.SeriesId && item.SeriesPrimaryImageTag) {
+            return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?tag=${item.SeriesPrimaryImageTag}&fillHeight=389&quality=90`;
+          }
         }
-        // Try backdrop if available
-        if (item.BackdropImageTags?.[0]) {
-          return `${api.basePath}/Items/${item.Id}/Images/Backdrop?tag=${item.BackdropImageTags[0]}&fillHeight=389&quality=90`;
+
+        // For horizontal orientation of other types, try thumb image first
+        if (orientation === "horizontal") {
+          if (item.ImageTags?.["Thumb"]) {
+            return `${api.basePath}/Items/${item.Id}/Images/Thumb?tag=${item.ImageTags["Thumb"]}&fillHeight=389&quality=90`;
+          }
+          // Try backdrop if available
+          if (item.BackdropImageTags?.[0]) {
+            return `${api.basePath}/Items/${item.Id}/Images/Backdrop?tag=${item.BackdropImageTags[0]}&fillHeight=389&quality=90`;
+          }
         }
+
+        // Default to primary image if available
+        if (item.ImageTags?.["Primary"]) {
+          return `${api.basePath}/Items/${item.Id}/Images/Primary?tag=${item.ImageTags["Primary"]}&fillHeight=${orientation === "horizontal" ? 389 : 300}&fillWidth=${orientation === "horizontal" ? 600 : 200}&quality=90`;
+        }
+
+        // Fallback to parent primary image for episodes
+        if (
+          item.Type === "Episode" &&
+          item.SeriesId &&
+          item.SeriesPrimaryImageTag
+        ) {
+          return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?tag=${item.SeriesPrimaryImageTag}&fillHeight=${orientation === "horizontal" ? 389 : 300}&fillWidth=${orientation === "horizontal" ? 600 : 200}&quality=90`;
+        }
+
+        console.log(`No suitable image found for ${item.Name} (${item.Type})`);
+        return undefined;
+      } catch (error) {
+        console.error(`Error generating image URL for ${item.Name}:`, error);
+        return undefined;
       }
+    },
+    [api, orientation],
+  );
 
-      // Default to primary image if available
-      if (item.ImageTags?.["Primary"]) {
-        return `${api.basePath}/Items/${item.Id}/Images/Primary?tag=${item.ImageTags["Primary"]}&fillHeight=${orientation === "horizontal" ? 389 : 300}&fillWidth=${orientation === "horizontal" ? 600 : 200}&quality=90`;
-      }
+  const renderMediaItem = useCallback(
+    ({ item }: { item: BaseItemDto }) => {
+      const imageUrl = getImageUrl(item);
+      const progress = item.UserData?.PlayedPercentage || 0;
 
-      // Fallback to parent primary image for episodes
-      if (item.Type === "Episode" && item.SeriesId && item.SeriesPrimaryImageTag) {
-        return `${api.basePath}/Items/${item.SeriesId}/Images/Primary?tag=${item.SeriesPrimaryImageTag}&fillHeight=${orientation === "horizontal" ? 389 : 300}&fillWidth=${orientation === "horizontal" ? 600 : 200}&quality=90`;
-      }
+      // Log image URL for debugging
+      console.log(`Item ${item.Name} (${item.Type}) image URL:`, imageUrl);
 
-      console.log(`No suitable image found for ${item.Name} (${item.Type})`);
-      return undefined;
-    } catch (error) {
-      console.error(`Error generating image URL for ${item.Name}:`, error);
-      return undefined;
-    }
-  }, [api, orientation]);
+      return (
+        <TVFocusGuideView style={styles.mediaItemContainer}>
+          <Pressable
+            onFocus={() => handleItemFocus(item.Id!)}
+            onBlur={() => handleItemBlur(item.Id!)}
+            onPress={() => handleItemPress(item)}
+            style={[
+              styles.mediaItem,
+              orientation === "horizontal"
+                ? styles.mediaItemHorizontal
+                : styles.mediaItemVertical,
+              isFocused[item.Id!] && styles.focusedItem,
+            ]}
+          >
+            <View style={styles.imageContainer}>
+              {imageUrl ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={[
+                    styles.mediaImage,
+                    orientation === "horizontal"
+                      ? styles.mediaImageHorizontal
+                      : styles.mediaImageVertical,
+                  ]}
+                  contentFit="cover"
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.placeholderImage,
+                    orientation === "horizontal"
+                      ? styles.mediaImageHorizontal
+                      : styles.mediaImageVertical,
+                  ]}
+                >
+                  <Text style={styles.placeholderText}>
+                    {item.Name?.substring(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+              )}
 
-  const renderMediaItem = useCallback(({ item }: { item: BaseItemDto }) => {
-    const imageUrl = getImageUrl(item);
-    const progress = item.UserData?.PlayedPercentage || 0;
-    
-    // Log image URL for debugging
-    console.log(`Item ${item.Name} (${item.Type}) image URL:`, imageUrl);
-    
-    return (
-      <TVFocusGuideView style={styles.mediaItemContainer}>
-        <Pressable
-          onFocus={() => handleItemFocus(item.Id!)}
-          onBlur={() => handleItemBlur(item.Id!)}
-          onPress={() => handleItemPress(item)}
-          style={[
-            styles.mediaItem,
-            orientation === "horizontal" ? styles.mediaItemHorizontal : styles.mediaItemVertical,
-            isFocused[item.Id!] && styles.focusedItem
-          ]}
-        >
-          <View style={styles.imageContainer}>
-            {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
-                style={[
-                  styles.mediaImage,
-                  orientation === "horizontal" ? styles.mediaImageHorizontal : styles.mediaImageVertical
-                ]}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={[
-                styles.placeholderImage,
-                orientation === "horizontal" ? styles.mediaImageHorizontal : styles.mediaImageVertical
-              ]}>
-                <Text style={styles.placeholderText}>{item.Name?.substring(0, 1).toUpperCase()}</Text>
-              </View>
-            )}
-            
-            {!progress && <WatchedIndicator item={item} />}
-            
-            {progress > 0 && (
-              <>
-                <View style={styles.progressBackground} />
-                <View style={[styles.progressBar, { width: `${progress}%` }]} />
-              </>
-            )}
-          </View>
-          
-          <Text style={styles.mediaTitle} numberOfLines={1}>
-            {item.Name}
-          </Text>
-        </Pressable>
-      </TVFocusGuideView>
-    );
-  }, [getImageUrl, handleItemFocus, handleItemBlur, handleItemPress, isFocused, orientation]);
+              {!progress && <WatchedIndicator item={item} />}
+
+              {progress > 0 && (
+                <>
+                  <View style={styles.progressBackground} />
+                  <View
+                    style={[styles.progressBar, { width: `${progress}%` }]}
+                  />
+                </>
+              )}
+            </View>
+
+            <Text style={styles.mediaTitle} numberOfLines={1}>
+              {item.Name}
+            </Text>
+          </Pressable>
+        </TVFocusGuideView>
+      );
+    },
+    [
+      getImageUrl,
+      handleItemFocus,
+      handleItemBlur,
+      handleItemPress,
+      isFocused,
+      orientation,
+    ],
+  );
 
   if (disabled) return null;
   if (hideIfEmpty === true && data?.length === 0) return null;
@@ -199,14 +235,22 @@ export const TVScrollingCollectionList = ({
   return (
     <View style={styles.container}>
       <Pressable
-        style={[styles.titleContainer, isTitleFocused && styles.titleContainerFocused]}
+        style={[
+          styles.titleContainer,
+          isTitleFocused && styles.titleContainerFocused,
+        ]}
         onFocus={() => setIsTitleFocused(true)}
         onBlur={() => setIsTitleFocused(false)}
       >
         <Text style={[styles.title, isTitleFocused && styles.titleFocused]}>
           {title}
           {isTitleFocused && (
-            <Ionicons name="chevron-forward" size={24} color={Colors.primary} style={styles.titleIcon} />
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={Colors.primary}
+              style={styles.titleIcon}
+            />
           )}
         </Text>
       </Pressable>
@@ -243,7 +287,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   titleContainerFocused: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   title: {
     fontSize: 24,
@@ -295,18 +339,18 @@ const styles = StyleSheet.create({
     width: 240,
   },
   imageContainer: {
-    position: 'relative',
+    position: "relative",
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   mediaImage: {
     width: "100%",
   },
   mediaImageVertical: {
-    aspectRatio: 2/3,
+    aspectRatio: 2 / 3,
   },
   mediaImageHorizontal: {
-    aspectRatio: 16/9,
+    aspectRatio: 16 / 9,
   },
   placeholderImage: {
     width: "100%",
@@ -331,15 +375,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   progressBackground: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
   },
   progressBar: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     height: 4,

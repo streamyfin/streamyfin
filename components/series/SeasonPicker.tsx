@@ -54,12 +54,13 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             params: {
               userId: user?.Id,
               itemId: item.Id,
-              Fields: "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
+              Fields:
+                "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
             },
             headers: {
               Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
             },
-          }
+          },
         );
 
         return response.data.Items || [];
@@ -138,7 +139,9 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     return (
       <View className="flex flex-col items-center justify-center py-8">
         <Loader />
-        <Text className="mt-4 text-neutral-500">{t("library.options.loading")}</Text>
+        <Text className="mt-4 text-neutral-500">
+          {t("library.options.loading")}
+        </Text>
       </View>
     );
   }
@@ -146,14 +149,17 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   if (!seasons || seasons.length === 0) {
     return (
       <View className="flex flex-col items-center justify-center py-8">
-        <Text className="text-neutral-500">{t("item_card.no_seasons_available")}</Text>
+        <Text className="text-neutral-500">
+          {t("item_card.no_seasons_available")}
+        </Text>
       </View>
     );
   }
 
   // Find the currently selected season object
-  const selectedSeason = seasons.find(s => s.Id === selectedSeasonId) || seasons[0];
-  const currentIndex = seasons.findIndex(s => s.Id === selectedSeason.Id);
+  const selectedSeason =
+    seasons.find((s) => s.Id === selectedSeasonId) || seasons[0];
+  const currentIndex = seasons.findIndex((s) => s.Id === selectedSeason.Id);
 
   const handlePrevious = () => {
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : seasons.length - 1;
@@ -186,10 +192,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     >
       <View className="flex flex-row justify-start items-center px-4">
         <View className="flex flex-row items-center">
-          <TVFocusable
-            hasTVPreferredFocus={true}
-            onSelect={handlePrevious}
-          >
+          <TVFocusable hasTVPreferredFocus={true} onSelect={handlePrevious}>
             <View className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 mr-2">
               <Ionicons name="chevron-back" size={20} color="white" />
             </View>
@@ -199,9 +202,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             <Text>{selectedSeason.Name}</Text>
           </View>
 
-          <TVFocusable
-            onSelect={handleNext}
-          >
+          <TVFocusable onSelect={handleNext}>
             <View className="flex items-center justify-center bg-neutral-900 rounded-xl p-2 ml-2">
               <Ionicons name="chevron-forward" size={20} color="white" />
             </View>
@@ -211,9 +212,11 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         {episodes?.length ? (
           <View className="flex flex-row items-center space-x-2">
             {Platform.isTV ? (
-              <TVFocusable onSelect={() => {
-                // Handle download action
-              }}>
+              <TVFocusable
+                onSelect={() => {
+                  // Handle download action
+                }}
+              >
                 <View className="ml-2 p-2 bg-neutral-900 rounded-xl">
                   <Ionicons name="download" size={20} color="white" />
                 </View>
@@ -247,7 +250,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
           </View>
         ) : (
           episodes?.map((episode: BaseItemDto, index: number) => (
-            <TVFocusable 
+            <TVFocusable
               key={episode.Id}
               onSelect={() => handleEpisodeSelect(episode)}
             >
@@ -264,7 +267,10 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
                     <Text numberOfLines={2} className="">
                       {episode.Name}
                     </Text>
-                    <Text numberOfLines={1} className="text-xs text-neutral-500">
+                    <Text
+                      numberOfLines={1}
+                      className="text-xs text-neutral-500"
+                    >
                       {`S${episode.ParentIndexNumber?.toString()}:E${episode.IndexNumber?.toString()}`}
                     </Text>
                     <Text className="text-xs text-neutral-500">

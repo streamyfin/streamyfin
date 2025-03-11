@@ -130,7 +130,7 @@ export const FilterSheet = <T,>({
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
 
   return (
@@ -155,7 +155,9 @@ export const FilterSheet = <T,>({
       >
         <View className="px-4 mt-2 mb-8">
           <Text className="font-bold text-2xl">{title}</Text>
-          <Text className="mb-2 text-neutral-500">{t("search.x_items", {count: _data?.length})}</Text>
+          <Text className="mb-2 text-neutral-500">
+            {t("search.x_items", { count: _data?.length })}
+          </Text>
           {showSearch && (
             <Input
               placeholder={t("search.search")}

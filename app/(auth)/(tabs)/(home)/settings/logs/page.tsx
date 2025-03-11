@@ -27,7 +27,9 @@ export default function page() {
           </View>
         ))}
         {logs?.length === 0 && (
-          <Text className="opacity-50">{t("home.settings.logs.no_logs_available")}</Text>
+          <Text className="opacity-50">
+            {t("home.settings.logs.no_logs_available")}
+          </Text>
         )}
       </View>
     </ScrollView>

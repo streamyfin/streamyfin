@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { PropsWithChildren } from "react";
 import { Text } from "../common/Text";
-import {FlashList} from "@shopify/flash-list";
+import { FlashList } from "@shopify/flash-list";
 
 type SearchItemWrapperProps<T> = {
   ids?: string[] | null;
@@ -20,7 +20,7 @@ export const SearchItemWrapper = <T extends unknown>({
   items,
   renderItem,
   header,
-  onEndReached
+  onEndReached,
 }: PropsWithChildren<SearchItemWrapperProps<T>>) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -37,14 +37,14 @@ export const SearchItemWrapper = <T extends unknown>({
           api,
           userId: user.Id,
           itemId: id,
-        })
+        }),
       );
 
       const results = await Promise.all(itemPromises);
 
       // Filter out null items
       return results.filter(
-        (item) => item !== null
+        (item) => item !== null,
       ) as unknown as BaseItemDto[];
     },
     enabled: !!ids && ids.length > 0 && !!api && !!user?.Id,
@@ -70,7 +70,7 @@ export const SearchItemWrapper = <T extends unknown>({
         onEndReachedThreshold={1}
         onEndReached={onEndReached}
         //@ts-ignore
-        renderItem={({item, index}) => item ? renderItem(item) : <></>}
+        renderItem={({ item, index }) => (item ? renderItem(item) : <></>)}
       />
     </>
   );

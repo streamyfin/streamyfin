@@ -25,7 +25,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
 
   const selectedSubtitleSteam = useMemo(
     () => subtitleStreams?.find((x) => x.Index === selected),
-    [subtitleStreams, selected]
+    [subtitleStreams, selected],
   );
 
   if (subtitleStreams?.length === 0) return null;

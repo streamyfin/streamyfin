@@ -21,9 +21,7 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
           <Text className="text-neutral-500 text-xs uppercase">{title}</Text>
         </View>
       )}
-      <View className="rounded-xl overflow-hidden">
-        {children}
-      </View>
+      <View className="rounded-xl overflow-hidden">{children}</View>
       {subtitle && (
         <View className="px-4 mt-1">
           <Text className="text-neutral-500 text-xs">{subtitle}</Text>

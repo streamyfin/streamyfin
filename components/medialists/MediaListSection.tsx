@@ -54,7 +54,7 @@ export const MediaListSection: React.FC<Props> = ({
 
       return response.data;
     },
-    [api, user?.Id, collection?.Id]
+    [api, user?.Id, collection?.Id],
   );
 
   if (!collection) return null;

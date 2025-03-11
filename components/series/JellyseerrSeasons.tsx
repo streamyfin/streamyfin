@@ -15,16 +15,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { RoundButton } from "@/components/RoundButton";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { TvResult } from "@/utils/jellyseerr/server/models/Search";
-import {QueryObserverResult, RefetchOptions, useQuery} from "@tanstack/react-query";
+import {
+  QueryObserverResult,
+  RefetchOptions,
+  useQuery,
+} from "@tanstack/react-query";
 import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
 import { Image } from "expo-image";
 import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import { Loader } from "../Loader";
 import { t } from "i18next";
-import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
-import {MediaRequestBody} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import {textShadowStyle} from "@/components/jellyseerr/discover/GenericSlideCard";
-import {dateOpts} from "@/components/jellyseerr/DetailFacts";
+import { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
+import { dateOpts } from "@/components/jellyseerr/DetailFacts";
 
 const JellyseerrSeasonEpisodes: React.FC<{
   details: TvDetails;
@@ -54,7 +58,11 @@ const JellyseerrSeasonEpisodes: React.FC<{
 };
 
 const RenderItem = ({ item, index }: any) => {
-  const { jellyseerrApi, jellyseerrRegion: region, jellyseerrLocale: locale } = useJellyseerr();
+  const {
+    jellyseerrApi,
+    jellyseerrRegion: region,
+    jellyseerrLocale: locale,
+  } = useJellyseerr();
   const [imageError, setImageError] = useState(false);
 
   const upcomingAirDate = useMemo(() => {
@@ -63,10 +71,7 @@ const RenderItem = ({ item, index }: any) => {
       let airDateObj = new Date(airDate);
 
       if (new Date() < airDateObj) {
-        return airDateObj.toLocaleDateString(
-          `${locale}-${region}`,
-          dateOpts
-        );
+        return airDateObj.toLocaleDateString(`${locale}-${region}`, dateOpts);
       }
     }
   }, [item]);
@@ -92,7 +97,10 @@ const RenderItem = ({ item, index }: any) => {
             {upcomingAirDate && (
               <View className="absolute justify-center bottom-0 right-0.5 items-center">
                 <View className="rounded-full bg-purple-600/30 p-1">
-                  <Text className="text-center text-xs" style={textShadowStyle.shadow}>
+                  <Text
+                    className="text-center text-xs"
+                    style={textShadowStyle.shadow}
+                  >
                     {upcomingAirDate}
                   </Text>
                 </View>
@@ -129,9 +137,13 @@ const RenderItem = ({ item, index }: any) => {
 const JellyseerrSeasons: React.FC<{
   isLoading: boolean;
   details?: TvDetails;
-  hasAdvancedRequest?: boolean,
+  hasAdvancedRequest?: boolean;
   onAdvancedRequest?: (data: MediaRequestBody) => void;
-  refetch:  (options?: (RefetchOptions | undefined)) => Promise<QueryObserverResult<TvDetails | MovieDetails | undefined, Error>>;
+  refetch: (
+    options?: RefetchOptions | undefined,
+  ) => Promise<
+    QueryObserverResult<TvDetails | MovieDetails | undefined, Error>
+  >;
 }> = ({
   isLoading,
   details,
@@ -147,10 +159,10 @@ const JellyseerrSeasons: React.FC<{
   }>();
   const seasons = useMemo(() => {
     const mediaInfoSeasons = details?.mediaInfo?.seasons?.filter(
-      (s: Season) => s.seasonNumber !== 0
+      (s: Season) => s.seasonNumber !== 0,
     );
     const requestedSeasons = details?.mediaInfo?.requests?.flatMap(
-      (r: MediaRequest) => r.seasons
+      (r: MediaRequest) => r.seasons,
     );
     return details.seasons?.map((season) => {
       return {
@@ -159,11 +171,11 @@ const JellyseerrSeasons: React.FC<{
           // What our library status is
           mediaInfoSeasons?.find(
             (mediaSeason: Season) =>
-              mediaSeason.seasonNumber === season.seasonNumber
+              mediaSeason.seasonNumber === season.seasonNumber,
           )?.status ??
           // What our request status is
           requestedSeasons?.find(
-            (s: Season) => s.seasonNumber === season.seasonNumber
+            (s: Season) => s.seasonNumber === season.seasonNumber,
           )?.status ??
           // Otherwise set it as unknown
           MediaStatus.UNKNOWN,
@@ -173,7 +185,7 @@ const JellyseerrSeasons: React.FC<{
 
   const allSeasonsAvailable = useMemo(
     () => seasons?.every((season) => season.status === MediaStatus.AVAILABLE),
-    [seasons]
+    [seasons],
   );
 
   const requestAll = useCallback(() => {
@@ -184,13 +196,13 @@ const JellyseerrSeasons: React.FC<{
         tvdbId: details.externalIds?.tvdbId,
         seasons: seasons
           .filter(
-            (s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0
+            (s) => s.status === MediaStatus.UNKNOWN && s.seasonNumber !== 0,
           )
           .map((s) => s.seasonNumber),
-      }
+      };
 
       if (hasAdvancedRequest) {
-        return onAdvancedRequest?.(body)
+        return onAdvancedRequest?.(body);
       }
 
       requestMedia(details.name, body, refetch);
@@ -199,41 +211,50 @@ const JellyseerrSeasons: React.FC<{
 
   const promptRequestAll = useCallback(
     () =>
-      Alert.alert(t("jellyseerr.confirm"), t("jellyseerr.are_you_sure_you_want_to_request_all_seasons"), [
-        {
-          text: t("jellyseerr.cancel"),
-          style: "cancel",
-        },
-        {
-          text: t("jellyseerr.yes"),
-          onPress: requestAll,
-        },
-      ]),
-    [requestAll]
+      Alert.alert(
+        t("jellyseerr.confirm"),
+        t("jellyseerr.are_you_sure_you_want_to_request_all_seasons"),
+        [
+          {
+            text: t("jellyseerr.cancel"),
+            style: "cancel",
+          },
+          {
+            text: t("jellyseerr.yes"),
+            onPress: requestAll,
+          },
+        ],
+      ),
+    [requestAll],
   );
 
-  const requestSeason = useCallback(async (canRequest: Boolean, seasonNumber: number) => {
-    if (canRequest) {
-      const body: MediaRequestBody = {
-        mediaId: details.id,
-        mediaType: MediaType.TV,
-        tvdbId: details.externalIds?.tvdbId,
-        seasons: [seasonNumber],
-      }
+  const requestSeason = useCallback(
+    async (canRequest: Boolean, seasonNumber: number) => {
+      if (canRequest) {
+        const body: MediaRequestBody = {
+          mediaId: details.id,
+          mediaType: MediaType.TV,
+          tvdbId: details.externalIds?.tvdbId,
+          seasons: [seasonNumber],
+        };
 
-      if (hasAdvancedRequest) {
-        return onAdvancedRequest?.(body)
-      }
+        if (hasAdvancedRequest) {
+          return onAdvancedRequest?.(body);
+        }
 
-      requestMedia(`${details.name}, Season ${seasonNumber}`, body, refetch);
-    }
-  }, [requestMedia, hasAdvancedRequest, onAdvancedRequest]);
+        requestMedia(`${details.name}, Season ${seasonNumber}`, body, refetch);
+      }
+    },
+    [requestMedia, hasAdvancedRequest, onAdvancedRequest],
+  );
 
   if (isLoading)
     return (
       <View>
         <View className="flex flex-row justify-between items-end px-4">
-          <Text className="text-lg font-bold mb-2">{t("item_card.seasons")}</Text>
+          <Text className="text-lg font-bold mb-2">
+            {t("item_card.seasons")}
+          </Text>
           {!allSeasonsAvailable && (
             <RoundButton className="mb-2 pa-2" onPress={promptRequestAll}>
               <Ionicons name="bag-add" color="white" size={26} />
@@ -249,11 +270,13 @@ const JellyseerrSeasons: React.FC<{
       data={orderBy(
         details.seasons.filter((s) => s.seasonNumber !== 0),
         "seasonNumber",
-        "desc"
+        "desc",
       )}
       ListHeaderComponent={() => (
         <View className="flex flex-row justify-between items-end px-4">
-          <Text className="text-lg font-bold mb-2">{t("item_card.seasons")}</Text>
+          <Text className="text-lg font-bold mb-2">
+            {t("item_card.seasons")}
+          </Text>
           {!allSeasonsAvailable && (
             <RoundButton className="mb-2 pa-2" onPress={promptRequestAll}>
               <Ionicons name="bag-add" color="white" size={26} />
@@ -281,8 +304,12 @@ const JellyseerrSeasons: React.FC<{
               <Tags
                 textClass=""
                 tags={[
-                  t("jellyseerr.season_number", {season_number: season.seasonNumber}),
-                  t("jellyseerr.number_episodes", {episode_number: season.episodeCount}),
+                  t("jellyseerr.season_number", {
+                    season_number: season.seasonNumber,
+                  }),
+                  t("jellyseerr.number_episodes", {
+                    episode_number: season.episodeCount,
+                  }),
                 ]}
               />
               {[0].map(() => {
@@ -292,11 +319,13 @@ const JellyseerrSeasons: React.FC<{
                 return (
                   <JellyseerrStatusIcon
                     key={0}
-                    onPress={() => requestSeason(canRequest, season.seasonNumber)}
+                    onPress={() =>
+                      requestSeason(canRequest, season.seasonNumber)
+                    }
                     className={canRequest ? "bg-gray-700/40" : undefined}
                     mediaStatus={
                       seasons?.find(
-                        (s) => s.seasonNumber === season.seasonNumber
+                        (s) => s.seasonNumber === season.seasonNumber,
                       )?.status
                     }
                     showRequestIcon={canRequest}

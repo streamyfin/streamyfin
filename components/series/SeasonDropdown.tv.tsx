@@ -24,12 +24,12 @@ export const SeasonDropdown: React.FC<SeasonDropdownProps> = ({
 }) => {
   const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   const currentSeason = useMemo(() => {
     if (!seasons || seasons.length === 0) return null;
     return seasons[currentIndex];
   }, [seasons, currentIndex]);
-  
+
   const handlePrevSeason = useCallback(() => {
     console.log("Previous season button pressed");
     if (!seasons || seasons.length === 0) return;
@@ -41,52 +41,55 @@ export const SeasonDropdown: React.FC<SeasonDropdownProps> = ({
   const handleNextSeason = useCallback(() => {
     console.log("Next season button pressed");
     if (!seasons || seasons.length === 0) return;
-    const newIndex = currentIndex < seasons.length - 1 ? currentIndex + 1 : currentIndex;
+    const newIndex =
+      currentIndex < seasons.length - 1 ? currentIndex + 1 : currentIndex;
     setCurrentIndex(newIndex);
     onSelect(seasons[newIndex]);
   }, [seasons, currentIndex, onSelect]);
-  
+
   if (!seasons || seasons.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.noSeasonsText}>{t("item_card.no_seasons_available")}</Text>
+        <Text style={styles.noSeasonsText}>
+          {t("item_card.no_seasons_available")}
+        </Text>
       </View>
     );
   }
-  
+
   return (
     <View style={styles.container}>
-      <Pressable 
+      <Pressable
         style={[
-          styles.navButton, 
-          currentIndex === 0 && styles.navButtonDisabled
-        ]} 
+          styles.navButton,
+          currentIndex === 0 && styles.navButtonDisabled,
+        ]}
         onPress={handlePrevSeason}
         disabled={currentIndex === 0}
       >
-        <Ionicons 
-          name="chevron-back" 
-          size={24} 
-          color={currentIndex === 0 ? "#555" : "white"} 
+        <Ionicons
+          name="chevron-back"
+          size={24}
+          color={currentIndex === 0 ? "#555" : "white"}
         />
       </Pressable>
-      
+
       <Text style={styles.seasonTitle}>
         {currentSeason?.Name || t("item_card.season")}
       </Text>
-      
-      <Pressable 
+
+      <Pressable
         style={[
-          styles.navButton, 
-          currentIndex === seasons.length - 1 && styles.navButtonDisabled
-        ]} 
+          styles.navButton,
+          currentIndex === seasons.length - 1 && styles.navButtonDisabled,
+        ]}
         onPress={handleNextSeason}
         disabled={currentIndex === seasons.length - 1}
       >
-        <Ionicons 
-          name="chevron-forward" 
-          size={24} 
-          color={currentIndex === seasons.length - 1 ? "#555" : "white"} 
+        <Ionicons
+          name="chevron-forward"
+          size={24}
+          color={currentIndex === seasons.length - 1 ? "#555" : "white"}
         />
       </Pressable>
     </View>

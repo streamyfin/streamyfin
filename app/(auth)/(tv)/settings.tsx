@@ -1,5 +1,12 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Switch,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/utils/atoms/settings";
 import { Colors } from "@/constants/Colors";
@@ -17,24 +24,27 @@ export default function TVSettingsPage() {
     router.replace("/login");
   }, [logout]);
 
-  const updateSetting = useCallback((key: string, value: any) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  }, [setSettings]);
+  const updateSetting = useCallback(
+    (key: string, value: any) => {
+      setSettings((prev) => ({
+        ...prev,
+        [key]: value,
+      }));
+    },
+    [setSettings],
+  );
 
   const renderSettingItem = (
     key: string,
     title: string,
     description: string,
-    component: React.ReactNode
+    component: React.ReactNode,
   ) => {
     return (
       <Pressable
         style={[
           styles.settingItem,
-          focusedSetting === key && styles.focusedSettingItem
+          focusedSetting === key && styles.focusedSettingItem,
         ]}
         onFocus={() => setFocusedSetting(key)}
         onBlur={() => setFocusedSetting(null)}
@@ -43,20 +53,21 @@ export default function TVSettingsPage() {
           <Text style={styles.settingTitle}>{title}</Text>
           <Text style={styles.settingDescription}>{description}</Text>
         </View>
-        <View style={styles.settingControl}>
-          {component}
-        </View>
+        <View style={styles.settingControl}>{component}</View>
       </Pressable>
     );
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+    >
       <Text style={styles.pageTitle}>{t("tabs.settings")}</Text>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("settings.playback")}</Text>
-        
+
         {renderSettingItem(
           "autoPlay",
           t("settings.auto_play"),
@@ -65,44 +76,48 @@ export default function TVSettingsPage() {
             value={settings.autoPlay}
             onValueChange={(value) => updateSetting("autoPlay", value)}
             trackColor={{ false: "#333", true: Colors.primary }}
-          />
+          />,
         )}
-        
+
         {renderSettingItem(
           "autoPlayNextEpisode",
           t("settings.auto_play_next_episode"),
           t("settings.auto_play_next_episode_description"),
           <Switch
             value={settings.autoPlayNextEpisode}
-            onValueChange={(value) => updateSetting("autoPlayNextEpisode", value)}
+            onValueChange={(value) =>
+              updateSetting("autoPlayNextEpisode", value)
+            }
             trackColor={{ false: "#333", true: Colors.primary }}
-          />
+          />,
         )}
       </View>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("settings.appearance")}</Text>
-        
+
         {renderSettingItem(
           "showCustomMenuLinks",
           t("settings.show_custom_menu_links"),
           t("settings.show_custom_menu_links_description"),
           <Switch
             value={settings.showCustomMenuLinks}
-            onValueChange={(value) => updateSetting("showCustomMenuLinks", value)}
+            onValueChange={(value) =>
+              updateSetting("showCustomMenuLinks", value)
+            }
             trackColor={{ false: "#333", true: Colors.primary }}
-          />
+          />,
         )}
       </View>
-      
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("settings.account")}</Text>
-        
+
         <Pressable
           style={[
             styles.settingItem,
             styles.logoutButton,
-            focusedSetting === "logout" && styles.focusedLogoutButton
+            focusedSetting === "logout" && styles.focusedLogoutButton,
           ]}
           onFocus={() => setFocusedSetting("logout")}
           onBlur={() => setFocusedSetting(null)}

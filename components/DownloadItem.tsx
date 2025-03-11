@@ -70,16 +70,16 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     settings?.defaultBitrate ?? {
       key: "Max",
       value: undefined,
-    }
+    },
   );
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
-    [user]
+    [user],
   );
   const usingOptimizedServer = useMemo(
     () => settings?.downloadMethod === DownloadMethod.Optimized,
-    [settings]
+    [settings],
   );
 
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -99,7 +99,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const itemsNotDownloaded = useMemo(
     () =>
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
-    [items, downloadedFiles]
+    [items, downloadedFiles],
   );
 
   const allItemsDownloaded = useMemo(() => {
@@ -108,7 +108,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   }, [items, itemsNotDownloaded]);
   const itemsProcesses = useMemo(
     () => processes?.filter((p) => itemIds.includes(p.item.Id)),
-    [processes, itemIds]
+    [processes, itemIds],
   );
 
   const progress = useMemo(() => {
@@ -140,7 +140,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             params: {
               episodeSeasonIndex: firstItem.ParentIndexNumber,
             },
-          } as Href)
+          } as Href),
     );
   };
 
@@ -160,12 +160,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             id: item.Id!,
             execute: async () => await initiateDownload(item),
             item,
-          }))
+          })),
         );
       }
     } else {
       toast.error(
-        t("home.downloads.toasts.you_are_not_allowed_to_download_files")
+        t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
       );
     }
   }, [
@@ -189,7 +189,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         (itemsNotDownloaded.length === 1 && !selectedMediaSource?.Id)
       ) {
         throw new Error(
-          "DownloadItem ~ initiateDownload: No api or user or item"
+          "DownloadItem ~ initiateDownload: No api or user or item",
         );
       }
       let mediaSource = selectedMediaSource;
@@ -220,7 +220,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         if (!res) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
-            t("home.downloads.could_not_get_stream_url_from_jellyfin")
+            t("home.downloads.could_not_get_stream_url_from_jellyfin"),
           );
           continue;
         }
@@ -250,7 +250,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       usingOptimizedServer,
       startBackgroundDownload,
       startRemuxing,
-    ]
+    ],
   );
 
   const renderBackdrop = useCallback(
@@ -261,7 +261,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
   useFocusEffect(
     useCallback(() => {
@@ -274,7 +274,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       setSelectedAudioStream(audioIndex ?? 0);
       setSelectedSubtitleStream(subtitleIndex ?? -1);
       setMaxBitrate(bitrate);
-    }, [items, itemsNotDownloaded, settings])
+    }, [items, itemsNotDownloaded, settings]),
   );
 
   const renderButtonContent = () => {
