@@ -6,8 +6,8 @@ import {
 import { FlashList, FlashListProps } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import React, { useEffect, useMemo } from "react";
-import { View, ViewStyle } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { View, ViewStyle, Platform } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -16,6 +16,10 @@ import Animated, {
 import { Loader } from "../Loader";
 import { Text } from "./Text";
 import { t } from "i18next";
+
+// Check if we're running on a TV platform
+const isTV = Platform.isTV || Platform.OS === 'android' && !!Platform.constants.uiMode && 
+  (Platform.constants.uiMode & 15) === 4;
 
 interface HorizontalScrollProps
   extends Omit<FlashListProps<BaseItemDto>, "renderItem" | "data" | "style"> {
@@ -32,6 +36,7 @@ interface HorizontalScrollProps
   loadingContainerStyle?: ViewStyle;
   height?: number;
   loading?: boolean;
+  itemWidth?: number; // Added to help with TV navigation
 }
 
 export function InfiniteHorizontalScroll({
@@ -44,10 +49,14 @@ export function InfiniteHorizontalScroll({
   loadingContainerStyle,
   loading = false,
   height = 164,
+  itemWidth = 200, // Default item width estimate
   ...props
 }: HorizontalScrollProps): React.ReactElement {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const flashListRef = useRef<FlashList<BaseItemDto>>(null);
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
+  const itemRefs = useRef<Array<any>>([]);
 
   const animatedOpacity = useSharedValue(0);
   const animatedStyle1 = useAnimatedStyle(() => {
@@ -90,11 +99,32 @@ export function InfiniteHorizontalScroll({
     );
   }, [data]);
 
+  // Initialize refs array when data changes
+  useEffect(() => {
+    if (flatData) {
+      itemRefs.current = Array(flatData.length).fill(null);
+    }
+  }, [flatData]);
+
   useEffect(() => {
     if (data) {
       animatedOpacity.value = 1;
     }
   }, [data]);
+
+  // Handle focus change for TV navigation
+  const handleItemFocus = (index: number) => {
+    setFocusedIndex(index);
+    
+    // Ensure the focused item is visible by scrolling if needed
+    if (isTV && flashListRef.current) {
+      flashListRef.current.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5, // Center the item in the view
+      });
+    }
+  };
 
   if (data === undefined || data === null || loading) {
     return (
@@ -116,13 +146,23 @@ export function InfiniteHorizontalScroll({
   return (
     <Animated.View style={[containerStyle, animatedStyle1]}>
       <FlashList
+        ref={flashListRef}
         data={flatData}
         renderItem={({ item, index }) => (
-          <View className="mr-2">
+          <View 
+            className="mr-2"
+            ref={ref => { itemRefs.current[index] = ref; }}
+            onFocus={() => handleItemFocus(index)}
+            // Add TV-specific props for better focus handling
+            {...(isTV && {
+              hasTVPreferredFocus: index === 0,
+              tvParallaxProperties: { enabled: false }, // Disable parallax effect for smoother navigation
+            })}
+          >
             <React.Fragment>{renderItem(item, index)}</React.Fragment>
           </View>
         )}
-        estimatedItemSize={height}
+        estimatedItemSize={itemWidth}
         horizontal
         onEndReached={() => {
           if (hasNextPage) {
@@ -135,6 +175,14 @@ export function InfiniteHorizontalScroll({
           ...contentContainerStyle,
         }}
         showsHorizontalScrollIndicator={false}
+        // Add TV-specific props for better focus management
+        maintainVisibleContentPosition={isTV ? {
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10
+        } : undefined}
+        // Ensure we have enough items visible for TV navigation
+        initialScrollIndex={0}
+        extraData={focusedIndex} // Include focusedIndex in extraData to trigger re-renders
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center">
             <Text className="text-center text-gray-500">{t("item_card.no_data_available")}</Text>

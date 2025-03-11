@@ -6,12 +6,17 @@ import {
   type QueryFunction,
   type QueryKey,
 } from "@tanstack/react-query";
-import { ScrollView, View, ViewProps } from "react-native";
+import { ScrollView, View, ViewProps, Platform } from "react-native";
+import React, { useRef, useState, useEffect } from "react";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import SeriesPoster from "../posters/SeriesPoster";
 import { useTranslation } from "react-i18next";
+
+// Check if we're running on a TV platform
+const isTV = Platform.isTV || Platform.OS === 'android' && !!Platform.constants.uiMode && 
+  (Platform.constants.uiMode & 15) === 4;
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -41,6 +46,32 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   });
 
   const { t } = useTranslation();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const itemRefs = useRef<Array<any>>([]);
+  const itemWidth = orientation === "horizontal" ? 176 : 112; // w-44 = 176px, w-28 = 112px
+
+  // Initialize refs array when data changes
+  useEffect(() => {
+    if (data) {
+      itemRefs.current = Array(data.length).fill(null);
+    }
+  }, [data]);
+
+  // Handle focus change for TV navigation
+  const handleItemFocus = (index: number) => {
+    setFocusedIndex(index);
+    
+    // Ensure the focused item is visible by scrolling if needed
+    if (isTV && scrollViewRef.current) {
+      // Calculate the scroll position to make the focused item visible
+      const scrollX = index * (itemWidth + 8) - 16; // 8px for margin, 16px for padding
+      scrollViewRef.current.scrollTo({
+        x: scrollX,
+        animated: true
+      });
+    }
+  };
 
   if (hideIfEmpty === true && data?.length === 0) return null;
   if (disabled || !title) return null;
@@ -84,15 +115,28 @@ export const ScrollingCollectionList: React.FC<Props> = ({
           ))}
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View className="px-4 flex flex-row">
-            {data?.map((item) => (
+        <ScrollView 
+          ref={scrollViewRef}
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          // Add TV-specific props for better focus management
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        >
+          <View className="flex flex-row">
+            {data?.map((item, index) => (
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
                 className={`mr-2 
                   ${orientation === "horizontal" ? "w-44" : "w-28"}
                 `}
+                ref={ref => { itemRefs.current[index] = ref; }}
+                onFocus={() => handleItemFocus(index)}
+                // Add TV-specific props for better focus handling
+                {...(isTV && {
+                  hasTVPreferredFocus: index === 0,
+                  tvParallaxProperties: { enabled: false }, // Disable parallax effect for smoother navigation
+                })}
               >
                 {item.Type === "Episode" && orientation === "horizontal" && (
                   <ContinueWatchingPoster item={item} />
