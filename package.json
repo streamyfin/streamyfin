@@ -14,7 +14,7 @@
     "prebuild:tv": "EXPO_TV=1 bun run clean",
     "test": "jest --watchAll",
     "postinstall": "patch-package",
-    "lint": "biome format --write hooks/*"
+    "lint": "biome format --write ."
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "0.8.6",
