@@ -17,24 +17,27 @@ export const itemRouter = (
   item: BaseItemDto | BaseItemPerson,
   from: string
 ) => {
+  // Use (home) as the base path for favorites to ensure proper navigation
+  const basePath = from === "(favorites)" ? "(home)" : from;
+  
   if ("CollectionType" in item && item.CollectionType === "livetv") {
-    return `/(auth)/(tabs)/${from}/livetv`;
+    return `/(auth)/(tabs)/${basePath}/livetv`;
   }
 
   if (item.Type === "Series") {
-    return `/(auth)/(tabs)/${from}/series/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/series/${item.Id}`;
   }
 
   if (item.Type === "Person" || item.Type === "Actor") {
-    return `/(auth)/(tabs)/${from}/actors/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/actors/${item.Id}`;
   }
 
   if (item.Type === "BoxSet") {
-    return `/(auth)/(tabs)/${from}/collections/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/collections/${item.Id}`;
   }
 
   if (item.Type === "UserView") {
-    return `/(auth)/(tabs)/${from}/collections/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/collections/${item.Id}`;
   }
 
   if (item.Type === "CollectionFolder") {
@@ -45,7 +48,7 @@ export const itemRouter = (
     return `/(auth)/(tabs)/(libraries)/${item.Id}`;
   }
 
-  return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
+  return `/(auth)/(tabs)/${basePath}/items/page?id=${item.Id}`;
 };
 
 export const TouchableItemRouter = forwardRef<TouchableOpacity, PropsWithChildren<Props>>(

@@ -1,117 +1,115 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, TVFocusGuideView } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { View, StyleSheet, FlatList } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
 import { useJellyfin } from "@/providers/JellyfinProvider";
-import { getFavoritesApi } from "@jellyfin/sdk/lib/utils/api/user-library-api";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
-import { Colors } from "@/constants/Colors";
+import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
+import { TVScrollingCollectionList } from "@/components/home/TVScrollingCollectionList";
+import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+
+// Define section type
+type Section = {
+  id: string;
+  title: string;
+  queryKey: string[];
+  fetchFn: () => Promise<any>;
+};
 
 export default function TVFavoritesPage() {
   const { t } = useTranslation();
   const { api, user } = useJellyfin();
-  const [favorites, setFavorites] = useState<BaseItemDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
 
-  useEffect(() => {
-    if (!api || !user) return;
-
-    const fetchFavorites = async () => {
-      setLoading(true);
-      try {
-        const response = await getFavoritesApi(api).getFavoriteItems({
-          userId: user.Id!,
-          fields: ["Overview", "PrimaryImageAspectRatio"],
-          imageTypeLimit: 1,
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-        });
-        setFavorites(response.data.Items || []);
-      } catch (error) {
-        console.error("Failed to fetch favorites:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFavorites();
-  }, [api, user]);
-
-  const handleItemPress = useCallback((item: BaseItemDto) => {
-    if (item.Type === "Series") {
-      router.push({
-        pathname: "/(auth)/(tv)/series/[seriesId]",
-        params: { seriesId: item.Id },
+  const fetchFavoritesByType = useCallback(
+    async (itemType: BaseItemKind) => {
+      if (!api || !user?.Id) return [];
+      
+      const response = await getItemsApi(api).getItems({
+        userId: user.Id,
+        sortBy: ["SeriesSortName", "SortName"],
+        sortOrder: ["Ascending"],
+        filters: ["IsFavorite"],
+        recursive: true,
+        fields: [
+          "Overview", 
+          "PrimaryImageAspectRatio", 
+          "ImageTags", 
+          "ImageBlurHashes",
+          "ParentThumbImageTag",
+          "ParentBackdropItemId",
+          "SeriesPrimaryImageTag"
+        ],
+        collapseBoxSetItems: false,
+        excludeLocationTypes: ["Virtual"],
+        enableTotalRecordCount: false,
+        limit: 20,
+        includeItemTypes: [itemType],
+        imageTypeLimit: 1,
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
       });
-    } else {
-      router.push({
-        pathname: "/(auth)/player/[itemId]",
-        params: { itemId: item.Id },
-      });
-    }
-  }, []);
+      return response.data.Items || [];
+    },
+    [api, user]
+  );
 
-  const handleItemFocus = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: true}));
-  }, []);
+  // Define all sections
+  const sections = useMemo<Section[]>(() => [
+    {
+      id: 'series',
+      title: t("favorites.series"),
+      queryKey: ["tv", "favorites", "series"],
+      fetchFn: () => fetchFavoritesByType("Series"),
+    },
+    {
+      id: 'movies',
+      title: t("favorites.movies"),
+      queryKey: ["tv", "favorites", "movies"],
+      fetchFn: () => fetchFavoritesByType("Movie"),
+    },
+    {
+      id: 'episodes',
+      title: t("favorites.episodes"),
+      queryKey: ["tv", "favorites", "episodes"],
+      fetchFn: () => fetchFavoritesByType("Episode"),
+    },
+    {
+      id: 'videos',
+      title: t("favorites.videos"),
+      queryKey: ["tv", "favorites", "videos"],
+      fetchFn: () => fetchFavoritesByType("Video"),
+    },
+    {
+      id: 'boxsets',
+      title: t("favorites.boxsets"),
+      queryKey: ["tv", "favorites", "boxsets"],
+      fetchFn: () => fetchFavoritesByType("BoxSet"),
+    },
+    {
+      id: 'playlists',
+      title: t("favorites.playlists"),
+      queryKey: ["tv", "favorites", "playlists"],
+      fetchFn: () => fetchFavoritesByType("Playlist"),
+    },
+  ], [t, fetchFavoritesByType]);
 
-  const handleItemBlur = useCallback((id: string) => {
-    setIsFocused(prev => ({...prev, [id]: false}));
-  }, []);
-
-  const renderFavoriteItem = ({ item }: { item: BaseItemDto }) => {
-    const imageUrl = api?.getImageUrl(item.Id || "", { 
-      fillHeight: 300, 
-      fillWidth: 200, 
-      quality: 90 
-    });
-
-    return (
-      <TVFocusGuideView style={styles.mediaItemContainer}>
-        <Pressable
-          onFocus={() => handleItemFocus(item.Id!)}
-          onBlur={() => handleItemBlur(item.Id!)}
-          onPress={() => handleItemPress(item)}
-          style={[
-            styles.mediaItem,
-            isFocused[item.Id!] && styles.focusedItem
-          ]}
-        >
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.mediaImage}
-            contentFit="cover"
-          />
-          <Text style={styles.mediaTitle} numberOfLines={1}>
-            {item.Name}
-          </Text>
-        </Pressable>
-      </TVFocusGuideView>
-    );
-  };
+  const renderSection = useCallback(({ item: section }: { item: Section }) => (
+    <TVScrollingCollectionList
+      key={section.id}
+      queryFn={section.fetchFn}
+      queryKey={section.queryKey}
+      title={section.title}
+      hideIfEmpty
+      orientation="horizontal"
+    />
+  ), []);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.pageTitle}>{t("tabs.favorites")}</Text>
-      
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{t("loading")}</Text>
-        </View>
-      ) : favorites.length > 0 ? (
-        <FlatList
-          data={favorites}
-          renderItem={renderFavoriteItem}
-          keyExtractor={(item) => item.Id!}
-          numColumns={5}
-          contentContainerStyle={styles.favoritesGrid}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>{t("no_favorites")}</Text>
-        </View>
-      )}
+      <FlatList
+        data={sections}
+        renderItem={renderSection}
+        keyExtractor={(section) => section.id}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }
@@ -120,57 +118,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
-    padding: 40,
   },
-  pageTitle: {
-    color: "white",
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 30,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "white",
-    fontSize: 20,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyText: {
-    color: "white",
-    fontSize: 20,
-  },
-  favoritesGrid: {
-    paddingVertical: 10,
-  },
-  mediaItemContainer: {
-    width: "20%",
-    padding: 10,
-  },
-  mediaItem: {
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  focusedItem: {
-    transform: [{ scale: 1.1 }],
-    borderWidth: 4,
-    borderColor: Colors.primary,
-  },
-  mediaImage: {
-    width: "100%",
-    aspectRatio: 2/3,
-    borderRadius: 8,
-  },
-  mediaTitle: {
-    color: "white",
-    fontSize: 16,
-    marginTop: 8,
-    textAlign: "center",
+  contentContainer: {
+    paddingVertical: 40,
   },
 });

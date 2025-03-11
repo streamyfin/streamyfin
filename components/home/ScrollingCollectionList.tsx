@@ -119,7 +119,6 @@ export const ScrollingCollectionList: React.FC<Props> = ({
           ref={scrollViewRef}
           horizontal 
           showsHorizontalScrollIndicator={false}
-          // Add TV-specific props for better focus management
           contentContainerStyle={{ paddingHorizontal: 16 }}
         >
           <View className="flex flex-row">
@@ -132,10 +131,9 @@ export const ScrollingCollectionList: React.FC<Props> = ({
                 `}
                 ref={ref => { itemRefs.current[index] = ref; }}
                 onFocus={() => handleItemFocus(index)}
-                // Add TV-specific props for better focus handling
                 {...(isTV && {
                   hasTVPreferredFocus: index === 0,
-                  tvParallaxProperties: { enabled: false }, // Disable parallax effect for smoother navigation
+                  tvParallaxProperties: { enabled: false },
                 })}
               >
                 {item.Type === "Episode" && orientation === "horizontal" && (
@@ -157,6 +155,24 @@ export const ScrollingCollectionList: React.FC<Props> = ({
                   <ContinueWatchingPoster item={item} />
                 )}
                 {item.Type === "Program" && (
+                  <ContinueWatchingPoster item={item} />
+                )}
+                {item.Type === "BoxSet" && orientation === "vertical" && (
+                  <MoviePoster item={item} />
+                )}
+                {item.Type === "BoxSet" && orientation === "horizontal" && (
+                  <ContinueWatchingPoster item={item} />
+                )}
+                {item.Type === "Playlist" && orientation === "vertical" && (
+                  <MoviePoster item={item} />
+                )}
+                {item.Type === "Playlist" && orientation === "horizontal" && (
+                  <ContinueWatchingPoster item={item} />
+                )}
+                {item.Type === "Video" && orientation === "vertical" && (
+                  <MoviePoster item={item} />
+                )}
+                {item.Type === "Video" && orientation === "horizontal" && (
                   <ContinueWatchingPoster item={item} />
                 )}
                 <ItemCardText item={item} />

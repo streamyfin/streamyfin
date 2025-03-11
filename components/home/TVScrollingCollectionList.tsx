@@ -1,9 +1,14 @@
-import React, { useCallback } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, StyleSheet, FlatList, Pressable, TVFocusGuideView } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { TVMediaItem } from "../media/TVMediaItem";
 import { Colors } from "@/constants/Colors";
+import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import { useJellyfin } from "@/providers/JellyfinProvider";
+import { WatchedIndicator } from "../WatchedIndicator";
 
 interface TVScrollingCollectionListProps {
   queryFn: () => Promise<BaseItemDto[]>;
@@ -11,6 +16,7 @@ interface TVScrollingCollectionListProps {
   title: string;
   hideIfEmpty?: boolean;
   orientation?: "horizontal" | "vertical";
+  disabled?: boolean;
 }
 
 export const TVScrollingCollectionList = ({
@@ -19,54 +25,180 @@ export const TVScrollingCollectionList = ({
   title,
   hideIfEmpty = false,
   orientation = "horizontal",
+  disabled = false,
 }: TVScrollingCollectionListProps) => {
+  const { t } = useTranslation();
+  const { api } = useJellyfin();
+  const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
+  
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
-  const renderItem = useCallback(
-    (item: BaseItemDto) => {
-      return <TVMediaItem key={item.Id} item={item} />;
-    },
-    []
-  );
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    if (hideIfEmpty) {
-      return null;
+  const handleItemPress = useCallback((item: BaseItemDto) => {
+    // For TV app, we need to use different navigation paths
+    if (item.Type === "Series") {
+      // Check if the series path exists, otherwise use home as fallback
+      router.push({
+        pathname: "/(auth)/(tabs)/(home)/series/[seriesId]",
+        params: { seriesId: item.Id },
+      });
+    } else if (item.Type === "Movie" || item.Type === "Video") {
+      router.push({
+        pathname: "/(auth)/player/[itemId]",
+        params: { itemId: item.Id },
+      });
+    } else if (item.Type === "Episode") {
+      router.push({
+        pathname: "/(auth)/player/[itemId]",
+        params: { itemId: item.Id },
+      });
+    } else if (item.Type === "BoxSet") {
+      router.push({
+        pathname: "/(auth)/(tabs)/(home)/collections/[boxsetId]",
+        params: { boxsetId: item.Id },
+      });
+    } else if (item.Type === "Playlist") {
+      router.push({
+        pathname: "/(auth)/(tabs)/(libraries)/[playlistId]",
+        params: { playlistId: item.Id },
+      });
     }
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No items found</Text>
-      </View>
-    );
-  }
+  }, []);
 
-  // Use a standalone component instead of nesting FlatLists
+  const handleItemFocus = useCallback((id: string) => {
+    setIsFocused(prev => ({...prev, [id]: true}));
+  }, []);
+
+  const handleItemBlur = useCallback((id: string) => {
+    setIsFocused(prev => ({...prev, [id]: false}));
+  }, []);
+
+  const getImageUrl = useCallback((item: BaseItemDto) => {
+    if (item.Type === "Episode") {
+      if (orientation === "horizontal") {
+        if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
+          return api?.getImageUrl(item.ParentBackdropItemId, {
+            tag: item.ParentThumbImageTag,
+            fillHeight: 389,
+            quality: 90,
+            imageType: "Thumb"
+          });
+        }
+      } else {
+        return api?.getImageUrl(item.SeriesId || "", {
+          tag: item.SeriesPrimaryImageTag,
+          fillHeight: 389,
+          quality: 90,
+          imageType: "Primary"
+        });
+      }
+    }
+
+    // For horizontal orientation, try to use thumb image first
+    if (orientation === "horizontal" && item.ImageTags?.["Thumb"]) {
+      return api?.getImageUrl(item.Id || "", {
+        tag: item.ImageTags["Thumb"],
+        fillHeight: 389,
+        quality: 90,
+        imageType: "Thumb"
+      });
+    }
+
+    // Default to primary image
+    return api?.getImageUrl(item.Id || "", {
+      fillHeight: orientation === "horizontal" ? 389 : 300,
+      fillWidth: orientation === "horizontal" ? 600 : 200,
+      quality: 90,
+      imageType: "Primary"
+    });
+  }, [api, orientation]);
+
+  const renderMediaItem = useCallback(({ item }: { item: BaseItemDto }) => {
+    const imageUrl = getImageUrl(item);
+    const progress = item.UserData?.PlayedPercentage || 0;
+    
+    return (
+      <TVFocusGuideView style={styles.mediaItemContainer}>
+        <Pressable
+          onFocus={() => handleItemFocus(item.Id!)}
+          onBlur={() => handleItemBlur(item.Id!)}
+          onPress={() => handleItemPress(item)}
+          style={[
+            styles.mediaItem,
+            orientation === "horizontal" ? styles.mediaItemHorizontal : styles.mediaItemVertical,
+            isFocused[item.Id!] && styles.focusedItem
+          ]}
+        >
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: imageUrl }}
+              style={[
+                styles.mediaImage,
+                orientation === "horizontal" ? styles.mediaImageHorizontal : styles.mediaImageVertical
+              ]}
+              contentFit="cover"
+            />
+            
+            {!progress && <WatchedIndicator item={item} />}
+            
+            {progress > 0 && (
+              <>
+                <View style={styles.progressBackground} />
+                <View style={[styles.progressBar, { width: `${progress}%` }]} />
+              </>
+            )}
+          </View>
+          
+          <Text style={styles.mediaTitle} numberOfLines={1}>
+            {item.Name}
+          </Text>
+        </Pressable>
+      </TVFocusGuideView>
+    );
+  }, [getImageUrl, handleItemFocus, handleItemBlur, handleItemPress, isFocused, orientation]);
+
+  if (disabled) return null;
+  if (hideIfEmpty === true && data?.length === 0) return null;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      {orientation === "horizontal" ? (
-        <View style={styles.horizontalList}>
-          {data.map(item => renderItem(item))}
+      <Pressable
+        style={[styles.titleContainer, isTitleFocused && styles.titleContainerFocused]}
+        onFocus={() => setIsTitleFocused(true)}
+        onBlur={() => setIsTitleFocused(false)}
+      >
+        <Text style={[styles.title, isTitleFocused && styles.titleFocused]}>
+          {title}
+          {isTitleFocused && (
+            <Ionicons name="chevron-forward" size={24} color={Colors.primary} style={styles.titleIcon} />
+          )}
+        </Text>
+      </Pressable>
+
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>{t("library.options.loading")}</Text>
+        </View>
+      ) : !data || data.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>{t("home.no_items")}</Text>
         </View>
       ) : (
-        <View style={styles.gridContainer}>
-          {data.map((item) => (
-            <View key={item.Id} style={styles.gridItem}>
-              {renderItem(item)}
-            </View>
-          ))}
-        </View>
+        <FlatList
+          horizontal
+          data={data}
+          renderItem={renderMediaItem}
+          keyExtractor={(item) => item.Id!}
+          contentContainerStyle={styles.horizontalList}
+          showsHorizontalScrollIndicator={false}
+        />
       )}
     </View>
   );
@@ -74,24 +206,37 @@ export const TVScrollingCollectionList = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 10,
+    marginVertical: 20,
+  },
+  titleContainer: {
+    marginBottom: 16,
+    paddingHorizontal: 40,
+    borderRadius: 8,
+  },
+  titleContainerFocused: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 10,
     color: "white",
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  titleFocused: {
+    color: Colors.primary,
+  },
+  titleIcon: {
+    marginLeft: 8,
   },
   horizontalList: {
-    flexDirection: "row",
-    paddingHorizontal: 10,
-    overflow: "scroll",
+    paddingLeft: 40,
+    paddingRight: 20,
   },
   loadingContainer: {
     height: 200,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 40,
   },
   loadingText: {
     color: "white",
@@ -101,18 +246,63 @@ const styles = StyleSheet.create({
     height: 100,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 40,
   },
   emptyText: {
-    color: "white",
+    color: "rgba(255, 255, 255, 0.5)",
     fontSize: 16,
   },
-  gridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 10,
+  mediaItemContainer: {
+    marginRight: 20,
   },
-  gridItem: {
-    width: "20%",
-    padding: 5,
-  }
+  mediaItem: {
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  mediaItemVertical: {
+    width: 160,
+  },
+  mediaItemHorizontal: {
+    width: 240,
+  },
+  imageContainer: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  mediaImage: {
+    width: "100%",
+  },
+  mediaImageVertical: {
+    aspectRatio: 2/3,
+  },
+  mediaImageHorizontal: {
+    aspectRatio: 16/9,
+  },
+  focusedItem: {
+    transform: [{ scale: 1.1 }],
+    borderWidth: 4,
+    borderColor: Colors.primary,
+  },
+  mediaTitle: {
+    color: "white",
+    fontSize: 16,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  progressBackground: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  progressBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    height: 4,
+    backgroundColor: Colors.primary,
+  },
 });
