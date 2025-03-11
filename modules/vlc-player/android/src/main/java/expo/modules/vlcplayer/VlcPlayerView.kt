@@ -354,7 +354,9 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             )
         }
 
-        currentActivity.unregisterReceiver(actionReceiver)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            currentActivity.unregisterReceiver(actionReceiver)
+        }
         currentActivity.removeOnPictureInPictureModeChangedListener(pipChangeListener)
         VLCManager.listeners.clear()
 
