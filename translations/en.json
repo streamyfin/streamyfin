@@ -455,6 +455,8 @@
     "number_episodes": "{{episode_number}} Episodes",
     "born": "Born",
     "appearances": "Appearances",
+    "select_all": "Select All",
+    "clear": "Clear",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Jellyseerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Jellyseerr test failed. Please try again.",

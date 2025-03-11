@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { useJellyfin } from "@/providers/JellyfinProvider";
@@ -26,8 +26,6 @@ export default function TVSearchPage() {
   const [searchResults, setSearchResults] = useState<BaseItemDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'library' | 'discover'>('library');
-  
-  // Simple focus tracking
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const performSearch = useCallback(async (query: string) => {
@@ -86,7 +84,6 @@ export default function TVSearchPage() {
     setActiveTab(tab);
   }, []);
 
-  // Tab buttons
   const renderTabButton = (tab: 'library' | 'discover') => (
     <Pressable
       onPress={() => handleTabPress(tab)}
@@ -106,7 +103,6 @@ export default function TVSearchPage() {
     </Pressable>
   );
 
-  // Render a search result item
   const renderSearchItem = ({ item }: { item: BaseItemDto }) => {
     const imageUrl = api?.getImageUrl(item.Id || "", { 
       fillHeight: 300, 
@@ -136,7 +132,6 @@ export default function TVSearchPage() {
     );
   };
 
-  // Render a suggested search item
   const renderSuggestion = ({ item, index }: { item: string, index: number }) => (
     <Pressable
       onFocus={() => setFocusedId(`suggestion-${index}`)}
@@ -151,7 +146,6 @@ export default function TVSearchPage() {
     </Pressable>
   );
 
-  // Render Library content
   const renderLibraryContent = () => {
     if (loading) {
       return (
@@ -161,13 +155,15 @@ export default function TVSearchPage() {
       );
     } else if (searchResults.length > 0) {
       return (
-        <FlatList
-          data={searchResults}
-          renderItem={renderSearchItem}
-          keyExtractor={(item) => item.Id!}
-          numColumns={5}
-          contentContainerStyle={styles.resultsGrid}
-        />
+        <View style={styles.resultsContainer}>
+          <View style={styles.resultsGrid}>
+            {searchResults.map(item => (
+              <View key={item.Id} style={styles.mediaItemContainer}>
+                {renderSearchItem({ item })}
+              </View>
+            ))}
+          </View>
+        </View>
       );
     } else if (searchQuery) {
       return (
@@ -179,22 +175,19 @@ export default function TVSearchPage() {
       return (
         <View style={styles.suggestionsContainer}>
           <Text style={styles.sectionTitle}>{t("search.suggestions")}</Text>
-          <FlatList
-            data={SUGGESTED_SEARCHES}
-            renderItem={renderSuggestion}
-            keyExtractor={(item, index) => `suggestion-${index}`}
-            horizontal={false}
-            numColumns={3}
-            contentContainerStyle={styles.suggestionsGrid}
-          />
+          <View style={styles.suggestionsGrid}>
+            {SUGGESTED_SEARCHES.map((item, index) => (
+              <View key={`suggestion-${index}`} style={styles.suggestionItemContainer}>
+                {renderSuggestion({ item, index })}
+              </View>
+            ))}
+          </View>
         </View>
       );
     }
   };
 
-  // Render Discover content (Jellyseerr)
   const renderDiscoverContent = () => {
-    // Simple wrapper for Jellyseerr content
     return (
       <View style={styles.jellyseerrContainer}>
         <Text style={styles.jellyseerrTitle}>
@@ -211,13 +204,11 @@ export default function TVSearchPage() {
 
   return (
     <View style={styles.container}>
-      {/* Tabs */}
       <View style={styles.tabsContainer}>
         {renderTabButton('library')}
         {renderTabButton('discover')}
       </View>
 
-      {/* Search Input */}
       <View style={styles.searchInputContainer}>
         <TVSearchInput
           value={searchQuery}
@@ -227,7 +218,6 @@ export default function TVSearchPage() {
         />
       </View>
 
-      {/* Content Area */}
       <View style={styles.contentContainer}>
         {activeTab === 'library' ? renderLibraryContent() : renderDiscoverContent()}
       </View>
@@ -291,11 +281,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   suggestionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 10,
+  },
+  suggestionItemContainer: {
+    width: '33.33%',
     padding: 10,
   },
   suggestionItem: {
     flex: 1,
-    margin: 10,
     padding: 20,
     backgroundColor: "#1a1a1a",
     borderRadius: 8,
@@ -310,12 +305,19 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
   },
+  resultsContainer: {
+    flex: 1,
+  },
   resultsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 10,
+  },
+  mediaItemContainer: {
+    width: '20%',
     padding: 10,
   },
   mediaItem: {
-    width: "20%",
-    padding: 10,
     borderRadius: 8,
   },
   focusedMediaItem: {
@@ -327,7 +329,6 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 2/3,
     borderRadius: 8,
-    borderWidth: 0,
   },
   mediaTitle: {
     color: "white",

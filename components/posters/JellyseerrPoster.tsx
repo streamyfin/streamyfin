@@ -7,7 +7,7 @@ import {useJellyseerrCanRequest} from "@/utils/_jellyseerr/useJellyseerrCanReque
 import {MovieResult, TvResult} from "@/utils/jellyseerr/server/models/Search";
 import {Image} from "expo-image";
 import {useMemo} from "react";
-import {View, ViewProps} from "react-native";
+import {View, ViewProps, Platform} from "react-native";
 import Animated, {useAnimatedStyle, useSharedValue, withTiming,} from "react-native-reanimated";
 import {TvDetails} from "@/utils/jellyseerr/server/models/Tv";
 import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
@@ -108,6 +108,9 @@ const JellyseerrPoster: React.FC<Props> = ({
     [mediaRequest, is4k]
   );
 
+  // Add extra margin for TV platforms to improve focus visibility
+  const containerStyle = Platform.isTV ? { margin: 8 } : {};
+
   return (
     <TouchableJellyseerrRouter
       result={item}
@@ -116,6 +119,7 @@ const JellyseerrPoster: React.FC<Props> = ({
       canRequest={canRequest}
       posterSrc={posterSrc!!}
       mediaType={mediaType}
+      style={containerStyle}
     >
       <View className={`flex flex-col mr-2 h-auto`}>
         <View className={`relative rounded-lg overflow-hidden border border-neutral-900 ${size} aspect-[${ratio}]`}>
