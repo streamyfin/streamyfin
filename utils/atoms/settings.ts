@@ -1,4 +1,4 @@
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { storage } from "../mmkv";
@@ -226,7 +226,7 @@ export const settingsAtom = atom<Partial<Settings> | null>(null);
 export const pluginSettingsAtom = atom(storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS));
 
 export const useSettings = () => {
-  const [api] = useAtom(apiAtom);
+  const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
