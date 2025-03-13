@@ -7,7 +7,7 @@ import {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
-import React, {useMemo, useState} from "react";
+import React, { useMemo, useState } from "react";
 import { View, ViewProps } from "react-native";
 import {
   useAnimatedReaction,
@@ -21,7 +21,7 @@ import { LoadingSkeleton } from "../search/LoadingSkeleton";
 import { SearchItemWrapper } from "../search/SearchItemWrapper";
 import PersonPoster from "./PersonPoster";
 import { useTranslation } from "react-i18next";
-import {orderBy, uniqBy} from "lodash";
+import { orderBy, uniqBy } from "lodash";
 
 interface Props extends ViewProps {
   searchQuery: string;
@@ -32,13 +32,13 @@ interface Props extends ViewProps {
 export enum JellyseerrSearchSort {
   DEFAULT,
   VOTE_COUNT_AND_AVERAGE,
-  POPULARITY
+  POPULARITY,
 }
 
 export const JellyserrIndexPage: React.FC<Props> = ({
   searchQuery,
   sortType,
-  order
+  order,
 }) => {
   const { jellyseerrApi } = useJellyseerr();
   const opacity = useSharedValue(1);
@@ -57,19 +57,24 @@ export const JellyserrIndexPage: React.FC<Props> = ({
   const {
     data: jellyseerrResults,
     isFetching: f2,
-    isLoading: l2
+    isLoading: l2,
   } = useReactNavigationQuery({
     queryKey: ["search", "jellyseerr", "results", searchQuery],
     queryFn: async () => {
       const params = {
-        query: new URLSearchParams(searchQuery || "").toString()
-      }
+        query: new URLSearchParams(searchQuery || "").toString(),
+      };
       return await Promise.all([
-        jellyseerrApi?.search({...params, page: 1}),
-        jellyseerrApi?.search({...params, page: 2}),
-        jellyseerrApi?.search({...params, page: 3}),
-        jellyseerrApi?.search({...params, page: 4})
-      ]).then(all => uniqBy(all.flatMap(v => v?.results || []), "id"))
+        jellyseerrApi?.search({ ...params, page: 1 }),
+        jellyseerrApi?.search({ ...params, page: 2 }),
+        jellyseerrApi?.search({ ...params, page: 3 }),
+        jellyseerrApi?.search({ ...params, page: 4 }),
+      ]).then((all) =>
+        uniqBy(
+          all.flatMap((v) => v?.results || []),
+          "id",
+        ),
+      );
     },
     enabled: !!jellyseerrApi && searchQuery.length > 0,
   });
@@ -82,52 +87,61 @@ export const JellyserrIndexPage: React.FC<Props> = ({
       } else {
         opacity.value = withTiming(0, { duration: 200 });
       }
-    }
+    },
   );
 
-  const sortingType = useMemo(
-    () => {
-      if (!sortType) return;
-      switch (Number(JellyseerrSearchSort[sortType])) {
-        case JellyseerrSearchSort.VOTE_COUNT_AND_AVERAGE:
-          return ["voteCount", "voteAverage"];
-        case JellyseerrSearchSort.POPULARITY:
-          return ["voteCount", "popularity"]
-        default:
-          return undefined
-      }
-    },
-    [sortType, order]
-  )
+  const sortingType = useMemo(() => {
+    if (!sortType) return;
+    switch (Number(JellyseerrSearchSort[sortType])) {
+      case JellyseerrSearchSort.VOTE_COUNT_AND_AVERAGE:
+        return ["voteCount", "voteAverage"];
+      case JellyseerrSearchSort.POPULARITY:
+        return ["voteCount", "popularity"];
+      default:
+        return undefined;
+    }
+  }, [sortType, order]);
 
   const jellyseerrMovieResults = useMemo(
     () =>
       orderBy(
-        jellyseerrResults?.filter((r) => r.mediaType === MediaType.MOVIE) as MovieResult[],
-        sortingType || [m => m.title.toLowerCase() == searchQuery.toLowerCase()],
-        order || "desc"
+        jellyseerrResults?.filter(
+          (r) => r.mediaType === MediaType.MOVIE,
+        ) as MovieResult[],
+        sortingType || [
+          (m) => m.title.toLowerCase() == searchQuery.toLowerCase(),
+        ],
+        order || "desc",
       ),
-    [jellyseerrResults, sortingType, order]
+    [jellyseerrResults, sortingType, order],
   );
 
   const jellyseerrTvResults = useMemo(
     () =>
       orderBy(
-        jellyseerrResults?.filter((r) => r.mediaType === MediaType.TV) as TvResult[],
-        sortingType || [t => t.name.toLowerCase() == searchQuery.toLowerCase()],
-        order || "desc"
+        jellyseerrResults?.filter(
+          (r) => r.mediaType === MediaType.TV,
+        ) as TvResult[],
+        sortingType || [
+          (t) => t.name.toLowerCase() == searchQuery.toLowerCase(),
+        ],
+        order || "desc",
       ),
-    [jellyseerrResults, sortingType, order]
+    [jellyseerrResults, sortingType, order],
   );
 
   const jellyseerrPersonResults = useMemo(
     () =>
       orderBy(
-        jellyseerrResults?.filter((r) => r.mediaType === "person") as PersonResult[],
-        sortingType || [p => p.name.toLowerCase() == searchQuery.toLowerCase()],
-        order || "desc"
+        jellyseerrResults?.filter(
+          (r) => r.mediaType === "person",
+        ) as PersonResult[],
+        sortingType || [
+          (p) => p.name.toLowerCase() == searchQuery.toLowerCase(),
+        ],
+        order || "desc",
       ),
-    [jellyseerrResults, sortingType, order]
+    [jellyseerrResults, sortingType, order],
   );
 
   if (!searchQuery.length)

@@ -26,7 +26,7 @@ export default function menuLinks() {
   const getMenuLinks = useCallback(async () => {
     try {
       const response = await api?.axiosInstance.get(
-        api?.basePath + "/web/config.json"
+        api?.basePath + "/web/config.json",
       );
       const config = response?.data;
 
@@ -77,7 +77,9 @@ export default function menuLinks() {
       )}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("custom_links.no_links")}</Text>
+          <Text className="font-bold text-xl text-neutral-500">
+            {t("custom_links.no_links")}
+          </Text>
         </View>
       }
     />

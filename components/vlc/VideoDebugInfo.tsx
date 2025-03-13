@@ -1,7 +1,4 @@
-import {
-  TrackInfo,
-  VlcPlayerViewRef,
-} from "@/modules/VlcPlayer.types";
+import { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import React, { useEffect, useState } from "react";
 import { TouchableOpacity, View, ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,7 +12,7 @@ interface Props extends ViewProps {
 export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
   const [audioTracks, setAudioTracks] = useState<TrackInfo[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[] | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -69,7 +66,9 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
           }
         }}
       >
-        <Text className="text-white text-center">{t("player.refresh_tracks")}</Text>
+        <Text className="text-white text-center">
+          {t("player.refresh_tracks")}
+        </Text>
       </TouchableOpacity>
     </View>
   );

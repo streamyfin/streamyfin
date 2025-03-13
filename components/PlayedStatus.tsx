@@ -18,7 +18,7 @@ export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
       queryClient.invalidateQueries({
         queryKey: ["item", item.Id],
       });
-    })
+    });
     queryClient.invalidateQueries({
       queryKey: ["resumeItems"],
     });
@@ -51,9 +51,9 @@ export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
       <RoundButton
         fillColor={allPlayed ? "primary" : undefined}
         icon={allPlayed ? "checkmark" : "checkmark"}
-        onPress={async () => {    
+        onPress={async () => {
           console.log(allPlayed);
-          await markAsPlayedStatus(!allPlayed)
+          await markAsPlayedStatus(!allPlayed);
         }}
         size={props.size}
       />

@@ -25,8 +25,7 @@ export async function unregisterBackgroundFetchAsync() {
   }
 }
 
-export const BACKGROUND_FETCH_TASK_SESSIONS =
-  "background-fetch-sessions";
+export const BACKGROUND_FETCH_TASK_SESSIONS = "background-fetch-sessions";
 
 export async function registerBackgroundFetchAsyncSessions() {
   try {

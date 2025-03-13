@@ -21,7 +21,9 @@ export default function Layout() {
       if (settings.followDeviceOrientation === true) {
         ScreenOrientation.unlockAsync();
       } else {
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP,
+        );
       }
     };
   });

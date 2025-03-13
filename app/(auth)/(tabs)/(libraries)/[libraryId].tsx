@@ -58,7 +58,7 @@ const Page = () => {
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [sortOrderPreference, setOderByPreference] = useAtom(
-    sortOrderPreferenceAtom
+    sortOrderPreferenceAtom,
   );
 
   const { orientation } = useOrientation();
@@ -88,7 +88,7 @@ const Page = () => {
       }
       _setSortBy(sortBy);
     },
-    [libraryId, sortByPreference]
+    [libraryId, sortByPreference],
   );
 
   const setSortOrder = useCallback(
@@ -102,7 +102,7 @@ const Page = () => {
       }
       _setSortOrder(sortOrder);
     },
-    [libraryId, sortOrderPreference]
+    [libraryId, sortOrderPreference],
   );
 
   const nrOfCols = useMemo(() => {
@@ -185,7 +185,7 @@ const Page = () => {
       selectedTags,
       sortBy,
       sortOrder,
-    ]
+    ],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
@@ -211,7 +211,7 @@ const Page = () => {
         const totalItems = lastPage.TotalRecordCount;
         const accumulatedItems = pages.reduce(
           (acc, curr) => acc + (curr?.Items?.length || 0),
-          0
+          0,
         );
 
         if (accumulatedItems < totalItems) {
@@ -248,8 +248,8 @@ const Page = () => {
                 ? index % nrOfCols === 0
                   ? "flex-end"
                   : (index + 1) % nrOfCols === 0
-                  ? "flex-start"
-                  : "center"
+                    ? "flex-start"
+                    : "center"
                 : "center",
             width: "89%",
           }}
@@ -260,7 +260,7 @@ const Page = () => {
         </View>
       </TouchableItemRouter>
     ),
-    [orientation]
+    [orientation],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
@@ -292,7 +292,7 @@ const Page = () => {
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: libraryId,
@@ -319,7 +319,7 @@ const Page = () => {
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: libraryId,
@@ -344,7 +344,7 @@ const Page = () => {
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: libraryId,
@@ -422,7 +422,7 @@ const Page = () => {
       sortOrder,
       setSortOrder,
       isFetching,
-    ]
+    ],
   );
 
   const insets = useSafeAreaInsets();
@@ -437,7 +437,9 @@ const Page = () => {
   if (flatData.length === 0)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">{t("library.no_items_found")}</Text>
+        <Text className="text-lg text-neutral-500">
+          {t("library.no_items_found")}
+        </Text>
       </View>
     );
 
@@ -446,7 +448,9 @@ const Page = () => {
       key={orientation}
       ListEmptyComponent={
         <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("library.no_results")}</Text>
+          <Text className="font-bold text-xl text-neutral-500">
+            {t("library.no_results")}
+          </Text>
         </View>
       }
       contentInsetAdjustmentBehavior="automatic"

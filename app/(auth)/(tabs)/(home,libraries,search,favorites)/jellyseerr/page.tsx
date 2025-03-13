@@ -36,19 +36,38 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+import { Colors } from "@/constants/Colors";
+import { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import RequestModal from "@/components/jellyseerr/RequestModal";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
+import JellyseerrTVIssueModal from "@/components/jellyseerr/JellyseerrTVIssueModal";
+import JellyseerrTVRequestModal from "@/components/jellyseerr/JellyseerrTVRequestModal";
+
+// Only import DropdownMenu if not on TV
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
+  const [focusedButton, setFocusedButton] = useState<string | null>(null);
+  const navigation = useNavigation();
 
+  // TV-specific modal states
+  const [showTVIssueModal, setShowTVIssueModal] = useState(false);
+  const [showTVRequestModal, setShowTVRequestModal] = useState(false);
+
+  // Common params for both TV and mobile
   const { mediaTitle, releaseYear, posterSrc, mediaType, ...result } =
     params as unknown as {
       mediaTitle: string;
@@ -58,9 +77,7 @@ const Page: React.FC = () => {
       mediaType: MediaType;
     } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
-  const navigation = useNavigation();
   const { jellyseerrApi, requestMedia } = useJellyseerr();
-
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
   const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
@@ -99,25 +116,41 @@ const Page: React.FC = () => {
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
 
-  const submitIssue = useCallback(() => {
-    if (result.id && issueType && issueMessage && details) {
-      jellyseerrApi
-        ?.submitIssue(details.mediaInfo.id, Number(issueType), issueMessage)
-        .then(() => {
-          setIssueType(undefined);
-          setIssueMessage(undefined);
-          bottomSheetModalRef?.current?.close();
-        });
-    }
-  }, [jellyseerrApi, details, result, issueType, issueMessage]);
+  const submitIssue = useCallback(
+    (selectedIssueType: IssueType, message: string = "") => {
+      if (result.id && selectedIssueType && details) {
+        jellyseerrApi
+          ?.submitIssue(
+            details.mediaInfo.id,
+            Number(selectedIssueType),
+            message,
+          )
+          .then(() => {
+            setIssueType(undefined);
+            setIssueMessage(undefined);
+            if (!Platform.isTV) {
+              bottomSheetModalRef?.current?.close();
+            }
+          });
+      }
+    },
+    [jellyseerrApi, details, result],
+  );
 
-  const setRequestBody = useCallback((body: MediaRequestBody) => {
-    _setRequestBody(body)
-    advancedReqModalRef?.current?.present?.();
-  }, [requestBody, _setRequestBody, advancedReqModalRef])
+  const setRequestBody = useCallback(
+    (body: MediaRequestBody) => {
+      _setRequestBody(body);
+      if (Platform.isTV) {
+        setShowTVRequestModal(true);
+      } else {
+        advancedReqModalRef?.current?.present?.();
+      }
+    },
+    [requestBody, _setRequestBody, advancedReqModalRef],
+  );
 
   const request = useCallback(async () => {
     const body: MediaRequestBody = {
@@ -130,7 +163,7 @@ const Page: React.FC = () => {
     };
 
     if (hasAdvancedRequestPermission) {
-      setRequestBody(body)
+      setRequestBody(body);
       return;
     }
 
@@ -141,7 +174,7 @@ const Page: React.FC = () => {
     () =>
       (details?.keywords.some((k) => k.id === ANIME_KEYWORD_ID) || false) &&
       mediaType === MediaType.TV,
-    [details]
+    [details],
   );
 
   useEffect(() => {
@@ -156,6 +189,189 @@ const Page: React.FC = () => {
     }
   }, [details]);
 
+  const handleBackPress = () => {
+    navigation.goBack();
+  };
+
+  const handleTVIssueSubmit = (
+    selectedIssueType: IssueType,
+    message: string,
+  ) => {
+    submitIssue(selectedIssueType, message);
+  };
+
+  const handleTVRequest = (body: MediaRequestBody) => {
+    requestMedia(mediaTitle, body, refetch);
+  };
+
+  // TV-specific rendering with improved navigation
+  if (Platform.isTV) {
+    return (
+      <View
+        style={[
+          tvStyles.container,
+          {
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          },
+        ]}
+      >
+        <ScrollView style={tvStyles.scrollView}>
+          <View style={tvStyles.content}>
+            <View style={tvStyles.header}>
+              <Text style={tvStyles.title}>{mediaTitle}</Text>
+              <Text style={tvStyles.year}>{releaseYear}</Text>
+            </View>
+
+            <View style={tvStyles.mediaContainer}>
+              <View style={tvStyles.posterContainer}>
+                {posterSrc ? (
+                  <Image style={tvStyles.poster} source={{ uri: posterSrc }} />
+                ) : (
+                  <View style={tvStyles.noPoster}>
+                    <Ionicons name="image-outline" size={48} color="white" />
+                  </View>
+                )}
+              </View>
+
+              <View style={tvStyles.detailsContainer}>
+                <JellyserrRatings
+                  result={
+                    result as MovieResult | TvResult | MovieDetails | TvDetails
+                  }
+                />
+
+                <Text style={tvStyles.overview} numberOfLines={6}>
+                  {result.overview}
+                </Text>
+
+                {!isLoading && !isFetching && (
+                  <View style={tvStyles.buttonContainer}>
+                    {canRequest ? (
+                      <Pressable
+                        style={[
+                          tvStyles.actionButton,
+                          tvStyles.requestButton,
+                          focusedButton === "request" && tvStyles.focusedButton,
+                        ]}
+                        onFocus={() => setFocusedButton("request")}
+                        onBlur={() => setFocusedButton(null)}
+                        onPress={request}
+                        hasTVPreferredFocus={true}
+                      >
+                        <Text style={tvStyles.buttonText}>
+                          {t("jellyseerr.request_button")}
+                        </Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        style={[
+                          tvStyles.actionButton,
+                          tvStyles.reportButton,
+                          focusedButton === "report" && tvStyles.focusedButton,
+                        ]}
+                        onFocus={() => setFocusedButton("report")}
+                        onBlur={() => setFocusedButton(null)}
+                        onPress={() => setShowTVIssueModal(true)}
+                      >
+                        <Ionicons
+                          name="warning-outline"
+                          size={24}
+                          color="white"
+                          style={tvStyles.buttonIcon}
+                        />
+                        <Text style={tvStyles.buttonText}>
+                          {t("jellyseerr.report_issue_button")}
+                        </Text>
+                      </Pressable>
+                    )}
+
+                    <Pressable
+                      style={[
+                        tvStyles.actionButton,
+                        tvStyles.backButton,
+                        focusedButton === "back" && tvStyles.focusedButton,
+                      ]}
+                      onFocus={() => setFocusedButton("back")}
+                      onBlur={() => setFocusedButton(null)}
+                      onPress={handleBackPress}
+                    >
+                      <Ionicons
+                        name="arrow-back"
+                        size={24}
+                        color="white"
+                        style={tvStyles.buttonIcon}
+                      />
+                      <Text style={tvStyles.buttonText}>
+                        {t("home.downloads.back")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {mediaType === MediaType.TV && details && (
+              <View style={tvStyles.seasonsContainer}>
+                <Text style={tvStyles.sectionTitle}>
+                  {t("item_card.seasons")}
+                </Text>
+                <JellyseerrSeasons
+                  isLoading={isLoading || isFetching}
+                  details={details as TvDetails}
+                  refetch={refetch}
+                  hasAdvancedRequest={hasAdvancedRequestPermission}
+                  onAdvancedRequest={(data) => setRequestBody(data)}
+                />
+              </View>
+            )}
+
+            {details && (
+              <View style={tvStyles.factsContainer}>
+                <Text style={tvStyles.sectionTitle}>
+                  {t("jellyseerr.details")}
+                </Text>
+                <DetailFacts details={details} />
+              </View>
+            )}
+
+            {details && (
+              <View style={tvStyles.castContainer}>
+                <Text style={tvStyles.sectionTitle}>
+                  {t("jellyseerr.cast")}
+                </Text>
+                <Cast details={details} />
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        {/* TV-specific modals */}
+        <JellyseerrTVIssueModal
+          visible={showTVIssueModal}
+          onClose={() => setShowTVIssueModal(false)}
+          onSubmit={handleTVIssueSubmit}
+        />
+
+        <JellyseerrTVRequestModal
+          visible={showTVRequestModal}
+          onClose={() => setShowTVRequestModal(false)}
+          onRequest={handleTVRequest}
+          title={mediaTitle}
+          mediaType={mediaType}
+          mediaId={Number(result.id)}
+          tvdbId={details?.externalIds?.tvdbId}
+          seasons={(details as TvDetails)?.seasons
+            ?.filter?.((s) => s.seasonNumber !== 0)
+            ?.map?.((s) => s.seasonNumber)}
+          isAnime={isAnime}
+          details={details as TvDetails}
+        />
+      </View>
+    );
+  }
+
+  // Original mobile implementation
   return (
     <View
       className="flex-1 relative"
@@ -180,7 +396,7 @@ const Page: React.FC = () => {
                 source={{
                   uri: jellyseerrApi?.imageProxy(
                     result.backdropPath,
-                    "w1920_and_h800_multi_faces"
+                    "w1920_and_h800_multi_faces",
                   ),
                 }}
               />
@@ -208,7 +424,15 @@ const Page: React.FC = () => {
             <View className="px-4">
               <View className="flex flex-row justify-between w-full">
                 <View className="flex flex-col w-56">
-                  <JellyserrRatings result={result as MovieResult | TvResult | MovieDetails | TvDetails} />
+                  <JellyserrRatings
+                    result={
+                      result as
+                        | MovieResult
+                        | TvResult
+                        | MovieDetails
+                        | TvDetails
+                    }
+                  />
                   <Text
                     uiTextView
                     selectable
@@ -261,9 +485,7 @@ const Page: React.FC = () => {
                 details={details as TvDetails}
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
-                onAdvancedRequest={(data) =>
-                  setRequestBody(data)
-                }
+                onAdvancedRequest={(data) => setRequestBody(data)}
               />
             )}
             <DetailFacts
@@ -282,7 +504,7 @@ const Page: React.FC = () => {
         type={mediaType}
         isAnime={isAnime}
         onRequested={() => {
-          _setRequestBody(undefined)
+          _setRequestBody(undefined);
           advancedReqModalRef?.current?.close();
           refetch();
         }}
@@ -308,49 +530,51 @@ const Page: React.FC = () => {
             </View>
             <View className="flex flex-col space-y-2 items-start">
               <View className="flex flex-col">
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <View className="flex flex-col">
-                      <Text className="opacity-50 mb-1 text-xs">
-                        {t("jellyseerr.issue_type")}
-                      </Text>
-                      <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-                        <Text style={{}} className="" numberOfLines={1}>
-                          {issueType
-                            ? IssueTypeName[issueType]
-                            : t("jellyseerr.select_an_issue")}
+                {DropdownMenu && (
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <View className="flex flex-col">
+                        <Text className="opacity-50 mb-1 text-xs">
+                          {t("jellyseerr.issue_type")}
                         </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content
-                    loop={false}
-                    side="bottom"
-                    align="center"
-                    alignOffset={0}
-                    avoidCollisions={true}
-                    collisionPadding={0}
-                    sideOffset={0}
-                  >
-                    <DropdownMenu.Label>
-                      {t("jellyseerr.types")}
-                    </DropdownMenu.Label>
-                    {Object.entries(IssueTypeName)
-                      .reverse()
-                      .map(([key, value], idx) => (
-                        <DropdownMenu.Item
-                          key={value}
-                          onSelect={() =>
-                            setIssueType(key as unknown as IssueType)
-                          }
-                        >
-                          <DropdownMenu.ItemTitle>
-                            {value}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.Item>
-                      ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
+                        <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
+                          <Text style={{}} className="" numberOfLines={1}>
+                            {issueType
+                              ? IssueTypeName[issueType]
+                              : t("jellyseerr.select_an_issue")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content
+                      loop={false}
+                      side="bottom"
+                      align="center"
+                      alignOffset={0}
+                      avoidCollisions={true}
+                      collisionPadding={0}
+                      sideOffset={0}
+                    >
+                      <DropdownMenu.Label>
+                        {t("jellyseerr.types")}
+                      </DropdownMenu.Label>
+                      {Object.entries(IssueTypeName)
+                        .reverse()
+                        .map(([key, value], idx) => (
+                          <DropdownMenu.Item
+                            key={value}
+                            onSelect={() =>
+                              setIssueType(key as unknown as IssueType)
+                            }
+                          >
+                            <DropdownMenu.ItemTitle>
+                              {value}
+                            </DropdownMenu.ItemTitle>
+                          </DropdownMenu.Item>
+                        ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                )}
               </View>
 
               <View className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full">
@@ -368,7 +592,11 @@ const Page: React.FC = () => {
                 />
               </View>
             </View>
-            <Button className="mt-auto" onPress={submitIssue} color="purple">
+            <Button
+              className="mt-auto"
+              onPress={() => submitIssue(issueType!, issueMessage || "")}
+              color="purple"
+            >
               {t("jellyseerr.submit_button")}
             </Button>
           </View>
@@ -377,5 +605,118 @@ const Page: React.FC = () => {
     </View>
   );
 };
+
+// TV-specific styles
+const tvStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#121212",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 40,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "white",
+    textAlign: "center",
+  },
+  year: {
+    fontSize: 18,
+    color: "#888",
+    marginTop: 5,
+  },
+  mediaContainer: {
+    flexDirection: "row",
+    marginBottom: 40,
+  },
+  posterContainer: {
+    width: 240,
+    height: 360,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#333",
+    marginRight: 30,
+  },
+  poster: {
+    width: "100%",
+    height: "100%",
+  },
+  noPoster: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#333",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  detailsContainer: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  overview: {
+    fontSize: 18,
+    color: "white",
+    marginVertical: 20,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginTop: 20,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    marginRight: 20,
+  },
+  requestButton: {
+    backgroundColor: Colors.primary,
+  },
+  reportButton: {
+    backgroundColor: "#8B5000",
+  },
+  backButton: {
+    backgroundColor: "#333",
+  },
+  focusedButton: {
+    transform: [{ scale: 1.05 }],
+    borderWidth: 2,
+    borderColor: "white",
+  },
+  buttonIcon: {
+    marginRight: 10,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  seasonsContainer: {
+    marginBottom: 30,
+  },
+  factsContainer: {
+    marginBottom: 30,
+  },
+  castContainer: {
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 15,
+  },
+});
 
 export default Page;

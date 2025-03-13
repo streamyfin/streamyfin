@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { PropsWithChildren, ReactNode } from "react";
+import { PropsWithChildren, ReactNode, forwardRef } from "react";
 import {
   TouchableOpacity,
   TouchableOpacityProps,
   View,
   ViewProps,
+  Platform,
 } from "react-native";
 import { Text } from "../common/Text";
+import { TVFocusable } from "../common/TVFocusable";
 
 interface Props extends TouchableOpacityProps, ViewProps {
   title?: string | null | undefined;
@@ -17,49 +19,27 @@ interface Props extends TouchableOpacityProps, ViewProps {
   showArrow?: boolean;
   textColor?: "default" | "blue" | "red";
   onPress?: () => void;
+  hasTVPreferredFocus?: boolean;
 }
 
-export const ListItem: React.FC<PropsWithChildren<Props>> = ({
-  title,
-  value,
-  iconAfter,
-  children,
-  showArrow = false,
-  icon,
-  textColor = "default",
-  onPress,
-  disabled = false,
-  ...props
-}) => {
-  if (onPress)
-    return (
-      <TouchableOpacity
-        disabled={disabled}
-        onPress={onPress}
-        className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
-          disabled ? "opacity-50" : ""
-        }`}
-        {...props}
-      >
-        <ListItemContent
-          title={title}
-          value={value}
-          icon={icon}
-          textColor={textColor}
-          showArrow={showArrow}
-          iconAfter={iconAfter}
-        >
-          {children}
-        </ListItemContent>
-      </TouchableOpacity>
-    );
-  return (
-    <View
-      className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
-        disabled ? "opacity-50" : ""
-      }`}
-      {...props}
-    >
+export const ListItem = forwardRef<any, PropsWithChildren<Props>>(
+  (
+    {
+      title,
+      value,
+      iconAfter,
+      children,
+      showArrow = false,
+      icon,
+      textColor = "default",
+      onPress,
+      disabled = false,
+      hasTVPreferredFocus = false,
+      ...props
+    },
+    ref,
+  ) => {
+    const content = (
       <ListItemContent
         title={title}
         value={value}
@@ -70,9 +50,53 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
       >
         {children}
       </ListItemContent>
-    </View>
-  );
-};
+    );
+
+    if (onPress) {
+      if (Platform.isTV) {
+        return (
+          <TVFocusable
+            ref={ref}
+            hasTVPreferredFocus={hasTVPreferredFocus}
+            onSelect={onPress}
+            className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
+              disabled ? "opacity-50" : ""
+            }`}
+            {...props}
+          >
+            {content}
+          </TVFocusable>
+        );
+      }
+
+      return (
+        <TouchableOpacity
+          ref={ref}
+          disabled={disabled}
+          onPress={onPress}
+          className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
+            disabled ? "opacity-50" : ""
+          }`}
+          {...props}
+        >
+          {content}
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <View
+        ref={ref}
+        className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
+          disabled ? "opacity-50" : ""
+        }`}
+        {...props}
+      >
+        {content}
+      </View>
+    );
+  },
+);
 
 const ListItemContent = ({
   title,
@@ -97,8 +121,8 @@ const ListItemContent = ({
             textColor === "blue"
               ? "text-[#0584FE]"
               : textColor === "red"
-              ? "text-red-600"
-              : "text-white"
+                ? "text-red-600"
+                : "text-white"
           }
           numberOfLines={1}
         >

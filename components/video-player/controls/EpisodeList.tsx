@@ -59,7 +59,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
       getUserItemData({ api, userId: user?.Id, itemId: item.SeriesId }).then(
         (res) => {
           setSeriesItem(res);
-        }
+        },
       );
     }
   }, [item.SeriesId]);
@@ -80,7 +80,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           headers: {
             Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
           },
-        }
+        },
       );
       return response.data.Items;
     },
@@ -90,7 +90,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const selectedSeasonId: string | null = useMemo(
     () =>
       seasons?.find((season: any) => season.IndexNumber === seasonIndex)?.Id,
-    [seasons, seasonIndex]
+    [seasons, seasonIndex],
   );
 
   const { data: episodes, isFetching } = useQuery({

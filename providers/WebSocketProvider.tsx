@@ -117,7 +117,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
     const subscription = AppState.addEventListener(
       "change",
-      handleAppStateChange
+      handleAppStateChange,
     );
 
     return () => {
@@ -137,7 +137,7 @@ export const useWebSocketContext = (): WebSocketContextType => {
   const context = useContext(WebSocketContext);
   if (!context) {
     throw new Error(
-      "useWebSocketContext must be used within a WebSocketProvider"
+      "useWebSocketContext must be used within a WebSocketProvider",
     );
   }
   return context;

@@ -63,7 +63,7 @@ export async function getAllJobsByDeviceId({
     console.error(
       statusResponse.status,
       statusResponse.data,
-      statusResponse.statusText
+      statusResponse.statusText,
     );
     throw new Error("Failed to fetch job status");
   }
@@ -172,7 +172,7 @@ export async function getStatistics({
 export function saveDownloadItemInfoToDiskTmp(
   item: BaseItemDto,
   mediaSource: MediaSourceInfo,
-  url: string
+  url: string,
 ): boolean {
   try {
     const storage = new MMKV();

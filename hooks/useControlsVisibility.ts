@@ -9,7 +9,7 @@ export const useControlsVisibility = (timeout: number = 3000) => {
   const opacity = useSharedValue(1);
 
   const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
 
   const showControls = useCallback(() => {

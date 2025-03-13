@@ -23,7 +23,7 @@ const CompanySlide: React.FC<
         pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}`,
         params: { id, image, name, type: slide.type },
       }),
-    [slide]
+    [slide],
   );
 
   return (
@@ -39,7 +39,7 @@ const CompanySlide: React.FC<
             id={item.id.toString()}
             url={jellyseerrApi?.imageProxy(
               item.image,
-              COMPANY_LOGO_IMAGE_FILTER
+              COMPANY_LOGO_IMAGE_FILTER,
             )}
           />
         </TouchableOpacity>

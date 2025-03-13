@@ -25,7 +25,7 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
   }, [item]);
 
   const [progress, setProgress] = useState(
-    item.UserData?.PlayedPercentage || 0
+    item.UserData?.PlayedPercentage || 0,
   );
 
   const blurhash = useMemo(() => {

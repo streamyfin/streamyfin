@@ -46,7 +46,7 @@ export default function TabLayout() {
           clearTimeout(timer);
         };
       }
-    }, [])
+    }, []),
   );
 
   return (

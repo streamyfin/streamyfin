@@ -24,9 +24,9 @@ export const MediaSourceSelector: React.FC<Props> = ({
   const selectedName = useMemo(
     () =>
       item.MediaSources?.find((x) => x.Id === selected?.Id)?.MediaStreams?.find(
-        (x) => x.Type === "Video"
+        (x) => x.Type === "Video",
       )?.DisplayTitle || "",
-    [item, selected]
+    [item, selected],
   );
 
   const { t } = useTranslation();

@@ -25,7 +25,7 @@ export default function DownloadSettings({ ...props }) {
       pluginSettings?.downloadMethod?.locked === true &&
       pluginSettings?.remuxConcurrentLimit?.locked === true &&
       pluginSettings?.autoDownload.locked === true,
-    [pluginSettings]
+    [pluginSettings],
   );
 
   if (!settings) return null;

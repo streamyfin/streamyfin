@@ -1,9 +1,10 @@
 import React, { useMemo } from "react";
-import { View } from "react-native";
+import { View, Platform } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { ListGroup } from "./list/ListGroup";
 import { ListItem } from "./list/ListItem";
 import { useTranslation } from "react-i18next";
+import { TVFocusable } from "./common/TVFocusable";
 
 interface Server {
   address: string;
@@ -27,21 +28,24 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
 
   if (!previousServers.length) return null;
 
+  const handleClearServers = () => {
+    setPreviousServers("[]");
+  };
+
   return (
     <View>
       <ListGroup title={t("server.previous_servers")} className="mt-4">
-        {previousServers.map((s) => (
+        {previousServers.map((server, index) => (
           <ListItem
-            key={s.address}
-            onPress={() => onServerSelect(s)}
-            title={s.address}
+            key={server.address}
+            onPress={() => onServerSelect(server)}
+            title={server.address}
             showArrow
+            hasTVPreferredFocus={index === 0}
           />
         ))}
         <ListItem
-          onPress={() => {
-            setPreviousServers("[]");
-          }}
+          onPress={handleClearServers}
           title={t("server.clear_button")}
           textColor="red"
         />

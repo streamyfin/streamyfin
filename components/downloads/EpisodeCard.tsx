@@ -67,7 +67,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
             // Cancelled
             break;
         }
-      }
+      },
     );
   }, [showActionSheetWithOptions, handleDeleteFile]);
 
@@ -105,7 +105,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
 
 // Wrap the parent component with ActionSheetProvider
 export const EpisodeCardWithActionSheet: React.FC<EpisodeCardProps> = (
-  props
+  props,
 ) => (
   <ActionSheetProvider>
     <EpisodeCard {...props} />

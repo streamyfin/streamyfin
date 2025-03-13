@@ -19,7 +19,7 @@ export const ItemPoster: React.FC<Props> = ({
   ...props
 }) => {
   const [progress, setProgress] = useState(
-    item.UserData?.PlayedPercentage || 0
+    item.UserData?.PlayedPercentage || 0,
   );
 
   if (item.Type === "Movie" || item.Type === "Series" || item.Type === "BoxSet")

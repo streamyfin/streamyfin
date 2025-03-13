@@ -8,7 +8,7 @@ import { getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { Switch, View } from "react-native";
-import { useTranslation } from "react-i18next"; 
+import { useTranslation } from "react-i18next";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export default function page() {
@@ -60,7 +60,7 @@ export default function page() {
         ))}
       </ListGroup>
       <Text className="px-4 text-xs text-neutral-500 mt-1">
-      {t("home.settings.other.select_liraries_you_want_to_hide")}
+        {t("home.settings.other.select_liraries_you_want_to_hide")}
       </Text>
     </DisabledSetting>
   );

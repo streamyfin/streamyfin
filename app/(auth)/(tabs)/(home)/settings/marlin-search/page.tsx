@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import React, {useEffect, useMemo, useState} from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Linking,
   Switch,
@@ -39,7 +39,10 @@ export default function page() {
   };
 
   const disabled = useMemo(() => {
-    return pluginSettings?.searchEngine?.locked === true && pluginSettings?.marlinServerUrl?.locked === true
+    return (
+      pluginSettings?.searchEngine?.locked === true &&
+      pluginSettings?.marlinServerUrl?.locked === true
+    );
   }, [pluginSettings]);
 
   useEffect(() => {
@@ -47,7 +50,9 @@ export default function page() {
       navigation.setOptions({
         headerRight: () => (
           <TouchableOpacity onPress={() => onSave(value)}>
-            <Text className="text-blue-500">{t("home.settings.plugins.marlin_search.save_button")}</Text>
+            <Text className="text-blue-500">
+              {t("home.settings.plugins.marlin_search.save_button")}
+            </Text>
           </TouchableOpacity>
         ),
       });
@@ -57,17 +62,16 @@ export default function page() {
   if (!settings) return null;
 
   return (
-    <DisabledSetting
-      disabled={disabled}
-      className="px-4"
-    >
+    <DisabledSetting disabled={disabled} className="px-4">
       <ListGroup>
         <DisabledSetting
           disabled={pluginSettings?.searchEngine?.locked === true}
           showText={!pluginSettings?.marlinServerUrl?.locked}
         >
           <ListItem
-            title={t("home.settings.plugins.marlin_search.enable_marlin_search")}
+            title={t(
+              "home.settings.plugins.marlin_search.enable_marlin_search",
+            )}
             onPress={() => {
               updateSettings({ searchEngine: "Jellyfin" });
               queryClient.invalidateQueries({ queryKey: ["search"] });
@@ -89,14 +93,16 @@ export default function page() {
         showText={!pluginSettings?.searchEngine?.locked}
         className="mt-2 flex flex-col rounded-xl overflow-hidden pl-4 bg-neutral-900 px-4"
       >
-        <View
-          className={`flex flex-row items-center bg-neutral-900 h-11 pr-4`}
-        >
-          <Text className="mr-4">{t("home.settings.plugins.marlin_search.url")}</Text>
+        <View className={`flex flex-row items-center bg-neutral-900 h-11 pr-4`}>
+          <Text className="mr-4">
+            {t("home.settings.plugins.marlin_search.url")}
+          </Text>
           <TextInput
             editable={settings.searchEngine === "Marlin"}
             className="text-white"
-            placeholder={t("home.settings.plugins.marlin_search.server_url_placeholder")}
+            placeholder={t(
+              "home.settings.plugins.marlin_search.server_url_placeholder",
+            )}
             value={value}
             keyboardType="url"
             returnKeyType="done"

@@ -10,14 +10,14 @@ abstract class StreamRankerStrategy {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void;
 
   protected rank(
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void {
     if (prevIndex == -1) {
       console.debug(`AutoSet Subtitle - No Stream Set`);
@@ -41,7 +41,7 @@ abstract class StreamRankerStrategy {
     }
 
     console.debug(
-      `AutoSet ${this.streamType} - Previous was ${prevStream.Index} - ${prevStream.DisplayTitle}`
+      `AutoSet ${this.streamType} - Previous was ${prevStream.Index} - ${prevStream.DisplayTitle}`,
     );
 
     let prevRelIndex = 0;
@@ -74,7 +74,7 @@ abstract class StreamRankerStrategy {
         score += 2;
 
       console.debug(
-        `AutoSet ${this.streamType} - Score ${score} for ${stream.Index} - ${stream.DisplayTitle}`
+        `AutoSet ${this.streamType} - Score ${score} for ${stream.Index} - ${stream.DisplayTitle}`,
       );
       if (score > bestStreamScore && score >= 3) {
         bestStreamScore = score;
@@ -86,12 +86,12 @@ abstract class StreamRankerStrategy {
 
     if (bestStreamIndex != null) {
       console.debug(
-        `AutoSet ${this.streamType} - Using ${bestStreamIndex} score ${bestStreamScore}.`
+        `AutoSet ${this.streamType} - Using ${bestStreamIndex} score ${bestStreamScore}.`,
       );
       trackOptions[`Default${this.streamType}StreamIndex`] = bestStreamIndex;
     } else {
       console.debug(
-        `AutoSet ${this.streamType} - Threshold not met. Using default.`
+        `AutoSet ${this.streamType} - Threshold not met. Using default.`,
       );
     }
   }
@@ -104,7 +104,7 @@ class SubtitleStreamRanker extends StreamRankerStrategy {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void {
     super.rank(prevIndex, prevSource, mediaStreams, trackOptions);
   }
@@ -117,7 +117,7 @@ class AudioStreamRanker extends StreamRankerStrategy {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void {
     super.rank(prevIndex, prevSource, mediaStreams, trackOptions);
   }
@@ -138,7 +138,7 @@ class StreamRanker {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ) {
     this.strategy.rankStream(prevIndex, prevSource, mediaStreams, trackOptions);
   }

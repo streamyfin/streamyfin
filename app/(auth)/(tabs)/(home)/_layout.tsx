@@ -32,9 +32,7 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast />
-                   {user && user.Policy?.IsAdministrator && (
-                    <SessionsButton />
-                   )}
+                  {user && user.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
               )}
@@ -146,7 +144,7 @@ const SessionsButton = () => {
       }}
     >
       <View className="mr-4">
-        <Ionicons 
+        <Ionicons
           name="play-circle"
           color={sessions.length === 0 ? "white" : "#9333ea"}
           size={25}

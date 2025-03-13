@@ -1,4 +1,4 @@
-import React, {useMemo} from "react";
+import React, { useMemo } from "react";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import {
   DiscoverEndpoint,
@@ -8,11 +8,14 @@ import {
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import Slide, {SlideProps} from "@/components/jellyseerr/discover/Slide";
-import {ViewProps} from "react-native";
-import {uniqBy} from "lodash";
+import Slide, { SlideProps } from "@/components/jellyseerr/discover/Slide";
+import { ViewProps, Platform, View, ScrollView } from "react-native";
+import { uniqBy } from "lodash";
 
-const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
+const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
+  slide,
+  ...props
+}) => {
   const { jellyseerrApi } = useJellyseerr();
 
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
@@ -60,12 +63,36 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => 
   const flatData = useMemo(
     () =>
       uniqBy(
-        data?.pages?.filter((p) => p?.results.length).flatMap((p) => p?.results),
-        "id"
+        data?.pages
+          ?.filter((p) => p?.results.length)
+          .flatMap((p) => p?.results),
+        "id",
       ),
-    [data]
+    [data],
   );
 
+  // For TV platforms, use a simple ScrollView with horizontal layout
+  if (Platform.isTV) {
+    return (
+      flatData &&
+      flatData?.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
+          contentContainerStyle={{ paddingHorizontal: 10 }}
+        >
+          {flatData.map((item) => (
+            <View key={item?.id} style={{ marginHorizontal: 5 }}>
+              <JellyseerrPoster item={item as MovieResult | TvResult} />
+            </View>
+          ))}
+        </ScrollView>
+      )
+    );
+  }
+
+  // For mobile platforms, use the original Slide component
   return (
     flatData &&
     flatData?.length > 0 && (
@@ -75,12 +102,14 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => 
         data={flatData}
         keyExtractor={(item) => item!!.id.toString()}
         onEndReached={() => {
-          if (hasNextPage)
-            fetchNextPage()
+          if (hasNextPage) fetchNextPage();
         }}
-        renderItem={(item) =>
-          <JellyseerrPoster item={item as MovieResult | TvResult} key={item?.id}/>
-      }
+        renderItem={(item) => (
+          <JellyseerrPoster
+            item={item as MovieResult | TvResult}
+            key={item?.id}
+          />
+        )}
       />
     )
   );

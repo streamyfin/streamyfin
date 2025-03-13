@@ -174,7 +174,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     className="mr-1"
                     onChange={(val) =>
                       setSelectedOptions(
-                        (prev) => prev && { ...prev, bitrate: val }
+                        (prev) => prev && { ...prev, bitrate: val },
                       )
                     }
                     selected={selectedOptions.bitrate}
@@ -188,7 +188,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                           prev && {
                             ...prev,
                             mediaSource: val,
-                          }
+                          },
                       )
                     }
                     selected={selectedOptions.mediaSource}
@@ -202,7 +202,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                           prev && {
                             ...prev,
                             audioIndex: val,
-                          }
+                          },
                       );
                     }}
                     selected={selectedOptions.audioIndex}
@@ -215,7 +215,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                           prev && {
                             ...prev,
                             subtitleIndex: val,
-                          }
+                          },
                       )
                     }
                     selected={selectedOptions.subtitleIndex}
@@ -265,5 +265,5 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
         </ParallaxScrollView>
       </View>
     );
-  }
+  },
 );

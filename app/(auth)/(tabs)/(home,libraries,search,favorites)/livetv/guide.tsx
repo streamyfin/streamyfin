@@ -71,7 +71,7 @@ export default function page() {
           MaxStartDate: endOfDay.toISOString(),
           MinEndDate: isToday ? now.toISOString() : startOfDay.toISOString(),
           ChannelIds: channels?.Items?.map((c) => c.Id).filter(
-            Boolean
+            Boolean,
           ) as string[],
           ImageTypeLimit: 1,
           EnableImages: false,

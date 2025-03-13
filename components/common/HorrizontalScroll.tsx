@@ -1,108 +1,127 @@
-import { FlashList, FlashListProps } from "@shopify/flash-list";
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
-import { View, ViewStyle } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
+import { Loader } from "../Loader";
 import { Text } from "./Text";
-
-type PartialExcept<T, K extends keyof T> = Partial<T> & Pick<T, K>;
+import { TVFocusable } from "./TVFocusable";
 
 export interface HorizontalScrollRef {
-  scrollToIndex: (index: number, viewOffset: number) => void;
+  scrollToIndex: (index: number, offset?: number) => void;
 }
 
-interface HorizontalScrollProps<T>
-  extends PartialExcept<
-    Omit<FlashListProps<T>, "renderItem">,
-    "estimatedItemSize"
-  > {
-  data?: T[] | null;
+interface Props<T> {
+  data?: T[];
   renderItem: (item: T, index: number) => React.ReactNode;
   keyExtractor?: (item: T, index: number) => string;
-  containerStyle?: ViewStyle;
-  contentContainerStyle?: ViewStyle;
-  loadingContainerStyle?: ViewStyle;
-  height?: number;
   loading?: boolean;
-  extraData?: any;
   noItemsText?: string;
+  height?: number;
+  extraData?: any;
 }
 
-export const HorizontalScroll = forwardRef<
-  HorizontalScrollRef,
-  HorizontalScrollProps<any>
->(
-  <T,>(
-    {
-      data = [],
-      keyExtractor,
-      renderItem,
-      containerStyle,
-      contentContainerStyle,
-      loadingContainerStyle,
-      loading = false,
-      height = 164,
-      extraData,
-      noItemsText,
-      ...props
-    }: HorizontalScrollProps<T>,
-    ref: React.ForwardedRef<HorizontalScrollRef>
+export const HorizontalScroll = forwardRef<HorizontalScrollRef, Props<any>>(
+  (
+    { data, renderItem, keyExtractor, loading, noItemsText, height, extraData },
+    ref,
   ) => {
-    const flashListRef = useRef<FlashList<T>>(null);
+    const scrollRef = useRef<ScrollView>(null);
+    const itemRefs = useRef<View[]>([]);
 
-    useImperativeHandle(ref!, () => ({
-      scrollToIndex: (index: number, viewOffset: number) => {
-        flashListRef.current?.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0,
-          viewOffset,
-        });
+    useImperativeHandle(ref, () => ({
+      scrollToIndex: (index: number, offset = 0) => {
+        if (itemRefs.current[index]) {
+          itemRefs.current[index].measureLayout(
+            // @ts-ignore
+            scrollRef.current,
+            (x: number) => {
+              scrollRef.current?.scrollTo({
+                x: x - offset,
+                animated: true,
+              });
+            },
+            () => {},
+          );
+        }
       },
     }));
 
-    const renderFlashListItem = ({
-      item,
-      index,
-    }: {
-      item: T;
-      index: number;
-    }) => (
-      <View className="mr-2">
-        <React.Fragment>{renderItem(item, index)}</React.Fragment>
-      </View>
-    );
-
-    if (!data || loading) {
+    if (loading) {
       return (
-        <View className="px-4 mb-2">
-          <View className="bg-neutral-950 h-24 w-full rounded-md mb-2"></View>
-          <View className="bg-neutral-950 h-10 w-full rounded-md mb-1"></View>
+        <View
+          style={{
+            height: height || 200,
+          }}
+          className="flex flex-col items-center justify-center"
+        >
+          <Loader />
+        </View>
+      );
+    }
+
+    if (!data || data.length === 0) {
+      return (
+        <View
+          style={{
+            height: height || 200,
+          }}
+          className="flex flex-col items-center justify-center"
+        >
+          <Text className="text-neutral-500">{noItemsText || "No items"}</Text>
         </View>
       );
     }
 
     return (
-      <FlashList<T>
-        ref={flashListRef}
-        data={data}
-        extraData={extraData}
-        renderItem={renderFlashListItem}
+      <ScrollView
+        ref={scrollRef}
         horizontal
-        estimatedItemSize={200}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          ...contentContainerStyle,
-        }}
-        keyExtractor={keyExtractor}
-        ListEmptyComponent={() => (
-          <View className="flex-1 justify-center items-center">
-            <Text className="text-center text-gray-500">
-              {noItemsText || "No data available"}
-            </Text>
-          </View>
-        )}
-        {...props}
-      />
+        className="px-4"
+        extraData={extraData}
+      >
+        <View className="flex flex-row space-x-4">
+          {data.map((item, index) => {
+            // Extract the rendered item
+            const renderedItem = renderItem(item, index);
+
+            // If the rendered item is already a TVFocusable, return it as is
+            if (
+              Platform.isTV &&
+              React.isValidElement(renderedItem) &&
+              renderedItem.type === TVFocusable
+            ) {
+              return (
+                <View
+                  key={keyExtractor?.(item, index) || index}
+                  ref={(el) => (itemRefs.current[index] = el!)}
+                  collapsable={false}
+                >
+                  {renderedItem}
+                </View>
+              );
+            }
+
+            // Otherwise wrap it in a TVFocusable if on TV platform
+            return (
+              <View
+                key={keyExtractor?.(item, index) || index}
+                ref={(el) => (itemRefs.current[index] = el!)}
+                collapsable={false}
+              >
+                {Platform.isTV ? (
+                  <TVFocusable
+                    hasTVPreferredFocus={index === 0}
+                    forceFocus={index === 0}
+                  >
+                    {renderedItem}
+                  </TVFocusable>
+                ) : (
+                  renderedItem
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
     );
-  }
+  },
 );

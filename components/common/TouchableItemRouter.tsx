@@ -5,7 +5,7 @@ import {
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useRouter, useSegments } from "expo-router";
-import { PropsWithChildren, useCallback } from "react";
+import { PropsWithChildren, useCallback, forwardRef } from "react";
 import { TouchableOpacity, TouchableOpacityProps } from "react-native";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 
@@ -15,26 +15,29 @@ interface Props extends TouchableOpacityProps {
 
 export const itemRouter = (
   item: BaseItemDto | BaseItemPerson,
-  from: string
+  from: string,
 ) => {
+  // Use (home) as the base path for favorites to ensure proper navigation
+  const basePath = from === "(favorites)" ? "(home)" : from;
+
   if ("CollectionType" in item && item.CollectionType === "livetv") {
-    return `/(auth)/(tabs)/${from}/livetv`;
+    return `/(auth)/(tabs)/${basePath}/livetv`;
   }
 
   if (item.Type === "Series") {
-    return `/(auth)/(tabs)/${from}/series/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/series/${item.Id}`;
   }
 
   if (item.Type === "Person" || item.Type === "Actor") {
-    return `/(auth)/(tabs)/${from}/actors/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/actors/${item.Id}`;
   }
 
   if (item.Type === "BoxSet") {
-    return `/(auth)/(tabs)/${from}/collections/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/collections/${item.Id}`;
   }
 
   if (item.Type === "UserView") {
-    return `/(auth)/(tabs)/${from}/collections/${item.Id}`;
+    return `/(auth)/(tabs)/${basePath}/collections/${item.Id}`;
   }
 
   if (item.Type === "CollectionFolder") {
@@ -45,25 +48,36 @@ export const itemRouter = (
     return `/(auth)/(tabs)/(libraries)/${item.Id}`;
   }
 
-  return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
+  return `/(auth)/(tabs)/${basePath}/items/page?id=${item.Id}`;
 };
 
-export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
-  item,
-  children,
-  ...props
-}) => {
+export const TouchableItemRouter = forwardRef<
+  TouchableOpacity,
+  PropsWithChildren<Props>
+>(({ item, children, ...props }, ref) => {
   const router = useRouter();
   const segments = useSegments();
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
-  
+
   const from = segments[2];
 
   const showActionSheet = useCallback(() => {
-    if (!(item.Type === "Movie" || item.Type === "Episode" || item.Type === "Series")) return;
-    const options = ["Mark as Played", "Mark as Not Played", isFavorite ? "Unmark as Favorite" : "Mark as Favorite", "Cancel"];
+    if (
+      !(
+        item.Type === "Movie" ||
+        item.Type === "Episode" ||
+        item.Type === "Series"
+      )
+    )
+      return;
+    const options = [
+      "Mark as Played",
+      "Mark as Not Played",
+      isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
+      "Cancel",
+    ];
     const cancelButtonIndex = 3;
 
     showActionSheetWithOptions(
@@ -77,9 +91,9 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
         } else if (selectedIndex === 1) {
           await markAsPlayedStatus(false);
         } else if (selectedIndex === 2) {
-          toggleFavorite()
+          toggleFavorite();
         }
-      }
+      },
     );
   }, [showActionSheetWithOptions, isFavorite, markAsPlayedStatus]);
 
@@ -91,6 +105,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   )
     return (
       <TouchableOpacity
+        ref={ref}
         onLongPress={showActionSheet}
         onPress={() => {
           const url = itemRouter(item, from);
@@ -102,4 +117,11 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
         {children}
       </TouchableOpacity>
     );
-};
+
+  // Return a default component for other cases
+  return (
+    <TouchableOpacity ref={ref} {...props}>
+      {children}
+    </TouchableOpacity>
+  );
+});

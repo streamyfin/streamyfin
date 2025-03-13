@@ -41,7 +41,7 @@ export const useDownloadedFileOpener = () => {
         console.error("Error opening file:", error);
       }
     },
-    [setOfflineSettings, setPlayUrl, router]
+    [setOfflineSettings, setPlayUrl, router],
   );
 
   return { openFile };

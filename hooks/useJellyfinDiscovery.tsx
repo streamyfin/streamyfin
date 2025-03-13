@@ -53,7 +53,7 @@ export const useJellyfinDiscovery = () => {
               return;
             }
             console.log("Discovery message sent successfully");
-          }
+          },
         );
 
         discoveryTimeout = setTimeout(() => {

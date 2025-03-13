@@ -49,7 +49,7 @@ const page: React.FC = () => {
         quality: 90,
         width: 1000,
       }),
-    [item]
+    [item],
   );
 
   const logoUrl = useMemo(
@@ -58,7 +58,7 @@ const page: React.FC = () => {
         api,
         item,
       }),
-    [item]
+    [item],
   );
 
   const { data: allEpisodes, isLoading } = useQuery({

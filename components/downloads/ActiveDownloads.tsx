@@ -89,7 +89,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       } else {
         FFmpegKitProvider.FFmpegKit.cancel(Number(id));
         setProcesses((prev: any[]) =>
-          prev.filter((p: { id: string }) => p.id !== id)
+          prev.filter((p: { id: string }) => p.id !== id),
         );
       }
     },

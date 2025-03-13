@@ -24,10 +24,22 @@ export const UserInfo: React.FC<Props> = ({ ...props }) => {
   return (
     <View {...props}>
       <ListGroup title={t("home.settings.user_info.user_info_title")}>
-        <ListItem title={t("home.settings.user_info.user")} value={user?.Name} />
-        <ListItem title={t("home.settings.user_info.server")} value={api?.basePath} />
-        <ListItem title={t("home.settings.user_info.token")} value={api?.accessToken} />
-        <ListItem title={t("home.settings.user_info.app_version")} value={version} />
+        <ListItem
+          title={t("home.settings.user_info.user")}
+          value={user?.Name}
+        />
+        <ListItem
+          title={t("home.settings.user_info.server")}
+          value={api?.basePath}
+        />
+        <ListItem
+          title={t("home.settings.user_info.token")}
+          value={api?.accessToken}
+        />
+        <ListItem
+          title={t("home.settings.user_info.app_version")}
+          value={version}
+        />
       </ListGroup>
     </View>
   );

@@ -19,7 +19,7 @@ const useDownloadHelper = () => {
       console.log(`Saving primary image for series: ${item.SeriesId}`);
       await saveImage(
         item.SeriesId,
-        getPrimaryImageUrlById({ api, id: item.SeriesId })
+        getPrimaryImageUrlById({ api, id: item.SeriesId }),
       );
       console.log(`Primary image saved for series: ${item.SeriesId}`);
     } else {

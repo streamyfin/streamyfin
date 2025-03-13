@@ -6,12 +6,12 @@ declare module "@jellyfin/sdk" {
   interface Api {
     get<T, D = any>(
       url: string,
-      config?: AxiosRequestConfig<D>
+      config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
     post<T, D = any>(
       url: string,
       data: D,
-      config?: AxiosRequestConfig<D>
+      config?: AxiosRequestConfig<D>,
     ): Promise<AxiosResponse<T>>;
     getStreamyfinPluginConfig(): Promise<AxiosResponse<StreamyfinPluginConfig>>;
   }
@@ -19,7 +19,7 @@ declare module "@jellyfin/sdk" {
 
 Api.prototype.get = function <T, D = any>(
   url: string,
-  config: AxiosRequestConfig<D> = {}
+  config: AxiosRequestConfig<D> = {},
 ): Promise<AxiosResponse<T>> {
   return this.axiosInstance.get<T>(`${this.basePath}${url}`, {
     ...(config ?? {}),
@@ -30,7 +30,7 @@ Api.prototype.get = function <T, D = any>(
 Api.prototype.post = function <T, D = any>(
   url: string,
   data: D,
-  config: AxiosRequestConfig<D>
+  config: AxiosRequestConfig<D>,
 ): Promise<AxiosResponse<T>> {
   return this.axiosInstance.post<T>(`${this.basePath}${url}`, {
     ...(config || {}),

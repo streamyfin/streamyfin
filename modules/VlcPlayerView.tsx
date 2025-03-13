@@ -6,8 +6,8 @@ import {
   VlcPlayerViewRef,
   VlcPlayerSource,
 } from "./VlcPlayer.types";
-import {useSettings, VideoPlayer} from "@/utils/atoms/settings";
-import {Platform} from "react-native";
+import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
+import { Platform } from "react-native";
 
 interface NativeViewRef extends VlcPlayerViewRef {
   setNativeProps?: (props: Partial<VlcPlayerViewProps>) => void;
@@ -23,13 +23,13 @@ const NativeView = React.forwardRef<NativeViewRef, VlcPlayerViewProps>(
 
     if (Platform.OS === "ios" || Platform.isTVOS) {
       if (settings.defaultPlayer == VideoPlayer.VLC_3) {
-        console.log("[Apple] Using Vlc Player 3")
-        return <VLC3ViewManager {...props} ref={ref}/>
+        console.log("[Apple] Using Vlc Player 3");
+        return <VLC3ViewManager {...props} ref={ref} />;
       }
     }
-    console.log("Using default Vlc Player")
-    return <VLCViewManager {...props} ref={ref}/>
-  }
+    console.log("Using default Vlc Player");
+    return <VLCViewManager {...props} ref={ref} />;
+  },
 );
 
 const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
@@ -38,7 +38,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
 
     React.useImperativeHandle(ref, () => ({
       startPictureInPicture: async () => {
-        await nativeRef.current?.startPictureInPicture()
+        await nativeRef.current?.startPictureInPicture();
       },
       play: async () => {
         await nativeRef.current?.play();
@@ -143,7 +143,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
         onPipStarted={onPipStarted}
       />
     );
-  }
+  },
 );
 
 export default VlcPlayerView;

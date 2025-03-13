@@ -14,7 +14,11 @@ interface MarkAsPlayedParams {
  * @param params - The parameters for marking an item as played∏
  * @returns A promise that resolves to true if the operation was successful, false otherwise
  */
-export const markAsPlayed = async ({ api, item, userId }: MarkAsPlayedParams): Promise<boolean> => {
+export const markAsPlayed = async ({
+  api,
+  item,
+  userId,
+}: MarkAsPlayedParams): Promise<boolean> => {
   if (!api || !item?.Id || !userId || !item.RunTimeTicks) {
     console.error("Invalid parameters for markAsPlayed");
     return false;

@@ -26,7 +26,7 @@ export const useIntroSkipper = (
   currentTime: number,
   seek: (ticks: number) => void,
   play: () => void,
-  isVlc: boolean = false
+  isVlc: boolean = false,
 ) => {
   const [api] = useAtom(apiAtom);
   const [showSkipButton, setShowSkipButton] = useState(false);
@@ -54,7 +54,7 @@ export const useIntroSkipper = (
         `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
         {
           headers: getAuthHeaders(api),
-        }
+        },
       );
 
       if (res?.status !== 200) {
@@ -71,7 +71,7 @@ export const useIntroSkipper = (
     if (introTimestamps) {
       setShowSkipButton(
         currentTime > introTimestamps.ShowSkipPromptAt &&
-          currentTime < introTimestamps.HideSkipPromptAt
+          currentTime < introTimestamps.HideSkipPromptAt,
       );
     }
   }, [introTimestamps, currentTime]);

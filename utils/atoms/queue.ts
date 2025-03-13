@@ -1,9 +1,9 @@
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
-import {JobStatus} from "@/utils/optimize-server";
-import {processesAtom} from "@/providers/DownloadProvider";
-import {useSettings} from "@/utils/atoms/settings";
+import { JobStatus } from "@/utils/optimize-server";
+import { processesAtom } from "@/providers/DownloadProvider";
+import { useSettings } from "@/utils/atoms/settings";
 
 export interface Job {
   id: string;
@@ -24,7 +24,7 @@ export const queueActions = {
   processJob: async (
     queue: Job[],
     setQueue: (update: Job[]) => void,
-    setProcessing: (processing: boolean) => void
+    setProcessing: (processing: boolean) => void,
   ) => {
     const [job, ...rest] = queue;
 
@@ -45,7 +45,7 @@ export const queueActions = {
   },
   clear: (
     setQueue: (update: Job[]) => void,
-    setProcessing: (processing: boolean) => void
+    setProcessing: (processing: boolean) => void,
   ) => {
     setQueue([]);
     setProcessing(false);
@@ -59,7 +59,12 @@ export const useJobProcessor = () => {
   const [settings] = useSettings();
 
   useEffect(() => {
-    if (!running && queue.length > 0 && settings && processes.length < settings?.remuxConcurrentLimit) {
+    if (
+      !running &&
+      queue.length > 0 &&
+      settings &&
+      processes.length < settings?.remuxConcurrentLimit
+    ) {
       console.info("Processing queue", queue);
       queueActions.processJob(queue, setQueue, setRunning);
     }

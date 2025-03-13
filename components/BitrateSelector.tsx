@@ -58,10 +58,10 @@ export const BitrateSelector: React.FC<Props> = ({
   const sorted = useMemo(() => {
     if (inverted)
       return BITRATES.sort(
-        (a, b) => (a.value || Infinity) - (b.value || Infinity)
+        (a, b) => (a.value || Infinity) - (b.value || Infinity),
       );
     return BITRATES.sort(
-      (a, b) => (b.value || Infinity) - (a.value || Infinity)
+      (a, b) => (b.value || Infinity) - (a.value || Infinity),
     );
   }, []);
 

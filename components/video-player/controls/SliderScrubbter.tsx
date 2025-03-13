@@ -1,11 +1,11 @@
-import { useTrickplay } from '@/hooks/useTrickplay';
-import { formatTimeString, msToTicks, ticksToSeconds } from '@/utils/time';
-import React, { useRef, useState } from 'react';
-import { View, Text } from 'react-native';
+import { useTrickplay } from "@/hooks/useTrickplay";
+import { formatTimeString, msToTicks, ticksToSeconds } from "@/utils/time";
+import React, { useRef, useState } from "react";
+import { View, Text } from "react-native";
 import { Image } from "expo-image";
 import { Slider } from "react-native-awesome-slider";
-import { SharedValue, useSharedValue } from 'react-native-reanimated';
-import { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { SharedValue, useSharedValue } from "react-native-reanimated";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 
 interface SliderScrubberProps {
   cacheProgress: SharedValue<number>;
@@ -30,12 +30,9 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
   remainingTime,
   item,
 }) => {
-
-
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
-    item,
-  );
+  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } =
+    useTrickplay(item);
 
   const handleSliderChange = (value: number) => {
     const progressInTicks = msToTicks(value);
@@ -116,9 +113,7 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
               >
                 {`${time.hours > 0 ? `${time.hours}:` : ""}${
                   time.minutes < 10 ? `0${time.minutes}` : time.minutes
-                }:${
-                  time.seconds < 10 ? `0${time.seconds}` : time.seconds
-                }`}
+                }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
               </Text>
             </View>
           );

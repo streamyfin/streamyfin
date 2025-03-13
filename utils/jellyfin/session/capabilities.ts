@@ -52,7 +52,7 @@ export const postCapabilities = async ({
       },
       {
         headers: getAuthHeaders(api),
-      }
+      },
     );
     return d;
   } catch (error: any | AxiosError) {

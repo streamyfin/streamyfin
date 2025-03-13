@@ -15,7 +15,9 @@ const CastSlide: React.FC<
     details?.credits?.cast &&
     details?.credits?.cast?.length > 0 && (
       <View {...props}>
-        <Text className="text-lg font-bold mb-2 px-4">{t("jellyseerr.cast")}</Text>
+        <Text className="text-lg font-bold mb-2 px-4">
+          {t("jellyseerr.cast")}
+        </Text>
         <FlashList
           horizontal
           showsHorizontalScrollIndicator={false}

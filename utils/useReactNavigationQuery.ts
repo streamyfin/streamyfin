@@ -11,9 +11,9 @@ export function useReactNavigationQuery<
   TQueryFnData = unknown,
   TError = unknown,
   TData = TQueryFnData,
-  TQueryKey extends QueryKey = QueryKey
+  TQueryKey extends QueryKey = QueryKey,
 >(
-  options: UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>
+  options: UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
 ): UseQueryResult<TData, TError> {
   const useQueryReturn = useQuery(options);
 
@@ -25,7 +25,7 @@ export function useReactNavigationQuery<
         options.enabled !== false
       )
         useQueryReturn.refetch();
-    }, [options.enabled, options.refetchOnWindowFocus])
+    }, [options.enabled, options.refetchOnWindowFocus]),
   );
 
   return useQueryReturn;

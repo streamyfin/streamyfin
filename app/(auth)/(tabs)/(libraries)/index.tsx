@@ -11,9 +11,16 @@ import { FlashList } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useEffect, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+
+// Check if we're running on a TV platform
+const isTV =
+  Platform.isTV ||
+  (Platform.OS === "android" &&
+    !!Platform.constants.uiMode &&
+    (Platform.constants.uiMode & 15) === 4);
 
 export default function index() {
   const [api] = useAtom(apiAtom);
@@ -41,7 +48,7 @@ export default function index() {
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
         .filter((l) => l.CollectionType !== "music")
         .filter((l) => l.CollectionType !== "books") || [],
-    [data, settings?.hiddenLibraries]
+    [data, settings?.hiddenLibraries],
   );
 
   useEffect(() => {
@@ -73,7 +80,9 @@ export default function index() {
   if (!libraries)
     return (
       <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">{t("library.no_libraries_found")}</Text>
+        <Text className="text-lg text-neutral-500">
+          {t("library.no_libraries_found")}
+        </Text>
       </View>
     );
 
@@ -83,7 +92,11 @@ export default function index() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{
         paddingTop: 17,
-        paddingHorizontal: settings?.libraryOptions?.display === "row" ? 0 : 17,
+        paddingHorizontal: isTV
+          ? 24
+          : settings?.libraryOptions?.display === "row"
+            ? 0
+            : 17,
         paddingBottom: 150,
         paddingLeft: insets.left,
         paddingRight: insets.right,
@@ -91,8 +104,10 @@ export default function index() {
       data={libraries}
       renderItem={({ item }) => <LibraryItemCard library={item} />}
       keyExtractor={(item) => item.Id || ""}
+      // For TV, use 2 columns grid layout
+      numColumns={isTV ? 2 : 1}
       ItemSeparatorComponent={() =>
-        settings?.libraryOptions?.display === "row" ? (
+        settings?.libraryOptions?.display === "row" && !isTV ? (
           <View
             style={{
               height: StyleSheet.hairlineWidth,
@@ -103,7 +118,16 @@ export default function index() {
           <View className="h-4" />
         )
       }
-      estimatedItemSize={200}
+      estimatedItemSize={isTV ? 200 : 100}
+      // Add TV-specific props for better focus management
+      maintainVisibleContentPosition={
+        isTV
+          ? {
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 10,
+            }
+          : undefined
+      }
     />
   );
 }

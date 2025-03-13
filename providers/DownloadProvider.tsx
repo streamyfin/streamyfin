@@ -113,7 +113,7 @@ function useDownloadProvider() {
         .filter((p) => jobs.some((j) => j.id === p.id));
 
       const updatedProcesses = jobs.filter(
-        (j) => !downloadingProcesses.some((p) => p.id === j.id)
+        (j) => !downloadingProcesses.some((p) => p.id === j.id),
       );
 
       setProcesses([...updatedProcesses, ...downloadingProcesses]);
@@ -140,7 +140,7 @@ function useDownloadProvider() {
                     toast.dismiss();
                   },
                 },
-              }
+              },
             );
             Notifications.scheduleNotificationAsync({
               content: {
@@ -188,7 +188,7 @@ function useDownloadProvider() {
         console.error(error);
       }
     },
-    [settings?.optimizedVersionsServerUrl, authHeader]
+    [settings?.optimizedVersionsServerUrl, authHeader],
   );
 
   const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;
@@ -206,8 +206,8 @@ function useDownloadProvider() {
                 status: "downloading",
                 progress: 0,
               }
-            : p
-        )
+            : p,
+        ),
       );
 
       BackGroundDownloader?.setConfig({
@@ -230,7 +230,7 @@ function useDownloadProvider() {
               toast.dismiss();
             },
           },
-        }
+        },
       );
 
       const baseDirectory = FileSystem.documentDirectory;
@@ -250,8 +250,8 @@ function useDownloadProvider() {
                     status: "downloading",
                     progress: 0,
                   }
-                : p
-            )
+                : p,
+            ),
           );
         })
         .progress((data) => {
@@ -265,14 +265,14 @@ function useDownloadProvider() {
                     status: "downloading",
                     progress: percent,
                   }
-                : p
-            )
+                : p,
+            ),
           );
         })
         .done(async (doneHandler) => {
           await saveDownloadedItemInfo(
             process.item,
-            doneHandler.bytesDownloaded
+            doneHandler.bytesDownloaded,
           );
           toast.success(
             t("home.downloads.toasts.download_completed_for_item", {
@@ -287,7 +287,7 @@ function useDownloadProvider() {
                   toast.dismiss();
                 },
               },
-            }
+            },
           );
           setTimeout(() => {
             BackGroundDownloader.completeHandler(process.id);
@@ -308,7 +308,7 @@ function useDownloadProvider() {
             t("home.downloads.toasts.download_failed_for_item", {
               item: process.item.Name,
               error: errorMsg,
-            })
+            }),
           );
           writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
             error,
@@ -323,7 +323,7 @@ function useDownloadProvider() {
           });
         });
     },
-    [queryClient, settings?.optimizedVersionsServerUrl, authHeader]
+    [queryClient, settings?.optimizedVersionsServerUrl, authHeader],
   );
 
   const startBackgroundDownload = useCallback(
@@ -359,7 +359,7 @@ function useDownloadProvider() {
               "Content-Type": "application/json",
               Authorization: authHeader,
             },
-          }
+          },
         );
 
         if (response.status !== 201) {
@@ -378,7 +378,7 @@ function useDownloadProvider() {
                 toast.dismiss();
               },
             },
-          }
+          },
         );
       } catch (error) {
         writeToLog("ERROR", "Error in startBackgroundDownload", error);
@@ -394,13 +394,13 @@ function useDownloadProvider() {
             t("home.downloads.toasts.failed_to_start_download_for_item", {
               item: item.Name,
               message: error.message,
-            })
+            }),
           );
           if (error.response) {
             toast.error(
               t("home.downloads.toasts.server_responded_with_status", {
                 statusCode: error.response.status,
-              })
+              }),
             );
           } else if (error.request) {
             t("home.downloads.toasts.no_response_received_from_server");
@@ -412,13 +412,13 @@ function useDownloadProvider() {
           toast.error(
             t(
               "home.downloads.toasts.failed_to_start_download_for_item_unexpected_error",
-              { item: item.Name }
-            )
+              { item: item.Name },
+            ),
           );
         }
       }
     },
-    [settings?.optimizedVersionsServerUrl, authHeader]
+    [settings?.optimizedVersionsServerUrl, authHeader],
   );
 
   const deleteAllFiles = async (): Promise<void> => {
@@ -431,16 +431,16 @@ function useDownloadProvider() {
       .then(() =>
         toast.success(
           t(
-            "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"
-          )
-        )
+            "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully",
+          ),
+        ),
       )
       .catch((reason) => {
         console.error("Failed to delete all files, folders, and jobs:", reason);
         toast.error(
           t(
-            "home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs"
-          )
+            "home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs",
+          ),
         );
       });
   };
@@ -448,7 +448,7 @@ function useDownloadProvider() {
   const forEveryDocumentDirFile = async (
     includeMMKV: boolean = true,
     ignoreList: string[] = [],
-    callback: (file: FileInfo) => void
+    callback: (file: FileInfo) => void,
   ) => {
     const baseDirectory = FileSystem.documentDirectory;
     if (!baseDirectory) {
@@ -553,7 +553,7 @@ function useDownloadProvider() {
     } catch (error) {
       console.error(
         `Failed to delete file and storage entry for ID ${id}:`,
-        error
+        error,
       );
     }
   };
@@ -563,17 +563,17 @@ function useDownloadProvider() {
       items.map((i) => {
         if (i.Id) return deleteFile(i.Id);
         return;
-      })
+      }),
     ).then(() => successHapticFeedback());
   };
 
   const cleanCacheDirectory = async () => {
     const cacheDir = await FileSystem.getInfoAsync(
-      APP_CACHE_DOWNLOAD_DIRECTORY
+      APP_CACHE_DOWNLOAD_DIRECTORY,
     );
     if (cacheDir.exists) {
       const cachedFiles = await FileSystem.readDirectoryAsync(
-        APP_CACHE_DOWNLOAD_DIRECTORY
+        APP_CACHE_DOWNLOAD_DIRECTORY,
       );
       let position = 0;
       const batchSize = 3;
@@ -584,14 +584,14 @@ function useDownloadProvider() {
         await Promise.all(
           itemsForBatch.map(async (file) => {
             const info = await FileSystem.getInfoAsync(
-              `${APP_CACHE_DOWNLOAD_DIRECTORY}${file}`
+              `${APP_CACHE_DOWNLOAD_DIRECTORY}${file}`,
             );
             if (info.exists) {
               await FileSystem.deleteAsync(info.uri, { idempotent: true });
               return Promise.resolve(file);
             }
             return Promise.reject();
-          })
+          }),
         );
 
         position += batchSize;
@@ -609,7 +609,7 @@ function useDownloadProvider() {
             promises.push(deleteFile(file.item.SeriesId));
           promises.push(deleteFile(file.item.Id!));
           return promises;
-        }) || []
+        }) || [],
     );
   };
 
@@ -626,7 +626,7 @@ function useDownloadProvider() {
         if (file.exists) {
           sizes.push(file.size);
         }
-      }
+      },
     ).catch((e) => {
       console.error(e);
     });
@@ -676,7 +676,7 @@ function useDownloadProvider() {
 
       if (!data?.mediaSource)
         throw new Error(
-          "Media source not found in tmp storage. Did you forget to save it before starting download?"
+          "Media source not found in tmp storage. Did you forget to save it before starting download?",
         );
 
       const newItem = { item, mediaSource: data.mediaSource };
@@ -697,7 +697,7 @@ function useDownloadProvider() {
     } catch (error) {
       console.error(
         "Failed to save downloaded item information with media source:",
-        error
+        error,
       );
     }
   }

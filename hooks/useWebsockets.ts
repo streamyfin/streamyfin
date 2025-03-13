@@ -42,7 +42,7 @@ export const useWebSocket = ({
         console.log("Command ~ DisplayMessage");
         const title = json?.Data?.Arguments?.Header;
         const body = json?.Data?.Arguments?.Text;
-        Alert.alert(t("player.message_from_server", {message: title}), body);
+        Alert.alert(t("player.message_from_server", { message: title }), body);
       }
     };
 

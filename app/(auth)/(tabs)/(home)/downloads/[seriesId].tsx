@@ -21,7 +21,7 @@ export default function page() {
   };
 
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>(
-    {}
+    {},
   );
   const { downloadedFiles, deleteItems } = useDownload();
 
@@ -31,7 +31,7 @@ export default function page() {
         downloadedFiles
           ?.filter((f) => f.item.SeriesId == seriesId)
           ?.sort(
-            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!
+            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
           ) || []
       );
     } catch {
@@ -64,7 +64,7 @@ export default function page() {
     () =>
       Object.values(groupBySeason)?.[0]?.ParentIndexNumber ??
       series?.[0]?.item?.ParentIndexNumber,
-    [groupBySeason]
+    [groupBySeason],
   );
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export default function page() {
           onPress: () => deleteItems(groupBySeason),
           style: "destructive",
         },
-      ]
+      ],
     );
   }, [groupBySeason]);
 

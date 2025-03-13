@@ -69,7 +69,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
             // Cancelled
             break;
         }
-      }
+      },
     );
   }, [showActionSheetWithOptions, handleDeleteFile]);
 

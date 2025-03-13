@@ -35,7 +35,7 @@ const Facts: React.FC<
 
       <View className="flex flex-col items-end">
         {facts.map((f, idx) =>
-          typeof f === "string" ? <Text key={idx}>{f}</Text> : f
+          typeof f === "string" ? <Text key={idx}>{f}</Text> : f,
         )}
       </View>
     </View>
@@ -50,15 +50,19 @@ const Fact: React.FC<{ title: string; fact?: string | null } & ViewProps> = ({
 const DetailFacts: React.FC<
   { details?: MovieDetails | TvDetails } & ViewProps
 > = ({ details, className, ...props }) => {
-  const { jellyseerrUser, jellyseerrRegion: region, jellyseerrLocale: locale } = useJellyseerr();
+  const {
+    jellyseerrUser,
+    jellyseerrRegion: region,
+    jellyseerrLocale: locale,
+  } = useJellyseerr();
   const { t } = useTranslation();
 
   const releases = useMemo(
     () =>
       (details as MovieDetails)?.releases?.results.find(
-        (r: TmdbRelease) => r.iso_3166_1 === region
+        (r: TmdbRelease) => r.iso_3166_1 === region,
       )?.release_dates as TmdbRelease["release_dates"],
-    [details]
+    [details],
   );
 
   // Release date types:
@@ -72,9 +76,9 @@ const DetailFacts: React.FC<
     () =>
       uniqBy(
         releases?.filter((r: Release) => r.type > 2 && r.type < 6),
-        "type"
+        "type",
       ),
-    [releases]
+    [releases],
   );
 
   const firstAirDate = useMemo(() => {
@@ -82,7 +86,7 @@ const DetailFacts: React.FC<
     if (firstAirDate) {
       return new Date(firstAirDate).toLocaleDateString(
         `${locale}-${region}`,
-        dateOpts
+        dateOpts,
       );
     }
   }, [details]);
@@ -93,7 +97,7 @@ const DetailFacts: React.FC<
     if (nextAirDate && firstAirDate !== nextAirDate) {
       return new Date(nextAirDate).toLocaleDateString(
         `${locale}-${region}`,
-        dateOpts
+        dateOpts,
       );
     }
   }, [details]);
@@ -102,26 +106,26 @@ const DetailFacts: React.FC<
     () =>
       (details as MovieDetails)?.revenue?.toLocaleString?.(
         `${locale}-${region}`,
-        { style: "currency", currency: "USD" }
+        { style: "currency", currency: "USD" },
       ),
-    [details]
+    [details],
   );
 
   const budget = useMemo(
     () =>
       (details as MovieDetails)?.budget?.toLocaleString?.(
         `${locale}-${region}`,
-        { style: "currency", currency: "USD" }
+        { style: "currency", currency: "USD" },
       ),
-    [details]
+    [details],
   );
 
   const streamingProviders = useMemo(
     () =>
       details?.watchProviders?.find(
-        (provider) => provider.iso_3166_1 === region
+        (provider) => provider.iso_3166_1 === region,
       )?.flatrate,
-    [details]
+    [details],
   );
 
   const networks = useMemo(() => (details as TvDetails)?.networks, [details]);
@@ -129,9 +133,9 @@ const DetailFacts: React.FC<
   const spokenLanguage = useMemo(
     () =>
       details?.spokenLanguages.find(
-        (lng) => lng.iso_639_1 === details.originalLanguage
+        (lng) => lng.iso_639_1 === details.originalLanguage,
       )?.name,
-    [details]
+    [details],
   );
 
   return (
@@ -148,7 +152,7 @@ const DetailFacts: React.FC<
             fact={(details as TvDetails)?.originalName}
           />
           {details.keywords.some(
-            (keyword) => keyword.id === ANIME_KEYWORD_ID
+            (keyword) => keyword.id === ANIME_KEYWORD_ID,
           ) && <Fact title={t("jellyseerr.series_type")} fact="Anime" />}
           <Facts
             title={t("jellyseerr.release_dates")}
@@ -171,7 +175,7 @@ const DetailFacts: React.FC<
                 <Text>
                   {new Date(r.release_date).toLocaleDateString(
                     `${locale}-${region}`,
-                    dateOpts
+                    dateOpts,
                   )}
                 </Text>
               </View>
@@ -181,7 +185,10 @@ const DetailFacts: React.FC<
           <Fact title={t("jellyseerr.next_air_date")} fact={nextAirDate} />
           <Fact title={t("jellyseerr.revenue")} fact={revenue} />
           <Fact title={t("jellyseerr.budget")} fact={budget} />
-          <Fact title={t("jellyseerr.original_language")} fact={spokenLanguage} />
+          <Fact
+            title={t("jellyseerr.original_language")}
+            fact={spokenLanguage}
+          />
           <Facts
             title={t("jellyseerr.production_country")}
             facts={details?.productionCountries?.map((n, idx) => (
@@ -194,10 +201,13 @@ const DetailFacts: React.FC<
           <Facts
             title={t("jellyseerr.studios")}
             facts={uniqBy(details?.productionCompanies, "name")?.map(
-              (n) => n.name
+              (n) => n.name,
             )}
           />
-          <Facts title={t("jellyseerr.network")}facts={networks?.map((n) => n.name)} />
+          <Facts
+            title={t("jellyseerr.network")}
+            facts={networks?.map((n) => n.name)}
+          />
           <Facts
             title={t("jellyseerr.currently_streaming_on")}
             facts={streamingProviders?.map((s) => s.name)}

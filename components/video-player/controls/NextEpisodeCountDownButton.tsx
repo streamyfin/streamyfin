@@ -38,7 +38,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
           if (finished && onFinish) {
             runOnJS(onFinish)();
           }
-        }
+        },
       );
     }
   }, [show, onFinish]);
@@ -74,7 +74,9 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
     >
       <Animated.View style={animatedStyle} />
       <View className="px-3 py-3">
-        <Text className="text-center font-bold">{t("player.next_episode")}</Text>
+        <Text className="text-center font-bold">
+          {t("player.next_episode")}
+        </Text>
       </View>
     </TouchableOpacity>
   );
