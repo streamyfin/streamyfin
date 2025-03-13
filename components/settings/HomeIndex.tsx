@@ -188,13 +188,13 @@ export const HomeIndex = () => {
 
   const invalidateCache = useInvalidatePlaybackProgressCache();
 
-  const refetch = useCallback(async () => {
+  const refetch = async () => {
     setLoading(true);
     await refreshStreamyfinPluginSettings();
     await invalidateCache();
     setLoading(false);
-  }, []);
-
+  };
+  
   const createCollectionConfig = useCallback(
     (
       title: string,
