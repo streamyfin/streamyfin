@@ -35,12 +35,12 @@ Chromecast support is still in development, and we're working on improving it. C
 
 ### Streamyfin Plugin
 
-The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that hold all settings for the client Streamyfin. This allows you to syncronize settings accross all your users, like:
+The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that holds all settings for the client Streamyfin. This allows you to synchronize settings across all your users, like for example:
 
-- Auto log in to Jellyseerr without the user having to do anythin
+- Auto log in to Jellyseerr without the user having to do anything
 - Choose the default languages
 - Set download method and search provider
-- Customize homescreen
+- Customize home screen
 - And more...
 
 [Streamyfin Plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin)
@@ -66,7 +66,7 @@ Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/r
 
 ### Beta testing
 
-To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
+To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that I can manually add you.
 
 **Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
 
