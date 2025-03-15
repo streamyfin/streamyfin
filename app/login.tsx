@@ -9,7 +9,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -58,7 +58,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     (async () => {
       if (_apiUrl) {
-        setServer({
+        await setServer({
           address: _apiUrl,
         });
 
@@ -181,7 +181,7 @@ const Login: React.FC = () => {
       return;
     }
 
-    setServer({ address: url });
+    await setServer({ address: url });
   }, []);
 
   const handleQuickConnect = async () => {
@@ -237,11 +237,12 @@ const Login: React.FC = () => {
                       setCredentials({ ...credentials, username: text })
                     }
                     value={credentials.username}
-                    secureTextEntry={false}
                     keyboardType="default"
                     returnKeyType="done"
                     autoCapitalize="none"
-                    textContentType="username"
+                    // Changed from username to oneTimeCode because it is a known issue in RN
+                    // https://github.com/facebook/react-native/issues/47106#issuecomment-2521270037
+                    textContentType="oneTimeCode"
                     clearButtonMode="while-editing"
                     maxLength={500}
                   />
@@ -324,17 +325,17 @@ const Login: React.FC = () => {
                   {t("server.connect_button")}
                 </Button>
                 <JellyfinServerDiscovery
-                  onServerSelect={(server) => {
+                  onServerSelect={async (server) => {
                     setServerURL(server.address);
                     if (server.serverName) {
                       setServerName(server.serverName);
                     }
-                    handleConnect(server.address);
+                    await handleConnect(server.address);
                   }}
                 />
                 <PreviousServersList
-                  onServerSelect={(s) => {
-                    handleConnect(s.address);
+                  onServerSelect={async (s) => {
+                    await handleConnect(s.address);
                   }}
                 />
               </View>
