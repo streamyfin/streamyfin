@@ -35,7 +35,6 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive_icon.png",
         "backgroundColor": "#464646"
-
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
@@ -133,7 +132,7 @@
         "projectId": "e79219d1-797f-4fbe-9fa1-cfd360690a68"
       }
     },
-    "owner": "fredrikburmester",
+    "owner": "streamyfin",
     "runtimeVersion": {
       "policy": "appVersion"
     },
