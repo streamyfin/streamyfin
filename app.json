@@ -21,7 +21,12 @@
         },
         "UISupportsTrueScreenSizeOnMac": true,
         "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "icon": {
+          "dark": "./assets/images/icon-plain.png",
+          "light": "./assets/images/icon-ios-light.png",
+          "tinted": "./assets/images/icon-mono.png"
+        }
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -33,7 +38,8 @@
       "jsEngine": "hermes",
       "versionCode": 53,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive_icon.png",
+        "foregroundImage": "./assets/images/icon-plain.png",
+        "monochromeImage": "./assets/images/icon-mono.png",
         "backgroundColor": "#464646"
 
       },
