@@ -21,18 +21,18 @@
         },
         "UISupportsTrueScreenSizeOnMac": true,
         "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true,
-        "icon": {
-          "dark": "./assets/images/icon-plain.png",
-          "light": "./assets/images/icon-ios-light.png",
-          "tinted": "./assets/images/icon-mono.png"
-        }
+        "LSSupportsOpeningDocumentsInPlace": true
       },
       "config": {
         "usesNonExemptEncryption": false
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.fredrikburmester.streamyfin"
+      "bundleIdentifier": "com.fredrikburmester.streamyfin",
+      "icon": {
+        "dark": "./assets/images/icon-plain.png",
+        "light": "./assets/images/icon-ios-light.png",
+        "tinted": "./assets/images/icon-mono.png"
+      }
     },
     "android": {
       "jsEngine": "hermes",
@@ -114,17 +114,39 @@
           }
         }
       ],
-      ["react-native-bottom-tabs"],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withAndroidManifest.js"],
-      ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"],
+      [
+        "react-native-bottom-tabs"
+      ],
+      [
+        "./plugins/withChangeNativeAndroidTextToWhite.js"
+      ],
+      [
+        "./plugins/withAndroidManifest.js"
+      ],
+      [
+        "./plugins/withTrustLocalCerts.js"
+      ],
+      [
+        "./plugins/withGradleProperties.js"
+      ],
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#2e2e2e",
           "image": "./assets/images/StreamyFinFinal.png",
           "imageWidth": 100
+        }
+      ],
+      [
+        "react-native-google-cast",
+        {
+          "useDefaultExpandedMediaControls": true
+        }
+      ],
+      [
+        "react-native-google-cast",
+        {
+          "useDefaultExpandedMediaControls": true
         }
       ]
     ],
@@ -136,10 +158,10 @@
         "origin": false
       },
       "eas": {
-        "projectId": "e79219d1-797f-4fbe-9fa1-cfd360690a68"
+        "projectId": "ba814afc-277d-4d47-a1a1-45a58df0aa6f"
       }
     },
-    "owner": "fredrikburmester",
+    "owner": "superhamsteri",
     "runtimeVersion": {
       "policy": "appVersion"
     },
