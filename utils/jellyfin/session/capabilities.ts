@@ -1,12 +1,8 @@
 import { Settings } from "@/utils/atoms/settings";
-import ios from "@/utils/profiles/ios";
 import native from "@/utils/profiles/native";
-import old from "@/utils/profiles/old";
 import { Api } from "@jellyfin/sdk";
 import { AxiosError, AxiosResponse } from "axios";
-import { useMemo } from "react";
 import { getAuthHeaders } from "../jellyfin";
-import iosFmp4 from "@/utils/profiles/iosFmp4";
 
 interface PostCapabilitiesParams {
   api: Api | null | undefined;
@@ -25,7 +21,6 @@ export const postCapabilities = async ({
   api,
   itemId,
   sessionId,
-  deviceProfile,
 }: PostCapabilitiesParams): Promise<AxiosResponse> => {
   if (!api || !itemId || !sessionId) {
     throw new Error("Missing parameters for marking item as not played");

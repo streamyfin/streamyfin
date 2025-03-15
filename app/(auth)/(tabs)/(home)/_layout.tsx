@@ -3,7 +3,7 @@ import { Ionicons, Feather } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
-const Chromecast = !Platform.isTV ? require("@/components/Chromecast") : null;
+const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 import { useAtom } from "jotai";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSessions, useSessionsProps } from "@/hooks/useSessions";
@@ -25,7 +25,7 @@ export default function IndexLayout() {
           headerLargeStyle: {
             backgroundColor: "black",
           },
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () => (
             <View className="flex flex-row items-center space-x-2">
@@ -113,7 +113,7 @@ export default function IndexLayout() {
           title: "",
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
@@ -137,7 +137,7 @@ const SettingsButton = () => {
 
 const SessionsButton = () => {
   const router = useRouter();
-  const { sessions = [], _ } = useSessions({} as useSessionsProps);
+  const { sessions = [] } = useSessions({} as useSessionsProps);
 
   return (
     <TouchableOpacity
@@ -146,7 +146,7 @@ const SessionsButton = () => {
       }}
     >
       <View className="mr-4">
-        <Ionicons 
+        <Ionicons
           name="play-circle"
           color={sessions.length === 0 ? "white" : "#9333ea"}
           size={25}
