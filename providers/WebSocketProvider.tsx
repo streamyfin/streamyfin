@@ -7,16 +7,13 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { Alert, AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus } from "react-native";
 import { useAtomValue } from "jotai";
-import { useQuery } from "@tanstack/react-query";
 import {
   apiAtom,
   getOrSetDeviceId,
-  userAtom,
 } from "@/providers/JellyfinProvider";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
-import native from "@/utils/profiles/native";
 
 interface WebSocketProviderProps {
   children: ReactNode;
@@ -30,7 +27,6 @@ interface WebSocketContextType {
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
-  const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -40,7 +36,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, []);
 
   const connectWebSocket = useCallback(() => {
-    if (!deviceId || !api?.accessToken) return;
+    if (!deviceId || !api?.accessToken) {
+      return;
+    }
 
     const protocol = api.basePath.includes("https") ? "wss" : "ws";
     const url = `${protocol}://${api.basePath
@@ -50,7 +48,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     }&deviceId=${deviceId}`;
 
     const newWebSocket = new WebSocket(url);
-    let keepAliveInterval: NodeJS.Timeout | null = null;
+    let keepAliveInterval: number | null = null;
 
     newWebSocket.onopen = () => {
       setIsConnected(true);
@@ -67,14 +65,18 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     };
 
     newWebSocket.onclose = () => {
-      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      if (keepAliveInterval) {
+        clearInterval(keepAliveInterval);
+      }
       setIsConnected(false);
     };
 
     setWs(newWebSocket);
 
     return () => {
-      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      if (keepAliveInterval) {
+        clearInterval(keepAliveInterval);
+      }
       newWebSocket.close();
     };
   }, [api, deviceId]);
@@ -85,7 +87,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, [connectWebSocket]);
 
   useEffect(() => {
-    if (!deviceId || !api || !api?.accessToken) return;
+    if (!deviceId || !api || !api?.accessToken) {
+      return;
+    }
 
     const init = async () => {
       await getSessionApi(api).postFullCapabilities({
