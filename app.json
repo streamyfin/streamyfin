@@ -39,7 +39,7 @@
       "versionCode": 53,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-plain.png",
-        "monochromeImage": "./assets/images/icon-monochrome.png",
+        "monochromeImage": "./assets/images/icon-mono.png",
         "backgroundColor": "#464646"
       },
       "package": "com.fredrikburmester.streamyfin",
