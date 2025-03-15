@@ -31,7 +31,7 @@
       "icon": {
         "dark": "./assets/images/icon-plain.png",
         "light": "./assets/images/icon-ios-light.png",
-        "tinted": "./assets/images/icon-mono.png"
+        "tinted": "./assets/images/icon-ios-tinted.png"
       }
     },
     "android": {
