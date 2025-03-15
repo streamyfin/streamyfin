@@ -40,6 +40,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive_icon.png",
         "backgroundColor": "#464646"
+
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
@@ -112,39 +113,17 @@
           }
         }
       ],
-      [
-        "react-native-bottom-tabs"
-      ],
-      [
-        "./plugins/withChangeNativeAndroidTextToWhite.js"
-      ],
-      [
-        "./plugins/withAndroidManifest.js"
-      ],
-      [
-        "./plugins/withTrustLocalCerts.js"
-      ],
-      [
-        "./plugins/withGradleProperties.js"
-      ],
+      ["react-native-bottom-tabs"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
+      ["./plugins/withAndroidManifest.js"],
+      ["./plugins/withTrustLocalCerts.js"],
+      ["./plugins/withGradleProperties.js"],
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#2e2e2e",
           "image": "./assets/images/StreamyFinFinal.png",
           "imageWidth": 100
-        }
-      ],
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ],
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
         }
       ]
     ],
@@ -156,10 +135,10 @@
         "origin": false
       },
       "eas": {
-        "projectId": "ba814afc-277d-4d47-a1a1-45a58df0aa6f"
+        "projectId": "e79219d1-797f-4fbe-9fa1-cfd360690a68"
       }
     },
-    "owner": "superhamsteri",
+    "owner": "fredrikburmester",
     "runtimeVersion": {
       "policy": "appVersion"
     },
