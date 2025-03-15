@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { getDeviceName } from "react-native-device-info";
 import uuid from "react-native-uuid";
+import {writeErrorLog, writeInfoLog} from "@/utils/log";
 
 interface Server {
   address: string;
@@ -286,6 +287,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
+      api?.delete(`/Streamyfin/device/${deviceId}`)
+        .then(r => writeInfoLog("Deleted expo push token for device"))
+        .catch(e => writeErrorLog(`Failed to delete expo push token for device`))
+
       storage.delete("token");
       setUser(null);
       setApi(null);

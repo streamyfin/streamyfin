@@ -119,6 +119,13 @@
           "image": "./assets/images/StreamyFinFinal.png",
           "imageWidth": 100
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification.png",
+          "color": "#9333EA"
+        }
       ]
     ],
     "experiments": {
