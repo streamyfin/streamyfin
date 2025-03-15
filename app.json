@@ -31,7 +31,7 @@
       "icon": {
         "dark": "./assets/images/icon-plain.png",
         "light": "./assets/images/icon-ios-light.png",
-        "tinted": "./assets/images/icon-mono.png"
+        "tinted": "./assets/images/icon-ios-tinted.png"
       }
     },
     "android": {
@@ -39,7 +39,7 @@
       "versionCode": 53,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-plain.png",
-        "monochromeImage": "./assets/images/icon-monochrome.png",
+        "monochromeImage": "./assets/images/icon-mono.png",
         "backgroundColor": "#464646"
       },
       "package": "com.fredrikburmester.streamyfin",
