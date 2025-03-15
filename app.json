@@ -31,17 +31,15 @@
       "icon": {
         "dark": "./assets/images/icon-plain.png",
         "light": "./assets/images/icon-ios-light.png",
-        "tinted": "./assets/images/icon-mono.png"
+        "tinted": "./assets/images/icon-ios-tinted.png"
       }
     },
     "android": {
       "jsEngine": "hermes",
       "versionCode": 53,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-plain.png",
-        "monochromeImage": "./assets/images/icon-mono.png",
+        "foregroundImage": "./assets/images/adaptive_icon.png",
         "backgroundColor": "#464646"
-
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
