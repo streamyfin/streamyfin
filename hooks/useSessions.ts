@@ -29,7 +29,7 @@ export const useSessions = ({ refetchInterval = 5 * 1000, activeWithinSeconds = 
         .filter((s) => s.NowPlayingItem)
         .sort((a, b) => (b.NowPlayingItem?.Name ?? "").localeCompare(a.NowPlayingItem?.Name ?? ""));
       
-      Notifications.setBadgeCountAsync(result.length);
+      // Notifications.setBadgeCountAsync(result.length);
       return result
     },
     refetchInterval: refetchInterval,
