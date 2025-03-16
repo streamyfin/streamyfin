@@ -13,8 +13,8 @@
     "prebuild": "EXPO_TV=0 bun run clean",
     "prebuild:tv": "EXPO_TV=1 bun run clean",
     "test": "jest --watchAll",
-    "lint": "expo lint",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "lint": "biome format --write ."
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "0.8.6",
@@ -114,15 +114,16 @@
     "@react-native-community/cli": "15.1.3",
     "@react-native-tvos/config-tv": "^0.1.1",
     "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.15",
     "@types/react": "~18.3.12",
+    "@types/react-native-vector-icons": "^6.4.18",
     "@types/react-test-renderer": "^19.0.0",
+    "@types/uuid": "^10.0.0",
     "patch-package": "^8.0.0",
     "postinstall-postinstall": "^2.1.0",
     "react-test-renderer": "19.0.0",
     "typescript": "~5.7.3",
-    "@types/lodash": "^4.17.15",
-    "@types/react-native-vector-icons": "^6.4.18",
-    "@types/uuid": "^10.0.0"
+    "@biomejs/biome": "^1.9.4"
   },
   "private": true,
   "expo": {
