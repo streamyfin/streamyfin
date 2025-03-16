@@ -3,7 +3,15 @@
   "organizeImports": {
     "enabled": true
   },
-  "files": {},
+  "files": {
+    "ignore": [
+      "node_modules",
+      "ios",
+      "android",
+      "Streamyfin.app",
+      "utils/jellyseerr"
+    ]
+  },
   "linter": {
     "enabled": true,
     "rules": {
