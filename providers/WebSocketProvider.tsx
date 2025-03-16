@@ -1,19 +1,16 @@
+import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
+import { useAtomValue } from "jotai";
 import React, {
   createContext,
   useContext,
   useEffect,
   useState,
-  ReactNode,
+  type ReactNode,
   useMemo,
   useCallback,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
-import { useAtomValue } from "jotai";
-import {
-  apiAtom,
-  getOrSetDeviceId,
-} from "@/providers/JellyfinProvider";
-import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
+import { AppState, type AppStateStatus } from "react-native";
 
 interface WebSocketProviderProps {
   children: ReactNode;
@@ -121,7 +118,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
     const subscription = AppState.addEventListener(
       "change",
-      handleAppStateChange
+      handleAppStateChange,
     );
 
     return () => {
@@ -141,7 +138,7 @@ export const useWebSocketContext = (): WebSocketContextType => {
   const context = useContext(WebSocketContext);
   if (!context) {
     throw new Error(
-      "useWebSocketContext must be used within a WebSocketProvider"
+      "useWebSocketContext must be used within a WebSocketProvider",
     );
   }
   return context;

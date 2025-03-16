@@ -25,22 +25,22 @@ const paths = new Map([
 
 if (isTV) {
   stdout = execSync(
-    `mkdir -p ${paths.get("tvos")}; ln -nsf ${paths.get("tvos")} ios`
+    `mkdir -p ${paths.get("tvos")}; ln -nsf ${paths.get("tvos")} ios`,
   );
   console.log(stdout.toString());
   stdout = execSync(
     `mkdir -p ${paths.get("androidtv")}; ln -nsf ${paths.get(
-      "androidtv"
-    )} android`
+      "androidtv",
+    )} android`,
   );
   console.log(stdout.toString());
 } else {
   stdout = execSync(
-    `mkdir -p ${paths.get("ios")}; ln -nsf ${paths.get("ios")} ios`
+    `mkdir -p ${paths.get("ios")}; ln -nsf ${paths.get("ios")} ios`,
   );
   console.log(stdout.toString());
   stdout = execSync(
-    `mkdir -p ${paths.get("android")}; ln -nsf ${paths.get("android")} android`
+    `mkdir -p ${paths.get("android")}; ln -nsf ${paths.get("android")} android`,
   );
   console.log(stdout.toString());
 }

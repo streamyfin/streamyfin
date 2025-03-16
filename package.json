@@ -128,9 +128,7 @@
   "private": true,
   "expo": {
     "install": {
-      "exclude": [
-        "react-native"
-      ]
+      "exclude": ["react-native"]
     }
   }
 }

@@ -1,4 +1,4 @@
-import { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
+import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 
 export const chromecast: DeviceProfile = {
   Name: "Chromecast Video Profile",

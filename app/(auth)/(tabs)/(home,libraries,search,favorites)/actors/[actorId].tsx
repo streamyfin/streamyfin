@@ -10,15 +10,15 @@ import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { BaseItemDtoQueryResult } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDtoQueryResult } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
-import { View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { View } from "react-native";
 
 const page: React.FC = () => {
   const local = useLocalSearchParams();
@@ -68,7 +68,7 @@ const page: React.FC = () => {
 
       return response.data;
     },
-    [api, user?.Id, actorId]
+    [api, user?.Id, actorId],
   );
 
   const backdropUrl = useMemo(
@@ -79,12 +79,12 @@ const page: React.FC = () => {
         quality: 90,
         width: 1000,
       }),
-    [item]
+    [item],
   );
 
   if (l1)
     return (
-      <View className="justify-center items-center h-full">
+      <View className='justify-center items-center h-full'>
         <Loader />
       </View>
     );
@@ -105,13 +105,13 @@ const page: React.FC = () => {
         />
       }
     >
-      <View className="flex flex-col space-y-4 my-4">
-        <View className="px-4 mb-4">
-          <MoviesTitleHeader item={item} className="mb-4" />
+      <View className='flex flex-col space-y-4 my-4'>
+        <View className='px-4 mb-4'>
+          <MoviesTitleHeader item={item} className='mb-4' />
           <OverviewText text={item.Overview} />
         </View>
 
-        <Text className="px-4 text-2xl font-bold mb-2 text-neutral-100">
+        <Text className='px-4 text-2xl font-bold mb-2 text-neutral-100'>
           {t("item_card.appeared_in")}
         </Text>
         <InfiniteHorizontalScroll
@@ -133,7 +133,7 @@ const page: React.FC = () => {
           queryFn={fetchItems}
           queryKey={["actor", "movies", actorId]}
         />
-        <View className="h-12"></View>
+        <View className='h-12'></View>
       </View>
     </ParallaxScrollView>
   );

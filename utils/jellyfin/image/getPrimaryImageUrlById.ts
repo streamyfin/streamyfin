@@ -1,4 +1,4 @@
-import { Api } from "@jellyfin/sdk";
+import type { Api } from "@jellyfin/sdk";
 
 /**
  * Retrieves the primary image URL for a given item.

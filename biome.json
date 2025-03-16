@@ -7,6 +7,10 @@
   "linter": {
     "enabled": true,
     "rules": {
+      "style": {
+        "useImportType": "off",
+        "noNonNullAssertion": "off"
+      },
       "recommended": true,
       "correctness": { "useExhaustiveDependencies": "off" },
       "suspicious": {
@@ -21,7 +25,7 @@
     "indentStyle": "space",
     "indentWidth": 2,
     "lineEnding": "lf",
-    "lineWidth": 80,
+    "lineWidth": 80
   },
   "javascript": {
     "formatter": {

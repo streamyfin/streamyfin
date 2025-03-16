@@ -1,14 +1,14 @@
-import { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Ionicons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback, useMemo } from "react";
 import {
   Alert,
   Linking,
   TouchableOpacity,
   View,
-  ViewProps,
+  type ViewProps,
 } from "react-native";
 
 interface Props extends ViewProps {
@@ -42,10 +42,10 @@ export const ItemActions = ({ item, ...props }: Props) => {
   }, [trailerLink]);
 
   return (
-    <View className="" {...props}>
+    <View className='' {...props}>
       {trailerLink && (
         <TouchableOpacity onPress={openTrailer}>
-          <Ionicons name="film-outline" size={24} color="white" />
+          <Ionicons name='film-outline' size={24} color='white' />
         </TouchableOpacity>
       )}
     </View>

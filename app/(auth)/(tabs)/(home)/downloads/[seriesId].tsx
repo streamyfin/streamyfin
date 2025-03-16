@@ -1,16 +1,16 @@
 import { Text } from "@/components/common/Text";
-import { useDownload } from "@/providers/DownloadProvider";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, TouchableOpacity, View, Alert } from "react-native";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   SeasonDropdown,
-  SeasonIndexState,
+  type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 
 export default function page() {
   const navigation = useNavigation();
@@ -21,7 +21,7 @@ export default function page() {
   };
 
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>(
-    {}
+    {},
   );
   const { downloadedFiles, deleteItems } = useDownload();
 
@@ -31,7 +31,7 @@ export default function page() {
         downloadedFiles
           ?.filter((f) => f.item.SeriesId == seriesId)
           ?.sort(
-            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!
+            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
           ) || []
       );
     } catch {
@@ -64,7 +64,7 @@ export default function page() {
     () =>
       Object.values(groupBySeason)?.[0]?.ParentIndexNumber ??
       series?.[0]?.item?.ParentIndexNumber,
-    [groupBySeason]
+    [groupBySeason],
   );
 
   useEffect(() => {
@@ -92,14 +92,14 @@ export default function page() {
           onPress: () => deleteItems(groupBySeason),
           style: "destructive",
         },
-      ]
+      ],
     );
   }, [groupBySeason]);
 
   return (
-    <View className="flex-1">
+    <View className='flex-1'>
       {series.length > 0 && (
-        <View className="flex flex-row items-center justify-start my-2 px-4">
+        <View className='flex flex-row items-center justify-start my-2 px-4'>
           <SeasonDropdown
             item={series[0].item}
             seasons={series.map((s) => s.item)}
@@ -112,17 +112,17 @@ export default function page() {
               }));
             }}
           />
-          <View className="bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center ml-2">
-            <Text className="text-xs font-bold">{groupBySeason.length}</Text>
+          <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center ml-2'>
+            <Text className='text-xs font-bold'>{groupBySeason.length}</Text>
           </View>
-          <View className="bg-neutral-800/80 rounded-full h-9 w-9 flex items-center justify-center ml-auto">
+          <View className='bg-neutral-800/80 rounded-full h-9 w-9 flex items-center justify-center ml-auto'>
             <TouchableOpacity onPress={deleteSeries}>
-              <Ionicons name="trash" size={20} color="white" />
+              <Ionicons name='trash' size={20} color='white' />
             </TouchableOpacity>
           </View>
         </View>
       )}
-      <ScrollView key={seasonIndex} className="px-4">
+      <ScrollView key={seasonIndex} className='px-4'>
         {groupBySeason.map((episode, index) => (
           <EpisodeCard key={index} item={episode} />
         ))}

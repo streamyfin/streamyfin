@@ -1,14 +1,15 @@
-import { Bitrate } from "@/components/BitrateSelector";
+import type { Bitrate } from "@/components/BitrateSelector";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import native from "@/utils/profiles/native";
-import {
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
-import React, {
+import type React from "react";
+import {
   createContext,
   useCallback,
   useContext,
@@ -32,7 +33,7 @@ type PlaySettingsContextType = {
     dataOrUpdater:
       | PlaybackType
       | null
-      | ((prev: PlaybackType | null) => PlaybackType | null)
+      | ((prev: PlaybackType | null) => PlaybackType | null),
   ) => Promise<{ url: string | null; sessionId: string | null } | null>;
   playUrl?: string | null;
   setPlayUrl: React.Dispatch<React.SetStateAction<string | null>>;
@@ -41,7 +42,7 @@ type PlaySettingsContextType = {
 };
 
 const PlaySettingsContext = createContext<PlaySettingsContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -65,7 +66,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       dataOrUpdater:
         | PlaybackType
         | null
-        | ((prev: PlaybackType | null) => PlaybackType | null)
+        | ((prev: PlaybackType | null) => PlaybackType | null),
     ): Promise<{ url: string | null; sessionId: string | null } | null> => {
       if (!api || !user || !settings) {
         _setPlaySettings(null);
@@ -109,7 +110,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         return null;
       }
     },
-    [api, user, settings, playSettings]
+    [api, user, settings, playSettings],
   );
 
   // useEffect(() => {
@@ -153,7 +154,7 @@ export const usePlaySettings = () => {
   const context = useContext(PlaySettingsContext);
   if (context === undefined) {
     throw new Error(
-      "usePlaySettings must be used within a PlaySettingsProvider"
+      "usePlaySettings must be used within a PlaySettingsProvider",
     );
   }
   return context;

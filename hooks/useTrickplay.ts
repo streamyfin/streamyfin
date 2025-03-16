@@ -1,6 +1,6 @@
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { ticksToMs } from "@/utils/time";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -107,7 +107,7 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
       setTrickPlayUrl(newTrickPlayUrl);
       return newTrickPlayUrl;
     },
-    [trickplayInfo, item, api, enabled]
+    [trickplayInfo, item, api, enabled],
   );
 
   const prefetchAllTrickplayImages = useCallback(() => {

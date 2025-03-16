@@ -1,5 +1,5 @@
-import { Api } from "@jellyfin/sdk";
-import { AxiosError } from "axios";
+import type { Api } from "@jellyfin/sdk";
+import type { AxiosError } from "axios";
 
 interface MarkAsNotPlayedParams {
   api: Api | null | undefined;

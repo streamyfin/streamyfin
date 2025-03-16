@@ -1,16 +1,16 @@
-import { Platform, TouchableOpacity, View, ViewProps } from "react-native";
+import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { Text } from "../common/Text";
-import { useMedia } from "./MediaContext";
-import { Switch } from "react-native-gesture-handler";
-import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
+import Dropdown from "@/components/common/Dropdown";
+import { Stepper } from "@/components/inputs/Stepper";
+import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { useTranslation } from "react-i18next";
-import { useSettings } from "@/utils/atoms/settings";
-import { Stepper } from "@/components/inputs/Stepper";
-import Dropdown from "@/components/common/Dropdown";
+import { Switch } from "react-native-gesture-handler";
+import { Text } from "../common/Text";
+import { ListGroup } from "../list/ListGroup";
+import { ListItem } from "../list/ListItem";
+import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
 
@@ -46,7 +46,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
       <ListGroup
         title={t("home.settings.subtitles.subtitle_title")}
         description={
-          <Text className="text-[#8E8D91] text-xs">
+          <Text className='text-[#8E8D91] text-xs'>
             {t("home.settings.subtitles.subtitle_hint")}
           </Text>
         }
@@ -65,15 +65,15 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             }
             titleExtractor={(item) => item?.DisplayName}
             title={
-              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
-                <Text className="mr-1 text-[#8E8D91]">
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
                   {settings?.defaultSubtitleLanguage?.DisplayName ||
                     t("home.settings.subtitles.none")}
                 </Text>
                 <Ionicons
-                  name="chevron-expand-sharp"
+                  name='chevron-expand-sharp'
                   size={18}
-                  color="#5A5960"
+                  color='#5A5960'
                 />
               </TouchableOpacity>
             }
@@ -100,15 +100,15 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             keyExtractor={String}
             titleExtractor={(item) => t(subtitleModeKeys[item]) || String(item)}
             title={
-              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
-                <Text className="mr-1 text-[#8E8D91]">
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
                   {t(subtitleModeKeys[settings?.subtitleMode]) ||
                     t("home.settings.subtitles.loading")}
                 </Text>
                 <Ionicons
-                  name="chevron-expand-sharp"
+                  name='chevron-expand-sharp'
                   size={18}
-                  color="#5A5960"
+                  color='#5A5960'
                 />
               </TouchableOpacity>
             }

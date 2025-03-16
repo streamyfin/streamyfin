@@ -1,8 +1,8 @@
 import { Platform, TouchableOpacity, View } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { Text } from "./common/Text";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Text } from "./common/Text";
 
 export type Bitrate = {
   key: string;
@@ -40,7 +40,11 @@ export const BITRATES: Bitrate[] = [
     key: "250 Kb/s",
     value: 250000,
   },
-].sort((a, b) => (b.value || Infinity) - (a.value || Infinity));
+].sort(
+  (a, b) =>
+    (b.value || Number.POSITIVE_INFINITY) -
+    (a.value || Number.POSITIVE_INFINITY),
+);
 
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: Bitrate) => void;
@@ -58,10 +62,14 @@ export const BitrateSelector: React.FC<Props> = ({
   const sorted = useMemo(() => {
     if (inverted)
       return BITRATES.sort(
-        (a, b) => (a.value || Infinity) - (b.value || Infinity)
+        (a, b) =>
+          (a.value || Number.POSITIVE_INFINITY) -
+          (b.value || Number.POSITIVE_INFINITY),
       );
     return BITRATES.sort(
-      (a, b) => (b.value || Infinity) - (a.value || Infinity)
+      (a, b) =>
+        (b.value || Number.POSITIVE_INFINITY) -
+        (a.value || Number.POSITIVE_INFINITY),
     );
   }, []);
 
@@ -69,7 +77,7 @@ export const BitrateSelector: React.FC<Props> = ({
 
   return (
     <View
-      className="flex shrink"
+      className='flex shrink'
       style={{
         minWidth: 60,
         maxWidth: 200,
@@ -77,12 +85,12 @@ export const BitrateSelector: React.FC<Props> = ({
     >
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
-          <View className="flex flex-col" {...props}>
-            <Text className="opacity-50 mb-1 text-xs">
+          <View className='flex flex-col' {...props}>
+            <Text className='opacity-50 mb-1 text-xs'>
               {t("item_card.quality")}
             </Text>
-            <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-              <Text style={{}} className="" numberOfLines={1}>
+            <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+              <Text style={{}} className='' numberOfLines={1}>
                 {BITRATES.find((b) => b.value === selected?.value)?.key}
               </Text>
             </TouchableOpacity>
@@ -90,8 +98,8 @@ export const BitrateSelector: React.FC<Props> = ({
         </DropdownMenu.Trigger>
         <DropdownMenu.Content
           loop={false}
-          side="bottom"
-          align="center"
+          side='bottom'
+          align='center'
           alignOffset={0}
           avoidCollisions={true}
           collisionPadding={0}

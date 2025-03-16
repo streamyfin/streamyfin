@@ -1,13 +1,13 @@
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
 import { TAB_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 export default function page() {
   const [api] = useAtom(apiAtom);
@@ -19,7 +19,7 @@ export default function page() {
   return (
     <ScrollView
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior='automatic'
       key={"home"}
       contentContainerStyle={{
         paddingLeft: insets.left,
@@ -28,7 +28,7 @@ export default function page() {
         paddingTop: 8,
       }}
     >
-      <View className="flex flex-col space-y-2">
+      <View className='flex flex-col space-y-2'>
         <ScrollingCollectionList
           queryKey={["livetv", "recommended"]}
           title={t("live_tv.on_now")}
@@ -45,7 +45,7 @@ export default function page() {
             });
             return res.data.Items || [];
           }}
-          orientation="horizontal"
+          orientation='horizontal'
         />
         <ScrollingCollectionList
           queryKey={["livetv", "shows"]}
@@ -67,7 +67,7 @@ export default function page() {
             });
             return res.data.Items || [];
           }}
-          orientation="horizontal"
+          orientation='horizontal'
         />
         <ScrollingCollectionList
           queryKey={["livetv", "movies"]}
@@ -85,7 +85,7 @@ export default function page() {
             });
             return res.data.Items || [];
           }}
-          orientation="horizontal"
+          orientation='horizontal'
         />
         <ScrollingCollectionList
           queryKey={["livetv", "sports"]}
@@ -103,7 +103,7 @@ export default function page() {
             });
             return res.data.Items || [];
           }}
-          orientation="horizontal"
+          orientation='horizontal'
         />
         <ScrollingCollectionList
           queryKey={["livetv", "kids"]}
@@ -121,7 +121,7 @@ export default function page() {
             });
             return res.data.Items || [];
           }}
-          orientation="horizontal"
+          orientation='horizontal'
         />
         <ScrollingCollectionList
           queryKey={["livetv", "news"]}
@@ -139,7 +139,7 @@ export default function page() {
             });
             return res.data.Items || [];
           }}
-          orientation="horizontal"
+          orientation='horizontal'
         />
       </View>
     </ScrollView>

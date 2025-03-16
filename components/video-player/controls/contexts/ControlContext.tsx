@@ -1,8 +1,9 @@
-import {
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import type React from "react";
+import { type ReactNode, createContext, useContext, useState } from "react";
 
 interface ControlContextProps {
   item: BaseItemDto;
@@ -11,7 +12,7 @@ interface ControlContextProps {
 }
 
 const ControlContext = createContext<ControlContextProps | undefined>(
-  undefined
+  undefined,
 );
 
 interface ControlProviderProps {

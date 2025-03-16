@@ -14,12 +14,15 @@ const withChangeNativeAndroidTextToWhite = (expoConfig) =>
           "main",
           "res",
           "values",
-          "styles.xml"
+          "styles.xml",
         );
 
         let stylesXml = readFileSync(stylesXmlPath, "utf8");
 
-        stylesXml = stylesXml.replace(/@android:color\/black/g, "@android:color/white");
+        stylesXml = stylesXml.replace(
+          /@android:color\/black/g,
+          "@android:color/white",
+        );
 
         writeFileSync(stylesXmlPath, stylesXml, { encoding: "utf8" });
       }
