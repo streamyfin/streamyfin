@@ -25,7 +25,7 @@ export const APP_LANGUAGES = [
   { label: "日本語", value: "ja" },
   { label: "Türkçe", value: "tr" },
   { label: "Nederlands", value: "nl" },
-  { label: 'Polski', value: 'pl' },
+  { label: "Polski", value: "pl" },
   { label: "Svenska", value: "sv" },
   { label: "Українська", value: "ua" },
   { label: "简体中文", value: "zh-CN" },
