@@ -13,8 +13,7 @@ import SeriesPoster from "@/components/posters/SeriesPoster";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { sortOrderOptions } from "@/utils/atoms/filters";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import type {
@@ -64,7 +63,6 @@ export default function search() {
   const [debouncedSearch] = useDebounce(search, 500);
 
   const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
 
   const [settings] = useSettings();
   const { jellyseerrApi } = useJellyseerr();
@@ -83,7 +81,9 @@ export default function search() {
   }, [settings]);
 
   useEffect(() => {
-    if (q && q.length > 0) setSearch(q);
+    if (q && q.length > 0) {
+      setSearch(q);
+    }
   }, [q]);
 
   const searchFn = useCallback(
@@ -94,7 +94,9 @@ export default function search() {
       types: BaseItemKind[];
       query: string;
     }): Promise<BaseItemDto[]> => {
-      if (!api || !query) return [];
+      if (!api || !query) {
+        return [];
+      }
 
       try {
         if (searchEngine === "Jellyfin") {
@@ -106,7 +108,9 @@ export default function search() {
 
           return (searchApi.data.SearchHints as BaseItemDto[]) || [];
         }
-        if (!settings?.marlinServerUrl) return [];
+        if (!settings?.marlinServerUrl) {
+          return [];
+        }
 
         const url = `${
           settings.marlinServerUrl
@@ -118,7 +122,9 @@ export default function search() {
 
         const ids = response1.data.ids;
 
-        if (!ids || !ids.length) return [];
+        if (!ids || !ids.length) {
+          return [];
+        }
 
         const response2 = await getItemsApi(api).getItems({
           ids,
@@ -161,8 +167,10 @@ export default function search() {
 
   useEffect(() => {
     const unsubscribe = eventBus.on("searchTabPressed", () => {
-      // Screen not actuve
-      if (!searchBarRef.current) return;
+      // Screen not active
+      if (!searchBarRef.current) {
+        return;
+      }
       // Screen is active, focus search bar
       searchBarRef.current?.focus();
     });

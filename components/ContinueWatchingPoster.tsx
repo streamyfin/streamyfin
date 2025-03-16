@@ -27,31 +27,37 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
    * Get horizontal poster for movie and episode, with failover to primary.
    */
   const url = useMemo(() => {
-    if (!api) return;
+    if (!api) {
+      return;
+    }
     if (item.Type === "Episode" && useEpisodePoster) {
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Episode") {
-      if (item.ParentBackdropItemId && item.ParentThumbImageTag)
+      if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
         return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
+      }
 
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Movie") {
-      if (item.ImageTags?.Thumb)
+      if (item.ImageTags?.Thumb) {
         return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
+      }
 
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Program") {
-      if (item.ImageTags?.Thumb)
+      if (item.ImageTags?.Thumb) {
         return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
+      }
 
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
 
-    if (item.ImageTags?.Thumb)
+    if (item.ImageTags?.Thumb) {
       return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
+    }
 
     return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
   }, [item]);
