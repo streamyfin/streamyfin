@@ -100,7 +100,7 @@ export default function index() {
               height: StyleSheet.hairlineWidth,
             }}
             className='bg-neutral-800 mx-2 my-4'
-          ></View>
+          />
         ) : (
           <View className='h-4' />
         )

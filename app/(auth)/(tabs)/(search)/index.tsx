@@ -105,28 +105,27 @@ export default function search() {
           });
 
           return (searchApi.data.SearchHints as BaseItemDto[]) || [];
-        } else {
-          if (!settings?.marlinServerUrl) return [];
-
-          const url = `${
-            settings.marlinServerUrl
-          }/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
-            .map((type) => encodeURIComponent(type))
-            .join("&includeItemTypes=")}`;
-
-          const response1 = await axios.get(url);
-
-          const ids = response1.data.ids;
-
-          if (!ids || !ids.length) return [];
-
-          const response2 = await getItemsApi(api).getItems({
-            ids,
-            enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-          });
-
-          return (response2.data.Items as BaseItemDto[]) || [];
         }
+        if (!settings?.marlinServerUrl) return [];
+
+        const url = `${
+          settings.marlinServerUrl
+        }/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
+          .map((type) => encodeURIComponent(type))
+          .join("&includeItemTypes=")}`;
+
+        const response1 = await axios.get(url);
+
+        const ids = response1.data.ids;
+
+        if (!ids || !ids.length) return [];
+
+        const response2 = await getItemsApi(api).getItems({
+          ids,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        });
+
+        return (response2.data.Items as BaseItemDto[]) || [];
       } catch (error) {
         console.error("Error during search:", error);
         return []; // Ensure an empty array is returned in case of an error
@@ -254,64 +253,62 @@ export default function search() {
           }}
         >
           {jellyseerrApi && (
-            <>
-              <ScrollView
-                horizontal
-                className='flex flex-row flex-wrap space-x-2 px-4 mb-2'
-              >
-                <TouchableOpacity onPress={() => setSearchType("Library")}>
-                  <Tag
-                    text={t("search.library")}
-                    textClass='p-1'
-                    className={
-                      searchType === "Library" ? "bg-purple-600" : undefined
-                    }
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setSearchType("Discover")}>
-                  <Tag
-                    text={t("search.discover")}
-                    textClass='p-1'
-                    className={
-                      searchType === "Discover" ? "bg-purple-600" : undefined
-                    }
-                  />
-                </TouchableOpacity>
-                {searchType === "Discover" &&
-                  !loading &&
-                  noResults &&
-                  debouncedSearch.length > 0 && (
-                    <View className='flex flex-row justify-end items-center space-x-1'>
-                      <FilterButton
-                        collectionId='search'
-                        queryKey='jellyseerr_search'
-                        queryFn={async () =>
-                          Object.keys(JellyseerrSearchSort).filter((v) =>
-                            isNaN(Number(v)),
-                          )
-                        }
-                        set={(value) => setJellyseerrOrderBy(value[0])}
-                        values={[jellyseerrOrderBy]}
-                        title={t("library.filters.sort_by")}
-                        renderItemLabel={(item) =>
-                          t(`home.settings.plugins.jellyseerr.order_by.${item}`)
-                        }
-                        showSearch={false}
-                      />
-                      <FilterButton
-                        collectionId='order'
-                        queryKey='jellysearr_search'
-                        queryFn={async () => ["asc", "desc"]}
-                        set={(value) => setJellyseerrSortOrder(value[0])}
-                        values={[jellyseerrSortOrder]}
-                        title={t("library.filters.sort_order")}
-                        renderItemLabel={(item) => t(`library.filters.${item}`)}
-                        showSearch={false}
-                      />
-                    </View>
-                  )}
-              </ScrollView>
-            </>
+            <ScrollView
+              horizontal
+              className='flex flex-row flex-wrap space-x-2 px-4 mb-2'
+            >
+              <TouchableOpacity onPress={() => setSearchType("Library")}>
+                <Tag
+                  text={t("search.library")}
+                  textClass='p-1'
+                  className={
+                    searchType === "Library" ? "bg-purple-600" : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setSearchType("Discover")}>
+                <Tag
+                  text={t("search.discover")}
+                  textClass='p-1'
+                  className={
+                    searchType === "Discover" ? "bg-purple-600" : undefined
+                  }
+                />
+              </TouchableOpacity>
+              {searchType === "Discover" &&
+                !loading &&
+                noResults &&
+                debouncedSearch.length > 0 && (
+                  <View className='flex flex-row justify-end items-center space-x-1'>
+                    <FilterButton
+                      collectionId='search'
+                      queryKey='jellyseerr_search'
+                      queryFn={async () =>
+                        Object.keys(JellyseerrSearchSort).filter((v) =>
+                          Number.isNaN(Number(v)),
+                        )
+                      }
+                      set={(value) => setJellyseerrOrderBy(value[0])}
+                      values={[jellyseerrOrderBy]}
+                      title={t("library.filters.sort_by")}
+                      renderItemLabel={(item) =>
+                        t(`home.settings.plugins.jellyseerr.order_by.${item}`)
+                      }
+                      showSearch={false}
+                    />
+                    <FilterButton
+                      collectionId='order'
+                      queryKey='jellysearr_search'
+                      queryFn={async () => ["asc", "desc"]}
+                      set={(value) => setJellyseerrSortOrder(value[0])}
+                      values={[jellyseerrSortOrder]}
+                      title={t("library.filters.sort_order")}
+                      renderItemLabel={(item) => t(`library.filters.${item}`)}
+                      showSearch={false}
+                    />
+                  </View>
+                )}
+            </ScrollView>
           )}
 
           <View className='mt-2'>
@@ -411,32 +408,29 @@ export default function search() {
             />
           )}
 
-          {searchType === "Library" && (
-            <>
-              {!loading && noResults && debouncedSearch.length > 0 ? (
-                <View>
-                  <Text className='text-center text-lg font-bold mt-4'>
-                    {t("search.no_results_found_for")}
-                  </Text>
-                  <Text className='text-xs text-purple-600 text-center'>
-                    "{debouncedSearch}"
-                  </Text>
-                </View>
-              ) : debouncedSearch.length === 0 ? (
-                <View className='mt-4 flex flex-col items-center space-y-2'>
-                  {exampleSearches.map((e) => (
-                    <TouchableOpacity
-                      onPress={() => setSearch(e)}
-                      key={e}
-                      className='mb-2'
-                    >
-                      <Text className='text-purple-600'>{e}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : null}
-            </>
-          )}
+          {searchType === "Library" &&
+            (!loading && noResults && debouncedSearch.length > 0 ? (
+              <View>
+                <Text className='text-center text-lg font-bold mt-4'>
+                  {t("search.no_results_found_for")}
+                </Text>
+                <Text className='text-xs text-purple-600 text-center'>
+                  "{debouncedSearch}"
+                </Text>
+              </View>
+            ) : debouncedSearch.length === 0 ? (
+              <View className='mt-4 flex flex-col items-center space-y-2'>
+                {exampleSearches.map((e) => (
+                  <TouchableOpacity
+                    onPress={() => setSearch(e)}
+                    key={e}
+                    className='mb-2'
+                  >
+                    <Text className='text-purple-600'>{e}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null)}
         </View>
       </ScrollView>
     </>

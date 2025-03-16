@@ -38,7 +38,7 @@ export const useImageColors = ({
   const source = useMemo(() => {
     if (!api) return;
     if (url) return { uri: url };
-    else if (item)
+    if (item)
       return getItemImage({
         item,
         api,
@@ -46,7 +46,7 @@ export const useImageColors = ({
         quality: 80,
         width: 300,
       });
-    else return null;
+    return null;
   }, [api, item]);
 
   useEffect(() => {

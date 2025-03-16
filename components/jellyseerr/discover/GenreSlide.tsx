@@ -28,7 +28,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
     queryKey: ["jellyseerr", "discover", slide.type, slide.id],
     queryFn: async () => {
       return jellyseerrApi?.getGenreSliders(
-        slide.type == DiscoverSliderType.MOVIE_GENRES
+        slide.type === DiscoverSliderType.MOVIE_GENRES
           ? Endpoints.MOVIE
           : Endpoints.TV,
       );

@@ -34,10 +34,7 @@ export const Stepper: React.FC<StepperProps> = ({
         <Text>-</Text>
       </TouchableOpacity>
       <Text
-        className={
-          "w-auto h-8 bg-neutral-800 py-2 px-1 flex items-center justify-center" +
-          (appendValue ? "first-letter:px-2" : "")
-        }
+        className={`w-auto h-8 bg-neutral-800 py-2 px-1 flex items-center justify-center${appendValue ? "first-letter:px-2" : ""}`}
       >
         {value}
         {appendValue}

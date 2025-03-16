@@ -1,5 +1,5 @@
-const { readFileSync, writeFileSync } = require("fs");
-const { join } = require("path");
+const { readFileSync, writeFileSync } = require("node:fs");
+const { join } = require("node:path");
 const { withDangerousMod } = require("@expo/config-plugins");
 
 const withChangeNativeAndroidTextToWhite = (expoConfig) =>

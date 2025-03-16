@@ -216,9 +216,8 @@ const Page = () => {
 
         if (accumulatedItems < totalItems) {
           return lastPage?.Items?.length * pages.length;
-        } else {
-          return undefined;
         }
+        return undefined;
       },
       initialPageParam: 0,
       enabled: !!api && !!user?.Id && !!library,
@@ -478,7 +477,7 @@ const Page = () => {
             width: 10,
             height: 10,
           }}
-        ></View>
+        />
       )}
     />
   );

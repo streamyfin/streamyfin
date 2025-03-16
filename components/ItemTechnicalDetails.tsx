@@ -237,5 +237,5 @@ const formatFileSize = (bytes?: number | null) => {
   const i = Number.parseInt(
     Math.floor(Math.log(bytes) / Math.log(1024)).toString(),
   );
-  return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+  return `${Math.round((bytes / 1024 ** i) * 100) / 100} ${sizes[i]}`;
 };

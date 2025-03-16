@@ -7,7 +7,7 @@ export const WatchedIndicator: React.FC<{ item: BaseItemDto }> = ({ item }) => {
     <>
       {item.UserData?.Played === false &&
         (item.Type === "Movie" || item.Type === "Episode") && (
-          <View className='bg-purple-600 w-8 h-8 absolute -top-4 -right-4 rotate-45'></View>
+          <View className='bg-purple-600 w-8 h-8 absolute -top-4 -right-4 rotate-45' />
         )}
     </>
   );

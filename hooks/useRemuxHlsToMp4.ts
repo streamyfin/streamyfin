@@ -160,7 +160,7 @@ export const useRemuxHlsToMp4 = () => {
         });
       }
 
-      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`;
+      const output = `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`;
 
       if (!api) throw new Error("API is not defined");
       if (!item.Id) throw new Error("Item must have an Id");

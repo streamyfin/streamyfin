@@ -47,7 +47,7 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
   };
 
   return (
-    <View className={`flex flex-col w-full shrink`}>
+    <View className={"flex flex-col w-full shrink"}>
       <Slider
         theme={{
           maximumTrackTintColor: "rgba(255,255,255,0.2)",

@@ -57,7 +57,7 @@ export const NextItemButton: React.FC<Props> = ({
   return (
     <Button
       onPress={() => router.setParams({ id: nextItem?.Id })}
-      className={`h-12 aspect-square`}
+      className={"h-12 aspect-square"}
       disabled={disabled}
       {...props}
     >

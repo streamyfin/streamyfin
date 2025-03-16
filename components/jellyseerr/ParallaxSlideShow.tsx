@@ -123,11 +123,9 @@ const ParallaxSlideShow = <T,>({
       >
         <View className='flex flex-col space-y-4 px-4'>
           <View className='flex flex-row justify-between w-full'>
-            <View className='flex flex-col w-full'>
-              {HeaderContent && HeaderContent()}
-            </View>
+            <View className='flex flex-col w-full'>{HeaderContent?.()}</View>
           </View>
-          {MainContent && MainContent()}
+          {MainContent?.()}
           <View>
             <FlashList
               data={data}

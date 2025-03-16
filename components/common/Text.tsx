@@ -16,12 +16,12 @@ export function Text(
         {...otherProps}
       />
     );
-  else
-    return (
-      <UITextView
-        allowFontScaling={false}
-        style={[{ color: "white" }, style]}
-        {...otherProps}
-      />
-    );
+
+  return (
+    <UITextView
+      allowFontScaling={false}
+      style={[{ color: "white" }, style]}
+      {...otherProps}
+    />
+  );
 }

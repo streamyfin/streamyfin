@@ -87,11 +87,11 @@ export enum Endpoints {
   STUDIO = "/studio",
   GENRE_SLIDER = "/genreslider",
   DISCOVER = "/discover",
-  DISCOVER_TRENDING = DISCOVER + "/trending",
-  DISCOVER_MOVIES = DISCOVER + "/movies",
+  DISCOVER_TRENDING = `${DISCOVER}/trending`,
+  DISCOVER_MOVIES = `${DISCOVER}/movies`,
   DISCOVER_TV = DISCOVER + TV,
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
-  DISCOVER_MOVIES_STUDIO = DISCOVER + `${MOVIE}s` + STUDIO,
+  DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
 }
 
@@ -159,10 +159,7 @@ export class JellyseerrApi {
         }
         toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
         writeErrorLog(
-          `Jellyseerr returned a ${status} for url:\n` +
-            response.config.url +
-            "\n" +
-            JSON.stringify(response.data),
+          `Jellyseerr returned a ${status} for url:\n${response.config.url}\n${JSON.stringify(response.data)}`,
         );
         return {
           isValid: false,
@@ -241,7 +238,7 @@ export class JellyseerrApi {
 
   async getRequest(id: number): Promise<MediaRequest> {
     return this.axios
-      ?.get<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST + `/${id}`)
+      ?.get<MediaRequest>(`${Endpoints.API_V1 + Endpoints.REQUEST}/${id}`)
       .then(({ data }) => data);
   }
 
@@ -262,7 +259,7 @@ export class JellyseerrApi {
 
   async movieDetails(id: number) {
     return this.axios
-      ?.get<MovieDetails>(Endpoints.API_V1 + Endpoints.MOVIE + `/${id}`)
+      ?.get<MovieDetails>(`${Endpoints.API_V1 + Endpoints.MOVIE}/${id}`)
       .then((response) => {
         return response?.data;
       });
@@ -270,7 +267,7 @@ export class JellyseerrApi {
 
   async personDetails(id: number | string): Promise<PersonDetails> {
     return this.axios
-      ?.get<PersonDetails>(Endpoints.API_V1 + Endpoints.PERSON + `/${id}`)
+      ?.get<PersonDetails>(`${Endpoints.API_V1 + Endpoints.PERSON}/${id}`)
       .then((response) => {
         return response?.data;
       });
@@ -279,10 +276,9 @@ export class JellyseerrApi {
   async personCombinedCredits(id: number | string): Promise<CombinedCredit> {
     return this.axios
       ?.get<CombinedCredit>(
-        Endpoints.API_V1 +
-          Endpoints.PERSON +
-          `/${id}` +
-          Endpoints.COMBINED_CREDITS,
+        `${
+          Endpoints.API_V1 + Endpoints.PERSON
+        }/${id}${Endpoints.COMBINED_CREDITS}`,
       )
       .then((response) => {
         return response?.data;
@@ -333,13 +329,10 @@ export class JellyseerrApi {
 
   imageProxy(path?: string, filter = "original", width = 1920, quality = 75) {
     return path
-      ? this.axios.defaults.baseURL +
-          `/_next/image?` +
-          new URLSearchParams(
-            `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`,
-          ).toString()
-      : this.axios?.defaults.baseURL +
-          `/images/overseerr_poster_not_found_logo_top.png`;
+      ? `${this.axios.defaults.baseURL}/_next/image?${new URLSearchParams(
+          `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`,
+        ).toString()}`
+      : `${this.axios?.defaults.baseURL}/images/overseerr_poster_not_found_logo_top.png`;
   }
 
   async submitIssue(mediaId: number, issueType: IssueType, message: string) {
@@ -362,7 +355,7 @@ export class JellyseerrApi {
   async service(type: "radarr" | "sonarr") {
     return this.axios
       ?.get<ServiceCommonServer[]>(
-        Endpoints.API_V1 + Endpoints.SERVICE + `/${type}`,
+        `${Endpoints.API_V1 + Endpoints.SERVICE}/${type}`,
       )
       .then(({ data }) => data);
   }
@@ -370,7 +363,7 @@ export class JellyseerrApi {
   async serviceDetails(type: "radarr" | "sonarr", id: number) {
     return this.axios
       ?.get<ServiceCommonServerWithDetails>(
-        Endpoints.API_V1 + Endpoints.SERVICE + `/${type}` + `/${id}`,
+        `${Endpoints.API_V1 + Endpoints.SERVICE}/${type}/${id}`,
       )
       .then(({ data }) => data);
   }
@@ -391,12 +384,7 @@ export class JellyseerrApi {
         const errorMsg = "Jellyseerr response error";
         console.error(errorMsg, error, error.response?.data);
         writeErrorLog(
-          errorMsg +
-            `\n` +
-            `error: ${error.toString()}\n` +
-            `url: ${error?.config?.url}\n` +
-            `data:\n` +
-            JSON.stringify(error.response?.data),
+          `${errorMsg}\nerror: ${error.toString()}\nurl: ${error?.config?.url}\ndata:\n${JSON.stringify(error.response?.data)}`,
         );
         if (error.status === 403) {
           clearJellyseerrStorageData();
@@ -412,7 +400,7 @@ export class JellyseerrApi {
           const headerName = this.axios.defaults.xsrfHeaderName!;
           const xsrfToken = cookies
             .find((c) => c.includes(headerName))
-            ?.split(headerName + "=")?.[1];
+            ?.split(`${headerName}=`)?.[1];
           if (xsrfToken) {
             config.headers[headerName] = xsrfToken;
           }
@@ -484,7 +472,7 @@ export const useJellyseerr = () => {
     return (
       items &&
       Object.hasOwn(items, "mediaType") &&
-      Object.values(MediaType).includes(items["mediaType"])
+      Object.values(MediaType).includes(items.mediaType)
     );
   };
 
@@ -492,10 +480,10 @@ export const useJellyseerr = () => {
     item?: TvResult | TvDetails | MovieResult | MovieDetails,
   ) => {
     return isJellyseerrResult(item)
-      ? item.mediaType == MediaType.MOVIE
+      ? item.mediaType === MediaType.MOVIE
         ? item?.title
         : item?.name
-      : item?.mediaInfo.mediaType == MediaType.MOVIE
+      : item?.mediaInfo.mediaType === MediaType.MOVIE
         ? (item as MovieDetails)?.title
         : (item as TvDetails)?.name;
   };
@@ -505,10 +493,10 @@ export const useJellyseerr = () => {
   ) => {
     return new Date(
       (isJellyseerrResult(item)
-        ? item.mediaType == MediaType.MOVIE
+        ? item.mediaType === MediaType.MOVIE
           ? item?.releaseDate
           : item?.firstAirDate
-        : item?.mediaInfo.mediaType == MediaType.MOVIE
+        : item?.mediaInfo.mediaType === MediaType.MOVIE
           ? (item as MovieDetails)?.releaseDate
           : (item as TvDetails)?.firstAirDate) || "",
     )?.getFullYear?.();

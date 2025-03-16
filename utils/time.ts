@@ -17,7 +17,7 @@ export const runtimeTicksToMinutes = (
   const minutes = Math.floor((ticks % ticksPerHour) / ticksPerMinute);
 
   if (hours > 0) return `${hours}h ${minutes}m`;
-  else return `${minutes}m`;
+  return `${minutes}m`;
 };
 
 export const runtimeTicksToSeconds = (
@@ -33,7 +33,7 @@ export const runtimeTicksToSeconds = (
   const seconds = Math.floor((ticks % ticksPerMinute) / 10000000);
 
   if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  else return `${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
 };
 
 // t: ms
@@ -66,9 +66,8 @@ export const formatTimeString = (
 
   if (hours > 0) {
     return `${hours}h ${minutes}m ${remainingSeconds}s`;
-  } else {
-    return `${minutes}m ${remainingSeconds}s`;
   }
+  return `${minutes}m ${remainingSeconds}s`;
 };
 
 export const secondsToTicks = (seconds?: number | undefined) => {

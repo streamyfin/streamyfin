@@ -93,7 +93,7 @@ export default function page() {
         showText={!pluginSettings?.searchEngine?.locked}
         className='mt-2 flex flex-col rounded-xl overflow-hidden pl-4 bg-neutral-900 px-4'
       >
-        <View className={`flex flex-row items-center bg-neutral-900 h-11 pr-4`}>
+        <View className={"flex flex-row items-center bg-neutral-900 h-11 pr-4"}>
           <Text className='mr-4'>
             {t("home.settings.plugins.marlin_search.url")}
           </Text>
