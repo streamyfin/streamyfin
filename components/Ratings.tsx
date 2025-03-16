@@ -1,15 +1,18 @@
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { View, ViewProps } from "react-native";
-import { Badge } from "./Badge";
-import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { useQuery } from "@tanstack/react-query";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
-import {TvDetails} from "@/utils/jellyseerr/server/models/Tv";
-import {useMemo} from "react";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type {
+  MovieResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { useMemo } from "react";
+import { View, type ViewProps } from "react-native";
+import { Badge } from "./Badge";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -18,21 +21,21 @@ interface Props extends ViewProps {
 export const Ratings: React.FC<Props> = ({ item, ...props }) => {
   if (!item) return null;
   return (
-    <View className="flex flex-row items-center mt-2 space-x-2" {...props}>
+    <View className='flex flex-row items-center mt-2 space-x-2' {...props}>
       {item.OfficialRating && (
-        <Badge text={item.OfficialRating} variant="gray" />
+        <Badge text={item.OfficialRating} variant='gray' />
       )}
       {item.CommunityRating && (
         <Badge
           text={item.CommunityRating.toFixed(1)}
-          variant="gray"
-          iconLeft={<Ionicons name="star" size={14} color="gold" />}
+          variant='gray'
+          iconLeft={<Ionicons name='star' size={14} color='gold' />}
         />
       )}
       {item.CriticRating && (
         <Badge
           text={item.CriticRating}
-          variant="gray"
+          variant='gray'
           iconLeft={
             <Image
               source={
@@ -52,9 +55,9 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
   );
 };
 
-export const JellyserrRatings: React.FC<{ result: MovieResult | TvResult | TvDetails | MovieDetails }> = ({
-  result,
-}) => {
+export const JellyserrRatings: React.FC<{
+  result: MovieResult | TvResult | TvDetails | MovieDetails;
+}> = ({ result }) => {
   const { jellyseerrApi, getMediaType } = useJellyseerr();
 
   const mediaType = useMemo(() => getMediaType(result), [result]);
@@ -76,14 +79,14 @@ export const JellyserrRatings: React.FC<{ result: MovieResult | TvResult | TvDet
       !!result.voteCount ||
       (data?.criticsRating && !!data?.criticsScore) ||
       (data?.audienceRating && !!data?.audienceScore)) && (
-      <View className="flex flex-row flex-wrap space-x-1">
+      <View className='flex flex-row flex-wrap space-x-1'>
         {data?.criticsRating && !!data?.criticsScore && (
           <Badge
             text={`${data.criticsScore}%`}
-            variant="gray"
+            variant='gray'
             iconLeft={
               <Image
-                className="mr-1"
+                className='mr-1'
                 source={
                   data?.criticsRating === "Rotten"
                     ? require("@/utils/jellyseerr/src/assets/rt_rotten.svg")
@@ -100,10 +103,10 @@ export const JellyserrRatings: React.FC<{ result: MovieResult | TvResult | TvDet
         {data?.audienceRating && !!data?.audienceScore && (
           <Badge
             text={`${data.audienceScore}%`}
-            variant="gray"
+            variant='gray'
             iconLeft={
               <Image
-                className="mr-1"
+                className='mr-1'
                 source={
                   data?.audienceRating === "Spilled"
                     ? require("@/utils/jellyseerr/src/assets/rt_aud_rotten.svg")
@@ -120,10 +123,10 @@ export const JellyserrRatings: React.FC<{ result: MovieResult | TvResult | TvDet
         {!!result.voteCount && (
           <Badge
             text={`${Math.round(result.voteAverage * 10)}%`}
-            variant="gray"
+            variant='gray'
             iconLeft={
               <Image
-                className="mr-1"
+                className='mr-1'
                 source={require("@/utils/jellyseerr/src/assets/tmdb_logo.svg")}
                 style={{
                   width: 14,

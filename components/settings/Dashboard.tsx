@@ -1,11 +1,11 @@
+import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { useSettings } from "@/utils/atoms/settings";
 import { useRouter } from "expo-router";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { useTranslation } from "react-i18next";
-import { useSessions, useSessionsProps } from "@/hooks/useSessions";
 
 export const Dashboard = () => {
   const [settings, updateSettings] = useSettings();
@@ -17,7 +17,7 @@ export const Dashboard = () => {
   if (!settings) return null;
   return (
     <View>
-      <ListGroup title={t("home.settings.dashboard.title")} className="mt-4">
+      <ListGroup title={t("home.settings.dashboard.title")} className='mt-4'>
         <ListItem
           className={sessions.length != 0 ? "bg-purple-900" : ""}
           onPress={() => router.push("/settings/dashboard/sessions")}

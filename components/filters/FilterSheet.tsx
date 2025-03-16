@@ -1,25 +1,25 @@
 import {
   BottomSheetBackdrop,
-  BottomSheetBackdropProps,
+  type BottomSheetBackdropProps,
   BottomSheetFlatList,
   BottomSheetModal,
   BottomSheetScrollView,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Text } from "@/components/common/Text";
-import { StyleSheet, TouchableOpacity, View, ViewProps } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  type ViewProps,
+} from "react-native";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
-import { useTranslation } from "react-i18next";
 
 interface Props<T> extends ViewProps {
   open: boolean;
@@ -130,7 +130,7 @@ export const FilterSheet = <T,>({
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
 
   return (
@@ -153,18 +153,20 @@ export const FilterSheet = <T,>({
           flex: 1,
         }}
       >
-        <View className="px-4 mt-2 mb-8">
-          <Text className="font-bold text-2xl">{title}</Text>
-          <Text className="mb-2 text-neutral-500">{t("search.x_items", {count: _data?.length})}</Text>
+        <View className='px-4 mt-2 mb-8'>
+          <Text className='font-bold text-2xl'>{title}</Text>
+          <Text className='mb-2 text-neutral-500'>
+            {t("search.x_items", { count: _data?.length })}
+          </Text>
           {showSearch && (
             <Input
               placeholder={t("search.search")}
-              className="my-2"
+              className='my-2'
               value={search}
               onChangeText={(text) => {
                 setSearch(text);
               }}
-              returnKeyType="done"
+              returnKeyType='done'
             />
           )}
           <View
@@ -172,7 +174,7 @@ export const FilterSheet = <T,>({
               borderRadius: 20,
               overflow: "hidden",
             }}
-            className="mb-4 flex flex-col rounded-xl overflow-hidden"
+            className='mb-4 flex flex-col rounded-xl overflow-hidden'
           >
             {renderData?.map((item, index) => (
               <View key={index}>
@@ -185,20 +187,20 @@ export const FilterSheet = <T,>({
                       }, 250);
                     }
                   }}
-                  className=" bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between"
+                  className=' bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
                 >
                   <Text>{renderItemLabel(item)}</Text>
                   {values.some((i) => i === item) ? (
-                    <Ionicons name="radio-button-on" size={24} color="white" />
+                    <Ionicons name='radio-button-on' size={24} color='white' />
                   ) : (
-                    <Ionicons name="radio-button-off" size={24} color="white" />
+                    <Ionicons name='radio-button-off' size={24} color='white' />
                   )}
                 </TouchableOpacity>
                 <View
                   style={{
                     height: StyleSheet.hairlineWidth,
                   }}
-                  className="h-1 divide-neutral-700 "
+                  className='h-1 divide-neutral-700 '
                 ></View>
               </View>
             ))}

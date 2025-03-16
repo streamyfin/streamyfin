@@ -1,4 +1,4 @@
-import { DefaultLanguageOption } from "@/utils/atoms/settings";
+import type { DefaultLanguageOption } from "@/utils/atoms/settings";
 
 export const LANGUAGES: DefaultLanguageOption[] = [
   { label: "English", value: "eng" },

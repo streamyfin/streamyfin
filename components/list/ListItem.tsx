@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import {
   TouchableOpacity,
-  TouchableOpacityProps,
+  type TouchableOpacityProps,
   View,
-  ViewProps,
+  type ViewProps,
 } from "react-native";
 import { Text } from "../common/Text";
 
@@ -86,10 +86,10 @@ const ListItemContent = ({
 }: Props) => {
   return (
     <>
-      <View className="flex flex-row items-center w-full">
+      <View className='flex flex-row items-center w-full'>
         {icon && (
-          <View className="border border-neutral-800 rounded-md h-8 w-8 flex items-center justify-center mr-2">
-            <Ionicons name="person-circle-outline" size={18} color="white" />
+          <View className='border border-neutral-800 rounded-md h-8 w-8 flex items-center justify-center mr-2'>
+            <Ionicons name='person-circle-outline' size={18} color='white' />
           </View>
         )}
         <Text
@@ -97,24 +97,24 @@ const ListItemContent = ({
             textColor === "blue"
               ? "text-[#0584FE]"
               : textColor === "red"
-              ? "text-red-600"
-              : "text-white"
+                ? "text-red-600"
+                : "text-white"
           }
           numberOfLines={1}
         >
           {title}
         </Text>
         {value && (
-          <View className="ml-auto items-end">
-            <Text selectable className=" text-[#9899A1]" numberOfLines={1}>
+          <View className='ml-auto items-end'>
+            <Text selectable className=' text-[#9899A1]' numberOfLines={1}>
               {value}
             </Text>
           </View>
         )}
-        {children && <View className="ml-auto">{children}</View>}
+        {children && <View className='ml-auto'>{children}</View>}
         {showArrow && (
           <View className={children ? "ml-1" : "ml-auto"}>
-            <Ionicons name="chevron-forward" size={18} color="#5A5960" />
+            <Ionicons name='chevron-forward' size={18} color='#5A5960' />
           </View>
         )}
       </View>

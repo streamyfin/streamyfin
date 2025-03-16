@@ -1,6 +1,6 @@
-import { Api } from "@jellyfin/sdk";
+import type { Api } from "@jellyfin/sdk";
 import {
-  BaseItemDto,
+  type BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { isBaseItemDto } from "../jellyfin";

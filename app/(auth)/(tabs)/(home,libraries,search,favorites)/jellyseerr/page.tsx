@@ -1,27 +1,29 @@
 import { Button } from "@/components/Button";
-import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
-import Cast from "@/components/jellyseerr/Cast";
-import DetailFacts from "@/components/jellyseerr/DetailFacts";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { JellyserrRatings } from "@/components/Ratings";
+import { Text } from "@/components/common/Text";
+import Cast from "@/components/jellyseerr/Cast";
+import DetailFacts from "@/components/jellyseerr/DetailFacts";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
 import {
-  IssueType,
+  type IssueType,
   IssueTypeName,
 } from "@/utils/jellyseerr/server/constants/issue";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
-import { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import { useTranslation } from "react-i18next";
+import type {
+  MovieResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
-  BottomSheetBackdropProps,
+  type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetTextInput,
   BottomSheetView,
@@ -29,20 +31,16 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import RequestModal from "@/components/jellyseerr/RequestModal";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
-import { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import {MovieDetails} from "@/utils/jellyseerr/server/models/Movie";
+import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -83,8 +81,8 @@ const Page: React.FC = () => {
     refetchInterval: 0,
     queryFn: async () => {
       return mediaType === MediaType.MOVIE
-        ? jellyseerrApi?.movieDetails(result.id!!)
-        : jellyseerrApi?.tvDetails(result.id!!);
+        ? jellyseerrApi?.movieDetails(result.id!)
+        : jellyseerrApi?.tvDetails(result.id!);
     },
   });
 
@@ -99,7 +97,7 @@ const Page: React.FC = () => {
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
 
   const submitIssue = useCallback(() => {
@@ -114,15 +112,18 @@ const Page: React.FC = () => {
     }
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
-  const setRequestBody = useCallback((body: MediaRequestBody) => {
-    _setRequestBody(body)
-    advancedReqModalRef?.current?.present?.();
-  }, [requestBody, _setRequestBody, advancedReqModalRef])
+  const setRequestBody = useCallback(
+    (body: MediaRequestBody) => {
+      _setRequestBody(body);
+      advancedReqModalRef?.current?.present?.();
+    },
+    [requestBody, _setRequestBody, advancedReqModalRef],
+  );
 
   const request = useCallback(async () => {
     const body: MediaRequestBody = {
-      mediaId: Number(result.id!!),
-      mediaType: mediaType!!,
+      mediaId: Number(result.id!),
+      mediaType: mediaType!,
       tvdbId: details?.externalIds?.tvdbId,
       seasons: (details as TvDetails)?.seasons
         ?.filter?.((s) => s.seasonNumber !== 0)
@@ -130,7 +131,7 @@ const Page: React.FC = () => {
     };
 
     if (hasAdvancedRequestPermission) {
-      setRequestBody(body)
+      setRequestBody(body);
       return;
     }
 
@@ -141,14 +142,14 @@ const Page: React.FC = () => {
     () =>
       (details?.keywords.some((k) => k.id === ANIME_KEYWORD_ID) || false) &&
       mediaType === MediaType.TV,
-    [details]
+    [details],
   );
 
   useEffect(() => {
     if (details) {
       navigation.setOptions({
         headerRight: () => (
-          <TouchableOpacity className="rounded-full p-2 bg-neutral-800/80">
+          <TouchableOpacity className='rounded-full p-2 bg-neutral-800/80'>
             <ItemActions item={details} />
           </TouchableOpacity>
         ),
@@ -158,14 +159,14 @@ const Page: React.FC = () => {
 
   return (
     <View
-      className="flex-1 relative"
+      className='flex-1 relative'
       style={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }}
     >
       <ParallaxScrollView
-        className="flex-1 opacity-100"
+        className='flex-1 opacity-100'
         headerHeight={300}
         headerImage={
           <View>
@@ -180,7 +181,7 @@ const Page: React.FC = () => {
                 source={{
                   uri: jellyseerrApi?.imageProxy(
                     result.backdropPath,
-                    "w1920_and_h800_multi_faces"
+                    "w1920_and_h800_multi_faces",
                   ),
                 }}
               />
@@ -190,12 +191,12 @@ const Page: React.FC = () => {
                   width: "100%",
                   height: "100%",
                 }}
-                className="flex flex-col items-center justify-center border border-neutral-800 bg-neutral-900"
+                className='flex flex-col items-center justify-center border border-neutral-800 bg-neutral-900'
               >
                 <Ionicons
-                  name="image-outline"
+                  name='image-outline'
                   size={24}
-                  color="white"
+                  color='white'
                   style={{ opacity: 0.4 }}
                 />
               </View>
@@ -203,23 +204,31 @@ const Page: React.FC = () => {
           </View>
         }
       >
-        <View className="flex flex-col">
-          <View className="space-y-4">
-            <View className="px-4">
-              <View className="flex flex-row justify-between w-full">
-                <View className="flex flex-col w-56">
-                  <JellyserrRatings result={result as MovieResult | TvResult | MovieDetails | TvDetails} />
+        <View className='flex flex-col'>
+          <View className='space-y-4'>
+            <View className='px-4'>
+              <View className='flex flex-row justify-between w-full'>
+                <View className='flex flex-col w-56'>
+                  <JellyserrRatings
+                    result={
+                      result as
+                        | MovieResult
+                        | TvResult
+                        | MovieDetails
+                        | TvDetails
+                    }
+                  />
                   <Text
                     uiTextView
                     selectable
-                    className="font-bold text-2xl mb-1"
+                    className='font-bold text-2xl mb-1'
                   >
                     {mediaTitle}
                   </Text>
-                  <Text className="opacity-50">{releaseYear}</Text>
+                  <Text className='opacity-50'>{releaseYear}</Text>
                 </View>
                 <Image
-                  className="absolute bottom-1 right-1 rounded-lg w-28 aspect-[10/15] border-2 border-neutral-800/50 drop-shadow-2xl"
+                  className='absolute bottom-1 right-1 rounded-lg w-28 aspect-[10/15] border-2 border-neutral-800/50 drop-shadow-2xl'
                   cachePolicy={"memory-disk"}
                   transition={300}
                   source={{
@@ -227,22 +236,22 @@ const Page: React.FC = () => {
                   }}
                 />
               </View>
-              <View className="mb-4">
+              <View className='mb-4'>
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
               {isLoading || isFetching ? (
-                <Button loading={true} disabled={true} color="purple"></Button>
+                <Button loading={true} disabled={true} color='purple'></Button>
               ) : canRequest ? (
-                <Button color="purple" onPress={request}>
+                <Button color='purple' onPress={request}>
                   {t("jellyseerr.request_button")}
                 </Button>
               ) : (
                 <Button
-                  className="bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100"
-                  color="transparent"
+                  className='bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
+                  color='transparent'
                   onPress={() => bottomSheetModalRef?.current?.present()}
                   iconLeft={
-                    <Ionicons name="warning-outline" size={24} color="white" />
+                    <Ionicons name='warning-outline' size={24} color='white' />
                   }
                   style={{
                     borderWidth: 1,
@@ -252,7 +261,7 @@ const Page: React.FC = () => {
                   {t("jellyseerr.report_issue_button")}
                 </Button>
               )}
-              <OverviewText text={result.overview} className="mt-4" />
+              <OverviewText text={result.overview} className='mt-4' />
             </View>
 
             {mediaType === MediaType.TV && (
@@ -261,13 +270,11 @@ const Page: React.FC = () => {
                 details={details as TvDetails}
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
-                onAdvancedRequest={(data) =>
-                  setRequestBody(data)
-                }
+                onAdvancedRequest={(data) => setRequestBody(data)}
               />
             )}
             <DetailFacts
-              className="p-2 border border-neutral-800 bg-neutral-900 rounded-xl"
+              className='p-2 border border-neutral-800 bg-neutral-900 rounded-xl'
               details={details}
             />
             <Cast details={details} />
@@ -278,11 +285,11 @@ const Page: React.FC = () => {
         ref={advancedReqModalRef}
         requestBody={requestBody}
         title={mediaTitle}
-        id={result.id!!}
+        id={result.id!}
         type={mediaType}
         isAnime={isAnime}
         onRequested={() => {
-          _setRequestBody(undefined)
+          _setRequestBody(undefined);
           advancedReqModalRef?.current?.close();
           refetch();
         }}
@@ -300,22 +307,22 @@ const Page: React.FC = () => {
         backdropComponent={renderBackdrop}
       >
         <BottomSheetView>
-          <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
+          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
             <View>
-              <Text className="font-bold text-2xl text-neutral-100">
+              <Text className='font-bold text-2xl text-neutral-100'>
                 {t("jellyseerr.whats_wrong")}
               </Text>
             </View>
-            <View className="flex flex-col space-y-2 items-start">
-              <View className="flex flex-col">
+            <View className='flex flex-col space-y-2 items-start'>
+              <View className='flex flex-col'>
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger>
-                    <View className="flex flex-col">
-                      <Text className="opacity-50 mb-1 text-xs">
+                    <View className='flex flex-col'>
+                      <Text className='opacity-50 mb-1 text-xs'>
                         {t("jellyseerr.issue_type")}
                       </Text>
-                      <TouchableOpacity className="bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-                        <Text style={{}} className="" numberOfLines={1}>
+                      <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                        <Text style={{}} className='' numberOfLines={1}>
                           {issueType
                             ? IssueTypeName[issueType]
                             : t("jellyseerr.select_an_issue")}
@@ -325,8 +332,8 @@ const Page: React.FC = () => {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Content
                     loop={false}
-                    side="bottom"
-                    align="center"
+                    side='bottom'
+                    align='center'
                     alignOffset={0}
                     avoidCollisions={true}
                     collisionPadding={0}
@@ -353,14 +360,14 @@ const Page: React.FC = () => {
                 </DropdownMenu.Root>
               </View>
 
-              <View className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full">
+              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full'>
                 <BottomSheetTextInput
                   multiline
                   maxLength={254}
                   style={{ color: "white" }}
-                  clearButtonMode="always"
+                  clearButtonMode='always'
                   placeholder={t("jellyseerr.describe_the_issue")}
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor='#9CA3AF'
                   // Issue with multiline + Textinput inside a portal
                   // https://github.com/callstack/react-native-paper/issues/1668
                   defaultValue={issueMessage}
@@ -368,7 +375,7 @@ const Page: React.FC = () => {
                 />
               </View>
             </View>
-            <Button className="mt-auto" onPress={submitIssue} color="purple">
+            <Button className='mt-auto' onPress={submitIssue} color='purple'>
               {t("jellyseerr.submit_button")}
             </Button>
           </View>

@@ -1,16 +1,16 @@
-import VlcPlayerView from "./VlcPlayerView";
 import {
+  ChapterInfo,
   PlaybackStatePayload,
   ProgressUpdatePayload,
-  VideoLoadStartPayload,
-  VideoStateChangePayload,
-  VideoProgressPayload,
-  VlcPlayerSource,
   TrackInfo,
-  ChapterInfo,
+  VideoLoadStartPayload,
+  VideoProgressPayload,
+  VideoStateChangePayload,
+  VlcPlayerSource,
   VlcPlayerViewProps,
   VlcPlayerViewRef,
 } from "./VlcPlayer.types";
+import VlcPlayerView from "./VlcPlayerView";
 
 export {
   VlcPlayerView,

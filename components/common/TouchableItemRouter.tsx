@@ -1,13 +1,13 @@
-import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { useFavorite } from "@/hooks/useFavorite";
-import {
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
+import { useActionSheet } from "@expo/react-native-action-sheet";
+import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useRouter, useSegments } from "expo-router";
-import { PropsWithChildren, useCallback } from "react";
-import { TouchableOpacity, TouchableOpacityProps } from "react-native";
-import { useActionSheet } from "@expo/react-native-action-sheet";
+import { type PropsWithChildren, useCallback } from "react";
+import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -15,7 +15,7 @@ interface Props extends TouchableOpacityProps {
 
 export const itemRouter = (
   item: BaseItemDto | BaseItemPerson,
-  from: string
+  from: string,
 ) => {
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${from}/livetv`;
@@ -58,12 +58,24 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
-  
+
   const from = segments[2];
 
   const showActionSheet = useCallback(() => {
-    if (!(item.Type === "Movie" || item.Type === "Episode" || item.Type === "Series")) return;
-    const options = ["Mark as Played", "Mark as Not Played", isFavorite ? "Unmark as Favorite" : "Mark as Favorite", "Cancel"];
+    if (
+      !(
+        item.Type === "Movie" ||
+        item.Type === "Episode" ||
+        item.Type === "Series"
+      )
+    )
+      return;
+    const options = [
+      "Mark as Played",
+      "Mark as Not Played",
+      isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
+      "Cancel",
+    ];
     const cancelButtonIndex = 3;
 
     showActionSheetWithOptions(
@@ -77,9 +89,9 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
         } else if (selectedIndex === 1) {
           await markAsPlayedStatus(false);
         } else if (selectedIndex === 2) {
-          toggleFavorite()
+          toggleFavorite();
         }
-      }
+      },
     );
   }, [showActionSheetWithOptions, isFavorite, markAsPlayedStatus]);
 

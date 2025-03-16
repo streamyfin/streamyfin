@@ -5,11 +5,11 @@ import {
   useSharedValue,
 } from "react-native-reanimated";
 
-export const useControlsVisibility = (timeout: number = 3000) => {
+export const useControlsVisibility = (timeout = 3000) => {
   const opacity = useSharedValue(1);
 
   const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
 
   const showControls = useCallback(() => {

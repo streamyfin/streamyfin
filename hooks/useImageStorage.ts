@@ -62,7 +62,7 @@ const useImageStorage = () => {
         console.warn("Error saving image:", error);
       }
     },
-    []
+    [],
   );
 
   const loadImage = useCallback(async (key: string) => {

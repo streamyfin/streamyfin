@@ -1,26 +1,26 @@
 import React, { useCallback, useRef } from "react";
-import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 
 import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
 
 import {
+  type NativeBottomTabNavigationEventMap,
   createNativeBottomTabNavigator,
-  NativeBottomTabNavigationEventMap,
 } from "@bottom-tabs/react-navigation";
 
 const { Navigator } = createNativeBottomTabNavigator();
-import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
+import type { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
+import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
 import { SystemBars } from "react-native-edge-to-edge";
-import { eventBus } from "@/utils/eventBus";
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
@@ -46,12 +46,12 @@ export default function TabLayout() {
           clearTimeout(timer);
         };
       }
-    }, [])
+    }, []),
   );
 
   return (
     <>
-      <SystemBars hidden={false} style="light" />
+      <SystemBars hidden={false} style='light' />
       <NativeTabs
         sidebarAdaptable={false}
         ignoresTopSafeArea
@@ -59,16 +59,16 @@ export default function TabLayout() {
           backgroundColor: "#121212",
         }}
         tabBarActiveTintColor={Colors.primary}
-        scrollEdgeAppearance="default"
+        scrollEdgeAppearance='default'
       >
-        <NativeTabs.Screen redirect name="index" />
+        <NativeTabs.Screen redirect name='index' />
         <NativeTabs.Screen
           listeners={({ navigation }) => ({
             tabPress: (e) => {
               eventBus.emit("scrollToTop");
             },
           })}
-          name="(home)"
+          name='(home)'
           options={{
             title: t("tabs.home"),
             tabBarIcon:
@@ -87,7 +87,7 @@ export default function TabLayout() {
               eventBus.emit("searchTabPressed");
             },
           })}
-          name="(search)"
+          name='(search)'
           options={{
             title: t("tabs.search"),
             tabBarIcon:
@@ -101,7 +101,7 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
-          name="(favorites)"
+          name='(favorites)'
           options={{
             title: t("tabs.favorites"),
             tabBarIcon:
@@ -117,7 +117,7 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
-          name="(libraries)"
+          name='(libraries)'
           options={{
             title: t("tabs.library"),
             tabBarIcon:
@@ -131,7 +131,7 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
-          name="(custom-links)"
+          name='(custom-links)'
           options={{
             title: t("tabs.custom_links"),
             // @ts-expect-error

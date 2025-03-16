@@ -9,6 +9,7 @@ import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Button,
   Dimensions,
@@ -17,7 +18,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 const HOUR_HEIGHT = 30;
 const ITEMS_PER_PAGE = 20;
@@ -71,7 +71,7 @@ export default function page() {
           MaxStartDate: endOfDay.toISOString(),
           MinEndDate: isToday ? now.toISOString() : startOfDay.toISOString(),
           ChannelIds: channels?.Items?.map((c) => c.Id).filter(
-            Boolean
+            Boolean,
           ) as string[],
           ImageTypeLimit: 1,
           EnableImages: false,
@@ -100,7 +100,7 @@ export default function page() {
   return (
     <ScrollView
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior='automatic'
       key={"home"}
       contentContainerStyle={{
         paddingLeft: insets.left,
@@ -117,16 +117,16 @@ export default function page() {
         }
       />
 
-      <View className="flex flex-row">
-        <View className="flex flex-col w-[64px]">
+      <View className='flex flex-row'>
+        <View className='flex flex-col w-[64px]'>
           <View
             style={{
               height: HOUR_HEIGHT,
             }}
-            className="bg-neutral-800"
+            className='bg-neutral-800'
           ></View>
           {channels?.Items?.map((c, i) => (
-            <View className="h-16 w-16 mr-4 rounded-lg overflow-hidden" key={i}>
+            <View className='h-16 w-16 mr-4 rounded-lg overflow-hidden' key={i}>
               <ItemImage
                 style={{
                   width: "100%",
@@ -148,7 +148,7 @@ export default function page() {
             setScrollX(e.nativeEvent.contentOffset.x);
           }}
         >
-          <View className="flex flex-col">
+          <View className='flex flex-col'>
             <HourHeader height={HOUR_HEIGHT} />
             {channels?.Items?.map((c, i) => (
               <MemoizedLiveTVGuideRow
@@ -180,14 +180,14 @@ const PageButtons: React.FC<PageButtonsProps> = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <View className="flex flex-row justify-between items-center bg-neutral-800 w-full px-4 py-2">
+    <View className='flex flex-row justify-between items-center bg-neutral-800 w-full px-4 py-2'>
       <TouchableOpacity
         onPress={onPrevPage}
         disabled={currentPage === 1}
-        className="flex flex-row items-center"
+        className='flex flex-row items-center'
       >
         <Ionicons
-          name="chevron-back"
+          name='chevron-back'
           size={24}
           color={currentPage === 1 ? "gray" : "white"}
         />
@@ -199,11 +199,11 @@ const PageButtons: React.FC<PageButtonsProps> = ({
           {t("live_tv.previous")}
         </Text>
       </TouchableOpacity>
-      <Text className="text-white">Page {currentPage}</Text>
+      <Text className='text-white'>Page {currentPage}</Text>
       <TouchableOpacity
         onPress={onNextPage}
         disabled={isNextDisabled}
-        className="flex flex-row items-center"
+        className='flex flex-row items-center'
       >
         <Text
           className={`mr-1 ${isNextDisabled ? "text-gray-500" : "text-white"}`}
@@ -211,7 +211,7 @@ const PageButtons: React.FC<PageButtonsProps> = ({
           {t("live_tv.next")}
         </Text>
         <Ionicons
-          name="chevron-forward"
+          name='chevron-forward'
           size={24}
           color={isNextDisabled ? "gray" : "white"}
         />

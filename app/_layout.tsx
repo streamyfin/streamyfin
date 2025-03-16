@@ -1,49 +1,61 @@
 import "@/augmentations";
-import { Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
-import { getOrSetDeviceId, getTokenFromStorage, JellyfinProvider, apiAtom } from "@/providers/JellyfinProvider";
+import {
+  JellyfinProvider,
+  apiAtom,
+  getOrSetDeviceId,
+  getTokenFromStorage,
+} from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
-import { Settings, useSettings } from "@/utils/atoms/settings";
+import { type Settings, useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import {LogProvider, writeErrorLog, writeToLog} from "@/utils/log";
+import { LogProvider, writeErrorLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-const BackGroundDownloader = !Platform.isTV ? require("@kesha-antonov/react-native-background-downloader") : null;
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { Platform } from "react-native";
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const BackgroundFetch = !Platform.isTV ? require("expo-background-fetch") : null;
+const BackgroundFetch = !Platform.isTV
+  ? require("expo-background-fetch")
+  : null;
 import * as FileSystem from "expo-file-system";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
-import { router, Stack, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { Stack, router, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 import { getLocales } from "expo-localization";
 import { Provider as JotaiProvider } from "jotai";
-import {useEffect, useRef, useState} from "react";
+import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { Appearance, AppState } from "react-native";
+import { AppState, Appearance } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
-import { Toaster } from "sonner-native";
-import { useAtom } from "jotai";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { store } from "@/utils/store";
-import {EventSubscription} from "expo-modules-core";
-import {ExpoPushToken} from "expo-notifications/build/Tokens.types";
-import {Notification, NotificationResponse} from "expo-notifications/build/Notifications.types";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
+import type { EventSubscription } from "expo-modules-core";
+import type {
+  Notification,
+  NotificationResponse,
+} from "expo-notifications/build/Notifications.types";
+import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
+import { useAtom } from "jotai";
+import { Toaster } from "sonner-native";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -77,16 +89,20 @@ function useNotificationObserver() {
       }
     }
 
-    Notifications.getLastNotificationResponseAsync().then((response: { notification: any }) => {
-      if (!isMounted || !response?.notification) {
-        return;
-      }
-      redirect(response?.notification);
-    });
+    Notifications.getLastNotificationResponseAsync().then(
+      (response: { notification: any }) => {
+        if (!isMounted || !response?.notification) {
+          return;
+        }
+        redirect(response?.notification);
+      },
+    );
 
-    const subscription = Notifications.addNotificationResponseReceivedListener((response: { notification: any }) => {
-      redirect(response.notification);
-    });
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response: { notification: any }) => {
+        redirect(response.notification);
+      },
+    );
 
     return () => {
       isMounted = false;
@@ -124,13 +140,15 @@ if (!Platform.isTV) {
     const settings: Partial<Settings> = JSON.parse(settingsData);
     const url = settings?.optimizedVersionsServerUrl;
 
-    if (!settings?.autoDownload || !url) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!settings?.autoDownload || !url)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const token = getTokenFromStorage();
     const deviceId = getOrSetDeviceId();
     const baseDirectory = FileSystem.documentDirectory;
 
-    if (!token || !deviceId || !baseDirectory) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!token || !deviceId || !baseDirectory)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const jobs = await getAllJobsByDeviceId({
       deviceId,
@@ -140,7 +158,7 @@ if (!Platform.isTV) {
 
     console.log("TaskManager ~ Active jobs: ", jobs.length);
 
-    for (let job of jobs) {
+    for (const job of jobs) {
       if (job.status === "completed") {
         const downloadUrl = url + "download/" + job.id;
         const tasks = await BackGroundDownloader.checkForExistingDownloads();
@@ -207,7 +225,9 @@ if (!Platform.isTV) {
 
 const checkAndRequestPermissions = async () => {
   try {
-    const hasAskedBefore = storage.getString("hasAskedForNotificationPermission");
+    const hasAskedBefore = storage.getString(
+      "hasAskedForNotificationPermission",
+    );
 
     if (hasAskedBefore !== "true") {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -225,7 +245,11 @@ const checkAndRequestPermissions = async () => {
       console.log("Already asked for notification permissions before.");
     }
   } catch (error) {
-    writeToLog("ERROR", "Error checking/requesting notification permissions:", error);
+    writeToLog(
+      "ERROR",
+      "Error checking/requesting notification permissions:",
+      error,
+    );
     console.error("Error checking/requesting notification permissions:", error);
   }
 };
@@ -266,7 +290,9 @@ function Layout() {
   const segments = useSegments();
 
   useEffect(() => {
-    i18n.changeLanguage(settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en");
+    i18n.changeLanguage(
+      settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
+    );
   }, [settings?.preferedLanguage, i18n]);
 
   if (!Platform.isTV) {
@@ -278,21 +304,24 @@ function Layout() {
 
     useEffect(() => {
       if (expoPushToken && api && user) {
-        api?.post("/Streamyfin/device", {
-          token: expoPushToken.data,
-          deviceId: getOrSetDeviceId(),
-          userId: user.Id
-        }).then(_ => console.log("Posted expo push token"))
-          .catch(_ => writeErrorLog("Failed to push expo push token to plugin"))
-      }
-      else console.log("No token available")
+        api
+          ?.post("/Streamyfin/device", {
+            token: expoPushToken.data,
+            deviceId: getOrSetDeviceId(),
+            userId: user.Id,
+          })
+          .then((_) => console.log("Posted expo push token"))
+          .catch((_) =>
+            writeErrorLog("Failed to push expo push token to plugin"),
+          );
+      } else console.log("No token available");
     }, [api, expoPushToken, user]);
 
     async function registerNotifications() {
-      if (Platform.OS === 'android') {
-        console.log("Setting android notification channel 'default'")
-        await Notifications?.setNotificationChannelAsync('default', {
-          name: 'default'
+      if (Platform.OS === "android") {
+        console.log("Setting android notification channel 'default'");
+        await Notifications?.setNotificationChannelAsync("default", {
+          name: "default",
         });
       }
 
@@ -308,22 +337,35 @@ function Layout() {
     }
 
     useEffect(() => {
-      registerNotifications()
+      registerNotifications();
 
-      notificationListener.current = Notifications?.addNotificationReceivedListener((notification: Notification) => {
-        console.log("Notification received while app running", notification);
-      });
+      notificationListener.current =
+        Notifications?.addNotificationReceivedListener(
+          (notification: Notification) => {
+            console.log(
+              "Notification received while app running",
+              notification,
+            );
+          },
+        );
 
-      responseListener.current = Notifications?.addNotificationResponseReceivedListener((response: NotificationResponse) => {
-        console.log("Notification interacted with", response);
-      });
+      responseListener.current =
+        Notifications?.addNotificationResponseReceivedListener(
+          (response: NotificationResponse) => {
+            console.log("Notification interacted with", response);
+          },
+        );
 
       return () => {
         notificationListener.current &&
-        Notifications?.removeNotificationSubscription(notificationListener.current);
+          Notifications?.removeNotificationSubscription(
+            notificationListener.current,
+          );
         responseListener.current &&
-        Notifications?.removeNotificationSubscription(responseListener.current);
-      }
+          Notifications?.removeNotificationSubscription(
+            responseListener.current,
+          );
+      };
     }, []);
 
     useEffect(() => {
@@ -337,16 +379,24 @@ function Layout() {
         ScreenOrientation.unlockAsync();
       } else {
         // If the user has auto rotate disabled, lock the orientation to portrait
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP,
+        );
       }
     }, [settings.followDeviceOrientation, segments]);
 
     useEffect(() => {
-      const subscription = AppState.addEventListener("change", (nextAppState) => {
-        if (appState.current.match(/inactive|background/) && nextAppState === "active") {
-          BackGroundDownloader.checkForExistingDownloads();
-        }
-      });
+      const subscription = AppState.addEventListener(
+        "change",
+        (nextAppState) => {
+          if (
+            appState.current.match(/inactive|background/) &&
+            nextAppState === "active"
+          ) {
+            BackGroundDownloader.checkForExistingDownloads();
+          }
+        },
+      );
 
       BackGroundDownloader.checkForExistingDownloads();
 
@@ -365,11 +415,11 @@ function Layout() {
               <WebSocketProvider>
                 <DownloadProvider>
                   <BottomSheetModalProvider>
-                    <SystemBars style="light" hidden={false} />
+                    <SystemBars style='light' hidden={false} />
                     <ThemeProvider value={DarkTheme}>
-                      <Stack initialRouteName="(auth)/(tabs)">
+                      <Stack initialRouteName='(auth)/(tabs)'>
                         <Stack.Screen
-                          name="(auth)/(tabs)"
+                          name='(auth)/(tabs)'
                           options={{
                             headerShown: false,
                             title: "",
@@ -377,7 +427,7 @@ function Layout() {
                           }}
                         />
                         <Stack.Screen
-                          name="(auth)/player"
+                          name='(auth)/player'
                           options={{
                             headerShown: false,
                             title: "",
@@ -385,14 +435,14 @@ function Layout() {
                           }}
                         />
                         <Stack.Screen
-                          name="login"
+                          name='login'
                           options={{
                             headerShown: true,
                             title: "",
                             headerTransparent: true,
                           }}
                         />
-                        <Stack.Screen name="+not-found" />
+                        <Stack.Screen name='+not-found' />
                       </Stack>
                       <Toaster
                         duration={4000}
@@ -423,7 +473,9 @@ function Layout() {
 function saveDownloadedItemInfo(item: BaseItemDto) {
   try {
     const downloadedItems = storage.getString("downloadedItems");
-    let items: BaseItemDto[] = downloadedItems ? JSON.parse(downloadedItems) : [];
+    const items: BaseItemDto[] = downloadedItems
+      ? JSON.parse(downloadedItems)
+      : [];
 
     const existingItemIndex = items.findIndex((i) => i.Id === item.Id);
     if (existingItemIndex !== -1) {

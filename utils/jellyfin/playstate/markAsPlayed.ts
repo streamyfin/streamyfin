@@ -1,5 +1,5 @@
-import { Api } from "@jellyfin/sdk";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { Api } from "@jellyfin/sdk";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 
 interface MarkAsPlayedParams {
@@ -14,7 +14,11 @@ interface MarkAsPlayedParams {
  * @param params - The parameters for marking an item as played∏
  * @returns A promise that resolves to true if the operation was successful, false otherwise
  */
-export const markAsPlayed = async ({ api, item, userId }: MarkAsPlayedParams): Promise<boolean> => {
+export const markAsPlayed = async ({
+  api,
+  item,
+  userId,
+}: MarkAsPlayedParams): Promise<boolean> => {
   if (!api || !item?.Id || !userId || !item.RunTimeTicks) {
     console.error("Invalid parameters for markAsPlayed");
     return false;

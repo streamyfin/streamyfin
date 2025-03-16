@@ -11,7 +11,7 @@ export interface SubtitleTrack {
 }
 
 export async function parseM3U8ForSubtitles(
-  url: string
+  url: string,
 ): Promise<SubtitleTrack[]> {
   try {
     const response = await axios.get(url, { responseType: "text" });

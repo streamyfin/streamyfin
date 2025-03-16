@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
 import { msToSeconds, secondsToMs } from "@/utils/time";
+import { useQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useState } from "react";
 import { useHaptic } from "./useHaptic";
 
 interface CreditTimestamps {
@@ -25,7 +25,7 @@ export const useCreditSkipper = (
   currentTime: number,
   seek: (time: number) => void,
   play: () => void,
-  isVlc: boolean = false
+  isVlc = false,
 ) => {
   const [api] = useAtom(apiAtom);
   const [showSkipCreditButton, setShowSkipCreditButton] = useState(false);
@@ -54,7 +54,7 @@ export const useCreditSkipper = (
         `${api.basePath}/Episode/${itemId}/Timestamps`,
         {
           headers: getAuthHeaders(api),
-        }
+        },
       );
 
       if (res?.status !== 200) {
@@ -71,7 +71,7 @@ export const useCreditSkipper = (
     if (creditTimestamps) {
       setShowSkipCreditButton(
         currentTime > creditTimestamps.Credits.Start &&
-          currentTime < creditTimestamps.Credits.End
+          currentTime < creditTimestamps.Credits.End,
       );
     }
   }, [creditTimestamps, currentTime]);

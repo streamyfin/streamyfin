@@ -23,4 +23,4 @@ type Track = {
   setTrack: () => void;
 };
 
-export { EmbeddedSubtitle, ExternalSubtitle, TranscodedSubtitle, Track };
+export type { EmbeddedSubtitle, ExternalSubtitle, TranscodedSubtitle, Track };

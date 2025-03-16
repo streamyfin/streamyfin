@@ -31,13 +31,13 @@ export default function page() {
   });
 
   return (
-    <View className="flex flex-1">
+    <View className='flex flex-1'>
       <FlashList
         data={channels?.Items}
         estimatedItemSize={76}
         renderItem={({ item }) => (
-          <View className="flex flex-row items-center px-4 mb-2">
-            <View className="w-22 mr-4 rounded-lg overflow-hidden">
+          <View className='flex flex-row items-center px-4 mb-2'>
+            <View className='w-22 mr-4 rounded-lg overflow-hidden'>
               <ItemImage
                 style={{
                   aspectRatio: "1/1",
@@ -47,7 +47,7 @@ export default function page() {
                 item={item}
               />
             </View>
-            <Text className="font-bold">{item.Name}</Text>
+            <Text className='font-bold'>{item.Name}</Text>
           </View>
         )}
       />

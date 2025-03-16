@@ -5,7 +5,7 @@ import {
 } from "@/utils/atoms/filters";
 import { Ionicons } from "@expo/vector-icons";
 import { useAtom } from "jotai";
-import { TouchableOpacity, TouchableOpacityProps } from "react-native";
+import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 
 interface Props extends TouchableOpacityProps {}
 
@@ -29,10 +29,10 @@ export const ResetFiltersButton: React.FC<Props> = ({ ...props }) => {
         setSelectedTags([]);
         setSelectedYears([]);
       }}
-      className="bg-purple-600 rounded-full w-[30px] h-[30px] flex items-center justify-center mr-1"
+      className='bg-purple-600 rounded-full w-[30px] h-[30px] flex items-center justify-center mr-1'
       {...props}
     >
-      <Ionicons name="close" size={20} color="white" />
+      <Ionicons name='close' size={20} color='white' />
     </TouchableOpacity>
   );
 };

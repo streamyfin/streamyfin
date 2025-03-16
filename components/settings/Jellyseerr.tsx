@@ -2,9 +2,9 @@ import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { useMutation } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
 import { Button } from "../Button";
@@ -41,7 +41,7 @@ export const JellyseerrSettings = () => {
       if (!user?.Name)
         throw new Error("Missing required information for login");
       const jellyseerrTempApi = new JellyseerrApi(
-        jellyseerrServerUrl || settings.jellyseerrServerUrl || ""
+        jellyseerrServerUrl || settings.jellyseerrServerUrl || "",
       );
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid) throw new Error("Invalid server url");
@@ -68,14 +68,14 @@ export const JellyseerrSettings = () => {
   };
 
   return (
-    <View className="">
+    <View className=''>
       <View>
         {jellyseerrUser ? (
           <>
             <ListGroup title={"Jellyseerr"}>
               <ListItem
                 title={t(
-                  "home.settings.plugins.jellyseerr.total_media_requests"
+                  "home.settings.plugins.jellyseerr.total_media_requests",
                 )}
                 value={jellyseerrUser?.requestCount?.toString()}
               />
@@ -109,69 +109,69 @@ export const JellyseerrSettings = () => {
               />
             </ListGroup>
 
-            <View className="p-4">
-              <Button color="red" onPress={clearData}>
+            <View className='p-4'>
+              <Button color='red' onPress={clearData}>
                 {t(
-                  "home.settings.plugins.jellyseerr.reset_jellyseerr_config_button"
+                  "home.settings.plugins.jellyseerr.reset_jellyseerr_config_button",
                 )}
               </Button>
             </View>
           </>
         ) : (
-          <View className="flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900">
-            <Text className="text-xs text-red-600 mb-2">
+          <View className='flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900'>
+            <Text className='text-xs text-red-600 mb-2'>
               {t("home.settings.plugins.jellyseerr.jellyseerr_warning")}
             </Text>
-            <Text className="font-bold mb-1">
+            <Text className='font-bold mb-1'>
               {t("home.settings.plugins.jellyseerr.server_url")}
             </Text>
-            <View className="flex flex-col shrink mb-2">
-              <Text className="text-xs text-gray-600">
+            <View className='flex flex-col shrink mb-2'>
+              <Text className='text-xs text-gray-600'>
                 {t("home.settings.plugins.jellyseerr.server_url_hint")}
               </Text>
             </View>
             <Input
-              className="border border-neutral-800 mb-2"
+              className='border border-neutral-800 mb-2'
               placeholder={t(
-                "home.settings.plugins.jellyseerr.server_url_placeholder"
+                "home.settings.plugins.jellyseerr.server_url_placeholder",
               )}
               value={jellyseerrServerUrl ?? settings?.jellyseerrServerUrl}
               defaultValue={
                 settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
               }
-              keyboardType="url"
-              returnKeyType="done"
-              autoCapitalize="none"
-              textContentType="URL"
+              keyboardType='url'
+              returnKeyType='done'
+              autoCapitalize='none'
+              textContentType='URL'
               onChangeText={setjellyseerrServerUrl}
               editable={!loginToJellyseerrMutation.isPending}
             />
             <View>
-              <Text className="font-bold mb-2">
+              <Text className='font-bold mb-2'>
                 {t("home.settings.plugins.jellyseerr.password")}
               </Text>
               <Input
-                className="border border-neutral-800"
+                className='border border-neutral-800'
                 autoFocus={true}
                 focusable={true}
                 placeholder={t(
                   "home.settings.plugins.jellyseerr.password_placeholder",
-                  { username: user?.Name }
+                  { username: user?.Name },
                 )}
                 value={jellyseerrPassword}
-                keyboardType="default"
+                keyboardType='default'
                 secureTextEntry={true}
-                returnKeyType="done"
-                autoCapitalize="none"
-                textContentType="password"
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='password'
                 onChangeText={setJellyseerrPassword}
                 editable={!loginToJellyseerrMutation.isPending}
               />
               <Button
                 loading={loginToJellyseerrMutation.isPending}
                 disabled={loginToJellyseerrMutation.isPending}
-                color="purple"
-                className="h-12 mt-2"
+                color='purple'
+                className='h-12 mt-2'
                 onPress={() => loginToJellyseerrMutation.mutate()}
               >
                 {t("home.settings.plugins.jellyseerr.login_button")}

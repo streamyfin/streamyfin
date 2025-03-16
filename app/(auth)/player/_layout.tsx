@@ -21,7 +21,9 @@ export default function Layout() {
       if (settings.followDeviceOrientation === true) {
         ScreenOrientation.unlockAsync();
       } else {
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP,
+        );
       }
     };
   });
@@ -31,7 +33,7 @@ export default function Layout() {
       <SystemBars hidden />
       <Stack>
         <Stack.Screen
-          name="direct-player"
+          name='direct-player'
           options={{
             headerShown: false,
             autoHideHomeIndicator: true,

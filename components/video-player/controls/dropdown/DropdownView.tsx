@@ -1,17 +1,20 @@
-import React, { useCallback } from "react";
-import { TouchableOpacity, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback } from "react";
+import { Platform, TouchableOpacity } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { useVideoContext } from "../contexts/VideoContext";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { BITRATES } from "@/components/BitrateSelector";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useControlContext } from "../contexts/ControlContext";
+import { useVideoContext } from "../contexts/VideoContext";
 
 const DropdownView = () => {
   const videoContext = useVideoContext();
   const { subtitleTracks, audioTracks } = videoContext;
   const ControlContext = useControlContext();
-  const [item, mediaSource] = [ControlContext?.item, ControlContext?.mediaSource];
+  const [item, mediaSource] = [
+    ControlContext?.item,
+    ControlContext?.mediaSource,
+  ];
   const router = useRouter();
 
   const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
@@ -34,27 +37,29 @@ const DropdownView = () => {
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
     },
-    [item, mediaSource, subtitleIndex, audioIndex]
+    [item, mediaSource, subtitleIndex, audioIndex],
   );
 
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
-        <TouchableOpacity className="aspect-square flex flex-col rounded-xl items-center justify-center p-2">
-          <Ionicons name="ellipsis-horizontal" size={24} color={"white"} />
+        <TouchableOpacity className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'>
+          <Ionicons name='ellipsis-horizontal' size={24} color={"white"} />
         </TouchableOpacity>
       </DropdownMenu.Trigger>
       <DropdownMenu.Content
         loop={true}
-        side="bottom"
-        align="start"
+        side='bottom'
+        align='start'
         alignOffset={0}
         avoidCollisions={true}
         collisionPadding={8}
         sideOffset={8}
       >
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="qualitytrigger">Quality</DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger key='qualitytrigger'>
+            Quality
+          </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent
             alignOffset={-10}
             avoidCollisions={true}
@@ -66,15 +71,21 @@ const DropdownView = () => {
               <DropdownMenu.CheckboxItem
                 key={`quality-item-${idx}`}
                 value={bitrateValue === (bitrate.value?.toString() ?? "")}
-                onValueChange={() => changeBitrate(bitrate.value?.toString() ?? "")}
+                onValueChange={() =>
+                  changeBitrate(bitrate.value?.toString() ?? "")
+                }
               >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>{bitrate.key}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                  {bitrate.key}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.CheckboxItem>
             ))}
           </DropdownMenu.SubContent>
         </DropdownMenu.Sub>
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="subtitle-trigger">Subtitle</DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger key='subtitle-trigger'>
+            Subtitle
+          </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent
             alignOffset={-10}
             avoidCollisions={true}
@@ -88,13 +99,17 @@ const DropdownView = () => {
                 value={subtitleIndex === sub.index.toString()}
                 onValueChange={() => sub.setTrack()}
               >
-                <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>{sub.name}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
+                  {sub.name}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.CheckboxItem>
             ))}
           </DropdownMenu.SubContent>
         </DropdownMenu.Sub>
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key="audio-trigger">Audio</DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger key='audio-trigger'>
+            Audio
+          </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent
             alignOffset={-10}
             avoidCollisions={true}
@@ -108,7 +123,9 @@ const DropdownView = () => {
                 value={audioIndex === track.index.toString()}
                 onValueChange={() => track.setTrack()}
               >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>{track.name}</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                  {track.name}
+                </DropdownMenu.ItemTitle>
               </DropdownMenu.CheckboxItem>
             ))}
           </DropdownMenu.SubContent>

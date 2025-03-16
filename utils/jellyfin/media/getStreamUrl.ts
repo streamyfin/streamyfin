@@ -1,6 +1,6 @@
 import native from "@/utils/profiles/native";
-import { Api } from "@jellyfin/sdk";
-import {
+import type { Api } from "@jellyfin/sdk";
+import type {
   BaseItemDto,
   MediaSourceInfo,
   PlaybackInfoResponse,
@@ -63,7 +63,7 @@ export const getStreamUrl = async ({
         data: {
           deviceProfile,
         },
-      }
+      },
     );
     const transcodeUrl = res0.data.MediaSources?.[0].TranscodingUrl;
     sessionId = res0.data.PlaySessionId || null;
@@ -95,7 +95,7 @@ export const getStreamUrl = async ({
         audioStreamIndex,
         subtitleStreamIndex,
       },
-    }
+    },
   );
 
   if (res2.status !== 200) {
@@ -105,7 +105,7 @@ export const getStreamUrl = async ({
   sessionId = res2.data.PlaySessionId || null;
 
   mediaSource = res2.data.MediaSources?.find(
-    (source: MediaSourceInfo) => source.Id === mediaSourceId
+    (source: MediaSourceInfo) => source.Id === mediaSourceId,
   );
 
   if (item.MediaType === "Video") {

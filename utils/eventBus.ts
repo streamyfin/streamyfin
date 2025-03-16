@@ -14,7 +14,7 @@ class EventBus {
   off<T = void>(event: string, callback: Listener<T>): void {
     if (!this.listeners[event]) return;
     this.listeners[event] = this.listeners[event].filter(
-      (fn) => fn !== callback
+      (fn) => fn !== callback,
     );
   }
 

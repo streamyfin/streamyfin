@@ -1,8 +1,8 @@
-import { View } from "react-native";
-import { Text } from "../common/Text";
-import { Ratings } from "../Ratings";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
+import { View } from "react-native";
+import { Ratings } from "../Ratings";
+import { Text } from "../common/Text";
 import { ItemActions } from "./SeriesActions";
 
 interface Props {
@@ -51,14 +51,14 @@ export const SeriesHeader = ({ item }: Props) => {
   }, [startYear, endYear]);
 
   return (
-    <View className="px-4 py-4">
-      <Text className="text-3xl font-bold">{item?.Name}</Text>
-      <Text className="">{yearString}</Text>
-      <View className="flex flex-row items-center justify-between">
-        <Ratings item={item} className="mb-2" />
+    <View className='px-4 py-4'>
+      <Text className='text-3xl font-bold'>{item?.Name}</Text>
+      <Text className=''>{yearString}</Text>
+      <View className='flex flex-row items-center justify-between'>
+        <Ratings item={item} className='mb-2' />
         <ItemActions item={item} />
       </View>
-      <Text className="">{item?.Overview}</Text>
+      <Text className=''>{item?.Overview}</Text>
     </View>
   );
 };

@@ -1,18 +1,22 @@
-import { Platform, Pressable } from "react-native";
+import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { chromecast } from "@/utils/profiles/chromecast";
+import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import ios from "@/utils/profiles/ios";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { Platform, Pressable } from "react-native";
 import { Alert, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
@@ -30,12 +34,8 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Button } from "./Button";
-import { SelectedOptions } from "./ItemContent";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
-import { useTranslation } from "react-i18next";
-import { useHaptic } from "@/hooks/useHaptic";
+import type { Button } from "./Button";
+import type { SelectedOptions } from "./ItemContent";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -74,7 +74,7 @@ export const PlayButton: React.FC<Props> = ({
     (q: string) => {
       router.push(`/player/direct-player?${q}`);
     },
-    [router]
+    [router],
   );
 
   const onPress = useCallback(async () => {
@@ -140,7 +140,7 @@ export const PlayButton: React.FC<Props> = ({
                     console.warn("No URL returned from getStreamUrl", data);
                     Alert.alert(
                       t("player.client_error"),
-                      t("player.could_not_create_stream_for_chromecast")
+                      t("player.could_not_create_stream_for_chromecast"),
                     );
                     return;
                   }
@@ -170,36 +170,36 @@ export const PlayButton: React.FC<Props> = ({
                                 ],
                               }
                             : item.Type === "Movie"
-                            ? {
-                                type: "movie",
-                                title: item.Name || "",
-                                subtitle: item.Overview || "",
-                                images: [
-                                  {
-                                    url: getPrimaryImageUrl({
-                                      api,
-                                      item,
-                                      quality: 90,
-                                      width: 2000,
-                                    })!,
-                                  },
-                                ],
-                              }
-                            : {
-                                type: "generic",
-                                title: item.Name || "",
-                                subtitle: item.Overview || "",
-                                images: [
-                                  {
-                                    url: getPrimaryImageUrl({
-                                      api,
-                                      item,
-                                      quality: 90,
-                                      width: 2000,
-                                    })!,
-                                  },
-                                ],
-                              },
+                              ? {
+                                  type: "movie",
+                                  title: item.Name || "",
+                                  subtitle: item.Overview || "",
+                                  images: [
+                                    {
+                                      url: getPrimaryImageUrl({
+                                        api,
+                                        item,
+                                        quality: 90,
+                                        width: 2000,
+                                      })!,
+                                    },
+                                  ],
+                                }
+                              : {
+                                  type: "generic",
+                                  title: item.Name || "",
+                                  subtitle: item.Overview || "",
+                                  images: [
+                                    {
+                                      url: getPrimaryImageUrl({
+                                        api,
+                                        item,
+                                        quality: 90,
+                                        width: 2000,
+                                      })!,
+                                    },
+                                  ],
+                                },
                       },
                       startTime: 0,
                     })
@@ -222,7 +222,7 @@ export const PlayButton: React.FC<Props> = ({
           case cancelButtonIndex:
             break;
         }
-      }
+      },
     );
   }, [
     item,
@@ -243,7 +243,7 @@ export const PlayButton: React.FC<Props> = ({
       return userData.PlaybackPositionTicks > 0
         ? Math.max(
             (userData.PlaybackPositionTicks / item.RunTimeTicks) * 100,
-            MIN_PLAYBACK_WIDTH
+            MIN_PLAYBACK_WIDTH,
           )
         : 0;
     }
@@ -260,7 +260,7 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.7, 0, 0.3, 1.0),
       });
     },
-    [item]
+    [item],
   );
 
   useAnimatedReaction(
@@ -273,7 +273,7 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.9, 0, 0.31, 0.99),
       });
     },
-    [colorAtom]
+    [colorAtom],
   );
 
   useEffect(() => {
@@ -294,7 +294,7 @@ export const PlayButton: React.FC<Props> = ({
     backgroundColor: interpolateColor(
       colorChangeProgress.value,
       [0, 1],
-      [startColor.value.primary, endColor.value.primary]
+      [startColor.value.primary, endColor.value.primary],
     ),
   }));
 
@@ -302,7 +302,7 @@ export const PlayButton: React.FC<Props> = ({
     backgroundColor: interpolateColor(
       colorChangeProgress.value,
       [0, 1],
-      [startColor.value.primary, endColor.value.primary]
+      [startColor.value.primary, endColor.value.primary],
     ),
   }));
 
@@ -310,7 +310,7 @@ export const PlayButton: React.FC<Props> = ({
     width: `${interpolate(
       widthProgress.value,
       [0, 1],
-      [startWidth.value, targetWidth.value]
+      [startWidth.value, targetWidth.value],
     )}%`,
   }));
 
@@ -318,7 +318,7 @@ export const PlayButton: React.FC<Props> = ({
     color: interpolateColor(
       colorChangeProgress.value,
       [0, 1],
-      [startColor.value.text, endColor.value.text]
+      [startColor.value.text, endColor.value.text],
     ),
   }));
   /**
@@ -328,13 +328,13 @@ export const PlayButton: React.FC<Props> = ({
   return (
     <TouchableOpacity
       disabled={!item}
-      accessibilityLabel="Play button"
-      accessibilityHint="Tap to play the media"
+      accessibilityLabel='Play button'
+      accessibilityHint='Tap to play the media'
       onPress={onPress}
       className={`relative`}
       {...props}
     >
-      <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
+      <View className='absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden'>
         <Animated.View
           style={[
             animatedPrimaryStyle,
@@ -348,7 +348,7 @@ export const PlayButton: React.FC<Props> = ({
 
       <Animated.View
         style={[animatedAverageStyle, { opacity: 0.5 }]}
-        className="absolute w-full h-full top-0 left-0 rounded-xl"
+        className='absolute w-full h-full top-0 left-0 rounded-xl'
       />
       <View
         style={{
@@ -356,25 +356,25 @@ export const PlayButton: React.FC<Props> = ({
           borderColor: colorAtom.primary,
           borderStyle: "solid",
         }}
-        className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
+        className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
       >
-        <View className="flex flex-row items-center space-x-2">
+        <View className='flex flex-row items-center space-x-2'>
           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
             {runtimeTicksToMinutes(item?.RunTimeTicks)}
           </Animated.Text>
           <Animated.Text style={animatedTextStyle}>
-            <Ionicons name="play-circle" size={24} />
+            <Ionicons name='play-circle' size={24} />
           </Animated.Text>
           {client && (
             <Animated.Text style={animatedTextStyle}>
-              <Feather name="cast" size={22} />
-              <CastButton tintColor="transparent" />
+              <Feather name='cast' size={22} />
+              <CastButton tintColor='transparent' />
             </Animated.Text>
           )}
           {!client && settings?.openInVLC && (
             <Animated.Text style={animatedTextStyle}>
               <MaterialCommunityIcons
-                name="vlc"
+                name='vlc'
                 size={18}
                 color={animatedTextStyle.color}
               />

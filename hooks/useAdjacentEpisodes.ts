@@ -1,9 +1,9 @@
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { useAtomValue } from "jotai";
+import { useMemo } from "react";
 
 interface AdjacentEpisodesProps {
   item?: BaseItemDto | null;

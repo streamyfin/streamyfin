@@ -1,7 +1,7 @@
-import { Settings } from "@/utils/atoms/settings";
+import type { Settings } from "@/utils/atoms/settings";
 import native from "@/utils/profiles/native";
-import { Api } from "@jellyfin/sdk";
-import { AxiosError, AxiosResponse } from "axios";
+import type { Api } from "@jellyfin/sdk";
+import type { AxiosError, AxiosResponse } from "axios";
 import { getAuthHeaders } from "../jellyfin";
 
 interface PostCapabilitiesParams {
@@ -47,7 +47,7 @@ export const postCapabilities = async ({
       },
       {
         headers: getAuthHeaders(api),
-      }
+      },
     );
     return d;
   } catch (error: any | AxiosError) {

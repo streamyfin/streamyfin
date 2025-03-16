@@ -1,12 +1,12 @@
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
-import { Platform, TouchableOpacity, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { Platform, TouchableOpacity, View } from "react-native";
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
-import { useAtom } from "jotai";
+import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { useSessions, useSessionsProps } from "@/hooks/useSessions";
+import { useAtom } from "jotai";
 
 export default function IndexLayout() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function IndexLayout() {
   return (
     <Stack>
       <Stack.Screen
-        name="index"
+        name='index'
         options={{
           headerShown: true,
           headerLargeTitle: true,
@@ -28,13 +28,11 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () => (
-            <View className="flex flex-row items-center space-x-2">
+            <View className='flex flex-row items-center space-x-2'>
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast />
-                   {user && user.Policy?.IsAdministrator && (
-                    <SessionsButton />
-                   )}
+                  {user && user.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
               )}
@@ -43,61 +41,61 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name="downloads/index"
+        name='downloads/index'
         options={{
           title: t("home.downloads.downloads_title"),
         }}
       />
       <Stack.Screen
-        name="downloads/[seriesId]"
+        name='downloads/[seriesId]'
         options={{
           title: t("home.downloads.tvseries"),
         }}
       />
       <Stack.Screen
-        name="sessions/index"
+        name='sessions/index'
         options={{
           title: t("home.sessions.title"),
         }}
       />
       <Stack.Screen
-        name="settings"
+        name='settings'
         options={{
           title: t("home.settings.settings_title"),
         }}
       />
       <Stack.Screen
-        name="settings/optimized-server/page"
+        name='settings/optimized-server/page'
         options={{
           title: "",
         }}
       />
       <Stack.Screen
-        name="settings/marlin-search/page"
+        name='settings/marlin-search/page'
         options={{
           title: "",
         }}
       />
       <Stack.Screen
-        name="settings/jellyseerr/page"
+        name='settings/jellyseerr/page'
         options={{
           title: "",
         }}
       />
       <Stack.Screen
-        name="settings/hide-libraries/page"
+        name='settings/hide-libraries/page'
         options={{
           title: "",
         }}
       />
       <Stack.Screen
-        name="settings/logs/page"
+        name='settings/logs/page'
         options={{
           title: "",
         }}
       />
       <Stack.Screen
-        name="intro/page"
+        name='intro/page'
         options={{
           headerShown: false,
           title: "",
@@ -108,7 +106,7 @@ export default function IndexLayout() {
         <Stack.Screen key={name} name={name} options={options} />
       ))}
       <Stack.Screen
-        name="collections/[collectionId]"
+        name='collections/[collectionId]'
         options={{
           title: "",
           headerShown: true,
@@ -130,7 +128,7 @@ const SettingsButton = () => {
         router.push("/(auth)/settings");
       }}
     >
-      <Feather name="settings" color={"white"} size={22} />
+      <Feather name='settings' color={"white"} size={22} />
     </TouchableOpacity>
   );
 };
@@ -145,9 +143,9 @@ const SessionsButton = () => {
         router.push("/(auth)/sessions");
       }}
     >
-      <View className="mr-4">
+      <View className='mr-4'>
         <Ionicons
-          name="play-circle"
+          name='play-circle'
           color={sessions.length === 0 ? "white" : "#9333ea"}
           size={25}
         />

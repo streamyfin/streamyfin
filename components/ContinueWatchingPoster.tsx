@@ -1,12 +1,12 @@
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
+import type React from "react";
 import { View } from "react-native";
 import { WatchedIndicator } from "./WatchedIndicator";
-import React from "react";
-import { Ionicons } from "@expo/vector-icons";
 
 type ContinueWatchingPosterProps = {
   item: BaseItemDto;
@@ -71,7 +71,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
 
   if (!url)
     return (
-      <View className="aspect-video border border-neutral-800 w-44"></View>
+      <View className='aspect-video border border-neutral-800 w-44'></View>
     );
 
   return (
@@ -81,7 +81,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       ${size === "small" ? "w-32" : "w-44"}
     `}
     >
-      <View className="w-full h-full flex items-center justify-center">
+      <View className='w-full h-full flex items-center justify-center'>
         <Image
           key={item.Id}
           id={item.Id}
@@ -89,12 +89,12 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
             uri: url,
           }}
           cachePolicy={"memory-disk"}
-          contentFit="cover"
-          className="w-full h-full"
+          contentFit='cover'
+          className='w-full h-full'
         />
         {showPlayButton && (
-          <View className="absolute inset-0 flex items-center justify-center">
-            <Ionicons name="play-circle" size={40} color="white" />
+          <View className='absolute inset-0 flex items-center justify-center'>
+            <Ionicons name='play-circle' size={40} color='white' />
           </View>
         )}
       </View>
