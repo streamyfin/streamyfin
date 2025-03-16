@@ -28,8 +28,16 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type FC,
+  type MutableRefObject,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Platform,
   TouchableOpacity,
@@ -57,7 +65,7 @@ import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: React.MutableRefObject<VlcPlayerViewRef | null>;
+  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
@@ -65,7 +73,7 @@ interface Props {
   isBuffering: boolean;
   showControls: boolean;
   ignoreSafeAreas?: boolean;
-  setIgnoreSafeAreas: React.Dispatch<React.SetStateAction<boolean>>;
+  setIgnoreSafeAreas: Dispatch<SetStateAction<boolean>>;
   enableTrickplay?: boolean;
   togglePlay: () => void;
   setShowControls: (shown: boolean) => void;
@@ -86,7 +94,7 @@ interface Props {
 
 const CONTROLS_TIMEOUT = 4000;
 
-export const Controls: React.FC<Props> = ({
+export const Controls: FC<Props> = ({
   item,
   seek,
   startPictureInPicture,
@@ -183,7 +191,9 @@ export const Controls: React.FC<Props> = ({
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
-      if (!item || !settings) return;
+      if (!item || !settings) {
+        return;
+      }
 
       lightHapticFeedback();
 
@@ -210,7 +220,7 @@ export const Controls: React.FC<Props> = ({
         audioIndex: defaultAudioIndex?.toString() ?? "",
         subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
         mediaSourceId: newMediaSource?.Id ?? "",
-        bitrateValue: bitrateValue.toString(),
+        bitrateValue: bitrateValue?.toString(),
       }).toString();
 
       // @ts-expect-error
@@ -220,7 +230,9 @@ export const Controls: React.FC<Props> = ({
   );
 
   const goToPreviousItem = useCallback(() => {
-    if (!previousItem) return;
+    if (!previousItem) {
+      return;
+    }
     goToItemCommon(previousItem);
   }, [previousItem, goToItemCommon]);
 
@@ -258,7 +270,7 @@ export const Controls: React.FC<Props> = ({
       isSeeking: isSeeking.value,
     }),
     (result) => {
-      if (result.isSeeking === false) {
+      if (!result.isSeeking) {
         runOnJS(updateTimes)(result.progress, result.max);
       }
     },
@@ -288,7 +300,7 @@ export const Controls: React.FC<Props> = ({
   };
 
   const handleSliderStart = useCallback(() => {
-    if (showControls === false) return;
+    if (!showControls) return;
 
     setIsSliding(true);
     wasPlayingRef.current = isPlaying;
@@ -305,7 +317,9 @@ export const Controls: React.FC<Props> = ({
       setIsSliding(false);
 
       seek(Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value))));
-      if (wasPlayingRef.current === true) play();
+      if (wasPlayingRef.current) {
+        play();
+      }
     },
     [isVlc],
   );
@@ -335,7 +349,9 @@ export const Controls: React.FC<Props> = ({
           ? Math.max(0, curr - secondsToMs(settings.rewindSkipTime))
           : Math.max(0, ticksToSeconds(curr) - settings.rewindSkipTime);
         seek(newTime);
-        if (wasPlayingRef.current === true) play();
+        if (wasPlayingRef.current) {
+          play();
+        }
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video backwards", error);
@@ -343,7 +359,9 @@ export const Controls: React.FC<Props> = ({
   }, [settings, isPlaying, isVlc]);
 
   const handleSkipForward = useCallback(async () => {
-    if (!settings?.forwardSkipTime) return;
+    if (!settings?.forwardSkipTime) {
+      return;
+    }
     wasPlayingRef.current = isPlaying;
     lightHapticFeedback();
     try {
@@ -353,7 +371,7 @@ export const Controls: React.FC<Props> = ({
           ? curr + secondsToMs(settings.forwardSkipTime)
           : ticksToSeconds(curr) + settings.forwardSkipTime;
         seek(Math.max(0, newTime));
-        if (wasPlayingRef.current === true) play();
+        if (wasPlayingRef.current) play();
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
@@ -367,7 +385,9 @@ export const Controls: React.FC<Props> = ({
 
   const switchOnEpisodeMode = useCallback(() => {
     setEpisodeView(true);
-    if (isPlaying) togglePlay();
+    if (isPlaying) {
+      togglePlay();
+    }
   }, [isPlaying, togglePlay]);
 
   const memoizedRenderBubble = useCallback(() => {
@@ -473,7 +493,7 @@ export const Controls: React.FC<Props> = ({
               },
             ]}
             pointerEvents={showControls ? "auto" : "none"}
-            className={`flex flex-row w-full pt-2`}
+            className={"flex flex-row w-full pt-2"}
           >
             {!Platform.isTV && (
               <View className='mr-auto'>
@@ -491,7 +511,7 @@ export const Controls: React.FC<Props> = ({
 
             <View className='flex flex-row items-center space-x-2 '>
               {!Platform.isTV &&
-                settings.defaultPlayer == VideoPlayer.VLC_4 && (
+                settings.defaultPlayer === VideoPlayer.VLC_4 && (
                   <TouchableOpacity
                     onPress={startPictureInPicture}
                     className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -677,7 +697,7 @@ export const Controls: React.FC<Props> = ({
                 bottom: settings?.safeAreaInControlsEnabled ? insets.bottom : 0,
               },
             ]}
-            className={`flex flex-col px-2`}
+            className={"flex flex-col px-2"}
             onTouchStart={handleControlsInteraction}
           >
             <View
@@ -735,13 +755,13 @@ export const Controls: React.FC<Props> = ({
               </View>
             </View>
             <View
-              className={`flex flex-col-reverse rounded-lg items-center my-2`}
+              className={"flex flex-col-reverse rounded-lg items-center my-2"}
               style={{
                 opacity: showControls ? 1 : 0,
               }}
               pointerEvents={showControls ? "box-none" : "none"}
             >
-              <View className={`flex flex-col w-full shrink`}>
+              <View className={"flex flex-col w-full shrink"}>
                 <Slider
                   theme={{
                     maximumTrackTintColor: "rgba(255,255,255,0.2)",
