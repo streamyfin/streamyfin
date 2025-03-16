@@ -52,7 +52,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
   } = useReactNavigationQuery({
     queryKey: ["search", "jellyseerr", "discoverSettings", searchQuery],
     queryFn: async () => jellyseerrApi?.discoverSettings(),
-    enabled: !!jellyseerrApi && searchQuery.length == 0,
+    enabled: !!jellyseerrApi && searchQuery.length === 0,
   });
 
   const {
@@ -110,7 +110,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
           (r) => r.mediaType === MediaType.MOVIE,
         ) as MovieResult[],
         sortingType || [
-          (m) => m.title.toLowerCase() == searchQuery.toLowerCase(),
+          (m) => m.title.toLowerCase() === searchQuery.toLowerCase(),
         ],
         order || "desc",
       ),
@@ -124,7 +124,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
           (r) => r.mediaType === MediaType.TV,
         ) as TvResult[],
         sortingType || [
-          (t) => t.name.toLowerCase() == searchQuery.toLowerCase(),
+          (t) => t.name.toLowerCase() === searchQuery.toLowerCase(),
         ],
         order || "desc",
       ),
@@ -138,7 +138,7 @@ export const JellyserrIndexPage: React.FC<Props> = ({
           (r) => r.mediaType === "person",
         ) as PersonResult[],
         sortingType || [
-          (p) => p.name.toLowerCase() == searchQuery.toLowerCase(),
+          (p) => p.name.toLowerCase() === searchQuery.toLowerCase(),
         ],
         order || "desc",
       ),

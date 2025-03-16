@@ -32,8 +32,8 @@ export const useTapDetection = ({
 
     const touchDuration = touchEndTime - touchStartTime.current;
     const touchDistance = Math.sqrt(
-      Math.pow(touchEndPosition.x - touchStartPosition.current.x, 2) +
-        Math.pow(touchEndPosition.y - touchStartPosition.current.y, 2),
+      (touchEndPosition.x - touchStartPosition.current.x) ** 2 +
+        (touchEndPosition.y - touchStartPosition.current.y) ** 2,
     );
 
     if (touchDuration < maxDuration && touchDistance < maxDistance) {

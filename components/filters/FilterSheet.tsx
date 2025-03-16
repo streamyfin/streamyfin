@@ -214,7 +214,7 @@ export const FilterSheet = <T,>({
                     height: StyleSheet.hairlineWidth,
                   }}
                   className='h-1 divide-neutral-700 '
-                ></View>
+                />
               </View>
             ))}
           </View>

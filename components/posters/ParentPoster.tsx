@@ -24,7 +24,7 @@ const ParentPoster: React.FC<PosterProps> = ({ id }) => {
         style={{
           aspectRatio: "10/15",
         }}
-      ></View>
+      />
     );
 
   return (

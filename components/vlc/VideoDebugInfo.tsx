@@ -45,19 +45,17 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
     >
       <Text className='font-bold'>{t("player.playback_state")}</Text>
       <Text className='font-bold mt-2.5'>{t("player.audio_tracks")}</Text>
-      {audioTracks &&
-        audioTracks.map((track, index) => (
-          <Text key={index}>
-            {track.name} ({t("player.index")} {track.index})
-          </Text>
-        ))}
+      {audioTracks?.map((track, index) => (
+        <Text key={index}>
+          {track.name} ({t("player.index")} {track.index})
+        </Text>
+      ))}
       <Text className='font-bold mt-2.5'>{t("player.subtitles_tracks")}</Text>
-      {subtitleTracks &&
-        subtitleTracks.map((track, index) => (
-          <Text key={index}>
-            {track.name} ({t("player.index")} {track.index})
-          </Text>
-        ))}
+      {subtitleTracks?.map((track, index) => (
+        <Text key={index}>
+          {track.name} ({t("player.index")} {track.index})
+        </Text>
+      ))}
       <TouchableOpacity
         className='mt-2.5 bg-blue-500 p-2 rounded'
         onPress={() => {

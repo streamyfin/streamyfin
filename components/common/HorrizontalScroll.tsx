@@ -65,17 +65,13 @@ export const HorizontalScroll = forwardRef<
     }: {
       item: T;
       index: number;
-    }) => (
-      <View className='mr-2'>
-        <React.Fragment>{renderItem(item, index)}</React.Fragment>
-      </View>
-    );
+    }) => <View className='mr-2'>{renderItem(item, index)}</View>;
 
     if (!data || loading) {
       return (
         <View className='px-4 mb-2'>
-          <View className='bg-neutral-950 h-24 w-full rounded-md mb-2'></View>
-          <View className='bg-neutral-950 h-10 w-full rounded-md mb-1'></View>
+          <View className='bg-neutral-950 h-24 w-full rounded-md mb-2' />
+          <View className='bg-neutral-950 h-10 w-full rounded-md mb-1' />
         </View>
       );
     }

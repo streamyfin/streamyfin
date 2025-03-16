@@ -37,7 +37,7 @@ export const ItemPoster: React.FC<Props> = ({
         />
         <WatchedIndicator item={item} />
         {showProgress && progress > 0 && (
-          <View className='h-1 bg-red-600 w-full'></View>
+          <View className='h-1 bg-red-600 w-full' />
         )}
       </View>
     );

@@ -31,7 +31,7 @@ export default function page() {
         return;
       }
 
-      const updatedUrl = newVal.endsWith("/") ? newVal : newVal + "/";
+      const updatedUrl = newVal.endsWith("/") ? newVal : `${newVal}/`;
 
       updateSettings({
         optimizedVersionsServerUrl: updatedUrl,

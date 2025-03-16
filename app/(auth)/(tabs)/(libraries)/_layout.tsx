@@ -25,7 +25,7 @@ export default function IndexLayout() {
           headerLargeStyle: {
             backgroundColor: "black",
           },
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () =>
             !pluginSettings?.libraryOptions?.locked &&
@@ -159,7 +159,7 @@ export default function IndexLayout() {
                         updateSettings({
                           libraryOptions: {
                             ...settings.libraryOptions,
-                            showTitles: newValue === "on" ? true : false,
+                            showTitles: newValue === "on",
                           },
                         });
                       }}
@@ -176,7 +176,7 @@ export default function IndexLayout() {
                         updateSettings({
                           libraryOptions: {
                             ...settings.libraryOptions,
-                            showStats: newValue === "on" ? true : false,
+                            showStats: newValue === "on",
                           },
                         });
                       }}
@@ -200,7 +200,7 @@ export default function IndexLayout() {
           title: "",
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
@@ -213,7 +213,7 @@ export default function IndexLayout() {
           title: "",
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

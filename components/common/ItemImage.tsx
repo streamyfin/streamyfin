@@ -36,7 +36,7 @@ export const ItemImage: FC<Props> = ({
 
   const source = useMemo(() => {
     if (!api) {
-      onError && onError();
+      onError?.();
       return;
     }
     return getItemImage({

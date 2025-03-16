@@ -129,7 +129,7 @@ const JellyseerrPoster: React.FC<Props> = ({
       posterSrc={posterSrc!}
       mediaType={mediaType}
     >
-      <View className={`flex flex-col mr-2 h-auto`}>
+      <View className={"flex flex-col mr-2 h-auto"}>
         <View
           className={`relative rounded-lg overflow-hidden border border-neutral-900 ${size} aspect-[${ratio}]`}
         >

@@ -80,8 +80,6 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               task.stop();
             }
           }
-        } catch (e) {
-          throw e;
         } finally {
           await removeProcess(id);
           await queryClient.refetchQueries({ queryKey: ["jobs"] });
@@ -131,7 +129,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               ? `${Math.max(5, process.progress)}%`
               : "5%",
           }}
-        ></View>
+        />
       )}
       <View className='px-3 py-1.5 flex flex-col w-full'>
         <View className='flex flex-row items-center w-full'>

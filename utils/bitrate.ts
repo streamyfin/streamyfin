@@ -6,5 +6,5 @@ export const formatBitrate = (bitrate?: number | null) => {
   const i = Number.parseInt(
     Math.floor(Math.log(bitrate) / Math.log(1000)).toString(),
   );
-  return Math.round((bitrate / Math.pow(1000, i)) * 100) / 100 + " " + sizes[i];
+  return `${Math.round((bitrate / 1000 ** i) * 100) / 100} ${sizes[i]}`;
 };
