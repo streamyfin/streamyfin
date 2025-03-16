@@ -1,7 +1,7 @@
 import type { Settings } from "@/utils/atoms/settings";
 import native from "@/utils/profiles/native";
 import type { Api } from "@jellyfin/sdk";
-import type { AxiosError, AxiosResponse } from "axios";
+import type { AxiosResponse } from "axios";
 import { getAuthHeaders } from "../jellyfin";
 
 interface PostCapabilitiesParams {
@@ -28,7 +28,7 @@ export const postCapabilities = async ({
 
   try {
     const d = api.axiosInstance.post(
-      api.basePath + "/Sessions/Capabilities/Full",
+      `${api.basePath}/Sessions/Capabilities/Full`,
       {
         playableMediaTypes: ["Audio", "Video"],
         supportedCommands: [
@@ -50,7 +50,7 @@ export const postCapabilities = async ({
       },
     );
     return d;
-  } catch (error: any | AxiosError) {
+  } catch (error) {
     throw new Error("Failed to mark as not played");
   }
 };
