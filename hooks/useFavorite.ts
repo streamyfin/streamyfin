@@ -1,9 +1,9 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export const useFavorite = (item: BaseItemDto) => {
   const queryClient = useQueryClient();
@@ -26,7 +26,7 @@ export const useFavorite = (item: BaseItemDto) => {
           ...newData,
           UserData: { ...old.UserData, ...newData.UserData },
         };
-      }
+      },
     );
   };
 

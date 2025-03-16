@@ -18,7 +18,7 @@ async function setCustomConfigAsync(config, androidManifest) {
   const res_file_path = path.join(
     await Paths.getResourceFolderAsync(config.modRequest.projectRoot),
     "xml",
-    "network_security_config.xml"
+    "network_security_config.xml",
   );
 
   const res_dir = path.resolve(res_file_path, "..");
@@ -31,7 +31,7 @@ async function setCustomConfigAsync(config, androidManifest) {
     await fsPromises.copyFile(src_file_path, res_file_path);
   } catch (e) {
     throw new Error(
-      `Failed to copy network security config file from ${src_file_path} to ${res_file_path}: ${e.message}`
+      `Failed to copy network security config file from ${src_file_path} to ${res_file_path}: ${e.message}`,
     );
   }
   const mainApplication = getMainApplicationOrThrow(androidManifest);

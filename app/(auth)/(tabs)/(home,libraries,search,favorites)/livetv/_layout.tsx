@@ -3,7 +3,10 @@ import type {
   MaterialTopTabNavigationOptions,
 } from "@react-navigation/material-top-tabs";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { ParamListBase, TabNavigationState } from "@react-navigation/native";
+import type {
+  ParamListBase,
+  TabNavigationState,
+} from "@react-navigation/native";
 import { Stack, withLayoutContext } from "expo-router";
 import React from "react";
 
@@ -21,8 +24,8 @@ const Layout = () => {
     <>
       <Stack.Screen options={{ title: "Live TV" }} />
       <Tab
-        initialRouteName="programs"
-        keyboardDismissMode="none"
+        initialRouteName='programs'
+        keyboardDismissMode='none'
         screenOptions={{
           tabBarBounces: true,
           tabBarLabelStyle: { fontSize: 10 },
@@ -37,10 +40,10 @@ const Layout = () => {
           tabBarScrollEnabled: true,
         }}
       >
-        <Tab.Screen name="programs" />
-        <Tab.Screen name="guide" />
-        <Tab.Screen name="channels" />
-        <Tab.Screen name="recordings" />
+        <Tab.Screen name='programs' />
+        <Tab.Screen name='guide' />
+        <Tab.Screen name='channels' />
+        <Tab.Screen name='recordings' />
       </Tab>
     </>
   );

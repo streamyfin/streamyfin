@@ -7,9 +7,9 @@ interface ThemeColors {
 
 export const calculateTextColor = (backgroundColor: string): string => {
   // Convert hex to RGB
-  const r = parseInt(backgroundColor.slice(1, 3), 16);
-  const g = parseInt(backgroundColor.slice(3, 5), 16);
-  const b = parseInt(backgroundColor.slice(5, 7), 16);
+  const r = Number.parseInt(backgroundColor.slice(1, 3), 16);
+  const g = Number.parseInt(backgroundColor.slice(3, 5), 16);
+  const b = Number.parseInt(backgroundColor.slice(5, 7), 16);
 
   // Calculate perceived brightness
   // Using the formula: (R * 299 + G * 587 + B * 114) / 1000
@@ -47,9 +47,9 @@ const calculateRelativeLuminance = (rgb: number[]): number => {
 };
 
 export const isCloseToBlack = (color: string): boolean => {
-  const r = parseInt(color.slice(1, 3), 16);
-  const g = parseInt(color.slice(3, 5), 16);
-  const b = parseInt(color.slice(5, 7), 16);
+  const r = Number.parseInt(color.slice(1, 3), 16);
+  const g = Number.parseInt(color.slice(3, 5), 16);
+  const b = Number.parseInt(color.slice(5, 7), 16);
 
   // Check if the color is very dark (close to black)
   return r < 20 && g < 20 && b < 20;

@@ -1,6 +1,6 @@
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { writeToLog } from "@/utils/log";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useCallback } from "react";
@@ -41,7 +41,7 @@ export const useDownloadedFileOpener = () => {
         console.error("Error opening file:", error);
       }
     },
-    [setOfflineSettings, setPlayUrl, router]
+    [setOfflineSettings, setPlayUrl, router],
   );
 
   return { openFile };

@@ -3,6 +3,7 @@ import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { AudioToggles } from "@/components/settings/AudioToggles";
+import { ChromecastSettings } from "@/components/settings/ChromecastSettings";
 import DownloadSettings from "@/components/settings/DownloadSettings";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
@@ -14,16 +15,15 @@ import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useJellyfin } from "@/providers/JellyfinProvider";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
+import { useAtom } from "jotai";
 import React, { useEffect } from "react";
 import { ScrollView, Switch, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAtom } from "jotai";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { ChromecastSettings } from "@/components/settings/ChromecastSettings";
 
 export default function settings() {
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function settings() {
             logout();
           }}
         >
-          <Text className="text-red-600">
+          <Text className='text-red-600'>
             {t("home.settings.log_out_button")}
           </Text>
         </TouchableOpacity>
@@ -61,15 +61,15 @@ export default function settings() {
         paddingRight: insets.right,
       }}
     >
-      <View className="p-4 flex flex-col gap-y-4">
+      <View className='p-4 flex flex-col gap-y-4'>
         <UserInfo />
 
-        <QuickConnect className="mb-4" />
+        <QuickConnect className='mb-4' />
 
         <MediaProvider>
-          <MediaToggles className="mb-4" />
-          <AudioToggles className="mb-4" />
-          <SubtitleToggles className="mb-4" />
+          <MediaToggles className='mb-4' />
+          <AudioToggles className='mb-4' />
+          <SubtitleToggles className='mb-4' />
         </MediaProvider>
 
         <OtherSettings />
@@ -90,7 +90,7 @@ export default function settings() {
             title={t("home.settings.intro.show_intro")}
           />
           <ListItem
-            textColor="red"
+            textColor='red'
             onPress={() => {
               storage.set("hasShownIntro", false);
             }}
@@ -98,7 +98,7 @@ export default function settings() {
           />
         </ListGroup>
 
-        <View className="mb-4">
+        <View className='mb-4'>
           <ListGroup title={t("home.settings.logs.logs_title")}>
             <ListItem
               onPress={() => router.push("/settings/logs/page")}
@@ -106,7 +106,7 @@ export default function settings() {
               title={t("home.settings.logs.logs_title")}
             />
             <ListItem
-              textColor="red"
+              textColor='red'
               onPress={onClearLogsClicked}
               title={t("home.settings.logs.delete_all_logs")}
             />

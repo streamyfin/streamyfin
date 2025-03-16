@@ -1,17 +1,17 @@
-import React from "react";
-import { View, ViewProps } from "react-native";
-import { Text } from "@/components/common/Text";
+import { ItemCardText } from "@/components/ItemCardText";
 import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
+import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import MoviePoster from "@/components/posters/MoviePoster";
-import { ItemCardText } from "@/components/ItemCardText";
-import { useAtom } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery } from "@tanstack/react-query";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import type React from "react";
 import { useTranslation } from "react-i18next";
+import { View, type ViewProps } from "react-native";
 
 interface Props extends ViewProps {
   actorId: string;
@@ -77,8 +77,8 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
 
   return (
     <View {...props}>
-      <Text className="text-lg font-bold mb-2 px-4">
-        {t("item_card.more_with", {name: actor?.Name})}
+      <Text className='text-lg font-bold mb-2 px-4'>
+        {t("item_card.more_with", { name: actor?.Name })}
       </Text>
       <HorizontalScroll
         data={items}
@@ -88,7 +88,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
           <TouchableItemRouter
             key={idx}
             item={item}
-            className="flex flex-col w-28"
+            className='flex flex-col w-28'
           >
             <View>
               <MoviePoster item={item} />

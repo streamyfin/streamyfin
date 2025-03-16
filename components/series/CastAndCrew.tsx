@@ -1,18 +1,19 @@
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import {
+import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { router, useSegments } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useMemo } from "react";
-import { TouchableOpacity, View, ViewProps } from "react-native";
+import type React from "react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { Text } from "../common/Text";
-import Poster from "../posters/Poster";
 import { itemRouter } from "../common/TouchableItemRouter";
-import { useTranslation } from "react-i18next";
+import Poster from "../posters/Poster";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -41,8 +42,10 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   if (!from) return null;
 
   return (
-    <View {...props} className="flex flex-col">
-      <Text className="text-lg font-bold mb-2 px-4">{t("item_card.cast_and_crew")}</Text>
+    <View {...props} className='flex flex-col'>
+      <Text className='text-lg font-bold mb-2 px-4'>
+        {t("item_card.cast_and_crew")}
+      </Text>
       <HorizontalScroll
         loading={loading}
         keyExtractor={(i, idx) => i.Id.toString()}
@@ -55,11 +58,11 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
               // @ts-ignore
               router.push(url);
             }}
-            className="flex flex-col w-28"
+            className='flex flex-col w-28'
           >
             <Poster id={i.id} url={getPrimaryImageUrl({ api, item: i })} />
-            <Text className="mt-2">{i.Name}</Text>
-            <Text className="text-xs opacity-50">{i.Role}</Text>
+            <Text className='mt-2'>{i.Name}</Text>
+            <Text className='text-xs opacity-50'>{i.Role}</Text>
           </TouchableOpacity>
         )}
       />

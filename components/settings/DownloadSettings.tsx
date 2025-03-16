@@ -1,17 +1,21 @@
 import { Stepper } from "@/components/inputs/Stepper";
 import { useDownload } from "@/providers/DownloadProvider";
-import { DownloadMethod, Settings, useSettings } from "@/utils/atoms/settings";
+import {
+  DownloadMethod,
+  type Settings,
+  useSettings,
+} from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { Platform, Switch, TouchableOpacity } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useTranslation } from "react-i18next";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { useTranslation } from "react-i18next";
-import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export default function DownloadSettings({ ...props }) {
   const [settings, updateSettings, pluginSettings] = useSettings();
@@ -25,13 +29,13 @@ export default function DownloadSettings({ ...props }) {
       pluginSettings?.downloadMethod?.locked === true &&
       pluginSettings?.remuxConcurrentLimit?.locked === true &&
       pluginSettings?.autoDownload.locked === true,
-    [pluginSettings]
+    [pluginSettings],
   );
 
   if (!settings) return null;
 
   return (
-    <DisabledSetting disabled={allDisabled} {...props} className="mb-4">
+    <DisabledSetting disabled={allDisabled} {...props} className='mb-4'>
       <ListGroup title={t("home.settings.downloads.downloads_title")}>
         <ListItem
           title={t("home.settings.downloads.download_method")}
@@ -39,23 +43,23 @@ export default function DownloadSettings({ ...props }) {
         >
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
-                <Text className="mr-1 text-[#8E8D91]">
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
                   {settings.downloadMethod === DownloadMethod.Remux
                     ? t("home.settings.downloads.default")
                     : t("home.settings.downloads.optimized")}
                 </Text>
                 <Ionicons
-                  name="chevron-expand-sharp"
+                  name='chevron-expand-sharp'
                   size={18}
-                  color="#5A5960"
+                  color='#5A5960'
                 />
               </TouchableOpacity>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
               loop={true}
-              side="bottom"
-              align="start"
+              side='bottom'
+              align='start'
               alignOffset={0}
               avoidCollisions={true}
               collisionPadding={8}
@@ -65,7 +69,7 @@ export default function DownloadSettings({ ...props }) {
                 {t("home.settings.downloads.download_method")}
               </DropdownMenu.Label>
               <DropdownMenu.Item
-                key="1"
+                key='1'
                 onSelect={() => {
                   updateSettings({ downloadMethod: DownloadMethod.Remux });
                   setProcesses([]);
@@ -76,7 +80,7 @@ export default function DownloadSettings({ ...props }) {
                 </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                key="2"
+                key='2'
                 onSelect={() => {
                   updateSettings({ downloadMethod: DownloadMethod.Optimized });
                   setProcesses([]);

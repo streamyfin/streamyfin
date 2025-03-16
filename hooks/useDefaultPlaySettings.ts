@@ -1,7 +1,7 @@
-import { Bitrate, BITRATES } from "@/components/BitrateSelector";
-import { Settings } from "@/utils/atoms/settings";
+import { BITRATES, Bitrate } from "@/components/BitrateSelector";
+import type { Settings } from "@/utils/atoms/settings";
 import {
-  BaseItemDto,
+  type BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
@@ -9,7 +9,7 @@ import { useMemo } from "react";
 // Used only for initial play settings.
 const useDefaultPlaySettings = (
   item: BaseItemDto,
-  settings: Settings | null
+  settings: Settings | null,
 ) => {
   const playSettings = useMemo(() => {
     // 1. Get first media source
@@ -21,11 +21,11 @@ const useDefaultPlaySettings = (
       (x) =>
         x.Type === "Audio" &&
         x.Language ===
-          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName
+          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName,
     )?.Index;
 
     const firstAudioIndex = mediaSource?.MediaStreams?.find(
-      (x) => x.Type === "Audio"
+      (x) => x.Type === "Audio",
     )?.Index;
 
     // 4. Get default bitrate from settings or fallback to max

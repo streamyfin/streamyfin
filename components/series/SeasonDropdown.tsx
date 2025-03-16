@@ -1,9 +1,9 @@
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useEffect, useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { Text } from "../common/Text";
 import { t } from "i18next";
+import { Text } from "../common/Text";
 
 type Props = {
   item: BaseItemDto;
@@ -45,12 +45,12 @@ export const SeasonDropdown: React.FC<Props> = ({
             title: "Name",
             index: "IndexNumber",
           },
-    [item]
+    [item],
   );
 
   const seasonIndex = useMemo(
     () => state[(item[keys.id] as string) ?? ""],
-    [state]
+    [state],
   );
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export const SeasonDropdown: React.FC<Props> = ({
       if (initialSeasonIndex !== undefined) {
         // Use the provided initialSeasonIndex if it exists in the seasons
         const seasonExists = seasons.some(
-          (season: any) => season[keys.index] === initialSeasonIndex
+          (season: any) => season[keys.index] === initialSeasonIndex,
         );
         if (seasonExists) {
           initialIndex = initialSeasonIndex;
@@ -77,7 +77,7 @@ export const SeasonDropdown: React.FC<Props> = ({
 
       if (initialIndex !== undefined) {
         const initialSeason = seasons.find(
-          (season: any) => season[keys.index] === initialIndex
+          (season: any) => season[keys.index] === initialIndex,
         );
 
         if (initialSeason) onSelect(initialSeason!);
@@ -92,8 +92,8 @@ export const SeasonDropdown: React.FC<Props> = ({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
-        <View className="flex flex-row">
-          <TouchableOpacity className="bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between">
+        <View className='flex flex-row'>
+          <TouchableOpacity className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
             <Text>
               {t("item_card.season")} {seasonIndex}
             </Text>
@@ -102,8 +102,8 @@ export const SeasonDropdown: React.FC<Props> = ({
       </DropdownMenu.Trigger>
       <DropdownMenu.Content
         loop={true}
-        side="bottom"
-        align="start"
+        side='bottom'
+        align='start'
         alignOffset={0}
         avoidCollisions={true}
         collisionPadding={8}

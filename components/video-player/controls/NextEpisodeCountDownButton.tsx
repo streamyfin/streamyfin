@@ -1,6 +1,13 @@
-import React, { useEffect } from "react";
-import { TouchableOpacity, TouchableOpacityProps, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { Colors } from "@/constants/Colors";
+import type React from "react";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  TouchableOpacity,
+  type TouchableOpacityProps,
+  View,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,8 +15,6 @@ import Animated, {
   Easing,
   runOnJS,
 } from "react-native-reanimated";
-import { Colors } from "@/constants/Colors";
-import { useTranslation } from "react-i18next";
 
 interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   onFinish?: () => void;
@@ -38,7 +43,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
           if (finished && onFinish) {
             runOnJS(onFinish)();
           }
-        }
+        },
       );
     }
   }, [show, onFinish]);
@@ -68,13 +73,15 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
 
   return (
     <TouchableOpacity
-      className="w-32 overflow-hidden rounded-md bg-black/60 border border-neutral-900"
+      className='w-32 overflow-hidden rounded-md bg-black/60 border border-neutral-900'
       {...props}
       onPress={handlePress}
     >
       <Animated.View style={animatedStyle} />
-      <View className="px-3 py-3">
-        <Text className="text-center font-bold">{t("player.next_episode")}</Text>
+      <View className='px-3 py-3'>
+        <Text className='text-center font-bold'>
+          {t("player.next_episode")}
+        </Text>
       </View>
     </TouchableOpacity>
   );

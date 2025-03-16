@@ -1,13 +1,14 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
+import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { FlashList, FlashListProps } from "@shopify/flash-list";
+import { FlashList, type FlashListProps } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { t } from "i18next";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo } from "react";
-import { View, ViewStyle } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -15,7 +16,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { Loader } from "../Loader";
 import { Text } from "./Text";
-import { t } from "i18next";
 
 interface HorizontalScrollProps
   extends Omit<FlashListProps<BaseItemDto>, "renderItem" | "data" | "style"> {
@@ -70,7 +70,7 @@ export function InfiniteHorizontalScroll({
       const totalItems = lastPage.TotalRecordCount;
       const accumulatedItems = pages.reduce(
         (acc, curr) => acc + (curr?.Items?.length || 0),
-        0
+        0,
       );
 
       if (accumulatedItems < totalItems) {
@@ -118,7 +118,7 @@ export function InfiniteHorizontalScroll({
       <FlashList
         data={flatData}
         renderItem={({ item, index }) => (
-          <View className="mr-2">
+          <View className='mr-2'>
             <React.Fragment>{renderItem(item, index)}</React.Fragment>
           </View>
         )}
@@ -136,8 +136,10 @@ export function InfiniteHorizontalScroll({
         }}
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={
-          <View className="flex-1 justify-center items-center">
-            <Text className="text-center text-gray-500">{t("item_card.no_data_available")}</Text>
+          <View className='flex-1 justify-center items-center'>
+            <Text className='text-center text-gray-500'>
+              {t("item_card.no_data_available")}
+            </Text>
           </View>
         }
         {...props}

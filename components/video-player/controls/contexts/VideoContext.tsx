@@ -1,8 +1,16 @@
-import { TrackInfo } from "@/modules/VlcPlayer.types";
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from "react";
-import { useControlContext } from "./ControlContext";
-import { Track } from "../types";
+import type { TrackInfo } from "@/modules/VlcPlayer.types";
 import { router, useLocalSearchParams } from "expo-router";
+import type React from "react";
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import type { Track } from "../types";
+import { useControlContext } from "./ControlContext";
 
 interface VideoContextProps {
   audioTracks: Track[] | null;
@@ -16,8 +24,14 @@ const VideoContext = createContext<VideoContextProps | undefined>(undefined);
 
 interface VideoProviderProps {
   children: ReactNode;
-  getAudioTracks: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]) | undefined;
-  getSubtitleTracks: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]) | undefined;
+  getAudioTracks:
+    | (() => Promise<TrackInfo[] | null>)
+    | (() => TrackInfo[])
+    | undefined;
+  getSubtitleTracks:
+    | (() => Promise<TrackInfo[] | null>)
+    | (() => TrackInfo[])
+    | undefined;
   setAudioTrack: ((index: number) => void) | undefined;
   setSubtitleTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
@@ -38,20 +52,24 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   const isVideoLoaded = ControlContext?.isVideoLoaded;
   const mediaSource = ControlContext?.mediaSource;
 
-  const allSubs = mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
+  const allSubs =
+    mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
 
-  const { itemId, audioIndex, bitrateValue, subtitleIndex } = useLocalSearchParams<{
-    itemId: string;
-    audioIndex: string;
-    subtitleIndex: string;
-    mediaSourceId: string;
-    bitrateValue: string;
-  }>();
+  const { itemId, audioIndex, bitrateValue, subtitleIndex } =
+    useLocalSearchParams<{
+      itemId: string;
+      audioIndex: string;
+      subtitleIndex: string;
+      mediaSourceId: string;
+      bitrateValue: string;
+    }>();
 
   const onTextBasedSubtitle = useMemo(
     () =>
-      allSubs.find((s) => s.Index?.toString() === subtitleIndex && s.IsTextSubtitleStream) || subtitleIndex === "-1",
-    [allSubs, subtitleIndex]
+      allSubs.find(
+        (s) => s.Index?.toString() === subtitleIndex && s.IsTextSubtitleStream,
+      ) || subtitleIndex === "-1",
+    [allSubs, subtitleIndex],
   );
 
   const setPlayerParams = ({
@@ -74,14 +92,21 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
     router.replace(`player/direct-player?${queryParams}`);
   };
 
-  const setTrackParams = (type: "audio" | "subtitle", index: number, serverIndex: number) => {
+  const setTrackParams = (
+    type: "audio" | "subtitle",
+    index: number,
+    serverIndex: number,
+  ) => {
     const setTrack = type === "audio" ? setAudioTrack : setSubtitleTrack;
     const paramKey = type === "audio" ? "audioIndex" : "subtitleIndex";
 
     // If we're transcoding and we're going from a image based subtitle
     // to a text based subtitle, we need to change the player params.
 
-    const shouldChangePlayerParams = type === "subtitle" && mediaSource?.TranscodingUrl && !onTextBasedSubtitle;
+    const shouldChangePlayerParams =
+      type === "subtitle" &&
+      mediaSource?.TranscodingUrl &&
+      !onTextBasedSubtitle;
 
     console.log("Set player params", index, serverIndex);
     if (shouldChangePlayerParams) {
@@ -102,16 +127,19 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         const subtitleData = await getSubtitleTracks();
 
         // Step 1: Move external subs to the end, because VLC puts external subs at the end
-        const sortedSubs = allSubs.sort((a, b) => Number(a.IsExternal) - Number(b.IsExternal));
+        const sortedSubs = allSubs.sort(
+          (a, b) => Number(a.IsExternal) - Number(b.IsExternal),
+        );
 
         // Step 2: Apply VLC indexing logic
         let textSubIndex = 0;
         const processedSubs: Track[] = sortedSubs?.map((sub) => {
           // Always increment for non-transcoding subtitles
           // Only increment for text-based subtitles when transcoding
-          const shouldIncrement = !mediaSource?.TranscodingUrl || sub.IsTextSubtitleStream;
+          const shouldIncrement =
+            !mediaSource?.TranscodingUrl || sub.IsTextSubtitleStream;
           const vlcIndex = subtitleData?.at(textSubIndex)?.index ?? -1;
-          const finalIndex = shouldIncrement ? vlcIndex : sub.Index ?? -1;
+          const finalIndex = shouldIncrement ? vlcIndex : (sub.Index ?? -1);
 
           if (shouldIncrement) textSubIndex++;
           return {
@@ -127,7 +155,9 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         });
 
         // Step 3: Restore the original order
-        const subtitles: Track[] = processedSubs.sort((a, b) => a.index - b.index);
+        const subtitles: Track[] = processedSubs.sort(
+          (a, b) => a.index - b.index,
+        );
 
         // Add a "Disable Subtitles" option
         subtitles.unshift({
@@ -143,20 +173,23 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       if (getAudioTracks) {
         const audioData = await getAudioTracks();
 
-        const allAudio = mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
+        const allAudio =
+          mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
         const audioTracks: Track[] = allAudio?.map((audio, idx) => {
           if (!mediaSource?.TranscodingUrl) {
             const vlcIndex = audioData?.at(idx)?.index ?? -1;
             return {
               name: audio.DisplayTitle ?? "Undefined Audio",
               index: audio.Index ?? -1,
-              setTrack: () => setTrackParams("audio", vlcIndex, audio.Index ?? -1),
+              setTrack: () =>
+                setTrackParams("audio", vlcIndex, audio.Index ?? -1),
             };
           }
           return {
             name: audio.DisplayTitle ?? "Undefined Audio",
             index: audio.Index ?? -1,
-            setTrack: () => setPlayerParams({ chosenAudioIndex: audio.Index?.toString() }),
+            setTrack: () =>
+              setPlayerParams({ chosenAudioIndex: audio.Index?.toString() }),
           };
         });
         setAudioTracks(audioTracks);

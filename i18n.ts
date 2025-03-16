@@ -1,20 +1,20 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
+import { getLocales } from "expo-localization";
 import de from "./translations/de.json";
 import en from "./translations/en.json";
 import es from "./translations/es.json";
 import fr from "./translations/fr.json";
 import it from "./translations/it.json";
 import ja from "./translations/ja.json";
-import tr from "./translations/tr.json";
 import nl from "./translations/nl.json";
 import pl from "./translations/pl.json";
 import sv from "./translations/sv.json";
-import ua from "./translations/ua.json"
-import zhCN from './translations/zh-CN.json';
-import zhTW from './translations/zh-TW.json';
-import { getLocales } from "expo-localization";
+import tr from "./translations/tr.json";
+import ua from "./translations/ua.json";
+import zhCN from "./translations/zh-CN.json";
+import zhTW from "./translations/zh-TW.json";
 
 export const APP_LANGUAGES = [
   { label: "Deutsch", value: "de" },

@@ -1,13 +1,14 @@
 import { storage } from "@/utils/mmkv";
-import { JobStatus } from "@/utils/optimize-server";
-import {
+import type { JobStatus } from "@/utils/optimize-server";
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
 import { atom, useAtom } from "jotai";
-import React, { createContext, useCallback, useContext, useMemo } from "react";
+import type React from "react";
+import { createContext, useCallback, useContext, useMemo } from "react";
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -38,7 +39,7 @@ function useDownloadProvider() {
     async (url: string, item: BaseItemDto, mediaSource: MediaSourceInfo) => {
       return null;
     },
-    []
+    [],
   );
 
   const deleteAllFiles = async (): Promise<void> => {};
@@ -59,11 +60,11 @@ function useDownloadProvider() {
     return null;
   }
 
-  function saveDownloadedItemInfo(item: BaseItemDto, size: number = 0) {}
+  function saveDownloadedItemInfo(item: BaseItemDto, size = 0) {}
 
   function getDownloadedItemSize(itemId: string): number {
     const size = storage.getString("downloadedItemSize-" + itemId);
-    return size ? parseInt(size) : 0;
+    return size ? Number.parseInt(size) : 0;
   }
 
   const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;

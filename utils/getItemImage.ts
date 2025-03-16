@@ -1,6 +1,6 @@
-import { Api } from "@jellyfin/sdk";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { ImageSource } from "expo-image";
+import type { Api } from "@jellyfin/sdk";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { ImageSource } from "expo-image";
 
 interface Props {
   item: BaseItemDto;

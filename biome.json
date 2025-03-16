@@ -7,6 +7,10 @@
   "linter": {
     "enabled": true,
     "rules": {
+      "style": {
+        "useImportType": "off",
+        "noNonNullAssertion": "off"
+      },
       "recommended": true,
       "style": {
         "useImportType": "off",

@@ -7,14 +7,14 @@ import { getItemImage } from "@/utils/getItemImage";
 import { useLog, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
+  type JobStatus,
   cancelAllJobs,
   cancelJobById,
   deleteDownloadItemInfoFromDiskTmp,
   getAllJobsByDeviceId,
   getDownloadItemInfoFromDiskTmp,
-  JobStatus,
 } from "@/utils/optimize-server";
-import {
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
@@ -23,11 +23,12 @@ import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
-import { FileInfo } from "expo-file-system";
+import type { FileInfo } from "expo-file-system";
 import Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { atom, useAtom } from "jotai";
-import React, {
+import type React from "react";
+import {
   createContext,
   useCallback,
   useContext,
@@ -35,7 +36,7 @@ import React, {
   useMemo,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, AppStateStatus, Platform } from "react-native";
+import { AppState, type AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
 import { apiAtom } from "./JellyfinProvider";
 
@@ -113,12 +114,12 @@ function useDownloadProvider() {
         .filter((p) => jobs.some((j) => j.id === p.id));
 
       const updatedProcesses = jobs.filter(
-        (j) => !downloadingProcesses.some((p) => p.id === j.id)
+        (j) => !downloadingProcesses.some((p) => p.id === j.id),
       );
 
       setProcesses([...updatedProcesses, ...downloadingProcesses]);
 
-      for (let job of jobs) {
+      for (const job of jobs) {
         const process = processes.find((p) => p.id === job.id);
         if (
           process &&
@@ -140,7 +141,7 @@ function useDownloadProvider() {
                     toast.dismiss();
                   },
                 },
-              }
+              },
             );
             Notifications.scheduleNotificationAsync({
               content: {
@@ -188,7 +189,7 @@ function useDownloadProvider() {
         console.error(error);
       }
     },
-    [settings?.optimizedVersionsServerUrl, authHeader]
+    [settings?.optimizedVersionsServerUrl, authHeader],
   );
 
   const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;
@@ -206,8 +207,8 @@ function useDownloadProvider() {
                 status: "downloading",
                 progress: 0,
               }
-            : p
-        )
+            : p,
+        ),
       );
 
       BackGroundDownloader?.setConfig({
@@ -230,7 +231,7 @@ function useDownloadProvider() {
               toast.dismiss();
             },
           },
-        }
+        },
       );
 
       const baseDirectory = FileSystem.documentDirectory;
@@ -250,8 +251,8 @@ function useDownloadProvider() {
                     status: "downloading",
                     progress: 0,
                   }
-                : p
-            )
+                : p,
+            ),
           );
         })
         .progress((data) => {
@@ -265,14 +266,14 @@ function useDownloadProvider() {
                     status: "downloading",
                     progress: percent,
                   }
-                : p
-            )
+                : p,
+            ),
           );
         })
         .done(async (doneHandler) => {
           await saveDownloadedItemInfo(
             process.item,
-            doneHandler.bytesDownloaded
+            doneHandler.bytesDownloaded,
           );
           toast.success(
             t("home.downloads.toasts.download_completed_for_item", {
@@ -287,7 +288,7 @@ function useDownloadProvider() {
                   toast.dismiss();
                 },
               },
-            }
+            },
           );
           setTimeout(() => {
             BackGroundDownloader.completeHandler(process.id);
@@ -308,7 +309,7 @@ function useDownloadProvider() {
             t("home.downloads.toasts.download_failed_for_item", {
               item: process.item.Name,
               error: errorMsg,
-            })
+            }),
           );
           writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
             error,
@@ -323,7 +324,7 @@ function useDownloadProvider() {
           });
         });
     },
-    [queryClient, settings?.optimizedVersionsServerUrl, authHeader]
+    [queryClient, settings?.optimizedVersionsServerUrl, authHeader],
   );
 
   const startBackgroundDownload = useCallback(
@@ -359,7 +360,7 @@ function useDownloadProvider() {
               "Content-Type": "application/json",
               Authorization: authHeader,
             },
-          }
+          },
         );
 
         if (response.status !== 201) {
@@ -378,7 +379,7 @@ function useDownloadProvider() {
                 toast.dismiss();
               },
             },
-          }
+          },
         );
       } catch (error) {
         writeToLog("ERROR", "Error in startBackgroundDownload", error);
@@ -394,13 +395,13 @@ function useDownloadProvider() {
             t("home.downloads.toasts.failed_to_start_download_for_item", {
               item: item.Name,
               message: error.message,
-            })
+            }),
           );
           if (error.response) {
             toast.error(
               t("home.downloads.toasts.server_responded_with_status", {
                 statusCode: error.response.status,
-              })
+              }),
             );
           } else if (error.request) {
             t("home.downloads.toasts.no_response_received_from_server");
@@ -412,13 +413,13 @@ function useDownloadProvider() {
           toast.error(
             t(
               "home.downloads.toasts.failed_to_start_download_for_item_unexpected_error",
-              { item: item.Name }
-            )
+              { item: item.Name },
+            ),
           );
         }
       }
     },
-    [settings?.optimizedVersionsServerUrl, authHeader]
+    [settings?.optimizedVersionsServerUrl, authHeader],
   );
 
   const deleteAllFiles = async (): Promise<void> => {
@@ -431,24 +432,24 @@ function useDownloadProvider() {
       .then(() =>
         toast.success(
           t(
-            "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully"
-          )
-        )
+            "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully",
+          ),
+        ),
       )
       .catch((reason) => {
         console.error("Failed to delete all files, folders, and jobs:", reason);
         toast.error(
           t(
-            "home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs"
-          )
+            "home.downloads.toasts.an_error_occured_while_deleting_files_and_jobs",
+          ),
         );
       });
   };
 
   const forEveryDocumentDirFile = async (
-    includeMMKV: boolean = true,
+    includeMMKV = true,
     ignoreList: string[] = [],
-    callback: (file: FileInfo) => void
+    callback: (file: FileInfo) => void,
   ) => {
     const baseDirectory = FileSystem.documentDirectory;
     if (!baseDirectory) {
@@ -553,7 +554,7 @@ function useDownloadProvider() {
     } catch (error) {
       console.error(
         `Failed to delete file and storage entry for ID ${id}:`,
-        error
+        error,
       );
     }
   };
@@ -563,17 +564,17 @@ function useDownloadProvider() {
       items.map((i) => {
         if (i.Id) return deleteFile(i.Id);
         return;
-      })
+      }),
     ).then(() => successHapticFeedback());
   };
 
   const cleanCacheDirectory = async () => {
     const cacheDir = await FileSystem.getInfoAsync(
-      APP_CACHE_DOWNLOAD_DIRECTORY
+      APP_CACHE_DOWNLOAD_DIRECTORY,
     );
     if (cacheDir.exists) {
       const cachedFiles = await FileSystem.readDirectoryAsync(
-        APP_CACHE_DOWNLOAD_DIRECTORY
+        APP_CACHE_DOWNLOAD_DIRECTORY,
       );
       let position = 0;
       const batchSize = 3;
@@ -584,14 +585,14 @@ function useDownloadProvider() {
         await Promise.all(
           itemsForBatch.map(async (file) => {
             const info = await FileSystem.getInfoAsync(
-              `${APP_CACHE_DOWNLOAD_DIRECTORY}${file}`
+              `${APP_CACHE_DOWNLOAD_DIRECTORY}${file}`,
             );
             if (info.exists) {
               await FileSystem.deleteAsync(info.uri, { idempotent: true });
               return Promise.resolve(file);
             }
             return Promise.reject();
-          })
+          }),
         );
 
         position += batchSize;
@@ -609,24 +610,24 @@ function useDownloadProvider() {
             promises.push(deleteFile(file.item.SeriesId));
           promises.push(deleteFile(file.item.Id!));
           return promises;
-        }) || []
+        }) || [],
     );
   };
 
   const appSizeUsage = useMemo(async () => {
     const sizes: number[] =
       downloadedFiles?.map((d) => {
-        return getDownloadedItemSize(d.item.Id!!);
+        return getDownloadedItemSize(d.item.Id!);
       }) || [];
 
     await forEveryDocumentDirFile(
       true,
-      getAllDownloadedItems().map((d) => d.item.Id!!),
+      getAllDownloadedItems().map((d) => d.item.Id!),
       (file) => {
         if (file.exists) {
           sizes.push(file.size);
         }
-      }
+      },
     ).catch((e) => {
       console.error(e);
     });
@@ -663,10 +664,10 @@ function useDownloadProvider() {
     }
   }
 
-  function saveDownloadedItemInfo(item: BaseItemDto, size: number = 0) {
+  function saveDownloadedItemInfo(item: BaseItemDto, size = 0) {
     try {
       const downloadedItems = storage.getString("downloadedItems");
-      let items: DownloadedItem[] = downloadedItems
+      const items: DownloadedItem[] = downloadedItems
         ? JSON.parse(downloadedItems)
         : [];
 
@@ -676,7 +677,7 @@ function useDownloadProvider() {
 
       if (!data?.mediaSource)
         throw new Error(
-          "Media source not found in tmp storage. Did you forget to save it before starting download?"
+          "Media source not found in tmp storage. Did you forget to save it before starting download?",
         );
 
       const newItem = { item, mediaSource: data.mediaSource };
@@ -697,14 +698,14 @@ function useDownloadProvider() {
     } catch (error) {
       console.error(
         "Failed to save downloaded item information with media source:",
-        error
+        error,
       );
     }
   }
 
   function getDownloadedItemSize(itemId: string): number {
     const size = storage.getString("downloadedItemSize-" + itemId);
-    return size ? parseInt(size) : 0;
+    return size ? Number.parseInt(size) : 0;
   }
 
   return {
