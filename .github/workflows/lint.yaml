@@ -14,8 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.20.0'
-          cache: 'bun'
+          node-version: '20.x'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
