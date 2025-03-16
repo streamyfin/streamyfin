@@ -12,10 +12,6 @@
         "noNonNullAssertion": "off"
       },
       "recommended": true,
-      "style": {
-        "useImportType": "off",
-        "noNonNullAssertion": "off"
-      },
       "correctness": { "useExhaustiveDependencies": "off" },
       "suspicious": {
         "noExplicitAny": "off"
