@@ -134,6 +134,7 @@
     }
   },
   "lint-staged": {
-    "*": ["biome check --no-errors-on-unmatched --files-ignore-unknown=true"]
+    "*.{js,jsx,ts,tsx}": ["biome check --write --unsafe"],
+    "*.{json,md}": ["biome format --write"]
   }
 }
