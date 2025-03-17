@@ -46,5 +46,4 @@ credentials.json
 .ruby-lsp
 modules/hls-downloader/android/build
 streamyfin-4fec1-firebase-adminsdk.json
-google-services.json
 .env
