@@ -34,7 +34,11 @@
     "production": {
       "channel": "0.27.0",
       "android": {
-        "image": "latest"
+        "image": "latest",
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
       }
     },
     "production-apk": {
@@ -42,6 +46,9 @@
       "android": {
         "buildType": "apk",
         "image": "latest"
+      },
+      "env": {
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
       }
     },
     "production-apk-tv": {
