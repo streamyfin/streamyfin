@@ -13,7 +13,6 @@
     "prebuild": "EXPO_TV=0 bun run clean",
     "prebuild:tv": "EXPO_TV=1 bun run clean",
     "prepare": "husky",
-    "postinstall": "patch-package",
     "lint": "biome format --write ."
   },
   "dependencies": {
@@ -122,7 +121,6 @@
     "@types/uuid": "^10.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.0",
-    "patch-package": "^8.0.0",
     "postinstall-postinstall": "^2.1.0",
     "react-test-renderer": "19.0.0",
     "typescript": "~5.7.3"
