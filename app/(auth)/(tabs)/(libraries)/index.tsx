@@ -1,6 +1,6 @@
+import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
 import { LibraryItemCard } from "@/components/library/LibraryItemCard";
-import { Loader } from "@/components/Loader";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import {
@@ -11,9 +11,9 @@ import { FlashList } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 export default function index() {
   const [api] = useAtom(apiAtom);
@@ -23,7 +23,7 @@ export default function index() {
 
   const { t } = useTranslation();
 
-  const { data, isLoading: isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
       const response = await getUserViewsApi(api!).getUserViews({
@@ -41,7 +41,7 @@ export default function index() {
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
         .filter((l) => l.CollectionType !== "music")
         .filter((l) => l.CollectionType !== "books") || [],
-    [data, settings?.hiddenLibraries]
+    [data, settings?.hiddenLibraries],
   );
 
   useEffect(() => {
@@ -65,22 +65,24 @@ export default function index() {
 
   if (isLoading)
     return (
-      <View className="justify-center items-center h-full">
+      <View className='justify-center items-center h-full'>
         <Loader />
       </View>
     );
 
   if (!libraries)
     return (
-      <View className="h-full w-full flex justify-center items-center">
-        <Text className="text-lg text-neutral-500">{t("library.no_libraries_found")}</Text>
+      <View className='h-full w-full flex justify-center items-center'>
+        <Text className='text-lg text-neutral-500'>
+          {t("library.no_libraries_found")}
+        </Text>
       </View>
     );
 
   return (
     <FlashList
       extraData={settings}
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior='automatic'
       contentContainerStyle={{
         paddingTop: 17,
         paddingHorizontal: settings?.libraryOptions?.display === "row" ? 0 : 17,
@@ -97,10 +99,10 @@ export default function index() {
             style={{
               height: StyleSheet.hairlineWidth,
             }}
-            className="bg-neutral-800 mx-2 my-4"
+            className='bg-neutral-800 mx-2 my-4'
           ></View>
         ) : (
-          <View className="h-4" />
+          <View className='h-4' />
         )
       }
       estimatedItemSize={200}

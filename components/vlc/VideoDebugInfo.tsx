@@ -1,12 +1,10 @@
-import {
-  TrackInfo,
-  VlcPlayerViewRef,
-} from "@/modules/vlc-player/src/VlcPlayer.types";
-import React, { useEffect, useState } from "react";
-import { TouchableOpacity, View, ViewProps } from "react-native";
+import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "../common/Text";
-import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   playerRef: React.RefObject<VlcPlayerViewRef>;
@@ -15,7 +13,7 @@ interface Props extends ViewProps {
 export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
   const [audioTracks, setAudioTracks] = useState<TrackInfo[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<TrackInfo[] | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -45,15 +43,15 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
       }}
       {...props}
     >
-      <Text className="font-bold">{t("player.playback_state")}</Text>
-      <Text className="font-bold mt-2.5">{t("player.audio_tracks")}</Text>
+      <Text className='font-bold'>{t("player.playback_state")}</Text>
+      <Text className='font-bold mt-2.5'>{t("player.audio_tracks")}</Text>
       {audioTracks &&
         audioTracks.map((track, index) => (
           <Text key={index}>
             {track.name} ({t("player.index")} {track.index})
           </Text>
         ))}
-      <Text className="font-bold mt-2.5">{t("player.subtitles_tracks")}</Text>
+      <Text className='font-bold mt-2.5'>{t("player.subtitles_tracks")}</Text>
       {subtitleTracks &&
         subtitleTracks.map((track, index) => (
           <Text key={index}>
@@ -61,7 +59,7 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
           </Text>
         ))}
       <TouchableOpacity
-        className="mt-2.5 bg-blue-500 p-2 rounded"
+        className='mt-2.5 bg-blue-500 p-2 rounded'
         onPress={() => {
           if (playerRef.current) {
             playerRef.current.getAudioTracks().then(setAudioTracks);
@@ -69,7 +67,9 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
           }
         }}
       >
-        <Text className="text-white text-center">{t("player.refresh_tracks")}</Text>
+        <Text className='text-white text-center'>
+          {t("player.refresh_tracks")}
+        </Text>
       </TouchableOpacity>
     </View>
   );

@@ -1,20 +1,20 @@
-import {
-  HorizontalScroll,
-  HorizontalScrollRef,
-} from "@/components/common/HorrizontalScroll";
-import { Text } from "@/components/common/Text";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { Loader } from "@/components/Loader";
 import {
+  HorizontalScroll,
+  type HorizontalScrollRef,
+} from "@/components/common/HorrizontalScroll";
+import { Text } from "@/components/common/Text";
+import {
   SeasonDropdown,
-  SeasonIndexState,
+  type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
@@ -59,7 +59,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
       getUserItemData({ api, userId: user?.Id, itemId: item.SeriesId }).then(
         (res) => {
           setSeriesItem(res);
-        }
+        },
       );
     }
   }, [item.SeriesId]);
@@ -80,7 +80,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           headers: {
             Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
           },
-        }
+        },
       );
       return response.data.Items;
     },
@@ -90,7 +90,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const selectedSeasonId: string | null = useMemo(
     () =>
       seasons?.find((season: any) => season.IndexNumber === seasonIndex)?.Id,
-    [seasons, seasonIndex]
+    [seasons, seasonIndex],
   );
 
   const { data: episodes, isFetching } = useQuery({
@@ -123,7 +123,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
 
   const queryClient = useQueryClient();
   useEffect(() => {
-    for (let e of episodes || []) {
+    for (const e of episodes || []) {
       queryClient.prefetchQuery({
         queryKey: ["item", e.Id],
         queryFn: async () => {
@@ -187,9 +187,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
             onPress={async () => {
               close();
             }}
-            className="aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2"
+            className='aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2'
           >
-            <Ionicons name="close" size={24} color="white" />
+            <Ionicons name='close' size={24} color='white' />
           </TouchableOpacity>
         </View>
 
@@ -216,7 +216,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
                   showPlayButton={_item.Id !== item.Id}
                 />
               </TouchableOpacity>
-              <View className="shrink">
+              <View className='shrink'>
                 <Text
                   numberOfLines={2}
                   style={{
@@ -226,19 +226,19 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
                 >
                   {_item.Name}
                 </Text>
-                <Text numberOfLines={1} className="text-xs text-neutral-475">
+                <Text numberOfLines={1} className='text-xs text-neutral-475'>
                   {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
                 </Text>
-                <Text className="text-xs text-neutral-500">
+                <Text className='text-xs text-neutral-500'>
                   {runtimeTicksToSeconds(_item.RunTimeTicks)}
                 </Text>
               </View>
-              <View className="self-start mt-2">
+              <View className='self-start mt-2'>
                 <DownloadSingleItem item={_item} />
               </View>
               <Text
                 numberOfLines={5}
-                className="text-xs text-neutral-500 shrink"
+                className='text-xs text-neutral-500 shrink'
               >
                 {_item.Overview}
               </Text>

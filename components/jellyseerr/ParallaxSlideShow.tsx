@@ -1,29 +1,27 @@
-import React, {
-  PropsWithChildren,
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { Text } from "@/components/common/Text";
+import { FlashList } from "@shopify/flash-list";
+import { useFocusEffect } from "expo-router";
+import type React from "react";
+import {
+  type PropsWithChildren,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
-import {Dimensions, View, ViewProps} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { Text } from "@/components/common/Text";
+import { Dimensions, View, type ViewProps } from "react-native";
 import { Animated } from "react-native";
-import { FlashList } from "@shopify/flash-list";
-import {useFocusEffect} from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ANIMATION_ENTER = 250;
 const ANIMATION_EXIT = 250;
 const BACKDROP_DURATION = 5000;
 
-type Render = React.ComponentType<any>
-  | React.ReactElement
-  | null
-  | undefined;
+type Render = React.ComponentType<any> | React.ReactElement | null | undefined;
 
 interface Props<T> {
-  data: T[]
+  data: T[];
   images: string[];
   logo?: React.ReactElement;
   HeaderContent?: () => React.ReactElement;
@@ -34,7 +32,7 @@ interface Props<T> {
   onEndReached?: (() => void) | null | undefined;
 }
 
-const ParallaxSlideShow = <T extends unknown>({
+const ParallaxSlideShow = <T,>({
   data,
   images,
   logo,
@@ -45,8 +43,7 @@ const ParallaxSlideShow = <T extends unknown>({
   keyExtractor,
   onEndReached,
   ...props
-}: PropsWithChildren<Props<T> & ViewProps>
-) => {
+}: PropsWithChildren<Props<T> & ViewProps>) => {
   const insets = useSafeAreaInsets();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -59,7 +56,7 @@ const ParallaxSlideShow = <T extends unknown>({
         duration: ANIMATION_ENTER,
         useNativeDriver: true,
       }),
-    [fadeAnim]
+    [fadeAnim],
   );
 
   const exitAnimation = useCallback(
@@ -69,7 +66,7 @@ const ParallaxSlideShow = <T extends unknown>({
         duration: ANIMATION_EXIT,
         useNativeDriver: true,
       }),
-    [fadeAnim]
+    [fadeAnim],
   );
 
   useEffect(() => {
@@ -77,31 +74,35 @@ const ParallaxSlideShow = <T extends unknown>({
       enterAnimation().start();
 
       const intervalId = setInterval(() => {
-        Animated.sequence([
-          enterAnimation(),
-          exitAnimation()
-        ]).start(() => {
+        Animated.sequence([enterAnimation(), exitAnimation()]).start(() => {
           fadeAnim.setValue(0);
           setCurrentIndex((prevIndex) => (prevIndex + 1) % images?.length);
-        })
+        });
       }, BACKDROP_DURATION);
 
       return () => {
-        clearInterval(intervalId)
+        clearInterval(intervalId);
       };
     }
-  }, [fadeAnim, images, enterAnimation, exitAnimation, setCurrentIndex, currentIndex]);
+  }, [
+    fadeAnim,
+    images,
+    enterAnimation,
+    exitAnimation,
+    setCurrentIndex,
+    currentIndex,
+  ]);
 
   return (
     <View
-      className="flex-1 relative"
+      className='flex-1 relative'
       style={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }}
     >
       <ParallaxScrollView
-        className="flex-1 opacity-100"
+        className='flex-1 opacity-100'
         headerHeight={300}
         onEndReached={onEndReached}
         headerImage={
@@ -120,9 +121,9 @@ const ParallaxSlideShow = <T extends unknown>({
         }
         logo={logo}
       >
-        <View className="flex flex-col space-y-4 px-4">
-          <View className="flex flex-row justify-between w-full">
-            <View className="flex flex-col w-full">
+        <View className='flex flex-col space-y-4 px-4'>
+          <View className='flex flex-row justify-between w-full'>
+            <View className='flex flex-col w-full'>
               {HeaderContent && HeaderContent()}
             </View>
           </View>
@@ -131,30 +132,30 @@ const ParallaxSlideShow = <T extends unknown>({
             <FlashList
               data={data}
               ListEmptyComponent={
-                <View className="flex flex-col items-center justify-center h-full">
-                  <Text className="font-bold text-xl text-neutral-500">
+                <View className='flex flex-col items-center justify-center h-full'>
+                  <Text className='font-bold text-xl text-neutral-500'>
                     No results
                   </Text>
                 </View>
               }
-              contentInsetAdjustmentBehavior="automatic"
+              contentInsetAdjustmentBehavior='automatic'
               ListHeaderComponent={
-                <Text className="text-lg font-bold my-2">{listHeader}</Text>
+                <Text className='text-lg font-bold my-2'>{listHeader}</Text>
               }
               nestedScrollEnabled
               showsVerticalScrollIndicator={false}
               //@ts-ignore
-              renderItem={({ item, index}) => renderItem(item, index)}
+              renderItem={({ item, index }) => renderItem(item, index)}
               keyExtractor={keyExtractor}
               numColumns={3}
               estimatedItemSize={214}
-              ItemSeparatorComponent={() => <View className="h-2 w-2" />}
+              ItemSeparatorComponent={() => <View className='h-2 w-2' />}
             />
           </View>
         </View>
       </ParallaxScrollView>
     </View>
   );
-}
+};
 
 export default ParallaxSlideShow;

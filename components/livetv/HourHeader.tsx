@@ -10,7 +10,7 @@ export const HourHeader = ({ height }: { height: number }) => {
 
   return (
     <View
-      className="flex flex-row"
+      className='flex flex-row'
       style={{
         height,
       }}
@@ -23,8 +23,8 @@ export const HourHeader = ({ height }: { height: number }) => {
 };
 
 const HourCell = ({ hour }: { hour: Date }) => (
-  <View className="w-[200px] flex items-center justify-center bg-neutral-800">
-    <Text className="text-xs text-gray-600">
+  <View className='w-[200px] flex items-center justify-center bg-neutral-800'>
+    <Text className='text-xs text-gray-600'>
       {hour.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",

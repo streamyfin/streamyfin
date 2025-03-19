@@ -20,7 +20,7 @@
     "server_is_taking_too_long_to_respond_try_again_later": "El servidor está tardando mucho en responder, inténtalo de nuevo más tarde.",
     "server_received_too_many_requests_try_again_later": "El servidor está recibiendo muchas peticiones, inténtalo de nuevo más tarde.",
     "there_is_a_server_error": "Hay un error en el servidor",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url":  "Ha ocurrido un error inesperado. ¿Has introducido la URL correcta?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Ha ocurrido un error inesperado. ¿Has introducido la URL correcta?"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Introduce la URL de tu servidor Jellyfin",
@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Otros",
-        "auto_rotate": "Rotación automática",
+        "follow_device_orientation": "Rotación automática",
         "video_orientation": "Orientación de vídeo",
         "orientation": "Orientación",
         "orientations": {
@@ -129,6 +129,11 @@
           "UNKNOWN": "Desconocida"
         },
         "safe_area_in_controls": "Área segura en controles",
+        "video_player": "Video player",
+        "video_players": {
+          "VLC_3": "VLC 3",
+          "VLC_4": "VLC 4 (Experimental + PiP)"
+        },
         "show_custom_menu_links": "Mostrar enlaces de menú personalizados",
         "hide_libraries": "Ocultar bibliotecas",
         "select_liraries_you_want_to_hide": "Selecciona las bibliotecas que quieres ocultar de la pestaña Bibliotecas y de Inicio.",
@@ -168,7 +173,13 @@
           "tv_quota_limit": "Límite de cuota de series",
           "tv_quota_days": "Días de cuota de series",
           "reset_jellyseerr_config_button": "Restablecer configuración de Jellyseerr",
-          "unlimited": "Ilimitado"
+          "unlimited": "Ilimitado",
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Habilitar búsqueda de Marlin",
@@ -204,7 +215,7 @@
         "app_language_description": "Selecciona el idioma de la app.",
         "system": "Sistema"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Error al eliminar archivos",
         "background_downloads_enabled": "Descargas en segundo plano habilitadas",
         "background_downloads_disabled": "Descargas en segundo plano deshabilitadas",
@@ -323,6 +334,8 @@
       "years": "Años",
       "sort_by": "Ordenar por",
       "sort_order": "Ordenar",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Etiquetas"
     }
   },
@@ -332,7 +345,9 @@
     "episodes": "Episodios",
     "videos": "Vídeos",
     "boxsets": "Colecciones",
-    "playlists": "Playlists"
+    "playlists": "Playlists",
+    "noDataTitle": "Aún no hay favoritos",
+    "noData": "Marca elementos como favoritos para verlos aparecer aquí para un acceso rápido."
   },
   "custom_links": {
     "no_links": "Sin enlaces"
@@ -399,7 +414,7 @@
     "for_kids": "Para niños",
     "news": "Noticias"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Confirmar",
     "cancel": "Cancelar",
     "yes": "Sí",
@@ -433,7 +448,7 @@
     "tags": "Etiquetas",
     "quality_profile": "Perfil de calidad",
     "root_folder": "Carpeta raíz",
-    "season_x": "Temporada {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Temporada {{season_number}}",
     "number_episodes": "{{episode_number}} episodios",
     "born": "Nacido",

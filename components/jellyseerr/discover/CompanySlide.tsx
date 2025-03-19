@@ -1,14 +1,15 @@
 import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard";
-import Slide, { SlideProps } from "@/components/jellyseerr/discover/Slide";
+import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import {
   COMPANY_LOGO_IMAGE_FILTER,
-  Network,
+  type Network,
 } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
-import { Studio } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
+import type { Studio } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
 import { router, useSegments } from "expo-router";
-import React, { useCallback } from "react";
-import { TouchableOpacity, ViewProps } from "react-native";
+import type React from "react";
+import { useCallback } from "react";
+import { TouchableOpacity, type ViewProps } from "react-native";
 
 const CompanySlide: React.FC<
   { data: Network[] | Studio[] } & SlideProps & ViewProps
@@ -23,7 +24,7 @@ const CompanySlide: React.FC<
         pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}`,
         params: { id, image, name, type: slide.type },
       }),
-    [slide]
+    [slide],
   );
 
   return (
@@ -33,13 +34,13 @@ const CompanySlide: React.FC<
       data={data}
       keyExtractor={(item) => item.id.toString()}
       renderItem={(item, index) => (
-        <TouchableOpacity className="mr-2" onPress={() => navigate(item)}>
+        <TouchableOpacity className='mr-2' onPress={() => navigate(item)}>
           <GenericSlideCard
-            className="w-28 rounded-lg overflow-hidden border border-neutral-900 p-4"
+            className='w-28 rounded-lg overflow-hidden border border-neutral-900 p-4'
             id={item.id.toString()}
             url={jellyseerrApi?.imageProxy(
               item.image,
-              COMPANY_LOGO_IMAGE_FILTER
+              COMPANY_LOGO_IMAGE_FILTER,
             )}
           />
         </TouchableOpacity>

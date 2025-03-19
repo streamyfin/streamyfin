@@ -1,12 +1,8 @@
-import { Settings } from "@/utils/atoms/settings";
-import ios from "@/utils/profiles/ios";
+import type { Settings } from "@/utils/atoms/settings";
 import native from "@/utils/profiles/native";
-import old from "@/utils/profiles/old";
-import { Api } from "@jellyfin/sdk";
-import { AxiosError, AxiosResponse } from "axios";
-import { useMemo } from "react";
+import type { Api } from "@jellyfin/sdk";
+import type { AxiosResponse } from "axios";
 import { getAuthHeaders } from "../jellyfin";
-import iosFmp4 from "@/utils/profiles/iosFmp4";
 
 interface PostCapabilitiesParams {
   api: Api | null | undefined;
@@ -25,7 +21,6 @@ export const postCapabilities = async ({
   api,
   itemId,
   sessionId,
-  deviceProfile,
 }: PostCapabilitiesParams): Promise<AxiosResponse> => {
   if (!api || !itemId || !sessionId) {
     throw new Error("Missing parameters for marking item as not played");
@@ -33,7 +28,7 @@ export const postCapabilities = async ({
 
   try {
     const d = api.axiosInstance.post(
-      api.basePath + "/Sessions/Capabilities/Full",
+      `${api.basePath}/Sessions/Capabilities/Full`,
       {
         playableMediaTypes: ["Audio", "Video"],
         supportedCommands: [
@@ -52,10 +47,10 @@ export const postCapabilities = async ({
       },
       {
         headers: getAuthHeaders(api),
-      }
+      },
     );
     return d;
-  } catch (error: any | AxiosError) {
+  } catch (error) {
     throw new Error("Failed to mark as not played");
   }
 };

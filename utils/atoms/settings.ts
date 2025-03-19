@@ -1,19 +1,20 @@
-import { atom, useAtom } from "jotai";
-import { useCallback, useEffect, useMemo } from "react";
+import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { storage } from "../mmkv";
-import { Platform } from "react-native";
-import {
-  CultureDto,
-  SubtitlePlaybackMode,
-  ItemSortBy,
-  SortOrder,
-  BaseItemKind,
-  ItemFilter,
-} from "@jellyfin/sdk/lib/generated-client";
-import { Bitrate, BITRATES } from "@/components/BitrateSelector";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { Video } from "@/utils/jellyseerr/server/models/Movie";
 import { writeInfoLog } from "@/utils/log";
+import {
+  type BaseItemKind,
+  type CultureDto,
+  type ItemFilter,
+  type ItemSortBy,
+  type SortOrder,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
+import { atom, useAtom, useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo } from "react";
+import { Platform } from "react-native";
+import { storage } from "../mmkv";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -112,9 +113,15 @@ export type HomeSectionNextUpResolver = {
   enableRewatching?: boolean;
 };
 
+export enum VideoPlayer {
+  // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
+  VLC_3 = 0,
+  VLC_4 = 1,
+}
+
 export type Settings = {
   home?: Home | null;
-  autoRotate?: boolean;
+  followDeviceOrientation?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
@@ -145,6 +152,8 @@ export type Settings = {
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
+  enableH265ForChromecast: boolean;
+  defaultPlayer: VideoPlayer;
 };
 
 export interface Lockable<T> {
@@ -161,7 +170,7 @@ export type StreamyfinPluginConfig = {
 
 const defaultValues: Settings = {
   home: null,
-  autoRotate: true,
+  followDeviceOrientation: true,
   forceLandscapeInVideoPlayer: false,
   deviceProfile: "Expo",
   mediaListCollectionIds: [],
@@ -198,6 +207,8 @@ const defaultValues: Settings = {
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
+  enableH265ForChromecast: false,
+  defaultPlayer: VideoPlayer.VLC_3, // ios only setting. does not matter what this is for android
 };
 
 const loadSettings = (): Partial<Settings> => {
@@ -227,11 +238,11 @@ const saveSettings = (settings: Settings) => {
 
 export const settingsAtom = atom<Partial<Settings> | null>(null);
 export const pluginSettingsAtom = atom(
-  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS)
+  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS),
 );
 
 export const useSettings = () => {
-  const [api] = useAtom(apiAtom);
+  const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
@@ -247,7 +258,7 @@ export const useSettings = () => {
       storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, settings);
       _setPluginSettings(settings);
     },
-    [_setPluginSettings]
+    [_setPluginSettings],
   );
 
   const refreshStreamyfinPluginSettings = useCallback(async () => {
@@ -257,19 +268,26 @@ export const useSettings = () => {
         writeInfoLog(`Got remote settings: ${data?.settings}`);
         return data?.settings;
       },
-      (err) => undefined
+      (err) => undefined,
     );
     setPluginSettings(settings);
     return settings;
   }, [api]);
 
   const updateSettings = (update: Partial<Settings>) => {
-    if (settings) {
-      const newSettings = { ..._settings, ...update };
+    if (!_settings) return;
+    const hasChanges = Object.entries(update).some(
+      ([key, value]) => _settings[key as keyof Settings] !== value,
+    );
 
+    if (hasChanges) {
+      // Merge default settings, current settings, and updates to ensure all required properties exist
+      const newSettings = {
+        ...defaultValues,
+        ..._settings,
+        ...update,
+      } as Settings;
       setSettings(newSettings);
-
-      // @ts-expect-error
       saveSettings(newSettings);
     }
   };
@@ -297,12 +315,14 @@ export const useSettings = () => {
           }
 
           acc = Object.assign(acc, {
-            [key]: locked ? value : _settings?.[key as keyof Settings] ?? value,
+            [key]: locked
+              ? value
+              : (_settings?.[key as keyof Settings] ?? value),
           });
         }
         return acc;
       },
-      {} as Settings
+      {} as Settings,
     );
 
     return {

@@ -16,12 +16,12 @@ function withRNBackgroundDownloader(expoConfig) {
 
     // Find the index of the AppDelegate import statement
     const importIndex = appDelegateLines.findIndex((line) =>
-      /^#import "AppDelegate.h"/.test(line)
+      /^#import "AppDelegate.h"/.test(line),
     );
 
     // Find the index of the last line before the @end statement
     const endStatementIndex = appDelegateLines.findIndex((line) =>
-      /@end/.test(line)
+      /@end/.test(line),
     );
 
     // Insert the import statement if it's not already present
@@ -34,7 +34,7 @@ function withRNBackgroundDownloader(expoConfig) {
       appDelegateLines.splice(
         endStatementIndex,
         0,
-        backgroundDownloaderDelegate
+        backgroundDownloaderDelegate,
       );
     }
 

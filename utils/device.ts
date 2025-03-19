@@ -13,7 +13,7 @@ export const getOrSetDeviceId = () => {
 };
 
 export const getDeviceId = () => {
-  let deviceId = storage.getString("deviceId");
+  const deviceId = storage.getString("deviceId");
 
   return deviceId || null;
 };

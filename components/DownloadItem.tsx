@@ -2,7 +2,7 @@ import { useRemuxHlsToMp4 } from "@/hooks/useRemuxHlsToMp4";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
-import {DownloadMethod, useSettings} from "@/utils/atoms/settings";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
@@ -10,29 +10,30 @@ import download from "@/utils/profiles/download";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
-  BottomSheetBackdropProps,
+  type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import {
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { Href, router, useFocusEffect } from "expo-router";
+import { type Href, router, useFocusEffect } from "expo-router";
+import { t } from "i18next";
 import { useAtom } from "jotai";
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, View, ViewProps } from "react-native";
+import type React from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Alert, Platform, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import { AudioTrackSelector } from "./AudioTrackSelector";
-import { Bitrate, BitrateSelector } from "./BitrateSelector";
+import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
-import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { t } from "i18next";
+import { Text } from "./common/Text";
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
@@ -66,18 +67,20 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
   const [selectedSubtitleStream, setSelectedSubtitleStream] =
     useState<number>(0);
-  const [maxBitrate, setMaxBitrate] = useState<Bitrate>(settings?.defaultBitrate ?? {
-    key: "Max",
-    value: undefined,
-  });
+  const [maxBitrate, setMaxBitrate] = useState<Bitrate>(
+    settings?.defaultBitrate ?? {
+      key: "Max",
+      value: undefined,
+    },
+  );
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
-    [user]
+    [user],
   );
   const usingOptimizedServer = useMemo(
     () => settings?.downloadMethod === DownloadMethod.Optimized,
-    [settings]
+    [settings],
   );
 
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -97,7 +100,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const itemsNotDownloaded = useMemo(
     () =>
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
-    [items, downloadedFiles]
+    [items, downloadedFiles],
   );
 
   const allItemsDownloaded = useMemo(() => {
@@ -106,7 +109,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   }, [items, itemsNotDownloaded]);
   const itemsProcesses = useMemo(
     () => processes?.filter((p) => itemIds.includes(p.item.Id)),
-    [processes, itemIds]
+    [processes, itemIds],
   );
 
   const progress = useMemo(() => {
@@ -138,7 +141,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             params: {
               episodeSeasonIndex: firstItem.ParentIndexNumber,
             },
-          } as Href)
+          } as Href),
     );
   };
 
@@ -158,11 +161,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             id: item.Id!,
             execute: async () => await initiateDownload(item),
             item,
-          }))
+          })),
         );
       }
     } else {
-      toast.error(t("home.downloads.toasts.you_are_not_allowed_to_download_files"));
+      toast.error(
+        t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
+      );
     }
   }, [
     queue,
@@ -185,7 +190,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         (itemsNotDownloaded.length === 1 && !selectedMediaSource?.Id)
       ) {
         throw new Error(
-          "DownloadItem ~ initiateDownload: No api or user or item"
+          "DownloadItem ~ initiateDownload: No api or user or item",
         );
       }
       let mediaSource = selectedMediaSource;
@@ -216,7 +221,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         if (!res) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
-            t("home.downloads.could_not_get_stream_url_from_jellyfin")
+            t("home.downloads.could_not_get_stream_url_from_jellyfin"),
           );
           continue;
         }
@@ -246,7 +251,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       usingOptimizedServer,
       startBackgroundDownload,
       startRemuxing,
-    ]
+    ],
   );
 
   const renderBackdrop = useCallback(
@@ -257,7 +262,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
   useFocusEffect(
     useCallback(() => {
@@ -270,7 +275,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       setSelectedAudioStream(audioIndex ?? 0);
       setSelectedSubtitleStream(subtitleIndex ?? -1);
       setMaxBitrate(bitrate);
-    }, [items, itemsNotDownloaded, settings])
+    }, [items, itemsNotDownloaded, settings]),
   );
 
   const renderButtonContent = () => {
@@ -278,18 +283,18 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       return progress === 0 ? (
         <Loader />
       ) : (
-        <View className="-rotate-45">
+        <View className='-rotate-45'>
           <ProgressCircle
             size={24}
             fill={progress}
             width={4}
-            tintColor="#9334E9"
-            backgroundColor="#bdc3c7"
+            tintColor='#9334E9'
+            backgroundColor='#bdc3c7'
           />
         </View>
       );
     } else if (itemsQueued) {
-      return <Ionicons name="hourglass" size={24} color="white" />;
+      return <Ionicons name='hourglass' size={24} color='white' />;
     } else if (allItemsDownloaded) {
       return <DownloadedIconComponent />;
     } else {
@@ -327,16 +332,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         backdropComponent={renderBackdrop}
       >
         <BottomSheetView>
-          <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
+          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
             <View>
-              <Text className="font-bold text-2xl text-neutral-100">
+              <Text className='font-bold text-2xl text-neutral-100'>
                 {title}
               </Text>
-              <Text className="text-neutral-300">
-                {subtitle || t("item_card.download.download_x_item", {item_count: itemsNotDownloaded.length})}
+              <Text className='text-neutral-300'>
+                {subtitle ||
+                  t("item_card.download.download_x_item", {
+                    item_count: itemsNotDownloaded.length,
+                  })}
               </Text>
             </View>
-            <View className="flex flex-col space-y-2 w-full items-start">
+            <View className='flex flex-col space-y-2 w-full items-start'>
               <BitrateSelector
                 inverted
                 onChange={setMaxBitrate}
@@ -350,7 +358,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                     selected={selectedMediaSource}
                   />
                   {selectedMediaSource && (
-                    <View className="flex flex-col space-y-2">
+                    <View className='flex flex-col space-y-2'>
                       <AudioTrackSelector
                         source={selectedMediaSource}
                         onChange={setSelectedAudioStream}
@@ -367,14 +375,14 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
             </View>
             <Button
-              className="mt-auto"
+              className='mt-auto'
               onPress={acceptDownloadOptions}
-              color="purple"
+              color='purple'
             >
               {t("item_card.download.download_button")}
             </Button>
-            <View className="opacity-70 text-center w-full flex items-center">
-              <Text className="text-xs">
+            <View className='opacity-70 text-center w-full flex items-center'>
+              <Text className='text-xs'>
                 {usingOptimizedServer
                   ? t("item_card.download.using_optimized_server")
                   : t("item_card.download.using_default_method")}
@@ -391,19 +399,23 @@ export const DownloadSingleItem: React.FC<{
   size?: "default" | "large";
   item: BaseItemDto;
 }> = ({ item, size = "default" }) => {
+  if (Platform.isTV) return;
+
   return (
     <DownloadItems
       size={size}
-      title={item.Type == "Episode"
-        ? t("item_card.download.download_episode")
-        : t("item_card.download.download_movie")}
+      title={
+        item.Type == "Episode"
+          ? t("item_card.download.download_episode")
+          : t("item_card.download.download_movie")
+      }
       subtitle={item.Name!}
       items={[item]}
       MissingDownloadIconComponent={() => (
-        <Ionicons name="cloud-download-outline" size={24} color="white" />
+        <Ionicons name='cloud-download-outline' size={24} color='white' />
       )}
       DownloadedIconComponent={() => (
-        <Ionicons name="cloud-download" size={26} color="#9333ea" />
+        <Ionicons name='cloud-download' size={26} color='#9333ea' />
       )}
     />
   );

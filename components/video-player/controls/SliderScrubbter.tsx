@@ -1,11 +1,12 @@
-import { useTrickplay } from '@/hooks/useTrickplay';
-import { formatTimeString, msToTicks, ticksToSeconds } from '@/utils/time';
-import React, { useRef, useState } from 'react';
-import { View, Text } from 'react-native';
+import { useTrickplay } from "@/hooks/useTrickplay";
+import { formatTimeString, msToTicks, ticksToSeconds } from "@/utils/time";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
+import type React from "react";
+import { useRef, useState } from "react";
+import { Text, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import { SharedValue, useSharedValue } from 'react-native-reanimated';
-import { BaseItemDto } from '@jellyfin/sdk/lib/generated-client';
+import { type SharedValue, useSharedValue } from "react-native-reanimated";
 
 interface SliderScrubberProps {
   cacheProgress: SharedValue<number>;
@@ -30,12 +31,9 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
   remainingTime,
   item,
 }) => {
-
-
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
-    item,
-  );
+  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } =
+    useTrickplay(item);
 
   const handleSliderChange = (value: number) => {
     const progressInTicks = msToTicks(value);
@@ -86,7 +84,7 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
                 marginTop: -tileHeight / 4 - 60,
                 zIndex: 10,
               }}
-              className=" bg-neutral-800 overflow-hidden"
+              className=' bg-neutral-800 overflow-hidden'
             >
               <Image
                 cachePolicy={"memory-disk"}
@@ -101,7 +99,7 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
                   ],
                 }}
                 source={{ uri: url }}
-                contentFit="cover"
+                contentFit='cover'
               />
               <Text
                 style={{
@@ -116,9 +114,7 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
               >
                 {`${time.hours > 0 ? `${time.hours}:` : ""}${
                   time.minutes < 10 ? `0${time.minutes}` : time.minutes
-                }:${
-                  time.seconds < 10 ? `0${time.seconds}` : time.seconds
-                }`}
+                }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
               </Text>
             </View>
           );
@@ -129,11 +125,11 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
         minimumValue={min}
         maximumValue={max}
       />
-      <View className="flex flex-row items-center justify-between mt-0.5">
-        <Text className="text-[12px] text-neutral-400">
+      <View className='flex flex-row items-center justify-between mt-0.5'>
+        <Text className='text-[12px] text-neutral-400'>
           {formatTimeString(currentTime, "ms")}
         </Text>
-        <Text className="text-[12px] text-neutral-400">
+        <Text className='text-[12px] text-neutral-400'>
           -{formatTimeString(remainingTime, "ms")}
         </Text>
       </View>

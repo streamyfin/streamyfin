@@ -3,14 +3,14 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useRouter, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
-import { Dimensions, View, ViewProps } from "react-native";
+import { Dimensions, View, type ViewProps } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -18,7 +18,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Carousel, {
-  ICarouselInstance,
+  type ICarouselInstance,
   Pagination,
 } from "react-native-reanimated-carousel";
 import { itemRouter } from "../common/TouchableItemRouter";
@@ -88,13 +88,13 @@ export const LargeMovieCarousel: React.FC<Props> = ({ ...props }) => {
   if (!popularItems) return null;
 
   return (
-    <View className="flex flex-col items-center mt-2" {...props}>
+    <View className='flex flex-col items-center mt-2' {...props}>
       <Carousel
         ref={ref}
         autoPlay={false}
         loop={true}
         snapEnabled={true}
-        mode="parallax"
+        mode='parallax'
         modeConfig={{
           parallaxScrollingScale: 0.86,
           parallaxScrollingOffset: 100,
@@ -178,9 +178,9 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         style={{
           opacity: opacity,
         }}
-        className="px-4"
+        className='px-4'
       >
-        <View className="relative flex justify-center rounded-2xl overflow-hidden border border-neutral-800">
+        <View className='relative flex justify-center rounded-2xl overflow-hidden border border-neutral-800'>
           <Image
             source={{
               uri,
@@ -192,7 +192,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
               overflow: "hidden",
             }}
           />
-          <View className="absolute bottom-0 left-0 w-full h-24 p-4 flex items-center">
+          <View className='absolute bottom-0 left-0 w-full h-24 p-4 flex items-center'>
             <Image
               source={{
                 uri: logoUri,
