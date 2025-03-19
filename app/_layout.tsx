@@ -32,6 +32,7 @@ const BackgroundFetch = !Platform.isTV
   ? require("expo-background-fetch")
   : null;
 import * as FileSystem from "expo-file-system";
+import * as Device from "expo-device";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { Stack, router, useSegments } from "expo-router";
@@ -331,9 +332,12 @@ function Layout() {
         await registerBackgroundFetchAsyncSessions();
       }
 
-      Notifications?.getExpoPushTokenAsync()
-        .then((token: ExpoPushToken) => token && setExpoPushToken(token))
-        .catch((reason: any) => console.log("Failed to get token", reason));
+      // only create push token for real devices (pointless for emulators)
+      if(Device.isDevice) {
+        Notifications?.getExpoPushTokenAsync()
+          .then((token: ExpoPushToken) => token && setExpoPushToken(token))
+          .catch((reason: any) => console.log("Failed to get token", reason));
+      }
     }
 
     useEffect(() => {
