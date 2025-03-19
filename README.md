@@ -123,6 +123,10 @@ Streamyfin is developed by [Fredrik Burmester](https://github.com/fredrikburmest
 
 ## ✨ Acknowledgements
 
+We would like to thank the Jellyfin team for their great software and awesome support on discord.
+
+Special shoutout to the JF official clients for being a blueprint to ours.
+
 ### Core Developers
 
 Thanks to the following contributors for their significant contributions:
