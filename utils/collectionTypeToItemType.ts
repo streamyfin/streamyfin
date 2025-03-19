@@ -20,7 +20,7 @@ import {
     readonly Folders: "folders";
  */
 export const colletionTypeToItemType = (
-  collectionType?: CollectionType | null
+  collectionType?: CollectionType | null,
 ): BaseItemKind | undefined => {
   if (!collectionType) return undefined;
 

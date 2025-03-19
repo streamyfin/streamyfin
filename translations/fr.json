@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Autres",
-        "auto_rotate": "Rotation automatique",
+        "follow_device_orientation": "Rotation automatique",
         "video_orientation": "Orientation vidéo",
         "orientation": "Orientation",
         "orientations": {
@@ -129,12 +129,16 @@
           "UNKNOWN": "Inconnu"
         },
         "safe_area_in_controls": "Zone de sécurité dans les contrôles",
+        "video_player": "Video player",
+        "video_players": {
+          "VLC_3": "VLC 3",
+          "VLC_4": "VLC 4 (Experimental + PiP)"
+        },
         "show_custom_menu_links": "Afficher les liens personnalisés",
         "hide_libraries": "Cacher des bibliothèques",
-        "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l’onglet Bibliothèque et les sections de la page d’accueil.",
+        "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l'onglet Bibliothèque et les sections de la page d'accueil.",
         "disable_haptic_feedback": "Désactiver le retour haptique",
         "default_quality": "Qualité par défaut"
-
       },
       "downloads": {
         "downloads_title": "Téléchargements",
@@ -169,7 +173,13 @@
           "tv_quota_limit": "Limite de quota TV",
           "tv_quota_days": "Jours de quota TV",
           "reset_jellyseerr_config_button": "Réinitialiser la configuration Jellyseerr",
-          "unlimited": "Illimité"
+          "unlimited": "Illimité",
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Activer Marlin Search ",
@@ -205,7 +215,7 @@
         "app_language_description": "Sélectionnez la langue de l'application",
         "system": "Système"
       },
-      "toasts":{
+      "toasts": {
         "error_deleting_files": "Erreur lors de la suppression des fichiers",
         "background_downloads_enabled": "Téléchargements en arrière-plan activés",
         "background_downloads_disabled": "Téléchargements en arrière-plan désactivés",
@@ -324,6 +334,8 @@
       "years": "Années",
       "sort_by": "Trier par",
       "sort_order": "Ordre de tri",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Tags"
     }
   },
@@ -333,7 +345,9 @@
     "episodes": "Épisodes",
     "videos": "Vidéos",
     "boxsets": "Coffrets",
-    "playlists": "Listes de lecture"
+    "playlists": "Listes de lecture",
+    "noDataTitle": "Pas encore de favoris",
+    "noData": "Marquez des éléments comme favoris pour les voir apparaître ici pour un accès rapide."
   },
   "custom_links": {
     "no_links": "Aucuns liens"
@@ -400,7 +414,7 @@
     "for_kids": "Pour enfants",
     "news": "Actualités"
   },
-  "jellyseerr":{
+  "jellyseerr": {
     "confirm": "Confirmer",
     "cancel": "Annuler",
     "yes": "Oui",
@@ -434,7 +448,7 @@
     "tags": "Tags",
     "quality_profile": "Profil de qualité",
     "root_folder": "Dossier racine",
-    "season_x": "Saison {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Saison {{season_number}}",
     "number_episodes": "{{episode_number}} épisodes",
     "born": "Né(e) le",

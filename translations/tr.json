@@ -113,7 +113,7 @@
       },
       "other": {
         "other_title": "Diğer",
-        "auto_rotate": "Otomatik Döndürme",
+        "follow_device_orientation": "Otomatik Döndürme",
         "video_orientation": "Video Yönü",
         "orientation": "Yön",
         "orientations": {
@@ -129,6 +129,11 @@
           "UNKNOWN": "Bilinmeyen"
         },
         "safe_area_in_controls": "Kontrollerde Güvenli Alan",
+        "video_player": "Video player",
+        "video_players": {
+          "VLC_3": "VLC 3",
+          "VLC_4": "VLC 4 (Experimental + PiP)"
+        },
         "show_custom_menu_links": "Özel Menü Bağlantılarını Göster",
         "hide_libraries": "Kütüphaneleri Gizle",
         "select_liraries_you_want_to_hide": "Kütüphane sekmesinden ve ana sayfa bölümlerinden gizlemek istediğiniz kütüphaneleri seçin.",
@@ -167,7 +172,13 @@
           "tv_quota_limit": "TV kota limiti",
           "tv_quota_days": "TV kota günleri",
           "reset_jellyseerr_config_button": "Jellyseerr yapılandırmasını sıfırla",
-          "unlimited": "Sınırsız"
+          "unlimited": "Sınırsız",
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "Marlin Aramasını Etkinleştir ",
@@ -322,6 +333,8 @@
       "years": "Yıllar",
       "sort_by": "Sırala",
       "sort_order": "Sıralama düzeni",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "Etiketler"
     }
   },
@@ -331,7 +344,9 @@
     "episodes": "Bölümler",
     "videos": "Videolar",
     "boxsets": "Koleksiyonlar",
-    "playlists": "Çalma listeleri"
+    "playlists": "Çalma listeleri",
+    "noDataTitle": "Henüz favori yok",
+    "noData": "Hızlı erişim için öğeleri favori olarak işaretleyin ve burada görünmelerini sağlayın."
   },
   "custom_links": {
     "no_links": "Bağlantı yok"
@@ -432,7 +447,7 @@
     "tags": "Etiketler",
     "quality_profile": "Kalite Profili",
     "root_folder": "Kök Klasör",
-    "season_x": "Sezon {{seasons}}",
+    "season_all": "Season (all)",
     "season_number": "Sezon {{season_number}}",
     "number_episodes": "Bölüm {{episode_number}}",
     "born": "Doğum",

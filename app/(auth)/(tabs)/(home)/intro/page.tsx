@@ -15,26 +15,26 @@ export default function page() {
   useFocusEffect(
     useCallback(() => {
       storage.set("hasShownIntro", true);
-    }, [])
+    }, []),
   );
 
   return (
-    <View className="bg-neutral-900 h-full py-16 px-4 space-y-8">
+    <View className='bg-neutral-900 h-full py-16 px-4 space-y-8'>
       <View>
-        <Text className="text-3xl font-bold text-center mb-2">
+        <Text className='text-3xl font-bold text-center mb-2'>
           {t("home.intro.welcome_to_streamyfin")}
         </Text>
-        <Text className="text-center">
+        <Text className='text-center'>
           {t("home.intro.a_free_and_open_source_client_for_jellyfin")}
         </Text>
       </View>
 
       <View>
-        <Text className="text-lg font-bold">
+        <Text className='text-lg font-bold'>
           {t("home.intro.features_title")}
         </Text>
-        <Text className="text-xs">{t("home.intro.features_description")}</Text>
-        <View className="flex flex-row items-center mt-4">
+        <Text className='text-xs'>{t("home.intro.features_description")}</Text>
+        <View className='flex flex-row items-center mt-4'>
           <Image
             source={require("@/assets/icons/jellyseerr-logo.svg")}
             style={{
@@ -42,70 +42,70 @@ export default function page() {
               height: 50,
             }}
           />
-          <View className="shrink ml-2">
-            <Text className="font-bold mb-1">Jellyseerr</Text>
-            <Text className="shrink text-xs">
+          <View className='shrink ml-2'>
+            <Text className='font-bold mb-1'>Jellyseerr</Text>
+            <Text className='shrink text-xs'>
               {t("home.intro.jellyseerr_feature_description")}
             </Text>
           </View>
         </View>
-        <View className="flex flex-row items-center mt-4">
+        <View className='flex flex-row items-center mt-4'>
           <View
             style={{
               width: 50,
               height: 50,
             }}
-            className="flex items-center justify-center"
+            className='flex items-center justify-center'
           >
-            <Ionicons name="cloud-download-outline" size={32} color="white" />
+            <Ionicons name='cloud-download-outline' size={32} color='white' />
           </View>
-          <View className="shrink ml-2">
-            <Text className="font-bold mb-1">
+          <View className='shrink ml-2'>
+            <Text className='font-bold mb-1'>
               {t("home.intro.downloads_feature_title")}
             </Text>
-            <Text className="shrink text-xs">
+            <Text className='shrink text-xs'>
               {t("home.intro.downloads_feature_description")}
             </Text>
           </View>
         </View>
-        <View className="flex flex-row items-center mt-4">
+        <View className='flex flex-row items-center mt-4'>
           <View
             style={{
               width: 50,
               height: 50,
             }}
-            className="flex items-center justify-center"
+            className='flex items-center justify-center'
           >
-            <Feather name="cast" size={28} color={"white"} />
+            <Feather name='cast' size={28} color={"white"} />
           </View>
-          <View className="shrink ml-2">
-            <Text className="font-bold mb-1">Chromecast</Text>
-            <Text className="shrink text-xs">
+          <View className='shrink ml-2'>
+            <Text className='font-bold mb-1'>Chromecast</Text>
+            <Text className='shrink text-xs'>
               {t("home.intro.chromecast_feature_description")}
             </Text>
           </View>
         </View>
-        <View className="flex flex-row items-center mt-4">
+        <View className='flex flex-row items-center mt-4'>
           <View
             style={{
               width: 50,
               height: 50,
             }}
-            className="flex items-center justify-center"
+            className='flex items-center justify-center'
           >
-            <Feather name="settings" size={28} color={"white"} />
+            <Feather name='settings' size={28} color={"white"} />
           </View>
-          <View className="shrink ml-2">
-            <Text className="font-bold mb-1">
+          <View className='shrink ml-2'>
+            <Text className='font-bold mb-1'>
               {t("home.intro.centralised_settings_plugin_title")}
             </Text>
-            <Text className="shrink text-xs">
+            <Text className='shrink text-xs'>
               {t("home.intro.centralised_settings_plugin_description")}{" "}
               <Text
-                className="text-purple-600"
+                className='text-purple-600'
                 onPress={() => {
                   Linking.openURL(
-                    "https://github.com/streamyfin/jellyfin-plugin-streamyfin"
+                    "https://github.com/streamyfin/jellyfin-plugin-streamyfin",
                   );
                 }}
               >
@@ -120,7 +120,7 @@ export default function page() {
           onPress={() => {
             router.back();
           }}
-          className="mt-4"
+          className='mt-4'
         >
           {t("home.intro.done_button")}
         </Button>
@@ -129,9 +129,9 @@ export default function page() {
             router.back();
             router.push("/settings");
           }}
-          className="mt-4"
+          className='mt-4'
         >
-          <Text className="text-purple-600 text-center">
+          <Text className='text-purple-600 text-center'>
             {t("home.intro.go_to_settings_button")}
           </Text>
         </TouchableOpacity>

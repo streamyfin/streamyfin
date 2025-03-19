@@ -1,11 +1,12 @@
 import native from "@/utils/profiles/native";
-import { Api } from "@jellyfin/sdk";
-import {
+import type { Api } from "@jellyfin/sdk";
+import type {
   BaseItemDto,
   MediaSourceInfo,
   PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { Alert } from "react-native";
 
 export const getStreamUrl = async ({
   api,
@@ -62,7 +63,7 @@ export const getStreamUrl = async ({
         data: {
           deviceProfile,
         },
-      }
+      },
     );
     const transcodeUrl = res0.data.MediaSources?.[0].TranscodingUrl;
     sessionId = res0.data.PlaySessionId || null;
@@ -80,7 +81,6 @@ export const getStreamUrl = async ({
 
   const res2 = await getMediaInfoApi(api).getPlaybackInfo(
     {
-      userId,
       itemId: item.Id!,
     },
     {
@@ -95,7 +95,7 @@ export const getStreamUrl = async ({
         audioStreamIndex,
         subtitleStreamIndex,
       },
-    }
+    },
   );
 
   if (res2.status !== 200) {
@@ -105,7 +105,7 @@ export const getStreamUrl = async ({
   sessionId = res2.data.PlaySessionId || null;
 
   mediaSource = res2.data.MediaSources?.find(
-    (source: MediaSourceInfo) => source.Id === mediaSourceId
+    (source: MediaSourceInfo) => source.Id === mediaSourceId,
   );
 
   if (item.MediaType === "Video") {
@@ -148,4 +148,8 @@ export const getStreamUrl = async ({
       };
     }
   }
+
+  Alert.alert("Error", "Could not play this item");
+
+  return null;
 };

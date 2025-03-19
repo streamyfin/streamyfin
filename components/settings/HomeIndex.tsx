@@ -1,17 +1,18 @@
 import { Button } from "@/components/Button";
+import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
 import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
-import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { eventBus } from "@/utils/eventBus";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Api } from "@jellyfin/sdk";
-import {
+import type { Api } from "@jellyfin/sdk";
+import type {
   BaseItemDto,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
@@ -23,10 +24,15 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import NetInfo from "@react-native-community/netinfo";
-import { QueryFunction, useQuery } from "@tanstack/react-query";
-import { useNavigation, useRouter } from "expo-router";
+import { type QueryFunction, useQuery } from "@tanstack/react-query";
+import {
+  useNavigation,
+  usePathname,
+  useRouter,
+  useSegments,
+} from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -53,7 +59,7 @@ type MediaListSection = {
 
 type Section = ScrollingCollectionListSection | MediaListSection;
 
-export const SettingsIndex = () => {
+export const HomeIndex = () => {
   const router = useRouter();
 
   const { t } = useTranslation();
@@ -77,6 +83,8 @@ export const SettingsIndex = () => {
 
   const insets = useSafeAreaInsets();
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const { downloadedFiles, cleanCacheDirectory } = useDownload();
   useEffect(() => {
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
@@ -86,10 +94,10 @@ export const SettingsIndex = () => {
           onPress={() => {
             router.push("/(auth)/downloads");
           }}
-          className="p-2"
+          className='p-2'
         >
           <Feather
-            name="download"
+            name='download'
             color={hasDownloads ? Colors.primary : "white"}
             size={22}
           />
@@ -100,9 +108,21 @@ export const SettingsIndex = () => {
 
   useEffect(() => {
     cleanCacheDirectory().catch((e) =>
-      console.error("Something went wrong cleaning cache directory")
+      console.error("Something went wrong cleaning cache directory"),
     );
   }, []);
+
+  const segments = useSegments();
+  useEffect(() => {
+    const unsubscribe = eventBus.on("scrollToTop", () => {
+      if (segments[2] === "(home)")
+        scrollViewRef.current?.scrollTo({ y: -152, animated: true });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [segments]);
 
   const checkConnection = useCallback(async () => {
     setLoadingRetry(true);
@@ -154,33 +174,33 @@ export const SettingsIndex = () => {
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
-    [data, settings?.hiddenLibraries]
+    [data, settings?.hiddenLibraries],
   );
 
   const collections = useMemo(() => {
     const allow = ["movies", "tvshows"];
     return (
       userViews?.filter(
-        (c) => c.CollectionType && allow.includes(c.CollectionType)
+        (c) => c.CollectionType && allow.includes(c.CollectionType),
       ) || []
     );
   }, [userViews]);
 
   const invalidateCache = useInvalidatePlaybackProgressCache();
 
-  const refetch = useCallback(async () => {
+  const refetch = async () => {
     setLoading(true);
     await refreshStreamyfinPluginSettings();
     await invalidateCache();
     setLoading(false);
-  }, []);
+  };
 
   const createCollectionConfig = useCallback(
     (
       title: string,
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
-      parentId: string | undefined
+      parentId: string | undefined,
     ): ScrollingCollectionListSection => ({
       title,
       queryKey,
@@ -202,7 +222,7 @@ export const SettingsIndex = () => {
       },
       type: "ScrollingCollectionList",
     }),
-    [api, user?.Id]
+    [api, user?.Id],
   );
 
   let sections: Section[] = [];
@@ -224,7 +244,7 @@ export const SettingsIndex = () => {
           title || "",
           queryKey,
           includeItemTypes,
-          c.Id
+          c.Id,
         );
       });
 
@@ -292,7 +312,7 @@ export const SettingsIndex = () => {
             try {
               const suggestions = await getSuggestions(api, user.Id);
               const nextUpPromises = suggestions.map((series) =>
-                getNextUp(api, user.Id, series.Id)
+                getNextUp(api, user.Id, series.Id),
               );
               const nextUpResults = await Promise.all(nextUpPromises);
 
@@ -356,32 +376,32 @@ export const SettingsIndex = () => {
 
   if (isConnected === false) {
     return (
-      <View className="flex flex-col items-center justify-center h-full -mt-6 px-8">
-        <Text className="text-3xl font-bold mb-2">{t("home.no_internet")}</Text>
-        <Text className="text-center opacity-70">
+      <View className='flex flex-col items-center justify-center h-full -mt-6 px-8'>
+        <Text className='text-3xl font-bold mb-2'>{t("home.no_internet")}</Text>
+        <Text className='text-center opacity-70'>
           {t("home.no_internet_message")}
         </Text>
-        <View className="mt-4">
+        <View className='mt-4'>
           <Button
-            color="purple"
+            color='purple'
             onPress={() => router.push("/(auth)/downloads")}
-            justify="center"
+            justify='center'
             iconRight={
-              <Ionicons name="arrow-forward" size={20} color="white" />
+              <Ionicons name='arrow-forward' size={20} color='white' />
             }
           >
             {t("home.go_to_downloads")}
           </Button>
           <Button
-            color="black"
+            color='black'
             onPress={() => {
               checkConnection();
             }}
-            justify="center"
-            className="mt-2"
+            justify='center'
+            className='mt-2'
             iconRight={
               loadingRetry ? null : (
-                <Ionicons name="refresh" size={20} color="white" />
+                <Ionicons name='refresh' size={20} color='white' />
               )
             }
           >
@@ -398,9 +418,9 @@ export const SettingsIndex = () => {
 
   if (e1)
     return (
-      <View className="flex flex-col items-center justify-center h-full -mt-6">
-        <Text className="text-3xl font-bold mb-2">{t("home.oops")}</Text>
-        <Text className="text-center opacity-70">
+      <View className='flex flex-col items-center justify-center h-full -mt-6'>
+        <Text className='text-3xl font-bold mb-2'>{t("home.oops")}</Text>
+        <Text className='text-center opacity-70'>
           {t("home.error_message")}
         </Text>
       </View>
@@ -408,15 +428,17 @@ export const SettingsIndex = () => {
 
   if (l1)
     return (
-      <View className="justify-center items-center h-full">
+      <View className='justify-center items-center h-full'>
         <Loader />
       </View>
     );
 
   return (
     <ScrollView
+      scrollToOverflowEnabled={true}
+      ref={scrollViewRef}
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior='automatic'
       refreshControl={
         <RefreshControl refreshing={loading} onRefresh={refetch} />
       }
@@ -426,7 +448,7 @@ export const SettingsIndex = () => {
         paddingBottom: 16,
       }}
     >
-      <View className="flex flex-col space-y-4">
+      <View className='flex flex-col space-y-4'>
         <LargeMovieCarousel />
 
         {sections.map((section, index) => {
@@ -473,7 +495,7 @@ async function getSuggestions(api: Api, userId: string | undefined) {
 async function getNextUp(
   api: Api,
   userId: string | undefined,
-  seriesId: string | undefined
+  seriesId: string | undefined,
 ) {
   if (!userId || !seriesId) return null;
   const response = await getTvShowsApi(api).getNextUp({

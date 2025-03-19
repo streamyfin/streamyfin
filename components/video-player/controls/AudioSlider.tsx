@@ -1,25 +1,28 @@
-import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Platform } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
+import type React from "react";
+import { useEffect, useRef } from "react";
+import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-// import { VolumeManager } from "react-native-volume-manager";
-const VolumeManager = !Platform.isTV
-  ? require("react-native-volume-manager")
-  : null;
+import { useSharedValue } from "react-native-reanimated";
+const VolumeManager = Platform.isTV
+  ? null
+  : require("react-native-volume-manager");
 import { Ionicons } from "@expo/vector-icons";
+import type { VolumeResult } from "react-native-volume-manager";
 
 interface AudioSliderProps {
   setVisibility: (show: boolean) => void;
 }
 
 const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
-  if (Platform.isTV) return;
+  if (Platform.isTV) {
+    return;
+  }
 
   const volume = useSharedValue<number>(50); // Explicitly type as number
   const min = useSharedValue<number>(0); // Explicitly type as number
   const max = useSharedValue<number>(100); // Explicitly type as number
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null); // Use a ref to store the timeout ID
+  const timeoutRef = useRef<number | null>(null); // Use a ref to store the timeout ID
 
   useEffect(() => {
     const fetchInitialVolume = async () => {
@@ -50,20 +53,22 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   };
 
   useEffect(() => {
-    const volumeListener = VolumeManager.addVolumeListener((result) => {
-      volume.value = result.volume * 100;
-      setVisibility(true);
+    const volumeListener = VolumeManager.addVolumeListener(
+      (result: VolumeResult) => {
+        volume.value = result.volume * 100;
+        setVisibility(true);
 
-      // Clear any existing timeout
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+        // Clear any existing timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
 
-      // Set a new timeout to hide the visibility after 2 seconds
-      timeoutRef.current = setTimeout(() => {
-        setVisibility(false);
-      }, 1000);
-    });
+        // Set a new timeout to hide the visibility after 2 seconds
+        timeoutRef.current = setTimeout(() => {
+          setVisibility(false);
+        }, 1000);
+      },
+    );
 
     return () => {
       volumeListener.remove();
@@ -92,9 +97,9 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
         }}
       />
       <Ionicons
-        name="volume-high"
+        name='volume-high'
         size={20}
-        color="#FDFDFD"
+        color='#FDFDFD'
         style={{
           marginLeft: 8,
         }}

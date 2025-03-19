@@ -1,11 +1,11 @@
+import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
-import { WatchedIndicator } from "@/components/WatchedIndicator";
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -25,7 +25,7 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
   }, [item]);
 
   const [progress, setProgress] = useState(
-    item.UserData?.PlayedPercentage || 0
+    item.UserData?.PlayedPercentage || 0,
   );
 
   const blurhash = useMemo(() => {
@@ -34,7 +34,7 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
   }, [item]);
 
   return (
-    <View className="relative rounded-lg overflow-hidden border border-neutral-900">
+    <View className='relative rounded-lg overflow-hidden border border-neutral-900'>
       <Image
         placeholder={{
           blurhash,
@@ -49,7 +49,7 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
             : null
         }
         cachePolicy={"memory-disk"}
-        contentFit="cover"
+        contentFit='cover'
         style={{
           aspectRatio: "10/15",
           width: "100%",
@@ -57,7 +57,7 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
       />
       <WatchedIndicator item={item} />
       {showProgress && progress > 0 && (
-        <View className="h-1 bg-red-600 w-full"></View>
+        <View className='h-1 bg-red-600 w-full'></View>
       )}
     </View>
   );

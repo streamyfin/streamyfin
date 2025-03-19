@@ -1,5 +1,6 @@
 import { useHaptic } from "@/hooks/useHaptic";
-import React, { PropsWithChildren, ReactNode, useMemo } from "react";
+import type React from "react";
+import { type PropsWithChildren, type ReactNode, useMemo } from "react";
 import { Platform, Text, TouchableOpacity, View } from "react-native";
 import { Loader } from "./Loader";
 
@@ -63,7 +64,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       {...props}
     >
       {loading ? (
-        <View className="p-0.5">
+        <View className='p-0.5'>
           <Loader />
         </View>
       ) : (
@@ -72,7 +73,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
             flex flex-row items-center justify-between w-full
             ${justify === "between" ? "justify-between" : "justify-center"}`}
         >
-          {iconLeft ? iconLeft : <View className="w-4"></View>}
+          {iconLeft ? iconLeft : <View className='w-4'></View>}
           <Text
             className={`
           text-white font-bold text-base
@@ -84,7 +85,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           >
             {children}
           </Text>
-          {iconRight ? iconRight : <View className="w-4"></View>}
+          {iconRight ? iconRight : <View className='w-4'></View>}
         </View>
       )}
     </TouchableOpacity>

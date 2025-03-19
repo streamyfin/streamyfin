@@ -1,5 +1,5 @@
-import { Api } from "@jellyfin/sdk";
-import {
+import type { Api } from "@jellyfin/sdk";
+import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";

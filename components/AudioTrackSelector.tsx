@@ -1,9 +1,9 @@
-import { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
+import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { Text } from "./common/Text";
 import { useTranslation } from "react-i18next";
+import { Text } from "./common/Text";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
@@ -20,31 +20,31 @@ export const AudioTrackSelector: React.FC<Props> = ({
   if (Platform.isTV) return null;
   const audioStreams = useMemo(
     () => source?.MediaStreams?.filter((x) => x.Type === "Audio"),
-    [source]
+    [source],
   );
 
   const selectedAudioSteam = useMemo(
     () => audioStreams?.find((x) => x.Index === selected),
-    [audioStreams, selected]
+    [audioStreams, selected],
   );
 
   const { t } = useTranslation();
 
   return (
     <View
-      className="flex shrink"
+      className='flex shrink'
       style={{
         minWidth: 50,
       }}
     >
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
-          <View className="flex flex-col" {...props}>
-            <Text className="opacity-50 mb-1 text-xs">
+          <View className='flex flex-col' {...props}>
+            <Text className='opacity-50 mb-1 text-xs'>
               {t("item_card.audio")}
             </Text>
-            <TouchableOpacity className="bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-              <Text className="" numberOfLines={1}>
+            <TouchableOpacity className='bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+              <Text className='' numberOfLines={1}>
                 {selectedAudioSteam?.DisplayTitle}
               </Text>
             </TouchableOpacity>
@@ -52,8 +52,8 @@ export const AudioTrackSelector: React.FC<Props> = ({
         </DropdownMenu.Trigger>
         <DropdownMenu.Content
           loop={true}
-          side="bottom"
-          align="start"
+          side='bottom'
+          align='start'
           alignOffset={0}
           avoidCollisions={true}
           collisionPadding={8}

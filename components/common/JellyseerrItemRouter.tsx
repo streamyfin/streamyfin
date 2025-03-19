@@ -1,21 +1,28 @@
-import { useRouter, useSegments } from "expo-router";
-import React, { PropsWithChildren, useCallback, useMemo } from "react";
-import { TouchableOpacity, TouchableOpacityProps } from "react-native";
 import * as ContextMenu from "@/components/ContextMenu";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  hasPermission,
-  Permission,
-} from "@/utils/jellyseerr/server/lib/permissions";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import {
+  Permission,
+  hasPermission,
+} from "@/utils/jellyseerr/server/lib/permissions";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type {
+  MovieResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { useRouter, useSegments } from "expo-router";
+import type React from "react";
+import { type PropsWithChildren, useCallback, useMemo } from "react";
+import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 
 interface Props extends TouchableOpacityProps {
-  result: MovieResult | TvResult;
+  result?: MovieResult | TvResult | MovieDetails | TvDetails;
   mediaTitle: string;
   releaseYear: number;
   canRequest: boolean;
   posterSrc: string;
+  mediaType: MediaType;
 }
 
 export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
@@ -24,6 +31,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
   releaseYear,
   canRequest,
   posterSrc,
+  mediaType,
   children,
   ...props
 }) => {
@@ -42,14 +50,13 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
     );
   }, [jellyseerrApi, jellyseerrUser]);
 
-  const request = useCallback(
-    () =>
-      requestMedia(mediaTitle, {
-        mediaId: result.id,
-        mediaType: result.mediaType,
-      }),
-    [jellyseerrApi, result]
-  );
+  const request = useCallback(() => {
+    if (!result) return;
+    requestMedia(mediaTitle, {
+      mediaId: result.id,
+      mediaType,
+    });
+  }, [jellyseerrApi, result]);
 
   if (from === "(home)" || from === "(search)" || from === "(libraries)")
     return (
@@ -58,6 +65,8 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
           <ContextMenu.Trigger>
             <TouchableOpacity
               onPress={() => {
+                if (!result) return;
+
                 // @ts-ignore
                 router.push({
                   pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
@@ -67,6 +76,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
                     releaseYear,
                     canRequest,
                     posterSrc,
+                    mediaType,
                   },
                 });
               }}
@@ -82,10 +92,10 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
             loop={false}
             key={"content"}
           >
-            <ContextMenu.Label key="label-1">Actions</ContextMenu.Label>
-            {canRequest && result.mediaType === MediaType.MOVIE && (
+            <ContextMenu.Label key='label-1'>Actions</ContextMenu.Label>
+            {canRequest && mediaType === MediaType.MOVIE && (
               <ContextMenu.Item
-                key="item-1"
+                key='item-1'
                 onSelect={() => {
                   if (autoApprove) {
                     request();
@@ -93,7 +103,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
                 }}
                 shouldDismissMenuOnSelect
               >
-                <ContextMenu.ItemTitle key="item-1-title">
+                <ContextMenu.ItemTitle key='item-1-title'>
                   Request
                 </ContextMenu.ItemTitle>
                 <ContextMenu.ItemIcon
@@ -107,7 +117,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
                       light: "purple",
                     },
                   }}
-                  androidIconName="download"
+                  androidIconName='download'
                 />
               </ContextMenu.Item>
             )}

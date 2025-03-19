@@ -31,16 +31,18 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 53,
+      "versionCode": 54,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive_icon.png"
+        "foregroundImage": "./assets/images/adaptive_icon.png",
+        "backgroundColor": "#464646"
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WRITE_SETTINGS"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "@react-native-tvos/config-tv",
@@ -118,6 +120,13 @@
           "image": "./assets/images/StreamyFinFinal.png",
           "imageWidth": 100
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification.png",
+          "color": "#9333EA"
+        }
       ]
     ],
     "experiments": {
@@ -131,7 +140,7 @@
         "projectId": "e79219d1-797f-4fbe-9fa1-cfd360690a68"
       }
     },
-    "owner": "fredrikburmester",
+    "owner": "streamyfin",
     "runtimeVersion": {
       "policy": "appVersion"
     },

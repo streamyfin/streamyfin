@@ -81,8 +81,8 @@
       },
       "media_controls": {
         "media_controls_title": "媒體控制",
-        "forward_skip_length": "前進跳過長度",
-        "rewind_length": "倒帶長度",
+        "forward_skip_length": "快進秒數",
+        "rewind_length": "倒帶秒數",
         "seconds_unit": "秒"
       },
       "audio": {
@@ -108,12 +108,12 @@
           "Smart": "智能",
           "Always": "總是",
           "None": "無",
-          "OnlyForced": "僅強制"
+          "OnlyForced": "僅強制字幕"
         }
       },
       "other": {
         "other_title": "其他",
-        "auto_rotate": "自動旋轉",
+        "follow_device_orientation": "自動旋轉",
         "video_orientation": "影片方向",
         "orientation": "方向",
         "orientations": {
@@ -129,6 +129,11 @@
           "UNKNOWN": "未知"
         },
         "safe_area_in_controls": "控制中的安全區域",
+        "video_player": "Video player",
+        "video_players": {
+          "VLC_3": "VLC 3",
+          "VLC_4": "VLC 4 (Experimental + PiP)"
+        },
         "show_custom_menu_links": "顯示自定義菜單鏈接",
         "hide_libraries": "隱藏媒體庫",
         "select_liraries_you_want_to_hide": "選擇您想從媒體庫頁面和主頁隱藏的媒體庫。",
@@ -142,7 +147,7 @@
         "optimized_versions_server": "Optimized Version 伺服器",
         "save_button": "保存",
         "optimized_server": "Optimized Server",
-        "optimized": "優化",
+        "optimized": "已優化",
         "default": "默認",
         "optimized_version_hint": "輸入 Optimized Server 的 URL。URL 應包括 http(s) 和端口 (可選)。",
         "read_more_about_optimized_server": "閱讀更多關於 Optimized Server 的信息。",
@@ -152,7 +157,7 @@
       "plugins": {
         "plugins_title": "插件",
         "jellyseerr": {
-          "jellyseerr_warning": "此集成處於早期階段。功能可能會有變化。",
+          "jellyseerr_warning": "此插件處於早期階段。功能可能會有變化。",
           "server_url": "伺服器 URL",
           "server_url_hint": "示例：http(s)://your-host.url\n（如果需要，添加端口）",
           "server_url_placeholder": "Jellyseerr URL...",
@@ -167,7 +172,13 @@
           "tv_quota_limit": "電視配額限制",
           "tv_quota_days": "電視配額天數",
           "reset_jellyseerr_config_button": "重置 Jellyseerr 配置",
-          "unlimited": "無限制"
+          "unlimited": "無限制",
+          "plus_n_more": "+{{n}} more",
+          "order_by": {
+            "DEFAULT": "Default",
+            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
+            "POPULARITY": "Popularity"
+          }
         },
         "marlin_search": {
           "enable_marlin_search": "啟用 Marlin 搜索",
@@ -322,6 +333,8 @@
       "years": "年份",
       "sort_by": "排序依據",
       "sort_order": "排序順序",
+      "asc": "Ascending",
+      "desc": "Descending",
       "tags": "標籤"
     }
   },
@@ -331,7 +344,9 @@
     "episodes": "劇集",
     "videos": "影片",
     "boxsets": "套裝",
-    "playlists": "播放列表"
+    "playlists": "播放列表",
+    "noDataTitle": "尚無收藏",
+    "noData": "將項目標記為收藏，它們將顯示在此處以便快速訪問。"
   },
   "custom_links": {
     "no_links": "無鏈接"
@@ -342,7 +357,7 @@
     "an_error_occured_while_playing_the_video": "播放影片時發生錯誤。請檢查設置中的日誌。",
     "client_error": "客戶端錯誤",
     "could_not_create_stream_for_chromecast": "無法為 Chromecast 建立串流",
-    "message_from_server": "來自伺服器的消息：{{message}}",
+    "message_from_server": "來自伺服器的消息",
     "video_has_finished_playing": "影片播放完畢！",
     "no_video_source": "無影片來源...",
     "next_episode": "下一集",
@@ -410,7 +425,7 @@
     "submit_button": "提交",
     "report_issue_button": "報告問題",
     "request_button": "請求",
-    "are_you_sure_you_want_to_request_all_seasons": "您確定要請求所有季度的節目嗎？",
+    "are_you_sure_you_want_to_request_all_seasons": "您確定要請求所有季度的劇集嗎？",
     "failed_to_login": "登入失敗",
     "cast": "演員",
     "details": "詳情",
@@ -427,18 +442,18 @@
     "studios": "工作室",
     "network": "網絡",
     "currently_streaming_on": "目前在以下流媒體上播放",
-    "advanced": "高級",
-    "request_as": "請求為",
+    "advanced": "高級設定",
+    "request_as": "選擇用戶以作請求",
     "tags": "標籤",
     "quality_profile": "質量配置文件",
     "root_folder": "根文件夾",
-    "season_x": "第 {{seasons}} 季",
+    "season_all": "Season (all)",
     "season_number": "第 {{season_number}} 季",
     "number_episodes": "{{episode_number}} 集",
     "born": "出生",
     "appearances": "出場",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Jellyseerr 伺服器不符合最低版本要求！請更新至至少 2.0.0",
+      "jellyseer_does_not_meet_requirements": "Jellyseerr 伺服器不符合最低版本要求！請使用 2.0.0 及以上版本。",
       "jellyseerr_test_failed": "Jellyseerr 測試失敗。請再試一次。",
       "failed_to_test_jellyseerr_server_url": "無法測試 Jellyseerr 伺服器 URL",
       "issue_submitted": "問題已提交！",
@@ -450,7 +465,7 @@
   "tabs": {
     "home": "主頁",
     "search": "搜索",
-    "library": "庫",
+    "library": "媒體庫",
     "custom_links": "自定義鏈接",
     "favorites": "收藏"
   }

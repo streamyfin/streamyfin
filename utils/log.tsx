@@ -1,7 +1,8 @@
-import { atomWithStorage, createJSONStorage } from "jotai/utils";
-import { storage } from "./mmkv";
 import { useQuery } from "@tanstack/react-query";
-import React, { createContext, useContext } from "react";
+import { atomWithStorage, createJSONStorage } from "jotai/utils";
+import type React from "react";
+import { createContext, useContext } from "react";
+import { storage } from "./mmkv";
 
 type LogLevel = "INFO" | "WARN" | "ERROR";
 
@@ -20,10 +21,10 @@ const mmkvStorage = createJSONStorage(() => ({
 const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 
 const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null
+  null,
 );
 const DownloadContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null
+  null,
 );
 
 function useLogProvider() {

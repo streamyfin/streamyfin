@@ -1,9 +1,9 @@
-import { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
+import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 
-export const chromecastProfile: DeviceProfile = {
+export const chromecast: DeviceProfile = {
   Name: "Chromecast Video Profile",
-  MaxStreamingBitrate: 8000000, // 8 Mbps
-  MaxStaticBitrate: 8000000, // 8 Mbps
+  MaxStreamingBitrate: 16000000, // 16 Mbps
+  MaxStaticBitrate: 16000000, // 16 Mbps
   MusicStreamingTranscodingBitrate: 384000, // 384 kbps
   CodecProfiles: [
     {
@@ -60,6 +60,7 @@ export const chromecastProfile: DeviceProfile = {
       Protocol: "http",
       Context: "Streaming",
       MaxAudioChannels: "2",
+      MinSegments: 2,
     },
     {
       Container: "mp3",

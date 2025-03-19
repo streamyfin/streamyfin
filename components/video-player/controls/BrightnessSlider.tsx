@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Platform } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
+import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
+import { useSharedValue } from "react-native-reanimated";
 // import * as Brightness from "expo-brightness";
 const Brightness = !Platform.isTV ? require("expo-brightness") : null;
 import { Ionicons } from "@expo/vector-icons";
@@ -46,9 +46,9 @@ const BrightnessSlider = () => {
         }}
       />
       <Ionicons
-        name="sunny"
+        name='sunny'
         size={20}
-        color="#FDFDFD"
+        color='#FDFDFD'
         style={{
           marginLeft: 8,
         }}

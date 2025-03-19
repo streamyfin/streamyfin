@@ -12,7 +12,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
   if (!id && !url)
     return (
       <View
-        className="border border-neutral-900"
+        className='border border-neutral-900'
         style={{
           aspectRatio: "10/15",
         }}
@@ -20,7 +20,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
     );
 
   return (
-    <View className="rounded-lg overflow-hidden border border-neutral-900">
+    <View className='rounded-lg overflow-hidden border border-neutral-900'>
       <Image
         placeholder={
           blurhash
@@ -30,7 +30,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
             : null
         }
         key={id}
-        id={id!!}
+        id={id!}
         source={
           url
             ? {
@@ -39,7 +39,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
             : null
         }
         cachePolicy={"memory-disk"}
-        contentFit="cover"
+        contentFit='cover'
         style={{
           aspectRatio: "10/15",
         }}

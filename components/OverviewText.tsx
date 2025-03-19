@@ -1,8 +1,8 @@
-import { TouchableOpacity, View, ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import { tc } from "@/utils/textTools";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 
 interface Props extends ViewProps {
   text?: string | null;
@@ -20,20 +20,22 @@ export const OverviewText: React.FC<Props> = ({
   if (!text) return null;
 
   return (
-    <View className="flex flex-col" {...props}>
-      <Text className="text-lg font-bold mb-2">{t("item_card.overview")}</Text>
+    <View className='flex flex-col' {...props}>
+      <Text className='text-lg font-bold mb-2'>{t("item_card.overview")}</Text>
       <TouchableOpacity
         onPress={() =>
           setLimit((prev) =>
-            prev === characterLimit ? text.length : characterLimit
+            prev === characterLimit ? text.length : characterLimit,
           )
         }
       >
         <View>
           <Text>{tc(text, limit)}</Text>
           {text.length > characterLimit && (
-            <Text className="text-purple-600 mt-1">
-              {limit === characterLimit ? t("item_card.show_more") : t("item_card.show_less")}
+            <Text className='text-purple-600 mt-1'>
+              {limit === characterLimit
+                ? t("item_card.show_more")
+                : t("item_card.show_less")}
             </Text>
           )}
         </View>

@@ -1,14 +1,16 @@
-import { Platform } from "react-native";
+import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 import { Alert, TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
@@ -20,10 +22,8 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Button } from "./Button";
-import { SelectedOptions } from "./ItemContent";
-import { useTranslation } from "react-i18next";
-import { useHaptic } from "@/hooks/useHaptic";
+import type { Button } from "./Button";
+import type { SelectedOptions } from "./ItemContent";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -57,13 +57,14 @@ export const PlayButton: React.FC<Props> = ({
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
-    (q: string, bitrateValue: number | undefined) => {
+    (q: string) => {
       router.push(`/player/direct-player?${q}`);
     },
-    [router]
+    [router],
   );
 
-  const onPress = useCallback(async () => {
+  const onPress = () => {
+    console.log("onpress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -77,17 +78,9 @@ export const PlayButton: React.FC<Props> = ({
     });
 
     const queryString = queryParams.toString();
-    goToPlayer(queryString, selectedOptions.bitrate?.value);
+    goToPlayer(queryString);
     return;
-  }, [
-    item,
-    settings,
-    api,
-    user,
-    router,
-    showActionSheetWithOptions,
-    selectedOptions,
-  ]);
+  };
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item || !item.RunTimeTicks) return 0;
@@ -96,7 +89,7 @@ export const PlayButton: React.FC<Props> = ({
       return userData.PlaybackPositionTicks > 0
         ? Math.max(
             (userData.PlaybackPositionTicks / item.RunTimeTicks) * 100,
-            MIN_PLAYBACK_WIDTH
+            MIN_PLAYBACK_WIDTH,
           )
         : 0;
     }
@@ -113,7 +106,7 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.7, 0, 0.3, 1.0),
       });
     },
-    [item]
+    [item],
   );
 
   useAnimatedReaction(
@@ -126,7 +119,7 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.9, 0, 0.31, 0.99),
       });
     },
-    [colorAtom]
+    [colorAtom],
   );
 
   useEffect(() => {
@@ -147,7 +140,7 @@ export const PlayButton: React.FC<Props> = ({
     backgroundColor: interpolateColor(
       colorChangeProgress.value,
       [0, 1],
-      [startColor.value.primary, endColor.value.primary]
+      [startColor.value.primary, endColor.value.primary],
     ),
   }));
 
@@ -155,7 +148,7 @@ export const PlayButton: React.FC<Props> = ({
     backgroundColor: interpolateColor(
       colorChangeProgress.value,
       [0, 1],
-      [startColor.value.primary, endColor.value.primary]
+      [startColor.value.primary, endColor.value.primary],
     ),
   }));
 
@@ -163,7 +156,7 @@ export const PlayButton: React.FC<Props> = ({
     width: `${interpolate(
       widthProgress.value,
       [0, 1],
-      [startWidth.value, targetWidth.value]
+      [startWidth.value, targetWidth.value],
     )}%`,
   }));
 
@@ -171,7 +164,7 @@ export const PlayButton: React.FC<Props> = ({
     color: interpolateColor(
       colorChangeProgress.value,
       [0, 1],
-      [startColor.value.text, endColor.value.text]
+      [startColor.value.text, endColor.value.text],
     ),
   }));
   /**
@@ -179,69 +172,55 @@ export const PlayButton: React.FC<Props> = ({
    */
 
   return (
-    <View>
-      <TouchableOpacity
-        disabled={!item}
-        accessibilityLabel="Play button"
-        accessibilityHint="Tap to play the media"
-        onPress={onPress}
-        className={`relative`}
-        {...props}
-      >
-        <View className="absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden">
-          <Animated.View
-            style={[
-              animatedPrimaryStyle,
-              animatedWidthStyle,
-              {
-                height: "100%",
-              },
-            ]}
-          />
-        </View>
-
+    <TouchableOpacity
+      accessibilityLabel='Play button'
+      accessibilityHint='Tap to play the media'
+      onPress={onPress}
+      className={`relative`}
+      {...props}
+    >
+      <View className='absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden'>
         <Animated.View
-          style={[animatedAverageStyle, { opacity: 0.5 }]}
-          className="absolute w-full h-full top-0 left-0 rounded-xl"
+          style={[
+            animatedPrimaryStyle,
+            animatedWidthStyle,
+            {
+              height: "100%",
+            },
+          ]}
         />
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: colorAtom.primary,
-            borderStyle: "solid",
-          }}
-          className="flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full "
-        >
-          <View className="flex flex-row items-center space-x-2">
-            <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-              {runtimeTicksToMinutes(item?.RunTimeTicks)}
-            </Animated.Text>
+      </View>
+
+      <Animated.View
+        style={[animatedAverageStyle, { opacity: 0.5 }]}
+        className='absolute w-full h-full top-0 left-0 rounded-xl'
+      />
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: colorAtom.primary,
+          borderStyle: "solid",
+        }}
+        className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
+      >
+        <View className='flex flex-row items-center space-x-2'>
+          <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
+            {runtimeTicksToMinutes(item?.RunTimeTicks)}
+          </Animated.Text>
+          <Animated.Text style={animatedTextStyle}>
+            <Ionicons name='play-circle' size={24} />
+          </Animated.Text>
+          {settings?.openInVLC && (
             <Animated.Text style={animatedTextStyle}>
-              <Ionicons name="play-circle" size={24} />
+              <MaterialCommunityIcons
+                name='vlc'
+                size={18}
+                color={animatedTextStyle.color}
+              />
             </Animated.Text>
-            {settings?.openInVLC && (
-              <Animated.Text style={animatedTextStyle}>
-                <MaterialCommunityIcons
-                  name="vlc"
-                  size={18}
-                  color={animatedTextStyle.color}
-                />
-              </Animated.Text>
-            )}
-          </View>
+          )}
         </View>
-      </TouchableOpacity>
-      {/* <View className="mt-2 flex flex-row items-center">
-        <Ionicons
-          name="information-circle"
-          size={12}
-          className=""
-          color={"#9BA1A6"}
-        />
-        <Text className="text-neutral-500 ml-1">
-          {directStream ? "Direct stream" : "Transcoded stream"}
-        </Text>
-      </View> */}
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 };

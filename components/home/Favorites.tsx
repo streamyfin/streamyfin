@@ -1,20 +1,42 @@
+import { Colors } from "@/constants/Colors";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import type { Api } from "@jellyfin/sdk";
+import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useAtom } from "jotai";
-import { View } from "react-native";
-import { ScrollingCollectionList } from "./ScrollingCollectionList";
-import { useCallback } from "react";
-import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { t } from "i18next";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useState } from "react";
+import { Image, Text, View } from "react-native";
+import { ScrollingCollectionList } from "./ScrollingCollectionList";
+
+// PNG ASSET
+import heart from "@/assets/icons/heart.fill.png";
+
+type FavoriteTypes =
+  | "Series"
+  | "Movie"
+  | "Episode"
+  | "Video"
+  | "BoxSet"
+  | "Playlist";
+type EmptyState = Record<FavoriteTypes, boolean>;
 
 export const Favorites = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const [emptyState, setEmptyState] = useState<EmptyState>({
+    Series: false,
+    Movie: false,
+    Episode: false,
+    Video: false,
+    BoxSet: false,
+    Playlist: false,
+  });
 
   const fetchFavoritesByType = useCallback(
     async (itemType: BaseItemKind) => {
-      const response = await getItemsApi(api!).getItems({
-        userId: user?.Id!,
+      const response = await getItemsApi(api as Api).getItems({
+        userId: user?.Id,
         sortBy: ["SeriesSortName", "SortName"],
         sortOrder: ["Ascending"],
         filters: ["IsFavorite"],
@@ -26,38 +48,82 @@ export const Favorites = () => {
         limit: 20,
         includeItemTypes: [itemType],
       });
-      return response.data.Items || [];
+      const items = response.data.Items || [];
+
+      // Update empty state for this specific type
+      setEmptyState((prev) => ({
+        ...prev,
+        [itemType as FavoriteTypes]: items.length === 0,
+      }));
+
+      return items;
     },
-    [api, user]
+    [api, user],
   );
+
+  // Reset empty state when component mounts or dependencies change
+  useEffect(() => {
+    setEmptyState({
+      Series: false,
+      Movie: false,
+      Episode: false,
+      Video: false,
+      BoxSet: false,
+      Playlist: false,
+    });
+  }, [api, user]);
+
+  // Check if all categories that have been loaded are empty
+  const areAllEmpty = () => {
+    const loadedCategories = Object.values(emptyState);
+    return (
+      loadedCategories.length > 0 &&
+      loadedCategories.every((isEmpty) => isEmpty)
+    );
+  };
 
   const fetchFavoriteSeries = useCallback(
     () => fetchFavoritesByType("Series"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteMovies = useCallback(
     () => fetchFavoritesByType("Movie"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteEpisodes = useCallback(
     () => fetchFavoritesByType("Episode"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteVideos = useCallback(
     () => fetchFavoritesByType("Video"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoriteBoxsets = useCallback(
     () => fetchFavoritesByType("BoxSet"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
   const fetchFavoritePlaylists = useCallback(
     () => fetchFavoritesByType("Playlist"),
-    [fetchFavoritesByType]
+    [fetchFavoritesByType],
   );
 
   return (
-    <View className="flex flex-co gap-y-4">
+    <View className='flex flex-co gap-y-4'>
+      {areAllEmpty() && (
+        <View className='flex-1 items-center justify-center py-12'>
+          <Image
+            className={"w-10 h-10 mb-4"}
+            style={{ tintColor: Colors.primary, resizeMode: "contain" }}
+            source={heart}
+          />
+          <Text className='text-xl font-semibold text-white mb-2'>
+            {t("favorites.noDataTitle")}
+          </Text>
+          <Text className='text-base text-white/70 text-center max-w-xs px-4'>
+            {t("favorites.noData")}
+          </Text>
+        </View>
+      )}
       <ScrollingCollectionList
         queryFn={fetchFavoriteSeries}
         queryKey={["home", "favorites", "series"]}
@@ -69,7 +135,7 @@ export const Favorites = () => {
         queryKey={["home", "favorites", "movies"]}
         title={t("favorites.movies")}
         hideIfEmpty
-        orientation="vertical"
+        orientation='vertical'
       />
       <ScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}

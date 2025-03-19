@@ -2,7 +2,7 @@ import { Text } from "@/components/common/Text";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { TouchableOpacity, View, ViewProps } from "react-native";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { FilterSheet } from "./FilterSheet";
 
 interface FilterButtonProps<T> extends ViewProps {
@@ -13,7 +13,7 @@ interface FilterButtonProps<T> extends ViewProps {
   title: string;
   set: (value: T[]) => void;
   queryFn: (params: any) => Promise<any>;
-  searchFilter: (item: T, query: string) => boolean;
+  searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
   icon?: "filter" | "sort";
 }
@@ -68,16 +68,16 @@ export const FilterButton = <T,>({
           </Text>
           {icon === "filter" ? (
             <Ionicons
-              name="filter"
+              name='filter'
               size={14}
-              color="white"
+              color='white'
               style={{ opacity: 0.5 }}
             />
           ) : (
             <FontAwesome
-              name="sort"
+              name='sort'
               size={14}
-              color="white"
+              color='white'
               style={{ opacity: 0.5 }}
             />
           )}

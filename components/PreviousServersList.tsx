@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { ListGroup } from "./list/ListGroup";
 import { ListItem } from "./list/ListItem";
-import { useTranslation } from "react-i18next";
 
 interface Server {
   address: string;
@@ -29,7 +30,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
 
   return (
     <View>
-      <ListGroup title={t("server.previous_servers")} className="mt-4">
+      <ListGroup title={t("server.previous_servers")} className='mt-4'>
         {previousServers.map((s) => (
           <ListItem
             key={s.address}
@@ -43,7 +44,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
             setPreviousServers("[]");
           }}
           title={t("server.clear_button")}
-          textColor="red"
+          textColor='red'
         />
       </ListGroup>
     </View>
