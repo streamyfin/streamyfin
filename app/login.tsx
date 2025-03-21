@@ -23,6 +23,7 @@ import { Keyboard } from "react-native";
 
 import { z } from "zod";
 import { t } from "i18next";
+import { SSLCheckbox } from "@/components/CheckboxSSL";
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
 });
@@ -51,6 +52,7 @@ const Login: React.FC = () => {
     username: _username,
     password: _password,
   });
+  const [useSSL, setUseSSL] = useState<boolean>(true);
 
   /**
    * A way to auto login based on a link
@@ -313,6 +315,7 @@ const Login: React.FC = () => {
                   textContentType="URL"
                   maxLength={500}
                 />
+                <SSLCheckbox useSSL={useSSL} setUseSSL={setUseSSL} />
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
