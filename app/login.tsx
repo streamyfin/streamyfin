@@ -3,6 +3,7 @@ import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { PreviousServersList } from "@/components/PreviousServersList";
+import { SSLCheckbox } from "@/components/CheckboxSSL";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -23,7 +24,6 @@ import { Keyboard } from "react-native";
 
 import { z } from "zod";
 import { t } from "i18next";
-import { SSLCheckbox } from "@/components/CheckboxSSL";
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
 });
@@ -133,27 +133,61 @@ const Login: React.FC = () => {
    * - Logs errors and timeout information to the console.
    */
   const checkUrl = useCallback(async (url: string) => {
-    setLoadingServerCheck(true);
+      setLoadingServerCheck(true);
 
-    try {
-      const response = await fetch(`${url}/System/Info/Public`, {
-        mode: "cors",
-      });
+      const protocols = ["https", "http"];
+      const timeout = 2000; // 2 seconds for long 404 responses
 
-      if (response.ok) {
-        const data = (await response.json()) as PublicSystemInfo;
+      try {
+        if (useSSL) {
+          for (const protocol of protocols) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-        setServerName(data.ServerName || "");
-        return url;
+            try {
+              const response = await fetch(
+                `${protocol}://${url}/System/Info/Public`, {
+                  mode: "cors",
+                  signal: controller.signal,
+              });
+              clearTimeout(timeoutId);
+
+              if (response.ok) {
+                const data = (await response.json()) as PublicSystemInfo;
+                setServerName(data.ServerName || "");
+                return url;
+              }
+            } catch (error) {
+              const e = error as Error;
+              if (e.name === "AbortError") {
+                console.error(`Request to ${protocol}://${url} timed out`);
+              } else {
+                console.error(`Failed to connect to ${protocol}://${url}`, error);
+              }
+            }
+          }
+        } else {
+          // SSL is disabled. User decides which protocol to use by entering it 
+          // manually.
+          const response = await fetch(`${url}/System/Info/Public`, {
+            mode: "cors",
+          });
+
+          if (response.ok) {
+            const data = (await response.json()) as PublicSystemInfo;
+
+            setServerName(data.ServerName || "");
+            return url;
+          }
+        }
+
+        return undefined;
+      } catch {
+        return undefined;
+      } finally {
+        setLoadingServerCheck(false);
       }
-
-      return undefined;
-    } catch {
-      return undefined;
-    } finally {
-      setLoadingServerCheck(false);
-    }
-  }, []);
+    }, [useSSL]);
 
   /**
    * Handles the connection attempt to a Jellyfin server.
@@ -172,19 +206,19 @@ const Login: React.FC = () => {
    *
    */
   const handleConnect = useCallback(async (url: string) => {
-    url = url.trim().replace(/\/$/, "");
-    const result = await checkUrl(url);
+      url = url.trim().replace(/\/$/, "");
+      const result = await checkUrl(url);
 
-    if (result === undefined) {
-      Alert.alert(
-        t("login.connection_failed"),
-        t("login.could_not_connect_to_server"),
-      );
-      return;
-    }
+      if (result === undefined) {
+        Alert.alert(
+          t("login.connection_failed"),
+          t("login.could_not_connect_to_server"),
+        );
+        return;
+      }
 
-    setServer({ address: url });
-  }, []);
+      setServer({ address: url });
+    }, [checkUrl]);
 
   const handleQuickConnect = async () => {
     try {
@@ -315,7 +349,10 @@ const Login: React.FC = () => {
                   textContentType="URL"
                   maxLength={500}
                 />
-                <SSLCheckbox useSSL={useSSL} setUseSSL={setUseSSL} />
+                <SSLCheckbox
+                  useSSL={useSSL}
+                  onPress={() => {setUseSSL((prev) => !prev)}}
+                />
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
