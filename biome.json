@@ -9,7 +9,8 @@
       "ios",
       "android",
       "Streamyfin.app",
-      "utils/jellyseerr"
+      "utils/jellyseerr",
+      ".expo"
     ]
   },
   "linter": {
