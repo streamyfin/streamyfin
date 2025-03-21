@@ -31,8 +31,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const BackgroundFetch = !Platform.isTV
   ? require("expo-background-fetch")
   : null;
-import * as FileSystem from "expo-file-system";
 import * as Device from "expo-device";
+import * as FileSystem from "expo-file-system";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { Stack, router, useSegments } from "expo-router";
@@ -333,7 +333,7 @@ function Layout() {
       }
 
       // only create push token for real devices (pointless for emulators)
-      if(Device.isDevice) {
+      if (Device.isDevice) {
         Notifications?.getExpoPushTokenAsync()
           .then((token: ExpoPushToken) => token && setExpoPushToken(token))
           .catch((reason: any) => console.log("Failed to get token", reason));
