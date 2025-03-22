@@ -356,7 +356,39 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
-            console.log("Notification interacted with", response);
+            // Currently the notifications supported by the plugin will send data for deep links.
+            const data = response.notification.request.content.data;
+
+            if (data && Object.keys(data).length > 0) {
+              const type = data["type"].toLower();
+              const itemId = data["id"];
+
+              switch (type) {
+                case "movie":
+                  router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`)
+                  break;
+                case "episode":
+                  const episodeId = data.id;
+
+                  // We just clicked a notification for an individual episode.
+                  if (episodeId) {
+                    router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`)
+                  }
+                  // summarized season notification for multiple episodes. Bring them to series season
+                  else {
+                    const seriesId = data.seriesId;
+                    const seasonIndex = data.seasonIndex;
+
+                    if (seasonIndex) {
+                      router.push(`/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`)
+                    }
+                    else {
+                      router.push(`/(auth)/(tabs)/home/series/${seriesId}`)
+                    }
+                  }
+                  break;
+              }
+            }
           },
         );
 
