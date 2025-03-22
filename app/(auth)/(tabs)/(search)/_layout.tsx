@@ -20,7 +20,7 @@ export default function SearchLayout() {
             backgroundColor: "black",
           },
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
@@ -33,7 +33,7 @@ export default function SearchLayout() {
           title: "",
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

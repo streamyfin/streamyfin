@@ -16,7 +16,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
         style={{
           aspectRatio: "10/15",
         }}
-      ></View>
+      />
     );
 
   return (

@@ -36,7 +36,7 @@ export default function page() {
       };
 
       return jellyseerrApi?.discover(
-        type == DiscoverSliderType.MOVIE_GENRES
+        type === DiscoverSliderType.MOVIE_GENRES
           ? Endpoints.DISCOVER_MOVIES
           : Endpoints.DISCOVER_TV,
         params,

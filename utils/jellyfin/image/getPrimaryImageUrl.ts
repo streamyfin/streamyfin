@@ -31,7 +31,7 @@ export const getPrimaryImageUrl = ({
     return `${api?.basePath}/Items/${item?.Id}/Images/Primary`;
   }
 
-  const primaryTag = item.ImageTags?.["Primary"];
+  const primaryTag = item.ImageTags?.Primary;
   const backdropTag = item.BackdropImageTags?.[0];
   const parentBackdropTag = item.ParentBackdropImageTags?.[0];
 

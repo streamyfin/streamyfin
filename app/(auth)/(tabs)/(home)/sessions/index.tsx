@@ -36,7 +36,7 @@ export default function page() {
       </View>
     );
 
-  if (!sessions || sessions.length == 0)
+  if (!sessions || sessions.length === 0)
     return (
       <View className='h-full w-full flex justify-center items-center'>
         <Text className='text-lg text-neutral-500'>
@@ -175,7 +175,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
             </View>
             <View className='align-bottom bg-gray-800 h-1'>
               <View
-                className={`bg-purple-600 h-full`}
+                className={"bg-purple-600 h-full"}
                 style={{
                   width: `${getProgressPercentage()}%`,
                 }}
@@ -298,7 +298,7 @@ const TranscodingStreamView = ({
 const TranscodingView = ({ session }: SessionCardProps) => {
   const videoStream = useMemo(() => {
     return session.NowPlayingItem?.MediaStreams?.filter(
-      (s) => s.Type == "Video",
+      (s) => s.Type === "Video",
     )[0];
   }, [session]);
 
@@ -318,7 +318,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
 
   const isTranscoding = useMemo(() => {
     return (
-      session.PlayState?.PlayMethod == "Transcode" && session.TranscodingInfo
+      session.PlayState?.PlayMethod === "Transcode" && session.TranscodingInfo
     );
   }, [session.PlayState?.PlayMethod, session.TranscodingInfo]);
 
@@ -341,9 +341,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           codec: session.TranscodingInfo?.VideoCodec,
         }}
         isTranscoding={
-          isTranscoding && !session.TranscodingInfo?.IsVideoDirect
-            ? true
-            : false
+          !!(isTranscoding && !session.TranscodingInfo?.IsVideoDirect)
         }
       />
 
@@ -360,24 +358,20 @@ const TranscodingView = ({ session }: SessionCardProps) => {
           audioChannels: session.TranscodingInfo?.AudioChannels?.toString(),
         }}
         isTranscoding={
-          isTranscoding && !session.TranscodingInfo?.IsVideoDirect
-            ? true
-            : false
+          !!(isTranscoding && !session.TranscodingInfo?.IsVideoDirect)
         }
       />
 
       {subtitleStream && (
-        <>
-          <TranscodingStreamView
-            title='Subtitle'
-            isTranscoding={false}
-            properties={{
-              language: subtitleStream?.Language,
-              codec: subtitleStream?.Codec,
-            }}
-            transcodeValue={null}
-          />
-        </>
+        <TranscodingStreamView
+          title='Subtitle'
+          isTranscoding={false}
+          properties={{
+            language: subtitleStream?.Language,
+            codec: subtitleStream?.Codec,
+          }}
+          transcodeValue={null}
+        />
       )}
     </View>
   );

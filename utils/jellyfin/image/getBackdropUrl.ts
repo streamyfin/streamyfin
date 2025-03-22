@@ -45,7 +45,6 @@ export const getBackdropUrl = ({
     return `${api.basePath}/Items/${
       item.Id
     }/Images/Backdrop/0?${params.toString()}`;
-  } else {
-    return getPrimaryImageUrl({ api, item, quality, width });
   }
+  return getPrimaryImageUrl({ api, item, quality, width });
 };

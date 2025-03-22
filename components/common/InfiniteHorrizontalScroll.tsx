@@ -75,9 +75,8 @@ export function InfiniteHorizontalScroll({
 
       if (accumulatedItems < totalItems) {
         return lastPage?.Items?.length * pages.length;
-      } else {
-        return undefined;
       }
+      return undefined;
     },
     initialPageParam: 0,
     enabled: !!api && !!user?.Id,
@@ -118,9 +117,7 @@ export function InfiniteHorizontalScroll({
       <FlashList
         data={flatData}
         renderItem={({ item, index }) => (
-          <View className='mr-2'>
-            <React.Fragment>{renderItem(item, index)}</React.Fragment>
-          </View>
+          <View className='mr-2'>{renderItem(item, index)}</View>
         )}
         estimatedItemSize={height}
         horizontal

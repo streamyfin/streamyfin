@@ -39,7 +39,7 @@ export const getLogoImageUrlById = ({
     return `${api.basePath}/Items/${parentId}/Images/Logo?${params.toString()}`;
   }
 
-  const imageTag = item.ImageTags?.["Logo"];
+  const imageTag = item.ImageTags?.Logo;
 
   if (!imageTag) return null;
 

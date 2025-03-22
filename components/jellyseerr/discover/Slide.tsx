@@ -35,7 +35,7 @@ const Slide = <T,>({
   return (
     <View {...props}>
       <Text className='font-bold text-lg mb-2 px-4'>
-        {t("search." + DiscoverSliderType[slide.type].toString().toLowerCase())}
+        {t(`search.${DiscoverSliderType[slide.type].toString().toLowerCase()}`)}
       </Text>
       <FlashList
         horizontal

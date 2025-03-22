@@ -15,7 +15,6 @@ function orientationToOrientationLock(
       return OrientationLock.LANDSCAPE_LEFT;
     case Orientation.LANDSCAPE_RIGHT:
       return OrientationLock.LANDSCAPE_RIGHT;
-    case Orientation.UNKNOWN:
     default:
       return OrientationLock.DEFAULT;
   }

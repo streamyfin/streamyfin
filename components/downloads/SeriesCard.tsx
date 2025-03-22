@@ -31,7 +31,7 @@ export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
         destructiveButtonIndex,
       },
       (selectedIndex) => {
-        if (selectedIndex == destructiveButtonIndex) {
+        if (selectedIndex === destructiveButtonIndex) {
           deleteSeries();
         }
       },

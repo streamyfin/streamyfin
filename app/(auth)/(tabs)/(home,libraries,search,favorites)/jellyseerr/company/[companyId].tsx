@@ -33,9 +33,11 @@ export default function page() {
       };
 
       return jellyseerrApi?.discover(
-        (type == DiscoverSliderType.NETWORKS
-          ? Endpoints.DISCOVER_TV_NETWORK
-          : Endpoints.DISCOVER_MOVIES_STUDIO) + `/${companyId}`,
+        `${
+          type === DiscoverSliderType.NETWORKS
+            ? Endpoints.DISCOVER_TV_NETWORK
+            : Endpoints.DISCOVER_MOVIES_STUDIO
+        }/${companyId}`,
         params,
       );
     },

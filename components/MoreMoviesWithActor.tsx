@@ -63,9 +63,8 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
           const x = acc.find((item) => item.Id === current.Id);
           if (!x) {
             return acc.concat([current]);
-          } else {
-            return acc;
           }
+          return acc;
         }, [] as BaseItemDto[]) || [];
 
       return uniqueItems;

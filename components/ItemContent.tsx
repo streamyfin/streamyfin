@@ -147,22 +147,20 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
             </View>
           }
           logo={
-            <>
-              {logoUrl ? (
-                <Image
-                  source={{
-                    uri: logoUrl,
-                  }}
-                  style={{
-                    height: 130,
-                    width: "100%",
-                    resizeMode: "contain",
-                  }}
-                  onLoad={() => setLoadingLogo(false)}
-                  onError={() => setLoadingLogo(false)}
-                />
-              ) : null}
-            </>
+            logoUrl ? (
+              <Image
+                source={{
+                  uri: logoUrl,
+                }}
+                style={{
+                  height: 130,
+                  width: "100%",
+                  resizeMode: "contain",
+                }}
+                onLoad={() => setLoadingLogo(false)}
+                onError={() => setLoadingLogo(false)}
+              />
+            ) : null
           }
         >
           <View className='flex flex-col bg-transparent shrink'>
