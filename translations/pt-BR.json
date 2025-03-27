@@ -320,32 +320,32 @@
     "tmdb_tv_streaming_services": "Serviço de streaming de TV TMDB"
   },
   "library": {
-    "no_items_found": "No items found",
-    "no_results": "No results",
-    "no_libraries_found": "No libraries found",
+    "no_items_found": "Nenhum item encontrado",
+    "no_results": "Sem resultado",
+    "no_libraries_found": "Nenhuma Biblioteca encontrada",
     "item_types": {
-      "movies": "movies",
-      "series": "series",
+      "movies": "filmes",
+      "series": "séries",
       "boxsets": "box sets",
-      "items": "items"
+      "items": "itens"
     },
     "options": {
-      "display": "Display",
-      "row": "Row",
-      "list": "List",
-      "image_style": "Image style",
+      "display": "Exibição",
+      "row": "Linhas",
+      "list": "Lista",
+      "image_style": "Estilo de imagem",
       "poster": "Poster",
       "cover": "Cover",
-      "show_titles": "Show titles",
-      "show_stats": "Show stats"
+      "show_titles": "Mostrar títulos",
+      "show_stats": "Mostrar quantidade"
     },
     "filters": {
-      "genres": "Genres",
-      "years": "Years",
-      "sort_by": "Sort By",
-      "sort_order": "Sort Order",
-      "asc": "Ascending",
-      "desc": "Descending",
+      "genres": "Gênero",
+      "years": "Ano",
+      "sort_by": "Filtrar por",
+      "sort_order": "Ordem do filtro",
+      "asc": "Crescente",
+      "desc": "Decrescente",
       "tags": "Tags"
     }
   },
