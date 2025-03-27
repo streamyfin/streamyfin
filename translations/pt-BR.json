@@ -62,168 +62,171 @@
       "read_more": "Leia mais"
     },
     "settings": {
-      "settings_title": "Settings",
-      "log_out_button": "Log out",
+      "settings_title": "Configurações",
+      "log_out_button": "Sair",
       "user_info": {
-        "user_info_title": "User Info",
-        "user": "User",
-        "server": "Server",
+        "user_info_title": "Informações de usuário",
+        "user": "Usuário",
+        "server": "Servidor",
         "token": "Token",
-        "app_version": "App Version"
+        "app_version": "Versão do aplicativo"
       },
       "quick_connect": {
         "quick_connect_title": "Quick Connect",
-        "authorize_button": "Authorize Quick Connect",
-        "enter_the_quick_connect_code": "Enter the quick connect code...",
-        "success": "Success",
-        "quick_connect_autorized": "Quick Connect authorized",
-        "error": "Error",
-        "invalid_code": "Invalid code",
-        "authorize": "Authorize"
+        "authorize_button": "Autorizar Quick Connect",
+        "enter_the_quick_connect_code": "Digite o código do Quick Connect...",
+        "success": "Successo",
+        "quick_connect_autorized": "Quick Connect autorizado",
+        "error": "Erro",
+        "invalid_code": "Código inválido",
+        "authorize": "Autorizar"
       },
       "media_controls": {
-        "media_controls_title": "Media Controls",
-        "forward_skip_length": "Forward skip length",
-        "rewind_length": "Rewind length",
+        "media_controls_title": "Controles de mídia",
+        "forward_skip_length": "Tempo do botão de avançar",
+        "rewind_length": "Tempo do botão de avançar",
         "seconds_unit": "s"
       },
       "audio": {
-        "audio_title": "Audio",
+        "audio_title": "Áudio",
         "set_audio_track": "Set Audio Track From Previous Item",
-        "audio_language": "Audio language",
-        "audio_hint": "Choose a default audio language.",
-        "none": "None",
-        "language": "Language"
+        "set_audio_track": "Escolher a faixa de áudio do item anterior",
+        "audio_language": "Idioma do áudio",
+        "audio_hint": "Escolha um idioma de áudio padrão.",
+        "none": "Nenhum",
+        "language": "Idioma"
       },
       "subtitles": {
-        "subtitle_title": "Subtitles",
-        "subtitle_language": "Subtitle language",
-        "subtitle_mode": "Subtitle Mode",
-        "set_subtitle_track": "Set Subtitle Track From Previous Item",
-        "subtitle_size": "Subtitle Size",
-        "subtitle_hint": "Configure subtitle preference.",
-        "none": "None",
-        "language": "Language",
-        "loading": "Loading",
+        "subtitle_title": "Legendas",
+        "subtitle_language": "Idioma da legenda",
+        "subtitle_mode": "Modo da legenda",
+        "set_subtitle_track": "Escolher a faixa de áudio do item anterior",
+        "subtitle_size": "Tamanho da legenda",
+        "subtitle_hint": "Configure as preferências das legendas.",
+        "none": "Nenhum",
+        "language": "Idioma",
+        "loading": "Carregando",
         "modes": {
-          "Default": "Default",
-          "Smart": "Smart",
-          "Always": "Always",
-          "None": "None",
-          "OnlyForced": "OnlyForced"
+          "Default": "Padrão",
+          "Smart": "Inteligente",
+          "Always": "Sempre",
+          "None": "Nenhuma",
+          "OnlyForced": "ApenasForçado"
         }
       },
       "other": {
-        "other_title": "Other",
-        "follow_device_orientation": "Auto rotate",
-        "video_orientation": "Video orientation",
-        "orientation": "Orientation",
+        "other_title": "Outros",
+        "follow_device_orientation": "Rotação automática",
+        "video_orientation": "Orientação do vídeo",
+        "orientation": "Orientação",
         "orientations": {
-          "DEFAULT": "Default",
-          "ALL": "All",
-          "PORTRAIT": "Portrait",
-          "PORTRAIT_UP": "Portrait Up",
-          "PORTRAIT_DOWN": "Portrait Down",
-          "LANDSCAPE": "Landscape",
-          "LANDSCAPE_LEFT": "Landscape Left",
-          "LANDSCAPE_RIGHT": "Landscape Right",
-          "OTHER": "Other",
-          "UNKNOWN": "Unknown"
+          "DEFAULT": "Padrão",
+          "ALL": "Todos",
+          "PORTRAIT": "Retrato",
+          "PORTRAIT_UP": "Retrato para cima",
+          "PORTRAIT_DOWN": "Retrato para baixo",
+          "LANDSCAPE": "Paisagem",
+          "LANDSCAPE_LEFT": "Paisagem para esquerda",
+          "LANDSCAPE_RIGHT": "Paisagem para direita",
+          "OTHER": "Outro",
+          "UNKNOWN": "Desconhecido"
         },
-        "safe_area_in_controls": "Safe area in controls",
-        "video_player": "Video player",
+        "safe_area_in_controls": "Área segura nos controles",
+        "video_player": "Tocador de vídeo",
         "video_players": {
           "VLC_3": "VLC 3",
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
-        "show_custom_menu_links": "Show Custom Menu Links",
-        "hide_libraries": "Hide Libraries",
-        "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
-        "disable_haptic_feedback": "Disable Haptic Feedback",
-        "default_quality": "Default quality"
+        "show_custom_menu_links": "Mostrar Custom Links no Menu",
+        "hide_libraries": "Ocultar bibliotecas",
+        "select_liraries_you_want_to_hide": "Selecione as bibliotecas que você deseja ocultar das abas Biblioteca e Início.",
+        "disable_haptic_feedback": "Desativar o feedback háptico",
+        "default_quality": "Qualidade padrão"
       },
       "downloads": {
         "downloads_title": "Downloads",
-        "download_method": "Download method",
+        "download_method": "Método de download",
         "remux_max_download": "Remux max download",
-        "auto_download": "Auto download",
-        "optimized_versions_server": "Optimized versions server",
-        "save_button": "Save",
+        "auto_download": "Download automático",
+        "optimized_versions_server": "Servidor do optimized versions",
+        "save_button": "Salvar",
         "optimized_server": "Optimized Server",
         "optimized": "Optimized",
-        "default": "Default",
-        "optimized_version_hint": "Enter the URL for the optimize server. The URL should include http or https and optionally the port.",
-        "read_more_about_optimized_server": "Read more about the optimize server.",
+        "default": "Padrão",
+        "optimized_version_hint": "Digite a URL do optimized server. A URL deve incluir http ou https e opcionalmente a porta.",
+        "read_more_about_optimized_server": "Leia mais sobre o optimize server.",
         "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:port"
+        "server_url_placeholder": "http(s)://dominio.org:porta"
       },
       "plugins": {
         "plugins_title": "Plugins",
         "jellyseerr": {
           "jellyseerr_warning": "This integration is in its early stages. Expect things to change.",
-          "server_url": "Server URL",
-          "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
+          "jellyseerr_warning": "Esta integração está nos estágios iniciais. Espere alterações.",
+          "server_url": "URL do servidor",
+          "server_url_hint": "Exemplo: http(s)://seu-host.url\n(adicione a porta caso necessário)",
           "server_url_placeholder": "Jellyseerr URL...",
-          "password": "Password",
-          "password_placeholder": "Enter password for Jellyfin user {{username}}",
-          "save_button": "Save",
-          "clear_button": "Clear",
-          "login_button": "Login",
-          "total_media_requests": "Total media requests",
-          "movie_quota_limit": "Movie quota limit",
-          "movie_quota_days": "Movie quota days",
-          "tv_quota_limit": "TV quota limit",
-          "tv_quota_days": "TV quota days",
-          "reset_jellyseerr_config_button": "Reset Jellyseerr config",
-          "unlimited": "Unlimited",
-          "plus_n_more": "+{{n}} more",
+          "password": "Senha",
+          "password_placeholder": "Digite a senha do seu usuário Jellyfin {{username}}",
+          "save_button": "Salvar",
+          "clear_button": "Limpar",
+          "login_button": "Entrar",
+          "total_media_requests": "Total de solicitações",
+          "movie_quota_limit": "Limite de cota de filmes",
+          "movie_quota_days": "Dias de cota de filmes",
+          "tv_quota_limit": "Limite de cota de séries",
+          "tv_quota_days": "Dias de cota de séries",
+          "reset_jellyseerr_config_button": "Redefinir configurações do Jellyseerr",
+          "unlimited": "Ilimitado",
+          "plus_n_more": "+{{n}} mais",
           "order_by": {
-            "DEFAULT": "Default",
-            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
-            "POPULARITY": "Popularity"
+            "DEFAULT": "Padrão",
+            "VOTE_COUNT_AND_AVERAGE": "Contador de votação e média",
+            "POPULARITY": "Popularidade"
           }
         },
         "marlin_search": {
-          "enable_marlin_search": "Enable Marlin Search ",
+          "enable_marlin_search": "Ativar Marlin Search ",
           "url": "URL",
-          "server_url_placeholder": "http(s)://domain.org:port",
+          "server_url_placeholder": "http(s)://domínio.org:porta",
           "marlin_search_hint": "Enter the URL for the Marlin server. The URL should include http or https and optionally the port.",
-          "read_more_about_marlin": "Read more about Marlin.",
-          "save_button": "Save",
+          "marlin_search_hint": "Digite a URL do servidor Marlin. A URL deve incluir http ou https e opcionalmente a porta.",
+          "read_more_about_marlin": "Leia mais sobre o Marlin.",
+          "save_button": "Salvar",
           "toasts": {
-            "saved": "Saved"
+            "saved": "Salvo"
           }
         }
       },
       "storage": {
-        "storage_title": "Storage",
+        "storage_title": "Armazenamento",
         "app_usage": "App {{usedSpace}}%",
-        "device_usage": "Device {{availableSpace}}%",
-        "size_used": "{{used}} of {{total}} used",
-        "delete_all_downloaded_files": "Delete All Downloaded Files"
+        "device_usage": "Dispositivo {{availableSpace}}%",
+        "size_used": "{{used}} de {{total}} usado",
+        "delete_all_downloaded_files": "Remover todo conteúdo baixado"
       },
       "intro": {
-        "show_intro": "Show intro",
-        "reset_intro": "Reset intro"
+        "show_intro": "Mostrar introdução",
+        "reset_intro": "Redefinir introdução"
       },
       "logs": {
         "logs_title": "Logs",
-        "no_logs_available": "No logs available",
-        "delete_all_logs": "Delete all logs"
+        "no_logs_available": "Sem logs disponíveis",
+        "delete_all_logs": "Remover todos os logs"
       },
       "languages": {
-        "title": "Languages",
-        "app_language": "App language",
-        "app_language_description": "Select the language for the app.",
-        "system": "System"
+        "title": "Idiomas",
+        "app_language": "Idioma do app",
+        "app_language_description": "Selecione o idioma do aplicativo.",
+        "system": "Sistema"
       },
       "toasts": {
-        "error_deleting_files": "Error deleting files",
-        "background_downloads_enabled": "Background downloads enabled",
-        "background_downloads_disabled": "Background downloads disabled",
-        "connected": "Connected",
-        "could_not_connect": "Could not connect",
-        "invalid_url": "Invalid URL"
+        "error_deleting_files": "Erro ao remover arquivos",
+        "background_downloads_enabled": "Downloads em segundo plano ativado",
+        "background_downloads_disabled": "Downloads em segundo plano desativado",
+        "connected": "Conectado",
+        "could_not_connect": "Não foi possível conectar",
+        "invalid_url": "URL inválida"
       }
     },
     "sessions": {
