@@ -23,14 +23,14 @@
     "an_unexpected_error_occured_did_you_enter_the_correct_url": "Um erro inesperado aconteceu. Você digitou a URL corretamente?"
   },
   "server": {
-    "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
-    "server_url_placeholder": "http(s)://your-server.com",
-    "connect_button": "Connect",
-    "previous_servers": "previous servers",
-    "clear_button": "Clear",
-    "search_for_local_servers": "Search for local servers",
-    "searching": "Searching...",
-    "servers": "Servers"
+    "enter_url_to_jellyfin_server": "Digite a URL do servidor Jellyfin",
+    "server_url_placeholder": "http(s)://seu-servidor.com",
+    "connect_button": "Conectar",
+    "previous_servers": "Servidores anteriores",
+    "clear_button": "Limpar",
+    "search_for_local_servers": "Buscar por servidores locais",
+    "searching": "Buscando...",
+    "servers": "Servidores"
   },
   "home": {
     "no_internet": "No Internet",
