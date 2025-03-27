@@ -350,17 +350,17 @@
     }
   },
   "favorites": {
-    "series": "Series",
-    "movies": "Movies",
-    "episodes": "Episodes",
-    "videos": "Videos",
+    "series": "Séries",
+    "movies": "Filmes",
+    "episodes": "Episódios",
+    "videos": "Vídeos",
     "boxsets": "Boxsets",
     "playlists": "Playlists",
-    "noDataTitle": "No favorites yet",
-    "noData": "Mark items as favorites to see them appear here for quick access."
+    "noDataTitle": "Sem favoritos ainda",
+    "noData": "Favorite algum item aqui para acesso rápido."
   },
   "custom_links": {
-    "no_links": "No links"
+    "no_links": "Nenhum link"
   },
   "player": {
     "error": "Error",
