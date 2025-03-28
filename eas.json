@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "DEBUG": "1"
       }
     },
     "development_tv": {
@@ -18,7 +19,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_TV": "1"
+        "EXPO_TV": "1",
+        "DEBUG": "1"
       }
     },
     "preview": {
@@ -28,7 +30,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "DEBUG": "1"
       }
     },
     "production": {

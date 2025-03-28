@@ -234,7 +234,7 @@ const page: React.FC = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={collectionId}
+                  id={collectionId}
                   queryKey='genreFilter'
                   queryFn={async () => {
                     if (!api) return null;
@@ -261,7 +261,7 @@ const page: React.FC = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={collectionId}
+                  id={collectionId}
                   queryKey='yearFilter'
                   queryFn={async () => {
                     if (!api) return null;
@@ -286,7 +286,7 @@ const page: React.FC = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={collectionId}
+                  id={collectionId}
                   queryKey='tagsFilter'
                   queryFn={async () => {
                     if (!api) return null;
@@ -313,7 +313,7 @@ const page: React.FC = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={collectionId}
+                  id={collectionId}
                   queryKey='sortBy'
                   queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
@@ -333,7 +333,7 @@ const page: React.FC = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={collectionId}
+                  id={collectionId}
                   queryKey='sortOrder'
                   queryFn={async () => sortOrderOptions.map((s) => s.key)}
                   set={setSortOrder}

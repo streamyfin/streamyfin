@@ -205,6 +205,8 @@
       },
       "logs": {
         "logs_title": "Günlükler",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "Günlükler mevcut değil",
         "delete_all_logs": "Tüm günlükleri sil"
       },

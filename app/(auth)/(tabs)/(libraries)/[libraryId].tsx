@@ -287,7 +287,7 @@ const Page = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={libraryId}
+                  id={libraryId}
                   queryKey='genreFilter'
                   queryFn={async () => {
                     if (!api) return null;
@@ -314,7 +314,7 @@ const Page = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={libraryId}
+                  id={libraryId}
                   queryKey='yearFilter'
                   queryFn={async () => {
                     if (!api) return null;
@@ -339,7 +339,7 @@ const Page = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={libraryId}
+                  id={libraryId}
                   queryKey='tagsFilter'
                   queryFn={async () => {
                     if (!api) return null;
@@ -366,7 +366,7 @@ const Page = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={libraryId}
+                  id={libraryId}
                   queryKey='sortBy'
                   queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
@@ -386,7 +386,7 @@ const Page = () => {
               component: (
                 <FilterButton
                   className='mr-1'
-                  collectionId={libraryId}
+                  id={libraryId}
                   queryKey='sortOrder'
                   queryFn={async () => sortOrderOptions.map((s) => s.key)}
                   set={setSortOrder}

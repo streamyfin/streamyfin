@@ -283,7 +283,7 @@ export default function search() {
                   debouncedSearch.length > 0 && (
                     <View className='flex flex-row justify-end items-center space-x-1'>
                       <FilterButton
-                        collectionId='search'
+                        id='search'
                         queryKey='jellyseerr_search'
                         queryFn={async () =>
                           Object.keys(JellyseerrSearchSort).filter((v) =>
@@ -299,7 +299,7 @@ export default function search() {
                         showSearch={false}
                       />
                       <FilterButton
-                        collectionId='order'
+                        id='order'
                         queryKey='jellysearr_search'
                         queryFn={async () => ["asc", "desc"]}
                         set={(value) => setJellyseerrSortOrder(value[0])}

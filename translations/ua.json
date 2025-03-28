@@ -206,6 +206,8 @@
       },
       "logs": {
         "logs_title": "Журнал",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "Нема доступних журналів",
         "delete_all_logs": "Видалити усі журнали"
       },

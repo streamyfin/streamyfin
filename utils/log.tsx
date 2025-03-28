@@ -4,7 +4,7 @@ import type React from "react";
 import { createContext, useContext } from "react";
 import { storage } from "./mmkv";
 
-type LogLevel = "INFO" | "WARN" | "ERROR";
+export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
 
 interface LogEntry {
   timestamp: string;
@@ -62,6 +62,11 @@ export const writeInfoLog = (message: string, data?: any) =>
   writeToLog("INFO", message, data);
 export const writeErrorLog = (message: string, data?: any) =>
   writeToLog("ERROR", message, data);
+export const writeDebugLog = (message: string, data?: any) => {
+  if (process.env.DEBUG === "1") {
+    writeToLog("DEBUG", message, data);
+  }
+}
 
 export const readFromLog = (): LogEntry[] => {
   const logs = storage.getString("logs");

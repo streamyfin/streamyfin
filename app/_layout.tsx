@@ -16,7 +16,7 @@ import {
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import { LogProvider, writeErrorLog, writeToLog } from "@/utils/log";
+import {LogProvider, writeDebugLog, writeErrorLog, writeToLog} from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
@@ -357,21 +357,21 @@ function Layout() {
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
             // Currently the notifications supported by the plugin will send data for deep links.
-            const data = response.notification.request.content.data;
+            const {title, data} = response.notification.request.content;
+
+            writeDebugLog(`Notification ${title} opened`, response.notification.request.content)
 
             if (data && Object.keys(data).length > 0) {
-              const type = data["type"].toLower();
-              const itemId = data["id"];
+              const type = data?.type?.toLower?.();
+              const itemId = data?.id;
 
               switch (type) {
                 case "movie":
                   router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`)
                   break;
                 case "episode":
-                  const episodeId = data.id;
-
                   // We just clicked a notification for an individual episode.
-                  if (episodeId) {
+                  if (itemId) {
                     router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`)
                   }
                   // summarized season notification for multiple episodes. Bring them to series season

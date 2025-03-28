@@ -31,6 +31,7 @@ interface Props<T> extends ViewProps {
   searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
   showSearch?: boolean;
+  multiple?: boolean;
 }
 
 const LIMIT = 100;
@@ -73,6 +74,7 @@ export const FilterSheet = <T,>({
   searchFilter,
   renderItemLabel,
   showSearch = true,
+  multiple = false,
   ...props
 }: Props<T>) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -180,11 +182,22 @@ export const FilterSheet = <T,>({
               <View key={index}>
                 <TouchableOpacity
                   onPress={() => {
-                    if (!values.includes(item)) {
-                      set([item]);
+                    if (multiple) {
+                      if (!values.includes(item))
+                        set(values.concat(item))
+                      else set(values.filter(v => v !== item))
+
                       setTimeout(() => {
                         setOpen(false);
                       }, 250);
+                    }
+                    else {
+                      if (!values.includes(item)) {
+                        set([item]);
+                        setTimeout(() => {
+                          setOpen(false);
+                        }, 250);
+                      }
                     }
                   }}
                   className=' bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'

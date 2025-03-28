@@ -160,9 +160,8 @@ export class JellyseerrApi {
         toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
         writeErrorLog(
           `Jellyseerr returned a ${status} for url:\n` +
-            response.config.url +
-            "\n" +
-            JSON.stringify(response.data),
+          response.config.url ,
+          response.data
         );
         return {
           isValid: false,
@@ -388,15 +387,11 @@ export class JellyseerrApi {
         return response;
       },
       (error: AxiosError) => {
-        const errorMsg = "Jellyseerr response error";
-        console.error(errorMsg, error, error.response?.data);
         writeErrorLog(
-          errorMsg +
-            `\n` +
-            `error: ${error.toString()}\n` +
-            `url: ${error?.config?.url}\n` +
-            `data:\n` +
-            JSON.stringify(error.response?.data),
+          "Jellyseerr response error\n" +
+          `error: ${error.toString()}\n` +
+          `url: ${error?.config?.url}`,
+          error.response?.data,
         );
         if (error.status === 403) {
           clearJellyseerrStorageData();

@@ -290,9 +290,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       api
         ?.delete(`/Streamyfin/device/${deviceId}`)
         .then((r) => writeInfoLog("Deleted expo push token for device"))
-        .catch((e) =>
-          writeErrorLog(`Failed to delete expo push token for device`),
-        );
+        .catch((e) => writeErrorLog("Failed to delete expo push token for device"));
 
       storage.delete("token");
       setUser(null);
