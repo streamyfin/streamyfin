@@ -265,7 +265,7 @@ export const useSettings = () => {
     if (!api) return;
     const settings = await api.getStreamyfinPluginConfig().then(
       ({ data }) => {
-        writeInfoLog(`Got remote settings: ${data?.settings}`);
+        writeInfoLog("Got plugin settings", data?.settings);
         return data?.settings;
       },
       (err) => undefined,

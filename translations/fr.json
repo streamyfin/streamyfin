@@ -206,6 +206,8 @@
       },
       "logs": {
         "logs_title": "Journaux",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "Aucun journal disponible",
         "delete_all_logs": "Supprimer tous les journaux"
       },

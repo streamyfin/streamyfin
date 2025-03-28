@@ -1,7 +1,7 @@
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
-import { writeErrorLog, writeInfoLog, writeToLog } from "@/utils/log";
+import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import type {
   BaseItemDto,
   MediaSourceInfo,

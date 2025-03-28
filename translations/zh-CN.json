@@ -205,6 +205,8 @@
       },
       "logs": {
         "logs_title": "日志",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "无可用日志",
         "delete_all_logs": "删除所有日志"
       },

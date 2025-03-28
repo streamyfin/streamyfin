@@ -206,6 +206,8 @@
       },
       "logs": {
         "logs_title": "Registros",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "No hay registros disponibles",
         "delete_all_logs": "Eliminar todos los registros"
       },
