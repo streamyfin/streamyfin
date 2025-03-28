@@ -35,7 +35,6 @@
   "home": {
     "no_internet": "Sem internet",
     "no_items": "Sem itens",
-    "no_internet_message": "No worries, you can still watch\ndownloaded content.",
     "no_internet_message": "Sem problema, você ainda pode assistir\nconteúdos baixados.",
     "go_to_downloads": "Vá para downloads",
     "oops": "Oops!",
@@ -53,7 +52,6 @@
       "jellyseerr_feature_description": "Conecte sua instância de Jellyfin e solicite filmes diretamente pelo app.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Baixe filmes e séries para assistir sem internet. Use o método padrão ou instale o servidor de otimização para fazer o download de arquivos em segundo plano.",
-      "chromecast_feature_description": "Cast movies and tv-shows to your Chromecast devices.",
       "chromecast_feature_description": "Transmita filmes e séries para seu dispositivo Chromecast.",
       "centralised_settings_plugin_title": "Plugin de configurações centralizado",
       "centralised_settings_plugin_description": "Configure configurações através de um local centralizado no seu servidor Jellyfin. Todos as configurações de cliente serão sincronizadas para todos os usuários.",
@@ -84,24 +82,23 @@
       "media_controls": {
         "media_controls_title": "Controles de mídia",
         "forward_skip_length": "Tempo do botão de avançar",
-        "rewind_length": "Tempo do botão de avançar",
+        "rewind_length": "Tempo do botão de retroceder",
         "seconds_unit": "s"
       },
       "audio": {
         "audio_title": "Áudio",
-        "set_audio_track": "Set Audio Track From Previous Item",
-        "set_audio_track": "Escolher a faixa de áudio do item anterior",
-        "audio_language": "Idioma do áudio",
+        "set_audio_track": "Escolher faixa de áudio do item anterior",
+        "audio_language": "Idioma",
         "audio_hint": "Escolha um idioma de áudio padrão.",
         "none": "Nenhum",
         "language": "Idioma"
       },
       "subtitles": {
         "subtitle_title": "Legendas",
-        "subtitle_language": "Idioma da legenda",
-        "subtitle_mode": "Modo da legenda",
-        "set_subtitle_track": "Escolher a faixa de áudio do item anterior",
-        "subtitle_size": "Tamanho da legenda",
+        "subtitle_language": "Idioma",
+        "subtitle_mode": "Modo",
+        "set_subtitle_track": "Escolher faixa de legenda do item anterior",
+        "subtitle_size": "Tamanho",
         "subtitle_hint": "Configure as preferências das legendas.",
         "none": "Nenhum",
         "language": "Idioma",
@@ -151,7 +148,7 @@
         "optimized_versions_server": "Servidor do optimized versions",
         "save_button": "Salvar",
         "optimized_server": "Optimized Server",
-        "optimized": "Optimized",
+        "optimized": "Otimizado",
         "default": "Padrão",
         "optimized_version_hint": "Digite a URL do optimized server. A URL deve incluir http ou https e opcionalmente a porta.",
         "read_more_about_optimized_server": "Leia mais sobre o optimize server.",
@@ -161,7 +158,6 @@
       "plugins": {
         "plugins_title": "Plugins",
         "jellyseerr": {
-          "jellyseerr_warning": "This integration is in its early stages. Expect things to change.",
           "jellyseerr_warning": "Esta integração está nos estágios iniciais. Espere alterações.",
           "server_url": "URL do servidor",
           "server_url_hint": "Exemplo: http(s)://seu-host.url\n(adicione a porta caso necessário)",
@@ -189,7 +185,6 @@
           "enable_marlin_search": "Ativar Marlin Search ",
           "url": "URL",
           "server_url_placeholder": "http(s)://domínio.org:porta",
-          "marlin_search_hint": "Enter the URL for the Marlin server. The URL should include http or https and optionally the port.",
           "marlin_search_hint": "Digite a URL do servidor Marlin. A URL deve incluir http ou https e opcionalmente a porta.",
           "read_more_about_marlin": "Leia mais sobre o Marlin.",
           "save_button": "Salvar",
@@ -238,7 +233,6 @@
       "tvseries": "TV/Séries",
       "movies": "Filmes",
       "queue": "Fila",
-      "queue_hint": "Queue and downloads will be lost on app restart",
       "queue_hint": "A fila e os downloads serão perdidos ao reiniciar o aplicativo",
       "no_items_in_queue": "Nenhum item na fila",
       "no_downloaded_items": "Nenhum item baixado",
@@ -303,11 +297,11 @@
     "trending": "Tendências",
     "popular_movies": "Filmes populares",
     "movie_genres": "Gêneros de filmes",
-    "upcoming_movies": "Filmes por vir",
+    "upcoming_movies": "Filmes a serem lançados",
     "studios": "Estúdios",
-    "popular_tv": "TV Popular",
-    "tv_genres": "Gêneros de TV",
-    "upcoming_tv": "TV por vir",
+    "popular_tv": "Séries populares",
+    "tv_genres": "Gêneros de séries",
+    "upcoming_tv": "Séries a serem lançadas",
     "networks": "Redes",
     "tmdb_movie_keyword": "Palavras-chave filmes TMDB",
     "tmdb_movie_genre": "Gêneros de filme TMDB",
@@ -336,7 +330,7 @@
       "image_style": "Estilo de imagem",
       "poster": "Poster",
       "cover": "Cover",
-      "show_titles": "Mostrar títulos",
+      "show_titles": "Mostrar nomes",
       "show_stats": "Mostrar quantidade"
     },
     "filters": {
@@ -357,7 +351,7 @@
     "boxsets": "Boxsets",
     "playlists": "Playlists",
     "noDataTitle": "Sem favoritos ainda",
-    "noData": "Favorite algum item aqui para acesso rápido."
+    "noData": "Favorite algum item para acesso rápido."
   },
   "custom_links": {
     "no_links": "Nenhum link"
@@ -393,7 +387,7 @@
     "no_similar_items_found": "Nenhum item similar encontrado",
     "video": "Vídeo",
     "more_details": "Mais detalhes",
-    "quality": "Qualidade",
+    "quality": "Bitrate",
     "audio": "Áudio",
     "subtitles": "Legenda",
     "show_more": "Mostrar mais",
@@ -460,7 +454,7 @@
     "root_folder": "Pasta padrão",
     "season_all": "Temporada (todas)",
     "season_number": "Temporada {{season_number}}",
-    "number_episodes": "{{episode_number}} episódio",
+    "number_episodes": "{{episode_number}} episódios",
     "born": "Nascido em",
     "appearances": "Aparece em",
     "toasts": {
