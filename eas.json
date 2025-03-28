@@ -8,7 +8,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
+        "buildType": "apk"
+      },
+      "env": {
         "DEBUG": "1"
       }
     },
@@ -24,13 +26,18 @@
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "DEBUG": "1"
+      }
     },
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "simulator": true,
+        "simulator": true
+      },
+      "env": {
         "DEBUG": "1"
       }
     },
