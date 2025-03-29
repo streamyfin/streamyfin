@@ -63,7 +63,7 @@ export const writeInfoLog = (message: string, data?: any) =>
 export const writeErrorLog = (message: string, data?: any) =>
   writeToLog("ERROR", message, data);
 export const writeDebugLog = (message: string, data?: any) => {
-  if (process.env.DEBUG === "1") {
+  if (process.env.EXPO_PUBLIC_WRITE_DEBUG === "1") {
     writeToLog("DEBUG", message, data);
   }
 }
