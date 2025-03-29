@@ -359,10 +359,19 @@ export const HomeIndex = () => {
                 fields: ["MediaSourceCount"],
                 limit: section.items?.limit || 25,
                 enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                enableResumable: section.items?.enableResumable || false,
-                enableRewatching: section.items?.enableRewatching || false,
+                enableResumable: section.items?.enableResumable,
+                enableRewatching: section.items?.enableRewatching,
               });
               return response.data.Items || [];
+            } else if (section.latest) {
+              const response = await getUserLibraryApi(api).getLatestMedia({
+                userId: user?.Id,
+                includeItemTypes: section.latest?.includeItemTypes,
+                limit: section.latest?.limit || 25,
+                isPlayed: section.latest?.isPlayed,
+                groupItems: section.latest?.groupItems,
+              });
+              return response.data || [];
             }
             return [];
           },
