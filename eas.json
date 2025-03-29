@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -15,6 +16,7 @@
       }
     },
     "development_tv": {
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -26,12 +28,14 @@
       }
     },
     "preview": {
+      "environment": "development",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
     "development-simulator": {
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -42,12 +46,14 @@
       }
     },
     "production": {
+      "environment": "production",
       "channel": "0.28.0",
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
+      "environment": "production",
       "channel": "0.28.0",
       "android": {
         "buildType": "apk",
@@ -55,6 +61,7 @@
       }
     },
     "production-apk-tv": {
+      "environment": "production",
       "channel": "0.28.0",
       "android": {
         "buildType": "apk",
