@@ -58,7 +58,7 @@ export default function page() {
           ? <Loader/>
           : (
           <TouchableOpacity onPress={share}>
-            <Text>Export</Text>
+            <Text>{t("home.settings.logs.export_logs")}</Text>
           </TouchableOpacity>
         )
       ),
