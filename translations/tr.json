@@ -205,6 +205,7 @@
       },
       "logs": {
         "logs_title": "Günlükler",
+        "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
         "level": "Level",
         "no_logs_available": "Günlükler mevcut değil",
