@@ -1,12 +1,17 @@
 import { Text } from "@/components/common/Text";
-import {LogLevel, useLog} from "@/utils/log";
+import {LogLevel, useLog, writeErrorLog} from "@/utils/log";
 import { useTranslation } from "react-i18next";
 import {ScrollView, TouchableOpacity, View} from "react-native";
 import Collapsible from "react-native-collapsible";
-import React, {useMemo, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {FilterButton} from "@/components/filters/FilterButton";
+import {useNavigation} from "expo-router";
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import {Loader} from "@/components/Loader";
 
 export default function page() {
+  const navigation = useNavigation();
   const { logs } = useLog();
   const { t } = useTranslation();
 
@@ -18,6 +23,7 @@ export default function page() {
     maxHeight: 300
   }
 
+  const [loading, setLoading] = useState<boolean>(false)
   const [state, setState] = useState<Record<string, boolean>>({})
 
   const [order, setOrder] = useState<"asc" | "desc">("desc");
@@ -30,6 +36,34 @@ export default function page() {
       ?.[order === "desc" ? "reverse" : "concat"]?.(),
     [logs, order, levels]
   )
+
+  // Sharing it as txt while its formatted allows us to share it with many more applications
+  const share = useCallback(async () => {
+    const uri = FileSystem.documentDirectory + "logs.txt"
+
+    setLoading(true)
+    FileSystem.writeAsStringAsync(uri, JSON.stringify(filteredLogs))
+      .then(() => {
+        setLoading(false)
+        Sharing.shareAsync(uri, {mimeType: "txt", UTI: "txt"})
+      })
+      .catch((e) => writeErrorLog("Something went wrong attempting to export", e))
+      .finally(() => setLoading(false))
+  }, [filteredLogs])
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        loading
+          ? <Loader/>
+          : (
+          <TouchableOpacity onPress={share}>
+            <Text>Export</Text>
+          </TouchableOpacity>
+        )
+      ),
+    });
+  }, [share, loading]);
 
   return (
     <>
@@ -86,7 +120,9 @@ export default function page() {
 
               {log.data && (
                 <>
-                  <Text className="text-xs">{t("home.settings.logs.click_for_more_info")}</Text>
+                  {!state[log.timestamp] && (
+                    <Text className="text-xs mt-0.5">{t("home.settings.logs.click_for_more_info")}</Text>
+                  )}
                   <Collapsible collapsed={!state[log.timestamp]}>
                     <View className="mt-2 flex flex-col space-y-2">
                       <ScrollView className="rounded-xl" style={codeBlockStyle}>

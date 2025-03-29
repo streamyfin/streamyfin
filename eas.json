@@ -11,7 +11,7 @@
         "buildType": "apk"
       },
       "env": {
-        "DEBUG": "1"
+        "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
     "development_tv": {
@@ -22,13 +22,13 @@
       },
       "env": {
         "EXPO_TV": "1",
-        "DEBUG": "1"
+        "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "DEBUG": "1"
+        "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
     "development-simulator": {
@@ -38,7 +38,7 @@
         "simulator": true
       },
       "env": {
-        "DEBUG": "1"
+        "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
     "production": {
