@@ -93,6 +93,7 @@ export type HomeSection = {
   orientation?: "horizontal" | "vertical";
   items?: HomeSectionItemResolver;
   nextUp?: HomeSectionNextUpResolver;
+  latest?: HomeSectionLatestResolver;
 };
 
 export type HomeSectionItemResolver = {
@@ -111,6 +112,14 @@ export type HomeSectionNextUpResolver = {
   limit?: number;
   enableResumable?: boolean;
   enableRewatching?: boolean;
+};
+
+export type HomeSectionLatestResolver = {
+  parentId?: string;
+  limit?: number;
+  groupItems?: boolean;
+  isPlayed?: boolean;
+  includeItemTypes?: Array<BaseItemKind>;
 };
 
 export enum VideoPlayer {
