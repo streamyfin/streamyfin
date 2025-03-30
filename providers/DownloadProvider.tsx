@@ -148,7 +148,7 @@ function useDownloadProvider() {
                 title: job.item.Name,
                 body: `${job.item.Name} is ready to be downloaded`,
                 data: {
-                  url: `/downloads`,
+                  url: "/downloads",
                 },
               },
               trigger: null,
@@ -238,7 +238,7 @@ function useDownloadProvider() {
 
       BackGroundDownloader?.download({
         id: process.id,
-        url: settings?.optimizedVersionsServerUrl + "download/" + process.id,
+        url: `${settings?.optimizedVersionsServerUrl}download/${process.id}`,
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
       })
         .begin(() => {
@@ -347,7 +347,7 @@ function useDownloadProvider() {
         await saveImage(item.Id, itemImage?.uri);
 
         const response = await axios.post(
-          settings?.optimizedVersionsServerUrl + "optimize-version",
+          `${settings?.optimizedVersionsServerUrl}optimize-version`,
           {
             url,
             fileExtension,
@@ -447,8 +447,8 @@ function useDownloadProvider() {
   };
 
   const forEveryDocumentDirFile = async (
-    includeMMKV = true,
-    ignoreList: string[] = [],
+    includeMMKV: boolean,
+    ignoreList: string[],
     callback: (file: FileInfo) => void,
   ) => {
     const baseDirectory = FileSystem.documentDirectory;
@@ -461,7 +461,7 @@ function useDownloadProvider() {
       // Exclude mmkv directory.
       // Deleting this deletes all user information as well. Logout should handle this.
       if (
-        (item == "mmkv" && !includeMMKV) ||
+        (item === "mmkv" && !includeMMKV) ||
         ignoreList.some((i) => item.includes(i))
       ) {
         continue;
@@ -603,10 +603,10 @@ function useDownloadProvider() {
   const deleteFileByType = async (type: BaseItemDto["Type"]) => {
     await Promise.all(
       downloadedFiles
-        ?.filter((file) => file.item.Type == type)
+        ?.filter((file) => file.item.Type === type)
         ?.flatMap((file) => {
           const promises = [];
-          if (type == "Episode" && file.item.SeriesId)
+          if (type === "Episode" && file.item.SeriesId)
             promises.push(deleteFile(file.item.SeriesId));
           promises.push(deleteFile(file.item.Id!));
           return promises;
@@ -655,9 +655,8 @@ function useDownloadProvider() {
       const downloadedItems = storage.getString("downloadedItems");
       if (downloadedItems) {
         return JSON.parse(downloadedItems) as DownloadedItem[];
-      } else {
-        return [];
       }
+      return [];
     } catch (error) {
       console.error("Failed to retrieve downloaded items:", error);
       return [];
@@ -691,7 +690,7 @@ function useDownloadProvider() {
       deleteDownloadItemInfoFromDiskTmp(item.Id!);
 
       storage.set("downloadedItems", JSON.stringify(items));
-      storage.set("downloadedItemSize-" + item.Id, size.toString());
+      storage.set(`downloadedItemSize-${item.Id}`, size.toString());
 
       queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
       refetch();
@@ -704,7 +703,7 @@ function useDownloadProvider() {
   }
 
   function getDownloadedItemSize(itemId: string): number {
-    const size = storage.getString("downloadedItemSize-" + itemId);
+    const size = storage.getString(`downloadedItemSize-${itemId}`);
     return size ? Number.parseInt(size) : 0;
   }
 

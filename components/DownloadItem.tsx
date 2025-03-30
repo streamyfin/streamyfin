@@ -113,7 +113,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   );
 
   const progress = useMemo(() => {
-    if (itemIds.length == 1)
+    if (itemIds.length === 1)
       return itemsProcesses.reduce((acc, p) => acc + p.progress, 0);
     return (
       ((itemIds.length -
@@ -126,7 +126,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const itemsQueued = useMemo(() => {
     return (
       itemsNotDownloaded.length > 0 &&
-      itemsNotDownloaded.every((p) => queue.some((q) => p.Id == q.item.Id))
+      itemsNotDownloaded.every((p) => queue.some((q) => p.Id === q.item.Id))
     );
   }, [queue, itemsNotDownloaded]);
   const navigateToDownloads = () => router.push("/downloads");
@@ -230,9 +230,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         if (!url || !source) throw new Error("No url");
 
-        saveDownloadItemInfoToDiskTmp(item, source, url);
-
         if (usingOptimizedServer) {
+          saveDownloadItemInfoToDiskTmp(item, source, url);
           await startBackgroundDownload(url, item, source);
         } else {
           await startRemuxing(item, url, source);
@@ -279,7 +278,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   );
 
   const renderButtonContent = () => {
-    if (processes && itemsProcesses.length > 0) {
+    if (processes.length > 0 && itemsProcesses.length > 0) {
       return progress === 0 ? (
         <Loader />
       ) : (
@@ -293,13 +292,17 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           />
         </View>
       );
-    } else if (itemsQueued) {
-      return <Ionicons name='hourglass' size={24} color='white' />;
-    } else if (allItemsDownloaded) {
-      return <DownloadedIconComponent />;
-    } else {
-      return <MissingDownloadIconComponent />;
     }
+
+    if (itemsQueued) {
+      return <Ionicons name='hourglass' size={24} color='white' />;
+    }
+
+    if (allItemsDownloaded) {
+      return <DownloadedIconComponent />;
+    }
+
+    return <MissingDownloadIconComponent />;
   };
 
   const onButtonPress = () => {
@@ -405,7 +408,7 @@ export const DownloadSingleItem: React.FC<{
     <DownloadItems
       size={size}
       title={
-        item.Type == "Episode"
+        item.Type === "Episode"
           ? t("item_card.download.download_episode")
           : t("item_card.download.download_movie")
       }
