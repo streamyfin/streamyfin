@@ -364,7 +364,9 @@ export const HomeIndex = () => {
                 enableRewatching: section.items?.enableRewatching,
               });
               return response.data.Items || [];
-            } else if (section.latest) {
+            }
+
+            if (section.latest) {
               const response = await getUserLibraryApi(api).getLatestMedia({
                 userId: user?.Id,
                 includeItemTypes: section.latest?.includeItemTypes,

@@ -24,5 +24,5 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run linting
-        run: bun run lint
+      - name: Run linting checks
+        run: bun run check

@@ -15,7 +15,7 @@ interface FilterButtonProps<T> extends ViewProps {
   queryFn: (params: any) => Promise<any>;
   searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
-  multiple?: boolean,
+  multiple?: boolean;
   icon?: "filter" | "sort";
 }
 
