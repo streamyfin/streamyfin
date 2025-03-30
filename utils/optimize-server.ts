@@ -105,13 +105,13 @@ export async function cancelAllJobs({ authHeader, url, deviceId }: IJobInput) {
       authHeader,
       url,
     }).then((jobs) => {
-      jobs.forEach((job) => {
+      for (const job of jobs) {
         cancelJobById({
           authHeader,
           url,
           id: job.id,
         });
-      });
+      }
     });
   } catch (error) {
     writeToLog("ERROR", "Failed to cancel all jobs", error);

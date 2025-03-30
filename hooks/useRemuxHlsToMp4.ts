@@ -132,8 +132,8 @@ export const useRemuxHlsToMp4 = () => {
         totalFrames > 0 ? Math.floor((processedFrames / totalFrames) * 100) : 0;
 
       if (!item.Id) throw new Error("Item is undefined");
-      setProcesses((prev: any[]) => {
-        return prev.map((process: { itemId: string | undefined }) => {
+      setProcesses((prev: JobStatus[]) => {
+        return prev.map((process: JobStatus) => {
           if (process.itemId === item.Id) {
             return {
               ...process,
@@ -160,7 +160,7 @@ export const useRemuxHlsToMp4 = () => {
         });
       }
 
-      const output = APP_CACHE_DOWNLOAD_DIRECTORY + `${item.Id}.mp4`;
+      const output = `${APP_CACHE_DOWNLOAD_DIRECTORY}${item.Id}.mp4`;
 
       if (!api) throw new Error("API is not defined");
       if (!item.Id) throw new Error("Item must have an Id");
