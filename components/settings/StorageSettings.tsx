@@ -81,7 +81,7 @@ export const StorageSettings = () => {
           {size && (
             <>
               <View className='flex flex-row items-center'>
-                <View className='w-3 h-3 rounded-full bg-purple-600 mr-1'></View>
+                <View className='w-3 h-3 rounded-full bg-purple-600 mr-1' />
                 <Text className='text-white text-xs'>
                   {t("home.settings.storage.app_usage", {
                     usedSpace: calculatePercentage(size.app, size.total),
@@ -89,7 +89,7 @@ export const StorageSettings = () => {
                 </Text>
               </View>
               <View className='flex flex-row items-center'>
-                <View className='w-3 h-3 rounded-full bg-purple-400 mr-1'></View>
+                <View className='w-3 h-3 rounded-full bg-purple-400 mr-1' />
                 <Text className='text-white text-xs'>
                   {t("home.settings.storage.device_usage", {
                     availableSpace: calculatePercentage(

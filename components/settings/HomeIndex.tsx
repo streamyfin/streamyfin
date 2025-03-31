@@ -51,13 +51,13 @@ type ScrollingCollectionListSection = {
   orientation?: "horizontal" | "vertical";
 };
 
-type MediaListSection = {
+type MediaListSectionType = {
   type: "MediaListSection";
   queryKey: (string | undefined)[];
   queryFn: QueryFunction<BaseItemDto>;
 };
 
-type Section = ScrollingCollectionListSection | MediaListSection;
+type Section = ScrollingCollectionListSection | MediaListSectionType;
 
 export const HomeIndex = () => {
   const router = useRouter();
@@ -133,7 +133,7 @@ export const HomeIndex = () => {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected == false || state.isInternetReachable === false)
+      if (state.isConnected === false || state.isInternetReachable === false)
         setIsConnected(false);
       else setIsConnected(true);
     });
@@ -236,7 +236,7 @@ export const HomeIndex = () => {
         const title = t("home.recently_added_in", { libraryName: c.Name });
         const queryKey = [
           "home",
-          "recentlyAddedIn" + c.CollectionType,
+          `recentlyAddedIn${c.CollectionType}`,
           user?.Id!,
           c.Id!,
         ];
@@ -353,7 +353,8 @@ export const HomeIndex = () => {
                 parentId: section.items?.parentId,
               });
               return response.data.Items || [];
-            } else if (section.nextUp) {
+            }
+            if (section.nextUp) {
               const response = await getTvShowsApi(api).getNextUp({
                 userId: user?.Id,
                 fields: ["MediaSourceCount"],
@@ -363,7 +364,9 @@ export const HomeIndex = () => {
                 enableRewatching: section.items?.enableRewatching,
               });
               return response.data.Items || [];
-            } else if (section.latest) {
+            }
+
+            if (section.latest) {
               const response = await getUserLibraryApi(api).getLatestMedia({
                 userId: user?.Id,
                 includeItemTypes: section.latest?.includeItemTypes,
@@ -472,7 +475,8 @@ export const HomeIndex = () => {
                 hideIfEmpty
               />
             );
-          } else if (section.type === "MediaListSection") {
+          }
+          if (section.type === "MediaListSection") {
             return (
               <MediaListSection
                 key={index}

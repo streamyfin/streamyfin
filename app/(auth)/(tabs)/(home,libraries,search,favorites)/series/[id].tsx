@@ -87,23 +87,21 @@ const page: React.FC = () => {
           <View className='flex flex-row items-center space-x-2'>
             <AddToFavorites item={item} />
             {!Platform.isTV && (
-              <>
-                <DownloadItems
-                  size='large'
-                  title={t("item_card.download.download_series")}
-                  items={allEpisodes || []}
-                  MissingDownloadIconComponent={() => (
-                    <Ionicons name='download' size={22} color='white' />
-                  )}
-                  DownloadedIconComponent={() => (
-                    <Ionicons
-                      name='checkmark-done-outline'
-                      size={24}
-                      color='#9333ea'
-                    />
-                  )}
-                />
-              </>
+              <DownloadItems
+                size='large'
+                title={t("item_card.download.download_series")}
+                items={allEpisodes || []}
+                MissingDownloadIconComponent={() => (
+                  <Ionicons name='download' size={22} color='white' />
+                )}
+                DownloadedIconComponent={() => (
+                  <Ionicons
+                    name='checkmark-done-outline'
+                    size={24}
+                    color='#9333ea'
+                  />
+                )}
+              />
             )}
           </View>
         ),
@@ -127,20 +125,18 @@ const page: React.FC = () => {
         />
       }
       logo={
-        <>
-          {logoUrl ? (
-            <Image
-              source={{
-                uri: logoUrl,
-              }}
-              style={{
-                height: 130,
-                width: "100%",
-                resizeMode: "contain",
-              }}
-            />
-          ) : null}
-        </>
+        logoUrl ? (
+          <Image
+            source={{
+              uri: logoUrl,
+            }}
+            style={{
+              height: 130,
+              width: "100%",
+              resizeMode: "contain",
+            }}
+          />
+        ) : null
       }
     >
       <View className='flex flex-col pt-4'>

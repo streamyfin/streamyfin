@@ -32,7 +32,7 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast />
-                  {user && user.Policy?.IsAdministrator && <SessionsButton />}
+                  {user?.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
               )}

@@ -13,7 +13,8 @@
     "prebuild": "EXPO_TV=0 bun run clean",
     "prebuild:tv": "EXPO_TV=1 bun run clean",
     "prepare": "husky",
-    "lint": "biome format --write ."
+    "check": "biome check .",
+    "lint": "biome check --write --unsafe"
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "0.8.6",
@@ -134,6 +135,7 @@
     }
   },
   "lint-staged": {
-    "*": ["biome check --no-errors-on-unmatched --files-ignore-unknown=true"]
+    "*.{js,jsx,ts,tsx}": ["biome check --write --unsafe"],
+    "*.{json,md}": ["biome format --write"]
   }
 }

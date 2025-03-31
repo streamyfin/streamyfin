@@ -61,7 +61,7 @@ const RequestModal = forwardRef<
     const { data: serviceSettings } = useQuery({
       queryKey: ["jellyseerr", "request", type, "service"],
       queryFn: async () =>
-        jellyseerrApi?.service(type == "movie" ? "radarr" : "sonarr"),
+        jellyseerrApi?.service(type === "movie" ? "radarr" : "sonarr"),
       enabled: !!jellyseerrApi && !!jellyseerrUser,
       refetchOnMount: "always",
     });

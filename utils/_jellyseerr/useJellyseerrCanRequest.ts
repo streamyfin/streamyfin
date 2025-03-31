@@ -27,8 +27,8 @@ export const useJellyseerrCanRequest = (
     const canNotRequest =
       item?.mediaInfo?.requests?.some(
         (r: MediaRequest) =>
-          r.status == MediaRequestStatus.PENDING ||
-          r.status == MediaRequestStatus.APPROVED,
+          r.status === MediaRequestStatus.PENDING ||
+          r.status === MediaRequestStatus.APPROVED,
       ) ||
       item.mediaInfo?.status === MediaStatus.AVAILABLE ||
       item.mediaInfo?.status === MediaStatus.BLACKLISTED ||

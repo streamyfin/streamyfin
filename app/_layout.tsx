@@ -16,7 +16,12 @@ import {
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
-import {LogProvider, writeDebugLog, writeErrorLog, writeToLog} from "@/utils/log";
+import {
+  LogProvider,
+  writeDebugLog,
+  writeErrorLog,
+  writeToLog,
+} from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
@@ -31,8 +36,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const BackgroundFetch = !Platform.isTV
   ? require("expo-background-fetch")
   : null;
-import * as FileSystem from "expo-file-system";
 import * as Device from "expo-device";
+import * as FileSystem from "expo-file-system";
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { Stack, router, useSegments } from "expo-router";
@@ -161,7 +166,7 @@ if (!Platform.isTV) {
 
     for (const job of jobs) {
       if (job.status === "completed") {
-        const downloadUrl = url + "download/" + job.id;
+        const downloadUrl = `${url}download/${job.id}`;
         const tasks = await BackGroundDownloader.checkForExistingDownloads();
 
         if (tasks.find((task: { id: string }) => task.id === job.id)) {
@@ -194,7 +199,7 @@ if (!Platform.isTV) {
                 title: job.item.Name,
                 body: "Download completed",
                 data: {
-                  url: `/downloads`,
+                  url: "/downloads",
                 },
               },
               trigger: null,
@@ -208,7 +213,7 @@ if (!Platform.isTV) {
                 title: job.item.Name,
                 body: "Download failed",
                 data: {
-                  url: `/downloads`,
+                  url: "/downloads",
                 },
               },
               trigger: null,
@@ -333,7 +338,7 @@ function Layout() {
       }
 
       // only create push token for real devices (pointless for emulators)
-      if(Device.isDevice) {
+      if (Device.isDevice) {
         Notifications?.getExpoPushTokenAsync()
           .then((token: ExpoPushToken) => token && setExpoPushToken(token))
           .catch((reason: any) => console.log("Failed to get token", reason));
@@ -357,9 +362,12 @@ function Layout() {
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
             // Currently the notifications supported by the plugin will send data for deep links.
-            const {title, data} = response.notification.request.content;
+            const { title, data } = response.notification.request.content;
 
-            writeDebugLog(`Notification ${title} opened`, response.notification.request.content)
+            writeDebugLog(
+              `Notification ${title} opened`,
+              response.notification.request.content,
+            );
 
             if (data && Object.keys(data).length > 0) {
               const type = data?.type?.toLower?.();
@@ -367,12 +375,12 @@ function Layout() {
 
               switch (type) {
                 case "movie":
-                  router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`)
+                  router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
                   break;
                 case "episode":
                   // We just clicked a notification for an individual episode.
                   if (itemId) {
-                    router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`)
+                    router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
                   }
                   // summarized season notification for multiple episodes. Bring them to series season
                   else {
@@ -380,10 +388,11 @@ function Layout() {
                     const seasonIndex = data.seasonIndex;
 
                     if (seasonIndex) {
-                      router.push(`/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`)
-                    }
-                    else {
-                      router.push(`/(auth)/(tabs)/home/series/${seriesId}`)
+                      router.push(
+                        `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`,
+                      );
+                    } else {
+                      router.push(`/(auth)/(tabs)/home/series/${seriesId}`);
                     }
                   }
                   break;

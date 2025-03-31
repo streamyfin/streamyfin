@@ -5,7 +5,7 @@ export const LargePoster: React.FC<{ url?: string | null }> = ({ url }) => {
   if (!url)
     return (
       <View className='p-4 rounded-xl overflow-hidden '>
-        <View className='w-full aspect-video rounded-xl overflow-hidden border border-neutral-800'></View>
+        <View className='w-full aspect-video rounded-xl overflow-hidden border border-neutral-800' />
       </View>
     );
 

@@ -157,9 +157,8 @@ const page: React.FC = () => {
 
       if (accumulatedItems < totalItems) {
         return lastPage?.Items?.length * pages.length;
-      } else {
-        return undefined;
       }
+      return undefined;
     },
     initialPageParam: 0,
     enabled: !!api && !!user?.Id && !!collection,
@@ -412,7 +411,7 @@ const page: React.FC = () => {
             width: 10,
             height: 10,
           }}
-        ></View>
+        />
       )}
     />
   );

@@ -75,7 +75,7 @@ const Dropdown = <T,>({
             multiple ? (
               <DropdownMenu.CheckboxItem
                 value={
-                  selected?.some((s) => keyExtractor(s) == keyExtractor(item))
+                  selected?.some((s) => keyExtractor(s) === keyExtractor(item))
                     ? "on"
                     : "off"
                 }
@@ -83,7 +83,7 @@ const Dropdown = <T,>({
                 onValueChange={(next: "on" | "off", previous: "on" | "off") => {
                   setSelected((p) => {
                     const prev = p || [];
-                    if (next == "on") {
+                    if (next === "on") {
                       return [...prev, item];
                     }
                     return [

@@ -183,15 +183,13 @@ export const FilterSheet = <T,>({
                 <TouchableOpacity
                   onPress={() => {
                     if (multiple) {
-                      if (!values.includes(item))
-                        set(values.concat(item))
-                      else set(values.filter(v => v !== item))
+                      if (!values.includes(item)) set(values.concat(item));
+                      else set(values.filter((v) => v !== item));
 
                       setTimeout(() => {
                         setOpen(false);
                       }, 250);
-                    }
-                    else {
+                    } else {
                       if (!values.includes(item)) {
                         set([item]);
                         setTimeout(() => {
@@ -214,7 +212,7 @@ export const FilterSheet = <T,>({
                     height: StyleSheet.hairlineWidth,
                   }}
                   className='h-1 divide-neutral-700 '
-                ></View>
+                />
               </View>
             ))}
           </View>

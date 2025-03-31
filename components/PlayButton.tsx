@@ -239,7 +239,7 @@ export const PlayButton: React.FC<Props> = ({
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item || !item.RunTimeTicks) return 0;
     const userData = item.UserData;
-    if (userData && userData.PlaybackPositionTicks) {
+    if (userData?.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0
         ? Math.max(
             (userData.PlaybackPositionTicks / item.RunTimeTicks) * 100,
@@ -331,7 +331,7 @@ export const PlayButton: React.FC<Props> = ({
       accessibilityLabel='Play button'
       accessibilityHint='Tap to play the media'
       onPress={onPress}
-      className={`relative`}
+      className={"relative"}
       {...props}
     >
       <View className='absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden'>

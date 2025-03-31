@@ -133,7 +133,7 @@ const page: React.FC = () => {
           queryFn={fetchItems}
           queryKey={["actor", "movies", actorId]}
         />
-        <View className='h-12'></View>
+        <View className='h-12' />
       </View>
     </ParallaxScrollView>
   );

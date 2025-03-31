@@ -29,7 +29,7 @@ export default function page() {
     try {
       return (
         downloadedFiles
-          ?.filter((f) => f.item.SeriesId == seriesId)
+          ?.filter((f) => f.item.SeriesId === seriesId)
           ?.sort(
             (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
           ) || []

@@ -54,7 +54,7 @@ export const getItemImage = ({
       };
       break;
     case "Primary":
-      tag = item.ImageTags?.["Primary"];
+      tag = item.ImageTags?.Primary;
       if (!tag) break;
       blurhash = item.ImageBlurHashes?.Primary?.[tag];
 
@@ -64,7 +64,7 @@ export const getItemImage = ({
       };
       break;
     case "Thumb":
-      tag = item.ImageTags?.["Thumb"];
+      tag = item.ImageTags?.Thumb;
       if (!tag) break;
       blurhash = item.ImageBlurHashes?.Thumb?.[tag];
 
@@ -74,7 +74,7 @@ export const getItemImage = ({
       };
       break;
     default:
-      tag = item.ImageTags?.["Primary"];
+      tag = item.ImageTags?.Primary;
       src = {
         uri: `${api.basePath}/Items/${item.Id}/Images/Primary?quality=${quality}&tag=${tag}&width=${width}`,
       };

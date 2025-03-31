@@ -240,7 +240,7 @@ const Page: React.FC = () => {
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
               {isLoading || isFetching ? (
-                <Button loading={true} disabled={true} color='purple'></Button>
+                <Button loading={true} disabled={true} color='purple' />
               ) : canRequest ? (
                 <Button color='purple' onPress={request}>
                   {t("jellyseerr.request_button")}

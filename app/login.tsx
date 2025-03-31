@@ -218,16 +218,14 @@ const Login: React.FC = () => {
               <View className='px-4 -mt-20 w-full'>
                 <View className='flex flex-col space-y-2'>
                   <Text className='text-2xl font-bold -mb-2'>
-                    <>
-                      {serverName ? (
-                        <>
-                          {t("login.login_to_title") + " "}
-                          <Text className='text-purple-600'>{serverName}</Text>
-                        </>
-                      ) : (
-                        t("login.login_title")
-                      )}
-                    </>
+                    {serverName ? (
+                      <>
+                        {`${t("login.login_to_title")} `}
+                        <Text className='text-purple-600'>{serverName}</Text>
+                      </>
+                    ) : (
+                      t("login.login_title")
+                    )}
                   </Text>
                   <Text className='text-xs text-neutral-400'>
                     {api.basePath}
@@ -284,7 +282,7 @@ const Login: React.FC = () => {
                 </View>
               </View>
 
-              <View className='absolute bottom-0 left-0 w-full px-4 mb-2'></View>
+              <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
             </View>
           </>
         ) : (

@@ -35,7 +35,7 @@ export const useDownloadedFileOpener = () => {
     async (item: BaseItemDto) => {
       try {
         // @ts-expect-error
-        router.push("/player/direct-player?offline=true&itemId=" + item.Id);
+        router.push(`/player/direct-player?offline=true&itemId=${item.Id}`);
       } catch (error) {
         writeToLog("ERROR", "Error opening file", error);
         console.error("Error opening file:", error);
