@@ -27,33 +27,39 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
    * Get horizontal poster for movie and episode, with failover to primary.
    */
   const url = useMemo(() => {
-    if (!api) return;
+    if (!api) {
+      return;
+    }
     if (item.Type === "Episode" && useEpisodePoster) {
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Episode") {
-      if (item.ParentBackdropItemId && item.ParentThumbImageTag)
+      if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
         return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
-      else
-        return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
+      }
+
+      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Movie") {
-      if (item.ImageTags?.["Thumb"])
-        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.["Thumb"]}`;
-      else
-        return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
+      if (item.ImageTags?.Thumb) {
+        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
+      }
+
+      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Program") {
-      if (item.ImageTags?.["Thumb"])
-        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.["Thumb"]}`;
-      else
-        return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
+      if (item.ImageTags?.Thumb) {
+        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
+      }
+
+      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
 
-    if (item.ImageTags?.["Thumb"])
-      return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.["Thumb"]}`;
-    else
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
+    if (item.ImageTags?.Thumb) {
+      return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ImageTags?.Thumb}`;
+    }
+
+    return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
   }, [item]);
 
   const progress = useMemo(() => {
@@ -64,15 +70,12 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       const total = endDate.getTime() - startDate.getTime();
       const elapsed = now.getTime() - startDate.getTime();
       return (elapsed / total) * 100;
-    } else {
-      return item.UserData?.PlayedPercentage || 0;
     }
+    return item.UserData?.PlayedPercentage || 0;
   }, [item]);
 
   if (!url)
-    return (
-      <View className='aspect-video border border-neutral-800 w-44'></View>
-    );
+    return <View className='aspect-video border border-neutral-800 w-44' />;
 
   return (
     <View
@@ -102,14 +105,16 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       {progress > 0 && (
         <>
           <View
-            className={`absolute w-100 bottom-0 left-0 h-1 bg-neutral-700 opacity-80 w-full`}
-          ></View>
+            className={
+              "absolute w-100 bottom-0 left-0 h-1 bg-neutral-700 opacity-80 w-full"
+            }
+          />
           <View
             style={{
               width: `${progress}%`,
             }}
-            className={`absolute bottom-0 left-0 h-1 bg-purple-600 w-full`}
-          ></View>
+            className={"absolute bottom-0 left-0 h-1 bg-purple-600 w-full"}
+          />
         </>
       )}
     </View>

@@ -29,8 +29,8 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
   );
 
   const blurhash = useMemo(() => {
-    const key = item.ImageTags?.["Primary"] as string;
-    return item.ImageBlurHashes?.["Primary"]?.[key];
+    const key = item.ImageTags?.Primary as string;
+    return item.ImageBlurHashes?.Primary?.[key];
   }, [item]);
 
   return (
@@ -57,7 +57,7 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
       />
       <WatchedIndicator item={item} />
       {showProgress && progress > 0 && (
-        <View className='h-1 bg-red-600 w-full'></View>
+        <View className='h-1 bg-red-600 w-full' />
       )}
     </View>
   );

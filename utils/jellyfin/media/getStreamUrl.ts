@@ -121,32 +121,31 @@ export const getStreamUrl = async ({
         sessionId: sessionId,
         mediaSource,
       };
-    } else {
-      const searchParams = new URLSearchParams({
-        playSessionId: sessionData?.PlaySessionId || "",
-        mediaSourceId: mediaSource?.Id || "",
-        static: "true",
-        subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
-        audioStreamIndex: audioStreamIndex?.toString() || "",
-        deviceId: api.deviceInfo.id,
-        api_key: api.accessToken,
-        startTimeTicks: startTimeTicks.toString(),
-        maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
-        userId: userId || "",
-      });
-
-      const directPlayUrl = `${
-        api.basePath
-      }/Videos/${itemId}/stream.mp4?${searchParams.toString()}`;
-
-      console.log("Video is being direct played:", directPlayUrl);
-
-      return {
-        url: directPlayUrl,
-        sessionId: sessionId,
-        mediaSource,
-      };
     }
+    const searchParams = new URLSearchParams({
+      playSessionId: sessionData?.PlaySessionId || "",
+      mediaSourceId: mediaSource?.Id || "",
+      static: "true",
+      subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
+      audioStreamIndex: audioStreamIndex?.toString() || "",
+      deviceId: api.deviceInfo.id,
+      api_key: api.accessToken,
+      startTimeTicks: startTimeTicks.toString(),
+      maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
+      userId: userId || "",
+    });
+
+    const directPlayUrl = `${
+      api.basePath
+    }/Videos/${itemId}/stream.mp4?${searchParams.toString()}`;
+
+    console.log("Video is being direct played:", directPlayUrl);
+
+    return {
+      url: directPlayUrl,
+      sessionId: sessionId,
+      mediaSource,
+    };
   }
 
   Alert.alert("Error", "Could not play this item");

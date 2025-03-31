@@ -6,7 +6,7 @@ interface Props extends ViewProps {}
 export const TitleHeader: React.FC<Props> = ({ ...props }) => {
   return (
     <View {...props}>
-      <Text></Text>
+      <Text />
     </View>
   );
 };

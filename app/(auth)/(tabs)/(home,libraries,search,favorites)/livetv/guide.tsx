@@ -124,7 +124,7 @@ export default function page() {
               height: HOUR_HEIGHT,
             }}
             className='bg-neutral-800'
-          ></View>
+          />
           {channels?.Items?.map((c, i) => (
             <View className='h-16 w-16 mr-4 rounded-lg overflow-hidden' key={i}>
               <ItemImage

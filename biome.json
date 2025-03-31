@@ -9,7 +9,8 @@
       "ios",
       "android",
       "Streamyfin.app",
-      "utils/jellyseerr"
+      "utils/jellyseerr",
+      ".expo"
     ]
   },
   "linter": {
@@ -17,12 +18,18 @@
     "rules": {
       "style": {
         "useImportType": "off",
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "off",
+        "useLiteralEnumMembers": "off"
+      },
+      "complexity": {
+        "noForEach": "off"
       },
       "recommended": true,
       "correctness": { "useExhaustiveDependencies": "off" },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off"
       }
     }
   },

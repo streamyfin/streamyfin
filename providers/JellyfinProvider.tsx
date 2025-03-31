@@ -101,7 +101,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     if (!api || !deviceId) return;
     try {
       const response = await api.axiosInstance.post(
-        api.basePath + "/QuickConnect/Initiate",
+        `${api.basePath}/QuickConnect/Initiate`,
         null,
         {
           headers,
@@ -111,9 +111,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         setSecret(response?.data?.Secret);
         setIsPolling(true);
         return response.data?.Code;
-      } else {
-        throw new Error("Failed to initiate quick connect");
       }
+      throw new Error("Failed to initiate quick connect");
     } catch (error) {
       console.error(error);
       throw error;
@@ -133,7 +132,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           setIsPolling(false);
 
           const authResponse = await api.axiosInstance.post(
-            api.basePath + "/Users/AuthenticateWithQuickConnect",
+            `${api.basePath}/Users/AuthenticateWithQuickConnect`,
             {
               secret,
             },
@@ -156,10 +155,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         setIsPolling(false);
         setSecret(null);
         throw new Error("The code has expired. Please try again.");
-      } else {
-        console.error("Error polling Quick Connect:", error);
-        throw error;
       }
+      console.error("Error polling Quick Connect:", error);
+      throw error;
     }
   }, [api, secret, headers]);
 
@@ -290,7 +288,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       api
         ?.delete(`/Streamyfin/device/${deviceId}`)
         .then((r) => writeInfoLog("Deleted expo push token for device"))
-        .catch((e) => writeErrorLog("Failed to delete expo push token for device"));
+        .catch((e) =>
+          writeErrorLog("Failed to delete expo push token for device"),
+        );
 
       storage.delete("token");
       setUser(null);

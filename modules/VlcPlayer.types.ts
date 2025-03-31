@@ -1,3 +1,5 @@
+import { ViewStyle } from "react-native";
+
 export type PlaybackStatePayload = {
   nativeEvent: {
     target: number;
@@ -59,7 +61,7 @@ export type ChapterInfo = {
 
 export type VlcPlayerViewProps = {
   source: VlcPlayerSource;
-  style?: Record<string, unknown>;
+  style?: ViewStyle | ViewStyle[];
   progressUpdateInterval?: number;
   paused?: boolean;
   muted?: boolean;

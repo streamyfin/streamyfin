@@ -26,11 +26,11 @@ export default function menuLinks() {
   const getMenuLinks = useCallback(async () => {
     try {
       const response = await api?.axiosInstance.get(
-        api?.basePath + "/web/config.json",
+        `${api?.basePath}/web/config.json`,
       );
       const config = response?.data;
 
-      if (!config && !config.hasOwnProperty("menuLinks")) {
+      if (!config && !Object.hasOwn(config, "menuLinks")) {
         console.error("Menu links not found");
         return;
       }

@@ -140,7 +140,7 @@ export default function DownloadSettings({ ...props }) {
           onPress={() => router.push("/settings/optimized-server/page")}
           showArrow
           title={t("home.settings.downloads.optimized_versions_server")}
-        ></ListItem>
+        />
       </ListGroup>
     </DisabledSetting>
   );

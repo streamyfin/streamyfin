@@ -17,9 +17,7 @@ Number.prototype.bytesToReadable = function (decimals = 2) {
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return (
-    Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
-  );
+  return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`;
 };
 
 Number.prototype.secondsToMilliseconds = function () {

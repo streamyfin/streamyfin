@@ -23,7 +23,7 @@ const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
       request.media.tmdbId,
     ],
     queryFn: async () => {
-      return request.media.mediaType == MediaType.MOVIE
+      return request.media.mediaType === MediaType.MOVIE
         ? jellyseerrApi?.movieDetails(request.media.tmdbId)
         : jellyseerrApi?.tvDetails(request.media.tmdbId);
     },

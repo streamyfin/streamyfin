@@ -72,7 +72,7 @@ export default function TabLayout() {
           options={{
             title: t("tabs.home"),
             tabBarIcon:
-              Platform.OS == "android"
+              Platform.OS === "android"
                 ? ({ color, focused, size }) =>
                     require("@/assets/icons/house.fill.png")
                 : ({ focused }) =>
@@ -91,7 +91,7 @@ export default function TabLayout() {
           options={{
             title: t("tabs.search"),
             tabBarIcon:
-              Platform.OS == "android"
+              Platform.OS === "android"
                 ? ({ color, focused, size }) =>
                     require("@/assets/icons/magnifyingglass.png")
                 : ({ focused }) =>
@@ -105,7 +105,7 @@ export default function TabLayout() {
           options={{
             title: t("tabs.favorites"),
             tabBarIcon:
-              Platform.OS == "android"
+              Platform.OS === "android"
                 ? ({ color, focused, size }) =>
                     focused
                       ? require("@/assets/icons/heart.fill.png")
@@ -121,7 +121,7 @@ export default function TabLayout() {
           options={{
             title: t("tabs.library"),
             tabBarIcon:
-              Platform.OS == "android"
+              Platform.OS === "android"
                 ? ({ color, focused, size }) =>
                     require("@/assets/icons/server.rack.png")
                 : ({ focused }) =>
@@ -135,9 +135,9 @@ export default function TabLayout() {
           options={{
             title: t("tabs.custom_links"),
             // @ts-expect-error
-            tabBarItemHidden: settings?.showCustomMenuLinks ? false : true,
+            tabBarItemHidden: !settings?.showCustomMenuLinks,
             tabBarIcon:
-              Platform.OS == "android"
+              Platform.OS === "android"
                 ? ({ focused }) => require("@/assets/icons/list.png")
                 : ({ focused }) =>
                     focused

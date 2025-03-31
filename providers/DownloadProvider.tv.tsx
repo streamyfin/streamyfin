@@ -63,7 +63,7 @@ function useDownloadProvider() {
   function saveDownloadedItemInfo(item: BaseItemDto, size = 0) {}
 
   function getDownloadedItemSize(itemId: string): number {
-    const size = storage.getString("downloadedItemSize-" + itemId);
+    const size = storage.getString(`downloadedItemSize-${itemId}`);
     return size ? Number.parseInt(size) : 0;
   }
 

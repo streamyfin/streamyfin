@@ -66,7 +66,7 @@ export const writeDebugLog = (message: string, data?: any) => {
   if (process.env.EXPO_PUBLIC_WRITE_DEBUG === "1") {
     writeToLog("DEBUG", message, data);
   }
-}
+};
 
 export const readFromLog = (): LogEntry[] => {
   const logs = storage.getString("logs");

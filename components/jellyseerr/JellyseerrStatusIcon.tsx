@@ -62,7 +62,7 @@ const JellyseerrStatusIcon: React.FC<Props & ViewProps> = ({
 
   return (
     badgeIcon && (
-      <TouchableOpacity onPress={onPress} disabled={onPress == undefined}>
+      <TouchableOpacity onPress={onPress} disabled={onPress === undefined}>
         <View
           className={`${badgeStyle ?? "bg-purple-600"} rounded-full h-6 w-6 flex items-center justify-center ${props.className}`}
           {...props}

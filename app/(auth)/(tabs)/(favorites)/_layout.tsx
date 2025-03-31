@@ -17,7 +17,7 @@ export default function SearchLayout() {
             backgroundColor: "black",
           },
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

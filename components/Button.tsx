@@ -73,7 +73,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
             flex flex-row items-center justify-between w-full
             ${justify === "between" ? "justify-between" : "justify-center"}`}
         >
-          {iconLeft ? iconLeft : <View className='w-4'></View>}
+          {iconLeft ? iconLeft : <View className='w-4' />}
           <Text
             className={`
           text-white font-bold text-base
@@ -85,7 +85,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           >
             {children}
           </Text>
-          {iconRight ? iconRight : <View className='w-4'></View>}
+          {iconRight ? iconRight : <View className='w-4' />}
         </View>
       )}
     </TouchableOpacity>
