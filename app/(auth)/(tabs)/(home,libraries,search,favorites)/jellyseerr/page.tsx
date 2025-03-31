@@ -236,18 +236,18 @@ const Page: React.FC = () => {
                   }}
                 />
               </View>
-              <View className='mb-4'>
+              <View>
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
               {isLoading || isFetching ? (
-                <Button loading={true} disabled={true} color='purple' />
+                <Button loading={true} disabled={true} color='purple' className='mt-4' />
               ) : canRequest ? (
-                <Button color='purple' onPress={request}>
+                <Button color='purple' onPress={request} className='mt-4'>
                   {t("jellyseerr.request_button")}
                 </Button>
-              ) : (
+                ) : details?.mediaInfo?.jellyfinMediaId && (
                 <Button
-                  className='bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
+                  className='mt-4 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
                   color='transparent'
                   onPress={() => bottomSheetModalRef?.current?.present()}
                   iconLeft={
