@@ -30,7 +30,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -46,6 +46,7 @@ const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
+  const router = useRouter();
 
   const { mediaTitle, releaseYear, posterSrc, mediaType, ...result } =
     params as unknown as {
@@ -240,26 +241,61 @@ const Page: React.FC = () => {
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
               {isLoading || isFetching ? (
-                <Button loading={true} disabled={true} color='purple' className='mt-4' />
+                <Button
+                  loading={true}
+                  disabled={true}
+                  color='purple'
+                  className='mt-4'
+                />
               ) : canRequest ? (
                 <Button color='purple' onPress={request} className='mt-4'>
                   {t("jellyseerr.request_button")}
                 </Button>
-                ) : details?.mediaInfo?.jellyfinMediaId && (
-                <Button
-                  className='mt-4 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
-                  color='transparent'
-                  onPress={() => bottomSheetModalRef?.current?.present()}
-                  iconLeft={
-                    <Ionicons name='warning-outline' size={24} color='white' />
-                  }
-                  style={{
-                    borderWidth: 1,
-                    borderStyle: "solid",
-                  }}
-                >
-                  {t("jellyseerr.report_issue_button")}
-                </Button>
+              ) : (
+                details?.mediaInfo?.jellyfinMediaId && (
+                  <View className='flex flex-row space-x-2 mt-4'>
+                    <Button
+                      className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
+                      color='transparent'
+                      onPress={() => bottomSheetModalRef?.current?.present()}
+                      iconLeft={
+                        <Ionicons
+                          name='warning-outline'
+                          size={20}
+                          color='white'
+                        />
+                      }
+                      style={{
+                        borderWidth: 1,
+                        borderStyle: "solid",
+                      }}
+                    >
+                      <Text className='text-sm'>
+                        {t("jellyseerr.report_issue_button")}
+                      </Text>
+                    </Button>
+                    <Button
+                      className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
+                      onPress={() => {
+                        const url =
+                          mediaType === MediaType.MOVIE
+                            ? `/(auth)/(tabs)/(search)/items/page?id=${details?.mediaInfo.jellyfinMediaId}`
+                            : `/(auth)/(tabs)/(search)/series/${details?.mediaInfo.jellyfinMediaId}`;
+                        // @ts-expect-error
+                        router.push(url);
+                      }}
+                      iconLeft={
+                        <Ionicons name='play-outline' size={20} color='white' />
+                      }
+                      style={{
+                        borderWidth: 1,
+                        borderStyle: "solid",
+                      }}
+                    >
+                      <Text className='text-sm'>Play</Text>
+                    </Button>
+                  </View>
+                )
               )}
               <OverviewText text={result.overview} className='mt-4' />
             </View>
