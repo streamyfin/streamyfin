@@ -9,6 +9,7 @@ import type {
 } from "@/utils/jellyseerr/server/api/servarr/base";
 import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import { writeDebugLog } from "@/utils/log";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -147,16 +148,20 @@ const RequestModal = forwardRef<
     }, [requestBody?.seasons]);
 
     const request = useCallback(() => {
+      const body = {
+        is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
+        profileId: defaultProfile?.id,
+        rootFolder: defaultFolder?.path,
+        tags: defaultTags.map((t) => t.id),
+        ...requestBody,
+        ...requestOverrides,
+      };
+
+      writeDebugLog("Sending Jellyseerr advanced request", body);
+
       requestMedia(
         seasonTitle ? `${title}, ${seasonTitle}` : title,
-        {
-          is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
-          profileId: defaultProfile.id,
-          rootFolder: defaultFolder.path,
-          tags: defaultTags.map((t) => t.id),
-          ...requestBody,
-          ...requestOverrides,
-        },
+        body,
         onRequested,
       );
     }, [
