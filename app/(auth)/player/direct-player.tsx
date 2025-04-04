@@ -24,6 +24,7 @@ import {
   type MediaSourceInfo,
   PlaybackOrder,
   type PlaybackProgressInfo,
+  PlaybackStartInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -151,6 +152,7 @@ export default function page() {
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
+  const [streamReady, setStreamReady] = useState(false);
   const [streamStatus, setStreamStatus] = useState({
     isLoading: true,
     isError: false,
@@ -191,6 +193,7 @@ export default function page() {
           result = { mediaSource, sessionId, url };
         }
         setStream(result);
+        setStreamReady(true);
       } catch (error) {
         console.error("Failed to fetch stream:", error);
         setStreamStatus({ isLoading: false, isError: true });
@@ -201,13 +204,34 @@ export default function page() {
     fetchStreamData();
   }, [itemId, mediaSourceId, bitrateValue, api, item, user?.Id]);
 
+  useEffect(() => {
+    if (!streamReady) return;
+
+    const reportPlaybackStart = async () => {
+      await getPlaystateApi(api!).reportPlaybackStart({
+        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
+      });
+    };
+
+    reportPlaybackStart();
+  }, [streamReady]);
+
   const togglePlay = async () => {
+    console.log("I'm triggered");
     lightHapticFeedback();
     setIsPlaying(!isPlaying);
+    writeToLog("ERROR", `${isPlaying}`, isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
+      reportPlaybackStopped();
     } else {
       videoRef.current?.play();
+      await getPlaystateApi(api!).onPlaybackStart({
+        itemId: item?.Id!,
+        mediaSourceId: mediaSourceId,
+        // positionTicks: currentTimeInTicks,
+        playSessionId: stream?.sessionId!,
+      });
     }
   };
 
