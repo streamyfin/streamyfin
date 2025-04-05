@@ -217,20 +217,15 @@ export default function page() {
   }, [streamReady]);
 
   const togglePlay = async () => {
-    console.log("I'm triggered");
     lightHapticFeedback();
     setIsPlaying(!isPlaying);
-    writeToLog("ERROR", `${isPlaying}`, isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
       reportPlaybackStopped();
     } else {
       videoRef.current?.play();
-      await getPlaystateApi(api!).onPlaybackStart({
-        itemId: item?.Id!,
-        mediaSourceId: mediaSourceId,
-        // positionTicks: currentTimeInTicks,
-        playSessionId: stream?.sessionId!,
+      await getPlaystateApi(api!).reportPlaybackStart({
+        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
       });
     }
   };
