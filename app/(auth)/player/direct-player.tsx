@@ -24,6 +24,7 @@ import {
   type MediaSourceInfo,
   PlaybackOrder,
   type PlaybackProgressInfo,
+  PlaybackStartInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -201,13 +202,29 @@ export default function page() {
     fetchStreamData();
   }, [itemId, mediaSourceId, bitrateValue, api, item, user?.Id]);
 
+  useEffect(() => {
+    if (!stream) return;
+
+    const reportPlaybackStart = async () => {
+      await getPlaystateApi(api!).reportPlaybackStart({
+        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
+      });
+    };
+
+    reportPlaybackStart();
+  }, [stream]);
+
   const togglePlay = async () => {
     lightHapticFeedback();
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
+      reportPlaybackStopped();
     } else {
       videoRef.current?.play();
+      await getPlaystateApi(api!).reportPlaybackStart({
+        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
+      });
     }
   };
 
