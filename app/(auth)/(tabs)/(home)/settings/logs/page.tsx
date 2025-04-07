@@ -4,7 +4,7 @@ import { FilterButton } from "@/components/filters/FilterButton";
 import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 import * as FileSystem from "expo-file-system";
 import { useNavigation } from "expo-router";
-//import * as Sharing from "expo-sharing";
+import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
@@ -48,7 +48,7 @@ export default function page() {
     FileSystem.writeAsStringAsync(uri, JSON.stringify(filteredLogs))
       .then(() => {
         setLoading(false);
-        //Sharing.shareAsync(uri, { mimeType: "txt", UTI: "txt" });
+        Sharing.shareAsync(uri, { mimeType: "txt", UTI: "txt" });
       })
       .catch((e) =>
         writeErrorLog("Something went wrong attempting to export", e),
