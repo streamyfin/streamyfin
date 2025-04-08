@@ -13,7 +13,7 @@ import SeriesPoster from "@/components/posters/SeriesPoster";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import type {
@@ -52,6 +52,8 @@ const exampleSearches = [
 export default function search() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+
+  const [user] = useAtom(userAtom);
 
   const { t } = useTranslation();
 
@@ -100,13 +102,15 @@ export default function search() {
 
       try {
         if (searchEngine === "Jellyfin") {
-          const searchApi = await getSearchApi(api).getSearchHints({
+          const searchApi = await getItemsApi(api).getItems({
             searchTerm: query,
             limit: 10,
             includeItemTypes: types,
+            recursive: true,
+            userId: user?.Id,
           });
 
-          return (searchApi.data.SearchHints as BaseItemDto[]) || [];
+          return (searchApi.data.Items as BaseItemDto[]) || [];
         }
         if (!settings?.marlinServerUrl) {
           return [];
