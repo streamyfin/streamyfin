@@ -64,7 +64,7 @@
     "expo-task-manager": "~12.0.5",
     "expo-updates": "~0.26.17",
     "expo-web-browser": "~14.0.2",
-    "ffmpeg-kit-react-native": "git+https://github.com/juliendevleeschauwer/ffmpeg-kit-react-native",
+    "ffmpeg-kit-react-native": "git+https://github.com/lufinkey/ffmpreg-kit-react-native",
     "i18next": "^24.2.2",
     "jotai": "^2.11.3",
     "lodash": "^4.17.21",
