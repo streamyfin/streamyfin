@@ -23,9 +23,9 @@ import { Button } from "../Button";
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
-const FFmpegKitProvider = !Platform.isTV
-  ? require("ffmpeg-kit-react-native")
-  : null;
+//const FFmpegKitProvider = !Platform.isTV
+//  ? require("ffmpeg-kit-react-native")
+//  : null;
 
 interface Props extends ViewProps {}
 
@@ -85,7 +85,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
           await queryClient.refetchQueries({ queryKey: ["jobs"] });
         }
       } else {
-        FFmpegKitProvider.FFmpegKit.cancel(Number(id));
+        //FFmpegKitProvider.FFmpegKit.cancel(Number(id));
         setProcesses((prev: any[]) =>
           prev.filter((p: { id: string }) => p.id !== id),
         );

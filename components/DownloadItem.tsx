@@ -1,4 +1,4 @@
-import { useRemuxHlsToMp4 } from "@/hooks/useRemuxHlsToMp4";
+//import { useRemuxHlsToMp4 } from "@/hooks/useRemuxHlsToMp4";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
@@ -59,7 +59,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [settings] = useSettings();
 
   const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
-  const { startRemuxing } = useRemuxHlsToMp4();
+  //const { startRemuxing } = useRemuxHlsToMp4();
 
   const [selectedMediaSource, setSelectedMediaSource] = useState<
     MediaSourceInfo | undefined | null
@@ -234,7 +234,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           saveDownloadItemInfoToDiskTmp(item, source, url);
           await startBackgroundDownload(url, item, source);
         } else {
-          await startRemuxing(item, url, source);
+          //await startRemuxing(item, url, source);
         }
       }
     },
@@ -249,7 +249,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       maxBitrate,
       usingOptimizedServer,
       startBackgroundDownload,
-      startRemuxing,
+      //startRemuxing,
     ],
   );
 
