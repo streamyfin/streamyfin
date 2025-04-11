@@ -1,5 +1,5 @@
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
-import Application from "expo-application";
+import * as Application from "expo-application";
 import Constants from "expo-constants";
 import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
