@@ -46,7 +46,7 @@
       "suggested_episodes": "Предложенные серии",
       "intro": {
         "welcome_to_streamyfin": "Добро пожаловать в Streamyfin",
-        "a_free_and_open_source_client_for_jellyfin": "Бесплатный и с открытым кодом клиент для Jellyfin.",
+        "a_free_and_open_source_client_for_jellyfin": "Бесплатный клиент для Jellyfin с открытым кодом",
         "features_title": "Функции",
         "features_description": "Streamyfin имеет множество функций и интегрируется с широким спектром программ, которое вы можете найти в меню настроек:",
         "jellyseerr_feature_description": "Подключитесь к Jellyseerr и запрашивайте фильмы прямо в приложении.",
@@ -87,7 +87,7 @@
         },
         "audio": {
           "audio_title": "Аудио",
-          "set_audio_track": "Установить аудио дорожку из предыдущего элемента",
+          "set_audio_track": "Устанавливать аудио дорожку из предыдущего элемента",
           "audio_language": "Язык аудио",
           "audio_hint": "Выберите стандартный язык аудио.",
           "none": "Отсутствует",
@@ -97,7 +97,7 @@
           "subtitle_title": "Субтитры",
           "subtitle_language": "Язык субтитров",
           "subtitle_mode": "Режим субтитров",
-          "set_subtitle_track": "Установить субтитры из предыдущего элемента",
+          "set_subtitle_track": "Устанавливать субтитры из предыдущего элемента",
           "subtitle_size": "Размер субтитров",
           "subtitle_hint": "Настроить субтитры.",
           "none": "Отсутствует",
@@ -270,7 +270,7 @@
           "no_response_received_from_server": "Нет ответа от сервера",
           "error_setting_up_the_request": "Ошибка при создании запроса",
           "failed_to_start_download_for_item_unexpected_error": "Не удалось начать загрузку {{item}}: Неожиданная ошибка",
-          "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и работы были успешно удалены",
+          "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и задачи были успешно удалены",
           "an_error_occured_while_deleting_files_and_jobs": "Возникла ошибка при удалении файлов и работ",
           "go_to_downloads": "В загрузки"
         }
