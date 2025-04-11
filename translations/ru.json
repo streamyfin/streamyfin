@@ -16,7 +16,7 @@
       "an_unexpected_error_occured": "Возникла непредвиденная ошибка",
       "change_server": "Поменять сервер",
       "invalid_username_or_password": "Неправильное имя пользователя или пароль",
-      "user_does_not_have_permission_to_log_in": "Пользователь не имеет право войти",
+      "user_does_not_have_permission_to_log_in": "Пользователь не имеет прав на вход",
       "server_is_taking_too_long_to_respond_try_again_later": "Сервер долго не отвечает, попробуйте позже.",
       "server_received_too_many_requests_try_again_later": "Сервер получил слишком много запросов, попробуйте позже.",
       "there_is_a_server_error": "Возникла ошибка сервера",
@@ -34,16 +34,16 @@
     },
     "home": {
       "no_internet": "Нет интернета",
-      "no_items": "Нет предметов",
-      "no_internet_message": "Не переживайте, Вы всё ещё можете\nскаченый контент.",
-      "go_to_downloads": "Идти в загрузки",
+      "no_items": "Нет элементов",
+      "no_internet_message": "Не переживайте, Вы всё ещё можете смотреть\nскачанный контент.",
+      "go_to_downloads": "В загрузки",
       "oops": "Упс!",
       "error_message": "Что-то пошло не так.\nПожалуйста выйдите и зайдите снова.",
       "continue_watching": "Продолжить просмотр",
       "next_up": "Следующее",
       "recently_added_in": "Недавно добавлено в {{libraryName}}",
-      "suggested_movies": "Предложеные фильмы",
-      "suggested_episodes": "Предложеные серии",
+      "suggested_movies": "Предложенные фильмы",
+      "suggested_episodes": "Предложенные серии",
       "intro": {
         "welcome_to_streamyfin": "Добро пожаловать в Streamyfin",
         "a_free_and_open_source_client_for_jellyfin": "Бесплатный и с открытым кодом клиент для Jellyfin.",
@@ -89,7 +89,7 @@
           "audio_title": "Аудио",
           "set_audio_track": "Установить аудио дорожку из предыдущего элемента",
           "audio_language": "Язык аудио",
-          "audio_hint": "Выбирите стандартный язык аудио.",
+          "audio_hint": "Выберите стандартный язык аудио.",
           "none": "Отсутствует",
           "language": "Язык"
         },
@@ -135,9 +135,9 @@
             "VLC_4": "VLC 4 (Экспериментальный + PiP)"
           },
           "show_custom_menu_links": "Показать ссылки кастомного меню",
-          "hide_libraries": "Спрятать библиотеки",
-          "select_liraries_you_want_to_hide": "Выбирите библиотеки которое хотите спрятать из вкладки библиотеки и домашней страницы.",
-          "disable_haptic_feedback": "Отключение тактильной обратной связи",
+          "hide_libraries": "Скрыть библиотеки",
+          "select_liraries_you_want_to_hide": "Выберите Библиотеки, которое хотите спрятать из вкладки Библиотеки и домашней страницы.",
+          "disable_haptic_feedback": "Отключить тактильную обратную связь",
           "default_quality": "Качество по умолчанию"
         },
         "downloads": {
@@ -182,7 +182,7 @@
             }
           },
           "marlin_search": {
-            "enable_marlin_search": "Вкючить Marlin Search ",
+            "enable_marlin_search": "Включить Marlin Search ",
             "url": "URL",
             "server_url_placeholder": "http(s)://domain.org:port",
             "marlin_search_hint": "Введите URL для Marlin сервера. URL должен включать http or https и опционально порт.",
@@ -212,7 +212,7 @@
         "languages": {
           "title": "Языки",
           "app_language": "Язык приложения",
-          "app_language_description": "Выбирите язык для приложения.",
+          "app_language_description": "Выберите язык для приложения.",
           "system": "Системный"
         },
         "toasts": {
@@ -233,8 +233,8 @@
         "tvseries": "Сериалы",
         "movies": "Фильмы",
         "queue": "Очередь",
-        "queue_hint": "Очередь и загрузки будут утеряны при перезагрузке приложения",
-        "no_items_in_queue": "Нет предметов в очереди",
+        "queue_hint": "Очередь и загрузки будут удалены при перезагрузке приложения",
+        "no_items_in_queue": "Нет элементов в очереди",
         "no_downloaded_items": "Нет загруженых предметов",
         "delete_all_movies_button": "Удалить все фильмы",
         "delete_all_tvseries_button": "Удалить все сериалы",
@@ -251,15 +251,15 @@
         "eta": "ETA {{eta}}",
         "methods": "Методы",
         "toasts": {
-          "you_are_not_allowed_to_download_files": "Вам не разрешено скачать файлы.",
+          "you_are_not_allowed_to_download_files": "Нет разрешения на скачивание файлов.",
           "deleted_all_movies_successfully": "Все фильмы были успешно удалены!",
           "failed_to_delete_all_movies": "Возникла ошибка при удалении всех фильмов",
           "deleted_all_tvseries_successfully": "Все сериалы были успешно удалены!",
-          "failed_to_delete_all_tvseries": "Возникла ошибка при удалении всех сералов",
+          "failed_to_delete_all_tvseries": "Возникла ошибка при удалении всех сериалов",
           "download_cancelled": "Загрузка отменена",
           "could_not_cancel_download": "Не удалось отменить загрузку",
           "download_completed": "Загрузка завершена",
-          "download_started_for": "Загрузка {{item} началась",
+          "download_started_for": "Загрузка {{item}} началась",
           "item_is_ready_to_be_downloaded": "{{item}} готов к загрузке",
           "download_stated_for_item": "Загрузка {{item} началась",
           "download_failed_for_item": "Загрузка {{item}} провалилась с ошибкой: {{error}}",
@@ -272,7 +272,7 @@
           "failed_to_start_download_for_item_unexpected_error": "Не удалось начать загрузку {{item}}: Неожиданная ошибка",
           "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и работы были успешно удалены",
           "an_error_occured_while_deleting_files_and_jobs": "Возникла ошибка при удалении файлов и работ",
-          "go_to_downloads": "Идти в загрузки"
+          "go_to_downloads": "В загрузки"
         }
       }
     },
@@ -320,7 +320,7 @@
       "item_types": {
         "movies": "фильмы",
         "series": "Сериалы",
-        "boxsets": "бокс-сет",
+        "boxsets": "Коллекции",
         "items": "элементы"
       },
       "options": {
@@ -348,7 +348,7 @@
       "movies": "Фильмы",
       "episodes": "Серии",
       "videos": "Видео",
-      "boxsets": "Boxsets",
+      "boxsets": "Коллекции",
       "playlists": "Плейлисты",
       "noDataTitle": "Пока нет избранных",
       "noData": "Отметьте элементы как избранные, чтобы они отображались здесь для быстрого доступа."
@@ -383,7 +383,7 @@
       "no_episodes_for_this_season": "В этом сезоне нет серий",
       "overview": "Обзор",
       "more_with": "Больше с {{name}}",
-      "similar_items": "Похлжие элементы",
+      "similar_items": "Похожие элементы",
       "no_similar_items_found": "Похожие элементы не найдены",
       "video": "Видео",
       "more_details": "Больше деталей",
@@ -397,7 +397,7 @@
       "none": "Отсутствует",
       "download": {
         "download_season": "Загрузить сезон",
-        "download_series": "Загрузка серии",
+        "download_series": "Загрузить сериал",
         "download_episode": "Загрузить серию",
         "download_movie": "Скачать фильм",
         "download_x_item": "Загрузить {{item_count}} элементов",
@@ -424,7 +424,7 @@
       "yes": "Да",
       "whats_wrong": "В чем дело?",
       "issue_type": "Вид проблемы",
-      "select_an_issue": "Выбирите проблему",
+      "select_an_issue": "Выберите проблему",
       "types": "Типы",
       "describe_the_issue": "(опционально) Опишите проблему...",
       "submit_button": "Подать",
@@ -454,7 +454,7 @@
       "root_folder": "Корневая папка",
       "season_all": "Сезон (все)",
       "season_number": "Сезон {{season_number}}",
-      "number_episodes": "{{episode_number}} Серии",
+      "number_episodes": "{{episode_number}} серий",
       "born": "Рожден",
       "appearances": "Появления",
       "toasts": {
