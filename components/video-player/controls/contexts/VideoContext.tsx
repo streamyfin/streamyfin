@@ -1,4 +1,5 @@
 import type { TrackInfo } from "@/modules/VlcPlayer.types";
+import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
@@ -47,6 +48,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
 }) => {
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
+  const [settings] = useSettings();
 
   const ControlContext = useControlContext();
   const isVideoLoaded = ControlContext?.isVideoLoaded;
@@ -132,7 +134,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         );
 
         // Step 2: Apply VLC indexing logic
-        let textSubIndex = 0;
+        let textSubIndex = settings.defaultPlayer === VideoPlayer.VLC_4 ? 0 : 1;
         const processedSubs: Track[] = sortedSubs?.map((sub) => {
           // Always increment for non-transcoding subtitles
           // Only increment for text-based subtitles when transcoding

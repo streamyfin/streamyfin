@@ -1,10 +1,11 @@
 import ExpoModulesCore
-#if os(tvOS)
-import TVVLCKit
-#else
-import MobileVLCKit
-#endif
 import UIKit
+
+#if os(tvOS)
+    import TVVLCKit
+#else
+    import MobileVLCKit
+#endif
 
 class VlcPlayer3View: ExpoView {
     private var mediaPlayer: VLCMediaPlayer?
@@ -16,7 +17,7 @@ class VlcPlayer3View: ExpoView {
     private var lastReportedIsPlaying: Bool?
     private var customSubtitles: [(internalName: String, originalName: String)] = []
     private var startPosition: Int32 = 0
-    private var isMediaReady: Bool = false
+    private var externalSubtitles: [[String: String]]?
     private var externalTrack: [String: String]?
     private var progressTimer: DispatchSourceTimer?
     private var isStopping: Bool = false  // Define isStopping here
@@ -61,7 +62,7 @@ class VlcPlayer3View: ExpoView {
     }
 
     // MARK: - Public Methods
-    func startPictureInPicture() { }
+    func startPictureInPicture() {}
 
     @objc func play() {
         self.mediaPlayer?.play()
@@ -109,6 +110,7 @@ class VlcPlayer3View: ExpoView {
             self.externalTrack = source["externalTrack"] as? [String: String]
             var initOptions = source["initOptions"] as? [Any] ?? []
             self.startPosition = source["startPosition"] as? Int32 ?? 0
+            self.externalSubtitles = source["externalSubtitles"] as? [[String: String]]
             initOptions.append("--start-time=\(self.startPosition)")
 
             guard let uri = source["uri"] as? String, !uri.isEmpty else {
@@ -143,8 +145,8 @@ class VlcPlayer3View: ExpoView {
             media.addOptions(mediaOptions)
 
             self.mediaPlayer?.media = media
+            self.setInitialExternalSubtitles()
             self.hasSource = true
-
             if autoplay {
                 print("Playing...")
                 self.play()
@@ -182,13 +184,26 @@ class VlcPlayer3View: ExpoView {
             return
         }
 
-        let result = self.mediaPlayer?.addPlaybackSlave(url, type: .subtitle, enforce: true)
+        let result = self.mediaPlayer?.addPlaybackSlave(url, type: .subtitle, enforce: false)
         if let result = result {
-            let internalName = "Track \(self.customSubtitles.count + 1)"
+            let internalName = "Track \(self.customSubtitles.count)"
             print("Subtitle added with result: \(result) \(internalName)")
             self.customSubtitles.append((internalName: internalName, originalName: name))
         } else {
             print("Failed to add subtitle")
+        }
+    }
+
+    private func setInitialExternalSubtitles() {
+        if let externalSubtitles = self.externalSubtitles {
+            for subtitle in externalSubtitles {
+                if let subtitleName = subtitle["name"],
+                    let subtitleURL = subtitle["DeliveryUrl"]
+                {
+                    print("Setting external subtitle: \(subtitleName) \(subtitleURL)")
+                    self.setSubtitleURL(subtitleURL, name: subtitleName)
+                }
+            }
         }
     }
 
@@ -276,16 +291,6 @@ class VlcPlayer3View: ExpoView {
 
         print("Debug: Current time: \(currentTimeMs)")
         if currentTimeMs >= 0 && currentTimeMs < durationMs {
-            if player.isPlaying && !self.isMediaReady {
-                self.isMediaReady = true
-                // Set external track subtitle when starting.
-                if let externalTrack = self.externalTrack {
-                    if let name = externalTrack["name"], !name.isEmpty {
-                        let deliveryUrl = externalTrack["DeliveryUrl"] ?? ""
-                        self.setSubtitleURL(deliveryUrl, name: name)
-                    }
-                }
-            }
             self.onVideoProgress?([
                 "currentTime": currentTimeMs,
                 "duration": durationMs,
