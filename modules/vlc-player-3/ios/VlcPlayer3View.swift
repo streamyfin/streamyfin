@@ -1,5 +1,4 @@
 import ExpoModulesCore
-import UIKit
 
 #if os(tvOS)
     import TVVLCKit
