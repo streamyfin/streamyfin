@@ -6,13 +6,18 @@ import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import { VlcPlayerView } from "@/modules";
+import { MPVPlayerView, VlcPlayerView } from "@/modules";
+// import type {
+//   PipStartedPayload,
+//   PlaybackStatePayload,
+//   ProgressUpdatePayload,
+//   VlcPlayerViewRef,
+// } from "@/modules/VlcPlayer.types";
+
 import type {
-  PipStartedPayload,
+  MPVPlayerViewRef,
   PlaybackStatePayload,
-  ProgressUpdatePayload,
-  VlcPlayerViewRef,
-} from "@/modules/VlcPlayer.types";
+} from "@/modules/MPVPlayer.types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -50,7 +55,7 @@ const downloadProvider = !Platform.isTV
   : null;
 
 export default function page() {
-  const videoRef = useRef<VlcPlayerViewRef>(null);
+  const videoRef = useRef<MPVPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
@@ -443,7 +448,7 @@ export default function page() {
           paddingRight: ignoreSafeAreas ? 0 : insets.right,
         }}
       >
-        <VlcPlayerView
+        <MPVPlayerView
           ref={videoRef}
           source={{
             uri: stream?.url || "",
@@ -487,7 +492,6 @@ export default function page() {
           setIgnoreSafeAreas={setIgnoreSafeAreas}
           ignoreSafeAreas={ignoreSafeAreas}
           isVideoLoaded={isVideoLoaded}
-          startPictureInPicture={videoRef?.current?.startPictureInPicture}
           play={videoRef.current?.play}
           pause={videoRef.current?.pause}
           seek={videoRef.current?.seekTo}

@@ -5,6 +5,7 @@ import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
+import { MPVPlayerViewRef } from "@/modules/MPVPlayer.types";
 import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -65,7 +66,7 @@ import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
+  videoRef: MutableRefObject<VlcPlayerViewRef | MPVPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
@@ -81,7 +82,7 @@ interface Props {
   isVideoLoaded?: boolean;
   mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
-  startPictureInPicture: () => Promise<void>;
+  startPictureInPicture?: () => Promise<void>;
   play: (() => Promise<void>) | (() => void);
   pause: () => void;
   getAudioTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);

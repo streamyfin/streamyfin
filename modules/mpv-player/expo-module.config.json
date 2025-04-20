@@ -1,0 +1,6 @@
+{
+  "platforms": ["ios", "tvos"],
+  "ios": {
+    "modules": ["MpvPlayerModule"]
+  }
+}
