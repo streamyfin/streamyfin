@@ -5,8 +5,8 @@ import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import { MPVPlayerViewRef } from "@/modules/MPVPlayer.types";
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import type { MpvPlayerViewRef, TrackInfo } from "@/modules/MpvPlayer.types";
+import { VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
@@ -66,7 +66,7 @@ import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: MutableRefObject<VlcPlayerViewRef | MPVPlayerViewRef | null>;
+  videoRef: MutableRefObject<VlcPlayerViewRef | MpvPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;

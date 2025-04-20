@@ -6,7 +6,7 @@ import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import { MPVPlayerView, VlcPlayerView } from "@/modules";
+import { MpvPlayerView, VlcPlayerView } from "@/modules";
 // import type {
 //   PipStartedPayload,
 //   PlaybackStatePayload,
@@ -15,9 +15,9 @@ import { MPVPlayerView, VlcPlayerView } from "@/modules";
 // } from "@/modules/VlcPlayer.types";
 
 import type {
-  MPVPlayerViewRef,
+  MpvPlayerViewRef,
   PlaybackStatePayload,
-} from "@/modules/MPVPlayer.types";
+} from "@/modules/MpvPlayer.types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -448,7 +448,7 @@ export default function page() {
           paddingRight: ignoreSafeAreas ? 0 : insets.right,
         }}
       >
-        <MPVPlayerView
+        <MpvPlayerView
           ref={videoRef}
           source={{
             uri: stream?.url || "",

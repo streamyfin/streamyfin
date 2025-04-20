@@ -12,6 +12,13 @@ import {
 } from "./VlcPlayer.types";
 import VlcPlayerView from "./VlcPlayerView";
 
+import {
+  MpvPlayerSource,
+  MpvPlayerViewProps,
+  MpvPlayerViewRef,
+} from "./MpvPlayer.types";
+import MpvPlayerView from "./MpvPlayerView";
+
 export {
   VlcPlayerView,
   VlcPlayerViewProps,
@@ -24,4 +31,9 @@ export {
   VlcPlayerSource,
   TrackInfo,
   ChapterInfo,
+  // MPV Player exports
+  MpvPlayerView,
+  MpvPlayerViewProps,
+  MpvPlayerViewRef,
+  MpvPlayerSource,
 };
