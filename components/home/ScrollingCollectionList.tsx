@@ -91,7 +91,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
                 item={item}
                 key={item.Id}
                 className={`mr-2 
-                  ${orientation === "horizontal" ? "w-44" : "w-28"}
+                  ${orientation === "horizontal" ? "w-56" : "w-28"}
                 `}
               >
                 {item.Type === "Episode" && orientation === "horizontal" && (
