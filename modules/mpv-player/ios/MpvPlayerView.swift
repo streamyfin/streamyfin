@@ -125,7 +125,16 @@ class MpvPlayerView: ExpoView {
             if let uri = source["uri"] as? String, let url = URL(string: uri) {
                 print("Loading file: \(url.absoluteString)")
                 self.playerController?.playUrl = url
+
+                // Set start position if available
+                if let startPosition = source["startPosition"] as? Double {
+                    self.playerController?.setStartPosition(startPosition)
+                }
+
                 self.playerController?.loadFile(url)
+
+                // Set video to fill the screen
+                self.setVideoScalingMode("cover")
 
                 // Add external subtitles after the video is loaded
                 self.setInitialExternalSubtitles()
@@ -255,6 +264,40 @@ class MpvPlayerView: ExpoView {
         playerController?.command("sub-add", args: [url.absoluteString])
     }
 
+    @objc
+    func setVideoScalingMode(_ mode: String) {
+        // Mode can be: "contain" (letterbox), "cover" (crop/fill), or "stretch"
+
+        guard let playerController = playerController else { return }
+
+        switch mode.lowercased() {
+        case "cover", "fill", "crop":
+            // Fill the screen, cropping if necessary
+            playerController.command("set", args: ["panscan", "1.0"])
+            playerController.command("set", args: ["video-unscaled", "no"])
+            playerController.command("set", args: ["video-aspect-override", "no"])
+            // Center the crop
+            playerController.command("set", args: ["video-align-x", "0.5"])
+            playerController.command("set", args: ["video-align-y", "0.5"])
+        case "stretch":
+            // Stretch to fill without maintaining aspect ratio
+            playerController.command("set", args: ["panscan", "0.0"])
+            playerController.command("set", args: ["video-unscaled", "no"])
+            playerController.command("set", args: ["video-aspect-override", "-1"])
+        // No need for alignment as it stretches to fill entire area
+        case "contain", "letterbox", "fit":
+            // Keep aspect ratio, fit within screen (letterbox)
+            playerController.command("set", args: ["panscan", "0.0"])
+            playerController.command("set", args: ["video-unscaled", "no"])
+            playerController.command("set", args: ["video-aspect-override", "no"])
+            // Set alignment to center
+            playerController.command("set", args: ["video-align-x", "0.5"])
+            playerController.command("set", args: ["video-align-y", "0.5"])
+        default:
+            break
+        }
+    }
+
     private func setInitialExternalSubtitles() {
         if let externalSubtitles = self.externalSubtitles {
             for subtitle in externalSubtitles {
@@ -271,7 +314,6 @@ class MpvPlayerView: ExpoView {
     // MARK: - Private Methods
 
     private func isPaused() -> Bool {
-        print("isPaused: \(playerController?.getFlag(MpvProperty.pause) ?? true)")
         return playerController?.getFlag(MpvProperty.pause) ?? true
     }
 
@@ -296,6 +338,8 @@ class MpvPlayerView: ExpoView {
 
     private func cleanup() {
         // Check if we already cleaned up
+
+        print("Cleaning up player")
         guard playerController != nil else { return }
 
         // First stop playback
@@ -313,25 +357,6 @@ class MpvPlayerView: ExpoView {
 
     deinit {
         cleanup()
-    }
-
-    // Reset the player when experiencing black screen or other issues
-    func resetPlayer() {
-        // Store current source
-        let currentSource = source
-
-        // Clean up existing player
-        cleanup()
-
-        // Create a new player
-        setupView()
-
-        // If we had a source, reload it
-        if let source = currentSource {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                self?.setSource(source)
-            }
-        }
     }
 
     // Check if player needs reset when the view appears
@@ -354,22 +379,25 @@ class MpvPlayerView: ExpoView {
 
 // MARK: - MPV Player Delegate
 extension MpvPlayerView: MpvPlayerDelegate {
-    func propertyChanged(mpv: OpaquePointer, propertyName: String, value: Any?) {
-        switch propertyName {
-        case MpvProperty.pausedForCache:
-            let isBuffering = value as? Bool ?? false
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                self.onVideoStateChange?([
-                    "isBuffering": isBuffering, "target": self.reactTag as Any,
-                ])
-            }
+    // Move the static properties to class level
+    private static var lastTimePositionUpdate = Date(timeIntervalSince1970: 0)
 
+    func propertyChanged(mpv: OpaquePointer, propertyName: String, value: Any?) {
+        // Add throttling for frequently updated properties
+        switch propertyName {
         case MpvProperty.timePosition:
+            // Throttle timePosition updates to once per second
+            let now = Date()
+            if now.timeIntervalSince(MpvPlayerView.lastTimePositionUpdate) < 1.0 {
+                return
+            }
+            MpvPlayerView.lastTimePositionUpdate = now
+
             if let position = value as? Double {
                 let timeMs = position * 1000
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
+                    print("IsPlaying: \(!self.isPaused())")
                     self.onVideoProgress?([
                         "currentTime": timeMs,
                         "duration": self.getVideoDuration() * 1000,
@@ -380,12 +408,26 @@ extension MpvPlayerView: MpvPlayerDelegate {
                 }
             }
 
+        case MpvProperty.pausedForCache:
+            // We want to respond immediately to buffering state changes
+            let isBuffering = value as? Bool ?? false
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.onVideoStateChange?([
+                    "isBuffering": isBuffering, "target": self.reactTag as Any,
+                    "isPlaying": !self.isPaused(),
+                    "state": self.isPaused() ? "Paused" : "Playing",
+                ])
+            }
+
         case MpvProperty.pause:
-            print("MpvProperty.pause: \(value)")
+            // We want to respond immediately to play/pause state changes
             if let isPaused = value as? Bool {
                 let state = isPaused ? "Paused" : "Playing"
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
+
+                    print("onPlaybackStateChanged: \(state)")
                     self.onPlaybackStateChanged?([
                         "state": state,
                         "isPlaying": !isPaused,
@@ -413,7 +455,10 @@ final class MpvMetalViewController: UIViewController {
     let mpvQueue = DispatchQueue(label: "mpv.queue", qos: .userInitiated)
 
     private var isBeingDeallocated = false
-    private var contextPointer: UnsafeMutableRawPointer?
+
+    // Use a static dictionary to store controller references instead of WeakContainer
+    private static var controllers = [UInt: MpvMetalViewController]()
+    private var controllerId: UInt = 0
 
     var playUrl: URL?
 
@@ -445,6 +490,8 @@ final class MpvMetalViewController: UIViewController {
     private var isShuttingDown = false
     private let syncQueue = DispatchQueue(label: "com.mpv.sync", qos: .userInitiated)
 
+    private var startPosition: Double?
+
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
@@ -464,31 +511,41 @@ final class MpvMetalViewController: UIViewController {
     }
 
     deinit {
-        // Flag that we're being deinitialized to prevent new callbacks
+        // Flag that we're being deinitialized
         isBeingDeallocated = true
 
-        // Remove the wakeup callback first to prevent any new callbacks
+        // Clean up on main thread to avoid threading issues
+        if Thread.isMainThread {
+            safeCleanup()
+        } else {
+            DispatchQueue.main.sync {
+                self.safeCleanup()
+            }
+        }
+    }
+
+    private func safeCleanup() {
+        // Remove from controllers dictionary first
+        if controllerId != 0 {
+            MpvMetalViewController.controllers.removeValue(forKey: controllerId)
+        }
+
+        // Remove the wakeup callback
         if let mpv = self.mpv {
             mpv_set_wakeup_callback(mpv, nil, nil)
         }
 
-        // Release the container
-        if let contextPtr = contextPointer {
-            let container = Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(
-                contextPtr
-            ).takeUnretainedValue()
-            container.invalidate()
-            Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(contextPtr)
-                .release()
-            contextPointer = nil
-        }
-
-        // Terminate and destroy mpv as the final step
+        // Terminate and destroy MPV instance
         if let mpv = self.mpv {
             // Unobserve all properties
             mpv_unobserve_property(mpv, 0)
-            mpv_terminate_destroy(mpv)
+
+            // Store locally to avoid accessing after freeing
+            let mpvToDestroy = mpv
             self.mpv = nil
+
+            // Terminate and destroy
+            mpv_terminate_destroy(mpvToDestroy)
         }
     }
 
@@ -532,6 +589,17 @@ final class MpvMetalViewController: UIViewController {
         // Set subtitle options
         mpv_set_option_string(mpvHandle, "subs-match-os-language", "yes")
         mpv_set_option_string(mpvHandle, "subs-fallback", "yes")
+        mpv_set_option_string(mpvHandle, "sub-auto", "no")
+
+        // Disable subtitle selection at start
+        mpv_set_option_string(mpvHandle, "sid", "no")
+
+        // Set starting point if available
+        if let startPos = startPosition {
+            let startPosString = String(format: "%.1f", startPos)
+            print("Setting initial start position to \(startPosString)")
+            mpv_set_option_string(mpvHandle, "start", startPosString)
+        }
 
         // Set video options
         mpv_set_option_string(mpvHandle, "video-rotate", "no")
@@ -547,30 +615,49 @@ final class MpvMetalViewController: UIViewController {
         }
 
         // Observe properties
-        mpv_observe_property(mpvHandle, 0, MpvProperty.videoParamsSigPeak, MPV_FORMAT_DOUBLE)
-        mpv_observe_property(mpvHandle, 0, MpvProperty.pausedForCache, MPV_FORMAT_FLAG)
-        mpv_observe_property(mpvHandle, 0, MpvProperty.timePosition, MPV_FORMAT_DOUBLE)
-        mpv_observe_property(mpvHandle, 0, MpvProperty.duration, MPV_FORMAT_DOUBLE)
-        mpv_observe_property(mpvHandle, 0, MpvProperty.pause, MPV_FORMAT_FLAG)
+        observeProperty(mpvHandle, MpvProperty.videoParamsSigPeak, MPV_FORMAT_DOUBLE)
+        observeProperty(mpvHandle, MpvProperty.pausedForCache, MPV_FORMAT_FLAG)
+        observeProperty(mpvHandle, MpvProperty.timePosition, MPV_FORMAT_DOUBLE)
+        observeProperty(mpvHandle, MpvProperty.duration, MPV_FORMAT_DOUBLE)
+        observeProperty(mpvHandle, MpvProperty.pause, MPV_FORMAT_FLAG)
 
-        // Set up weak reference for callback
-        let container = WeakContainer(value: self)
-        contextPointer = Unmanaged.passRetained(container).toOpaque()
+        // Store controller in static dictionary and set its unique ID
+        controllerId = UInt(bitPattern: ObjectIdentifier(self))
+        MpvMetalViewController.controllers[controllerId] = self
 
-        // Set wakeup callback
+        // Set wakeup callback using the static method
         mpv_set_wakeup_callback(
-            mpvHandle,
-            { pointer in
-                guard let ptr = pointer else { return }
-                let container = Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(ptr)
-                    .takeUnretainedValue()
+            mpvHandle, MpvMetalViewController.mpvWakeupCallback,
+            UnsafeMutableRawPointer(bitPattern: controllerId))
+    }
 
-                DispatchQueue.main.async {
-                    if let controller = container.value, !controller.isBeingDeallocated {
-                        controller.processEvents()
-                    }
+    // Static callback function - no WeakContainer needed
+    private static let mpvWakeupCallback: (@convention(c) (UnsafeMutableRawPointer?) -> Void) = {
+        (ctx) in
+        guard let ctx = ctx else { return }
+
+        // Get the controllerId from the context pointer
+        let controllerId = UInt(bitPattern: ctx)
+
+        // Dispatch to main queue to handle UI updates safely
+        DispatchQueue.main.async {
+            // Get the controller safely from the dictionary
+            if let controller = MpvMetalViewController.controllers[controllerId] {
+                // Only process events if not being deallocated
+                if !controller.isBeingDeallocated {
+                    controller.processEvents()
                 }
-            }, contextPointer)
+            }
+        }
+    }
+
+    // Helper method for safer property observation
+    private func observeProperty(_ handle: OpaquePointer, _ name: String, _ format: mpv_format) {
+        let status = mpv_observe_property(handle, 0, name, format)
+        if status < 0 {
+            print(
+                "Failed to observe property \(name): \(String(cString: mpv_error_string(status)))")
+        }
     }
 
     // MARK: - MPV Methods
@@ -580,8 +667,8 @@ final class MpvMetalViewController: UIViewController {
 
         print("Loading file: \(url.absoluteString)")
 
-        var args = [url.absoluteString, "replace"]
-        command("loadfile", args: args)
+        // Use string array extension for safer command execution
+        command("loadfile", args: [url.absoluteString, "replace"])
     }
 
     func play() {
@@ -597,7 +684,12 @@ final class MpvMetalViewController: UIViewController {
         guard let mpv = mpv else { return 0.0 }
 
         var data = 0.0
-        mpv_get_property(mpv, name, MPV_FORMAT_DOUBLE, &data)
+        let status = mpv_get_property(mpv, name, MPV_FORMAT_DOUBLE, &data)
+        if status < 0 {
+            print(
+                "Failed to get double property \(name): \(String(cString: mpv_error_string(status)))"
+            )
+        }
         return data
     }
 
@@ -605,34 +697,46 @@ final class MpvMetalViewController: UIViewController {
         guard let mpv = mpv else { return nil }
 
         guard let cString = mpv_get_property_string(mpv, name) else { return nil }
-        let string = String(cString: cString)
-        mpv_free(UnsafeMutableRawPointer(mutating: cString))
-        return string
+        // Use defer to ensure memory is freed even if an exception occurs
+        defer {
+            mpv_free(UnsafeMutableRawPointer(mutating: cString))
+        }
+        return String(cString: cString)
     }
 
     func getString(_ name: String) -> String? {
         guard let mpv = mpv else { return nil }
 
         guard let cString = mpv_get_property_string(mpv, name) else { return nil }
-        let string = String(cString: cString)
-        mpv_free(UnsafeMutableRawPointer(mutating: cString))
-        return string
+        // Use defer to ensure memory is freed even if an exception occurs
+        defer {
+            mpv_free(UnsafeMutableRawPointer(mutating: cString))
+        }
+        return String(cString: cString)
     }
 
     func getFlag(_ name: String) -> Bool {
         guard let mpv = mpv else { return false }
 
-        var data: Int64 = 0
-        mpv_get_property(mpv, name, MPV_FORMAT_FLAG, &data)
+        var data: Int32 = 0
+        let status = mpv_get_property(mpv, name, MPV_FORMAT_FLAG, &data)
+        if status < 0 {
+            print(
+                "Failed to get flag property \(name): \(String(cString: mpv_error_string(status)))")
+        }
         return data > 0
     }
 
     func setFlag(_ name: String, _ value: Bool) {
         guard let mpv = mpv else { return }
 
-        var data: Int = value ? 1 : 0
+        var data: Int32 = value ? 1 : 0
         print("Setting flag \(name) to \(value)")
-        mpv_set_property(mpv, name, MPV_FORMAT_FLAG, &data)
+        let status = mpv_set_property(mpv, name, MPV_FORMAT_FLAG, &data)
+        if status < 0 {
+            print(
+                "Failed to set flag property \(name): \(String(cString: mpv_error_string(status)))")
+        }
     }
 
     func command(
@@ -646,23 +750,22 @@ final class MpvMetalViewController: UIViewController {
             return
         }
 
-        // Create the C-style command array manually with the correct type
-        let cStrings = [command] + args
+        // Approach 1: Create array of C strings directly from Swift strings
+        let allArgs = [command] + args
 
-        // Create array of C string pointers with the correct type
-        let count = cStrings.count
-        let cArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(capacity: count + 1)
+        // Allocate array of C string pointers of the correct type
+        let cArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: allArgs.count + 1)
 
-        // Fill the array
-        for i in 0..<count {
-            let cString = (cStrings[i] as NSString).utf8String
-            cArray[i] = cString
+        // Convert Swift strings to C strings and store in the array
+        for i in 0..<allArgs.count {
+            cArray[i] = (allArgs[i] as NSString).utf8String
         }
 
-        // Set last element to nil
-        cArray[count] = nil
+        // Set final element to nil
+        cArray[allArgs.count] = nil
 
-        // Execute the command with the properly typed array
+        // Execute the command
         let status = mpv_command(mpv, cArray)
 
         // Clean up
@@ -709,24 +812,35 @@ final class MpvMetalViewController: UIViewController {
         switch event.pointee.event_id {
         case MPV_EVENT_PROPERTY_CHANGE:
             guard let propertyData = event.pointee.data else { break }
-            let property = UnsafePointer<mpv_event_property>(OpaquePointer(propertyData)).pointee
-            let propertyName = String(cString: property.name)
+
+            // Safely create a typed pointer to the property data
+            let propertyPtr = propertyData.bindMemory(
+                to: mpv_event_property.self, capacity: 1)
+
+            // Safely get the property name
+            guard let namePtr = propertyPtr.pointee.name else { break }
+            let propertyName = String(cString: namePtr)
 
             var value: Any?
 
+            // Handle different property types safely
             switch propertyName {
             case MpvProperty.pausedForCache, MpvProperty.pause:
-                if let data = property.data,
-                    let boolValue = UnsafePointer<Bool>(OpaquePointer(data))?.pointee
+                if propertyPtr.pointee.format == MPV_FORMAT_FLAG,
+                    let data = propertyPtr.pointee.data
                 {
-                    value = boolValue
+                    // Cast to Int32 which is MPV's flag format
+                    let flagPtr = data.bindMemory(to: Int32.self, capacity: 1)
+                    value = flagPtr.pointee != 0
                 }
 
             case MpvProperty.timePosition, MpvProperty.duration:
-                if let data = property.data,
-                    let doubleValue = UnsafePointer<Double>(OpaquePointer(data))?.pointee
+                if propertyPtr.pointee.format == MPV_FORMAT_DOUBLE,
+                    let data = propertyPtr.pointee.data
                 {
-                    value = doubleValue
+                    // Cast to Double which is MPV's double format
+                    let doublePtr = data.bindMemory(to: Double.self, capacity: 1)
+                    value = doublePtr.pointee
                 }
 
             default:
@@ -744,7 +858,6 @@ final class MpvMetalViewController: UIViewController {
 
         case MPV_EVENT_SHUTDOWN:
             print("MPV shutdown event received")
-            // Let the deinit handle cleanup - just mark as deallocating
             isBeingDeallocated = true
 
         case MPV_EVENT_LOG_MESSAGE:
@@ -756,24 +869,17 @@ final class MpvMetalViewController: UIViewController {
             }
         }
     }
-}
 
-// MARK: - Improved WeakContainer
-class WeakContainer<T: AnyObject> {
-    private weak var _value: T?
-    private var _isValid = true
+    // MARK: - Public Methods
 
-    var value: T? {
-        guard _isValid else { return nil }
-        return _value
-    }
+    func setStartPosition(_ position: Double) {
+        startPosition = position
 
-    func invalidate() {
-        _isValid = false
-        _value = nil
-    }
-
-    init(value: T) {
-        self._value = value
+        // If MPV is already initialized, we need to update the option
+        if let mpv = mpv {
+            let positionString = String(format: "%.1f", position)
+            print("Setting start position to \(positionString)")
+            mpv_set_option_string(mpv, "start", positionString)
+        }
     }
 }

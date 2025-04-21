@@ -6,7 +6,7 @@ import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import { MpvPlayerView, VlcPlayerView } from "@/modules";
+import { MpvPlayerView, ProgressUpdatePayload, VlcPlayerView } from "@/modules";
 // import type {
 //   PipStartedPayload,
 //   PlaybackStatePayload,
@@ -16,6 +16,7 @@ import { MpvPlayerView, VlcPlayerView } from "@/modules";
 
 import type {
   MpvPlayerViewRef,
+  PipStartedPayload,
   PlaybackStatePayload,
 } from "@/modules/MpvPlayer.types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -55,7 +56,7 @@ const downloadProvider = !Platform.isTV
   : null;
 
 export default function page() {
-  const videoRef = useRef<MPVPlayerViewRef>(null);
+  const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
@@ -396,7 +397,10 @@ export default function page() {
   const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
 
   const notTranscoding = !stream?.mediaSource.TranscodingUrl;
-  const initOptions = [`--sub-text-scale=${settings.subtitleSize}`];
+  const initOptions = [
+    `--sub-text-scale=${settings.subtitleSize}`,
+    `--start=${startPosition}`,
+  ];
   if (
     chosenSubtitleTrack &&
     (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
