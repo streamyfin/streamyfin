@@ -106,7 +106,7 @@ class MpvPlayerView: ExpoView {
 
         // Create and add SwiftUI hosting controller
         let hostController = UIHostingController(
-            rootView: MpvMetalPlayerView(coordinator: coordinator)
+            rootView: MpvMetalPlayerView(coordinator: coordinator, existingController: controller)
         )
         self.hostingController = hostController
 
@@ -163,7 +163,8 @@ class MpvPlayerView: ExpoView {
 
     func seekTo(_ time: Int32) {
         let seconds = Double(time) / 1000.0
-        playerController?.command("seek", args: ["\(seconds)"])
+        print("Seeking to absolute position: \(seconds) seconds")
+        playerController?.command("seek", args: ["\(seconds)", "absolute"])
     }
 
     func setAudioTrack(_ trackIndex: Int) {
@@ -220,6 +221,7 @@ class MpvPlayerView: ExpoView {
             }
 
         case MpvProperty.pause:
+            print("MpvProperty.pause: \(value)")
             if let isPaused = value as? Bool {
                 let state = isPaused ? "Paused" : "Playing"
                 DispatchQueue.main.async { [weak self] in
@@ -290,14 +292,15 @@ class MpvPlayerView: ExpoView {
 // MARK: - SwiftUI Wrapper
 struct MpvMetalPlayerView: UIViewControllerRepresentable {
     @ObservedObject var coordinator: Coordinator
+    let existingController: MpvMetalViewController
+
+    init(coordinator: Coordinator, existingController: MpvMetalViewController) {
+        self.coordinator = coordinator
+        self.existingController = existingController
+    }
 
     func makeUIViewController(context: Context) -> UIViewController {
-        let controller = MpvMetalViewController()
-        controller.delegate = coordinator
-        controller.playUrl = coordinator.playUrl
-
-        coordinator.player = controller
-        return controller
+        return existingController
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
@@ -454,7 +457,7 @@ final class MpvMetalViewController: UIViewController {
 
         // Configure mpv options
         #if DEBUG
-            mpv_request_log_messages(mpvHandle, "debug")
+            // mpv_request_log_messages(mpvHandle, "debug")
         #else
             mpv_request_log_messages(mpvHandle, "no")
         #endif
@@ -530,6 +533,7 @@ final class MpvMetalViewController: UIViewController {
     }
 
     func pause() {
+        print("Pausing")
         setFlag(MpvProperty.pause, true)
     }
 
@@ -562,6 +566,7 @@ final class MpvMetalViewController: UIViewController {
         guard let mpv = mpv else { return }
 
         var data: Int = value ? 1 : 0
+        print("Setting flag \(name) to \(value)")
         mpv_set_property(mpv, name, MPV_FORMAT_FLAG, &data)
     }
 
@@ -684,7 +689,8 @@ final class MpvMetalViewController: UIViewController {
                 mpv_terminate_destroy(self.mpv)
                 self.mpv = nil
             }
-
+        case MPV_EVENT_LOG_MESSAGE:
+            return
         default:
             if let eventName = mpv_event_name(event.pointee.event_id) {
                 print("MPV event: \(String(cString: eventName))")
