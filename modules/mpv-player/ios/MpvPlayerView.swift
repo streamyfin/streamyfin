@@ -63,9 +63,8 @@ class MpvPlayerView: ExpoView {
     // MARK: - Properties
 
     private var playerController: MpvMetalViewController?
-    private var coordinator: MpvMetalPlayerView.Coordinator?
-    private var hostingController: UIHostingController<MpvMetalPlayerView>?
     private var source: [String: Any]?
+    private var externalSubtitles: [[String: String]]?
 
     // MARK: - Event Emitters
 
@@ -89,36 +88,25 @@ class MpvPlayerView: ExpoView {
     private func setupView() {
         backgroundColor = .black
 
-        // Create coordinator and configure property change handling
-        let coordinator = MpvMetalPlayerView.Coordinator()
-        coordinator.onPropertyChange = { [weak self] _, propertyName, value in
-            DispatchQueue.main.async {
-                self?.handlePropertyChange(propertyName: propertyName, value: value)
-            }
-        }
-        self.coordinator = coordinator
+        print("Setting up direct MPV view")
 
         // Create player controller
         let controller = MpvMetalViewController()
-        controller.delegate = coordinator
-        coordinator.player = controller
+
+        // Configure player delegate
+        controller.delegate = self
         playerController = controller
 
-        // Create and add SwiftUI hosting controller
-        let hostController = UIHostingController(
-            rootView: MpvMetalPlayerView(coordinator: coordinator, existingController: controller)
-        )
-        self.hostingController = hostController
+        // Add the controller's view to our view hierarchy
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        controller.view.backgroundColor = .clear
 
-        hostController.view.translatesAutoresizingMaskIntoConstraints = false
-        hostController.view.backgroundColor = .clear
-
-        addSubview(hostController.view)
+        addSubview(controller.view)
         NSLayoutConstraint.activate([
-            hostController.view.leadingAnchor.constraint(equalTo: leadingAnchor),
-            hostController.view.trailingAnchor.constraint(equalTo: trailingAnchor),
-            hostController.view.topAnchor.constraint(equalTo: topAnchor),
-            hostController.view.bottomAnchor.constraint(equalTo: bottomAnchor),
+            controller.view.leadingAnchor.constraint(equalTo: leadingAnchor),
+            controller.view.trailingAnchor.constraint(equalTo: trailingAnchor),
+            controller.view.topAnchor.constraint(equalTo: topAnchor),
+            controller.view.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }
 
@@ -129,12 +117,19 @@ class MpvPlayerView: ExpoView {
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-
             self.onVideoLoadStart?(["target": self.reactTag as Any])
 
+            // Store external subtitle data
+            self.externalSubtitles = source["externalSubtitles"] as? [[String: String]]
+
             if let uri = source["uri"] as? String, let url = URL(string: uri) {
-                self.coordinator?.playUrl = url
-                self.coordinator?.play(url)
+                print("Loading file: \(url.absoluteString)")
+                self.playerController?.playUrl = url
+                self.playerController?.loadFile(url)
+
+                // Add external subtitles after the video is loaded
+                self.setInitialExternalSubtitles()
+
                 self.onVideoLoadEnd?(["target": self.reactTag as Any])
             } else {
                 self.onVideoError?(["error": "Invalid or empty URI"])
@@ -172,8 +167,41 @@ class MpvPlayerView: ExpoView {
     }
 
     func getAudioTracks() -> [[String: Any]] {
-        // Implementation would go here
-        return []
+        guard let playerController = playerController else {
+            return []
+        }
+
+        // Get track list as a node
+        guard let trackListStr = playerController.getNode("track-list") else {
+            return []
+        }
+
+        // Parse the JSON string into an array
+        guard let data = trackListStr.data(using: .utf8),
+            let trackList = try? JSONSerialization.jsonObject(with: data) as? [Any]
+        else {
+            return []
+        }
+
+        // Filter to audio tracks only
+        var audioTracks: [[String: Any]] = []
+        for case let track as [String: Any] in trackList {
+            if let type = track["type"] as? String, type == "audio" {
+                let id = track["id"] as? Int ?? 0
+                let title = track["title"] as? String ?? "Audio \(id)"
+                let lang = track["lang"] as? String ?? "unknown"
+                let selected = track["selected"] as? Bool ?? false
+
+                audioTracks.append([
+                    "id": id,
+                    "title": title,
+                    "language": lang,
+                    "selected": selected,
+                ])
+            }
+        }
+
+        return audioTracks
     }
 
     func setSubtitleTrack(_ trackIndex: Int) {
@@ -181,20 +209,152 @@ class MpvPlayerView: ExpoView {
     }
 
     func getSubtitleTracks() -> [[String: Any]] {
-        // Implementation would go here
-        return []
+        guard let playerController = playerController else {
+            return []
+        }
+
+        // Get track list as a node
+        guard let trackListStr = playerController.getNode("track-list") else {
+            return []
+        }
+
+        // Parse the JSON string into an array
+        guard let data = trackListStr.data(using: .utf8),
+            let trackList = try? JSONSerialization.jsonObject(with: data) as? [Any]
+        else {
+            return []
+        }
+
+        // Filter to subtitle tracks only
+        var subtitleTracks: [[String: Any]] = []
+        for case let track as [String: Any] in trackList {
+            if let type = track["type"] as? String, type == "sub" {
+                let id = track["id"] as? Int ?? 0
+                let title = track["title"] as? String ?? "Subtitle \(id)"
+                let lang = track["lang"] as? String ?? "unknown"
+                let selected = track["selected"] as? Bool ?? false
+
+                subtitleTracks.append([
+                    "id": id,
+                    "title": title,
+                    "language": lang,
+                    "selected": selected,
+                ])
+            }
+        }
+
+        return subtitleTracks
     }
 
     func setSubtitleURL(_ subtitleURL: String, name: String) {
         guard let url = URL(string: subtitleURL) else { return }
+
+        print("Adding subtitle: \(name) from \(subtitleURL)")
+
+        // Add the subtitle file
         playerController?.command("sub-add", args: [url.absoluteString])
+    }
+
+    private func setInitialExternalSubtitles() {
+        if let externalSubtitles = self.externalSubtitles {
+            for subtitle in externalSubtitles {
+                if let subtitleName = subtitle["name"],
+                    let subtitleURL = subtitle["DeliveryUrl"]
+                {
+                    print("Adding external subtitle: \(subtitleName) from \(subtitleURL)")
+                    setSubtitleURL(subtitleURL, name: subtitleName)
+                }
+            }
+        }
     }
 
     // MARK: - Private Methods
 
-    private func handlePropertyChange(propertyName: String, value: Any?) {
-        guard let playerController = playerController else { return }
+    private func isPaused() -> Bool {
+        print("isPaused: \(playerController?.getFlag(MpvProperty.pause) ?? true)")
+        return playerController?.getFlag(MpvProperty.pause) ?? true
+    }
 
+    private func isBuffering() -> Bool {
+        return playerController?.getFlag(MpvProperty.pausedForCache) ?? false
+    }
+
+    private func getCurrentTime() -> Double {
+        return playerController?.getDouble(MpvProperty.timePosition) ?? 0
+    }
+
+    private func getVideoDuration() -> Double {
+        return playerController?.getDouble(MpvProperty.duration) ?? 0
+    }
+
+    // MARK: - Cleanup
+
+    override func removeFromSuperview() {
+        cleanup()
+        super.removeFromSuperview()
+    }
+
+    private func cleanup() {
+        // Check if we already cleaned up
+        guard playerController != nil else { return }
+
+        // First stop playback
+        stop()
+
+        // Break reference cycles
+        playerController?.delegate = nil
+
+        // Remove from view hierarchy
+        playerController?.view.removeFromSuperview()
+
+        // Release references
+        playerController = nil
+    }
+
+    deinit {
+        cleanup()
+    }
+
+    // Reset the player when experiencing black screen or other issues
+    func resetPlayer() {
+        // Store current source
+        let currentSource = source
+
+        // Clean up existing player
+        cleanup()
+
+        // Create a new player
+        setupView()
+
+        // If we had a source, reload it
+        if let source = currentSource {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.setSource(source)
+            }
+        }
+    }
+
+    // Check if player needs reset when the view appears
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+
+        // If we're returning to the window and player is missing, reset
+        if window != nil && playerController == nil {
+            setupView()
+
+            // Reload previous source if available
+            if let source = source {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    self?.setSource(source)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - MPV Player Delegate
+extension MpvPlayerView: MpvPlayerDelegate {
+    func propertyChanged(mpv: OpaquePointer, propertyName: String, value: Any?) {
         switch propertyName {
         case MpvProperty.pausedForCache:
             let isBuffering = value as? Bool ?? false
@@ -239,105 +399,6 @@ class MpvPlayerView: ExpoView {
 
         default:
             break
-        }
-    }
-
-    private func isPaused() -> Bool {
-        return playerController?.getFlag(MpvProperty.pause) ?? true
-    }
-
-    private func isBuffering() -> Bool {
-        return playerController?.getFlag(MpvProperty.pausedForCache) ?? false
-    }
-
-    private func getCurrentTime() -> Double {
-        return playerController?.getDouble(MpvProperty.timePosition) ?? 0
-    }
-
-    private func getVideoDuration() -> Double {
-        return playerController?.getDouble(MpvProperty.duration) ?? 0
-    }
-
-    // MARK: - Cleanup
-
-    override func removeFromSuperview() {
-        cleanup()
-        super.removeFromSuperview()
-    }
-
-    private func cleanup() {
-        // Ensure everything completes before cleanup
-        playerController?.mpvQueue.sync {}
-
-        // Stop playback
-        stop()
-
-        // Break reference cycles
-        coordinator?.player = nil
-        coordinator?.onPropertyChange = nil
-        playerController?.delegate = nil
-
-        // Remove from view hierarchy
-        hostingController?.view.removeFromSuperview()
-        hostingController = nil
-        coordinator = nil
-        playerController = nil
-    }
-
-    deinit {
-        cleanup()
-    }
-}
-
-// MARK: - SwiftUI Wrapper
-struct MpvMetalPlayerView: UIViewControllerRepresentable {
-    @ObservedObject var coordinator: Coordinator
-    let existingController: MpvMetalViewController
-
-    init(coordinator: Coordinator, existingController: MpvMetalViewController) {
-        self.coordinator = coordinator
-        self.existingController = existingController
-    }
-
-    func makeUIViewController(context: Context) -> UIViewController {
-        return existingController
-    }
-
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        // Updates if needed
-    }
-
-    func makeCoordinator() -> Coordinator {
-        coordinator
-    }
-
-    // Method for playing media
-    func play(_ url: URL) -> Self {
-        coordinator.playUrl = url
-        return self
-    }
-
-    // Method for handling property changes
-    func onPropertyChange(_ handler: @escaping (MpvMetalViewController, String, Any?) -> Void)
-        -> Self
-    {
-        coordinator.onPropertyChange = handler
-        return self
-    }
-
-    @MainActor
-    final class Coordinator: MpvPlayerDelegate, ObservableObject {
-        weak var player: MpvMetalViewController?
-        var playUrl: URL?
-        var onPropertyChange: ((MpvMetalViewController, String, Any?) -> Void)?
-
-        func play(_ url: URL) {
-            player?.loadFile(url)
-        }
-
-        func propertyChanged(mpv: OpaquePointer, propertyName: String, value: Any?) {
-            guard let player = player else { return }
-            onPropertyChange?(player, propertyName, value)
         }
     }
 }
@@ -403,36 +464,31 @@ final class MpvMetalViewController: UIViewController {
     }
 
     deinit {
-        // Use syncQueue to ensure thread safety during shutdown
-        syncQueue.sync {
-            // Mark as shutting down to prevent new callbacks from running
-            isShuttingDown = true
-            isBeingDeallocated = true
+        // Flag that we're being deinitialized to prevent new callbacks
+        isBeingDeallocated = true
 
-            // Make sure to handle this on the mpv queue
-            mpvQueue.sync {
-                // First remove the wakeup callback to prevent any new callbacks
-                if let mpv = self.mpv {
-                    mpv_set_wakeup_callback(mpv, nil, nil)
-                }
+        // Remove the wakeup callback first to prevent any new callbacks
+        if let mpv = self.mpv {
+            mpv_set_wakeup_callback(mpv, nil, nil)
+        }
 
-                // Release the container
-                if let contextPtr = contextPointer {
-                    let container = Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(
-                        contextPtr
-                    ).takeUnretainedValue()
-                    container.invalidate()
-                    Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(contextPtr)
-                        .release()
-                    contextPointer = nil
-                }
+        // Release the container
+        if let contextPtr = contextPointer {
+            let container = Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(
+                contextPtr
+            ).takeUnretainedValue()
+            container.invalidate()
+            Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(contextPtr)
+                .release()
+            contextPointer = nil
+        }
 
-                // Terminate and destroy mpv as the final step
-                if let mpv = self.mpv {
-                    mpv_terminate_destroy(mpv)
-                    self.mpv = nil
-                }
-            }
+        // Terminate and destroy mpv as the final step
+        if let mpv = self.mpv {
+            // Unobserve all properties
+            mpv_unobserve_property(mpv, 0)
+            mpv_terminate_destroy(mpv)
+            self.mpv = nil
         }
     }
 
@@ -462,12 +518,22 @@ final class MpvMetalViewController: UIViewController {
             mpv_request_log_messages(mpvHandle, "no")
         #endif
 
+        // Force a proper window setup to prevent black screens
+        mpv_set_option_string(mpvHandle, "force-window", "yes")
+        mpv_set_option_string(mpvHandle, "reset-on-next-file", "all")
+
+        // Set rendering options
         mpv_set_option(mpvHandle, "wid", MPV_FORMAT_INT64, &metalLayer)
-        mpv_set_option_string(mpvHandle, "subs-match-os-language", "yes")
-        mpv_set_option_string(mpvHandle, "subs-fallback", "yes")
         mpv_set_option_string(mpvHandle, "vo", "gpu-next")
         mpv_set_option_string(mpvHandle, "gpu-api", "vulkan")
+        mpv_set_option_string(mpvHandle, "gpu-context", "auto")
         mpv_set_option_string(mpvHandle, "hwdec", "videotoolbox")
+
+        // Set subtitle options
+        mpv_set_option_string(mpvHandle, "subs-match-os-language", "yes")
+        mpv_set_option_string(mpvHandle, "subs-fallback", "yes")
+
+        // Set video options
         mpv_set_option_string(mpvHandle, "video-rotate", "no")
         mpv_set_option_string(mpvHandle, "ytdl", "no")
 
@@ -487,29 +553,21 @@ final class MpvMetalViewController: UIViewController {
         mpv_observe_property(mpvHandle, 0, MpvProperty.duration, MPV_FORMAT_DOUBLE)
         mpv_observe_property(mpvHandle, 0, MpvProperty.pause, MPV_FORMAT_FLAG)
 
-        // Set up weak reference for callback with improved safety
+        // Set up weak reference for callback
         let container = WeakContainer(value: self)
         contextPointer = Unmanaged.passRetained(container).toOpaque()
 
-        // Set wakeup callback with safer checking
+        // Set wakeup callback
         mpv_set_wakeup_callback(
             mpvHandle,
             { pointer in
                 guard let ptr = pointer else { return }
-
-                // Get the container safely
                 let container = Unmanaged<WeakContainer<MpvMetalViewController>>.fromOpaque(ptr)
                     .takeUnretainedValue()
 
-                // Access the value with additional safety checks
                 DispatchQueue.main.async {
-                    if let controller = container.value {
-                        if !controller.isBeingDeallocated {
-                            controller.processEvents()
-                        } else {
-                            // If the controller is being deallocated, invalidate the container
-                            container.invalidate()
-                        }
+                    if let controller = container.value, !controller.isBeingDeallocated {
+                        controller.processEvents()
                     }
                 }
             }, contextPointer)
@@ -520,12 +578,10 @@ final class MpvMetalViewController: UIViewController {
     func loadFile(_ url: URL) {
         guard let mpv = mpv else { return }
 
+        print("Loading file: \(url.absoluteString)")
+
         var args = [url.absoluteString, "replace"]
         command("loadfile", args: args)
-    }
-
-    func togglePause() {
-        getFlag(MpvProperty.pause) ? play() : pause()
     }
 
     func play() {
@@ -543,6 +599,15 @@ final class MpvMetalViewController: UIViewController {
         var data = 0.0
         mpv_get_property(mpv, name, MPV_FORMAT_DOUBLE, &data)
         return data
+    }
+
+    func getNode(_ name: String) -> String? {
+        guard let mpv = mpv else { return nil }
+
+        guard let cString = mpv_get_property_string(mpv, name) else { return nil }
+        let string = String(cString: cString)
+        mpv_free(UnsafeMutableRawPointer(mutating: cString))
+        return string
     }
 
     func getString(_ name: String) -> String? {
@@ -613,34 +678,29 @@ final class MpvMetalViewController: UIViewController {
     // MARK: - Event Processing
 
     private func processEvents() {
-        // Check shutdown state first before proceeding
-        if syncQueue.sync(execute: { isShuttingDown }) {
+        // Exit if we're being deallocated
+        if isBeingDeallocated {
             return
         }
 
-        mpvQueue.async { [weak self] in
-            guard let self = self,
-                let mpv = self.mpv,
-                !self.isBeingDeallocated,
-                !self.syncQueue.sync(execute: { self.isShuttingDown })
-            else {
-                return
-            }
+        guard let mpv = mpv else { return }
 
-            while self.mpv != nil && !self.isBeingDeallocated
-                && !self.syncQueue.sync(execute: { self.isShuttingDown })
-            {
-                guard let event = mpv_wait_event(mpv, 0) else { break }
-                if event.pointee.event_id == MPV_EVENT_NONE { break }
+        // Process a limited number of events to avoid infinite loops
+        let maxEvents = 10
+        var eventCount = 0
 
-                self.handleEvent(event)
-            }
+        while !isBeingDeallocated && eventCount < maxEvents {
+            guard let event = mpv_wait_event(mpv, 0) else { break }
+            if event.pointee.event_id == MPV_EVENT_NONE { break }
+
+            handleEvent(event)
+            eventCount += 1
         }
     }
 
     private func handleEvent(_ event: UnsafePointer<mpv_event>) {
-        // Exit early if we're shutting down
-        if syncQueue.sync(execute: { isShuttingDown }) || isBeingDeallocated {
+        // Exit early if we're being deallocated
+        if isBeingDeallocated {
             return
         }
 
@@ -684,13 +744,12 @@ final class MpvMetalViewController: UIViewController {
 
         case MPV_EVENT_SHUTDOWN:
             print("MPV shutdown event received")
-            mpvQueue.async { [weak self] in
-                guard let self = self, self.mpv != nil else { return }
-                mpv_terminate_destroy(self.mpv)
-                self.mpv = nil
-            }
+            // Let the deinit handle cleanup - just mark as deallocating
+            isBeingDeallocated = true
+
         case MPV_EVENT_LOG_MESSAGE:
             return
+
         default:
             if let eventName = mpv_event_name(event.pointee.event_id) {
                 print("MPV event: \(String(cString: eventName))")
