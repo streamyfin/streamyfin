@@ -7,14 +7,10 @@ Pod::Spec.new do |s|
   s.source         = { git: '' }
   s.homepage       = 'https://github.com/mpvkit/MPVKit'
   s.platforms      = { :ios => '13.4', :tvos => '13.4' }
+  s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-
-  spm_dependency(s,
-    url: 'https://github.com/mpvkit/MPVKit.git',
-    requirement: {kind: 'upToNextMajorVersion', minimumVersion: '0.40.0'},
-    products: ['MPVKit']
-  )
+  s.dependency 'MPVKit', '~> 0.40.6'
 
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
