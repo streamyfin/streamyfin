@@ -8,7 +8,7 @@ import DeviceInfo from "react-native-device-info";
 import MediaTypes from "../../constants/MediaTypes";
 
 // Helper function to detect Dolby Vision support
-const supportsDobyVision = async () => {
+const supportsDolbyVision = async () => {
   if (Platform.OS === "ios") {
     const deviceModel = await DeviceInfo.getModel();
     // iPhone 12 and newer generally support Dolby Vision
@@ -28,7 +28,7 @@ const supportsDobyVision = async () => {
 };
 
 export const generateDeviceProfile = async () => {
-  const dolbyVisionSupported = await supportsDobyVision();
+  const dolbyVisionSupported = await supportsDolbyVision();
   /**
    * Device profile for Native video player
    */
