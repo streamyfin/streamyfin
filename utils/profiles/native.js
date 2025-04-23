@@ -79,7 +79,7 @@ export const generateDeviceProfile = async () => {
         Type: MediaTypes.Video,
         Context: "Streaming",
         Protocol: "hls",
-        Container: "mp4",
+        Container: "fmp4",
         VideoCodec: "h264, hevc",
         AudioCodec: "aac,mp3,ac3,dts",
       },
