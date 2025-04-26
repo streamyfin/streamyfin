@@ -66,11 +66,12 @@ export const PlayButton: React.FC<Props> = ({
   const startColor = useSharedValue(colorAtom);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
-  const [settings] = useSettings();
+  const [settings, updateSettings] = useSettings();
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
     (q: string) => {
+      updateSettings({ autoPlayEpisodeCount: 0 });
       router.push(`/player/direct-player?${q}`);
     },
     [router],
