@@ -1,6 +1,7 @@
 import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
+import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -238,16 +239,40 @@ export const Controls: FC<Props> = ({
     goToItemCommon(previousItem);
   }, [previousItem, goToItemCommon]);
 
-  const goToNextItem = useCallback(() => {
-    if (!nextItem) {
-      return;
-    }
+  const goToNextItem = useCallback(
+    ({
+      isAutoPlay,
+      resetWatchCount,
+    }: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
+      if (!nextItem) {
+        return;
+      }
 
-    updateSettings({
-      autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
-    });
-    goToItemCommon(nextItem);
-  }, [nextItem, goToItemCommon]);
+      if (!isAutoPlay) {
+        // if we are not autoplaying, we won't update anything, we just go to the next item
+        goToItemCommon(nextItem);
+        if (resetWatchCount) {
+          updateSettings({
+            autoPlayEpisodeCount: 0,
+          });
+        }
+        return;
+      }
+
+      // Check if the autoPlayEpisodeCount is less than maxAutoPlayEpisodeCount for the autoPlay
+      if (
+        settings.autoPlayEpisodeCount + 1 <
+        settings.maxAutoPlayEpisodeCount.value
+      ) {
+        // update the autoPlayEpisodeCount in settings
+        updateSettings({
+          autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
+        });
+        goToItemCommon(nextItem);
+      }
+    },
+    [nextItem, goToItemCommon],
+  );
 
   const goToItem = useCallback(
     async (itemId: string) => {
@@ -562,7 +587,7 @@ export const Controls: FC<Props> = ({
 
               {nextItem && !offline && (
                 <TouchableOpacity
-                  onPress={goToNextItem}
+                  onPress={() => goToNextItem({ isAutoPlay: false })}
                   className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
                 >
                   <Ionicons name='play-skip-forward' size={24} color='white' />
@@ -765,8 +790,8 @@ export const Controls: FC<Props> = ({
                         ? remainingTime < 10000
                         : remainingTime < 10
                   }
-                  onFinish={goToNextItem}
-                  onPress={goToNextItem}
+                  onFinish={() => goToNextItem({ isAutoPlay: true })}
+                  onPress={() => goToNextItem({ isAutoPlay: true })}
                 />
               </View>
             </View>
@@ -815,40 +840,7 @@ export const Controls: FC<Props> = ({
           </View>
         </>
       )}
-      {settings.autoPlayEpisodeCount >=
-        settings.maxAutoPlayEpisodeCount.value && (
-        <View
-          className={
-            "absolute top-0 bottom-0 left-0 right-0 flex flex-col px-4 items-center justify-center bg-[#000000B3]"
-          }
-        >
-          <Image
-            style={{
-              height: 100,
-              width: 100,
-            }}
-            source={require("@/assets/images/StreamyFinFinal.png")}
-          />
-          <Text className='text-2xl font-bold text-white py-4 '>
-            Are you still watching ?
-          </Text>
-          <Button
-            onPress={goToNextItem}
-            color={"purple"}
-            className='w-full my-4'
-          >
-            {t("player.continue_watching")}
-          </Button>
-
-          <Button
-            onPress={router.back}
-            color={"transparent"}
-            className='w-full'
-          >
-            {t("player.go_back")}
-          </Button>
-        </View>
-      )}
+      <ContinueWatchingOverlay goToNextItem={goToNextItem} />
     </ControlProvider>
   );
 };
