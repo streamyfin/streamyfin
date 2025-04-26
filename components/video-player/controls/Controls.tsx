@@ -1,4 +1,3 @@
-import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
@@ -28,7 +27,6 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { t } from "i18next";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
 import React, {
@@ -258,20 +256,42 @@ export const Controls: FC<Props> = ({
         }
         return;
       }
-
-      // Check if the autoPlayEpisodeCount is less than maxAutoPlayEpisodeCount for the autoPlay
       if (
         settings.autoPlayEpisodeCount + 1 <
         settings.maxAutoPlayEpisodeCount.value
       ) {
+        goToItemCommon(nextItem);
         // update the autoPlayEpisodeCount in settings
+      }
+
+      // Check if the autoPlayEpisodeCount is less than maxAutoPlayEpisodeCount for the autoPlay
+      if (
+        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
+      ) {
         updateSettings({
           autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
         });
-        goToItemCommon(nextItem);
       }
     },
     [nextItem, goToItemCommon],
+  );
+
+  // Add a memoized handler for autoplay next episode
+  const handleNextEpisodeAutoPlay = useCallback(() => {
+    goToNextItem({ isAutoPlay: true });
+  }, [goToNextItem]);
+
+  // Add a memoized handler for manual next episode
+  const handleNextEpisodeManual = useCallback(() => {
+    goToNextItem({ isAutoPlay: false });
+  }, [goToNextItem]);
+
+  // Add a memoized handler for ContinueWatchingOverlay
+  const handleContinueWatching = useCallback(
+    (options: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
+      goToNextItem(options);
+    },
+    [goToNextItem],
   );
 
   const goToItem = useCallback(
@@ -782,17 +802,20 @@ export const Controls: FC<Props> = ({
                   onPress={skipCredit}
                   buttonText='Skip Credits'
                 />
-                <NextEpisodeCountDownButton
-                  show={
-                    !nextItem
-                      ? false
-                      : isVlc
-                        ? remainingTime < 10000
-                        : remainingTime < 10
-                  }
-                  onFinish={() => goToNextItem({ isAutoPlay: true })}
-                  onPress={() => goToNextItem({ isAutoPlay: true })}
-                />
+                {settings.autoPlayEpisodeCount <
+                  settings.maxAutoPlayEpisodeCount.value && (
+                  <NextEpisodeCountDownButton
+                    show={
+                      !nextItem
+                        ? false
+                        : isVlc
+                          ? remainingTime < 10000
+                          : remainingTime < 10
+                    }
+                    onFinish={handleNextEpisodeAutoPlay}
+                    onPress={handleNextEpisodeManual}
+                  />
+                )}
               </View>
             </View>
             <View
@@ -840,7 +863,7 @@ export const Controls: FC<Props> = ({
           </View>
         </>
       )}
-      <ContinueWatchingOverlay goToNextItem={goToNextItem} />
+      <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
     </ControlProvider>
   );
 };
