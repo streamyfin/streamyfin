@@ -138,7 +138,8 @@
         "hide_libraries": "Hide Libraries",
         "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable Haptic Feedback",
-        "default_quality": "Default quality"
+        "default_quality": "Default quality",
+        "max_auto_play_episode_count": "Max auto play episode count"
       },
       "downloads": {
         "downloads_title": "Downloads",
@@ -374,7 +375,9 @@
     "audio_tracks": "Audio Tracks:",
     "playback_state": "Playback State:",
     "no_data_available": "No data available",
-    "index": "Index:"
+    "index": "Index:",
+    "continue_watching": "Continue Watching",
+    "go_back": "Go back"
   },
   "item_card": {
     "next_up": "Next up",

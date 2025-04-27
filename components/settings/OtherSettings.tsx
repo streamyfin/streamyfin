@@ -251,7 +251,46 @@ export const OtherSettings: React.FC = () => {
             }
           />
         </ListItem>
+        <ListItem
+          title={t("home.settings.other.max_auto_play_episode_count")}
+          disabled={pluginSettings?.defaultBitrate?.locked}
+        >
+          <Dropdown
+            data={AUTOPLAY_EPISODES_COUNT}
+            keyExtractor={(item) => item.key}
+            titleExtractor={(item) => item.key}
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {settings?.maxAutoPlayEpisodeCount.key}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.other.max_auto_play_episode_count")}
+            onSelected={(maxAutoPlayEpisodeCount) =>
+              updateSettings({ maxAutoPlayEpisodeCount })
+            }
+          />
+        </ListItem>
       </ListGroup>
     </DisabledSetting>
   );
 };
+
+const AUTOPLAY_EPISODES_COUNT: {
+  key: string;
+  value: number;
+}[] = [
+  { key: "1", value: 1 },
+  { key: "2", value: 2 },
+  { key: "3", value: 3 },
+  { key: "4", value: 4 },
+  { key: "5", value: 5 },
+  { key: "6", value: 6 },
+  { key: "7", value: 7 },
+];

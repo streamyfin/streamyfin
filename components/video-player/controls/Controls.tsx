@@ -1,3 +1,4 @@
+import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
@@ -26,9 +27,10 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { t } from "i18next";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import {
+import React, {
   type Dispatch,
   type FC,
   type MutableRefObject,
@@ -121,7 +123,7 @@ export const Controls: FC<Props> = ({
   enableTrickplay = true,
   isVlc = false,
 }) => {
-  const [settings] = useSettings();
+  const [settings, updateSettings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -237,14 +239,22 @@ export const Controls: FC<Props> = ({
   }, [previousItem, goToItemCommon]);
 
   const goToNextItem = useCallback(() => {
-    if (!nextItem) return;
+    if (!nextItem) {
+      return;
+    }
+
+    updateSettings({
+      autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
+    });
     goToItemCommon(nextItem);
   }, [nextItem, goToItemCommon]);
 
   const goToItem = useCallback(
     async (itemId: string) => {
       const gotoItem = await getItemById(api, itemId);
-      if (!gotoItem) return;
+      if (!gotoItem) {
+        return;
+      }
       goToItemCommon(gotoItem);
     },
     [goToItemCommon, api],
@@ -300,7 +310,9 @@ export const Controls: FC<Props> = ({
   };
 
   const handleSliderStart = useCallback(() => {
-    if (!showControls) return;
+    if (!showControls) {
+      return;
+    }
 
     setIsSliding(true);
     wasPlayingRef.current = isPlaying;
@@ -339,7 +351,9 @@ export const Controls: FC<Props> = ({
   );
 
   const handleSkipBackward = useCallback(async () => {
-    if (!settings?.rewindSkipTime) return;
+    if (!settings?.rewindSkipTime) {
+      return;
+    }
     wasPlayingRef.current = isPlaying;
     lightHapticFeedback();
     try {
@@ -371,7 +385,9 @@ export const Controls: FC<Props> = ({
           ? curr + secondsToMs(settings.forwardSkipTime)
           : ticksToSeconds(curr) + settings.forwardSkipTime;
         seek(Math.max(0, newTime));
-        if (wasPlayingRef.current) play();
+        if (wasPlayingRef.current) {
+          play();
+        }
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
@@ -798,6 +814,40 @@ export const Controls: FC<Props> = ({
             </View>
           </View>
         </>
+      )}
+      {settings.autoPlayEpisodeCount >=
+        settings.maxAutoPlayEpisodeCount.value && (
+        <View
+          className={
+            "absolute top-0 bottom-0 left-0 right-0 flex flex-col px-4 items-center justify-center bg-[#000000B3]"
+          }
+        >
+          <Image
+            style={{
+              height: 100,
+              width: 100,
+            }}
+            source={require("@/assets/images/StreamyFinFinal.png")}
+          />
+          <Text className='text-2xl font-bold text-white py-4 '>
+            Are you still watching ?
+          </Text>
+          <Button
+            onPress={goToNextItem}
+            color={"purple"}
+            className='w-full my-4'
+          >
+            {t("player.continue_watching")}
+          </Button>
+
+          <Button
+            onPress={router.back}
+            color={"transparent"}
+            className='w-full'
+          >
+            {t("player.go_back")}
+          </Button>
+        </View>
       )}
     </ControlProvider>
   );
