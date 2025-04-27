@@ -261,13 +261,13 @@ export const Controls: FC<Props> = ({
         settings.maxAutoPlayEpisodeCount.value
       ) {
         goToItemCommon(nextItem);
-        // update the autoPlayEpisodeCount in settings
       }
 
       // Check if the autoPlayEpisodeCount is less than maxAutoPlayEpisodeCount for the autoPlay
       if (
         settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
       ) {
+        // update the autoPlayEpisodeCount in settings
         updateSettings({
           autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
         });

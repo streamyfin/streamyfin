@@ -251,10 +251,7 @@ export const OtherSettings: React.FC = () => {
             }
           />
         </ListItem>
-        <ListItem
-          title={t("home.settings.other.max_auto_play_episode_count")}
-          disabled={pluginSettings?.defaultBitrate?.locked}
-        >
+        <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
           <Dropdown
             data={AUTOPLAY_EPISODES_COUNT}
             keyExtractor={(item) => item.key}
