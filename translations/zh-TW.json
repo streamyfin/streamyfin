@@ -369,7 +369,9 @@
     "audio_tracks": "音頻軌道：",
     "playback_state": "播放狀態：",
     "no_data_available": "無可用數據",
-    "index": "索引："
+    "index": "索引：",
+    "continue_watching": "繼續觀看",
+    "go_back": "返回"
   },
   "item_card": {
     "next_up": "下一個",

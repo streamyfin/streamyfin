@@ -371,7 +371,9 @@
     "audio_tracks": "Аудио дорожки:",
     "playback_state": "Состояние воспроизведения:",
     "no_data_available": "Данные не доступны",
-    "index": "Индекс:"
+    "index": "Индекс:",
+    "continue_watching": "Продолжить просмотр",
+    "go_back": "Назад"
   },
   "item_card": {
     "next_up": "Следующее",

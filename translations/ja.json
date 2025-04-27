@@ -369,7 +369,9 @@
     "audio_tracks": "音声トラック:",
     "playback_state": "再生状態:",
     "no_data_available": "データなし",
-    "index": "インデックス:"
+    "index": "インデックス:",
+    "continue_watching": "視聴を続ける",
+    "go_back": "戻る"
   },
   "item_card": {
     "next_up": "次",

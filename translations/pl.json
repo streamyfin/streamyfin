@@ -374,7 +374,9 @@
     "audio_tracks": "Ścieżki audio:",
     "playback_state": "Stan odtwarzania:",
     "no_data_available": "Brak dostępnych danych",
-    "index": "Indeks:"
+    "index": "Indeks:",
+    "continue_watching": "Kontynuuj oglądanie",
+    "go_back": "Wstecz"
   },
   "item_card": {
     "next_up": "Następne",

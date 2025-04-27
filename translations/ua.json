@@ -372,7 +372,9 @@
     "audio_tracks": "Аудіо-доріжки:",
     "playback_state": "Стан відтворення:",
     "no_data_available": "Дані відсутні",
-    "index": "Індекс:"
+    "index": "Індекс:",
+    "continue_watching": "Продовжити перегляд",
+    "go_back": "Назад"
   },
   "item_card": {
     "next_up": "Далі",

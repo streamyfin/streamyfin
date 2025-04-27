@@ -370,7 +370,9 @@
     "audio_tracks": "Audio Tracks:",
     "playback_state": "Afspeelstatus:",
     "no_data_available": "Geen data beschikbaar",
-    "index": "Index:"
+    "index": "Index:",
+    "continue_watching": "Verder kijken",
+    "go_back": "Terug"
   },
   "item_card": {
     "next_up": "Volgende",

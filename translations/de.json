@@ -370,7 +370,9 @@
     "audio_tracks": "Audiospuren:",
     "playback_state": "Wiedergabestatus:",
     "no_data_available": "Keine Daten verfügbar",
-    "index": "Index:"
+    "index": "Index:",
+    "continue_watching": "Weiterschauen",
+    "go_back": "Zurück"
   },
   "item_card": {
     "next_up": "Als Nächstes",

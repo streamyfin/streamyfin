@@ -369,7 +369,9 @@
     "audio_tracks": "Ses Parçaları:",
     "playback_state": "Oynatma Durumu:",
     "no_data_available": "Veri bulunamadı",
-    "index": "İndeks:"
+    "index": "İndeks:",
+    "continue_watching": "İzlemeye devam et",
+    "go_back": "Geri"
   },
   "item_card": {
     "next_up": "Sıradaki",

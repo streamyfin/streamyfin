@@ -370,7 +370,9 @@
     "audio_tracks": "Pistas de audio:",
     "playback_state": "Estado de la reproducción:",
     "no_data_available": "No hay datos disponibles",
-    "index": "Índice:"
+    "index": "Índice:",
+    "continue_watching": "Continuar viendo",
+    "go_back": "Volver"
   },
   "item_card": {
     "next_up": "A continuación",

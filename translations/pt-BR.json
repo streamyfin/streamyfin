@@ -371,7 +371,9 @@
     "audio_tracks": "Faixas do áudio:",
     "playback_state": "Playback State:",
     "no_data_available": "Nenhum dado disponível",
-    "index": "Índice:"
+    "index": "Índice:",
+    "continue_watching": "Continuar assistindo",
+    "go_back": "Voltar"
   },
   "item_card": {
     "next_up": "Próximo em",
