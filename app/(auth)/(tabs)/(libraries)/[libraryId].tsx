@@ -433,15 +433,6 @@ const Page = () => {
       </View>
     );
 
-  if (flatData.length === 0)
-    return (
-      <View className='h-full w-full flex justify-center items-center'>
-        <Text className='text-lg text-neutral-500'>
-          {t("library.no_items_found")}
-        </Text>
-      </View>
-    );
-
   return (
     <FlashList
       key={orientation}
