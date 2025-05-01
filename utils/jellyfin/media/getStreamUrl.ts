@@ -1,4 +1,4 @@
-import native from "@/utils/profiles/native";
+import generateDeviceProfile from "@/utils/profiles/native";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
@@ -15,7 +15,7 @@ export const getStreamUrl = async ({
   startTimeTicks = 0,
   maxStreamingBitrate,
   sessionData,
-  deviceProfile = native,
+  deviceProfile = generateDeviceProfile(),
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,

@@ -7,7 +7,6 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
-import ios from "@/utils/profiles/ios";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";

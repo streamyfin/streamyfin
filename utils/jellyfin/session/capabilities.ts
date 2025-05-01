@@ -1,5 +1,5 @@
 import type { Settings } from "@/utils/atoms/settings";
-import native from "@/utils/profiles/native";
+import generateDeviceProfile from "@/utils/profiles/native";
 import type { Api } from "@jellyfin/sdk";
 import type { AxiosResponse } from "axios";
 import { getAuthHeaders } from "../jellyfin";
@@ -43,7 +43,7 @@ export const postCapabilities = async ({
         ],
         supportsMediaControl: true,
         id: sessionId,
-        DeviceProfile: native,
+        DeviceProfile: generateDeviceProfile(),
       },
       {
         headers: getAuthHeaders(api),
