@@ -20,6 +20,7 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
 - 📡 **Chromecast** (Experimental): Cast your media to any Chromecast-enabled device.
 - 📡 **Settings management** (Experimental): Manage app settings for all your users with a JF plugin.
 - 🤖 **Jellyseerr integration**: Request media directly in the app.
+- 👁️ **Sessions View:** View all active sessions currently streaming on your server.
 
 ## 🧪 Experimental Features
 
