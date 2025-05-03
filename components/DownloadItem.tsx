@@ -205,7 +205,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           mediaSourceId: mediaSource?.Id,
           subtitleStreamIndex: subtitleIndex,
           deviceProfile: download,
-          forceStream: true,
+          download: true,
         });
 
         if (!res) {

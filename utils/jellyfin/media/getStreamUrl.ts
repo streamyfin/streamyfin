@@ -19,7 +19,7 @@ export const getStreamUrl = async ({
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
-  forceStream = false,
+  download = false,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
@@ -32,7 +32,8 @@ export const getStreamUrl = async ({
   subtitleStreamIndex?: number;
   height?: number;
   mediaSourceId?: string | null;
-  forceStream: bool;
+  //forceStream: bool;
+  download: bool;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -75,8 +76,8 @@ export const getStreamUrl = async ({
   let transcodeUrl = mediaSource.TranscodingUrl;
 
   if (transcodeUrl) {
-    if (forceStream) {
-      transcodeUrl = transcodeUrl.replace("master.m3u8", "stream");
+    if (download) {
+      transcodeUrl = transcodeUrl.replace("master.m3u8", "stream.mp4");
     }
     console.log("Video is being transcoded:", transcodeUrl);
     return {
@@ -86,7 +87,19 @@ export const getStreamUrl = async ({
     };
   }
 
-  const searchParams = new URLSearchParams({
+  let params = {};
+
+  if (download) {
+    params = {
+      subtitleMethod: "Embed",
+      EnableSubtitlesInManifest: true,
+      static: false,
+      allowVideoStreamCopy: true,
+      allowAudioStreamCopy: true,
+    };
+  }
+
+  const streamParams = new URLSearchParams({
     playSessionId: sessionData?.PlaySessionId || "",
     mediaSourceId: mediaSource?.Id || "",
     static: "true",
@@ -97,11 +110,12 @@ export const getStreamUrl = async ({
     startTimeTicks: startTimeTicks.toString(),
     maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
     userId: userId || "",
+    ...params,
   });
 
   const directPlayUrl = `${
     api.basePath
-  }/Videos/${item.Id}/stream.mp4?${searchParams.toString()}`;
+  }/Videos/${item.Id}/stream.mp4?${streamParams.toString()}`;
 
   console.log("Video is being direct played:", directPlayUrl);
 
