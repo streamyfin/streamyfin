@@ -12,7 +12,7 @@ import nl from "./translations/nl.json";
 import pl from "./translations/pl.json";
 import ptBR from "./translations/pt-BR.json";
 import sv from "./translations/sv.json";
-import sv from "./translations/fi.json";
+import fi from "./translations/fi.json";
 import ru from "./translations/ru.json";
 import tr from "./translations/tr.json";
 import ua from "./translations/ua.json";
