@@ -19,6 +19,7 @@ export const getStreamUrl = async ({
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
+  forceStream = false,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
@@ -31,6 +32,7 @@ export const getStreamUrl = async ({
   subtitleStreamIndex?: number;
   height?: number;
   mediaSourceId?: string | null;
+  forceStream: bool;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -70,9 +72,12 @@ export const getStreamUrl = async ({
 
   sessionId = res.data.PlaySessionId || null;
   mediaSource = res.data.MediaSources[0];
-  const transcodeUrl = mediaSource.TranscodingUrl;
+  let transcodeUrl = mediaSource.TranscodingUrl;
 
   if (transcodeUrl) {
+    if (forceStream) {
+      transcodeUrl = transcodeUrl.replace("master.m3u8", "stream");
+    }
     console.log("Video is being transcoded:", transcodeUrl);
     return {
       url: `${api.basePath}${transcodeUrl}`,

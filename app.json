@@ -48,7 +48,6 @@
       "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
-      "@config-plugins/ffmpeg-kit-react-native",
       [
         "react-native-video",
         {

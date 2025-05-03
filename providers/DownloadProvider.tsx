@@ -74,6 +74,11 @@ function useDownloadProvider() {
     return api?.accessToken;
   }, [api]);
 
+  const usingOptimizedServer = useMemo(
+    () => settings?.downloadMethod === DownloadMethod.Optimized,
+    [settings],
+  );
+
   const { data: downloadedFiles, refetch } = useQuery({
     queryKey: ["downloadedItems"],
     queryFn: getAllDownloadedItems,
@@ -127,6 +132,7 @@ function useDownloadProvider() {
           job.status === "completed"
         ) {
           if (settings.autoDownload) {
+            job.inputUrl = `${settings?.optimizedVersionsServerUrl}download/${process.id}`;
             startDownload(job);
           } else {
             toast.info(
@@ -176,18 +182,25 @@ function useDownloadProvider() {
   const removeProcess = useCallback(
     async (id: string) => {
       const deviceId = await getOrSetDeviceId();
-      if (!deviceId || !authHeader || !settings?.optimizedVersionsServerUrl)
-        return;
+      if (!deviceId || !authHeader) return;
 
-      try {
-        await cancelJobById({
-          authHeader,
-          id,
-          url: settings?.optimizedVersionsServerUrl,
-        });
-      } catch (error) {
-        console.error(error);
+      if (usingOptimizedServer) {
+        try {
+          await cancelJobById({
+            authHeader,
+            id,
+            url: settings?.optimizedVersionsServerUrl,
+          });
+        } catch (error) {
+          console.error(error);
+        }
       }
+
+      setProcesses((prev: any[]) => {
+        return prev.filter(
+          (process: { itemId: string | undefined }) => process.id !== id,
+        );
+      });
     },
     [settings?.optimizedVersionsServerUrl, authHeader],
   );
@@ -238,7 +251,7 @@ function useDownloadProvider() {
 
       BackGroundDownloader?.download({
         id: process.id,
-        url: `${settings?.optimizedVersionsServerUrl}download/${process.id}`,
+        url: process.inputUrl,
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
       })
         .begin(() => {
@@ -345,26 +358,40 @@ function useDownloadProvider() {
           width: 500,
         });
         await saveImage(item.Id, itemImage?.uri);
-
-        const response = await axios.post(
-          `${settings?.optimizedVersionsServerUrl}optimize-version`,
-          {
-            url,
-            fileExtension,
-            deviceId,
-            itemId: item.Id,
-            item,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: authHeader,
+        if (usingOptimizedServer) {
+          const response = await axios.post(
+            `${settings?.optimizedVersionsServerUrl}optimize-version`,
+            {
+              url,
+              fileExtension,
+              deviceId,
+              itemId: item.Id,
+              item,
             },
-          },
-        );
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: authHeader,
+              },
+            },
+          );
 
-        if (response.status !== 201) {
-          throw new Error("Failed to start optimization job");
+          if (response.status !== 201) {
+            throw new Error("Failed to start optimization job");
+          }
+        } else {
+          const job: JobStatus = {
+            id: item.Id!,
+            deviceId: deviceId,
+            inputUrl: url,
+            item: item,
+            itemId: item.Id!,
+            progress: 0,
+            status: "downloading",
+            timestamp: new Date(),
+          };
+          setProcesses([...processes, job]);
+          startDownload(job);
         }
 
         toast.success(

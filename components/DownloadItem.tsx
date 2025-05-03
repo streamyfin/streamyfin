@@ -152,18 +152,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       }
       closeModal();
 
-      if (usingOptimizedServer) initiateDownload(...itemsNotDownloaded);
-      else {
-        queueActions.enqueue(
-          queue,
-          setQueue,
-          ...itemsNotDownloaded.map((item) => ({
-            id: item.Id!,
-            execute: async () => await initiateDownload(item),
-            item,
-          })),
-        );
-      }
+      initiateDownload(...itemsNotDownloaded);
     } else {
       toast.error(
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
@@ -216,6 +205,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           mediaSourceId: mediaSource?.Id,
           subtitleStreamIndex: subtitleIndex,
           deviceProfile: download,
+          forceStream: true,
         });
 
         if (!res) {
@@ -230,12 +220,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         if (!url || !source) throw new Error("No url");
 
-        if (usingOptimizedServer) {
-          saveDownloadItemInfoToDiskTmp(item, source, url);
-          await startBackgroundDownload(url, item, source);
-        } else {
-          //await startRemuxing(item, url, source);
-        }
+        saveDownloadItemInfoToDiskTmp(item, source, url);
+        await startBackgroundDownload(url, item, source);
       }
     },
     [
