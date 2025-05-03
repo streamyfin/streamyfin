@@ -79,6 +79,12 @@ function useDownloadProvider() {
     [settings],
   );
 
+  const getDownloadUrl = (process: JobStatus) => {
+    return usingOptimizedServer
+      ? `${settings.optimizedVersionsServerUrl}download/${process.id}`
+      : process.inputUrl;
+  };
+
   const { data: downloadedFiles, refetch } = useQuery({
     queryKey: ["downloadedItems"],
     queryFn: getAllDownloadedItems,
@@ -132,7 +138,6 @@ function useDownloadProvider() {
           job.status === "completed"
         ) {
           if (settings.autoDownload) {
-            job.inputUrl = `${settings?.optimizedVersionsServerUrl}download/${process.id}`;
             startDownload(job);
           } else {
             toast.info(
@@ -251,7 +256,7 @@ function useDownloadProvider() {
 
       BackGroundDownloader?.download({
         id: process.id,
-        url: process.inputUrl,
+        url: getDownloadUrl(process),
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
       })
         .begin(() => {
