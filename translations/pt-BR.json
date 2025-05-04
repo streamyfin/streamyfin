@@ -138,7 +138,8 @@
         "hide_libraries": "Ocultar bibliotecas",
         "select_liraries_you_want_to_hide": "Selecione as bibliotecas que você deseja ocultar das abas Biblioteca e Início.",
         "disable_haptic_feedback": "Desativar o feedback háptico",
-        "default_quality": "Qualidade padrão"
+        "default_quality": "Qualidade padrão",
+        "disabled": "Desativado"
       },
       "downloads": {
         "downloads_title": "Downloads",

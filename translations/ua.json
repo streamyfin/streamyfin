@@ -138,7 +138,8 @@
         "hide_libraries": "Сховати медіатеки",
         "select_liraries_you_want_to_hide": "Виберіть медіатеки, що бажаєте приховати з вкладки Медіатека і з секції на головній сторінці.",
         "disable_haptic_feedback": "Вимкнути тактильний зворотний зв'язок",
-        "default_quality": "Якість за замовченням"
+        "default_quality": "Якість за замовченням",
+        "disabled": "Вимкнено"
       },
       "downloads": {
         "downloads_title": "Завантаження",

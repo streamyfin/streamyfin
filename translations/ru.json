@@ -138,7 +138,8 @@
         "hide_libraries": "Скрыть библиотеки",
         "select_liraries_you_want_to_hide": "Выберите Библиотеки, которое хотите спрятать из вкладки Библиотеки и домашней страницы.",
         "disable_haptic_feedback": "Отключить тактильную обратную связь",
-        "default_quality": "Качество по умолчанию"
+        "default_quality": "Качество по умолчанию",
+        "disabled": "Отключено"
       },
       "downloads": {
         "downloads_title": "Загрузки",

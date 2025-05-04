@@ -10,6 +10,7 @@ import {
 } from "@/utils/background-tasks";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import i18n, { TFunction } from "i18next";
 import type React from "react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -253,13 +254,13 @@ export const OtherSettings: React.FC = () => {
         </ListItem>
         <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
           <Dropdown
-            data={AUTOPLAY_EPISODES_COUNT}
+            data={AUTOPLAY_EPISODES_COUNT(t)}
             keyExtractor={(item) => item.key}
             titleExtractor={(item) => item.key}
             title={
               <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {settings?.maxAutoPlayEpisodeCount.key}
+                  {t(settings?.maxAutoPlayEpisodeCount.key)}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
@@ -279,10 +280,13 @@ export const OtherSettings: React.FC = () => {
   );
 };
 
-const AUTOPLAY_EPISODES_COUNT: {
+const AUTOPLAY_EPISODES_COUNT = (
+  t: TFunction<"translation", undefined>,
+): {
   key: string;
   value: number;
-}[] = [
+}[] => [
+  { key: t("home.settings.other.disabled"), value: -1 },
   { key: "1", value: 1 },
   { key: "2", value: 2 },
   { key: "3", value: 3 },

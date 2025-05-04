@@ -71,7 +71,9 @@ export const PlayButton: React.FC<Props> = ({
 
   const goToPlayer = useCallback(
     (q: string) => {
-      updateSettings({ autoPlayEpisodeCount: 0 });
+      if (settings.maxAutoPlayEpisodeCount.value !== -1) {
+        updateSettings({ autoPlayEpisodeCount: 0 });
+      }
       router.push(`/player/direct-player?${q}`);
     },
     [router],

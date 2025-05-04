@@ -256,6 +256,13 @@ export const Controls: FC<Props> = ({
         }
         return;
       }
+
+      // Skip autoplay logic if maxAutoPlayEpisodeCount is -1
+      if (settings.maxAutoPlayEpisodeCount.value === -1) {
+        goToItemCommon(nextItem);
+        return;
+      }
+
       if (
         settings.autoPlayEpisodeCount + 1 <
         settings.maxAutoPlayEpisodeCount.value
@@ -802,8 +809,9 @@ export const Controls: FC<Props> = ({
                   onPress={skipCredit}
                   buttonText='Skip Credits'
                 />
-                {settings.autoPlayEpisodeCount <
-                  settings.maxAutoPlayEpisodeCount.value && (
+                {(settings.maxAutoPlayEpisodeCount.value === -1 ||
+                  settings.autoPlayEpisodeCount <
+                    settings.maxAutoPlayEpisodeCount.value) && (
                   <NextEpisodeCountDownButton
                     show={
                       !nextItem
@@ -863,7 +871,9 @@ export const Controls: FC<Props> = ({
           </View>
         </>
       )}
-      <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
+      {settings.maxAutoPlayEpisodeCount.value !== -1 && (
+        <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
+      )}
     </ControlProvider>
   );
 };

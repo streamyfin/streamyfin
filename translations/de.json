@@ -138,7 +138,8 @@
         "hide_libraries": "Bibliotheken ausblenden",
         "select_liraries_you_want_to_hide": "Wähl die Bibliotheken aus, die du im Bibliothekstab und auf der Startseite ausblenden möchtest.",
         "disable_haptic_feedback": "Haptisches Feedback deaktivieren",
-        "default_quality": "Standardqualität"
+        "default_quality": "Standardqualität",
+        "disabled": "Deaktiviert"
       },
       "downloads": {
         "downloads_title": "Downloads",

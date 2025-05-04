@@ -138,7 +138,8 @@
         "hide_libraries": "Cacher des bibliothèques",
         "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l'onglet Bibliothèque et les sections de la page d'accueil.",
         "disable_haptic_feedback": "Désactiver le retour haptique",
-        "default_quality": "Qualité par défaut"
+        "default_quality": "Qualité par défaut",
+        "disabled": "Désactivé"
       },
       "downloads": {
         "downloads_title": "Téléchargements",

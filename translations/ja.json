@@ -152,7 +152,9 @@
         "optimized_version_hint": "OptimizeサーバーのURLを入力します。URLにはhttpまたはhttpsを含め、オプションでポートを指定します。",
         "read_more_about_optimized_server": "Optimizeサーバーの詳細をご覧ください。",
         "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:ポート"
+        "server_url_placeholder": "http(s)://domain.org:ポート",
+        "default_quality": "デフォルトの品質",
+        "disabled": "無効"
       },
       "plugins": {
         "plugins_title": "プラグイン",

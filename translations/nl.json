@@ -138,7 +138,8 @@
         "hide_libraries": "Verberg Bibliotheken",
         "select_liraries_you_want_to_hide": "Selecteer de bibliotheken die je wil verbergen van de Bibliotheektab en hoofdpagina onderdelen.",
         "disable_haptic_feedback": "Haptische feedback uitschakelen",
-        "default_quality": "Standaard kwaliteit"
+        "default_quality": "Standaard kwaliteit",
+        "disabled": "Uitgeschakeld"
       },
       "downloads": {
         "downloads_title": "Downloads",

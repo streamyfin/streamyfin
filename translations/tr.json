@@ -137,7 +137,9 @@
         "show_custom_menu_links": "Özel Menü Bağlantılarını Göster",
         "hide_libraries": "Kütüphaneleri Gizle",
         "select_liraries_you_want_to_hide": "Kütüphane sekmesinden ve ana sayfa bölümlerinden gizlemek istediğiniz kütüphaneleri seçin.",
-        "disable_haptic_feedback": "Dokunsal Geri Bildirimi Devre Dışı Bırak"
+        "disable_haptic_feedback": "Dokunsal Geri Bildirimi Devre Dışı Bırak",
+        "default_quality": "Varsayılan kalite",
+        "disabled": "Devre dışı"
       },
       "downloads": {
         "downloads_title": "İndirmeler",

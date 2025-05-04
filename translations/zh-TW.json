@@ -137,7 +137,9 @@
         "show_custom_menu_links": "顯示自定義菜單鏈接",
         "hide_libraries": "隱藏媒體庫",
         "select_liraries_you_want_to_hide": "選擇您想從媒體庫頁面和主頁隱藏的媒體庫。",
-        "disable_haptic_feedback": "禁用觸覺回饋"
+        "disable_haptic_feedback": "禁用觸覺回饋",
+        "default_quality": "預設品質",
+        "disabled": "已停用"
       },
       "downloads": {
         "downloads_title": "下載",
