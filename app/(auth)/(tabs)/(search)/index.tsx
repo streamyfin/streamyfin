@@ -434,7 +434,10 @@ export default function search() {
               <View className='mt-4 flex flex-col items-center space-y-2'>
                 {exampleSearches.map((e) => (
                   <TouchableOpacity
-                    onPress={() => setSearch(e)}
+                    onPress={() => {
+                      setSearch(e);
+                      searchBarRef.current?.setText(e);
+                    }}
                     key={e}
                     className='mb-2'
                   >
