@@ -198,7 +198,8 @@ function useDownloadProvider() {
       //   };
       // }
 
-      // fallback. Doesn't really work for transcodes as they may be a lot smaller. We make an wild guess
+      // fallback. Doesn't really work for transcodes as they may be a lot smaller. 
+      // We make an wild guess by comparing bitrates
       const task = tasks.find((s) => s.id === p.id);
       if (task) {
         let progress = p.progress;
@@ -207,12 +208,6 @@ function useDownloadProvider() {
         if (maxBitrate && maxBitrate < p.mediaSource.Bitrate) {
           size = (size / p.mediaSource.Bitrate) * maxBitrate;
         }
-        // console.log(
-        //   p.mediaSource.Size,
-        //   size,
-        //   maxBitrate,
-        //   p.mediaSource.Bitrate,
-        // );
         progress = (100 / size) * task.bytesDownloaded;
         if (progress >= 100) {
           progress = 99;
