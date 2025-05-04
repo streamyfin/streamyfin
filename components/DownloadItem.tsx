@@ -1,4 +1,3 @@
-//import { useRemuxHlsToMp4 } from "@/hooks/useRemuxHlsToMp4";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueActions, queueAtom } from "@/utils/atoms/queue";
@@ -192,7 +191,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           mediaSource = defaults.mediaSource;
           audioIndex = defaults.audioIndex;
           subtitleIndex = defaults.subtitleIndex;
-          // Keep using the selected bitrate for consistency across all downloads
         }
 
         const res = await getStreamUrl({
@@ -206,6 +204,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           subtitleStreamIndex: subtitleIndex,
           deviceProfile: download,
           download: true,
+          // deviceId: mediaSource?.Id,
         });
 
         if (!res) {
@@ -221,7 +220,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         if (!url || !source) throw new Error("No url");
 
         saveDownloadItemInfoToDiskTmp(item, source, url);
-        await startBackgroundDownload(url, item, source);
+        await startBackgroundDownload(url, item, source, maxBitrate);
       }
     },
     [
@@ -235,7 +234,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       maxBitrate,
       usingOptimizedServer,
       startBackgroundDownload,
-      //startRemuxing,
     ],
   );
 

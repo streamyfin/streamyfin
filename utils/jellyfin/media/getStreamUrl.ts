@@ -14,26 +14,27 @@ export const getStreamUrl = async ({
   userId,
   startTimeTicks = 0,
   maxStreamingBitrate,
-  sessionData,
+  playSessionId,
   deviceProfile = generateDeviceProfile(),
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
   download = false,
+  deviceId,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
   userId: string | null | undefined;
   startTimeTicks: number;
   maxStreamingBitrate?: number;
-  sessionData?: PlaybackInfoResponse | null;
+  playSessionId?: string | null;
   deviceProfile?: any;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   height?: number;
   mediaSourceId?: string | null;
-  //forceStream: bool;
-  download: bool;
+  download?: bool;
+  deviceId?: string | null;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -87,30 +88,31 @@ export const getStreamUrl = async ({
     };
   }
 
-  let params = {};
+  let downloadParams = {};
 
   if (download) {
-    params = {
+    // We need to disable static so we can have a remux with subtitle.
+    downloadParams = {
       subtitleMethod: "Embed",
-      EnableSubtitlesInManifest: true,
-      static: false,
+      enableSubtitlesInManifest: true,
+      static: "false",
       allowVideoStreamCopy: true,
       allowAudioStreamCopy: true,
+      playSessionId: sessionId || "",
     };
   }
 
   const streamParams = new URLSearchParams({
-    playSessionId: sessionData?.PlaySessionId || "",
-    mediaSourceId: mediaSource?.Id || "",
     static: "true",
+    mediaSourceId: mediaSource?.Id || "",
     subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
     audioStreamIndex: audioStreamIndex?.toString() || "",
-    deviceId: api.deviceInfo.id,
+    deviceId: deviceId || api.deviceInfo.id,
     api_key: api.accessToken,
     startTimeTicks: startTimeTicks.toString(),
     maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
     userId: userId || "",
-    ...params,
+    ...downloadParams,
   });
 
   const directPlayUrl = `${
@@ -121,7 +123,7 @@ export const getStreamUrl = async ({
 
   return {
     url: directPlayUrl,
-    sessionId: sessionId,
+    sessionId: sessionId || playSessionId,
     mediaSource,
   };
 };
