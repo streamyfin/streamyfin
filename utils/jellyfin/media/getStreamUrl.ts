@@ -78,7 +78,7 @@ export const getStreamUrl = async ({
 
   if (transcodeUrl) {
     if (download) {
-      transcodeUrl = transcodeUrl.replace("master.m3u8", "stream.mp4");
+      transcodeUrl = transcodeUrl.replace("master.m3u8", "stream");
     }
     console.log("Video is being transcoded:", transcodeUrl);
     return {
@@ -99,11 +99,13 @@ export const getStreamUrl = async ({
       allowVideoStreamCopy: true,
       allowAudioStreamCopy: true,
       playSessionId: sessionId || "",
+      container: "ts",
     };
   }
 
   const streamParams = new URLSearchParams({
     static: "true",
+    container: "mp4",
     mediaSourceId: mediaSource?.Id || "",
     subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
     audioStreamIndex: audioStreamIndex?.toString() || "",
@@ -117,7 +119,7 @@ export const getStreamUrl = async ({
 
   const directPlayUrl = `${
     api.basePath
-  }/Videos/${item.Id}/stream.mp4?${streamParams.toString()}`;
+  }/Videos/${item.Id}/stream?${streamParams.toString()}`;
 
   console.log("Video is being direct played:", directPlayUrl);
 
