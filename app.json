@@ -112,6 +112,7 @@
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
+      ["./plugins/withRNBackgroundDownloader.js"],
       [
         "expo-splash-screen",
         {
