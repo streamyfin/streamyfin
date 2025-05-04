@@ -224,7 +224,7 @@ function useDownloadProvider() {
     setProcesses(updatedProcesses);
   };
 
-  useInterval(updateProgress, 3000);
+  useInterval(updateProgress, 2000);
 
   useEffect(() => {
     const checkIfShouldStartDownload = async () => {
