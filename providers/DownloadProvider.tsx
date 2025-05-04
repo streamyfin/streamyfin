@@ -69,7 +69,7 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
 
-  const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
+  let [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
 
   const successHapticFeedback = useHaptic("success");
 
@@ -183,11 +183,21 @@ function useDownloadProvider() {
     if (settings?.downloadMethod === DownloadMethod.Optimized) {
       return;
     }
+
     // const response = await getSessionApi(api).getSessions({
     //   activeWithinSeconds: 300,
     // });
 
     const tasks = await BackGroundDownloader.checkForExistingDownloads();
+
+    // check if processes are missing
+    const missingProcesses = tasks
+      .filter((t) => !processes.some((p) => p.id === t.id))
+      .map((t) => {
+        return t.metadata;
+      });
+
+    processes = [...processes, ...missingProcesses];
 
     const updatedProcesses = processes.map((p) => {
       // const result = response.data.find((s) => s.Id == p.sessionId);
@@ -198,7 +208,7 @@ function useDownloadProvider() {
       //   };
       // }
 
-      // fallback. Doesn't really work for transcodes as they may be a lot smaller. 
+      // fallback. Doesn't really work for transcodes as they may be a lot smaller.
       // We make an wild guess by comparing bitrates
       const task = tasks.find((s) => s.id === p.id);
       if (task) {
@@ -309,6 +319,7 @@ function useDownloadProvider() {
         id: process.id,
         url: getDownloadUrl(process),
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
+        metadata: process,
       })
         .begin(() => {
           setProcesses((prev) =>
