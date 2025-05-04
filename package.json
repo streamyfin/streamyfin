@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "0.8.6",
-    "@config-plugins/ffmpeg-kit-react-native": "^9.0.0",
     "@expo/config-plugins": "~9.0.15",
     "@expo/react-native-action-sheet": "^4.1.0",
     "@expo/vector-icons": "^14.0.4",
