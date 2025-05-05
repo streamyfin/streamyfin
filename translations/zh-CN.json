@@ -369,7 +369,9 @@
     "audio_tracks": "音频轨道：",
     "playback_state": "播放状态：",
     "no_data_available": "无可用数据",
-    "index": "索引："
+    "index": "索引：",
+    "continue_watching": "继续观看",
+    "go_back": "返回"
   },
   "item_card": {
     "next_up": "下一个",
