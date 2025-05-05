@@ -221,11 +221,22 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 </View>
               )}
 
-              <PlayButton
-                className='grow'
-                selectedOptions={selectedOptions}
-                item={item}
-              />
+              <View className='flex flex-row items-center justify-center space-x-2'>
+                <PlayButton
+                  className='flex-1'
+                  selectedOptions={selectedOptions}
+                  item={item}
+                />
+                {item.Type === "Episode" && (
+                  <PlayButton
+                    className='w-12 h-12'
+                    selectedOptions={selectedOptions}
+                    item={item}
+                    randomEpisode={true}
+                    icon='🎲'
+                  />
+                )}
+              </View>
             </View>
 
             {item.Type === "Episode" && (
