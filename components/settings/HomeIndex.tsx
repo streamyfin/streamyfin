@@ -209,7 +209,7 @@ export const HomeIndex = () => {
 
         const response = await getItemsApi(api).getItems({
           userId: user?.Id,
-          limit: 20,
+          limit: 40,
           recursive: true,
           includeItemTypes,
           sortBy: ["DateCreated"],
@@ -219,7 +219,30 @@ export const HomeIndex = () => {
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
         });
 
-        return response.data.Items || [];
+        let items = response.data.Items || [];
+
+        if (includeItemTypes.includes("Episode")) {
+          // Removes individual episodes from the list if they are part of a series
+          //    and only keeps the series item
+          // Note: The 'Latest' API endpoint does not work well with combining batch episode imports
+          //    and will either only show the series or the episodes, not both.
+          //    This is a workaround to filter out the episodes from the list
+          const seriesIds = new Set(
+            items.filter((i) => i.Type === "Series").map((i) => i.Id),
+          );
+
+          items = items.filter(
+            (i) =>
+              i.Type === "Series" ||
+              (i.Type === "Episode" && !seriesIds.has(i.SeriesId!)),
+          );
+        }
+
+        if (items.length > 20) {
+          items = items.slice(0, 20);
+        }
+
+        return items;
       },
       type: "ScrollingCollectionList",
     }),
