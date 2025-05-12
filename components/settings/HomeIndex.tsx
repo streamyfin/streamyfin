@@ -358,10 +358,10 @@ export const HomeIndex = () => {
               const response = await getTvShowsApi(api).getNextUp({
                 userId: user?.Id,
                 fields: ["MediaSourceCount"],
-                limit: section.items?.limit || 25,
+                limit: section.nextUp?.limit || 25,
                 enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                enableResumable: section.items?.enableResumable,
-                enableRewatching: section.items?.enableRewatching,
+                enableResumable: section.nextUp?.enableResumable,
+                enableRewatching: section.nextUp?.enableRewatching,
               });
               return response.data.Items || [];
             }
