@@ -219,9 +219,7 @@ export const HomeIndex = () => {
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
         });
 
-        const items = response.data.Items || [];
-
-        return items;
+        return response.data.Items || [];
       },
       type: "ScrollingCollectionList",
     }),
