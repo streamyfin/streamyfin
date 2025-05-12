@@ -206,19 +206,22 @@ export const HomeIndex = () => {
       queryKey,
       queryFn: async () => {
         if (!api) return [];
-        return (
-          (
-            await getUserLibraryApi(api).getLatestMedia({
-              userId: user?.Id,
-              limit: 20,
-              fields: ["PrimaryImageAspectRatio", "Path"],
-              imageTypeLimit: 1,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              includeItemTypes,
-              parentId,
-            })
-          ).data || []
-        );
+
+        const response = await getItemsApi(api).getItems({
+          userId: user?.Id,
+          limit: 20,
+          recursive: true,
+          includeItemTypes,
+          sortBy: ["DateCreated"],
+          sortOrder: ["Descending"],
+          fields: ["PrimaryImageAspectRatio", "Path"],
+          parentId,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        });
+
+        const items = response.data.Items || [];
+
+        return items;
       },
       type: "ScrollingCollectionList",
     }),
@@ -232,7 +235,7 @@ export const HomeIndex = () => {
 
       const latestMediaViews = collections.map((c) => {
         const includeItemTypes: BaseItemKind[] =
-          c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
+          c.CollectionType === "tvshows" ? ["Episode", "Series"] : ["Movie"];
         const title = t("home.recently_added_in", { libraryName: c.Name });
         const queryKey = [
           "home",
