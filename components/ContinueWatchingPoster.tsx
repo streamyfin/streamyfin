@@ -80,8 +80,9 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
   return (
     <View
       className={`
-      relative aspect-video rounded-lg overflow-hidden border border-neutral-800
-      `}
+      relative w-44 aspect-video rounded-lg overflow-hidden border border-neutral-800
+      ${size === "small" ? "w-32" : "w-44"}
+    `}
     >
       <View className='w-full h-full flex items-center justify-center'>
         <Image
