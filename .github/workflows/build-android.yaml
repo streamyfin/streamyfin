@@ -1,0 +1,59 @@
+name: Android APK Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Android APK
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+          
+      - name: Setup Java for Android builds
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Install dependencies
+        run: |
+          bun i && bun run submodule-reload
+          
+      - name: Generate project files
+        run: |
+          bun prebuild
+          
+      - name: Build APK
+        run: |
+          bun build:android:local
+          
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamyfin-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          
+      - name: Comment APK download link on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const artifactUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `✅ Android APK build completed successfully!\n\n[Download APK](${ artifactUrl })`
+            }); 
