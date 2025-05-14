@@ -23,9 +23,6 @@ import { Button } from "../Button";
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
-//const FFmpegKitProvider = !Platform.isTV
-//  ? require("ffmpeg-kit-react-native")
-//  : null;
 
 interface Props extends ViewProps {}
 
@@ -72,23 +69,18 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     mutationFn: async (id: string) => {
       if (!process) throw new Error("No active download");
 
-      if (settings?.downloadMethod === DownloadMethod.Optimized) {
-        try {
-          const tasks = await BackGroundDownloader.checkForExistingDownloads();
-          for (const task of tasks) {
-            if (task.id === id) {
-              task.stop();
-            }
+      try {
+        const tasks = await BackGroundDownloader.checkForExistingDownloads();
+        for (const task of tasks) {
+          if (task.id === id) {
+            task.stop();
           }
-        } finally {
-          await removeProcess(id);
+        }
+      } finally {
+        await removeProcess(id);
+        if (settings?.downloadMethod === DownloadMethod.Optimized) {
           await queryClient.refetchQueries({ queryKey: ["jobs"] });
         }
-      } else {
-        //FFmpegKitProvider.FFmpegKit.cancel(Number(id));
-        setProcesses((prev: any[]) =>
-          prev.filter((p: { id: string }) => p.id !== id),
-        );
       }
     },
     onSuccess: () => {
