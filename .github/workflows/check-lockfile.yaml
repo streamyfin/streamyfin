@@ -1,0 +1,27 @@
+name: Check Lockfile
+
+on:
+  pull_request:
+  push:
+    branches: [ develop, main ]
+
+jobs:
+  check-lockfile:
+    name: Check for discrepancies between bun.lock and package.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Check bun.lock and package.json consistency
+        run: bun i --frozen-lockfile --dry-run --ignore-scripts 
