@@ -14,85 +14,86 @@ on:
         required: true
 
 jobs:
-  ios_preview:
-    name: 🍏 Build iOS Preview
-    runs-on: macos-15
-    permissions:
-      contents: read
-      actions: write
-      checks: write
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4.2.2
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
-      - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4.4.0
-        with:
-          node-version: '20'
-          cache: 'bun'
-
-      - name: 🍞 Install Bun
-        uses: oven-sh/setup-bun@v2.0.2
-        with:
-          bun-version: 1.2.13
-
-      - name: 💾 Cache dependencies
-        uses: actions/cache@v4.2.3
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
-
-      - name: 📦 Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: 🔄 Reload submodules
-        run: bun run submodule-reload
-
-      - name: 🛠️ Expo prebuild
-        run: npx expo prebuild --clean
-
-      - name: 🏗️ Build iOS app
-        uses: sparkfabrik/ios-build-action@v2.3.2
-        with:
-          upload-to-testflight: false
-          increment-build-number: false
-          build-pods: true
-          pods-path: "ios/Podfile"
-          configuration: Release
-          # Change later to app-store if wanted
-          export-method: appstore
-          #export-method: ad-hoc
-          workspace-path: "ios/Streamyfin.xcodeproj/project.xcworkspace/"
-          project-path: "ios/Streamyfin.xcodeproj"
-          scheme: Streamyfin
-          apple-key-id: ${{ secrets.APPLE_KEY_ID }}
-          apple-key-issuer-id: ${{ secrets.APPLE_KEY_ISSUER_ID }}
-          apple-key-content: ${{ secrets.APPLE_KEY_CONTENT }}
-          team-id: ${{ secrets.TEAM_ID }}
-          team-name: ${{ secrets.TEAM_NAME }}
-          #match-password: ${{ secrets.MATCH_PASSWORD }}
-          #match-git-url: ${{ secrets.MATCH_GIT_URL }}
-          #match-git-basic-authorization: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          #match-build-type: "appstore"
-          #browserstack-upload: true
-          #browserstack-username: ${{ secrets.BROWSERSTACK_USERNAME }}
-          #browserstack-access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-          #fastlane-env: stage
-          ios-app-id: com.stetsed.teststreamyfin
-          output-path: build-${{ github.sha }}.ipa
-
-      - name: ☁️ Upload IPA artifact
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: streamyfin-ios-preview
-          path: build-${{ github.sha }}.ipa
-          retention-days: 30
+  #ios_preview:
+  #name: 🍏 Build iOS Preview
+  #  runs-on: macos-15
+  #  permissions:
+  #    contents: read
+  #    actions: write
+  #    checks: write
+  #
+  #  steps:
+  #    - name: 📥 Checkout code
+  #      uses: actions/checkout@v4.2.2
+  #      with:
+  #        fetch-depth: 0
+  #        submodules: recursive
+  #
+  #    - name: 🟢 Setup Node.js
+  #      uses: actions/setup-node@v4.4.0
+  #      with:
+  #        node-version: '20'
+  #        cache: 'bun'
+  #
+  #    - name: 🍞 Install Bun
+  #      uses: oven-sh/setup-bun@v2.0.2
+  #      with:
+  #        # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689
+  #        bun-version: 1.2.13
+  #
+  #    - name: 💾 Cache dependencies
+  #      uses: actions/cache@v4.2.3
+  #      with:
+  #        path: |
+  #          ~/.bun/install/cache
+  #          node_modules
+  #        key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+  #
+  #    - name: 📦 Install dependencies
+  #      run: bun install --frozen-lockfile
+  #
+  #    - name: 🔄 Reload submodules
+  #      run: bun run submodule-reload
+  #
+  #    - name: 🛠️ Expo prebuild
+  #      run: npx expo prebuild --clean
+  #
+  #    - name: 🏗️ Build iOS app
+  #      uses: sparkfabrik/ios-build-action@v2.3.2
+  #      with:
+  #        upload-to-testflight: false
+  #        increment-build-number: false
+  #        build-pods: true
+  #        pods-path: "ios/Podfile"
+  #        configuration: Release
+  #        # Change later to app-store if wanted
+  #        export-method: appstore
+  #        #export-method: ad-hoc
+  #        workspace-path: "ios/Streamyfin.xcodeproj/project.xcworkspace/"
+  #        project-path: "ios/Streamyfin.xcodeproj"
+  #        scheme: Streamyfin
+  #        apple-key-id: ${{ secrets.APPLE_KEY_ID }}
+  #        apple-key-issuer-id: ${{ secrets.APPLE_KEY_ISSUER_ID }}
+  #        apple-key-content: ${{ secrets.APPLE_KEY_CONTENT }}
+  #        team-id: ${{ secrets.TEAM_ID }}
+  #        team-name: ${{ secrets.TEAM_NAME }}
+  #        #match-password: ${{ secrets.MATCH_PASSWORD }}
+  #        #match-git-url: ${{ secrets.MATCH_GIT_URL }}
+  #        #match-git-basic-authorization: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+  #        #match-build-type: "appstore"
+  #        #browserstack-upload: true
+  #        #browserstack-username: ${{ secrets.BROWSERSTACK_USERNAME }}
+  #        #browserstack-access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+  #        #fastlane-env: stage
+  #        ios-app-id: com.stetsed.teststreamyfin
+  #        output-path: build-${{ github.sha }}.ipa
+  #
+  #    - name: ☁️ Upload IPA artifact
+  #      uses: actions/upload-artifact@v4.6.2
+  #      with:
+  #        name: streamyfin-ios-preview
+  #        path: build-${{ github.sha }}.ipa
+  #        retention-days: 30
 
   android_preview:
     name: 🤖 Build Android Preview
@@ -148,7 +149,8 @@ jobs:
   post_summary:
     name: 📝 Build Summary
     runs-on: ubuntu-24.04
-    needs: [ios_preview, android_preview]
+#    needs: [ios_preview, android_preview]
+    needs: [android_preview] # For now it's like this since iOS Build doesn't work
     if: always()
     steps:
       - name: Add PR comment
