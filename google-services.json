@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1039325086281",
+    "project_id": "streamyfin-4fec1",
+    "storage_bucket": "streamyfin-4fec1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039325086281:android:b270168004aa30c1e1f598",
+        "android_client_info": {
+          "package_name": "com.fredrikburmester.streamyfin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABKBTRL9dvGuZbx009YFLUAPurFIDovFQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,12 +1,17 @@
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-kapt'
+plugins {
+  id 'com.android.library'
+  id 'kotlin-android'
+  id 'kotlin-kapt'
+}
 
 group = 'expo.modules.vlcplayer'
 version = '0.6.0'
 
 def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+def kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
+
 apply from: expoModulesCorePlugin
+
 applyKotlinExpoModulesCorePlugin()
 useCoreDependencies()
 useExpoPublishing()
@@ -37,8 +42,8 @@ if (useManagedAndroidSdkVersions) {
 }
 
 dependencies {
-  implementation 'org.videolan.android:libvlc-all:3.6.0-eap12'
-  implementation "org.jetbrains.kotlin:kotlin-stdlib:1.5.31"
+  implementation 'org.videolan.android:libvlc-all:3.6.0'
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
 }
 
 android {

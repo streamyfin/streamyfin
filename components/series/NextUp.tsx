@@ -1,18 +1,18 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
-import React from "react";
+import type React from "react";
+import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
-import { HorizontalScroll } from "../common/HorrizontalScroll";
-import { Text } from "../common/Text";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
+import { HorizontalScroll } from "../common/HorrizontalScroll";
+import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { FlashList } from "@shopify/flash-list";
-import { useTranslation } from "react-i18next";
 
 export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
   const [user] = useAtom(userAtom);
@@ -38,15 +38,17 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
 
   if (!items?.length)
     return (
-      <View className="px-4">
-        <Text className="text-lg font-bold mb-2">{t("item_card.next_up")}</Text>
-        <Text className="opacity-50">{t("item_card.no_items_to_display")}</Text>
+      <View className='px-4'>
+        <Text className='text-lg font-bold mb-2'>{t("item_card.next_up")}</Text>
+        <Text className='opacity-50'>{t("item_card.no_items_to_display")}</Text>
       </View>
     );
 
   return (
     <View>
-      <Text className="text-lg font-bold px-4 mb-2">{t("item_card.next_up")}</Text>
+      <Text className='text-lg font-bold px-4 mb-2'>
+        {t("item_card.next_up")}
+      </Text>
       <FlashList
         contentContainerStyle={{ paddingLeft: 16 }}
         horizontal
@@ -57,7 +59,7 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
           <TouchableItemRouter
             item={item}
             key={index}
-            className="flex flex-col w-44"
+            className='flex flex-col w-44'
           >
             <ContinueWatchingPoster item={item} useEpisodePoster />
             <ItemCardText item={item} />

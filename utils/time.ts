@@ -6,7 +6,7 @@
  * @returns A string formatted as "Xh Ym" where X is hours and Y is minutes.
  */
 export const runtimeTicksToMinutes = (
-  ticks: number | null | undefined
+  ticks: number | null | undefined,
 ): string => {
   if (!ticks) return "0h 0m";
 
@@ -17,11 +17,11 @@ export const runtimeTicksToMinutes = (
   const minutes = Math.floor((ticks % ticksPerHour) / ticksPerMinute);
 
   if (hours > 0) return `${hours}h ${minutes}m`;
-  else return `${minutes}m`;
+  return `${minutes}m`;
 };
 
 export const runtimeTicksToSeconds = (
-  ticks: number | null | undefined
+  ticks: number | null | undefined,
 ): string => {
   if (!ticks) return "0h 0m";
 
@@ -33,13 +33,13 @@ export const runtimeTicksToSeconds = (
   const seconds = Math.floor((ticks % ticksPerMinute) / 10000000);
 
   if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  else return `${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
 };
 
 // t: ms
 export const formatTimeString = (
   t: number | null | undefined,
-  unit: "s" | "ms" | "tick" = "ms"
+  unit: "s" | "ms" | "tick" = "ms",
 ): string => {
   if (t === null || t === undefined) return "0:00";
 
@@ -66,9 +66,8 @@ export const formatTimeString = (
 
   if (hours > 0) {
     return `${hours}h ${minutes}m ${remainingSeconds}s`;
-  } else {
-    return `${minutes}m ${remainingSeconds}s`;
   }
+  return `${minutes}m ${remainingSeconds}s`;
 };
 
 export const secondsToTicks = (seconds?: number | undefined) => {

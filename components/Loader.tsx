@@ -1,6 +1,6 @@
 import {
   ActivityIndicator,
-  ActivityIndicatorProps,
+  type ActivityIndicatorProps,
   Platform,
   View,
 } from "react-native";

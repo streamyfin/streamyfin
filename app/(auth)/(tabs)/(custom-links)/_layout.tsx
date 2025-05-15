@@ -1,13 +1,13 @@
-import {Stack} from "expo-router";
-import { Platform } from "react-native";
+import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 
 export default function CustomMenuLayout() {
   const { t } = useTranslation();
   return (
     <Stack>
       <Stack.Screen
-        name="index"
+        name='index'
         options={{
           headerShown: true,
           headerLargeTitle: true,

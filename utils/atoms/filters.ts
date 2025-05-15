@@ -93,7 +93,7 @@ export const sortByPreferenceAtom = atomWithStorage<SortPreference>(
     removeItem: (key) => {
       storage.delete(key);
     },
-  }
+  },
 );
 
 export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
@@ -110,19 +110,19 @@ export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
     removeItem: (key) => {
       storage.delete(key);
     },
-  }
+  },
 );
 
 export const getSortByPreference = (
   libraryId: string,
-  preferences: SortPreference
+  preferences: SortPreference,
 ) => {
   return preferences?.[libraryId] || null;
 };
 
 export const getSortOrderPreference = (
   libraryId: string,
-  preferences: SortOrderPreference
+  preferences: SortOrderPreference,
 ) => {
   return preferences?.[libraryId] || null;
 };

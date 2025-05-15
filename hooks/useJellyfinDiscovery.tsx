@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import dgram from "react-native-udp";
 
 const JELLYFIN_DISCOVERY_PORT = 7359;
@@ -53,7 +53,7 @@ export const useJellyfinDiscovery = () => {
               return;
             }
             console.log("Discovery message sent successfully");
-          }
+          },
         );
 
         discoveryTimeout = setTimeout(() => {

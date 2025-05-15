@@ -1,17 +1,18 @@
+import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   BottomSheetBackdrop,
-  BottomSheetBackdropProps,
+  type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
-import { useTranslation } from "react-i18next";
-import { useHaptic } from "@/hooks/useHaptic";
 import { useAtom } from "jotai";
-import React, { useCallback, useRef, useState } from "react";
-import { Alert, View, ViewProps } from "react-native";
+import type React from "react";
+import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert, View, type ViewProps } from "react-native";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
@@ -37,7 +38,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
 
   const authorizeQuickConnect = useCallback(async () => {
@@ -49,16 +50,25 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         });
         if (res.status === 200) {
           successHapticFeedback();
-          Alert.alert(t("home.settings.quick_connect.success"), t("home.settings.quick_connect.quick_connect_autorized"));
+          Alert.alert(
+            t("home.settings.quick_connect.success"),
+            t("home.settings.quick_connect.quick_connect_autorized"),
+          );
           setQuickConnectCode(undefined);
           bottomSheetModalRef?.current?.close();
         } else {
           errorHapticFeedback();
-          Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
+          Alert.alert(
+            t("home.settings.quick_connect.error"),
+            t("home.settings.quick_connect.invalid_code"),
+          );
         }
       } catch (e) {
         errorHapticFeedback();
-        Alert.alert(t("home.settings.quick_connect.error"), t("home.settings.quick_connect.invalid_code"));
+        Alert.alert(
+          t("home.settings.quick_connect.error"),
+          t("home.settings.quick_connect.invalid_code"),
+        );
       }
     }
   }, [api, user, quickConnectCode]);
@@ -69,7 +79,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         <ListItem
           onPress={() => bottomSheetModalRef?.current?.present()}
           title={t("home.settings.quick_connect.authorize_button")}
-          textColor="blue"
+          textColor='blue'
         />
       </ListGroup>
 
@@ -85,28 +95,30 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         backdropComponent={renderBackdrop}
       >
         <BottomSheetView>
-          <View className="flex flex-col space-y-4 px-4 pb-8 pt-2">
+          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
             <View>
-              <Text className="font-bold text-2xl text-neutral-100">
+              <Text className='font-bold text-2xl text-neutral-100'>
                 {t("home.settings.quick_connect.quick_connect_title")}
               </Text>
             </View>
-            <View className="flex flex-col space-y-2">
-              <View className="p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full">
+            <View className='flex flex-col space-y-2'>
+              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full'>
                 <BottomSheetTextInput
                   style={{ color: "white" }}
-                  clearButtonMode="always"
-                  placeholder={t("home.settings.quick_connect.enter_the_quick_connect_code")}
-                  placeholderTextColor="#9CA3AF"
+                  clearButtonMode='always'
+                  placeholder={t(
+                    "home.settings.quick_connect.enter_the_quick_connect_code",
+                  )}
+                  placeholderTextColor='#9CA3AF'
                   value={quickConnectCode}
                   onChangeText={setQuickConnectCode}
                 />
               </View>
             </View>
             <Button
-              className="mt-auto"
+              className='mt-auto'
               onPress={authorizeQuickConnect}
-              color="purple"
+              color='purple'
             >
               {t("home.settings.quick_connect.authorize")}
             </Button>

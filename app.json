@@ -2,16 +2,11 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.25.0",
+    "version": "0.28.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#2E2E2E"
-    },
     "jsEngine": "hermes",
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -36,27 +31,23 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 50,
+      "versionCode": 54,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive_icon.png"
+        "foregroundImage": "./assets/images/adaptive_icon.png",
+        "backgroundColor": "#464646"
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WRITE_SETTINGS"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
+      "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
-      "@config-plugins/ffmpeg-kit-react-native",
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ],
       [
         "react-native-video",
         {
@@ -78,18 +69,19 @@
             "useFrameworks": "static"
           },
           "android": {
-            "android": {
-              "compileSdkVersion": 34,
-              "targetSdkVersion": 34,
-              "buildToolsVersion": "34.0.0"
-            },
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "2.0.21",
             "minSdkVersion": 24,
             "usesCleartextTraffic": true,
             "packagingOptions": {
               "jniLibs": {
                 "useLegacyPackaging": true
               }
-            }
+            },
+            "useAndroidX": true,
+            "enableJetifier": true
           }
         }
       ],
@@ -109,12 +101,33 @@
       "expo-asset",
       [
         "react-native-edge-to-edge",
-        { "android": { "parentTheme": "Material3" } }
+        {
+          "android": {
+            "parentTheme": "Material3"
+          }
+        }
       ],
       ["react-native-bottom-tabs"],
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withGoogleCastActivity.js"],
-      ["./plugins/withTrustLocalCerts.js"]
+      ["./plugins/withAndroidManifest.js"],
+      ["./plugins/withTrustLocalCerts.js"],
+      ["./plugins/withGradleProperties.js"],
+      ["./plugins/withRNBackgroundDownloader.js"],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#2e2e2e",
+          "image": "./assets/images/StreamyFinFinal.png",
+          "imageWidth": 100
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification.png",
+          "color": "#9333EA"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -127,12 +140,13 @@
         "projectId": "e79219d1-797f-4fbe-9fa1-cfd360690a68"
       }
     },
-    "owner": "fredrikburmester",
+    "owner": "streamyfin",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/e79219d1-797f-4fbe-9fa1-cfd360690a68"
-    }
+    },
+    "newArchEnabled": false
   }
 }

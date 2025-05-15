@@ -1,12 +1,15 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
+import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import * as Brightness from "expo-brightness";
+import { useSharedValue } from "react-native-reanimated";
+// import * as Brightness from "expo-brightness";
+const Brightness = !Platform.isTV ? require("expo-brightness") : null;
 import { Ionicons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 const BrightnessSlider = () => {
+  if (Platform.isTV) return;
+
   const brightness = useSharedValue(50);
   const min = useSharedValue(0);
   const max = useSharedValue(100);
@@ -43,9 +46,9 @@ const BrightnessSlider = () => {
         }}
       />
       <Ionicons
-        name="sunny"
+        name='sunny'
         size={20}
-        color="#FDFDFD"
+        color='#FDFDFD'
         style={{
           marginLeft: 8,
         }}

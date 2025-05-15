@@ -1,28 +1,32 @@
 import "@/augmentations";
 import { useInterval } from "@/hooks/useInterval";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSettings } from "@/utils/atoms/settings";
+import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { Api, Jellyfin } from "@jellyfin/sdk";
-import { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { store } from "@/utils/store";
+import { type Api, Jellyfin } from "@jellyfin/sdk";
+import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { router, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { atom, useAtom } from "jotai";
-import React, {
+import type React from "react";
+import {
+  type ReactNode,
   createContext,
-  ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from "react";
-import { Platform } from "react-native";
-import uuid from "react-native-uuid";
-import { getDeviceName } from "react-native-device-info";
 import { useTranslation } from "react-i18next";
-import { useSettings } from "@/utils/atoms/settings";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { Platform } from "react-native";
+import { getDeviceName } from "react-native-device-info";
+import uuid from "react-native-uuid";
 
 interface Server {
   address: string;
@@ -42,7 +46,7 @@ interface JellyfinContextValue {
 }
 
 const JellyfinContext = createContext<JellyfinContextValue | undefined>(
-  undefined
+  undefined,
 );
 
 export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
@@ -60,12 +64,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.25.0" },
+            clientInfo: { name: "Streamyfin", version: "0.28.0" },
             deviceInfo: {
               name: deviceName,
               id,
             },
-          })
+          }),
       );
       setDeviceId(id);
     })();
@@ -84,28 +88,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   ] = useSettings();
   const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
 
-  useQuery({
-    queryKey: ["user", api],
-    queryFn: async () => {
-      if (!api) return null;
-      const response = await getUserApi(api).getCurrentUser();
-      if (response.data) setUser(response.data);
-      return user;
-    },
-    enabled: !!api,
-    refetchOnWindowFocus: true,
-    refetchInterval: 1000 * 60,
-    refetchIntervalInBackground: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-  });
-
   const headers = useMemo(() => {
     if (!deviceId) return {};
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.25.0"`,
+      }, DeviceId="${deviceId}", Version="0.28.0"`,
     };
   }, [deviceId]);
 
@@ -113,19 +101,18 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     if (!api || !deviceId) return;
     try {
       const response = await api.axiosInstance.post(
-        api.basePath + "/QuickConnect/Initiate",
+        `${api.basePath}/QuickConnect/Initiate`,
         null,
         {
           headers,
-        }
+        },
       );
       if (response?.status === 200) {
         setSecret(response?.data?.Secret);
         setIsPolling(true);
         return response.data?.Code;
-      } else {
-        throw new Error("Failed to initiate quick connect");
       }
+      throw new Error("Failed to initiate quick connect");
     } catch (error) {
       console.error(error);
       throw error;
@@ -137,7 +124,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
     try {
       const response = await api.axiosInstance.get(
-        `${api.basePath}/QuickConnect/Connect?Secret=${secret}`
+        `${api.basePath}/QuickConnect/Connect?Secret=${secret}`,
       );
 
       if (response.status === 200) {
@@ -145,13 +132,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           setIsPolling(false);
 
           const authResponse = await api.axiosInstance.post(
-            api.basePath + "/Users/AuthenticateWithQuickConnect",
+            `${api.basePath}/Users/AuthenticateWithQuickConnect`,
             {
               secret,
             },
             {
               headers,
-            }
+            },
           );
 
           const { AccessToken, User } = authResponse.data;
@@ -168,14 +155,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         setIsPolling(false);
         setSecret(null);
         throw new Error("The code has expired. Please try again.");
-      } else {
-        console.error("Error polling Quick Connect:", error);
-        throw error;
       }
+      console.error("Error polling Quick Connect:", error);
+      throw error;
     }
   }, [api, secret, headers]);
-
-  useInterval(pollQuickConnect, isPolling ? 1000 : null);
 
   useEffect(() => {
     (async () => {
@@ -183,12 +167,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     })();
   }, []);
 
+  useEffect(() => {
+    store.set(apiAtom, api);
+  }, [api]);
+
+  useInterval(pollQuickConnect, isPolling ? 1000 : null);
   useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
 
   const discoverServers = async (url: string): Promise<Server[]> => {
-    const servers = await jellyfin?.discovery.getRecommendedServerCandidates(
-      url
-    );
+    const servers =
+      await jellyfin?.discovery.getRecommendedServerCandidates(url);
     return servers?.map((server) => ({ address: server.address })) || [];
   };
 
@@ -203,7 +191,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
     onSuccess: (_, server) => {
       const previousServers = JSON.parse(
-        storage.getString("previousServers") || "[]"
+        storage.getString("previousServers") || "[]",
       );
       const updatedServers = [
         server,
@@ -211,7 +199,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       ];
       storage.set(
         "previousServers",
-        JSON.stringify(updatedServers.slice(0, 5))
+        JSON.stringify(updatedServers.slice(0, 5)),
       );
     },
     onError: (error) => {
@@ -251,7 +239,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           if (recentPluginSettings?.jellyseerrServerUrl?.value) {
             const jellyseerrApi = new JellyseerrApi(
-              recentPluginSettings.jellyseerrServerUrl.value
+              recentPluginSettings.jellyseerrServerUrl.value,
             );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
@@ -266,20 +254,24 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             case 401:
               throw new Error(t("login.invalid_username_or_password"));
             case 403:
-              throw new Error(t("login.user_does_not_have_permission_to_log_in"));
+              throw new Error(
+                t("login.user_does_not_have_permission_to_log_in"),
+              );
             case 408:
               throw new Error(
-                t("login.server_is_taking_too_long_to_respond_try_again_later")
+                t("login.server_is_taking_too_long_to_respond_try_again_later"),
               );
             case 429:
               throw new Error(
-                t("login.server_received_too_many_requests_try_again_later")
+                t("login.server_received_too_many_requests_try_again_later"),
               );
             case 500:
               throw new Error(t("login.there_is_a_server_error"));
             default:
               throw new Error(
-                t("login.an_unexpected_error_occured_did_you_enter_the_correct_url")
+                t(
+                  "login.an_unexpected_error_occured_did_you_enter_the_correct_url",
+                ),
               );
           }
         }
@@ -293,8 +285,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
+      api
+        ?.delete(`/Streamyfin/device/${deviceId}`)
+        .then((r) => writeInfoLog("Deleted expo push token for device"))
+        .catch((e) =>
+          writeErrorLog("Failed to delete expo push token for device"),
+        );
+
       storage.delete("token");
       setUser(null);
+      setApi(null);
       setPluginSettings(undefined);
       await clearAllJellyseerData();
     },
@@ -303,33 +303,44 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
-  const { isLoading, isFetching } = useQuery({
-    queryKey: [
-      "initializeJellyfin",
-      user?.Id,
-      api?.basePath,
-      jellyfin?.clientInfo,
-    ],
-    queryFn: async () => {
+  const [loaded, setLoaded] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
+  useEffect(() => {
+    if (initialLoaded) {
+      setLoaded(true);
+    }
+  }, [initialLoaded]);
+
+  useEffect(() => {
+    const initializeJellyfin = async () => {
+      if (!jellyfin) return;
+
       try {
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
-        const user = getUserFromStorage();
-        if (serverUrl && token && user?.Id && jellyfin) {
+        const storedUser = getUserFromStorage();
+
+        if (serverUrl && token) {
           const apiInstance = jellyfin.createApi(serverUrl, token);
           setApi(apiInstance);
-          setUser(user);
-        }
 
-        return true;
+          if (storedUser?.Id) {
+            setUser(storedUser);
+          }
+
+          const response = await getUserApi(apiInstance).getCurrentUser();
+          setUser(response.data);
+        }
       } catch (e) {
         console.error(e);
-        return false;
+      } finally {
+        setInitialLoaded(true);
       }
-    },
-    staleTime: 0,
-    enabled: !user?.Id || !api || !jellyfin,
-  });
+    };
+
+    initializeJellyfin();
+  }, [jellyfin]);
 
   const contextValue: JellyfinContextValue = {
     discoverServers,
@@ -341,7 +352,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     initiateQuickConnect,
   };
 
-  useProtectedRoute(user, isLoading || isFetching);
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  useProtectedRoute(user, loaded);
 
   return (
     <JellyfinContext.Provider value={contextValue}>
@@ -357,20 +374,24 @@ export const useJellyfin = (): JellyfinContextValue => {
   return context;
 };
 
-function useProtectedRoute(user: UserDto | null, loading = false) {
+function useProtectedRoute(user: UserDto | null, loaded = false) {
   const segments = useSegments();
 
   useEffect(() => {
-    if (loading) return;
+    if (loaded === false) return;
+
+    console.log("Loaded", user);
 
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!user?.Id && inAuthGroup) {
+      console.log("Redirected to login");
       router.replace("/login");
     } else if (user?.Id && !inAuthGroup) {
+      console.log("Redirected to home");
       router.replace("/(auth)/(tabs)/(home)/");
     }
-  }, [user, segments, loading]);
+  }, [user, segments, loaded]);
 }
 
 export function getTokenFromStorage(): string | null {

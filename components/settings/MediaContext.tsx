@@ -1,20 +1,20 @@
-import { Settings, useSettings } from "@/utils/atoms/settings";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { type Settings, useSettings } from "@/utils/atoms/settings";
+import type {
+  CultureDto,
+  UserConfiguration,
+  UserDto,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import React, {
   createContext,
   useContext,
-  ReactNode,
+  type ReactNode,
   useEffect,
   useState,
 } from "react";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import {
-  CultureDto,
-  UserDto,
-  UserConfiguration,
-} from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface MediaContextType {
   settings: Settings | null;
@@ -40,7 +40,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSetingsWrapper = (update: Partial<Settings>) => {
     const updateUserConfiguration = async (
-      update: Partial<UserConfiguration>
+      update: Partial<UserConfiguration>,
     ) => {
       if (api && user) {
         try {
@@ -57,7 +57,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
     updateSettings(update);
 
-    let updatePayload = {
+    const updatePayload = {
       SubtitleMode: update?.subtitleMode ?? settings?.subtitleMode,
       PlayDefaultAudioTrack:
         update?.playDefaultAudioTrack ?? settings?.playDefaultAudioTrack,
@@ -116,10 +116,10 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
 
     const subtitlePreference = cultures.find(
-      (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference
+      (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference,
     );
     const audioPreference = cultures.find(
-      (x) => x.ThreeLetterISOLanguageName === userAudioPreference
+      (x) => x.ThreeLetterISOLanguageName === userAudioPreference,
     );
 
     updateSettings({

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { StyleSheet, View, ViewProps } from "react-native";
+import { StyleSheet, View, type ViewProps } from "react-native";
 
 const getItemStyle = (index: number, numColumns: number) => {
   const alignItems = (() => {
@@ -29,7 +29,7 @@ export const ColumnItem = ({
   ...rest
 }: ColumnItemProps) => {
   return (
-    <View className="flex flex-col mb-2 p-4" style={{ width: "33.3%" }}>
+    <View className='flex flex-col mb-2 p-4' style={{ width: "33.3%" }}>
       <View
         className={`
         `}

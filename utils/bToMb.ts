@@ -11,9 +11,8 @@ export function convertBitsToMegabitsOrGigabits(bits?: number | null): string {
   const megabits = bits / 1000000;
 
   if (megabits < 1000) {
-    return Math.round(megabits) + "MB";
-  } else {
-    const gigabits = megabits / 1000;
-    return gigabits.toFixed(1) + "GB";
+    return `${Math.round(megabits)}MB`;
   }
+  const gigabits = megabits / 1000;
+  return `${gigabits.toFixed(1)}GB`;
 }

@@ -1,17 +1,17 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
-import { TouchableOpacity, View, ViewProps } from "react-native";
-import {
-  HorizontalScroll,
-  HorizontalScrollRef,
-} from "../common/HorrizontalScroll";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
+import {
+  HorizontalScroll,
+  type HorizontalScrollRef,
+} from "../common/HorrizontalScroll";
 
 interface Props extends ViewProps {
   item?: BaseItemDto | null;
@@ -56,7 +56,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           headers: {
             Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
           },
-        }
+        },
       );
 
       return response.data.Items as BaseItemDto[];
@@ -74,7 +74,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     }
 
     const previousId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! - 1
+      (ep) => ep.IndexNumber === item.IndexNumber! - 1,
     )?.Id;
     if (previousId) {
       queryClient.prefetchQuery({
@@ -90,7 +90,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     }
 
     const nextId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! + 1
+      (ep) => ep.IndexNumber === item.IndexNumber! + 1,
     )?.Id;
     if (nextId) {
       queryClient.prefetchQuery({

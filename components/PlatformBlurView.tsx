@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
-import React from "react";
-import { Platform, View, ViewProps } from "react-native";
+import type React from "react";
+import { Platform, View, type ViewProps } from "react-native";
 interface Props extends ViewProps {
   blurAmount?: number;
   blurType?: "light" | "dark" | "xlight";

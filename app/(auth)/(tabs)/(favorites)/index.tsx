@@ -18,7 +18,7 @@ export default function favorites() {
   return (
     <ScrollView
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior='automatic'
       refreshControl={
         <RefreshControl refreshing={loading} onRefresh={refetch} />
       }
@@ -28,7 +28,7 @@ export default function favorites() {
         paddingBottom: 16,
       }}
     >
-      <View className="my-4">
+      <View className='my-4'>
         <Favorites />
       </View>
     </ScrollView>

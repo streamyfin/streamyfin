@@ -1,4 +1,4 @@
-import {
+import type {
   MediaSourceInfo,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
@@ -10,17 +10,17 @@ abstract class StreamRankerStrategy {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void;
 
   protected rank(
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void {
-    if (prevIndex == -1) {
-      console.debug(`AutoSet Subtitle - No Stream Set`);
+    if (prevIndex === -1) {
+      console.debug("AutoSet Subtitle - No Stream Set");
       trackOptions[`Default${this.streamType}StreamIndex`] = -1;
       return;
     }
@@ -41,40 +41,52 @@ abstract class StreamRankerStrategy {
     }
 
     console.debug(
-      `AutoSet ${this.streamType} - Previous was ${prevStream.Index} - ${prevStream.DisplayTitle}`
+      `AutoSet ${this.streamType} - Previous was ${prevStream.Index} - ${prevStream.DisplayTitle}`,
     );
 
     let prevRelIndex = 0;
     for (const stream of prevSource.MediaStreams) {
-      if (stream.Type != this.streamType) continue;
+      if (stream.Type !== this.streamType) {
+        continue;
+      }
 
-      if (stream.Index == prevIndex) break;
+      if (stream.Index === prevIndex) {
+        break;
+      }
 
       prevRelIndex += 1;
     }
 
     let newRelIndex = 0;
     for (const stream of mediaStreams) {
-      if (stream.Type != this.streamType) continue;
+      if (stream.Type !== this.streamType) {
+        continue;
+      }
 
       let score = 0;
 
-      if (prevStream.Codec == stream.Codec) score += 1;
-      if (prevRelIndex == newRelIndex) score += 1;
+      if (prevStream.Codec === stream.Codec) {
+        score += 1;
+      }
+      if (prevRelIndex === newRelIndex) {
+        score += 1;
+      }
       if (
         prevStream.DisplayTitle &&
-        prevStream.DisplayTitle == stream.DisplayTitle
-      )
+        prevStream.DisplayTitle === stream.DisplayTitle
+      ) {
         score += 2;
+      }
       if (
         prevStream.Language &&
-        prevStream.Language != "und" &&
-        prevStream.Language == stream.Language
-      )
+        prevStream.Language !== "und" &&
+        prevStream.Language === stream.Language
+      ) {
         score += 2;
+      }
 
       console.debug(
-        `AutoSet ${this.streamType} - Score ${score} for ${stream.Index} - ${stream.DisplayTitle}`
+        `AutoSet ${this.streamType} - Score ${score} for ${stream.Index} - ${stream.DisplayTitle}`,
       );
       if (score > bestStreamScore && score >= 3) {
         bestStreamScore = score;
@@ -86,12 +98,12 @@ abstract class StreamRankerStrategy {
 
     if (bestStreamIndex != null) {
       console.debug(
-        `AutoSet ${this.streamType} - Using ${bestStreamIndex} score ${bestStreamScore}.`
+        `AutoSet ${this.streamType} - Using ${bestStreamIndex} score ${bestStreamScore}.`,
       );
       trackOptions[`Default${this.streamType}StreamIndex`] = bestStreamIndex;
     } else {
       console.debug(
-        `AutoSet ${this.streamType} - Threshold not met. Using default.`
+        `AutoSet ${this.streamType} - Threshold not met. Using default.`,
       );
     }
   }
@@ -104,7 +116,7 @@ class SubtitleStreamRanker extends StreamRankerStrategy {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void {
     super.rank(prevIndex, prevSource, mediaStreams, trackOptions);
   }
@@ -117,7 +129,7 @@ class AudioStreamRanker extends StreamRankerStrategy {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ): void {
     super.rank(prevIndex, prevSource, mediaStreams, trackOptions);
   }
@@ -138,7 +150,7 @@ class StreamRanker {
     prevIndex: number,
     prevSource: MediaSourceInfo,
     mediaStreams: MediaStream[],
-    trackOptions: any
+    trackOptions: any,
   ) {
     this.strategy.rankStream(prevIndex, prevSource, mediaStreams, trackOptions);
   }

@@ -1,4 +1,4 @@
-import { View, ViewProps } from "react-native";
+import { View, type ViewProps } from "react-native";
 import { Text } from "./common/Text";
 
 interface Props extends ViewProps {
@@ -22,7 +22,7 @@ export const Badge: React.FC<Props> = ({
       ${variant === "gray" && "bg-neutral-800"}
       `}
     >
-      {iconLeft && <View className="mr-1">{iconLeft}</View>}
+      {iconLeft && <View className='mr-1'>{iconLeft}</View>}
       <Text
         className={`
           text-xs

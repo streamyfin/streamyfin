@@ -1,17 +1,22 @@
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import orientationToOrientationLock from "@/utils/OrientationLockConverter";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 
 export const useOrientation = () => {
   const [orientation, setOrientation] = useState(
-    ScreenOrientation.OrientationLock.UNKNOWN
+    Platform.isTV
+      ? ScreenOrientation.OrientationLock.LANDSCAPE
+      : ScreenOrientation.OrientationLock.UNKNOWN,
   );
+
+  if (Platform.isTV) return { orientation, setOrientation };
 
   useEffect(() => {
     const orientationSubscription =
       ScreenOrientation.addOrientationChangeListener((event) => {
         setOrientation(
-          orientationToOrientationLock(event.orientationInfo.orientation)
+          orientationToOrientationLock(event.orientationInfo.orientation),
         );
       });
 

@@ -1,5 +1,5 @@
-import { Api } from "@jellyfin/sdk";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { Api } from "@jellyfin/sdk";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getPrimaryImageUrl } from "./getPrimaryImageUrl";
 
 /**
@@ -45,7 +45,6 @@ export const getBackdropUrl = ({
     return `${api.basePath}/Items/${
       item.Id
     }/Images/Backdrop/0?${params.toString()}`;
-  } else {
-    return getPrimaryImageUrl({ api, item, quality, width });
   }
+  return getPrimaryImageUrl({ api, item, quality, width });
 };

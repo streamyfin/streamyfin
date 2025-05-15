@@ -22,6 +22,10 @@
     "next_up": "Nästa upp",
     "recently_added_in": "Nyligen tillagt i {{libraryName}}"
   },
+  "favorites": {
+    "noDataTitle": "Inga favoriter än",
+    "noData": "Markera objekt som favoriter för att se dem visas här för snabb åtkomst."
+  },
   "tabs": {
     "home": "Hem",
     "search": "Sök",

@@ -1,6 +1,6 @@
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { writeToLog } from "@/utils/log";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useCallback } from "react";
@@ -35,13 +35,13 @@ export const useDownloadedFileOpener = () => {
     async (item: BaseItemDto) => {
       try {
         // @ts-expect-error
-        router.push("/player/direct-player?offline=true&itemId=" + item.Id);
+        router.push(`/player/direct-player?offline=true&itemId=${item.Id}`);
       } catch (error) {
         writeToLog("ERROR", "Error opening file", error);
         console.error("Error opening file:", error);
       }
     },
-    [setOfflineSettings, setPlayUrl, router]
+    [setOfflineSettings, setPlayUrl, router],
   );
 
   return { openFile };

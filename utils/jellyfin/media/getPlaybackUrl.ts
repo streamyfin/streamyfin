@@ -1,4 +1,4 @@
-import { Api } from "@jellyfin/sdk";
+import type { Api } from "@jellyfin/sdk";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
 
 /**

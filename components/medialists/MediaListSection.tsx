@@ -1,22 +1,22 @@
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
+import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  type QueryFunction,
+  type QueryKey,
+  useQuery,
+} from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useCallback } from "react";
-import { View, ViewProps } from "react-native";
+import { View, type ViewProps } from "react-native";
+import { ItemCardText } from "../ItemCardText";
 import { InfiniteHorizontalScroll } from "../common/InfiniteHorrizontalScroll";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { ItemCardText } from "../ItemCardText";
 import MoviePoster from "../posters/MoviePoster";
-import {
-  type QueryKey,
-  type QueryFunction,
-  useQuery,
-} from "@tanstack/react-query";
 
 interface Props extends ViewProps {
   queryKey: QueryKey;
@@ -54,14 +54,14 @@ export const MediaListSection: React.FC<Props> = ({
 
       return response.data;
     },
-    [api, user?.Id, collection?.Id]
+    [api, user?.Id, collection?.Id],
   );
 
   if (!collection) return null;
 
   return (
     <View {...props}>
-      <Text className="px-4 text-lg font-bold mb-2 text-neutral-100">
+      <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
         {collection.Name}
       </Text>
       <InfiniteHorizontalScroll

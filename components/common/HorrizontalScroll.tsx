@@ -1,6 +1,6 @@
-import { FlashList, FlashListProps } from "@shopify/flash-list";
+import { FlashList, type FlashListProps } from "@shopify/flash-list";
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
-import { View, ViewStyle } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import { Text } from "./Text";
 
 type PartialExcept<T, K extends keyof T> = Partial<T> & Pick<T, K>;
@@ -44,7 +44,7 @@ export const HorizontalScroll = forwardRef<
       noItemsText,
       ...props
     }: HorizontalScrollProps<T>,
-    ref: React.ForwardedRef<HorizontalScrollRef>
+    ref: React.ForwardedRef<HorizontalScrollRef>,
   ) => {
     const flashListRef = useRef<FlashList<T>>(null);
 
@@ -65,17 +65,13 @@ export const HorizontalScroll = forwardRef<
     }: {
       item: T;
       index: number;
-    }) => (
-      <View className="mr-2">
-        <React.Fragment>{renderItem(item, index)}</React.Fragment>
-      </View>
-    );
+    }) => <View className='mr-2'>{renderItem(item, index)}</View>;
 
     if (!data || loading) {
       return (
-        <View className="px-4 mb-2">
-          <View className="bg-neutral-950 h-24 w-full rounded-md mb-2"></View>
-          <View className="bg-neutral-950 h-10 w-full rounded-md mb-1"></View>
+        <View className='px-4 mb-2'>
+          <View className='bg-neutral-950 h-24 w-full rounded-md mb-2' />
+          <View className='bg-neutral-950 h-10 w-full rounded-md mb-1' />
         </View>
       );
     }
@@ -95,8 +91,8 @@ export const HorizontalScroll = forwardRef<
         }}
         keyExtractor={keyExtractor}
         ListEmptyComponent={() => (
-          <View className="flex-1 justify-center items-center">
-            <Text className="text-center text-gray-500">
+          <View className='flex-1 justify-center items-center'>
+            <Text className='text-center text-gray-500'>
               {noItemsText || "No data available"}
             </Text>
           </View>
@@ -104,5 +100,5 @@ export const HorizontalScroll = forwardRef<
         {...props}
       />
     );
-  }
+  },
 );

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
 import { msToSeconds, secondsToMs } from "@/utils/time";
+import { useQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useState } from "react";
 import { useHaptic } from "./useHaptic";
 
 interface IntroTimestamps {
@@ -26,7 +26,7 @@ export const useIntroSkipper = (
   currentTime: number,
   seek: (ticks: number) => void,
   play: () => void,
-  isVlc: boolean = false
+  isVlc = false,
 ) => {
   const [api] = useAtom(apiAtom);
   const [showSkipButton, setShowSkipButton] = useState(false);
@@ -54,7 +54,7 @@ export const useIntroSkipper = (
         `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
         {
           headers: getAuthHeaders(api),
-        }
+        },
       );
 
       if (res?.status !== 200) {
@@ -71,7 +71,7 @@ export const useIntroSkipper = (
     if (introTimestamps) {
       setShowSkipButton(
         currentTime > introTimestamps.ShowSkipPromptAt &&
-          currentTime < introTimestamps.HideSkipPromptAt
+          currentTime < introTimestamps.HideSkipPromptAt,
       );
     }
   }, [introTimestamps, currentTime]);

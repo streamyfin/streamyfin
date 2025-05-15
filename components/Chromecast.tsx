@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect } from "react";
-import { Platform, TouchableOpacity, ViewProps } from "react-native";
+import { Platform, TouchableOpacity, type ViewProps } from "react-native";
 import GoogleCast, {
   CastButton,
   CastContext,
@@ -18,12 +17,12 @@ interface Props extends ViewProps {
   background?: "blur" | "transparent";
 }
 
-export const Chromecast: React.FC<Props> = ({
+export function Chromecast({
   width = 48,
   height = 48,
   background = "transparent",
   ...props
-}) => {
+}) {
   const client = useRemoteMediaClient();
   const castDevice = useCastDevice();
   const devices = useDevices();
@@ -46,18 +45,18 @@ export const Chromecast: React.FC<Props> = ({
   const AndroidCastButton = useCallback(
     () =>
       Platform.OS === "android" ? (
-        <CastButton tintColor="transparent" />
+        <CastButton tintColor='transparent' />
       ) : (
         <></>
       ),
-    [Platform.OS]
+    [Platform.OS],
   );
 
   if (background === "transparent")
     return (
       <RoundButton
-        size="large"
-        className="mr-2"
+        size='large'
+        className='mr-2'
         background={false}
         onPress={() => {
           if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
@@ -66,13 +65,13 @@ export const Chromecast: React.FC<Props> = ({
         {...props}
       >
         <AndroidCastButton />
-        <Feather name="cast" size={22} color={"white"} />
+        <Feather name='cast' size={22} color={"white"} />
       </RoundButton>
     );
 
   return (
     <RoundButton
-      size="large"
+      size='large'
       onPress={() => {
         if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
         else CastContext.showCastDialog();
@@ -80,7 +79,7 @@ export const Chromecast: React.FC<Props> = ({
       {...props}
     >
       <AndroidCastButton />
-      <Feather name="cast" size={22} color={"white"} />
+      <Feather name='cast' size={22} color={"white"} />
     </RoundButton>
   );
-};
+}

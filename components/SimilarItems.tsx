@@ -1,18 +1,23 @@
 import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
-import { ScrollView, TouchableOpacity, View, ViewProps } from "react-native";
-import { Text } from "./common/Text";
+import { useTranslation } from "react-i18next";
+import {
+  ScrollView,
+  TouchableOpacity,
+  View,
+  type ViewProps,
+} from "react-native";
 import { ItemCardText } from "./ItemCardText";
 import { Loader } from "./Loader";
 import { HorizontalScroll } from "./common/HorrizontalScroll";
+import { Text } from "./common/Text";
 import { TouchableItemRouter } from "./common/TouchableItemRouter";
-import { useTranslation } from "react-i18next";
 
 interface SimilarItemsProps extends ViewProps {
   itemId?: string | null;
@@ -39,17 +44,19 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
       return response.data.Items || [];
     },
     enabled: !!api && !!user?.Id,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const movies = useMemo(
     () => similarItems?.filter((i) => i.Type === "Movie") || [],
-    [similarItems]
+    [similarItems],
   );
 
   return (
     <View {...props}>
-      <Text className="px-4 text-lg font-bold mb-2">{t("item_card.similar_items")}</Text>
+      <Text className='px-4 text-lg font-bold mb-2'>
+        {t("item_card.similar_items")}
+      </Text>
       <HorizontalScroll
         data={movies}
         loading={isLoading}
@@ -59,7 +66,7 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
           <TouchableItemRouter
             key={idx}
             item={item}
-            className="flex flex-col w-28"
+            className='flex flex-col w-28'
           >
             <View>
               <MoviePoster item={item} />

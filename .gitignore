@@ -10,6 +10,8 @@ npm-debug.*
 *.orig.*
 web-build/
 modules/vlc-player/android/build
+modules/vlc-player/android/.gradle
+bun.lockb
 
 # macOS
 .DS_Store
@@ -26,6 +28,10 @@ package-lock.json
 
 /ios
 /android
+/iostv
+/iosmobile
+/androidmobile
+/androidtv
 
 modules/player/android
 
@@ -38,3 +44,7 @@ credentials.json
 .vscode/
 .idea/
 .ruby-lsp
+modules/hls-downloader/android/build
+streamyfin-4fec1-firebase-adminsdk.json
+.env
+.env.local

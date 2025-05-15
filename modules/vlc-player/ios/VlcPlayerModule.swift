@@ -16,26 +16,19 @@ public class VlcPlayerModule: Module {
                 }
             }
 
-            //            Prop("muted") { (view: VlcPlayerView, muted: Bool) in
-            //                view.setMuted(muted)
-            //            }
-
-            //            Prop("volume") { (view: VlcPlayerView, volume: Int) in
-            //                view.setVolume(volume)
-            //            }
-
-            //            Prop("videoAspectRatio") { (view: VlcPlayerView, ratio: String) in
-            //                view.setVideoAspectRatio(ratio)
-            //            }
-
             Events(
                 "onPlaybackStateChanged",
                 "onVideoStateChange",
                 "onVideoLoadStart",
                 "onVideoLoadEnd",
                 "onVideoProgress",
-                "onVideoError"
+                "onVideoError",
+                "onPipStarted"
             )
+
+            AsyncFunction("startPictureInPicture") { (view: VlcPlayerView) in
+                view.startPictureInPicture()
+            }
 
             AsyncFunction("play") { (view: VlcPlayerView) in
                 view.play()
@@ -68,14 +61,6 @@ public class VlcPlayerModule: Module {
             AsyncFunction("getSubtitleTracks") { (view: VlcPlayerView) -> [[String: Any]]? in
                 return view.getSubtitleTracks()
             }
-
-            //            AsyncFunction("setVideoCropGeometry") { (view: VlcPlayerView, geometry: String?) in
-            //                view.setVideoCropGeometry(geometry)
-            //            }
-
-            //            AsyncFunction("getVideoCropGeometry") { (view: VlcPlayerView) -> String? in
-            //                return view.getVideoCropGeometry()
-            //            }
 
             AsyncFunction("setSubtitleURL") {
                 (view: VlcPlayerView, url: String, name: String) in

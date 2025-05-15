@@ -1,4 +1,7 @@
-import * as BackgroundFetch from "expo-background-fetch";
+import { Platform } from "react-native";
+const BackgroundFetch = !Platform.isTV
+  ? require("expo-background-fetch")
+  : null;
 
 export const BACKGROUND_FETCH_TASK = "background-fetch";
 
@@ -17,6 +20,29 @@ export async function registerBackgroundFetchAsync() {
 export async function unregisterBackgroundFetchAsync() {
   try {
     BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
+  } catch (error) {
+    console.log("Error unregistering background fetch task", error);
+  }
+}
+
+export const BACKGROUND_FETCH_TASK_SESSIONS = "background-fetch-sessions";
+
+export async function registerBackgroundFetchAsyncSessions() {
+  try {
+    console.log("Registering background fetch sessions");
+    BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK_SESSIONS, {
+      minimumInterval: 1 * 60, // 1 minutes
+      stopOnTerminate: false, // android only,
+      startOnBoot: true, // android only
+    });
+  } catch (error) {
+    console.log("Error registering background fetch task", error);
+  }
+}
+
+export async function unregisterBackgroundFetchAsyncSessions() {
+  try {
+    BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK_SESSIONS);
   } catch (error) {
     console.log("Error unregistering background fetch task", error);
   }

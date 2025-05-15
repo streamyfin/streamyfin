@@ -1,17 +1,25 @@
-import React, {useMemo} from "react";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
+import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
+import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import {
-  DiscoverEndpoint,
+  type DiscoverEndpoint,
   Endpoints,
   useJellyseerr,
 } from "@/hooks/useJellyseerr";
+import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
+import type {
+  MovieResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { MovieResult, TvResult } from "@/utils/jellyseerr/server/models/Search";
-import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import Slide, {SlideProps} from "@/components/jellyseerr/discover/Slide";
-import {ViewProps} from "react-native";
+import { uniqBy } from "lodash";
+import type React from "react";
+import { useMemo } from "react";
+import type { ViewProps } from "react-native";
 
-const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
+const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
+  slide,
+  ...props
+}) => {
   const { jellyseerrApi } = useJellyseerr();
 
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
@@ -57,8 +65,14 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => 
   });
 
   const flatData = useMemo(
-    () => data?.pages?.filter((p) => p?.results.length).flatMap((p) => p?.results),
-    [data]
+    () =>
+      uniqBy(
+        data?.pages
+          ?.filter((p) => p?.results.length)
+          .flatMap((p) => p?.results),
+        "id",
+      ),
+    [data],
   );
 
   return (
@@ -68,14 +82,16 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => 
         {...props}
         slide={slide}
         data={flatData}
-        keyExtractor={(item) => item!!.id.toString()}
+        keyExtractor={(item) => item!.id.toString()}
         onEndReached={() => {
-          if (hasNextPage)
-            fetchNextPage()
+          if (hasNextPage) fetchNextPage();
         }}
-        renderItem={(item) =>
-          <JellyseerrPoster item={item as MovieResult | TvResult} />
-      }
+        renderItem={(item) => (
+          <JellyseerrPoster
+            item={item as MovieResult | TvResult}
+            key={item?.id}
+          />
+        )}
       />
     )
   );

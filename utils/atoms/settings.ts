@@ -1,18 +1,20 @@
-import { atom, useAtom } from "jotai";
-import { useCallback, useEffect, useMemo } from "react";
-import * as ScreenOrientation from "expo-screen-orientation";
-import { storage } from "../mmkv";
-import { Platform } from "react-native";
-import {
-  CultureDto,
-  SubtitlePlaybackMode,
-  ItemSortBy,
-  SortOrder,
-  BaseItemKind,
-  ItemFilter,
-} from "@jellyfin/sdk/lib/generated-client";
+import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { Video } from "@/utils/jellyseerr/server/models/Movie";
 import { writeInfoLog } from "@/utils/log";
+import {
+  type BaseItemKind,
+  type CultureDto,
+  type ItemFilter,
+  type ItemSortBy,
+  type SortOrder,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
+import { atom, useAtom, useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo } from "react";
+import { Platform } from "react-native";
+import { storage } from "../mmkv";
 
 const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -28,16 +30,26 @@ export const ScreenOrientationEnum: Record<
   ScreenOrientation.OrientationLock,
   string
 > = {
-  [ScreenOrientation.OrientationLock.DEFAULT]: "home.settings.other.orientations.DEFAULT",
-  [ScreenOrientation.OrientationLock.ALL]: "home.settings.other.orientations.ALL",
-  [ScreenOrientation.OrientationLock.PORTRAIT]: "home.settings.other.orientations.PORTRAIT",
-  [ScreenOrientation.OrientationLock.PORTRAIT_UP]: "home.settings.other.orientations.PORTRAIT_UP",
-  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]: "home.settings.other.orientations.PORTRAIT_DOWN",
-  [ScreenOrientation.OrientationLock.LANDSCAPE]: "home.settings.other.orientations.LANDSCAPE",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]: "home.settings.other.orientations.LANDSCAPE_LEFT",
-  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]: "home.settings.other.orientations.LANDSCAPE_RIGHT",
-  [ScreenOrientation.OrientationLock.OTHER]: "home.settings.other.orientations.OTHER",
-  [ScreenOrientation.OrientationLock.UNKNOWN]: "home.settings.other.orientations.UNKNOWN",
+  [ScreenOrientation.OrientationLock.DEFAULT]:
+    "home.settings.other.orientations.DEFAULT",
+  [ScreenOrientation.OrientationLock.ALL]:
+    "home.settings.other.orientations.ALL",
+  [ScreenOrientation.OrientationLock.PORTRAIT]:
+    "home.settings.other.orientations.PORTRAIT",
+  [ScreenOrientation.OrientationLock.PORTRAIT_UP]:
+    "home.settings.other.orientations.PORTRAIT_UP",
+  [ScreenOrientation.OrientationLock.PORTRAIT_DOWN]:
+    "home.settings.other.orientations.PORTRAIT_DOWN",
+  [ScreenOrientation.OrientationLock.LANDSCAPE]:
+    "home.settings.other.orientations.LANDSCAPE",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]:
+    "home.settings.other.orientations.LANDSCAPE_LEFT",
+  [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]:
+    "home.settings.other.orientations.LANDSCAPE_RIGHT",
+  [ScreenOrientation.OrientationLock.OTHER]:
+    "home.settings.other.orientations.OTHER",
+  [ScreenOrientation.OrientationLock.UNKNOWN]:
+    "home.settings.other.orientations.UNKNOWN",
 };
 
 export const DownloadOptions: DownloadOption[] = [
@@ -81,6 +93,7 @@ export type HomeSection = {
   orientation?: "horizontal" | "vertical";
   items?: HomeSectionItemResolver;
   nextUp?: HomeSectionNextUpResolver;
+  latest?: HomeSectionLatestResolver;
 };
 
 export type HomeSectionItemResolver = {
@@ -101,9 +114,23 @@ export type HomeSectionNextUpResolver = {
   enableRewatching?: boolean;
 };
 
+export type HomeSectionLatestResolver = {
+  parentId?: string;
+  limit?: number;
+  groupItems?: boolean;
+  isPlayed?: boolean;
+  includeItemTypes?: Array<BaseItemKind>;
+};
+
+export enum VideoPlayer {
+  // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
+  VLC_3 = 0,
+  VLC_4 = 1,
+}
+
 export type Settings = {
   home?: Home | null;
-  autoRotate?: boolean;
+  followDeviceOrientation?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
@@ -112,6 +139,7 @@ export type Settings = {
   marlinServerUrl?: string;
   openInVLC?: boolean;
   downloadQuality?: DownloadOption;
+  defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
   playDefaultAudioTrack: boolean;
@@ -133,6 +161,8 @@ export type Settings = {
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
+  enableH265ForChromecast: boolean;
+  defaultPlayer: VideoPlayer;
 };
 
 export interface Lockable<T> {
@@ -147,53 +177,56 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
-const loadSettings = (): Settings => {
-  const defaultValues: Settings = {
-    home: null,
-    autoRotate: true,
-    forceLandscapeInVideoPlayer: false,
-    deviceProfile: "Expo",
-    mediaListCollectionIds: [],
-    preferedLanguage: undefined,
-    searchEngine: "Jellyfin",
-    marlinServerUrl: "",
-    openInVLC: false,
-    downloadQuality: DownloadOptions[0],
-    libraryOptions: {
-      display: "list",
-      cardStyle: "detailed",
-      imageStyle: "cover",
-      showTitles: true,
-      showStats: true,
-    },
-    defaultAudioLanguage: null,
-    playDefaultAudioTrack: true,
-    rememberAudioSelections: true,
-    defaultSubtitleLanguage: null,
-    subtitleMode: SubtitlePlaybackMode.Default,
-    rememberSubtitleSelections: true,
-    showHomeTitles: true,
-    defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
-    forwardSkipTime: 30,
-    rewindSkipTime: 10,
-    optimizedVersionsServerUrl: null,
-    downloadMethod: DownloadMethod.Remux,
-    autoDownload: false,
-    showCustomMenuLinks: false,
-    disableHapticFeedback: false,
-    subtitleSize: Platform.OS === "ios" ? 60 : 100,
-    remuxConcurrentLimit: 1,
-    safeAreaInControlsEnabled: true,
-    jellyseerrServerUrl: undefined,
-    hiddenLibraries: [],
-  };
+const defaultValues: Settings = {
+  home: null,
+  followDeviceOrientation: true,
+  forceLandscapeInVideoPlayer: false,
+  deviceProfile: "Expo",
+  mediaListCollectionIds: [],
+  preferedLanguage: undefined,
+  searchEngine: "Jellyfin",
+  marlinServerUrl: "",
+  openInVLC: false,
+  downloadQuality: DownloadOptions[0],
+  defaultBitrate: BITRATES[0],
+  libraryOptions: {
+    display: "list",
+    cardStyle: "detailed",
+    imageStyle: "cover",
+    showTitles: true,
+    showStats: true,
+  },
+  defaultAudioLanguage: null,
+  playDefaultAudioTrack: true,
+  rememberAudioSelections: true,
+  defaultSubtitleLanguage: null,
+  subtitleMode: SubtitlePlaybackMode.Default,
+  rememberSubtitleSelections: true,
+  showHomeTitles: true,
+  defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
+  forwardSkipTime: 30,
+  rewindSkipTime: 10,
+  optimizedVersionsServerUrl: null,
+  downloadMethod: DownloadMethod.Remux,
+  autoDownload: false,
+  showCustomMenuLinks: false,
+  disableHapticFeedback: false,
+  subtitleSize: Platform.OS === "ios" ? 60 : 100,
+  remuxConcurrentLimit: 1,
+  safeAreaInControlsEnabled: true,
+  jellyseerrServerUrl: undefined,
+  hiddenLibraries: [],
+  enableH265ForChromecast: false,
+  defaultPlayer: VideoPlayer.VLC_3, // ios only setting. does not matter what this is for android
+};
 
+const loadSettings = (): Partial<Settings> => {
   try {
     const jsonValue = storage.getString("settings");
     const loadedValues: Partial<Settings> =
       jsonValue != null ? JSON.parse(jsonValue) : {};
 
-    return { ...defaultValues, ...loadedValues };
+    return loadedValues;
   } catch (error) {
     console.error("Failed to load settings:", error);
     return defaultValues;
@@ -212,13 +245,13 @@ const saveSettings = (settings: Settings) => {
   storage.set("settings", jsonValue);
 };
 
-export const settingsAtom = atom<Settings | null>(null);
+export const settingsAtom = atom<Partial<Settings> | null>(null);
 export const pluginSettingsAtom = atom(
-  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS)
+  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS),
 );
 
 export const useSettings = () => {
-  const [api] = useAtom(apiAtom);
+  const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
@@ -234,27 +267,35 @@ export const useSettings = () => {
       storage.setAny(STREAMYFIN_PLUGIN_SETTINGS, settings);
       _setPluginSettings(settings);
     },
-    [_setPluginSettings]
+    [_setPluginSettings],
   );
 
   const refreshStreamyfinPluginSettings = useCallback(async () => {
     if (!api) return;
     const settings = await api.getStreamyfinPluginConfig().then(
       ({ data }) => {
-        writeInfoLog(`Got remote settings`);
+        writeInfoLog("Got plugin settings", data?.settings);
         return data?.settings;
       },
-      (err) => undefined
+      (err) => undefined,
     );
-
     setPluginSettings(settings);
     return settings;
   }, [api]);
 
   const updateSettings = (update: Partial<Settings>) => {
-    if (settings) {
-      const newSettings = { ...settings, ...update };
+    if (!_settings) return;
+    const hasChanges = Object.entries(update).some(
+      ([key, value]) => _settings[key as keyof Settings] !== value,
+    );
 
+    if (hasChanges) {
+      // Merge default settings, current settings, and updates to ensure all required properties exist
+      const newSettings = {
+        ...defaultValues,
+        ..._settings,
+        ...update,
+      } as Settings;
       setSettings(newSettings);
       saveSettings(newSettings);
     }
@@ -262,7 +303,7 @@ export const useSettings = () => {
 
   // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
   // If admin sets locked to false but provides a value,
-  //  use user settings first and fallback on admin setting if required.
+  // use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
     let unlockedPluginDefaults = {} as Settings;
     const overrideSettings = Object.entries(pluginSettings || {}).reduce(
@@ -283,20 +324,18 @@ export const useSettings = () => {
           }
 
           acc = Object.assign(acc, {
-            [key]: locked ? value : _settings?.[key as keyof Settings] ?? value,
+            [key]: locked
+              ? value
+              : (_settings?.[key as keyof Settings] ?? value),
           });
         }
         return acc;
       },
-      {} as Settings
+      {} as Settings,
     );
 
-    // Update settings with plugin defined defaults
-    if (Object.keys(unlockedPluginDefaults).length > 0) {
-      updateSettings(unlockedPluginDefaults);
-    }
-
     return {
+      ...defaultValues,
       ..._settings,
       ...overrideSettings,
     };

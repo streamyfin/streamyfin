@@ -1,14 +1,14 @@
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Stack } from "expo-router";
-import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 
 export default function SearchLayout() {
   const { t } = useTranslation();
   return (
     <Stack>
       <Stack.Screen
-        name="index"
+        name='index'
         options={{
           headerShown: true,
           headerLargeTitle: true,
@@ -17,7 +17,7 @@ export default function SearchLayout() {
             backgroundColor: "black",
           },
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

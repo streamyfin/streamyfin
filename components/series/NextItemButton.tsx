@@ -1,12 +1,12 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Button } from "../Button";
-import { useRouter } from "expo-router";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { useAtom } from "jotai";
 import { useMemo } from "react";
+import { Button } from "../Button";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
@@ -57,14 +57,14 @@ export const NextItemButton: React.FC<Props> = ({
   return (
     <Button
       onPress={() => router.setParams({ id: nextItem?.Id })}
-      className={`h-12 aspect-square`}
+      className={"h-12 aspect-square"}
       disabled={disabled}
       {...props}
     >
       {type === "next" ? (
-        <Ionicons name="chevron-forward" size={24} color="white" />
+        <Ionicons name='chevron-forward' size={24} color='white' />
       ) : (
-        <Ionicons name="chevron-back" size={24} color="white" />
+        <Ionicons name='chevron-back' size={24} color='white' />
       )}
     </Button>
   );

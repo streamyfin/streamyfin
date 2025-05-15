@@ -2,7 +2,7 @@ import useImageStorage from "@/hooks/useImageStorage";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { storage } from "@/utils/mmkv";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom } from "jotai";
 
 const useDownloadHelper = () => {
@@ -19,7 +19,7 @@ const useDownloadHelper = () => {
       console.log(`Saving primary image for series: ${item.SeriesId}`);
       await saveImage(
         item.SeriesId,
-        getPrimaryImageUrlById({ api, id: item.SeriesId })
+        getPrimaryImageUrlById({ api, id: item.SeriesId }),
       );
       console.log(`Primary image saved for series: ${item.SeriesId}`);
     } else {

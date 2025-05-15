@@ -3,7 +3,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { Ionicons } from "@expo/vector-icons";
-import {
+import type {
   BaseItemDto,
   BaseItemKind,
   CollectionType,
@@ -13,9 +13,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
-import { TouchableOpacityProps, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { type TouchableOpacityProps, View } from "react-native";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { useTranslation } from "react-i18next"; 
 
 interface Props extends TouchableOpacityProps {
   library: BaseItemDto;
@@ -51,7 +51,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
         api,
         item: library,
       }),
-    [library]
+    [library],
   );
 
   const itemType = useMemo(() => {
@@ -102,18 +102,18 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
 
   if (settings?.libraryOptions?.display === "row") {
     return (
-      <TouchableItemRouter item={library} className="w-full px-4">
-        <View className="flex flex-row items-center w-full relative ">
+      <TouchableItemRouter item={library} className='w-full px-4'>
+        <View className='flex flex-row items-center w-full relative '>
           <Ionicons
             name={icons[library.CollectionType!] || "folder"}
             size={22}
             color={"#e5e5e5"}
           />
-          <Text className="text-start px-4 text-neutral-200">
+          <Text className='text-start px-4 text-neutral-200'>
             {library.Name}
           </Text>
           {settings?.libraryOptions?.showStats && (
-            <Text className="font-bold text-xs text-neutral-500 text-start ml-auto">
+            <Text className='font-bold text-xs text-neutral-500 text-start ml-auto'>
               {itemsCount} {itemTypeName}
             </Text>
           )}
@@ -124,8 +124,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
 
   if (settings?.libraryOptions?.imageStyle === "cover") {
     return (
-      <TouchableItemRouter item={library} className="w-full">
-        <View className="flex justify-center rounded-xl w-full relative border border-neutral-900 h-20 ">
+      <TouchableItemRouter item={library} className='w-full'>
+        <View className='flex justify-center rounded-xl w-full relative border border-neutral-900 h-20 '>
           <View
             style={{
               width: "100%",
@@ -157,12 +157,12 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
             />
           </View>
           {settings?.libraryOptions?.showTitles && (
-            <Text className="font-bold text-lg text-start px-4">
+            <Text className='font-bold text-lg text-start px-4'>
               {library.Name}
             </Text>
           )}
           {settings?.libraryOptions?.showStats && (
-            <Text className="font-bold text-xs  text-start px-4">
+            <Text className='font-bold text-xs  text-start px-4'>
               {itemsCount} {itemTypeName}
             </Text>
           )}
@@ -173,21 +173,21 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
 
   return (
     <TouchableItemRouter item={library} {...props}>
-      <View className="flex flex-row items-center justify-between rounded-xl w-full relative border bg-neutral-900 border-neutral-900 h-20">
-        <View className="flex flex-col">
-          <Text className="font-bold text-lg text-start px-4">
+      <View className='flex flex-row items-center justify-between rounded-xl w-full relative border bg-neutral-900 border-neutral-900 h-20'>
+        <View className='flex flex-col'>
+          <Text className='font-bold text-lg text-start px-4'>
             {library.Name}
           </Text>
           {settings?.libraryOptions?.showStats && (
-            <Text className="font-bold text-xs text-neutral-500 text-start px-4">
+            <Text className='font-bold text-xs text-neutral-500 text-start px-4'>
               {itemsCount} {itemTypeName}
             </Text>
           )}
         </View>
-        <View className="p-2">
+        <View className='p-2'>
           <Image
             source={{ uri: url }}
-            className="h-full aspect-[2/1] object-cover rounded-lg overflow-hidden"
+            className='h-full aspect-[2/1] object-cover rounded-lg overflow-hidden'
           />
         </View>
       </View>

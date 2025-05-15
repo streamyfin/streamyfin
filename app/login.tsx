@@ -1,16 +1,17 @@
 import { Button } from "@/components/Button";
-import { Input } from "@/components/common/Input";
-import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { PreviousServersList } from "@/components/PreviousServersList";
+import { Input } from "@/components/common/Input";
+import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
+import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useState } from "react";
+import { useAtomValue } from "jotai";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -19,17 +20,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Keyboard } from "react-native";
 
+import { t } from "i18next";
 import { z } from "zod";
-import { t } from 'i18next';
 const CredentialsSchema = z.object({
-  username: z.string().min(1, t("login.username_required")),});
+  username: z.string().min(1, t("login.username_required")),
+});
 
-  const Login: React.FC = () => {
+const Login: React.FC = () => {
+  const api = useAtomValue(apiAtom);
+  const navigation = useNavigation();
+  const params = useLocalSearchParams();
   const { setServer, login, removeServer, initiateQuickConnect } =
     useJellyfin();
-  const [api] = useAtom(apiAtom);
-  const params = useLocalSearchParams();
 
   const {
     apiUrl: _apiUrl,
@@ -37,6 +41,8 @@ const CredentialsSchema = z.object({
     password: _password,
   } = params as { apiUrl: string; username: string; password: string };
 
+  const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [serverURL, setServerURL] = useState<string>(_apiUrl);
   const [serverName, setServerName] = useState<string>("");
   const [credentials, setCredentials] = useState<{
@@ -47,12 +53,13 @@ const CredentialsSchema = z.object({
     password: _password,
   });
 
+  /**
+   * A way to auto login based on a link
+   */
   useEffect(() => {
     (async () => {
-      // we might re-use the checkUrl function here to check the url as well
-      // however, I don't think it should be necessary for now
       if (_apiUrl) {
-        setServer({
+        await setServer({
           address: _apiUrl,
         });
 
@@ -66,7 +73,6 @@ const CredentialsSchema = z.object({
     })();
   }, [_apiUrl, _username, _password]);
 
-  const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
       headerTitle: serverName,
@@ -76,18 +82,20 @@ const CredentialsSchema = z.object({
             onPress={() => {
               removeServer();
             }}
-            className="flex flex-row items-center"
+            className='flex flex-row items-center'
           >
-            <Ionicons name="chevron-back" size={18} color={Colors.primary} />
-            <Text className="ml-2 text-purple-600">{t("login.change_server")}</Text>
+            <Ionicons name='chevron-back' size={18} color={Colors.primary} />
+            <Text className='ml-2 text-purple-600'>
+              {t("login.change_server")}
+            </Text>
           </TouchableOpacity>
         ) : null,
     });
   }, [serverName, navigation, api?.basePath]);
 
-  const [loading, setLoading] = useState<boolean>(false);
-
   const handleLogin = async () => {
+    Keyboard.dismiss();
+
     setLoading(true);
     try {
       const result = CredentialsSchema.safeParse(credentials);
@@ -98,14 +106,15 @@ const CredentialsSchema = z.object({
       if (error instanceof Error) {
         Alert.alert(t("login.connection_failed"), error.message);
       } else {
-        Alert.alert(t("login.connection_failed"), t("login.an_unexpected_error_occured"));
+        Alert.alert(
+          t("login.connection_failed"),
+          t("login.an_unexpected_error_occured"),
+        );
       }
     } finally {
       setLoading(false);
     }
   };
-
-  const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
 
   /**
    * Checks the availability and validity of a Jellyfin server URL.
@@ -168,26 +177,33 @@ const CredentialsSchema = z.object({
     if (result === undefined) {
       Alert.alert(
         t("login.connection_failed"),
-        t("login.could_not_connect_to_server")
+        t("login.could_not_connect_to_server"),
       );
       return;
     }
 
-    setServer({ address: url });
+    await setServer({ address: url });
   }, []);
 
   const handleQuickConnect = async () => {
     try {
       const code = await initiateQuickConnect();
       if (code) {
-        Alert.alert(t("login.quick_connect"), t("login.enter_code_to_login", {code: code}), [
-          {
-            text: t("login.got_it"),
-          },
-        ]);
+        Alert.alert(
+          t("login.quick_connect"),
+          t("login.enter_code_to_login", { code: code }),
+          [
+            {
+              text: t("login.got_it"),
+            },
+          ],
+        );
       }
     } catch (error) {
-      Alert.alert(t("login.error_title"), t("login.failed_to_initiate_quick_connect"));
+      Alert.alert(
+        t("login.error_title"),
+        t("login.failed_to_initiate_quick_connect"),
+      );
     }
   };
 
@@ -198,20 +214,20 @@ const CredentialsSchema = z.object({
       >
         {api?.basePath ? (
           <>
-            <View className="flex flex-col h-full relative items-center justify-center">
-              <View className="px-4 -mt-20 w-full">
-                <View className="flex flex-col space-y-2">
-                <Text className="text-2xl font-bold -mb-2">
-                  <>
+            <View className='flex flex-col h-full relative items-center justify-center'>
+              <View className='px-4 -mt-20 w-full'>
+                <View className='flex flex-col space-y-2'>
+                  <Text className='text-2xl font-bold -mb-2'>
                     {serverName ? (
                       <>
-                        {t("login.login_to_title") + " "}
-                        <Text className="text-purple-600">{serverName}</Text>
+                        {`${t("login.login_to_title")} `}
+                        <Text className='text-purple-600'>{serverName}</Text>
                       </>
-                    ) : t("login.login_title")}
-                  </>
-                </Text>
-                  <Text className="text-xs text-neutral-400">
+                    ) : (
+                      t("login.login_title")
+                    )}
+                  </Text>
+                  <Text className='text-xs text-neutral-400'>
                     {api.basePath}
                   </Text>
                   <Input
@@ -220,13 +236,13 @@ const CredentialsSchema = z.object({
                       setCredentials({ ...credentials, username: text })
                     }
                     value={credentials.username}
-                    autoFocus
-                    secureTextEntry={false}
-                    keyboardType="default"
-                    returnKeyType="done"
-                    autoCapitalize="none"
-                    textContentType="username"
-                    clearButtonMode="while-editing"
+                    keyboardType='default'
+                    returnKeyType='done'
+                    autoCapitalize='none'
+                    // Changed from username to oneTimeCode because it is a known issue in RN
+                    // https://github.com/facebook/react-native/issues/47106#issuecomment-2521270037
+                    textContentType='oneTimeCode'
+                    clearButtonMode='while-editing'
                     maxLength={500}
                   />
 
@@ -237,42 +253,42 @@ const CredentialsSchema = z.object({
                     }
                     value={credentials.password}
                     secureTextEntry
-                    keyboardType="default"
-                    returnKeyType="done"
-                    autoCapitalize="none"
-                    textContentType="password"
-                    clearButtonMode="while-editing"
+                    keyboardType='default'
+                    returnKeyType='done'
+                    autoCapitalize='none'
+                    textContentType='password'
+                    clearButtonMode='while-editing'
                     maxLength={500}
                   />
-                  <View className="flex flex-row items-center justify-between">
+                  <View className='flex flex-row items-center justify-between'>
                     <Button
                       onPress={handleLogin}
                       loading={loading}
-                      className="flex-1 mr-2"
+                      className='flex-1 mr-2'
                     >
                       {t("login.login_button")}
                     </Button>
                     <TouchableOpacity
                       onPress={handleQuickConnect}
-                      className="p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center"
+                      className='p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center'
                     >
                       <MaterialCommunityIcons
-                        name="cellphone-lock"
+                        name='cellphone-lock'
                         size={24}
-                        color="white"
+                        color='white'
                       />
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
 
-              <View className="absolute bottom-0 left-0 w-full px-4 mb-2"></View>
+              <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
             </View>
           </>
         ) : (
           <>
-            <View className="flex flex-col h-full items-center justify-center w-full">
-              <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">
+            <View className='flex flex-col h-full items-center justify-center w-full'>
+              <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
                 <Image
                   style={{
                     width: 100,
@@ -282,41 +298,43 @@ const CredentialsSchema = z.object({
                   }}
                   source={require("@/assets/images/StreamyFinFinal.png")}
                 />
-                <Text className="text-3xl font-bold">Streamyfin</Text>
-                <Text className="text-neutral-500">
+                <Text className='text-3xl font-bold'>Streamyfin</Text>
+                <Text className='text-neutral-500'>
                   {t("server.enter_url_to_jellyfin_server")}
                 </Text>
                 <Input
-                  aria-label="Server URL"
+                  aria-label='Server URL'
                   placeholder={t("server.server_url_placeholder")}
                   onChangeText={setServerURL}
                   value={serverURL}
-                  keyboardType="url"
-                  returnKeyType="done"
-                  autoCapitalize="none"
-                  textContentType="URL"
+                  keyboardType='url'
+                  returnKeyType='done'
+                  autoCapitalize='none'
+                  textContentType='URL'
                   maxLength={500}
                 />
                 <Button
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck}
-                  onPress={async () => await handleConnect(serverURL)}
-                  className="w-full grow"
+                  onPress={async () => {
+                    await handleConnect(serverURL);
+                  }}
+                  className='w-full grow'
                 >
                   {t("server.connect_button")}
                 </Button>
                 <JellyfinServerDiscovery
-                  onServerSelect={(server) => {
+                  onServerSelect={async (server) => {
                     setServerURL(server.address);
                     if (server.serverName) {
                       setServerName(server.serverName);
                     }
-                    handleConnect(server.address);
+                    await handleConnect(server.address);
                   }}
                 />
                 <PreviousServersList
-                  onServerSelect={(s) => {
-                    handleConnect(s.address);
+                  onServerSelect={async (s) => {
+                    await handleConnect(s.address);
                   }}
                 />
               </View>

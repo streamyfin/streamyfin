@@ -1,48 +1,40 @@
 import { tc } from "@/utils/textTools";
-import { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
+import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
-import * as DropdownMenu from "zeego/dropdown-menu";
-import { Text } from "./common/Text";
-import { SubtitleHelper } from "@/utils/SubtitleHelper";
+const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { useTranslation } from "react-i18next";
+import { Text } from "./common/Text";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
   onChange: (value: number) => void;
   selected?: number | undefined;
-  isTranscoding?: boolean;
 }
 
 export const SubtitleTrackSelector: React.FC<Props> = ({
   source,
   onChange,
   selected,
-  isTranscoding,
   ...props
 }) => {
+  if (Platform.isTV) return null;
   const subtitleStreams = useMemo(() => {
-    const subtitleHelper = new SubtitleHelper(source?.MediaStreams ?? []);
-
-    if (isTranscoding && Platform.OS === "ios") {
-      return subtitleHelper.getUniqueSubtitles();
-    }
-
-    return subtitleHelper.getSubtitles();
-  }, [source, isTranscoding]);
+    return source?.MediaStreams?.filter((x) => x.Type === "Subtitle");
+  }, [source]);
 
   const selectedSubtitleSteam = useMemo(
-    () => subtitleStreams.find((x) => x.Index === selected),
-    [subtitleStreams, selected]
+    () => subtitleStreams?.find((x) => x.Index === selected),
+    [subtitleStreams, selected],
   );
 
-  if (subtitleStreams.length === 0) return null;
+  if (subtitleStreams?.length === 0) return null;
 
   const { t } = useTranslation();
 
   return (
     <View
-      className="flex col shrink justify-start place-self-start items-start"
+      className='flex col shrink justify-start place-self-start items-start'
       style={{
         minWidth: 60,
         maxWidth: 200,
@@ -50,10 +42,12 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
     >
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
-          <View className="flex flex-col " {...props}>
-            <Text className="opacity-50 mb-1 text-xs">{t("item_card.subtitles")}</Text>
-            <TouchableOpacity className="bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between">
-              <Text className=" ">
+          <View className='flex flex-col ' {...props}>
+            <Text numberOfLines={1} className='opacity-50 mb-1 text-xs'>
+              {t("item_card.subtitles")}
+            </Text>
+            <TouchableOpacity className='bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+              <Text className=' '>
                 {selectedSubtitleSteam
                   ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
                   : t("item_card.none")}
@@ -63,8 +57,8 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
         </DropdownMenu.Trigger>
         <DropdownMenu.Content
           loop={true}
-          side="bottom"
-          align="start"
+          side='bottom'
+          align='start'
           alignOffset={0}
           avoidCollisions={true}
           collisionPadding={8}

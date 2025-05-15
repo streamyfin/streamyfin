@@ -1,5 +1,5 @@
-import React from "react";
-import { View, TouchableOpacity, Text, ViewProps } from "react-native";
+import type React from "react";
+import { Text, TouchableOpacity, View, type ViewProps } from "react-native";
 
 interface SkipButtonProps extends ViewProps {
   onPress: () => void;
@@ -17,9 +17,9 @@ const SkipButton: React.FC<SkipButtonProps> = ({
     <View className={showButton ? "flex" : "hidden"} {...props}>
       <TouchableOpacity
         onPress={onPress}
-        className="bg-black/60 rounded-md px-3 py-3 border border-neutral-900"
+        className='bg-black/60 rounded-md px-3 py-3 border border-neutral-900'
       >
-        <Text className="text-white font-bold">{buttonText}</Text>
+        <Text className='text-white font-bold'>{buttonText}</Text>
       </TouchableOpacity>
     </View>
   );

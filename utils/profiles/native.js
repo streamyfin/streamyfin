@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+import DeviceInfo from "react-native-device-info";
 /**
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -5,184 +7,190 @@
  */
 import MediaTypes from "../../constants/MediaTypes";
 
-/**
- * Device profile for Native video player
- */
-export default {
-  Name: "1. Vlc Player",
-  MaxStaticBitrate: 999_999_999,
-  MaxStreamingBitrate: 999_999_999,
-  CodecProfiles: [
-    {
-      Type: MediaTypes.Video,
-      Codec: "h264,h265,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1",
-    },
-    {
-      Type: MediaTypes.Audio,
-      Codec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,pcm,wma",
-    },
-  ],
-  DirectPlayProfiles: [
-    {
-      Type: MediaTypes.Video,
-      Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
-      VideoCodec:
-        "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
-      AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma",
-    },
-    {
-      Type: MediaTypes.Audio,
-      Container: "mp3,aac,flac,alac,wav,ogg,wma",
-      AudioCodec:
-        "mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape",
-    },
-  ],
-  TranscodingProfiles: [
-    {
-      Type: MediaTypes.Video,
-      Context: "Streaming",
-      Protocol: "hls",
-      Container: "ts",
-      VideoCodec: "h264, hevc",
-      AudioCodec: "aac,mp3,ac3",
-      CopyTimestamps: false,
-      EnableSubtitlesInManifest: true,
-    },
-    {
-      Type: MediaTypes.Audio,
-      Context: "Streaming",
-      Protocol: "http",
-      Container: "mp3",
-      AudioCodec: "mp3",
-      MaxAudioChannels: "2",
-    },
-  ],
-  SubtitleProfiles: [
-    // Official foramts
-    { Format: "vtt", Method: "Embed" },
-    { Format: "vtt", Method: "Hls" },
-    { Format: "vtt", Method: "External" },
-    { Format: "vtt", Method: "Encode" },
+// Helper function to detect Dolby Vision support
+const supportsDolbyVision = async () => {
+  if (Platform.OS === "ios") {
+    const deviceModel = await DeviceInfo.getModel();
+    // iPhone 12 and newer generally support Dolby Vision
+    const modelNumber = Number.parseInt(deviceModel.replace(/iPhone/, ""), 10);
+    return !Number.isNaN(modelNumber) && modelNumber >= 12;
+  }
 
-    { Format: "webvtt", Method: "Embed" },
-    { Format: "webvtt", Method: "Hls" },
-    { Format: "webvtt", Method: "External" },
-    { Format: "webvtt", Method: "Encode" },
+  if (Platform.OS === "android") {
+    const apiLevel = await DeviceInfo.getApiLevel();
+    const isHighEndDevice =
+      (await DeviceInfo.getTotalMemory()) > 4 * 1024 * 1024 * 1024; // >4GB RAM
+    // Very rough approximation - Android 10+ on higher-end devices may support it
+    return apiLevel >= 29 && isHighEndDevice;
+  }
 
-    { Format: "srt", Method: "Embed" },
-    { Format: "srt", Method: "Hls" },
-    { Format: "srt", Method: "External" },
-    { Format: "srt", Method: "Encode" },
+  return false;
+};
 
-    { Format: "subrip", Method: "Embed" },
-    { Format: "subrip", Method: "Hls" },
-    { Format: "subrip", Method: "External" },
-    { Format: "subrip", Method: "Encode" },
+export const generateDeviceProfile = async () => {
+  const dolbyVisionSupported = await supportsDolbyVision();
+  /**
+   * Device profile for Native video player
+   */
+  const profile = {
+    Name: "1. Vlc Player",
+    MaxStaticBitrate: 999_999_999,
+    MaxStreamingBitrate: 999_999_999,
+    CodecProfiles: [
+      {
+        Type: MediaTypes.Video,
+        Codec: "h264,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1",
+      },
+      {
+        Type: MediaTypes.Video,
+        Codec: "hevc,h265",
+        Conditions: [
+          {
+            Condition: "LessThanEqual",
+            Property: "VideoLevel",
+            Value: "153",
+            IsRequired: false,
+          },
+          // We'll add Dolby Vision condition below if not supported
+        ],
+      },
+      {
+        Type: MediaTypes.Audio,
+        Codec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,pcm,wma",
+      },
+    ],
+    DirectPlayProfiles: [
+      {
+        Type: MediaTypes.Video,
+        Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
+        VideoCodec:
+          "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
+        AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma,dts",
+      },
+      {
+        Type: MediaTypes.Audio,
+        Container: "mp3,aac,flac,alac,wav,ogg,wma",
+        AudioCodec:
+          "mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape",
+      },
+    ],
+    TranscodingProfiles: [
+      {
+        Type: MediaTypes.Video,
+        Context: "Streaming",
+        Protocol: "hls",
+        Container: "fmp4",
+        VideoCodec: "h264, hevc",
+        AudioCodec: "aac,mp3,ac3,dts",
+      },
+      {
+        Type: MediaTypes.Audio,
+        Context: "Streaming",
+        Protocol: "http",
+        Container: "mp3",
+        AudioCodec: "mp3",
+        MaxAudioChannels: "2",
+      },
+    ],
+    SubtitleProfiles: [
+      // Official formats
+      { Format: "vtt", Method: "Embed" },
+      { Format: "vtt", Method: "External" },
 
-    { Format: "ttml", Method: "Embed" },
-    { Format: "ttml", Method: "Hls" },
-    { Format: "ttml", Method: "External" },
-    { Format: "ttml", Method: "Encode" },
+      { Format: "webvtt", Method: "Embed" },
+      { Format: "webvtt", Method: "External" },
 
-    { Format: "dvbsub", Method: "Embed" },
-    { Format: "dvbsub", Method: "Hls" },
-    { Format: "dvbsub", Method: "External" },
-    { Format: "dvdsub", Method: "Encode" },
+      { Format: "srt", Method: "Embed" },
+      { Format: "srt", Method: "External" },
 
-    { Format: "ass", Method: "Embed" },
-    { Format: "ass", Method: "Hls" },
-    { Format: "ass", Method: "External" },
-    { Format: "ass", Method: "Encode" },
+      { Format: "subrip", Method: "Embed" },
+      { Format: "subrip", Method: "External" },
 
-    { Format: "idx", Method: "Embed" },
-    { Format: "idx", Method: "Hls" },
-    { Format: "idx", Method: "External" },
-    { Format: "idx", Method: "Encode" },
+      { Format: "ttml", Method: "Embed" },
+      { Format: "ttml", Method: "External" },
 
-    { Format: "pgs", Method: "Embed" },
-    { Format: "pgs", Method: "Hls" },
-    { Format: "pgs", Method: "External" },
-    { Format: "pgs", Method: "Encode" },
+      { Format: "dvbsub", Method: "Embed" },
+      { Format: "dvdsub", Method: "Encode" },
 
-    { Format: "pgssub", Method: "Embed" },
-    { Format: "pgssub", Method: "Hls" },
-    { Format: "pgssub", Method: "External" },
-    { Format: "pgssub", Method: "Encode" },
+      { Format: "ass", Method: "Embed" },
+      { Format: "ass", Method: "External" },
 
-    { Format: "ssa", Method: "Embed" },
-    { Format: "ssa", Method: "Hls" },
-    { Format: "ssa", Method: "External" },
-    { Format: "ssa", Method: "Encode" },
+      { Format: "idx", Method: "Embed" },
+      { Format: "idx", Method: "Encode" },
 
-    // Other formats
-    { Format: "microdvd", Method: "Embed" },
-    { Format: "microdvd", Method: "Hls" },
-    { Format: "microdvd", Method: "External" },
-    { Format: "microdvd", Method: "Encode" },
+      { Format: "pgs", Method: "Embed" },
+      { Format: "pgs", Method: "Encode" },
 
-    { Format: "mov_text", Method: "Embed" },
-    { Format: "mov_text", Method: "Hls" },
-    { Format: "mov_text", Method: "External" },
-    { Format: "mov_text", Method: "Encode" },
+      { Format: "pgssub", Method: "Embed" },
+      { Format: "pgssub", Method: "Encode" },
 
-    { Format: "mpl2", Method: "Embed" },
-    { Format: "mpl2", Method: "Hls" },
-    { Format: "mpl2", Method: "External" },
-    { Format: "mpl2", Method: "Encode" },
+      { Format: "ssa", Method: "Embed" },
+      { Format: "ssa", Method: "External" },
 
-    { Format: "pjs", Method: "Embed" },
-    { Format: "pjs", Method: "Hls" },
-    { Format: "pjs", Method: "External" },
-    { Format: "pjs", Method: "Encode" },
+      // Other formats
+      { Format: "microdvd", Method: "Embed" },
+      { Format: "microdvd", Method: "External" },
 
-    { Format: "realtext", Method: "Embed" },
-    { Format: "realtext", Method: "Hls" },
-    { Format: "realtext", Method: "External" },
-    { Format: "realtext", Method: "Encode" },
+      { Format: "mov_text", Method: "Embed" },
+      { Format: "mov_text", Method: "External" },
 
-    { Format: "scc", Method: "Embed" },
-    { Format: "scc", Method: "Hls" },
-    { Format: "scc", Method: "External" },
-    { Format: "scc", Method: "Encode" },
+      { Format: "mpl2", Method: "Embed" },
+      { Format: "mpl2", Method: "External" },
 
-    { Format: "smi", Method: "Embed" },
-    { Format: "smi", Method: "Hls" },
-    { Format: "smi", Method: "External" },
-    { Format: "smi", Method: "Encode" },
+      { Format: "pjs", Method: "Embed" },
+      { Format: "pjs", Method: "External" },
 
-    { Format: "stl", Method: "Embed" },
-    { Format: "stl", Method: "Hls" },
-    { Format: "stl", Method: "External" },
-    { Format: "stl", Method: "Encode" },
+      { Format: "realtext", Method: "Embed" },
+      { Format: "realtext", Method: "External" },
 
-    { Format: "sub", Method: "Embed" },
-    { Format: "sub", Method: "Hls" },
-    { Format: "sub", Method: "External" },
-    { Format: "sub", Method: "Encode" },
+      { Format: "scc", Method: "Embed" },
+      { Format: "scc", Method: "External" },
 
-    { Format: "subviewer", Method: "Embed" },
-    { Format: "subviewer", Method: "Hls" },
-    { Format: "subviewer", Method: "External" },
-    { Format: "subviewer", Method: "Encode" },
+      { Format: "smi", Method: "Embed" },
+      { Format: "smi", Method: "External" },
 
-    { Format: "teletext", Method: "Embed" },
-    { Format: "teletext", Method: "Hls" },
-    { Format: "teletext", Method: "External" },
-    { Format: "teletext", Method: "Encode" },
+      { Format: "stl", Method: "Embed" },
+      { Format: "stl", Method: "External" },
 
-    { Format: "text", Method: "Embed" },
-    { Format: "text", Method: "Hls" },
-    { Format: "text", Method: "External" },
-    { Format: "text", Method: "Encode" },
+      { Format: "sub", Method: "Embed" },
+      { Format: "sub", Method: "External" },
 
-    { Format: "vplayer", Method: "Embed" },
-    { Format: "vplayer", Method: "Hls" },
-    { Format: "vplayer", Method: "External" },
-    { Format: "vplayer", Method: "Encode" },
+      { Format: "subviewer", Method: "Embed" },
+      { Format: "subviewer", Method: "External" },
 
-    { Format: "xsub", Method: "Embed" },
-    { Format: "xsub", Method: "Hls" },
-    { Format: "xsub", Method: "External" },
-    { Format: "xsub", Method: "Encode" },
-  ],
+      { Format: "teletext", Method: "Embed" },
+      { Format: "teletext", Method: "Encode" },
+
+      { Format: "text", Method: "Embed" },
+      { Format: "text", Method: "External" },
+
+      { Format: "vplayer", Method: "Embed" },
+      { Format: "vplayer", Method: "External" },
+
+      { Format: "xsub", Method: "Embed" },
+      { Format: "xsub", Method: "External" },
+    ],
+  };
+
+  // Add Dolby Vision restriction if not supported
+  if (!dolbyVisionSupported) {
+    const hevcProfile = profile.CodecProfiles.find(
+      (p) => p.Type === MediaTypes.Video && p.Codec.includes("hevc"),
+    );
+
+    if (hevcProfile) {
+      hevcProfile.Conditions.push({
+        Condition: "NotEquals",
+        Property: "VideoRangeType",
+        Value: "DOVI", //no dolby vision at all
+        IsRequired: true,
+      });
+    }
+  }
+
+  return profile;
+};
+
+export default async () => {
+  return await generateDeviceProfile();
 };

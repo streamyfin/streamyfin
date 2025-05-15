@@ -1,0 +1,39 @@
+name: Handle Stale Issues
+on:
+  schedule:
+    - cron: "30 1 * * *" # Runs at 1:30 UTC every day
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # Issue specific settings
+          days-before-issue-stale: 90
+          days-before-issue-close: 7
+          stale-issue-label: "stale"
+          stale-issue-message: |
+            This issue has been automatically marked as stale because it has had no activity in the last 30 days.
+
+            If this issue is still relevant, please leave a comment to keep it open. 
+            Otherwise, it will be closed in 7 days if no further activity occurs.
+
+            Thank you for your contributions!
+          close-issue-message: |
+            This issue has been automatically closed because it has been inactive for 7 days since being marked as stale.
+
+            If you believe this issue is still relevant, please feel free to reopen it and add a comment explaining the current status.
+
+          # Pull request settings (disabled)
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+
+          # Other settings
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          operations-per-run: 100
+          exempt-issue-labels: "Roadmap v1,help needed,enhancement"

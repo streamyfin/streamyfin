@@ -5,7 +5,7 @@ import {
 
 /**
  * Converts a ColletionType to a BaseItemKind (also called ItemType)
- * 
+ *
  * CollectionTypes
  *  readonly Unknown: "unknown";
     readonly Movies: "movies";
@@ -20,7 +20,7 @@ import {
     readonly Folders: "folders";
  */
 export const colletionTypeToItemType = (
-  collectionType?: CollectionType | null
+  collectionType?: CollectionType | null,
 ): BaseItemKind | undefined => {
   if (!collectionType) return undefined;
 
@@ -41,8 +41,6 @@ export const colletionTypeToItemType = (
       return BaseItemKind.Photo;
     case CollectionType.Trailers:
       return BaseItemKind.Trailer;
-    case CollectionType.Playlists:
-      return BaseItemKind.Playlist;
   }
 
   return undefined;
