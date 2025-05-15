@@ -19,12 +19,14 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4.1.3
+        with:
+          fetch-depth: 0
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@v2.0.2
         with:
-          bun-version: '1.2.13'  # Pinned to specific version for stability
+          bun-version: '1.2.13'
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@v4.0.2
@@ -40,5 +42,15 @@ jobs:
         run: |
           set -euxo pipefail
           echo "➡️ Checking for discrepancies between bun.lockb and package.json..."
-          bun install --frozen-lockfile --dry-run --ignore-scripts
+          
+          # Clean install to ensure fresh node_modules
+          bun install --frozen-lockfile --ignore-scripts
+          
+          # Verify lockfile matches package.json
+          if ! bun install --dry-run --frozen-lockfile --ignore-scripts; then
+            echo "❌ Error: Lockfile is out of sync with package.json!"
+            echo "Run 'bun install' locally and commit the updated lockfile"
+            exit 1
+          fi
+          
           echo "✅ Lockfile is consistent with package.json!"
