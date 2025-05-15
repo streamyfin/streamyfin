@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   check-lockfile:
-    name: 🔍 Verify Lockfile Consistency
+    name: 🔍 Check bun.lock and package.json consistency
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -26,7 +26,7 @@ jobs:
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@v2.0.2
         with:
-          bun-version: '1.2.13'
+          bun-version: 1.2.13
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@v4.2.3
@@ -35,22 +35,10 @@ jobs:
             ~/.bun/install/cache
             node_modules
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
 
       - name: 🛡️ Verify lockfile consistency
         run: |
           set -euxo pipefail
           echo "➡️ Checking for discrepancies between bun.lockb and package.json..."
-          
-          # Clean install to ensure fresh node_modules
-          bun install --frozen-lockfile --ignore-scripts
-          
-          # Verify lockfile matches package.json
-          if ! bun install --dry-run --frozen-lockfile --ignore-scripts; then
-            echo "❌ Error: Lockfile is out of sync with package.json!"
-            echo "Run 'bun install' locally and commit the updated lockfile"
-            exit 1
-          fi
-          
+          bun install --frozen-lockfile --dry-run --ignore-scripts
           echo "✅ Lockfile is consistent with package.json!"
