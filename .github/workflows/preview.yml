@@ -41,7 +41,7 @@ jobs:
           bun-version: 1.2.13
 
       - name: 💾 Cache dependencies
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@v4.2.3
         with:
           path: |
             ~/.bun/install/cache
@@ -112,12 +112,12 @@ jobs:
 
       - name: 📦 Install dependencies (Bun)
         if: env.USE_BUN  # Optionnel : à activer si nécessaire
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@v2.0.1
         with:
           bun-version: 1.2.13
 
       - name: 🗃️ Cache Android build
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.3
         with:
           key: android-build-${{ hashFiles('**/build.gradle', '**/gradle.properties') }}
           path: |
