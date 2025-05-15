@@ -7,54 +7,84 @@ concurrency:
 on:
   workflow_dispatch:
   pull_request:
+    branches: [develop]
   push:
-    branches: [main]
+    branches: [develop]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: 🏗️ Build Android APK
     permissions:
       contents: read
-      packages: write
+      actions: write
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4.2.2
-
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@v2.0.2
         with:
-          bun-version: 1.2.13
+          submodules: recursive
+          fetch-depth: 0
 
-      - name: ☕️ Setup JDK
+      - name: ☕ Setup JDK
         uses: actions/setup-java@v4.7.1
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 📦 Install dependencies
-        run: bun install
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2.0.2
+        with:
+          bun-version: '1.2.13'
 
-      - name: 🏗️ Build APK via Bun
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+            ~/.gradle/caches
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+
+      - name: 📦 Install dependencies
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🔧 Prepare Android environment
+        run: |
+          chmod +x android/gradlew
+          yes | sudo ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+
+      - name: 🚀 Build APK via Bun
         run: bun run build:android:local
 
-      - name: ☁️ Upload APK artifact
+      - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: streamyfin-android-preview
-          path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 30
+          name: android-build-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+          retention-days: 7
 
-      - name: 💬 Comment on PR
+      - name: 💬 Notify PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7.0.1
         with:
           script: |
-            const artifactUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            
+            const apkArtifact = artifacts.data.artifacts.find(a => a.name.startsWith('android-build-'));
+            const downloadUrl = `${github.context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${apkArtifact.id}`;
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "📲 **APK Preview Available**\n\nDownload: [app-release.apk](" + artifactUrl + ")"
+              body: `📲 **Build Successful!**\n\nDownload: [${apkArtifact.name}](${downloadUrl})`            
             });
