@@ -29,7 +29,7 @@ jobs:
           bun-version: '1.2.13'
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@v4.2.3
         with:
           path: |
             ~/.bun/install/cache
