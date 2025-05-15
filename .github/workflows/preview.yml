@@ -103,38 +103,47 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4.2.2
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-      - name: ☕️ Setup JDK
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2.0.2
+        with:
+          bun-version: '1.2.13'
+
+      - name: ☕ Setup JDK
         uses: actions/setup-java@v4.7.1
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 📦 Install dependencies (Bun)
-        if: env.USE_BUN  # Optionnel : à activer si nécessaire
-        uses: oven-sh/setup-bun@v2.0.2
-        with:
-          bun-version: 1.2.13
-
-      - name: 🗃️ Cache Android build
-        uses: actions/cache@v4.2.3
-        with:
-          key: android-build-${{ hashFiles('**/build.gradle', '**/gradle.properties') }}
-          path: |
-            ~/.gradle/caches
-            android/app/build
-
-      - name: 🏗️ Build APK (Gradle)
+      - name: 📦 Install dependencies
         run: |
-          cd android
-          ./gradlew assembleRelease
+          bun install --frozen-lockfile
+          bun run submodule-reload
+      
+      - name: 💾 Cache Android prebuild
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          path: |
+            ./android/
 
-      - name: ☁️ Upload APK artifact
+      - name: 🛠️ Generate project files
+        run: bun run prebuild
+
+      - name: 🚀 Build APK via Bun
+        run: bun run build:android:local
+
+      - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: streamyfin-android-preview
-          path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 30
+          name: streamyfin-apk-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+          retention-days: 7
 
   post_summary:
     name: 📝 Build Summary
