@@ -26,35 +26,31 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2.0.2
+        with:
+          bun-version: '1.2.13'
+
       - name: ☕ Setup JDK
         uses: actions/setup-java@v4.7.1
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@v2.0.2
-        with:
-          bun-version: '1.2.13'
-
-      - name: 💾 Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-            ~/.gradle/caches
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
-
       - name: 📦 Install dependencies
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
+      
+      - name: 💾 Cache Android prebuild
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          path: |
+            ./android/
 
-      - name: 🔧 Prepare Android environment
-        run: |
-          chmod +x android/gradlew
-          yes | sudo ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+      - name: 🛠️ Generate project files
+        run: bun run prebuild
 
       - name: 🚀 Build APK via Bun
         run: bun run build:android:local
@@ -62,7 +58,7 @@ jobs:
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: android-build-${{ github.sha }}
+          name: streamyfin-apk-${{ github.sha }}
           path: |
             android/app/build/outputs/apk/release/*.apk
             android/app/build/outputs/bundle/release/*.aab
