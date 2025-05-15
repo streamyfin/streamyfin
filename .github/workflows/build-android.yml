@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: read
       actions: write
+      issues: write
 
     steps:
       - name: 📥 Checkout code
@@ -79,14 +80,7 @@ jobs:
               `[${art.name}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${art.id})`
             ).join('\n');
 
-            const prNumber = context.payload.pull_request
-              ? context.payload.pull_request.number
-              : (context.issue ? context.issue.number : null);
-
-            if (!prNumber) {
-              core.setFailed("Impossible de trouver le numéro de la PR.");
-              return;
-            }
+            const prNumber = context.payload.pull_request?.number;
 
             await github.rest.issues.createComment({
               issue_number: prNumber,
