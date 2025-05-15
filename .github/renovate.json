@@ -14,16 +14,11 @@
   ],
   "addLabels": ["dependencies"],
   "rebaseWhen": "conflicted",
-  "ignorePaths": [
-    "**/node_modules/**",
-    "**/bower_components/**"
-  ],
+  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"],
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
-    "schedule": [
-      "every month"
-    ]
+    "schedule": ["every month"]
   },
   "packageRules": [
     {
@@ -36,16 +31,11 @@
       "matchManagers": ["github-actions"],
       "groupName": "CI dependencies",
       "groupSlug": "ci-deps",
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ]
+      "matchUpdateTypes": ["minor", "patch"]
     },
     {
       "description": "Group lock file maintenance updates",
-      "matchUpdateTypes": [
-        "lockFileMaintenance"
-      ],
+      "matchUpdateTypes": ["lockFileMaintenance"],
       "groupName": "lockfiles",
       "dependencyDashboardApproval": true
     },
