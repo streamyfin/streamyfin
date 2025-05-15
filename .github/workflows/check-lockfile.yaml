@@ -3,7 +3,7 @@ name: Check Lockfile
 on:
   pull_request:
   push:
-    branches: [ develop, main ]
+    branches: [ develop, master ]
 
 jobs:
   check-lockfile:
