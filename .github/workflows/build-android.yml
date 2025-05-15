@@ -46,7 +46,7 @@ jobs:
       - name: 💾 Cache Android prebuild
         uses: actions/cache@v4
         with:
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           path: |
             ./android/
 
@@ -66,7 +66,6 @@ jobs:
           retention-days: 7
 
       - name: 💬 Notify PR
-        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7.0.1
         with:
           script: |
@@ -76,12 +75,13 @@ jobs:
               run_id: context.runId,
             });
             
-            const apkArtifact = artifacts.data.artifacts.find(a => a.name.startsWith('android-build-'));
-            const downloadUrl = `${github.context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${apkArtifact.id}`;
+            const downloadLinks = artifacts.data.artifacts.map(art => 
+              `[${art.name}](${github.context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${art.id})`
+            ).join('\n');
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `📲 **Build Successful!**\n\nDownload: [${apkArtifact.name}](${downloadUrl})`            
+              body: `📲 **Android Build Available**\n\nDownload: ${downloadLinks}`
             });

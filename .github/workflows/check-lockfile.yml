@@ -35,11 +35,11 @@ jobs:
           path: |
             ~/.bun/install/cache
             node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
 
       - name: 🛡️ Verify lockfile consistency
         run: |
           set -euxo pipefail
-          echo "➡️ Checking for discrepancies between bun.lockb and package.json..."
+          echo "➡️ Checking for discrepancies between bun.lock and package.json..."
           bun install --frozen-lockfile --dry-run --ignore-scripts
           echo "✅ Lockfile is consistent with package.json!"

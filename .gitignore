@@ -11,7 +11,7 @@ npm-debug.*
 web-build/
 modules/vlc-player/android/build
 modules/vlc-player/android/.gradle
-bun.lockb
+bun.lock
 
 # macOS
 .DS_Store
