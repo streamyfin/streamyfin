@@ -48,3 +48,5 @@ modules/hls-downloader/android/build
 streamyfin-4fec1-firebase-adminsdk.json
 .env
 .env.local
+
+.cursor/*
