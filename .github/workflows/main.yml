@@ -1,39 +1,49 @@
-name: Handle Stale Issues
+name: 🕒 Handle Stale Issues
+
 on:
   schedule:
-    - cron: "30 1 * * *" # Runs at 1:30 UTC every day
+    # Runs daily at 1:30 AM UTC (3:30 AM CEST - France time)
+    - cron: "30 1 * * *"
 
 jobs:
-  stale:
+  stale-issues:
+    name: 🗑️ Cleanup Stale Issues
     runs-on: ubuntu-24.04
     permissions:
       issues: write
       pull-requests: write
 
     steps:
-      - uses: actions/stale@v9.1.0
+      - name: 🔄 Mark/Close Stale Issues
+        uses: actions/stale@v9.1.0
         with:
-          # Issue specific settings
+          # Global settings
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          operations-per-run: 500  # Increase if you have >1000 issues
+          log-level: debug
+
+          # Issue configuration
           days-before-issue-stale: 90
           days-before-issue-close: 7
           stale-issue-label: "stale"
+          exempt-issue-labels: "Roadmap v1,help needed,enhancement"
+          
+          # Notifications messages
           stale-issue-message: |
-            This issue has been automatically marked as stale because it has had no activity in the last 30 days.
+            ⏳ This issue has been automatically marked as **stale** because it has had no activity for 90 days.
 
-            If this issue is still relevant, please leave a comment to keep it open. 
-            Otherwise, it will be closed in 7 days if no further activity occurs.
+            **Next steps:**
+            - If this is still relevant, add a comment to keep it open
+            - Otherwise, it will be closed in 7 days
 
-            Thank you for your contributions!
+            Thank you for your contributions! 🙌
+          
           close-issue-message: |
-            This issue has been automatically closed because it has been inactive for 7 days since being marked as stale.
+            🚮 This issue has been automatically closed due to inactivity (7 days since being marked stale).
 
-            If you believe this issue is still relevant, please feel free to reopen it and add a comment explaining the current status.
+            **Need to reopen?**  
+            Click "Reopen" and add a comment explaining why this should stay open.
 
-          # Pull request settings (disabled)
+          # Disable PR handling
           days-before-pr-stale: -1
           days-before-pr-close: -1
-
-          # Other settings
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          operations-per-run: 100
-          exempt-issue-labels: "Roadmap v1,help needed,enhancement"
