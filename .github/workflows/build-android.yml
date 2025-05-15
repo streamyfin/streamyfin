@@ -74,15 +74,23 @@ jobs:
               repo: context.repo.repo,
               run_id: context.runId,
             });
-        
+
             const downloadLinks = artifacts.data.artifacts.map(art => 
               `[${art.name}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${art.id})`
             ).join('\n');
-        
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+
+            const prNumber = context.payload.pull_request
+              ? context.payload.pull_request.number
+              : (context.issue ? context.issue.number : null);
+
+            if (!prNumber) {
+              core.setFailed("Impossible de trouver le numéro de la PR.");
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `📲 **Android Build Available**\n\nDownload: ${downloadLinks}`
             });
-
