@@ -17,7 +17,7 @@ jobs:
           node-version: '20.x'
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2.0.1
         with:
           bun-version: latest
 
