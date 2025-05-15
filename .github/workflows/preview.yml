@@ -30,13 +30,13 @@ jobs:
           submodules: recursive
 
       - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4.0.2
+        uses: actions/setup-node@v4.4.0
         with:
           node-version: '20'
           cache: 'bun'
 
       - name: 🍞 Install Bun
-        uses: oven-sh/setup-bun@v2.0.1
+        uses: oven-sh/setup-bun@v2.0.2
         with:
           bun-version: 1.2.13
 
@@ -58,7 +58,7 @@ jobs:
         run: npx expo prebuild --clean
 
       - name: 🏗️ Build iOS app
-        uses: sparkfabrik/ios-build-action@v2.3.0
+        uses: sparkfabrik/ios-build-action@v2.3.2
         with:
           upload-to-testflight: false
           increment-build-number: false
@@ -88,7 +88,7 @@ jobs:
           output-path: build-${{ github.sha }}.ipa
 
       - name: ☁️ Upload IPA artifact
-        uses: actions/upload-artifact@v4.3.1
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: streamyfin-ios-preview
           path: build-${{ github.sha }}.ipa
@@ -105,14 +105,14 @@ jobs:
         uses: actions/checkout@v4.2.2
 
       - name: ☕️ Setup JDK
-        uses: actions/setup-java@v3.13.0
+        uses: actions/setup-java@v4.7.1
         with:
           distribution: 'zulu'
           java-version: '17'
 
       - name: 📦 Install dependencies (Bun)
         if: env.USE_BUN  # Optionnel : à activer si nécessaire
-        uses: oven-sh/setup-bun@v2.0.1
+        uses: oven-sh/setup-bun@v2.0.2
         with:
           bun-version: 1.2.13
 
@@ -130,7 +130,7 @@ jobs:
           ./gradlew assembleRelease
 
       - name: ☁️ Upload APK artifact
-        uses: actions/upload-artifact@v4.3.1
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: streamyfin-android-preview
           path: android/app/build/outputs/apk/release/app-release.apk

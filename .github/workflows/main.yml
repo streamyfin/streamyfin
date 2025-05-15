@@ -5,13 +5,13 @@ on:
 
 jobs:
   stale:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       issues: write
       pull-requests: write
 
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v9.1.0
         with:
           # Issue specific settings
           days-before-issue-stale: 90

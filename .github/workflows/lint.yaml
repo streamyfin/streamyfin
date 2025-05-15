@@ -6,18 +6,18 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4.4.0
         with:
           node-version: '20.x'
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2.0.1
+        uses: oven-sh/setup-bun@v2.0.2
         with:
           bun-version: latest
 
