@@ -1,0 +1,164 @@
+name: 🚀 Streamyfin Preview Builds
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: '📝 Build reason'
+        required: true
+
+jobs:
+  ios_preview:
+    name: 🍏 Build iOS Preview
+    runs-on: macos-15
+    permissions:
+      contents: read
+      actions: write
+      checks: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: '20'
+          cache: 'bun'
+
+      - name: 🍞 Install Bun
+        uses: oven-sh/setup-bun@v2.0.1
+        with:
+          bun-version: 1.2.13
+
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v4.0.2
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb') }}
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🔄 Reload submodules
+        run: bun run submodule-reload
+
+      - name: 🛠️ Expo prebuild
+        run: npx expo prebuild --clean
+
+      - name: 🏗️ Build iOS app
+        uses: sparkfabrik/ios-build-action@v2.3.0
+        with:
+          upload-to-testflight: false
+          increment-build-number: false
+          build-pods: true
+          pods-path: "ios/Podfile"
+          configuration: Release
+          # Change later to app-store if wanted
+          export-method: appstore
+          #export-method: ad-hoc
+          workspace-path: "ios/Streamyfin.xcodeproj/project.xcworkspace/"
+          project-path: "ios/Streamyfin.xcodeproj"
+          scheme: Streamyfin
+          apple-key-id: ${{ secrets.APPLE_KEY_ID }}
+          apple-key-issuer-id: ${{ secrets.APPLE_KEY_ISSUER_ID }}
+          apple-key-content: ${{ secrets.APPLE_KEY_CONTENT }}
+          team-id: ${{ secrets.TEAM_ID }}
+          team-name: ${{ secrets.TEAM_NAME }}
+          #match-password: ${{ secrets.MATCH_PASSWORD }}
+          #match-git-url: ${{ secrets.MATCH_GIT_URL }}
+          #match-git-basic-authorization: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          #match-build-type: "appstore"
+          #browserstack-upload: true
+          #browserstack-username: ${{ secrets.BROWSERSTACK_USERNAME }}
+          #browserstack-access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          #fastlane-env: stage
+          ios-app-id: com.stetsed.teststreamyfin
+          output-path: build-${{ github.sha }}.ipa
+
+      - name: ☁️ Upload IPA artifact
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: streamyfin-ios-preview
+          path: build-${{ github.sha }}.ipa
+          retention-days: 30
+
+  android_preview:
+    name: 🤖 Build Android Preview
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: ☕️ Setup JDK
+        uses: actions/setup-java@v3.13.0
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 📦 Install dependencies (Bun)
+        if: env.USE_BUN  # Optionnel : à activer si nécessaire
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.13
+
+      - name: 🗃️ Cache Android build
+        uses: actions/cache@v4
+        with:
+          key: android-build-${{ hashFiles('**/build.gradle', '**/gradle.properties') }}
+          path: |
+            ~/.gradle/caches
+            android/app/build
+
+      - name: 🏗️ Build APK (Gradle)
+        run: |
+          cd android
+          ./gradlew assembleRelease
+
+      - name: ☁️ Upload APK artifact
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: streamyfin-android-preview
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+  post_summary:
+    name: 📝 Build Summary
+    runs-on: ubuntu-24.04
+    needs: [ios_preview, android_preview]
+    if: always()
+    steps:
+      - name: Add PR comment
+        uses: actions/github-script@v7.0.1
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            
+            const downloadLinks = artifacts.data.artifacts.map(art => 
+              `[${art.name}](${github.context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${art.id})`
+            ).join('\n');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📲 **Preview Builds Available**\n\nDownload test builds:\n${downloadLinks}`
+            });

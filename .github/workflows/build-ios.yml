@@ -1,25 +1,35 @@
 name: Automatic Build and Deploy
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [develop]
 
 jobs:
   build:
     runs-on: macos-15
     name: Build IOS
     steps:
-      - uses: actions/checkout@v2
-        name: Check out repository
-      - uses: oven-sh/setup-bun@v2
+
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4.2.2
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
-      - run: |
+          bun-version: 1.2.13
+
+      - name: 📦 Install & Prepare
+        run: |
           bun i && bun run submodule-reload
           npx expo prebuild
-      - uses: sparkfabrik/ios-build-action@v2.3.0
+
+      - name: 🏗️ Build iOS app
+        uses: sparkfabrik/ios-build-action@v2.3.0
         with:
           upload-to-testflight: false
           increment-build-number: false
@@ -47,3 +57,10 @@ jobs:
           #fastlane-env: stage
           ios-app-id: com.stetsed.teststreamyfin
           output-path: build-${{ github.sha }}.ipa
+
+      - name: ☁️ Upload IPA artifact
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: streamyfin-ios-preview
+          path: build-${{ github.sha }}.ipa
+          retention-days: 30
