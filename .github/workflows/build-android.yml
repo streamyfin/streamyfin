@@ -1,0 +1,95 @@
+name: 🤖 Android APK Build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    name: 🏗️ Build Android APK
+    permissions:
+      contents: read
+      actions: write
+      issues: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4.2.2
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2.0.2
+        with:
+          # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689  
+          bun-version: '1.2.13'
+
+      - name: ☕ Setup JDK
+        uses: actions/setup-java@v4.7.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 📦 Install dependencies
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+      
+      - name: 💾 Cache Android dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            android/.gradle
+            android/gradle/wrapper
+          key: ${{ runner.os }}-android-deps-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-android-deps-
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild
+
+      - name: 🚀 Build APK via Bun
+        run: bun run build:android:local
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: streamyfin-apk-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+          retention-days: 7
+
+      # This need to be studied since i didn't make it work
+      - name: 💬 Notify PR
+        uses: actions/github-script@v7.0.1
+        continue-on-error: true
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+
+            const downloadLinks = artifacts.data.artifacts.map(art => 
+              `[${art.name}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${art.id})`
+            ).join('\n');
+
+            const prNumber = context.payload.pull_request?.number;
+
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📲 **Android Build Available**\n\nDownload: ${downloadLinks}`
+            });
