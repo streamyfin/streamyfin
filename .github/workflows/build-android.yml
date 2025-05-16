@@ -44,12 +44,15 @@ jobs:
           bun install --frozen-lockfile
           bun run submodule-reload
       
-      - name: 💾 Cache Android prebuild
+      - name: 💾 Cache Android dependencies
         uses: actions/cache@v4
         with:
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           path: |
-            ./android/
+            android/.gradle
+            android/gradle/wrapper
+          key: ${{ runner.os }}-android-deps-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-android-deps-
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
