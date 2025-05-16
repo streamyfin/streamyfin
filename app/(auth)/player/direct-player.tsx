@@ -17,6 +17,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 import generateDeviceProfile from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import {
@@ -58,7 +59,9 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
-  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
+  const [ignoreSafeAreas, _setIgnoreSafeAreas] = useState(() => {
+    return storage.getBoolean("playerIgnoreSafeAreas") || false;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -414,6 +417,17 @@ export default function page() {
     setIsMounted(true);
     return () => setIsMounted(false);
   }, []);
+
+  const setIgnoreSafeAreas = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      _setIgnoreSafeAreas((prev) => {
+        const newValue = typeof value === "function" ? value(prev) : value;
+        storage.set("playerIgnoreSafeAreas", newValue);
+        return newValue;
+      });
+    },
+    [],
+  );
 
   if (itemStatus.isLoading || streamStatus.isLoading) {
     return (
