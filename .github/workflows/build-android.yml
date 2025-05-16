@@ -66,6 +66,7 @@ jobs:
             android/app/build/outputs/bundle/release/*.aab
           retention-days: 7
 
+      # This need to be studied since i didn't make it work
       - name: 💬 Notify PR
         uses: actions/github-script@v7.0.1
         continue-on-error: true
