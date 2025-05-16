@@ -7,9 +7,9 @@ concurrency:
 on:
   workflow_dispatch:
   pull_request:
-    branches: [develop]
+    branches: [develop, master]
   push:
-    branches: [develop]
+    branches: [develop, master]
 
 jobs:
   build:
