@@ -79,7 +79,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
     >
       <Animated.View style={animatedStyle} />
       <View className='px-3 py-3'>
-        <Text className='text-center font-bold'>
+        <Text numberOfLines={1} className='text-center font-bold'>
           {t("player.next_episode")}
         </Text>
       </View>

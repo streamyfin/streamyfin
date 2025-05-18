@@ -114,6 +114,11 @@ export type HomeSectionNextUpResolver = {
   enableRewatching?: boolean;
 };
 
+export interface MaxAutoPlayEpisodeCount {
+  key: string;
+  value: number;
+}
+
 export type HomeSectionLatestResolver = {
   parentId?: string;
   limit?: number;
@@ -163,6 +168,8 @@ export type Settings = {
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
   defaultPlayer: VideoPlayer;
+  maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
+  autoPlayEpisodeCount: number;
 };
 
 export interface Lockable<T> {
@@ -217,7 +224,9 @@ const defaultValues: Settings = {
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  defaultPlayer: VideoPlayer.VLC_3, // ios only setting. does not matter what this is for android
+  defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
+  maxAutoPlayEpisodeCount: { key: "3", value: 3 },
+  autoPlayEpisodeCount: 0,
 };
 
 const loadSettings = (): Partial<Settings> => {
@@ -236,11 +245,11 @@ const loadSettings = (): Partial<Settings> => {
 const EXCLUDE_FROM_SAVE = ["home"];
 
 const saveSettings = (settings: Settings) => {
-  Object.keys(settings).forEach((key) => {
+  for (const key of Object.keys(settings)) {
     if (EXCLUDE_FROM_SAVE.includes(key)) {
       delete settings[key as keyof Settings];
     }
-  });
+  }
   const jsonValue = JSON.stringify(settings);
   storage.set("settings", jsonValue);
 };
@@ -271,7 +280,9 @@ export const useSettings = () => {
   );
 
   const refreshStreamyfinPluginSettings = useCallback(async () => {
-    if (!api) return;
+    if (!api) {
+      return;
+    }
     const settings = await api.getStreamyfinPluginConfig().then(
       ({ data }) => {
         writeInfoLog("Got plugin settings", data?.settings);
@@ -284,7 +295,9 @@ export const useSettings = () => {
   }, [api]);
 
   const updateSettings = (update: Partial<Settings>) => {
-    if (!_settings) return;
+    if (!_settings) {
+      return;
+    }
     const hasChanges = Object.entries(update).some(
       ([key, value]) => _settings[key as keyof Settings] !== value,
     );
@@ -305,34 +318,31 @@ export const useSettings = () => {
   // If admin sets locked to false but provides a value,
   // use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
-    let unlockedPluginDefaults = {} as Settings;
-    const overrideSettings = Object.entries(pluginSettings || {}).reduce(
-      (acc, [key, setting]) => {
-        if (setting) {
-          const { value, locked } = setting;
+    const unlockedPluginDefaults = {} as Settings;
+    const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
+      Partial<Settings>
+    >((acc, [key, setting]) => {
+      if (setting) {
+        const { value, locked } = setting;
+        const settingsKey = key as keyof Settings;
 
-          // Make sure we override default settings with plugin settings when they are not locked.
-          //  Admin decided what users defaults should be and grants them the ability to change them too.
-          if (
-            locked === false &&
-            value &&
-            _settings?.[key as keyof Settings] !== value
-          ) {
-            unlockedPluginDefaults = Object.assign(unlockedPluginDefaults, {
-              [key as keyof Settings]: value,
-            });
-          }
-
-          acc = Object.assign(acc, {
-            [key]: locked
-              ? value
-              : (_settings?.[key as keyof Settings] ?? value),
+        // Make sure we override default settings with plugin settings when they are not locked.
+        if (
+          !locked &&
+          value !== undefined &&
+          _settings?.[settingsKey] !== value
+        ) {
+          Object.assign(unlockedPluginDefaults, {
+            [settingsKey]: value,
           });
         }
-        return acc;
-      },
-      {} as Settings,
-    );
+
+        Object.assign(acc, {
+          [settingsKey]: locked ? value : (_settings?.[settingsKey] ?? value),
+        });
+      }
+      return acc;
+    }, {});
 
     return {
       ...defaultValues,
