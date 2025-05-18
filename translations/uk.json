@@ -18,7 +18,7 @@
     "invalid_username_or_password": "Неправильні імʼя користувача або пароль",
     "user_does_not_have_permission_to_log_in": "Користувач не маю дозволу на вхід",
     "server_is_taking_too_long_to_respond_try_again_later": "Сервер відповідає занадто довго, будь-ласка спробуйте пізніше",
-    "server_received_too_many_requests_try_again_later": "Server received too many requests, try again later.",
+    "server_received_too_many_requests_try_again_later": "Сервер отримав забагато запитів, будь ласка спробуйте пізніше.",
     "there_is_a_server_error": "Відбулася помилка на стороні сервера",
     "an_unexpected_error_occured_did_you_enter_the_correct_url": "Відбулася несподівана помилка. Чи введений URL сервера правильний?"
   },
@@ -41,7 +41,7 @@
     "error_message": "Щось пішло не так.\nБудь ласка вийдіть і увійдіть знов.",
     "continue_watching": "Продовжити перегляд",
     "next_up": "Далі",
-    "recently_added_in": "Нещодавно додане до медіатеки {{libraryName}}",
+    "recently_added_in": "Нещодавно додане до \"{{libraryName}}\"",
     "suggested_movies": "Рекомендовані Фільми",
     "suggested_episodes": "Рекомендовані Епізоди",
     "intro": {
@@ -52,7 +52,7 @@
       "jellyseerr_feature_description": "Підключіться до вашого екземпляру Jellyseerr і запитуватуйте фільми безпосередньо в застосунку.",
       "downloads_feature_title": "Завантаження",
       "downloads_feature_description": "Завантажуйте фільми і серіали для перегляду офлайн. Використовуйте або метод за замовчуванням або встановіть оптимізований сервер для завантаження файлів у фоні.",
-      "chromecast_feature_description": "Транслюйте фільми і серіали но ваші Chromecast прилади.",
+      "chromecast_feature_description": "Транслюйте фільми і серіали на ваші Chromecast прилади.",
       "centralised_settings_plugin_title": "Centralised Settings Plugin",
       "centralised_settings_plugin_description": "Налаштуйте параметри з централізованої локації на вашому сервері Jellyfin. Всі налаштування клієнтів для всіх користувачів будуть синхронізовані автоматично.",
       "done_button": "Готово",
@@ -80,14 +80,14 @@
         "authorize": "Авторизувати"
       },
       "media_controls": {
-        "media_controls_title": "Керування Медія",
-        "forward_skip_length": "Тривалість перемотування вперед",
+        "media_controls_title": "Керування Медіа",
+        "forward_skip_length": "Довжина перемотування вперед",
         "rewind_length": "Довжина перемотування назад",
         "seconds_unit": "с"
       },
       "audio": {
         "audio_title": "Аудіо",
-        "set_audio_track": "Виставити аудіо доріжку як в попередньому епізоду",
+        "set_audio_track": "Аудіо доріжка як в попередньому епізоді",
         "audio_language": "Мова аудіо",
         "audio_hint": "Вибрати мову аудіо за замовчуванням.",
         "none": "Ніяка",
@@ -134,7 +134,7 @@
           "VLC_3": "VLC 3",
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
-        "show_custom_menu_links": "Показати посилання на користувацьке меню",
+        "show_custom_menu_links": "Показати користувацькі посилання меню",
         "hide_libraries": "Сховати медіатеки",
         "select_liraries_you_want_to_hide": "Виберіть медіатеки, що бажаєте приховати з вкладки Медіатека і з секції на головній сторінці.",
         "disable_haptic_feedback": "Вимкнути тактильний зворотний зв'язок",
@@ -146,7 +146,7 @@
         "download_method": "Метод завантаження",
         "remux_max_download": "Remux max download",
         "auto_download": "Авто-завантаження",
-        "optimized_versions_server": "Optimized versions server",
+        "optimized_versions_server": "Сервер оптимізованих версій",
         "save_button": "Зберегти",
         "optimized_server": "Оптимізований Сервер",
         "optimized": "Оптимізований",
@@ -353,7 +353,9 @@
     "episodes": "Епізоди",
     "videos": "Відео",
     "boxsets": "Бокс-сети",
-    "playlists": "Плейлісти"
+    "playlists": "Плейлісти",
+    "noDataTitle": "Поки що нема обраного",
+    "noData": "Відмітьте як улюблене що би побачити це тут в швидкому доступі."
   },
   "custom_links": {
     "no_links": "Немає посилань"
@@ -361,7 +363,7 @@
   "player": {
     "error": "Помилка",
     "failed_to_get_stream_url": "Не вдалося отримати URL-адресу потоку",
-    "an_error_occured_while_playing_the_video": "Під час відтворення відео сталася помилка. Перевірте журнали в налаштуваннях.",
+    "an_error_occured_while_playing_the_video": "Під час відтворення відео сталася помилка. Перевірте журнал в налаштуваннях.",
     "client_error": "Помилка клієнту",
     "could_not_create_stream_for_chromecast": "Не вдалося створити потік для Chromecast",
     "message_from_server": "Повідомлення від серверу: {{message}}",
@@ -462,12 +464,12 @@
     "born": "Дата народження",
     "appearances": "Зовнішній вигляд",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Сервер Jellyseerr не відповідає мінімальним вимогам до версії! Будь ласка, оновіть версію принаймні до 2.0.0",
+      "jellyseer_does_not_meet_requirements": "Версія Jellyseerr не відповідає мінімальним вимогам! Будь ласка, оновіться принаймні до 2.0.0",
       "jellyseerr_test_failed": "Тест Jellyseerr завершився невдало. Спробуйте ще раз.",
       "failed_to_test_jellyseerr_server_url": "Не вдалося перевірити URL-адресу сервера jellyseerr",
       "issue_submitted": "Звіт про проблему відправлено",
       "requested_item": "Запитано {{item}}!",
-      "you_dont_have_permission_to_request": "У вас нема дозволу на запит медіа!",
+      "you_dont_have_permission_to_request": "Ви не маєте дозволу на запит медіа!",
       "something_went_wrong_requesting_media": "Щось пішло не так під час запиту медіа!"
     }
   },
