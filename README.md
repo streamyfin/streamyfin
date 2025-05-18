@@ -120,7 +120,7 @@ If you have questions or need support, feel free to reach out:
 
 ## FAQ
 
-1. Q: Why can't I see my libraries in streamyfin?   
+1. Q: Why can't I see my libraries in Streamyfin?   
    A: Make sure your server is running one of the latest versions and that you have at least one library that isn't audio only.
 2. Q: Why can't I see my music library?   
    A: We don't currently support music and are unlikely to support music in the near future.
