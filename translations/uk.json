@@ -137,8 +137,9 @@
         "show_custom_menu_links": "Показати користувацькі посилання меню",
         "hide_libraries": "Сховати медіатеки",
         "select_liraries_you_want_to_hide": "Виберіть медіатеки, що бажаєте приховати з вкладки Медіатека і з секції на головній сторінці.",
-        "disable_haptic_feedback": "Вимкнути тактильний відгук",
-        "default_quality": "Якість за замовченням"
+        "disable_haptic_feedback": "Вимкнути тактильний зворотний зв'язок",
+        "default_quality": "Якість за замовченням",
+        "disabled": "Вимкнено"
       },
       "downloads": {
         "downloads_title": "Завантаження",
@@ -374,7 +375,9 @@
     "audio_tracks": "Аудіо-доріжки:",
     "playback_state": "Стан відтворення:",
     "no_data_available": "Дані відсутні",
-    "index": "Індекс:"
+    "index": "Індекс:",
+    "continue_watching": "Продовжити перегляд",
+    "go_back": "Назад"
   },
   "item_card": {
     "next_up": "Далі",
