@@ -138,7 +138,8 @@
         "hide_libraries": "Nascondi Librerie",
         "select_liraries_you_want_to_hide": "Selezionate le librerie che volete nascondere dalla scheda Libreria e dalle sezioni della pagina iniziale.",
         "disable_haptic_feedback": "Disabilita il feedback aptico",
-        "default_quality": "Qualità predefinita"
+        "default_quality": "Qualità predefinita",
+        "disabled": "Disabilitato"
       },
       "downloads": {
         "downloads_title": "Scaricamento",
@@ -370,7 +371,9 @@
     "audio_tracks": "Tracce audio:",
     "playback_state": "Stato della riproduzione:",
     "no_data_available": "Nessun dato disponibile",
-    "index": "Indice:"
+    "index": "Indice:",
+    "continue_watching": "Continua a guardare",
+    "go_back": "Indietro"
   },
   "item_card": {
     "next_up": "Il prossimo",
