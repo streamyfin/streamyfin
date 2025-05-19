@@ -422,7 +422,9 @@ export default function page() {
     (value: boolean | ((prev: boolean) => boolean)) => {
       _setIgnoreSafeAreas((prev) => {
         const newValue = typeof value === "function" ? value(prev) : value;
-        storage.set("playerIgnoreSafeAreas", newValue);
+        if (newValue !== prev) {
+          storage.set("playerIgnoreSafeAreas", newValue);
+        }
         return newValue;
       });
     },
