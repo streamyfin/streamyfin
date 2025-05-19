@@ -17,7 +17,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
-import native from "@/utils/profiles/native";
+import generateDeviceProfile from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import {
   type BaseItemDto,
@@ -159,6 +159,7 @@ export default function page() {
 
   useEffect(() => {
     const fetchStreamData = async () => {
+      const native = await generateDeviceProfile();
       try {
         let result: Stream | null = null;
         if (offline && !Platform.isTV) {

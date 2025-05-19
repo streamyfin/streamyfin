@@ -1,7 +1,7 @@
 import type { Bitrate } from "@/components/BitrateSelector";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import native from "@/utils/profiles/native";
+import generateDeviceProfile from "@/utils/profiles/native";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -84,6 +84,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
+        const native = await generateDeviceProfile();
         const data = await getStreamUrl({
           api,
           deviceProfile: native,

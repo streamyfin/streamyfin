@@ -138,7 +138,8 @@
         "hide_libraries": "Verberg Bibliotheken",
         "select_liraries_you_want_to_hide": "Selecteer de bibliotheken die je wil verbergen van de Bibliotheektab en hoofdpagina onderdelen.",
         "disable_haptic_feedback": "Haptische feedback uitschakelen",
-        "default_quality": "Standaard kwaliteit"
+        "default_quality": "Standaard kwaliteit",
+        "disabled": "Uitgeschakeld"
       },
       "downloads": {
         "downloads_title": "Downloads",
@@ -370,7 +371,9 @@
     "audio_tracks": "Audio Tracks:",
     "playback_state": "Afspeelstatus:",
     "no_data_available": "Geen data beschikbaar",
-    "index": "Index:"
+    "index": "Index:",
+    "continue_watching": "Verder kijken",
+    "go_back": "Terug"
   },
   "item_card": {
     "next_up": "Volgende",

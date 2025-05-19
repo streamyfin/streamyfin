@@ -1,7 +1,5 @@
 import { getOrSetDeviceId } from "@/providers/JellyfinProvider";
 import type { Settings } from "@/utils/atoms/settings";
-import ios from "@/utils/profiles/ios";
-import native from "@/utils/profiles/native";
 import old from "@/utils/profiles/old";
 import type { Api } from "@jellyfin/sdk";
 import { DeviceProfile } from "@jellyfin/sdk/lib/generated-client";
