@@ -1,0 +1,24 @@
+name: 🏷️🔀Merge Conflict Labeler
+
+on:
+  push:
+    branches: [develop]
+  pull_request_target:
+    branches: [develop]
+    types: [synchronize]
+
+jobs:
+  label:
+    name: 🏷️ Labeling Merge Conflicts
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository == 'streamyfin/streamyfin' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: 🚩 Apply merge conflict label
+        uses: eps1lon/actions-label-merge-conflict@v3.0.3
+        with:
+          dirtyLabel: 'merge conflict'
+          commentOnDirty: 'This pull request has merge conflicts. Please resolve the conflicts so the PR can be successfully reviewed and merged.'
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
