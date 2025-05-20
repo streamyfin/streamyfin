@@ -1,0 +1,47 @@
+name: 🔒 Lockfile Consistency Check
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-lockfile:
+    name: 🔍 Check bun.lock and package.json consistency
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2.0.2
+        # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689  
+        with:
+          bun-version: '1.2.13'
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@v4.2.3
+        with:
+          path: |
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+
+      - name: 🛡️ Verify lockfile consistency
+        run: |
+          set -euxo pipefail
+          echo "➡️ Checking for discrepancies between bun.lock and package.json..."
+          bun install --frozen-lockfile --dry-run --ignore-scripts
+          echo "✅ Lockfile is consistent with package.json!"
