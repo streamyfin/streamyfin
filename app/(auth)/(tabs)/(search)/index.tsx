@@ -331,7 +331,7 @@ export default function search() {
             <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
               <SearchItemWrapper
                 header={t("search.movies")}
-                ids={movies?.map((m) => m.Id!)}
+                items={movies}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
                     key={item.Id}
@@ -349,7 +349,7 @@ export default function search() {
                 )}
               />
               <SearchItemWrapper
-                ids={series?.map((m) => m.Id!)}
+                items={series}
                 header={t("search.series")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
@@ -368,7 +368,7 @@ export default function search() {
                 )}
               />
               <SearchItemWrapper
-                ids={episodes?.map((m) => m.Id!)}
+                items={episodes}
                 header={t("search.episodes")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
@@ -382,7 +382,7 @@ export default function search() {
                 )}
               />
               <SearchItemWrapper
-                ids={collections?.map((m) => m.Id!)}
+                items={collections}
                 header={t("search.collections")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
@@ -398,7 +398,7 @@ export default function search() {
                 )}
               />
               <SearchItemWrapper
-                ids={actors?.map((m) => m.Id!)}
+                items={actors}
                 header={t("search.actors")}
                 renderItem={(item: BaseItemDto) => (
                   <TouchableItemRouter
