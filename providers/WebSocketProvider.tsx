@@ -113,7 +113,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, [api, deviceId]);
 
   useEffect(() => {
-    if (!lastMessage) return;
+    if (!lastMessage) {
 
     if (lastMessage.MessageType === "Play") {
       handlePlayCommand(lastMessage.Data);
