@@ -134,7 +134,7 @@
           "VLC_3": "VLC 3",
           "VLC_4": "VLC 4 (Eksperimentell + PiP)"
         },
-        "show_custom_menu_links": "Vis Tiplassede Meny Linker",
+        "show_custom_menu_links": "Vis Tilpassede Meny Linker",
         "hide_libraries": "Skjul biblioteker",
         "select_liraries_you_want_to_hide": "Velg bibliotekene du vil skjule fra Bibliotek-fanen og hjemmesidedelene.",
         "disable_haptic_feedback": "Deaktiver haptisk tilbakemelding",
