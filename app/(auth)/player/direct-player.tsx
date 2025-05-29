@@ -401,19 +401,19 @@ export default function page() {
     `--sub-text-scale=${settings.subtitleSize}`,
     `--start=${startPosition}`,
   ];
-  if (
-    chosenSubtitleTrack &&
-    (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
-  ) {
-    const finalIndex = notTranscoding
-      ? allSubs.indexOf(chosenSubtitleTrack)
-      : textSubs.indexOf(chosenSubtitleTrack);
-    initOptions.push(`--sub-track=${finalIndex}`);
-  }
+  // if (
+  //   chosenSubtitleTrack &&
+  //   (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
+  // ) {
+  //   const finalIndex = notTranscoding
+  //     ? allSubs.indexOf(chosenSubtitleTrack)
+  //     : textSubs.indexOf(chosenSubtitleTrack);
+  //   initOptions.push(`--sub-track=${finalIndex}`);
+  // }
 
-  if (notTranscoding && chosenAudioTrack) {
-    initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
-  }
+  // if (notTranscoding && chosenAudioTrack) {
+  //   initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
+  // }
 
   const [isMounted, setIsMounted] = useState(false);
 

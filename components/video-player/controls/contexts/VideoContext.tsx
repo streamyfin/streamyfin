@@ -126,6 +126,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       if (getSubtitleTracks) {
         const subtitleData = await getSubtitleTracks();
 
+        console.log("subtitleData", subtitleData);
+
         // Step 1: Move external subs to the end, because VLC puts external subs at the end
         const sortedSubs = allSubs.sort(
           (a, b) => Number(a.IsExternal) - Number(b.IsExternal),
@@ -170,6 +172,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         });
         setSubtitleTracks(subtitles);
       }
+
       if (getAudioTracks) {
         const audioData = await getAudioTracks();
 

@@ -1,48 +1,9 @@
 import ExpoModulesCore
+import Foundation
+import GLKit
 import Libmpv
 import SwiftUI
 import UIKit
-
-// MARK: - Metal Layer
-class MetalLayer: CAMetalLayer {
-    // Workaround for MoltenVK issue that sets drawableSize to 1x1
-    override var drawableSize: CGSize {
-        get { return super.drawableSize }
-        set {
-            if Int(newValue.width) > 1 && Int(newValue.height) > 1 {
-                super.drawableSize = newValue
-            }
-        }
-    }
-
-    // Handle extended dynamic range content on iOS 16+
-    @available(iOS 16.0, *)
-    override var wantsExtendedDynamicRangeContent: Bool {
-        get { return super.wantsExtendedDynamicRangeContent }
-        set {
-            if Thread.isMainThread {
-                super.wantsExtendedDynamicRangeContent = newValue
-            } else {
-                DispatchQueue.main.sync {
-                    super.wantsExtendedDynamicRangeContent = newValue
-                }
-            }
-        }
-    }
-
-    // Helper to set HDR content safely
-    func setHDRContent(_ enabled: Bool) {
-        if #available(iOS 16.0, *) {
-            if Thread.isMainThread {
-                self.wantsExtendedDynamicRangeContent = enabled
-            } else {
-                DispatchQueue.main.sync {
-                    self.wantsExtendedDynamicRangeContent = enabled
-                }
-            }
-        }
-    }
-}
 
 // MARK: - MPV Properties
 enum MpvProperty {
@@ -62,7 +23,7 @@ protocol MpvPlayerDelegate: AnyObject {
 class MpvPlayerView: ExpoView {
     // MARK: - Properties
 
-    private var playerController: MpvMetalViewController?
+    private var playerController: MpvGLViewController?
     private var source: [String: Any]?
     private var externalSubtitles: [[String: String]]?
 
@@ -88,26 +49,42 @@ class MpvPlayerView: ExpoView {
     private func setupView() {
         backgroundColor = .black
 
-        print("Setting up direct MPV view")
+        print("Setting up MPV GL view")
 
-        // Create player controller
-        let controller = MpvMetalViewController()
+        // Create player controller - IMPORTANT: Use init(nibName:bundle:) to ensure proper GLKView setup
+        let controller = MpvGLViewController(nibName: nil, bundle: nil)
+
+        // Force view loading immediately
+        _ = controller.view
 
         // Configure player delegate
-        controller.delegate = self
+        controller.mpvDelegate = self
         playerController = controller
 
-        // Add the controller's view to our view hierarchy
-        controller.view.translatesAutoresizingMaskIntoConstraints = false
-        controller.view.backgroundColor = .clear
+        // Make sure controller view is properly set up as GLKView
+        controller.view.backgroundColor = .black
 
+        // Set explicit frame to ensure it's visible
+        controller.view.frame = bounds
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+
+        // Add to hierarchy
         addSubview(controller.view)
+
+        // Use constraints to ensure proper sizing
         NSLayoutConstraint.activate([
             controller.view.leadingAnchor.constraint(equalTo: leadingAnchor),
             controller.view.trailingAnchor.constraint(equalTo: trailingAnchor),
             controller.view.topAnchor.constraint(equalTo: topAnchor),
             controller.view.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+    }
+
+    // Override layoutSubviews to make sure the player view is properly sized
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        playerController?.view.frame = bounds
     }
 
     // MARK: - Public Methods
@@ -128,7 +105,7 @@ class MpvPlayerView: ExpoView {
 
                 // Set start position if available
                 if let startPosition = source["startPosition"] as? Double {
-                    self.playerController?.setStartPosition(startPosition)
+                    self.playerController?.startPosition = startPosition
                 }
 
                 self.playerController?.loadFile(url)
@@ -346,7 +323,7 @@ class MpvPlayerView: ExpoView {
         stop()
 
         // Break reference cycles
-        playerController?.delegate = nil
+        playerController?.mpvDelegate = nil
 
         // Remove from view hierarchy
         playerController?.view.removeFromSuperview()
@@ -446,236 +423,196 @@ extension MpvPlayerView: MpvPlayerDelegate {
 }
 
 // MARK: - Player Controller
-final class MpvMetalViewController: UIViewController {
+final class MpvGLViewController: GLKViewController {
     // MARK: - Properties
-
-    var metalLayer = MetalLayer()
-    var mpv: OpaquePointer?
-    weak var delegate: MpvPlayerDelegate?
-    let mpvQueue = DispatchQueue(label: "mpv.queue", qos: .userInitiated)
-
-    private var isBeingDeallocated = false
-
-    // Use a static dictionary to store controller references instead of WeakContainer
-    private static var controllers = [UInt: MpvMetalViewController]()
-    private var controllerId: UInt = 0
+    var mpv: OpaquePointer!
+    var mpvGL: OpaquePointer!
+    weak var mpvDelegate: MpvPlayerDelegate?
+    var queue: DispatchQueue = DispatchQueue(label: "mpv", qos: .userInteractive)
+    private var defaultFBO: GLint = -1
 
     var playUrl: URL?
-
-    var hdrAvailable: Bool {
-        if #available(iOS 16.0, *) {
-            let maxEDRRange = view.window?.screen.potentialEDRHeadroom ?? 1.0
-            let sigPeak = getDouble(MpvProperty.videoParamsSigPeak)
-            return maxEDRRange > 1.0 && sigPeak > 1.0
-        } else {
-            return false
-        }
-    }
-
-    var hdrEnabled = false {
-        didSet {
-            guard let mpv = mpv else { return }
-
-            if hdrEnabled {
-                mpv_set_option_string(mpv, "target-colorspace-hint", "yes")
-                metalLayer.setHDRContent(true)
-            } else {
-                mpv_set_option_string(mpv, "target-colorspace-hint", "no")
-                metalLayer.setHDRContent(false)
-            }
-        }
-    }
-
-    // Add a new property to track shutdown state
-    private var isShuttingDown = false
-    private let syncQueue = DispatchQueue(label: "com.mpv.sync", qos: .userInitiated)
-
-    private var startPosition: Double?
+    var startPosition: Double?
 
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        setupMetalLayer()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-            self?.setupMPV()
+        setupContext()
+        setupMpv()
 
-            if let url = self?.playUrl {
-                self?.loadFile(url)
-            }
+        if let url = playUrl {
+            self.loadFile(url)
         }
-
     }
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        metalLayer.frame = view.bounds
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        print("GLKViewController viewWillAppear")
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("GLKViewController viewDidAppear")
     }
 
     deinit {
-        // Flag that we're being deinitialized
-        isBeingDeallocated = true
-
-        // Clean up on main thread to avoid threading issues
-        if Thread.isMainThread {
-            safeCleanup()
-        } else {
-            DispatchQueue.main.sync {
-                self.safeCleanup()
-            }
-        }
-    }
-
-    private func safeCleanup() {
-        // Remove from controllers dictionary first
-        if controllerId != 0 {
-            MpvMetalViewController.controllers.removeValue(forKey: controllerId)
+        // Clean up on deallocation
+        if mpvGL != nil {
+            mpv_render_context_free(mpvGL)
+            mpvGL = nil
         }
 
-        // Remove the wakeup callback
-        if let mpv = self.mpv {
-            mpv_set_wakeup_callback(mpv, nil, nil)
-        }
-
-        // Terminate and destroy MPV instance
-        if let mpv = self.mpv {
-            // Unobserve all properties
-            mpv_unobserve_property(mpv, 0)
-
-            // Store locally to avoid accessing after freeing
-            let mpvToDestroy = mpv
-            self.mpv = nil
-
-            // Terminate and destroy
-            mpv_terminate_destroy(mpvToDestroy)
+        if mpv != nil {
+            mpv_terminate_destroy(mpv)
+            mpv = nil
         }
     }
 
     // MARK: - Setup
 
-    private func setupMetalLayer() {
-        metalLayer.frame = view.bounds
-        metalLayer.contentsScale = UIScreen.main.nativeScale
-        metalLayer.framebufferOnly = true
-        metalLayer.backgroundColor = UIColor.black.cgColor
+    func setupContext() {
+        print("Setting up OpenGL ES context")
 
-        view.layer.addSublayer(metalLayer)
-    }
-
-    private func setupMPV() {
-        guard let mpvHandle = mpv_create() else {
-            print("Failed to create MPV instance")
+        let context = EAGLContext(api: .openGLES3)!
+        if context == nil {
+            print("ERROR: Failed to create OpenGL ES context")
             return
         }
 
-        mpv = mpvHandle
+        let isSuccess = EAGLContext.setCurrent(context)
+        if !isSuccess {
+            print("ERROR: Failed to set current GL context")
+            return
+        }
 
-        // Configure mpv options
+        // Set the context on our GLKView
+        let glkView = self.view as! GLKView
+        glkView.context = context
+
+        print("Successfully set up OpenGL ES context")
+    }
+
+    func setupMpv() {
+        print("Setting up MPV")
+
+        mpv = mpv_create()
+        if mpv == nil {
+            print("ERROR: failed creating mpv context\n")
+            exit(1)
+        }
+
+        // https://mpv.io/manual/stable/#options
         #if DEBUG
-            // mpv_request_log_messages(mpvHandle, "debug")
+            checkError(mpv_request_log_messages(mpv, "debug"))
         #else
-            mpv_request_log_messages(mpvHandle, "no")
+            checkError(mpv_request_log_messages(mpv, "no"))
+        #endif
+        #if os(macOS)
+            checkError(mpv_set_option_string(mpv, "input-media-keys", "yes"))
         #endif
 
-        // Force a proper window setup to prevent black screens
-        mpv_set_option_string(mpvHandle, "force-window", "yes")
-        mpv_set_option_string(mpvHandle, "reset-on-next-file", "all")
+        // Set options
+        checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
+        checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
+        checkError(mpv_set_option_string(mpv, "hwdec", "auto-copy"))
+        checkError(mpv_set_option_string(mpv, "vo", "libmpv"))
+        checkError(mpv_set_option_string(mpv, "profile", "gpu-hq"))
+        checkError(mpv_set_option_string(mpv, "gpu-api", "opengl"))
 
-        // Set rendering options
+        // Add in setupMpv before initialization
+        checkError(mpv_set_option_string(mpv, "opengl-es", "yes"))
+        checkError(mpv_set_option_string(mpv, "opengl-version", "3"))
 
-        var layerPtr = Unmanaged.passUnretained(metalLayer).toOpaque()
-        mpv_set_option(mpvHandle, "wid", MPV_FORMAT_INT64, &layerPtr)
-        mpv_set_option_string(mpvHandle, "vo", "gpu-next")
-        mpv_set_option_string(mpvHandle, "gpu-api", "metal")
-        mpv_set_option_string(mpvHandle, "gpu-context", "auto")
-        mpv_set_option_string(mpvHandle, "hwdec", "videotoolbox")
-
-        // Set subtitle options
-        mpv_set_option_string(mpvHandle, "subs-match-os-language", "yes")
-        mpv_set_option_string(mpvHandle, "subs-fallback", "yes")
-        mpv_set_option_string(mpvHandle, "sub-auto", "no")
-
-        // Disable subtitle selection at start
-        mpv_set_option_string(mpvHandle, "sid", "no")
+        // Initialize MPV
+        checkError(mpv_initialize(mpv))
 
         // Set starting point if available
         if let startPos = startPosition {
             let startPosString = String(format: "%.1f", startPos)
             print("Setting initial start position to \(startPosString)")
-            mpv_set_option_string(mpvHandle, "start", startPosString)
+            checkError(mpv_set_option_string(mpv, "start", startPosString))
         }
 
-        // Set video options
-        mpv_set_option_string(mpvHandle, "video-rotate", "no")
-        mpv_set_option_string(mpvHandle, "ytdl", "no")
+        // Set up rendering
+        print("Setting up MPV GL rendering context")
+        let api = UnsafeMutableRawPointer(
+            mutating: (MPV_RENDER_API_TYPE_OPENGL as NSString).utf8String)
+        var initParams = mpv_opengl_init_params(
+            get_proc_address: {
+                (ctx, name) in
+                return MpvGLViewController.getProcAddress(ctx, name)
+            },
+            get_proc_address_ctx: nil
+        )
 
-        // Initialize mpv
-        let status = mpv_initialize(mpvHandle)
-        if status < 0 {
-            print("Failed to initialize MPV: \(String(cString: mpv_error_string(status)))")
-            mpv_terminate_destroy(mpvHandle)
-            mpv = nil
-            return
+        withUnsafeMutablePointer(to: &initParams) { initParams in
+            var params = [
+                mpv_render_param(type: MPV_RENDER_PARAM_API_TYPE, data: api),
+                mpv_render_param(type: MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, data: initParams),
+                mpv_render_param(),
+            ]
+
+            if mpv_render_context_create(&mpvGL, mpv, &params) < 0 {
+                puts("ERROR: failed to initialize mpv GL context")
+                exit(1)
+            }
+
+            print("Successfully created MPV GL render context")
+
+            mpv_render_context_set_update_callback(
+                mpvGL,
+                mpvGLUpdate,
+                UnsafeMutableRawPointer(Unmanaged.passUnretained(self.view).toOpaque())
+            )
         }
 
         // Observe properties
-        observeProperty(mpvHandle, MpvProperty.videoParamsSigPeak, MPV_FORMAT_DOUBLE)
-        observeProperty(mpvHandle, MpvProperty.pausedForCache, MPV_FORMAT_FLAG)
-        observeProperty(mpvHandle, MpvProperty.timePosition, MPV_FORMAT_DOUBLE)
-        observeProperty(mpvHandle, MpvProperty.duration, MPV_FORMAT_DOUBLE)
-        observeProperty(mpvHandle, MpvProperty.pause, MPV_FORMAT_FLAG)
+        mpv_observe_property(mpv, 0, MpvProperty.videoParamsSigPeak, MPV_FORMAT_DOUBLE)
+        mpv_observe_property(mpv, 0, MpvProperty.pausedForCache, MPV_FORMAT_FLAG)
+        mpv_observe_property(mpv, 0, MpvProperty.timePosition, MPV_FORMAT_DOUBLE)
+        mpv_observe_property(mpv, 0, MpvProperty.duration, MPV_FORMAT_DOUBLE)
+        mpv_observe_property(mpv, 0, MpvProperty.pause, MPV_FORMAT_FLAG)
 
-        // Store controller in static dictionary and set its unique ID
-        controllerId = UInt(bitPattern: ObjectIdentifier(self))
-        MpvMetalViewController.controllers[controllerId] = self
-
-        // Set wakeup callback using the static method
+        // Set wakeup callback
         mpv_set_wakeup_callback(
-            mpvHandle, MpvMetalViewController.mpvWakeupCallback,
-            UnsafeMutableRawPointer(bitPattern: controllerId))
+            self.mpv,
+            { (ctx) in
+                let client = unsafeBitCast(ctx, to: MpvGLViewController.self)
+                client.readEvents()
+            }, UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()))
 
-        print("MPV initialized")
-    }
+        print("MPV setup complete")
 
-    // Static callback function - no WeakContainer needed
-    private static let mpvWakeupCallback: (@convention(c) (UnsafeMutableRawPointer?) -> Void) = {
-        (ctx) in
-        guard let ctx = ctx else { return }
+        // Configure GLKView properly for better performance
+        let glkView = self.view as! GLKView
+        glkView.enableSetNeedsDisplay = false  // Allow continuous rendering
+        glkView.drawableMultisample = .multisample4X  // Might help or hurt - test both
+        glkView.drawableColorFormat = .RGBA8888
 
-        // Get the controllerId from the context pointer
-        let controllerId = UInt(bitPattern: ctx)
-
-        // Dispatch to main queue to handle UI updates safely
-        DispatchQueue.main.async {
-            // Get the controller safely from the dictionary
-            if let controller = MpvMetalViewController.controllers[controllerId] {
-                // Only process events if not being deallocated
-                if !controller.isBeingDeallocated {
-                    controller.processEvents()
-                }
-            }
-        }
-    }
-
-    // Helper method for safer property observation
-    private func observeProperty(_ handle: OpaquePointer, _ name: String, _ format: mpv_format) {
-        let status = mpv_observe_property(handle, 0, name, format)
-        if status < 0 {
-            print(
-                "Failed to observe property \(name): \(String(cString: mpv_error_string(status)))")
-        }
+        // Set higher preferred frame rate
+        self.preferredFramesPerSecond = 60  // Or even higher on newer devices
     }
 
     // MARK: - MPV Methods
 
     func loadFile(_ url: URL) {
-        guard let mpv = mpv else { return }
-
         print("Loading file: \(url.absoluteString)")
 
-        // Use string array extension for safer command execution
-        command("loadfile", args: [url.absoluteString, "replace"])
+        var args = [url.absoluteString]
+        args.append("replace")
+
+        print("MPV Command: loadfile with args \(args)")
+        command("loadfile", args: args.map { $0 as String? })
+
+        // Set video settings for visibility
+        command("set", args: ["video-unscaled", "no"])
+        command("set", args: ["panscan", "1.0"])  // Ensure video fills screen
+    }
+
+    func togglePause() {
+        getFlag(MpvProperty.pause) ? play() : pause()
     }
 
     func play() {
@@ -683,39 +620,17 @@ final class MpvMetalViewController: UIViewController {
     }
 
     func pause() {
-        print("Pausing")
         setFlag(MpvProperty.pause, true)
     }
 
     func getDouble(_ name: String) -> Double {
-        guard let mpv = mpv else { return 0.0 }
-
         var data = 0.0
-        let status = mpv_get_property(mpv, name, MPV_FORMAT_DOUBLE, &data)
-        if status < 0 {
-            print(
-                "Failed to get double property \(name): \(String(cString: mpv_error_string(status)))"
-            )
-        }
+        mpv_get_property(mpv, name, MPV_FORMAT_DOUBLE, &data)
         return data
     }
 
     func getNode(_ name: String) -> String? {
-        guard let mpv = mpv else { return nil }
-
         guard let cString = mpv_get_property_string(mpv, name) else { return nil }
-        // Use defer to ensure memory is freed even if an exception occurs
-        defer {
-            mpv_free(UnsafeMutableRawPointer(mutating: cString))
-        }
-        return String(cString: cString)
-    }
-
-    func getString(_ name: String) -> String? {
-        guard let mpv = mpv else { return nil }
-
-        guard let cString = mpv_get_property_string(mpv, name) else { return nil }
-        // Use defer to ensure memory is freed even if an exception occurs
         defer {
             mpv_free(UnsafeMutableRawPointer(mutating: cString))
         }
@@ -723,170 +638,194 @@ final class MpvMetalViewController: UIViewController {
     }
 
     func getFlag(_ name: String) -> Bool {
-        guard let mpv = mpv else { return false }
-
-        var data: Int32 = 0
-        let status = mpv_get_property(mpv, name, MPV_FORMAT_FLAG, &data)
-        if status < 0 {
-            print(
-                "Failed to get flag property \(name): \(String(cString: mpv_error_string(status)))")
-        }
+        var data = Int64()
+        mpv_get_property(mpv, name, MPV_FORMAT_FLAG, &data)
         return data > 0
     }
 
-    func setFlag(_ name: String, _ value: Bool) {
-        guard let mpv = mpv else { return }
-
-        var data: Int32 = value ? 1 : 0
-        print("Setting flag \(name) to \(value)")
-        let status = mpv_set_property(mpv, name, MPV_FORMAT_FLAG, &data)
-        if status < 0 {
-            print(
-                "Failed to set flag property \(name): \(String(cString: mpv_error_string(status)))")
-        }
+    func setFlag(_ name: String, _ flag: Bool) {
+        guard mpv != nil else { return }
+        var data: Int = flag ? 1 : 0
+        mpv_set_property(mpv, name, MPV_FORMAT_FLAG, &data)
     }
 
     func command(
         _ command: String,
-        args: [String] = [],
-        checkErrors: Bool = true,
-        completion: ((Int32) -> Void)? = nil
+        args: [String?] = [],
+        checkForErrors: Bool = true,
+        returnValueCallback: ((Int32) -> Void)? = nil
     ) {
-        guard let mpv = mpv else {
-            completion?(-1)
+        guard mpv != nil else {
             return
         }
+        var cargs = makeCArgs(command, args).map { $0.flatMap { UnsafePointer<CChar>(strdup($0)) } }
+        defer {
+            for ptr in cargs where ptr != nil {
+                free(UnsafeMutablePointer(mutating: ptr!))
+            }
+        }
+        let returnValue = mpv_command(mpv, &cargs)
+        if checkForErrors {
+            checkError(returnValue)
+        }
+        if let cb = returnValueCallback {
+            cb(returnValue)
+        }
+    }
 
-        // Approach 1: Create array of C strings directly from Swift strings
-        let allArgs = [command] + args
-
-        // Allocate array of C string pointers of the correct type
-        let cArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
-            capacity: allArgs.count + 1)
-
-        // Convert Swift strings to C strings and store in the array
-        for i in 0..<allArgs.count {
-            cArray[i] = (allArgs[i] as NSString).utf8String
+    private func makeCArgs(_ command: String, _ args: [String?]) -> [String?] {
+        if !args.isEmpty, args.last == nil {
+            fatalError("Command do not need a nil suffix")
         }
 
-        // Set final element to nil
-        cArray[allArgs.count] = nil
+        var strArgs = args
+        strArgs.insert(command, at: 0)
+        strArgs.append(nil)
 
-        // Execute the command
-        let status = mpv_command(mpv, cArray)
-
-        // Clean up
-        cArray.deallocate()
-
-        if checkErrors && status < 0 {
-            print("MPV command error: \(String(cString: mpv_error_string(status)))")
-        }
-
-        completion?(status)
+        return strArgs
     }
 
     // MARK: - Event Processing
 
-    private func processEvents() {
-        // Exit if we're being deallocated
-        if isBeingDeallocated {
-            return
-        }
-
-        guard let mpv = mpv else { return }
-
-        // Process a limited number of events to avoid infinite loops
-        let maxEvents = 10
-        var eventCount = 0
-
-        while !isBeingDeallocated && eventCount < maxEvents {
-            guard let event = mpv_wait_event(mpv, 0) else { break }
-            if event.pointee.event_id == MPV_EVENT_NONE { break }
-
-            handleEvent(event)
-            eventCount += 1
-        }
-    }
-
-    private func handleEvent(_ event: UnsafePointer<mpv_event>) {
-        // Exit early if we're being deallocated
-        if isBeingDeallocated {
-            return
-        }
-
-        guard let mpv = mpv else { return }
-
-        switch event.pointee.event_id {
-        case MPV_EVENT_PROPERTY_CHANGE:
-            guard let propertyData = event.pointee.data else { break }
-
-            // Safely create a typed pointer to the property data
-            let propertyPtr = propertyData.bindMemory(
-                to: mpv_event_property.self, capacity: 1)
-
-            // Safely get the property name
-            guard let namePtr = propertyPtr.pointee.name else { break }
-            let propertyName = String(cString: namePtr)
-
-            var value: Any?
-
-            // Handle different property types safely
-            switch propertyName {
-            case MpvProperty.pausedForCache, MpvProperty.pause:
-                if propertyPtr.pointee.format == MPV_FORMAT_FLAG,
-                    let data = propertyPtr.pointee.data
-                {
-                    // Cast to Int32 which is MPV's flag format
-                    let flagPtr = data.bindMemory(to: Int32.self, capacity: 1)
-                    value = flagPtr.pointee != 0
+    func readEvents() {
+        queue.async { [self] in
+            while self.mpv != nil {
+                let event = mpv_wait_event(self.mpv, 0)
+                if event!.pointee.event_id == MPV_EVENT_NONE {
+                    break
                 }
+                switch event!.pointee.event_id {
+                case MPV_EVENT_PROPERTY_CHANGE:
+                    let dataOpaquePtr = OpaquePointer(event!.pointee.data)
+                    if let property = UnsafePointer<mpv_event_property>(dataOpaquePtr)?.pointee {
+                        let propertyName = String(cString: property.name)
 
-            case MpvProperty.timePosition, MpvProperty.duration:
-                if propertyPtr.pointee.format == MPV_FORMAT_DOUBLE,
-                    let data = propertyPtr.pointee.data
-                {
-                    // Cast to Double which is MPV's double format
-                    let doublePtr = data.bindMemory(to: Double.self, capacity: 1)
-                    value = doublePtr.pointee
+                        // Handle different property types
+                        var value: Any?
+
+                        switch propertyName {
+                        case MpvProperty.pausedForCache, MpvProperty.pause:
+                            if property.format == MPV_FORMAT_FLAG,
+                                let data = property.data
+                            {
+                                let boolValue =
+                                    UnsafePointer<Bool>(OpaquePointer(data))?.pointee ?? false
+                                value = boolValue
+                            }
+
+                        case MpvProperty.timePosition, MpvProperty.duration:
+                            if property.format == MPV_FORMAT_DOUBLE,
+                                let data = property.data
+                            {
+                                let doubleValue =
+                                    UnsafePointer<Double>(OpaquePointer(data))?.pointee ?? 0.0
+                                value = doubleValue
+                            }
+
+                        default:
+                            break
+                        }
+
+                        // Notify delegate if we have a value
+                        if let value = value {
+                            DispatchQueue.main.async { [weak self] in
+                                guard let self = self else { return }
+                                self.mpvDelegate?.propertyChanged(
+                                    mpv: self.mpv, propertyName: propertyName, value: value)
+                            }
+                        }
+                    }
+                case MPV_EVENT_SHUTDOWN:
+                    mpv_render_context_free(mpvGL)
+                    mpv_terminate_destroy(mpv)
+                    mpv = nil
+                    print("event: shutdown\n")
+                    break
+                case MPV_EVENT_LOG_MESSAGE:
+                    let msg = UnsafeMutablePointer<mpv_event_log_message>(
+                        OpaquePointer(event!.pointee.data))
+                    print(
+                        "[\(String(cString: (msg!.pointee.prefix)!))] \(String(cString: (msg!.pointee.level)!)): \(String(cString: (msg!.pointee.text)!))",
+                        terminator: "")
+                default:
+                    let eventName = mpv_event_name(event!.pointee.event_id)
+                    print("event: \(String(cString: (eventName)!))")
                 }
-
-            default:
-                break
-            }
-
-            // Notify delegate on main thread
-            if let value = value {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self, !self.isBeingDeallocated else { return }
-                    self.delegate?.propertyChanged(
-                        mpv: mpv, propertyName: propertyName, value: value)
-                }
-            }
-
-        case MPV_EVENT_SHUTDOWN:
-            print("MPV shutdown event received")
-            isBeingDeallocated = true
-
-        case MPV_EVENT_LOG_MESSAGE:
-            return
-
-        default:
-            if let eventName = mpv_event_name(event.pointee.event_id) {
-                print("MPV event: \(String(cString: eventName))")
             }
         }
     }
 
-    // MARK: - Public Methods
-
-    func setStartPosition(_ position: Double) {
-        startPosition = position
-
-        // If MPV is already initialized, we need to update the option
-        if let mpv = mpv {
-            let positionString = String(format: "%.1f", position)
-            print("Setting start position to \(positionString)")
-            mpv_set_option_string(mpv, "start", positionString)
+    private func checkError(_ status: CInt) {
+        if status < 0 {
+            print("MPV API error: \(String(cString: mpv_error_string(status)))\n")
         }
+    }
+
+    private var machine: String {
+        var systeminfo = utsname()
+        uname(&systeminfo)
+        return withUnsafeBytes(of: &systeminfo.machine) { bufPtr -> String in
+            let data = Data(bufPtr)
+            if let lastIndex = data.lastIndex(where: { $0 != 0 }) {
+                return String(data: data[0...lastIndex], encoding: .isoLatin1)!
+            } else {
+                return String(data: data, encoding: .isoLatin1)!
+            }
+        }
+    }
+
+    // MARK: - GL Rendering
+
+    override func glkView(_ view: GLKView, drawIn rect: CGRect) {
+        guard let mpvGL else {
+            return
+        }
+
+        // fill black background
+        glClearColor(0, 0, 0, 0)
+        glClear(UInt32(GL_COLOR_BUFFER_BIT))
+
+        glGetIntegerv(UInt32(GL_FRAMEBUFFER_BINDING), &defaultFBO)
+
+        var dims: [GLint] = [0, 0, 0, 0]
+        glGetIntegerv(GLenum(GL_VIEWPORT), &dims)
+
+        var data = mpv_opengl_fbo(
+            fbo: Int32(defaultFBO),
+            w: Int32(dims[2]),
+            h: Int32(dims[3]),
+            internal_format: 0
+        )
+
+        var flip: CInt = 1
+        withUnsafeMutablePointer(to: &flip) { flip in
+            withUnsafeMutablePointer(to: &data) { data in
+                var params = [
+                    mpv_render_param(type: MPV_RENDER_PARAM_OPENGL_FBO, data: data),
+                    mpv_render_param(type: MPV_RENDER_PARAM_FLIP_Y, data: flip),
+                    mpv_render_param(),
+                ]
+                mpv_render_context_render(mpvGL, &params)
+            }
+        }
+
+    }
+
+    private static func getProcAddress(_: UnsafeMutableRawPointer?, _ name: UnsafePointer<Int8>?)
+        -> UnsafeMutableRawPointer?
+    {
+        let symbolName = CFStringCreateWithCString(
+            kCFAllocatorDefault, name, CFStringBuiltInEncodings.ASCII.rawValue)
+        let identifier = CFBundleGetBundleWithIdentifier("com.apple.opengles" as CFString)
+
+        return CFBundleGetFunctionPointerForName(identifier, symbolName)
+    }
+}
+
+private func mpvGLUpdate(_ ctx: UnsafeMutableRawPointer?) {
+    let glView = unsafeBitCast(ctx, to: GLKView.self)
+
+    DispatchQueue.main.async {
+        glView.display()
     }
 }

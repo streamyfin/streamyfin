@@ -455,9 +455,9 @@ export const Controls: FC<Props> = ({
 
   const onClose = async () => {
     lightHapticFeedback();
-    await ScreenOrientation.lockAsync(
-      ScreenOrientation.OrientationLock.PORTRAIT_UP,
-    );
+    // await ScreenOrientation.lockAsync(
+    //   ScreenOrientation.OrientationLock.PORTRAIT_UP,
+    // );
     router.back();
   };
 
