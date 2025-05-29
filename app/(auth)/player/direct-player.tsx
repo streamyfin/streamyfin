@@ -158,7 +158,7 @@ export default function page() {
 
   useEffect(() => {
     const fetchStreamData = async () => {
-      setItemStatus({ isLoading: true, isError: false });
+      setStreamStatus({ isLoading: true, isError: false });
       const native = await generateDeviceProfile();
       try {
         let result: Stream | null = null;
@@ -414,7 +414,7 @@ export default function page() {
     return () => setIsMounted(false);
   }, []);
 
-  if (itemStatus.isLoading || streamStatus.isLoading || !item || !stream) {
+  if (itemStatus.isLoading || streamStatus.isLoading) {
     return (
       <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
         <Loader />
