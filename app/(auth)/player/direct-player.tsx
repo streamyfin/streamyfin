@@ -132,11 +132,10 @@ export default function page() {
           fetchedItem = res.data;
         }
         setItem(fetchedItem);
+        setItemStatus({ isLoading: false, isError: false });
       } catch (error) {
         console.error("Failed to fetch item:", error);
         setItemStatus({ isLoading: false, isError: true });
-      } finally {
-        setItemStatus({ isLoading: false, isError: false });
       }
     };
 
@@ -159,6 +158,7 @@ export default function page() {
 
   useEffect(() => {
     const fetchStreamData = async () => {
+      setItemStatus({ isLoading: true, isError: false });
       const native = await generateDeviceProfile();
       try {
         let result: Stream | null = null;
@@ -193,11 +193,10 @@ export default function page() {
           result = { mediaSource, sessionId, url };
         }
         setStream(result);
+        setStreamStatus({ isLoading: false, isError: false });
       } catch (error) {
         console.error("Failed to fetch stream:", error);
         setStreamStatus({ isLoading: false, isError: true });
-      } finally {
-        setStreamStatus({ isLoading: false, isError: false });
       }
     };
     fetchStreamData();
@@ -415,7 +414,7 @@ export default function page() {
     return () => setIsMounted(false);
   }, []);
 
-  if (itemStatus.isLoading || streamStatus.isLoading) {
+  if (itemStatus.isLoading || streamStatus.isLoading || !item || !stream) {
     return (
       <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
         <Loader />
@@ -423,7 +422,7 @@ export default function page() {
     );
   }
 
-  if (!item || !stream || itemStatus.isError || streamStatus.isError)
+  if (itemStatus.isError || streamStatus.isError)
     return (
       <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
         <Text className='text-white'>{t("player.error")}</Text>
