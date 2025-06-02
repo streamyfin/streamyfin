@@ -1,25 +1,51 @@
-name: Automatic Build and Deploy
+name: 🤖 iOS IPA Build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+#  push:
+#    branches: [develop]
 
 jobs:
   build:
     runs-on: macos-15
-    name: Build IOS
+    name: 🏗️ Build iOS IPA
+    permissions:
+      contents: read
+
     steps:
-      - uses: actions/checkout@v2
-        name: Check out repository
-      - uses: oven-sh/setup-bun@v2
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4.2.2
         with:
-          bun-version: latest
-      - run: |
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@v2.0.2
+        with:
+          # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689
+          bun-version: '1.2.13'
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-cache-
+
+      - name: 📦 Install & Prepare
+        run: |
           bun i && bun run submodule-reload
           npx expo prebuild
-      - uses: sparkfabrik/ios-build-action@v2.3.0
+
+      - name: 🏗️ Build iOS app
+        uses: sparkfabrik/ios-build-action@v2.3.2
         with:
           upload-to-testflight: false
           increment-build-number: false
@@ -47,3 +73,13 @@ jobs:
           #fastlane-env: stage
           ios-app-id: com.stetsed.teststreamyfin
           output-path: build-${{ github.sha }}.ipa
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: streamyfin-ipa-${{ github.sha }}-${{ env.DATE_TAG }}
+          path: build-*.ipa
+          retention-days: 7
