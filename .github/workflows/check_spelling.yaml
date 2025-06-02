@@ -43,11 +43,11 @@ jobs:
         with:
           checkout: true
           check_file_names: 1
-          spell_check_this: check-spelling/spell-check-this@prerelease
+          spell_check_this: check-spelling/spell-check-this@v0.0.24
           post_comment: 0
           warnings: bad-regex,deprecated-feature,noisy-file
           extra_dictionaries: |
-            cspell:software-terms/dict/softwareTerms.txt
+            cspell:software-terms/src/softwareTerms.txt
             local:.github/actions/spell-check-this/dictionary.txt
 
   comment-pr:
@@ -62,5 +62,5 @@ jobs:
         uses: check-spelling/check-spelling@main
         with:
           checkout: true
-          spell_check_this: check-spelling/spell-check-this@prerelease
+          spell_check_this: check-spelling/spell-check-this@v0.0.24
           task: ${{ needs.spelling.outputs.followup }}
