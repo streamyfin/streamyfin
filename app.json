@@ -27,13 +27,19 @@
         "usesNonExemptEncryption": false
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.fredrikburmester.streamyfin"
+      "bundleIdentifier": "com.fredrikburmester.streamyfin",
+      "icon": {
+        "dark": "./assets/images/icon-plain.png",
+        "light": "./assets/images/icon-ios-light.png",
+        "tinted": "./assets/images/icon-ios-tinted.png"
+      }
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 54,
+      "versionCode": 55,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive_icon.png",
+        "foregroundImage": "./assets/images/icon-plain.png",
+        "monochromeImage": "./assets/images/icon-mono.png",
         "backgroundColor": "#464646"
       },
       "package": "com.fredrikburmester.streamyfin",

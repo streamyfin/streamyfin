@@ -44,3 +44,27 @@ export const useSessions = ({
 
   return { sessions: data, isLoading };
 };
+
+export const useAllSessions = ({
+  refetchInterval = 5 * 1000,
+  activeWithinSeconds = 360,
+}: useSessionsProps) => {
+  const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["allSessions"],
+    queryFn: async () => {
+      if (!api || !user || !user.Policy?.IsAdministrator) {
+        return [];
+      }
+      const response = await getSessionApi(api).getSessions({
+        activeWithinSeconds: activeWithinSeconds,
+      });
+      return response.data;
+    },
+    refetchInterval: refetchInterval,
+  });
+
+  return { sessions: data, isLoading };
+};

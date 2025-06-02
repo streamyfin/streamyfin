@@ -1,0 +1,85 @@
+name: 🤖 iOS IPA Build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+#  push:
+#    branches: [develop]
+
+jobs:
+  build:
+    runs-on: macos-15
+    name: 🏗️ Build iOS IPA
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689
+          bun-version: '1.2.13'
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-cache-
+
+      - name: 📦 Install & Prepare
+        run: |
+          bun i && bun run submodule-reload
+          npx expo prebuild
+
+      - name: 🏗️ Build iOS app
+        uses: sparkfabrik/ios-build-action@be021d9f600b104d199a500db7ba479149a6b257 # v2.3.2
+        with:
+          upload-to-testflight: false
+          increment-build-number: false
+          build-pods: true
+          pods-path: "ios/Podfile"
+          configuration: Release
+          # Change later to app-store if wanted
+          export-method: appstore
+          #export-method: ad-hoc
+          workspace-path: "ios/Streamyfin.xcodeproj/project.xcworkspace/"
+          project-path: "ios/Streamyfin.xcodeproj"
+          scheme: Streamyfin
+          apple-key-id: ${{ secrets.APPLE_KEY_ID }}
+          apple-key-issuer-id: ${{ secrets.APPLE_KEY_ISSUER_ID }}
+          apple-key-content: ${{ secrets.APPLE_KEY_CONTENT }}
+          team-id: ${{ secrets.TEAM_ID }}
+          team-name: ${{ secrets.TEAM_NAME }}
+          #match-password: ${{ secrets.MATCH_PASSWORD }}
+          #match-git-url: ${{ secrets.MATCH_GIT_URL }}
+          #match-git-basic-authorization: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          #match-build-type: "appstore"
+          #browserstack-upload: true
+          #browserstack-username: ${{ secrets.BROWSERSTACK_USERNAME }}
+          #browserstack-access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          #fastlane-env: stage
+          ios-app-id: com.stetsed.teststreamyfin
+          output-path: build-${{ github.sha }}.ipa
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: streamyfin-ipa-${{ github.sha }}-${{ env.DATE_TAG }}
+          path: build-*.ipa
+          retention-days: 7

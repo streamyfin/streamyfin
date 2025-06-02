@@ -9,7 +9,6 @@ import type { PropsWithChildren } from "react";
 import { Text } from "../common/Text";
 
 type SearchItemWrapperProps<T> = {
-  ids?: string[] | null;
   items?: T[];
   renderItem: (item: any) => React.ReactNode;
   header?: string;
@@ -17,7 +16,6 @@ type SearchItemWrapperProps<T> = {
 };
 
 export const SearchItemWrapper = <T,>({
-  ids,
   items,
   renderItem,
   header,
@@ -26,33 +24,7 @@ export const SearchItemWrapper = <T,>({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
-  const { data, isLoading: l1 } = useQuery({
-    queryKey: ["items", ids],
-    queryFn: async () => {
-      if (!user?.Id || !api || !ids || ids.length === 0) {
-        return [];
-      }
-
-      const itemPromises = ids.map((id) =>
-        getUserItemData({
-          api,
-          userId: user.Id,
-          itemId: id,
-        }),
-      );
-
-      const results = await Promise.all(itemPromises);
-
-      // Filter out null items
-      return results.filter(
-        (item) => item !== null,
-      ) as unknown as BaseItemDto[];
-    },
-    enabled: !!ids && ids.length > 0 && !!api && !!user?.Id,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-
-  if (!data && (!items || items.length === 0)) return null;
+  if (!items || items.length === 0) return null;
 
   return (
     <>
@@ -67,7 +39,7 @@ export const SearchItemWrapper = <T,>({
         keyExtractor={(_, index) => index.toString()}
         estimatedItemSize={250}
         /*@ts-ignore */
-        data={data || items}
+        data={items}
         onEndReachedThreshold={1}
         onEndReached={onEndReached}
         //@ts-ignore
