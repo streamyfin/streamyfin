@@ -40,7 +40,6 @@ export const APP_LANGUAGES = [
   { label: "Norsk Nynorsk", value: "nn" },
   { label: "Русский", value: "ru" },
   { label: "Українська", value: "uk" },
-  { label: "Українська", value: "uk" },
   { label: "简体中文", value: "zh-CN" },
   { label: "繁體中文", value: "zh-TW" },
 ];
