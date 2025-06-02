@@ -36,6 +36,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Platform,
   RefreshControl,
   ScrollView,
   TouchableOpacity,
@@ -87,6 +88,12 @@ export const HomeIndex = () => {
 
   const { downloadedFiles, cleanCacheDirectory } = useDownload();
   useEffect(() => {
+    if (Platform.isTV) {
+      navigation.setOptions({
+        headerLeft: () => null,
+      });
+      return;
+    }
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
     navigation.setOptions({
       headerLeft: () => (
