@@ -82,20 +82,12 @@ jobs:
         uses: actions/setup-node@v4.4.0
         with:
           node-version: '20.x'
-          cache: bun
 
       - name: "🍞 Setup Bun"
         uses: oven-sh/setup-bun@v2.0.2
         with:
           # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689
           bun-version: '1.2.13'
-
-      - name: 💾 Cache Bun dependencies
-        uses: actions/cache@v4.2.3
-        with:
-          path: |
-            ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
 
       - name: "📦 Install dependencies"
         run: bun install --frozen-lockfile
