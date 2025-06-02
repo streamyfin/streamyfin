@@ -2,7 +2,7 @@
 
 <a href="https://www.buymeacoffee.com/fredrikbur3" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
-Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Expo. If you're looking for an alternative to other Jellyfin clients, we hope you'll find Streamyfin to be a useful addition to your media streaming toolbox.
+Welcome to Streamyfin, a simple and user-friendly Jellyfin video streaming client built with Expo. If you're looking for an alternative to other Jellyfin clients, we hope you'll find Streamyfin to be a useful addition to your media streaming toolbox.
 
 <div style="display: flex; flex-direction: row; gap: 8px">
   <img width=150 src="./assets/images/screenshots/screenshot1.png" />
@@ -15,11 +15,11 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin client built with Exp
 
 - 🚀 **Skip Intro / Credits Support**
 - 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking.
-- 🔊 **Background audio**: Stream music in the background, even when locking the phone.
 - 📥 **Download media** (Experimental): Save your media locally and watch it offline.
 - 📡 **Chromecast** (Experimental): Cast your media to any Chromecast-enabled device.
 - 📡 **Settings management** (Experimental): Manage app settings for all your users with a JF plugin.
 - 🤖 **Jellyseerr integration**: Request media directly in the app.
+- 👁️ **Sessions View:** View all active sessions currently streaming on your server.
 
 ## 🧪 Experimental Features
 
@@ -31,13 +31,13 @@ Downloading works by using ffmpeg to convert an HLS stream into a video file on 
 
 ### Chromecast
 
-Chromecast support is still in development, and we're working on improving it. Currently, it supports casting videos and audio, but we're working on adding support for subtitles and other features.
+Chromecast support is still in development, and we're working on improving it. Currently, it supports casting videos, but we're working on adding support for subtitles and other features.
 
 ### Streamyfin Plugin
 
-The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that hold all settings for the client Streamyfin. This allows you to syncronize settings accross all your users, like:
+The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that hold all settings for the client Streamyfin. This allows you to synchronize settings across all your users, like:
 
-- Auto log in to Jellyseerr without the user having to do anythin
+- Auto log in to Jellyseerr without the user having to do anything
 - Choose the default languages
 - Set download method and search provider
 - Customize homescreen
@@ -66,7 +66,7 @@ Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/r
 
 ### Beta testing
 
-To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and i'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that i can manually add you.
+To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and I'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that I can manually add you.
 
 **Note**: Everyone who is actively contributing to the source code of Streamyfin will have automatic access to the betas.
 
@@ -117,6 +117,13 @@ If you have questions or need support, feel free to reach out:
 
 - GitHub Issues: Report bugs or request features here.
 - Email: [fredrik.burmester@gmail.com](mailto:fredrik.burmester@gmail.com)
+
+## FAQ
+
+1. Q: Why can't I see my libraries in Streamyfin?   
+   A: Make sure your server is running one of the latest versions and that you have at least one library that isn't audio only.
+2. Q: Why can't I see my music library?   
+   A: We don't currently support music and are unlikely to support music in the near future.
 
 ## 📝 Credits
 

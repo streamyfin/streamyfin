@@ -1,5 +1,6 @@
 import { useHaptic } from "@/hooks/useHaptic";
 import useImageStorage from "@/hooks/useImageStorage";
+import { useInterval } from "@/hooks/useInterval";
 import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
@@ -18,6 +19,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
 import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -38,6 +40,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { AppState, type AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
+import { Bitrate } from "../components/BitrateSelector";
 import { apiAtom } from "./JellyfinProvider";
 
 export type DownloadedItem = {
@@ -66,13 +69,24 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
 
-  const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
+  let [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
 
   const successHapticFeedback = useHaptic("success");
 
   const authHeader = useMemo(() => {
     return api?.accessToken;
   }, [api]);
+
+  const usingOptimizedServer = useMemo(
+    () => settings?.downloadMethod === DownloadMethod.Optimized,
+    [settings],
+  );
+
+  const getDownloadUrl = (process: JobStatus) => {
+    return usingOptimizedServer
+      ? `${settings.optimizedVersionsServerUrl}download/${process.id}`
+      : process.inputUrl;
+  };
 
   const { data: downloadedFiles, refetch } = useQuery({
     queryKey: ["downloadedItems"],
@@ -164,6 +178,64 @@ function useDownloadProvider() {
     enabled: settings?.downloadMethod === DownloadMethod.Optimized,
   });
 
+  /// Cant use the background downloader callback. As its not triggered if size is unknown.
+  const updateProgress = async () => {
+    if (settings?.downloadMethod === DownloadMethod.Optimized) {
+      return;
+    }
+
+    // const response = await getSessionApi(api).getSessions({
+    //   activeWithinSeconds: 300,
+    // });
+
+    const tasks = await BackGroundDownloader.checkForExistingDownloads();
+
+    // check if processes are missing
+    const missingProcesses = tasks
+      .filter((t) => !processes.some((p) => p.id === t.id))
+      .map((t) => {
+        return t.metadata;
+      });
+
+    processes = [...processes, ...missingProcesses];
+
+    const updatedProcesses = processes.map((p) => {
+      // const result = response.data.find((s) => s.Id == p.sessionId);
+      // if (result) {
+      //   return {
+      //     ...p,
+      //     progress: result.TranscodingInfo?.CompletionPercentage,
+      //   };
+      // }
+
+      // fallback. Doesn't really work for transcodes as they may be a lot smaller.
+      // We make an wild guess by comparing bitrates
+      const task = tasks.find((s) => s.id === p.id);
+      if (task) {
+        let progress = p.progress;
+        let size = p.mediaSource.Size;
+        const maxBitrate = p.maxBitrate.value;
+        if (maxBitrate && maxBitrate < p.mediaSource.Bitrate) {
+          size = (size / p.mediaSource.Bitrate) * maxBitrate;
+        }
+        progress = (100 / size) * task.bytesDownloaded;
+        if (progress >= 100) {
+          progress = 99;
+        }
+
+        return {
+          ...p,
+          progress,
+        };
+      }
+      return p;
+    });
+
+    setProcesses(updatedProcesses);
+  };
+
+  useInterval(updateProgress, 2000);
+
   useEffect(() => {
     const checkIfShouldStartDownload = async () => {
       if (processes.length === 0) return;
@@ -176,18 +248,25 @@ function useDownloadProvider() {
   const removeProcess = useCallback(
     async (id: string) => {
       const deviceId = await getOrSetDeviceId();
-      if (!deviceId || !authHeader || !settings?.optimizedVersionsServerUrl)
-        return;
+      if (!deviceId || !authHeader) return;
 
-      try {
-        await cancelJobById({
-          authHeader,
-          id,
-          url: settings?.optimizedVersionsServerUrl,
-        });
-      } catch (error) {
-        console.error(error);
+      if (usingOptimizedServer) {
+        try {
+          await cancelJobById({
+            authHeader,
+            id,
+            url: settings?.optimizedVersionsServerUrl,
+          });
+        } catch (error) {
+          console.error(error);
+        }
       }
+
+      setProcesses((prev: any[]) => {
+        return prev.filter(
+          (process: { itemId: string | undefined }) => process.id !== id,
+        );
+      });
     },
     [settings?.optimizedVersionsServerUrl, authHeader],
   );
@@ -238,8 +317,9 @@ function useDownloadProvider() {
 
       BackGroundDownloader?.download({
         id: process.id,
-        url: `${settings?.optimizedVersionsServerUrl}download/${process.id}`,
+        url: getDownloadUrl(process),
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
+        metadata: process,
       })
         .begin(() => {
           setProcesses((prev) =>
@@ -256,6 +336,9 @@ function useDownloadProvider() {
           );
         })
         .progress((data) => {
+          if (!usingOptimizedServer) {
+            return;
+          }
           const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
           setProcesses((prev) =>
             prev.map((p) =>
@@ -328,7 +411,12 @@ function useDownloadProvider() {
   );
 
   const startBackgroundDownload = useCallback(
-    async (url: string, item: BaseItemDto, mediaSource: MediaSourceInfo) => {
+    async (
+      url: string,
+      item: BaseItemDto,
+      mediaSource: MediaSourceInfo,
+      maxBitrate?: Bitrate,
+    ) => {
       if (!api || !item.Id || !authHeader)
         throw new Error("startBackgroundDownload ~ Missing required params");
 
@@ -345,26 +433,42 @@ function useDownloadProvider() {
           width: 500,
         });
         await saveImage(item.Id, itemImage?.uri);
-
-        const response = await axios.post(
-          `${settings?.optimizedVersionsServerUrl}optimize-version`,
-          {
-            url,
-            fileExtension,
-            deviceId,
-            itemId: item.Id,
-            item,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: authHeader,
+        if (usingOptimizedServer) {
+          const response = await axios.post(
+            `${settings?.optimizedVersionsServerUrl}optimize-version`,
+            {
+              url,
+              fileExtension,
+              deviceId,
+              itemId: item.Id,
+              item,
             },
-          },
-        );
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: authHeader,
+              },
+            },
+          );
 
-        if (response.status !== 201) {
-          throw new Error("Failed to start optimization job");
+          if (response.status !== 201) {
+            throw new Error("Failed to start optimization job");
+          }
+        } else {
+          const job: JobStatus = {
+            id: item.Id!,
+            deviceId: deviceId,
+            inputUrl: url,
+            item: item,
+            itemId: item.Id!,
+            mediaSource,
+            progress: 0,
+            maxBitrate,
+            status: "downloading",
+            timestamp: new Date(),
+          };
+          setProcesses([...processes, job]);
+          startDownload(job);
         }
 
         toast.success(
@@ -738,12 +842,39 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useDownload() {
+  if (Platform.isTV) {
+    // Since tv doesn't do downloads, just return no-op functions for everything
+    return {
+      processes: [],
+      startBackgroundDownload: useCallback(
+        async (
+          _url: string,
+          _item: BaseItemDto,
+          _mediaSource: MediaSourceInfo,
+          _maxBitrate?: Bitrate,
+        ) => {},
+        [],
+      ),
+      downloadedFiles: [],
+      deleteAllFiles: async (): Promise<void> => {},
+      deleteFile: async (id: string): Promise<void> => {},
+      deleteItems: async (items: BaseItemDto[]) => {},
+      saveDownloadedItemInfo: (item: BaseItemDto, size?: number) => {},
+      removeProcess: (id: string) => {},
+      setProcesses: () => {},
+      startDownload: async (_process: JobStatus): Promise<void> => {},
+      getDownloadedItem: (itemId: string) => {},
+      deleteFileByType: async (_type: BaseItemDto["Type"]) => {},
+      appSizeUsage: async () => 0,
+      getDownloadedItemSize: (itemId: string) => {},
+      APP_CACHE_DOWNLOAD_DIRECTORY: "",
+      cleanCacheDirectory: async (): Promise<void> => {},
+    };
+  }
+
   const context = useContext(DownloadContext);
   if (context === null) {
     throw new Error("useDownload must be used within a DownloadProvider");
-  }
-  if (Platform.isTV) {
-    throw new Error("useDownload is not supported on TVOS");
   }
   return context;
 }

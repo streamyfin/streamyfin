@@ -1,5 +1,6 @@
 import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
+import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -28,7 +29,7 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import {
+import React, {
   type Dispatch,
   type FC,
   type MutableRefObject,
@@ -121,7 +122,7 @@ export const Controls: FC<Props> = ({
   enableTrickplay = true,
   isVlc = false,
 }) => {
-  const [settings] = useSettings();
+  const [settings, updateSettings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -236,15 +237,76 @@ export const Controls: FC<Props> = ({
     goToItemCommon(previousItem);
   }, [previousItem, goToItemCommon]);
 
-  const goToNextItem = useCallback(() => {
-    if (!nextItem) return;
-    goToItemCommon(nextItem);
-  }, [nextItem, goToItemCommon]);
+  const goToNextItem = useCallback(
+    ({
+      isAutoPlay,
+      resetWatchCount,
+    }: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
+      if (!nextItem) {
+        return;
+      }
+
+      if (!isAutoPlay) {
+        // if we are not autoplaying, we won't update anything, we just go to the next item
+        goToItemCommon(nextItem);
+        if (resetWatchCount) {
+          updateSettings({
+            autoPlayEpisodeCount: 0,
+          });
+        }
+        return;
+      }
+
+      // Skip autoplay logic if maxAutoPlayEpisodeCount is -1
+      if (settings.maxAutoPlayEpisodeCount.value === -1) {
+        goToItemCommon(nextItem);
+        return;
+      }
+
+      if (
+        settings.autoPlayEpisodeCount + 1 <
+        settings.maxAutoPlayEpisodeCount.value
+      ) {
+        goToItemCommon(nextItem);
+      }
+
+      // Check if the autoPlayEpisodeCount is less than maxAutoPlayEpisodeCount for the autoPlay
+      if (
+        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
+      ) {
+        // update the autoPlayEpisodeCount in settings
+        updateSettings({
+          autoPlayEpisodeCount: settings.autoPlayEpisodeCount + 1,
+        });
+      }
+    },
+    [nextItem, goToItemCommon],
+  );
+
+  // Add a memoized handler for autoplay next episode
+  const handleNextEpisodeAutoPlay = useCallback(() => {
+    goToNextItem({ isAutoPlay: true });
+  }, [goToNextItem]);
+
+  // Add a memoized handler for manual next episode
+  const handleNextEpisodeManual = useCallback(() => {
+    goToNextItem({ isAutoPlay: false });
+  }, [goToNextItem]);
+
+  // Add a memoized handler for ContinueWatchingOverlay
+  const handleContinueWatching = useCallback(
+    (options: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
+      goToNextItem(options);
+    },
+    [goToNextItem],
+  );
 
   const goToItem = useCallback(
     async (itemId: string) => {
       const gotoItem = await getItemById(api, itemId);
-      if (!gotoItem) return;
+      if (!gotoItem) {
+        return;
+      }
       goToItemCommon(gotoItem);
     },
     [goToItemCommon, api],
@@ -300,7 +362,9 @@ export const Controls: FC<Props> = ({
   };
 
   const handleSliderStart = useCallback(() => {
-    if (!showControls) return;
+    if (!showControls) {
+      return;
+    }
 
     setIsSliding(true);
     wasPlayingRef.current = isPlaying;
@@ -339,7 +403,9 @@ export const Controls: FC<Props> = ({
   );
 
   const handleSkipBackward = useCallback(async () => {
-    if (!settings?.rewindSkipTime) return;
+    if (!settings?.rewindSkipTime) {
+      return;
+    }
     wasPlayingRef.current = isPlaying;
     lightHapticFeedback();
     try {
@@ -371,7 +437,9 @@ export const Controls: FC<Props> = ({
           ? curr + secondsToMs(settings.forwardSkipTime)
           : ticksToSeconds(curr) + settings.forwardSkipTime;
         seek(Math.max(0, newTime));
-        if (wasPlayingRef.current) play();
+        if (wasPlayingRef.current) {
+          play();
+        }
       }
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
@@ -546,7 +614,7 @@ export const Controls: FC<Props> = ({
 
               {nextItem && !offline && (
                 <TouchableOpacity
-                  onPress={goToNextItem}
+                  onPress={() => goToNextItem({ isAutoPlay: false })}
                   className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
                 >
                   <Ionicons name='play-skip-forward' size={24} color='white' />
@@ -741,17 +809,21 @@ export const Controls: FC<Props> = ({
                   onPress={skipCredit}
                   buttonText='Skip Credits'
                 />
-                <NextEpisodeCountDownButton
-                  show={
-                    !nextItem
-                      ? false
-                      : isVlc
-                        ? remainingTime < 10000
-                        : remainingTime < 10
-                  }
-                  onFinish={goToNextItem}
-                  onPress={goToNextItem}
-                />
+                {(settings.maxAutoPlayEpisodeCount.value === -1 ||
+                  settings.autoPlayEpisodeCount <
+                    settings.maxAutoPlayEpisodeCount.value) && (
+                  <NextEpisodeCountDownButton
+                    show={
+                      !nextItem
+                        ? false
+                        : isVlc
+                          ? remainingTime < 10000
+                          : remainingTime < 10
+                    }
+                    onFinish={handleNextEpisodeAutoPlay}
+                    onPress={handleNextEpisodeManual}
+                  />
+                )}
               </View>
             </View>
             <View
@@ -798,6 +870,9 @@ export const Controls: FC<Props> = ({
             </View>
           </View>
         </>
+      )}
+      {settings.maxAutoPlayEpisodeCount.value !== -1 && (
+        <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
       )}
     </ControlProvider>
   );

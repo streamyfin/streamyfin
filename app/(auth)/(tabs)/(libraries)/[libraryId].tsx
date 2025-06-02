@@ -367,7 +367,15 @@ const Page = () => {
                   className='mr-1'
                   id={libraryId}
                   queryKey='sortBy'
-                  queryFn={async () => sortOptions.map((s) => s.key)}
+                  queryFn={async () =>
+                    sortOptions
+                      .filter(
+                        (s) =>
+                          library?.CollectionType !== "movies" ||
+                          s.key !== SortByOption.DateLastContentAdded,
+                      )
+                      .map((s) => s.key)
+                  }
                   set={setSortBy}
                   values={sortBy}
                   title={t("library.filters.sort_by")}
@@ -430,15 +438,6 @@ const Page = () => {
     return (
       <View className='w-full h-full flex items-center justify-center'>
         <Loader />
-      </View>
-    );
-
-  if (flatData.length === 0)
-    return (
-      <View className='h-full w-full flex justify-center items-center'>
-        <Text className='text-lg text-neutral-500'>
-          {t("library.no_items_found")}
-        </Text>
       </View>
     );
 
