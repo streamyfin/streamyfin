@@ -138,7 +138,8 @@
         "hide_libraries": "Ukryj biblioteki",
         "select_liraries_you_want_to_hide": "Wybierz biblioteki, które chcesz ukryć na karcie Biblioteka i w sekcjach strony głównej.",
         "disable_haptic_feedback": "Wyłącz wibracje",
-        "default_quality": "Domyślna jakość"
+        "default_quality": "Domyślna jakość",
+        "disabled": "Wyłączone"
       },
       "downloads": {
         "downloads_title": "Pobieranie",
@@ -374,7 +375,9 @@
     "audio_tracks": "Ścieżki audio:",
     "playback_state": "Stan odtwarzania:",
     "no_data_available": "Brak dostępnych danych",
-    "index": "Indeks:"
+    "index": "Indeks:",
+    "continue_watching": "Kontynuuj oglądanie",
+    "go_back": "Wstecz"
   },
   "item_card": {
     "next_up": "Następne",

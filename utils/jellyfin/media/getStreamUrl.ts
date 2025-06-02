@@ -14,23 +14,27 @@ export const getStreamUrl = async ({
   userId,
   startTimeTicks = 0,
   maxStreamingBitrate,
-  sessionData,
+  playSessionId,
   deviceProfile = generateDeviceProfile(),
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
+  download = false,
+  deviceId,
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
   userId: string | null | undefined;
   startTimeTicks: number;
   maxStreamingBitrate?: number;
-  sessionData?: PlaybackInfoResponse | null;
+  playSessionId?: string | null;
   deviceProfile?: any;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   height?: number;
   mediaSourceId?: string | null;
+  download?: bool;
+  deviceId?: string | null;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -70,9 +74,12 @@ export const getStreamUrl = async ({
 
   sessionId = res.data.PlaySessionId || null;
   mediaSource = res.data.MediaSources[0];
-  const transcodeUrl = mediaSource.TranscodingUrl;
+  let transcodeUrl = mediaSource.TranscodingUrl;
 
   if (transcodeUrl) {
+    if (download) {
+      transcodeUrl = transcodeUrl.replace("master.m3u8", "stream");
+    }
     console.log("Video is being transcoded:", transcodeUrl);
     return {
       url: `${api.basePath}${transcodeUrl}`,
@@ -81,28 +88,44 @@ export const getStreamUrl = async ({
     };
   }
 
-  const searchParams = new URLSearchParams({
-    playSessionId: sessionData?.PlaySessionId || "",
-    mediaSourceId: mediaSource?.Id || "",
+  let downloadParams = {};
+
+  if (download) {
+    // We need to disable static so we can have a remux with subtitle.
+    downloadParams = {
+      subtitleMethod: "Embed",
+      enableSubtitlesInManifest: true,
+      static: "false",
+      allowVideoStreamCopy: true,
+      allowAudioStreamCopy: true,
+      playSessionId: sessionId || "",
+      container: "ts",
+    };
+  }
+
+  const streamParams = new URLSearchParams({
     static: "true",
+    container: "mp4",
+    mediaSourceId: mediaSource?.Id || "",
     subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
     audioStreamIndex: audioStreamIndex?.toString() || "",
-    deviceId: api.deviceInfo.id,
+    deviceId: deviceId || api.deviceInfo.id,
     api_key: api.accessToken,
     startTimeTicks: startTimeTicks.toString(),
     maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
     userId: userId || "",
+    ...downloadParams,
   });
 
   const directPlayUrl = `${
     api.basePath
-  }/Videos/${item.Id}/stream.mp4?${searchParams.toString()}`;
+  }/Videos/${item.Id}/stream?${streamParams.toString()}`;
 
   console.log("Video is being direct played:", directPlayUrl);
 
   return {
     url: directPlayUrl,
-    sessionId: sessionId,
+    sessionId: sessionId || playSessionId,
     mediaSource,
   };
 };
