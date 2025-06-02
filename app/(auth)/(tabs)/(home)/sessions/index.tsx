@@ -18,12 +18,18 @@ import {
   HardwareAccelerationType,
   type SessionInfoDto,
 } from "@jellyfin/sdk/lib/generated-client";
+import {
+  GeneralCommandType,
+  PlaystateCommand,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
+import { get } from "lodash";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 
 export default function page() {
   const { sessions, isLoading } = useSessions({} as useSessionsProps);
@@ -110,6 +116,77 @@ const SessionCard = ({ session }: SessionCardProps) => {
     },
   });
 
+  // Handle session controls
+  const [isControlLoading, setIsControlLoading] = useState<
+    Record<string, boolean>
+  >({});
+
+  const handleSystemCommand = async (command: GeneralCommandType) => {
+    if (!api || !session.Id) return false;
+
+    setIsControlLoading({ ...isControlLoading, [command]: true });
+
+    try {
+      getSessionApi(api).sendSystemCommand({
+        sessionId: session.Id,
+        command,
+      });
+      return true;
+    } catch (error) {
+      console.error(`Error sending ${command} command:`, error);
+      return false;
+    } finally {
+      setIsControlLoading({ ...isControlLoading, [command]: false });
+    }
+  };
+
+  const handlePlaystateCommand = async (command: PlaystateCommand) => {
+    if (!api || !session.Id) return false;
+
+    setIsControlLoading({ ...isControlLoading, [command]: true });
+
+    try {
+      getSessionApi(api).sendPlaystateCommand({
+        sessionId: session.Id,
+        command,
+      });
+
+      return true;
+    } catch (error) {
+      console.error(`Error sending playstate ${command} command:`, error);
+      return false;
+    } finally {
+      setIsControlLoading({ ...isControlLoading, [command]: false });
+    }
+  };
+
+  const handlePlayPause = async () => {
+    console.log("handlePlayPause");
+    await handlePlaystateCommand(PlaystateCommand.PlayPause);
+  };
+
+  const handleStop = async () => {
+    await handlePlaystateCommand(PlaystateCommand.Stop);
+  };
+
+  const handlePrevious = async () => {
+    await handlePlaystateCommand(PlaystateCommand.PreviousTrack);
+  };
+
+  const handleNext = async () => {
+    await handlePlaystateCommand(PlaystateCommand.NextTrack);
+  };
+
+  const handleToggleMute = async () => {
+    await handleSystemCommand(GeneralCommandType.ToggleMute);
+  };
+  const handleVolumeUp = async () => {
+    await handleSystemCommand(GeneralCommandType.VolumeUp);
+  };
+  const handleVolumeDown = async () => {
+    await handleSystemCommand(GeneralCommandType.VolumeDown);
+  };
+
   useInterval(tick, 1000);
 
   return (
@@ -180,6 +257,107 @@ const SessionCard = ({ session }: SessionCardProps) => {
                   width: `${getProgressPercentage()}%`,
                 }}
               />
+            </View>
+
+            {/* Session controls */}
+            <View className='flex flex-row mt-2 space-x-4 justify-center'>
+              <TouchableOpacity
+                onPress={handlePrevious}
+                disabled={isControlLoading[PlaystateCommand.PreviousTrack]}
+                style={{
+                  opacity: isControlLoading[PlaystateCommand.PreviousTrack]
+                    ? 0.5
+                    : 1,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name='skip-previous'
+                  size={24}
+                  color='white'
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handlePlayPause}
+                disabled={isControlLoading[PlaystateCommand.PlayPause]}
+                style={{
+                  opacity: isControlLoading[PlaystateCommand.PlayPause]
+                    ? 0.5
+                    : 1,
+                }}
+              >
+                {session.PlayState?.IsPaused ? (
+                  <Ionicons name='play' size={24} color='white' />
+                ) : (
+                  <Ionicons name='pause' size={24} color='white' />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleStop}
+                disabled={isControlLoading[PlaystateCommand.Stop]}
+                style={{
+                  opacity: isControlLoading[PlaystateCommand.Stop] ? 0.5 : 1,
+                }}
+              >
+                <Ionicons name='stop' size={24} color='white' />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleNext}
+                disabled={isControlLoading[PlaystateCommand.NextTrack]}
+                style={{
+                  opacity: isControlLoading[PlaystateCommand.NextTrack]
+                    ? 0.5
+                    : 1,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name='skip-next'
+                  size={24}
+                  color='white'
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleVolumeDown}
+                disabled={isControlLoading[GeneralCommandType.VolumeDown]}
+                style={{
+                  opacity: isControlLoading[GeneralCommandType.VolumeDown]
+                    ? 0.5
+                    : 1,
+                }}
+              >
+                <Ionicons name='volume-low' size={24} color='white' />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleToggleMute}
+                disabled={isControlLoading[GeneralCommandType.ToggleMute]}
+                style={{
+                  opacity: isControlLoading[GeneralCommandType.ToggleMute]
+                    ? 0.5
+                    : 1,
+                }}
+              >
+                <Ionicons
+                  name='volume-mute'
+                  size={24}
+                  color={session.PlayState?.IsMuted ? "red" : "white"}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleVolumeUp}
+                disabled={isControlLoading[GeneralCommandType.VolumeUp]}
+                style={{
+                  opacity: isControlLoading[GeneralCommandType.VolumeUp]
+                    ? 0.5
+                    : 1,
+                }}
+              >
+                <Ionicons name='volume-high' size={24} color='white' />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
