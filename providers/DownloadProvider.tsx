@@ -842,12 +842,39 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useDownload() {
+  if (Platform.isTV) {
+    // Since tv doesn't do downloads, just return no-op functions for everything
+    return {
+      processes: [],
+      startBackgroundDownload: useCallback(
+        async (
+          _url: string,
+          _item: BaseItemDto,
+          _mediaSource: MediaSourceInfo,
+          _maxBitrate?: Bitrate,
+        ) => {},
+        [],
+      ),
+      downloadedFiles: [],
+      deleteAllFiles: async (): Promise<void> => {},
+      deleteFile: async (id: string): Promise<void> => {},
+      deleteItems: async (items: BaseItemDto[]) => {},
+      saveDownloadedItemInfo: (item: BaseItemDto, size?: number) => {},
+      removeProcess: (id: string) => {},
+      setProcesses: () => {},
+      startDownload: async (_process: JobStatus): Promise<void> => {},
+      getDownloadedItem: (itemId: string) => {},
+      deleteFileByType: async (_type: BaseItemDto["Type"]) => {},
+      appSizeUsage: async () => 0,
+      getDownloadedItemSize: (itemId: string) => {},
+      APP_CACHE_DOWNLOAD_DIRECTORY: "",
+      cleanCacheDirectory: async (): Promise<void> => {},
+    };
+  }
+
   const context = useContext(DownloadContext);
   if (context === null) {
     throw new Error("useDownload must be used within a DownloadProvider");
-  }
-  if (Platform.isTV) {
-    throw new Error("useDownload is not supported on TVOS");
   }
   return context;
 }
