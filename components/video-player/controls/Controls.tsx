@@ -578,6 +578,37 @@ export const Controls: FC<Props> = ({
             )}
 
             <View className='flex flex-row items-center space-x-2 '>
+              {/* Button to manually rotate orientation of video */}
+              {!Platform.isTV && (
+                <TouchableOpacity
+                  onPress={async () => {
+                    // Get current orientation
+                    const orientation =
+                      await ScreenOrientation.getOrientationAsync();
+                    // Toggle orientation
+                    if (
+                      orientation === ScreenOrientation.Orientation.PORTRAIT_UP
+                    ) {
+                      await ScreenOrientation.lockAsync(
+                        ScreenOrientation.OrientationLock.LANDSCAPE,
+                      );
+                    } else {
+                      await ScreenOrientation.lockAsync(
+                        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+                      );
+                    }
+                    lightHapticFeedback();
+                  }}
+                  className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+                >
+                  <MaterialIcons
+                    name='screen-rotation'
+                    size={24}
+                    color='white'
+                    style={{ opacity: showControls ? 1 : 0 }}
+                  />
+                </TouchableOpacity>
+              )}
               {!Platform.isTV &&
                 settings.defaultPlayer === VideoPlayer.VLC_4 && (
                   <TouchableOpacity
