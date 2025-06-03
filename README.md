@@ -35,12 +35,12 @@ Chromecast support is still in development, and we're working on improving it. C
 
 ### Streamyfin Plugin
 
-The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that hold all settings for the client Streamyfin. This allows you to synchronize settings across all your users, like:
+The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that holds all settings for the client Streamyfin. This allows you to synchronize settings across all your users, like for example:
 
 - Auto log in to Jellyseerr without the user having to do anything
 - Choose the default languages
 - Set download method and search provider
-- Customize homescreen
+- Customize home screen
 - And more...
 
 [Streamyfin Plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin)
