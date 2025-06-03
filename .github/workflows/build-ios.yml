@@ -6,8 +6,10 @@ concurrency:
 
 on:
   workflow_dispatch:
-#  push:
-#    branches: [develop]
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
 
 jobs:
   build:
@@ -41,38 +43,21 @@ jobs:
 
       - name: 📦 Install & Prepare
         run: |
-          bun i && bun run submodule-reload
-          npx expo prebuild
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 16.7.1
+          token: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🏗️ Build iOS app
-        uses: sparkfabrik/ios-build-action@be021d9f600b104d199a500db7ba479149a6b257 # v2.3.2
-        with:
-          upload-to-testflight: false
-          increment-build-number: false
-          build-pods: true
-          pods-path: "ios/Podfile"
-          configuration: Release
-          # Change later to app-store if wanted
-          export-method: appstore
-          #export-method: ad-hoc
-          workspace-path: "ios/Streamyfin.xcodeproj/project.xcworkspace/"
-          project-path: "ios/Streamyfin.xcodeproj"
-          scheme: Streamyfin
-          apple-key-id: ${{ secrets.APPLE_KEY_ID }}
-          apple-key-issuer-id: ${{ secrets.APPLE_KEY_ISSUER_ID }}
-          apple-key-content: ${{ secrets.APPLE_KEY_CONTENT }}
-          team-id: ${{ secrets.TEAM_ID }}
-          team-name: ${{ secrets.TEAM_NAME }}
-          #match-password: ${{ secrets.MATCH_PASSWORD }}
-          #match-git-url: ${{ secrets.MATCH_GIT_URL }}
-          #match-git-basic-authorization: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          #match-build-type: "appstore"
-          #browserstack-upload: true
-          #browserstack-username: ${{ secrets.BROWSERSTACK_USERNAME }}
-          #browserstack-access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-          #fastlane-env: stage
-          ios-app-id: com.stetsed.teststreamyfin
-          output-path: build-${{ github.sha }}.ipa
+        run: |
+          eas build -p ios --local --non-interactive
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -81,5 +66,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: streamyfin-ipa-${{ github.sha }}-${{ env.DATE_TAG }}
-          path: build-*.ipa
+          path: |
+            ios/app/build/outputs/ipa/release/*.ipa
           retention-days: 7
