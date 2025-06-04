@@ -31,7 +31,7 @@ jobs:
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
         with:
           # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689
-          bun-version: '1.2.13'
+          bun-version: '1.2.15'
 
       - name: ☕ Setup JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
