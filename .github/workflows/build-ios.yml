@@ -49,7 +49,7 @@ jobs:
         run: bun run prebuild
 
       - name: 🏗 Setup EAS
-        uses: expo/expo-github-action@v8
+        uses: expo/expo-github-action@main
         with:
           eas-version: 16.7.1
           token: ${{ secrets.EXPO_TOKEN }}
