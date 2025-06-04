@@ -64,7 +64,7 @@ jobs:
       - name: 📤 Upload IPA artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: streamyfin-ipa-${{ github.sha }}-${{ env.DATE_TAG }}
+          name: streamyfin-ipa-${{ env.DATE_TAG }}
           path: |
             build-*.ipa
           retention-days: 7
