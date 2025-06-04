@@ -28,7 +28,6 @@ jobs:
 
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689
         with:
           bun-version: '1.2.15'
 
