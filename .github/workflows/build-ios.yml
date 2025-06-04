@@ -67,5 +67,5 @@ jobs:
         with:
           name: streamyfin-ipa-${{ github.sha }}-${{ env.DATE_TAG }}
           path: |
-            ios/app/build/outputs/ipa/release/*.ipa
+            build-*.ipa
           retention-days: 7
