@@ -133,6 +133,12 @@
           "icon": "./assets/images/notification.png",
           "color": "#9333EA"
         }
+      ],
+      [
+        "react-native-google-cast",
+        {
+          "useDefaultExpandedMediaControls": true
+        }
       ]
     ],
     "experiments": {
