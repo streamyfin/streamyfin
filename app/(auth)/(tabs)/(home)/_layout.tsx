@@ -3,7 +3,6 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
-const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useAtom } from "jotai";
@@ -27,17 +26,6 @@ export default function IndexLayout() {
           },
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerRight: () => (
-            <View className='flex flex-row items-center space-x-2'>
-              {!Platform.isTV && (
-                <>
-                  <Chromecast.Chromecast />
-                  {user?.Policy?.IsAdministrator && <SessionsButton />}
-                  <SettingsButton />
-                </>
-              )}
-            </View>
-          ),
         }}
       />
       <Stack.Screen
