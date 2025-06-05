@@ -17,12 +17,6 @@ import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, Pressable } from "react-native";
 import { Alert, TouchableOpacity, View } from "react-native";
-import CastContext, {
-  CastButton,
-  PlayServicesState,
-  useMediaStatus,
-  useRemoteMediaClient,
-} from "react-native-google-cast";
 import Animated, {
   Easing,
   interpolate,
