@@ -90,11 +90,6 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           headerRight: () =>
             item && (
               <View className='flex flex-row items-center space-x-2'>
-                <Chromecast.Chromecast
-                  background='blur'
-                  width={22}
-                  height={22}
-                />
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
