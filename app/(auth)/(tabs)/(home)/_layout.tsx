@@ -26,6 +26,16 @@ export default function IndexLayout() {
           },
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
+          headerRight: () => (
+            <View className='flex flex-row items-center space-x-2'>
+              {!Platform.isTV && (
+                <>
+                  {user?.Policy?.IsAdministrator && <SessionsButton />}
+                  <SettingsButton />
+                </>
+              )}
+            </View>
+          ),
         }}
       />
       <Stack.Screen
