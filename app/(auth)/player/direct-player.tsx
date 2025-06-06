@@ -17,6 +17,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 import generateDeviceProfile from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import {
@@ -49,6 +50,8 @@ const downloadProvider = !Platform.isTV
   ? require("@/providers/DownloadProvider")
   : null;
 
+const IGNORE_SAFE_AREAS_KEY = "video_player_ignore_safe_areas";
+
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
@@ -58,7 +61,11 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
-  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
+  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(() => {
+    // Load persisted state from storage
+    const saved = storage.getBoolean(IGNORE_SAFE_AREAS_KEY);
+    return saved ?? false;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -85,6 +92,11 @@ export default function page() {
     _setShowControls(show);
     lightHapticFeedback();
   }, []);
+
+  // Persist ignoreSafeAreas state whenever it changes
+  useEffect(() => {
+    storage.set(IGNORE_SAFE_AREAS_KEY, ignoreSafeAreas);
+  }, [ignoreSafeAreas]);
 
   const {
     itemId,
@@ -555,7 +567,7 @@ export default function page() {
           }}
         />
       </View>
-      {videoRef.current && !isPipStarted && isMounted === true ? (
+      {videoRef.current && !isPipStarted && isMounted === true && item ? (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
