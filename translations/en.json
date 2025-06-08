@@ -114,6 +114,7 @@
       "other": {
         "other_title": "Other",
         "follow_device_orientation": "Auto rotate",
+        "default_playback_speed": "Default playback speed",
         "video_orientation": "Video orientation",
         "orientation": "Orientation",
         "orientations": {
@@ -396,6 +397,7 @@
     "more_details": "More details",
     "quality": "Quality",
     "audio": "Audio",
+    "playback_speed": "Playback Speed",
     "subtitles": "Subtitle",
     "show_more": "Show more",
     "show_less": "Show less",

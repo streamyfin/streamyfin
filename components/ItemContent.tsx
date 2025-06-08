@@ -20,9 +20,10 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import type {
-  BaseItemDto,
-  MediaSourceInfo,
+import {
+  type BaseItemDto,
+  type MediaSourceInfo,
+  PlayAccess,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
@@ -36,6 +37,7 @@ import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
+import { PlaybackSpeedSelector } from "./PlaybackSpeedSelector";
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
 export type SelectedOptions = {
@@ -43,12 +45,13 @@ export type SelectedOptions = {
   mediaSource: MediaSourceInfo | undefined;
   audioIndex: number | undefined;
   subtitleIndex: number;
+  playbackSpeed: number;
 };
 
 export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
   ({ item }) => {
     const [api] = useAtom(apiAtom);
-    const [settings] = useSettings();
+    const [settings, updateSettings] = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
@@ -70,6 +73,18 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultSubtitleIndex,
     } = useDefaultPlaySettings(item, settings);
 
+    let selectedPlaybackSpeed = settings.defaultPlaybackSpeed;
+    console.log("Selected playback speed:", selectedPlaybackSpeed);
+    if (item.SeriesId) {
+      if (settings.playbackSpeedPerShow[item.SeriesId]) {
+        selectedPlaybackSpeed = settings.playbackSpeedPerShow[item.SeriesId];
+      }
+    } else if (item.Id) {
+      if (settings.playbackSpeedPerMedia[item.Id] !== undefined) {
+        selectedPlaybackSpeed = settings.playbackSpeedPerMedia[item.Id];
+      }
+    }
+
     // Needs to automatically change the selected to the default values for default indexes.
     useEffect(() => {
       setSelectedOptions(() => ({
@@ -77,6 +92,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
         mediaSource: defaultMediaSource,
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
+        playbackSpeed: selectedPlaybackSpeed,
       }));
     }, [
       defaultAudioIndex,
@@ -214,6 +230,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     selected={selectedOptions.audioIndex}
                   />
                   <SubtitleTrackSelector
+                    className='mr-1'
                     source={selectedOptions.mediaSource}
                     onChange={(val) =>
                       setSelectedOptions(
@@ -225,6 +242,37 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                       )
                     }
                     selected={selectedOptions.subtitleIndex}
+                  />
+
+                  <PlaybackSpeedSelector
+                    onChange={(val) => {
+                      if (item.SeriesId) {
+                        const updatedPerShow = {
+                          ...settings.playbackSpeedPerShow,
+                          [item.SeriesId]: val,
+                        };
+                        updateSettings({
+                          playbackSpeedPerShow: updatedPerShow,
+                        });
+                      } else if (item.Id) {
+                        const updatedPerMedia = {
+                          ...settings.playbackSpeedPerMedia,
+                          [item.Id]: val,
+                        };
+                        updateSettings({
+                          playbackSpeedPerMedia: updatedPerMedia,
+                        });
+                      }
+
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            playbackSpeed: val,
+                          },
+                      );
+                    }}
+                    selected={selectedOptions.playbackSpeed}
                   />
                 </View>
               )}

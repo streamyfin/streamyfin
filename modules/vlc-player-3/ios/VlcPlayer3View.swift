@@ -152,6 +152,11 @@ class VlcPlayer3View: ExpoView {
             }
         }
     }
+    
+    
+    @objc func setRate(_ rate: Float) {
+        self.mediaPlayer?.rate = rate
+    }
 
     @objc func setAudioTrack(_ trackIndex: Int) {
         self.mediaPlayer?.currentAudioTrackIndex = Int32(trackIndex)

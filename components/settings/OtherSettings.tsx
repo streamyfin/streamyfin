@@ -19,6 +19,7 @@ import { toast } from "sonner-native";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { PLAYBACK_SPEEDS } from "../video-player/controls/dropdown/DropdownView";
 const BackgroundFetch = !Platform.isTV
   ? require("expo-background-fetch")
   : null;
@@ -272,6 +273,32 @@ export const OtherSettings: React.FC = () => {
             label={t("home.settings.other.max_auto_play_episode_count")}
             onSelected={(maxAutoPlayEpisodeCount) =>
               updateSettings({ maxAutoPlayEpisodeCount })
+            }
+          />
+        </ListItem>
+
+        <ListItem title={t("home.settings.other.default_playback_speed")}>
+          <Dropdown
+            data={PLAYBACK_SPEEDS}
+            keyExtractor={(item) => item.label}
+            titleExtractor={(item) => item.label}
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {settings.defaultPlaybackSpeed}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.other.default_playback_speed")}
+            onSelected={(defaultPlaybackSpeed) =>
+              updateSettings({
+                defaultPlaybackSpeed: defaultPlaybackSpeed.value,
+              })
             }
           />
         </ListItem>
