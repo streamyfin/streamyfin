@@ -24,30 +24,6 @@ export enum PlaybackSpeedScope {
   Show = "show",
   All = "all",
 }
-function getPlaybackSpeedForItem(item: BaseItemDto, settings: Settings) {
-  const playbackId = item.SeasonId ?? item.Id;
-  let selectedPlaybackSpeed = settings.defaultPlaybackSpeed;
-  if (playbackId && settings.playbackSpeedPerShow[playbackId] !== undefined) {
-    selectedPlaybackSpeed = settings.playbackSpeedPerShow[playbackId];
-  }
-  return selectedPlaybackSpeed;
-}
-function setPlaybackSpeedForItem(
-  item: BaseItemDto,
-  speed: number,
-  settings: Settings,
-  updateSettings: (update: Partial<Settings>) => void,
-) {
-  const playbackId = item.SeasonId ?? item.Id;
-  if (playbackId) {
-    // Set for specific show/series
-    const updatedPerShow = {
-      ...settings.playbackSpeedPerShow,
-      [playbackId]: speed,
-    };
-    updateSettings({ playbackSpeedPerShow: updatedPerShow });
-  }
-}
 
 const DropdownView = () => {
   const videoContext = useVideoContext();
