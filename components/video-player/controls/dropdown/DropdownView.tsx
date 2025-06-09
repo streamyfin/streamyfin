@@ -186,7 +186,7 @@ const DropdownView = () => {
     }
 
     // Set the speed on the player and update local state
-    if (preferredSpeed !== 1.0 && videoContext?.videoRef?.current) {
+    if (videoContext?.videoRef?.current) {
       videoContext.videoRef.current.setRate(preferredSpeed);
     }
     setCurrentSpeed(preferredSpeed);
