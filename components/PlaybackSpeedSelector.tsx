@@ -52,7 +52,7 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
           collisionPadding={8}
           sideOffset={8}
         >
-          <DropdownMenu.Label>Subtitle tracks</DropdownMenu.Label>
+          <DropdownMenu.Label>Playback Speed</DropdownMenu.Label>
           <DropdownMenu.Item
             key={"-1"}
             onSelect={() => {
