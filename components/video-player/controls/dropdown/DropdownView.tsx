@@ -73,6 +73,79 @@ const DropdownView = () => {
 
   const [settings, updateSettings] = useSettings();
 
+  // Helper function to clear conflicting playback speed settings
+  const clearConflictingSettings = useCallback(
+    (
+      scope: PlaybackSpeedScope,
+      item: BaseItemDto | undefined,
+      perMedia: Settings["playbackSpeedPerMedia"],
+      perShow: Settings["playbackSpeedPerShow"],
+    ) => {
+      const updatedPerMedia = { ...perMedia };
+      const updatedPerShow = { ...perShow };
+
+      if (scope === "all") {
+        // Clear both media-specific and show-specific settings
+        if (item?.Id && updatedPerMedia[item.Id] !== undefined) {
+          delete updatedPerMedia[item.Id];
+        }
+        if (item?.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
+          delete updatedPerShow[item.SeriesId];
+        }
+      } else if (scope === "media") {
+        // Clear show-specific setting only
+        if (item?.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
+          delete updatedPerShow[item.SeriesId];
+        }
+      } else if (scope === "show") {
+        // Clear media-specific setting only
+        if (item?.Id && updatedPerMedia[item.Id] !== undefined) {
+          delete updatedPerMedia[item.Id];
+        }
+      }
+
+      return { updatedPerMedia, updatedPerShow };
+    },
+    [],
+  );
+
+  // Helper function to update playback speed settings
+  const updatePlaybackSpeedSettings = useCallback(
+    (
+      speed: number,
+      scope: PlaybackSpeedScope,
+      item: BaseItemDto | undefined,
+    ) => {
+      const { updatedPerMedia, updatedPerShow } = clearConflictingSettings(
+        scope,
+        item,
+        settings.playbackSpeedPerMedia,
+        settings.playbackSpeedPerShow,
+      );
+
+      if (scope === "all") {
+        updateSettings({
+          defaultPlaybackSpeed: speed,
+          playbackSpeedPerMedia: updatedPerMedia,
+          playbackSpeedPerShow: updatedPerShow,
+        });
+      } else if (scope === "media" && item?.Id) {
+        updatedPerMedia[item.Id] = speed;
+        updateSettings({
+          playbackSpeedPerMedia: updatedPerMedia,
+          playbackSpeedPerShow: updatedPerShow,
+        });
+      } else if (scope === "show" && item?.SeriesId) {
+        updatedPerShow[item.SeriesId] = speed;
+        updateSettings({
+          playbackSpeedPerShow: updatedPerShow,
+          playbackSpeedPerMedia: updatedPerMedia,
+        });
+      }
+    },
+    [settings, updateSettings, clearConflictingSettings],
+  );
+
   const changePlaybackSpeed = useCallback(
     (speed: number, scope: PlaybackSpeedScope) => {
       setCurrentSpeed(speed);
@@ -83,64 +156,10 @@ const DropdownView = () => {
         videoContext.videoRef.current.setRate(speed);
       }
 
-      // Store preference based on scope and clear conflicting settings
-      if (scope === "all") {
-        // Set as default for all media and clear specific overrides
-        const updatedPerMedia = { ...settings.playbackSpeedPerMedia };
-        const updatedPerShow = { ...settings.playbackSpeedPerShow };
-
-        // Clear media-specific setting if it exists
-        if (item?.Id && updatedPerMedia[item.Id] !== undefined) {
-          delete updatedPerMedia[item.Id];
-        }
-
-        // Clear show-specific setting if it exists
-        if (item?.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
-          delete updatedPerShow[item.SeriesId];
-        }
-
-        updateSettings({
-          defaultPlaybackSpeed: speed,
-          playbackSpeedPerMedia: updatedPerMedia,
-          playbackSpeedPerShow: updatedPerShow,
-        });
-      } else if (scope === "media" && item?.Id) {
-        // Set for specific media item and clear show-specific setting
-        const updatedPerMedia = {
-          ...settings.playbackSpeedPerMedia,
-          [item.Id]: speed,
-        };
-        const updatedPerShow = { ...settings.playbackSpeedPerShow };
-
-        // Clear show-specific setting if it exists
-        if (item?.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
-          delete updatedPerShow[item.SeriesId];
-        }
-
-        updateSettings({
-          playbackSpeedPerMedia: updatedPerMedia,
-          playbackSpeedPerShow: updatedPerShow,
-        });
-      } else if (scope === "show" && item?.SeriesId) {
-        // Set for specific show/series and clear media-specific setting
-        const updatedPerShow = {
-          ...settings.playbackSpeedPerShow,
-          [item.SeriesId]: speed,
-        };
-        const updatedPerMedia = { ...settings.playbackSpeedPerMedia };
-
-        // Clear media-specific setting if it exists
-        if (item?.Id && updatedPerMedia[item.Id] !== undefined) {
-          delete updatedPerMedia[item.Id];
-        }
-
-        updateSettings({
-          playbackSpeedPerShow: updatedPerShow,
-          playbackSpeedPerMedia: updatedPerMedia,
-        });
-      }
+      // Update settings using the helper function
+      updatePlaybackSpeedSettings(speed, scope, item);
     },
-    [videoContext, item, settings, updateSettings],
+    [videoContext, item, updatePlaybackSpeedSettings],
   );
 
   // Initialize playback speed based on stored preferences
