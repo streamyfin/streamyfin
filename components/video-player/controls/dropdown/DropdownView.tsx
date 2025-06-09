@@ -39,14 +39,19 @@ const DropdownView = () => {
     PlaybackSpeedScope.All,
   );
 
-  const PLAYBACK_SPEED_SCOPE_LABELS: Record<string, string> = {
-    [PlaybackSpeedScope.Media]: "Custom for this media",
-  };
-  if (item?.SeriesId) {
-    PLAYBACK_SPEED_SCOPE_LABELS[PlaybackSpeedScope.Show] =
-      "Custom for this show";
-  }
-  PLAYBACK_SPEED_SCOPE_LABELS[PlaybackSpeedScope.All] = "Default for all media";
+  const PLAYBACK_SPEED_SCOPE_LABELS = useMemo(() => {
+    const labels: Record<string, string> = {
+      [PlaybackSpeedScope.Media]: "Custom for this media",
+    };
+
+    if (item?.SeriesId) {
+      labels[PlaybackSpeedScope.Show] = "Custom for this show";
+    }
+
+    labels[PlaybackSpeedScope.All] = "Default for all media";
+
+    return labels;
+  }, [item?.SeriesId]);
 
   const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
     itemId: string;
