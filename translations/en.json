@@ -59,6 +59,11 @@
       "go_to_settings_button": "Go to settings",
       "read_more": "Read more"
     },
+    "banner": {
+      "more_infos": "En savoir plus",
+      "movie": "Movie",
+      "serie": "TV Show"
+    },
     "settings": {
       "settings_title": "Settings",
       "log_out_button": "Log out",
@@ -472,7 +477,8 @@
       "requested_item": "Requested {{item}}!",
       "you_dont_have_permission_to_request": "You don't have permission to request!",
       "something_went_wrong_requesting_media": "Something went wrong requesting media!"
-    }
+    },
+    "play_button": "Play"
   },
   "tabs": {
     "home": "Home",
