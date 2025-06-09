@@ -155,7 +155,18 @@ class VlcPlayer3View: ExpoView {
     
     
     @objc func setRate(_ rate: Float) {
-        self.mediaPlayer?.rate = rate
+        guard let player = self.mediaPlayer else {
+            print("Warning: Cannot set rate - media player not initialized")
+            return
+        }
+        
+        // Clamp rate to reasonable bounds (0.25x to 4x)
+        let clampedRate = max(0.25, min(4.0, rate))
+        if clampedRate != rate {
+            print("Warning: Rate \(rate) clamped to \(clampedRate)")
+        }
+        
+        player.rate = clampedRate
     }
 
     @objc func setAudioTrack(_ trackIndex: Int) {
