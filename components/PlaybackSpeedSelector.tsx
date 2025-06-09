@@ -13,7 +13,7 @@ import { PLAYBACK_SPEEDS } from "./video-player/controls/dropdown/DropdownView";
 
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: number) => void;
-  selected?: number | undefined;
+  selected: number;
 }
 
 export const PlaybackSpeedSelector: React.FC<Props> = ({
