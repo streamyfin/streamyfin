@@ -75,13 +75,13 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
 
     let selectedPlaybackSpeed = settings.defaultPlaybackSpeed;
     console.log("Selected playback speed:", selectedPlaybackSpeed);
-    if (item.SeriesId) {
-      if (settings.playbackSpeedPerShow[item.SeriesId]) {
-        selectedPlaybackSpeed = settings.playbackSpeedPerShow[item.SeriesId];
-      }
-    } else if (item.Id) {
+    if (item.Id) {
       if (settings.playbackSpeedPerMedia[item.Id] !== undefined) {
         selectedPlaybackSpeed = settings.playbackSpeedPerMedia[item.Id];
+      }
+    } else if (item.SeriesId) {
+      if (settings.playbackSpeedPerShow[item.SeriesId]) {
+        selectedPlaybackSpeed = settings.playbackSpeedPerShow[item.SeriesId];
       }
     }
 
