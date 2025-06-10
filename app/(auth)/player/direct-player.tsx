@@ -75,9 +75,9 @@ export default function page() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
-  const VolumeManager = Platform.isTV
-    ? null
-    : require("react-native-volume-manager");
+  // const VolumeManager = Platform.isTV
+  //   ? null
+  //   : require("react-native-volume-manager");
 
   let getDownloadedItem = null;
   if (!Platform.isTV) {
@@ -359,68 +359,68 @@ export default function page() {
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
 
-    try {
-      const { volume: currentVolume } = await VolumeManager.getVolume();
-      const newVolume = Math.min(currentVolume + 0.1, 1.0);
+    // try {
+    //   const { volume: currentVolume } = await VolumeManager.getVolume();
+    //   const newVolume = Math.min(currentVolume + 0.1, 1.0);
 
-      await VolumeManager.setVolume(newVolume);
-    } catch (error) {
-      console.error("Error adjusting volume:", error);
-    }
+    //   await VolumeManager.setVolume(newVolume);
+    // } catch (error) {
+    //   console.error("Error adjusting volume:", error);
+    // }
   }, []);
   const [previousVolume, setPreviousVolume] = useState<number | null>(null);
 
   const toggleMuteCb = useCallback(async () => {
     if (Platform.isTV) return;
 
-    try {
-      const { volume: currentVolume } = await VolumeManager.getVolume();
-      const currentVolumePercent = currentVolume * 100;
+    // try {
+    //   const { volume: currentVolume } = await VolumeManager.getVolume();
+    //   const currentVolumePercent = currentVolume * 100;
 
-      if (currentVolumePercent > 0) {
-        // Currently not muted, so mute
-        setPreviousVolume(currentVolumePercent);
-        await VolumeManager.setVolume(0);
-        setIsMuted(true);
-      } else {
-        // Currently muted, so restore previous volume
-        const volumeToRestore = previousVolume || 50; // Default to 50% if no previous volume
-        await VolumeManager.setVolume(volumeToRestore / 100);
-        setPreviousVolume(null);
-        setIsMuted(false);
-      }
-    } catch (error) {
-      console.error("Error toggling mute:", error);
-    }
+    //   if (currentVolumePercent > 0) {
+    //     // Currently not muted, so mute
+    //     setPreviousVolume(currentVolumePercent);
+    //     await VolumeManager.setVolume(0);
+    //     setIsMuted(true);
+    //   } else {
+    //     // Currently muted, so restore previous volume
+    //     const volumeToRestore = previousVolume || 50; // Default to 50% if no previous volume
+    //     await VolumeManager.setVolume(volumeToRestore / 100);
+    //     setPreviousVolume(null);
+    //     setIsMuted(false);
+    //   }
+    // } catch (error) {
+    //   console.error("Error toggling mute:", error);
+    // }
   }, [previousVolume]);
   const volumeDownCb = useCallback(async () => {
     if (Platform.isTV) return;
 
-    try {
-      const { volume: currentVolume } = await VolumeManager.getVolume();
-      const newVolume = Math.max(currentVolume - 0.1, 0); // Decrease by 10%
-      console.log(
-        "Volume Down",
-        Math.round(currentVolume * 100),
-        "→",
-        Math.round(newVolume * 100),
-      );
-      await VolumeManager.setVolume(newVolume);
-    } catch (error) {
-      console.error("Error adjusting volume:", error);
-    }
+    // try {
+    //   const { volume: currentVolume } = await VolumeManager.getVolume();
+    //   const newVolume = Math.max(currentVolume - 0.1, 0); // Decrease by 10%
+    //   console.log(
+    //     "Volume Down",
+    //     Math.round(currentVolume * 100),
+    //     "→",
+    //     Math.round(newVolume * 100),
+    //   );
+    //   await VolumeManager.setVolume(newVolume);
+    // } catch (error) {
+    //   console.error("Error adjusting volume:", error);
+    // }
   }, []);
 
   const setVolumeCb = useCallback(async (newVolume: number) => {
     if (Platform.isTV) return;
 
-    try {
-      const clampedVolume = Math.max(0, Math.min(newVolume, 100));
-      console.log("Setting volume to", clampedVolume);
-      await VolumeManager.setVolume(clampedVolume / 100);
-    } catch (error) {
-      console.error("Error setting volume:", error);
-    }
+    // try {
+    //   const clampedVolume = Math.max(0, Math.min(newVolume, 100));
+    //   console.log("Setting volume to", clampedVolume);
+    //   await VolumeManager.setVolume(clampedVolume / 100);
+    // } catch (error) {
+    //   console.error("Error setting volume:", error);
+    // }
   }, []);
 
   useWebSocket({
