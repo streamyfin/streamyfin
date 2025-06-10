@@ -1,13 +1,13 @@
+// const VolumeManager = Platform.isTV
+//   ? null
+//   : require("react-native-volume-manager");
+import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
-const VolumeManager = Platform.isTV
-  ? null
-  : require("react-native-volume-manager");
-import { Ionicons } from "@expo/vector-icons";
-import type { VolumeResult } from "react-native-volume-manager";
+// import type { VolumeResult } from "react-native-volume-manager";
 
 interface AudioSliderProps {
   setVisibility: (show: boolean) => void;
@@ -36,42 +36,42 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
     fetchInitialVolume();
 
     // Disable the native volume UI when the component mounts
-    VolumeManager.showNativeVolumeUI({ enabled: false });
+    // VolumeManager.showNativeVolumeUI({ enabled: false });
 
     return () => {
       // Re-enable the native volume UI when the component unmounts
-      VolumeManager.showNativeVolumeUI({ enabled: true });
+      // VolumeManager.showNativeVolumeUI({ enabled: true });
     };
   }, []);
 
   const handleValueChange = async (value: number) => {
     volume.value = value;
-    await VolumeManager.setVolume(value / 100);
+    // await VolumeManager.setVolume(value / 100);
 
     // Re-call showNativeVolumeUI to ensure the setting is applied on iOS
-    VolumeManager.showNativeVolumeUI({ enabled: false });
+    // VolumeManager.showNativeVolumeUI({ enabled: false });
   };
 
   useEffect(() => {
-    const volumeListener = VolumeManager.addVolumeListener(
-      (result: VolumeResult) => {
-        volume.value = result.volume * 100;
-        setVisibility(true);
+    // const volumeListener = VolumeManager.addVolumeListener(
+    //   (result: VolumeResult) => {
+    //     volume.value = result.volume * 100;
+    //     setVisibility(true);
 
-        // Clear any existing timeout
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
+    //     // Clear any existing timeout
+    //     if (timeoutRef.current) {
+    //       clearTimeout(timeoutRef.current);
+    //     }
 
-        // Set a new timeout to hide the visibility after 2 seconds
-        timeoutRef.current = setTimeout(() => {
-          setVisibility(false);
-        }, 1000);
-      },
-    );
+    //     // Set a new timeout to hide the visibility after 2 seconds
+    //     timeoutRef.current = setTimeout(() => {
+    //       setVisibility(false);
+    //     }, 1000);
+    //   },
+    // );
 
     return () => {
-      volumeListener.remove();
+      // volumeListener.remove();
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
