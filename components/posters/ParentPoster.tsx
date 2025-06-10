@@ -14,21 +14,21 @@ const ParentPoster: React.FC<PosterProps> = ({ id }) => {
 
   const url = useMemo(
     () => `${api?.basePath}/Items/${id}/Images/Primary`,
-    [id]
+    [id],
   );
 
   if (!url || !id)
     return (
       <View
-        className="border border-neutral-900"
+        className='border border-neutral-900'
         style={{
           aspectRatio: "10/15",
         }}
-      ></View>
+      />
     );
 
   return (
-    <View className="rounded-lg overflow-hidden border border-neutral-900">
+    <View className='rounded-lg overflow-hidden border border-neutral-900'>
       <Image
         key={id}
         id={id}
@@ -36,7 +36,7 @@ const ParentPoster: React.FC<PosterProps> = ({ id }) => {
           uri: url,
         }}
         cachePolicy={"memory-disk"}
-        contentFit="cover"
+        contentFit='cover'
         style={{
           aspectRatio: "10/15",
         }}

@@ -1,24 +1,24 @@
+import {
+  SeasonDropdown,
+  type SeasonIndexState,
+} from "@/components/series/SeasonDropdown";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
-import { Text } from "../common/Text";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import {
-  SeasonDropdown,
-  SeasonIndexState,
-} from "@/components/series/SeasonDropdown";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { PlayedStatus } from "../PlayedStatus";
-import { useTranslation } from "react-i18next";
+import { Text } from "../common/Text";
+import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
 type Props = {
   item: BaseItemDto;
@@ -35,7 +35,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
 
   const seasonIndex = useMemo(
     () => seasonIndexState[item.Id ?? ""],
-    [item, seasonIndexState]
+    [item, seasonIndexState],
   );
 
   const { data: seasons } = useQuery({
@@ -54,7 +54,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
           headers: {
             Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
           },
-        }
+        },
       );
 
       return response.data.Items;
@@ -66,7 +66,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const selectedSeasonId: string | null = useMemo(() => {
     const season: BaseItemDto = seasons?.find(
       (s: BaseItemDto) =>
-        s.IndexNumber === seasonIndex || s.Name === seasonIndex
+        s.IndexNumber === seasonIndex || s.Name === seasonIndex,
     );
 
     if (!season?.Id) return null;
@@ -92,7 +92,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
       if (res.data.TotalRecordCount === 0)
         console.warn(
           "No episodes found for season with ID ~",
-          selectedSeasonId
+          selectedSeasonId,
         );
 
       return res.data.Items;
@@ -102,7 +102,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
 
   const queryClient = useQueryClient();
   useEffect(() => {
-    for (let e of episodes || []) {
+    for (const e of episodes || []) {
       queryClient.prefetchQuery({
         queryKey: ["item", e.Id],
         queryFn: async () => {
@@ -133,7 +133,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         minHeight: 144 * nrOfEpisodes,
       }}
     >
-      <View className="flex flex-row justify-start items-center px-4">
+      <View className='flex flex-row justify-start items-center px-4'>
         <SeasonDropdown
           item={item}
           seasons={seasons}
@@ -146,30 +146,30 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             }));
           }}
         />
-        {episodes?.length || 0 > 0 ? (
-          <View className="flex flex-row items-center space-x-2">
+        {episodes?.length ? (
+          <View className='flex flex-row items-center space-x-2'>
             <DownloadItems
               title={t("item_card.download.download_season")}
-              className="ml-2"
+              className='ml-2'
               items={episodes || []}
               MissingDownloadIconComponent={() => (
-                <Ionicons name="download" size={20} color="white" />
+                <Ionicons name='download' size={20} color='white' />
               )}
               DownloadedIconComponent={() => (
-                <Ionicons name="download" size={20} color="#9333ea" />
+                <Ionicons name='download' size={20} color='#9333ea' />
               )}
             />
             <PlayedStatus items={episodes || []} />
           </View>
         ) : null}
       </View>
-      <View className="px-4 flex flex-col mt-4">
+      <View className='px-4 flex flex-col mt-4'>
         {isFetching ? (
           <View
             style={{
               minHeight: 144 * nrOfEpisodes,
             }}
-            className="flex flex-col items-center justify-center"
+            className='flex flex-col items-center justify-center'
           >
             <Loader />
           </View>
@@ -178,35 +178,35 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
             <TouchableItemRouter
               item={e}
               key={e.Id}
-              className="flex flex-col mb-4"
+              className='flex flex-col mb-4'
             >
-              <View className="flex flex-row items-start mb-2">
-                <View className="mr-2">
+              <View className='flex flex-row items-start mb-2'>
+                <View className='mr-2'>
                   <ContinueWatchingPoster
-                    size="small"
+                    size='small'
                     item={e}
                     useEpisodePoster
                   />
                 </View>
-                <View className="shrink">
-                  <Text numberOfLines={2} className="">
+                <View className='shrink'>
+                  <Text numberOfLines={2} className=''>
                     {e.Name}
                   </Text>
-                  <Text numberOfLines={1} className="text-xs text-neutral-500">
+                  <Text numberOfLines={1} className='text-xs text-neutral-500'>
                     {`S${e.ParentIndexNumber?.toString()}:E${e.IndexNumber?.toString()}`}
                   </Text>
-                  <Text className="text-xs text-neutral-500">
+                  <Text className='text-xs text-neutral-500'>
                     {runtimeTicksToSeconds(e.RunTimeTicks)}
                   </Text>
                 </View>
-                <View className="self-start ml-auto -mt-0.5">
+                <View className='self-start ml-auto -mt-0.5'>
                   <DownloadSingleItem item={e} />
                 </View>
               </View>
 
               <Text
                 numberOfLines={3}
-                className="text-xs text-neutral-500 shrink"
+                className='text-xs text-neutral-500 shrink'
               >
                 {e.Overview}
               </Text>
@@ -214,8 +214,8 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
           ))
         )}
         {(episodes?.length || 0) === 0 ? (
-          <View className="flex flex-col">
-            <Text className="text-neutral-500">
+          <View className='flex flex-col'>
+            <Text className='text-neutral-500'>
               {t("item_card.no_episodes_for_this_season")}
             </Text>
           </View>

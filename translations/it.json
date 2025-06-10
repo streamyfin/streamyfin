@@ -138,7 +138,8 @@
         "hide_libraries": "Nascondi Librerie",
         "select_liraries_you_want_to_hide": "Selezionate le librerie che volete nascondere dalla scheda Libreria e dalle sezioni della pagina iniziale.",
         "disable_haptic_feedback": "Disabilita il feedback aptico",
-        "default_quality": "Qualità predefinita"
+        "default_quality": "Qualità predefinita",
+        "disabled": "Disabilitato"
       },
       "downloads": {
         "downloads_title": "Scaricamento",
@@ -206,6 +207,9 @@
       },
       "logs": {
         "logs_title": "Log",
+        "export_logs": "Export logs",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "Nessun log disponibile",
         "delete_all_logs": "Cancella tutti i log"
       },
@@ -345,7 +349,9 @@
     "episodes": "Episodi",
     "videos": "Video",
     "boxsets": "Boxset",
-    "playlists": "Playlist"
+    "playlists": "Playlist",
+    "noDataTitle": "Ancora nessun preferito",
+    "noData": "Contrassegna gli elementi come preferiti per vederli apparire qui per un accesso rapido."
   },
   "custom_links": {
     "no_links": "Nessun link"
@@ -365,7 +371,9 @@
     "audio_tracks": "Tracce audio:",
     "playback_state": "Stato della riproduzione:",
     "no_data_available": "Nessun dato disponibile",
-    "index": "Indice:"
+    "index": "Indice:",
+    "continue_watching": "Continua a guardare",
+    "go_back": "Indietro"
   },
   "item_card": {
     "next_up": "Il prossimo",

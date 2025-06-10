@@ -1,5 +1,5 @@
-import { Api } from "@jellyfin/sdk";
-import {
+import type { Api } from "@jellyfin/sdk";
+import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
@@ -31,7 +31,7 @@ export const getPrimaryImageUrl = ({
     return `${api?.basePath}/Items/${item?.Id}/Images/Primary`;
   }
 
-  const primaryTag = item.ImageTags?.["Primary"];
+  const primaryTag = item.ImageTags?.Primary;
   const backdropTag = item.BackdropImageTags?.[0];
   const parentBackdropTag = item.ParentBackdropImageTags?.[0];
 

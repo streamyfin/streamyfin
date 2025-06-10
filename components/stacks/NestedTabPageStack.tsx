@@ -1,6 +1,6 @@
-import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
+import type { ParamListBase, RouteProp } from "@react-navigation/native";
+import type { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { HeaderBackButton } from "../common/HeaderBackButton";
-import { ParamListBase, RouteProp } from "@react-navigation/native";
 
 type ICommonScreenOptions =
   | NativeStackNavigationOptions

@@ -16,7 +16,7 @@ export default function IndexLayout() {
   return (
     <Stack>
       <Stack.Screen
-        name="index"
+        name='index'
         options={{
           headerShown: true,
           headerLargeTitle: true,
@@ -25,7 +25,7 @@ export default function IndexLayout() {
           headerLargeStyle: {
             backgroundColor: "black",
           },
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () =>
             !pluginSettings?.libraryOptions?.locked &&
@@ -33,9 +33,9 @@ export default function IndexLayout() {
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
                   <Ionicons
-                    name="ellipsis-horizontal-outline"
+                    name='ellipsis-horizontal-outline'
                     size={24}
-                    color="white"
+                    color='white'
                   />
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content
@@ -50,9 +50,9 @@ export default function IndexLayout() {
                   <DropdownMenu.Label>
                     {t("library.options.display")}
                   </DropdownMenu.Label>
-                  <DropdownMenu.Group key="display-group">
+                  <DropdownMenu.Group key='display-group'>
                     <DropdownMenu.Sub>
-                      <DropdownMenu.SubTrigger key="image-style-trigger">
+                      <DropdownMenu.SubTrigger key='image-style-trigger'>
                         {t("library.options.display")}
                       </DropdownMenu.SubTrigger>
                       <DropdownMenu.SubContent
@@ -63,7 +63,7 @@ export default function IndexLayout() {
                         sideOffset={10}
                       >
                         <DropdownMenu.CheckboxItem
-                          key="display-option-1"
+                          key='display-option-1'
                           value={settings.libraryOptions.display === "row"}
                           onValueChange={() =>
                             updateSettings({
@@ -75,12 +75,12 @@ export default function IndexLayout() {
                           }
                         >
                           <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key="display-title-1">
+                          <DropdownMenu.ItemTitle key='display-title-1'>
                             {t("library.options.row")}
                           </DropdownMenu.ItemTitle>
                         </DropdownMenu.CheckboxItem>
                         <DropdownMenu.CheckboxItem
-                          key="display-option-2"
+                          key='display-option-2'
                           value={settings.libraryOptions.display === "list"}
                           onValueChange={() =>
                             updateSettings({
@@ -92,14 +92,14 @@ export default function IndexLayout() {
                           }
                         >
                           <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key="display-title-2">
+                          <DropdownMenu.ItemTitle key='display-title-2'>
                             {t("library.options.list")}
                           </DropdownMenu.ItemTitle>
                         </DropdownMenu.CheckboxItem>
                       </DropdownMenu.SubContent>
                     </DropdownMenu.Sub>
                     <DropdownMenu.Sub>
-                      <DropdownMenu.SubTrigger key="image-style-trigger">
+                      <DropdownMenu.SubTrigger key='image-style-trigger'>
                         {t("library.options.image_style")}
                       </DropdownMenu.SubTrigger>
                       <DropdownMenu.SubContent
@@ -110,7 +110,7 @@ export default function IndexLayout() {
                         sideOffset={10}
                       >
                         <DropdownMenu.CheckboxItem
-                          key="poster-option"
+                          key='poster-option'
                           value={
                             settings.libraryOptions.imageStyle === "poster"
                           }
@@ -124,12 +124,12 @@ export default function IndexLayout() {
                           }
                         >
                           <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key="poster-title">
+                          <DropdownMenu.ItemTitle key='poster-title'>
                             {t("library.options.poster")}
                           </DropdownMenu.ItemTitle>
                         </DropdownMenu.CheckboxItem>
                         <DropdownMenu.CheckboxItem
-                          key="cover-option"
+                          key='cover-option'
                           value={settings.libraryOptions.imageStyle === "cover"}
                           onValueChange={() =>
                             updateSettings({
@@ -141,17 +141,17 @@ export default function IndexLayout() {
                           }
                         >
                           <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key="cover-title">
+                          <DropdownMenu.ItemTitle key='cover-title'>
                             {t("library.options.cover")}
                           </DropdownMenu.ItemTitle>
                         </DropdownMenu.CheckboxItem>
                       </DropdownMenu.SubContent>
                     </DropdownMenu.Sub>
                   </DropdownMenu.Group>
-                  <DropdownMenu.Group key="show-titles-group">
+                  <DropdownMenu.Group key='show-titles-group'>
                     <DropdownMenu.CheckboxItem
                       disabled={settings.libraryOptions.imageStyle === "poster"}
-                      key="show-titles-option"
+                      key='show-titles-option'
                       value={settings.libraryOptions.showTitles}
                       onValueChange={(newValue: string) => {
                         if (settings.libraryOptions.imageStyle === "poster")
@@ -159,30 +159,30 @@ export default function IndexLayout() {
                         updateSettings({
                           libraryOptions: {
                             ...settings.libraryOptions,
-                            showTitles: newValue === "on" ? true : false,
+                            showTitles: newValue === "on",
                           },
                         });
                       }}
                     >
                       <DropdownMenu.ItemIndicator />
-                      <DropdownMenu.ItemTitle key="show-titles-title">
+                      <DropdownMenu.ItemTitle key='show-titles-title'>
                         {t("library.options.show_titles")}
                       </DropdownMenu.ItemTitle>
                     </DropdownMenu.CheckboxItem>
                     <DropdownMenu.CheckboxItem
-                      key="show-stats-option"
+                      key='show-stats-option'
                       value={settings.libraryOptions.showStats}
                       onValueChange={(newValue: string) => {
                         updateSettings({
                           libraryOptions: {
                             ...settings.libraryOptions,
-                            showStats: newValue === "on" ? true : false,
+                            showStats: newValue === "on",
                           },
                         });
                       }}
                     >
                       <DropdownMenu.ItemIndicator />
-                      <DropdownMenu.ItemTitle key="show-stats-title">
+                      <DropdownMenu.ItemTitle key='show-stats-title'>
                         {t("library.options.show_stats")}
                       </DropdownMenu.ItemTitle>
                     </DropdownMenu.CheckboxItem>
@@ -195,12 +195,12 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name="[libraryId]"
+        name='[libraryId]'
         options={{
           title: "",
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
@@ -208,12 +208,12 @@ export default function IndexLayout() {
         <Stack.Screen key={name} name={name} options={options} />
       ))}
       <Stack.Screen
-        name="collections/[collectionId]"
+        name='collections/[collectionId]'
         options={{
           title: "",
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

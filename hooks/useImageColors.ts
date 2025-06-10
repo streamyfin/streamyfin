@@ -7,7 +7,7 @@ import {
 } from "@/utils/atoms/primaryColor";
 import { getItemImage } from "@/utils/getItemImage";
 import { storage } from "@/utils/mmkv";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useMemo } from "react";
 import { Platform } from "react-native";
@@ -38,7 +38,7 @@ export const useImageColors = ({
   const source = useMemo(() => {
     if (!api) return;
     if (url) return { uri: url };
-    else if (item)
+    if (item)
       return getItemImage({
         item,
         api,
@@ -46,7 +46,7 @@ export const useImageColors = ({
         quality: 80,
         width: 300,
       });
-    else return null;
+    return null;
   }, [api, item]);
 
   useEffect(() => {
@@ -70,40 +70,48 @@ export const useImageColors = ({
         fallback: "#fff",
         cache: false,
       })
-        .then((colors: { platform: string; dominant: string; vibrant: string; detail: string; primary: string; }) => {
-          let primary: string = "#fff";
-          let text: string = "#000";
-          let backup: string = "#fff";
+        .then(
+          (colors: {
+            platform: string;
+            dominant: string;
+            vibrant: string;
+            detail: string;
+            primary: string;
+          }) => {
+            let primary = "#fff";
+            let text = "#000";
+            let backup = "#fff";
 
-          // Select the appropriate color based on the platform
-          if (colors.platform === "android") {
-            primary = colors.dominant;
-            backup = colors.vibrant;
-          } else if (colors.platform === "ios") {
-            primary = colors.detail;
-            backup = colors.primary;
-          }
+            // Select the appropriate color based on the platform
+            if (colors.platform === "android") {
+              primary = colors.dominant;
+              backup = colors.vibrant;
+            } else if (colors.platform === "ios") {
+              primary = colors.detail;
+              backup = colors.primary;
+            }
 
-          // Adjust the primary color if it's too close to black
-          if (primary && isCloseToBlack(primary)) {
-            if (backup && !isCloseToBlack(backup)) primary = backup;
-            primary = adjustToNearBlack(primary);
-          }
+            // Adjust the primary color if it's too close to black
+            if (primary && isCloseToBlack(primary)) {
+              if (backup && !isCloseToBlack(backup)) primary = backup;
+              primary = adjustToNearBlack(primary);
+            }
 
-          // Calculate the text color based on the primary color
-          if (primary) text = calculateTextColor(primary);
+            // Calculate the text color based on the primary color
+            if (primary) text = calculateTextColor(primary);
 
-          setPrimaryColor({
-            primary,
-            text,
-          });
+            setPrimaryColor({
+              primary,
+              text,
+            });
 
-          // Cache the colors in storage
-          if (source.uri && primary) {
-            storage.set(`${source.uri}-primary`, primary);
-            storage.set(`${source.uri}-text`, text);
-          }
-        })
+            // Cache the colors in storage
+            if (source.uri && primary) {
+              storage.set(`${source.uri}-primary`, primary);
+              storage.set(`${source.uri}-text`, text);
+            }
+          },
+        )
         .catch((error: any) => {
           console.error("Error getting colors", error);
         });

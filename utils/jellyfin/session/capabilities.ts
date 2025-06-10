@@ -1,7 +1,7 @@
-import { Settings } from "@/utils/atoms/settings";
-import native from "@/utils/profiles/native";
-import { Api } from "@jellyfin/sdk";
-import { AxiosError, AxiosResponse } from "axios";
+import type { Settings } from "@/utils/atoms/settings";
+import generateDeviceProfile from "@/utils/profiles/native";
+import type { Api } from "@jellyfin/sdk";
+import type { AxiosResponse } from "axios";
 import { getAuthHeaders } from "../jellyfin";
 
 interface PostCapabilitiesParams {
@@ -28,7 +28,7 @@ export const postCapabilities = async ({
 
   try {
     const d = api.axiosInstance.post(
-      api.basePath + "/Sessions/Capabilities/Full",
+      `${api.basePath}/Sessions/Capabilities/Full`,
       {
         playableMediaTypes: ["Audio", "Video"],
         supportedCommands: [
@@ -43,14 +43,14 @@ export const postCapabilities = async ({
         ],
         supportsMediaControl: true,
         id: sessionId,
-        DeviceProfile: native,
+        DeviceProfile: generateDeviceProfile(),
       },
       {
         headers: getAuthHeaders(api),
-      }
+      },
     );
     return d;
-  } catch (error: any | AxiosError) {
+  } catch (error) {
     throw new Error("Failed to mark as not played");
   }
 };

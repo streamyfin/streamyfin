@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.27.0",
+    "version": "0.28.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -36,7 +36,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 53,
+      "versionCode": 56,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-plain.png",
         "monochromeImage": "./assets/images/icon-mono.png",
@@ -47,13 +47,13 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WRITE_SETTINGS"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
-      "@config-plugins/ffmpeg-kit-react-native",
       [
         "react-native-video",
         {
@@ -118,12 +118,26 @@
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
+      ["./plugins/withRNBackgroundDownloader.js"],
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#2e2e2e",
           "image": "./assets/images/StreamyFinFinal.png",
           "imageWidth": 100
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification.png",
+          "color": "#9333EA"
+        }
+      ],
+      [
+        "react-native-google-cast",
+        {
+          "useDefaultExpandedMediaControls": true
         }
       ]
     ],
@@ -138,7 +152,7 @@
         "projectId": "e79219d1-797f-4fbe-9fa1-cfd360690a68"
       }
     },
-    "owner": "fredrikburmester",
+    "owner": "streamyfin",
     "runtimeVersion": {
       "policy": "appVersion"
     },

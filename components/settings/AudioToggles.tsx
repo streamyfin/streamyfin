@@ -1,13 +1,13 @@
-import { Platform, TouchableOpacity, View, ViewProps } from "react-native";
+import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { Text } from "../common/Text";
-import { useMedia } from "./MediaContext";
-import { Switch } from "react-native-gesture-handler";
+import { useSettings } from "@/utils/atoms/settings";
+import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { Switch } from "react-native-gesture-handler";
+import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { Ionicons } from "@expo/vector-icons";
-import { useSettings } from "@/utils/atoms/settings";
+import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
 
@@ -26,7 +26,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
       <ListGroup
         title={t("home.settings.audio.audio_title")}
         description={
-          <Text className="text-[#8E8D91] text-xs">
+          <Text className='text-[#8E8D91] text-xs'>
             {t("home.settings.audio.audio_hint")}
           </Text>
         }
@@ -46,22 +46,22 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         <ListItem title={t("home.settings.audio.audio_language")}>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3 ">
-                <Text className="mr-1 text-[#8E8D91]">
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3 '>
+                <Text className='mr-1 text-[#8E8D91]'>
                   {settings?.defaultAudioLanguage?.DisplayName ||
                     t("home.settings.audio.none")}
                 </Text>
                 <Ionicons
-                  name="chevron-expand-sharp"
+                  name='chevron-expand-sharp'
                   size={18}
-                  color="#5A5960"
+                  color='#5A5960'
                 />
               </TouchableOpacity>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
               loop={true}
-              side="bottom"
-              align="start"
+              side='bottom'
+              align='start'
               alignOffset={0}
               avoidCollisions={true}
               collisionPadding={8}

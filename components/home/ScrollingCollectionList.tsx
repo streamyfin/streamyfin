@@ -1,17 +1,17 @@
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
-  useQuery,
   type QueryFunction,
   type QueryKey,
+  useQuery,
 } from "@tanstack/react-query";
-import { ScrollView, View, ViewProps } from "react-native";
+import { useTranslation } from "react-i18next";
+import { ScrollView, View, type ViewProps } from "react-native";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import SeriesPoster from "../posters/SeriesPoster";
-import { useTranslation } from "react-i18next";
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -47,12 +47,12 @@ export const ScrollingCollectionList: React.FC<Props> = ({
 
   return (
     <View {...props}>
-      <Text className="px-4 text-lg font-bold mb-2 text-neutral-100">
+      <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
         {title}
       </Text>
       {isLoading === false && data?.length === 0 && (
-        <View className="px-4">
-          <Text className="text-neutral-500">{t("home.no_items")}</Text>
+        <View className='px-4'>
+          <Text className='text-neutral-500'>{t("home.no_items")}</Text>
         </View>
       )}
       {isLoading ? (
@@ -62,19 +62,19 @@ export const ScrollingCollectionList: React.FC<Props> = ({
         `}
         >
           {[1, 2, 3].map((i) => (
-            <View className="w-44" key={i}>
-              <View className="bg-neutral-900 h-24 w-full rounded-md mb-1"></View>
-              <View className="rounded-md overflow-hidden mb-1 self-start">
+            <View className='w-44' key={i}>
+              <View className='bg-neutral-900 h-24 w-full rounded-md mb-1' />
+              <View className='rounded-md overflow-hidden mb-1 self-start'>
                 <Text
-                  className="text-neutral-900 bg-neutral-900 rounded-md"
+                  className='text-neutral-900 bg-neutral-900 rounded-md'
                   numberOfLines={1}
                 >
                   Nisi mollit voluptate amet.
                 </Text>
               </View>
-              <View className="rounded-md overflow-hidden self-start mb-1">
+              <View className='rounded-md overflow-hidden self-start mb-1'>
                 <Text
-                  className="text-neutral-900 bg-neutral-900 text-xs rounded-md "
+                  className='text-neutral-900 bg-neutral-900 text-xs rounded-md '
                   numberOfLines={1}
                 >
                   Lorem ipsum
@@ -85,7 +85,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View className="px-4 flex flex-row">
+          <View className='px-4 flex flex-row'>
             {data?.map((item) => (
               <TouchableItemRouter
                 item={item}

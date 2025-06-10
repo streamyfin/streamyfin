@@ -1,12 +1,12 @@
 import { itemRouter } from "@/components/common/TouchableItemRouter";
-import {
+import { DownloadedItem } from "@/providers/DownloadProvider";
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import axios from "axios";
-import { writeToLog } from "./log";
-import { DownloadedItem } from "@/providers/DownloadProvider";
 import { MMKV } from "react-native-mmkv";
+import { writeToLog } from "./log";
 
 interface IJobInput {
   deviceId?: string | null;
@@ -63,7 +63,7 @@ export async function getAllJobsByDeviceId({
     console.error(
       statusResponse.status,
       statusResponse.data,
-      statusResponse.statusText
+      statusResponse.statusText,
     );
     throw new Error("Failed to fetch job status");
   }
@@ -105,13 +105,13 @@ export async function cancelAllJobs({ authHeader, url, deviceId }: IJobInput) {
       authHeader,
       url,
     }).then((jobs) => {
-      jobs.forEach((job) => {
+      for (const job of jobs) {
         cancelJobById({
           authHeader,
           url,
           id: job.id,
         });
-      });
+      }
     });
   } catch (error) {
     writeToLog("ERROR", "Failed to cancel all jobs", error);
@@ -172,7 +172,7 @@ export async function getStatistics({
 export function saveDownloadItemInfoToDiskTmp(
   item: BaseItemDto,
   mediaSource: MediaSourceInfo,
-  url: string
+  url: string,
 ): boolean {
   try {
     const storage = new MMKV();

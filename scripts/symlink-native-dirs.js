@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const path = require("path");
-const process = require("process");
-const { execSync } = require("child_process");
+const fs = require("node:fs");
+const path = require("node:path");
+const process = require("node:process");
+const { execSync } = require("node:child_process");
 
 const root = process.cwd();
 // const tvosPath = path.join(root, 'iostv');
@@ -25,22 +25,22 @@ const paths = new Map([
 
 if (isTV) {
   stdout = execSync(
-    `mkdir -p ${paths.get("tvos")}; ln -nsf ${paths.get("tvos")} ios`
+    `mkdir -p ${paths.get("tvos")}; ln -nsf ${paths.get("tvos")} ios`,
   );
   console.log(stdout.toString());
   stdout = execSync(
     `mkdir -p ${paths.get("androidtv")}; ln -nsf ${paths.get(
-      "androidtv"
-    )} android`
+      "androidtv",
+    )} android`,
   );
   console.log(stdout.toString());
 } else {
   stdout = execSync(
-    `mkdir -p ${paths.get("ios")}; ln -nsf ${paths.get("ios")} ios`
+    `mkdir -p ${paths.get("ios")}; ln -nsf ${paths.get("ios")} ios`,
   );
   console.log(stdout.toString());
   stdout = execSync(
-    `mkdir -p ${paths.get("android")}; ln -nsf ${paths.get("android")} android`
+    `mkdir -p ${paths.get("android")}; ln -nsf ${paths.get("android")} android`,
   );
   console.log(stdout.toString());
 }

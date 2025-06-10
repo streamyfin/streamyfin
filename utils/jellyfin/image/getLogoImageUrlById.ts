@@ -1,5 +1,5 @@
-import { Api } from "@jellyfin/sdk";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { Api } from "@jellyfin/sdk";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 
 /**
  * Retrieves the primary image URL for a given item.
@@ -39,7 +39,7 @@ export const getLogoImageUrlById = ({
     return `${api.basePath}/Items/${parentId}/Images/Logo?${params.toString()}`;
   }
 
-  const imageTag = item.ImageTags?.["Logo"];
+  const imageTag = item.ImageTags?.Logo;
 
   if (!imageTag) return null;
 

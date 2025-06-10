@@ -1,10 +1,10 @@
 // utils/getDefaultPlaySettings.ts
 import { BITRATES } from "@/components/BitrateSelector";
-import {
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { Settings, useSettings } from "../atoms/settings";
+import { type Settings, useSettings } from "../atoms/settings";
 import {
   AudioStreamRanker,
   StreamRanker,
@@ -34,7 +34,7 @@ export function getDefaultPlaySettings(
   item: BaseItemDto,
   settings: Settings,
   previousIndexes?: previousIndexes,
-  previousSource?: MediaSourceInfo
+  previousSource?: MediaSourceInfo,
 ): PlaySettings {
   if (item.Type === "Program") {
     return {
@@ -53,14 +53,14 @@ export function getDefaultPlaySettings(
   // 2. Get default or preferred audio
   const defaultAudioIndex = mediaSource?.DefaultAudioStreamIndex;
   const preferedAudioIndex = mediaSource?.MediaStreams?.find(
-    (x) => x.Type === "Audio" && x.Language === settings?.defaultAudioLanguage
+    (x) => x.Type === "Audio" && x.Language === settings?.defaultAudioLanguage,
   )?.Index;
   const firstAudioIndex = mediaSource?.MediaStreams?.find(
-    (x) => x.Type === "Audio"
+    (x) => x.Type === "Audio",
   )?.Index;
 
   // We prefer the previous track over the default track.
-  let trackOptions: TrackOptions = {
+  const trackOptions: TrackOptions = {
     DefaultAudioStreamIndex: defaultAudioIndex ?? -1,
     DefaultSubtitleStreamIndex: mediaSource?.DefaultSubtitleStreamIndex ?? -1,
   };
@@ -74,7 +74,7 @@ export function getDefaultPlaySettings(
         previousIndexes.subtitleIndex,
         previousSource,
         mediaStreams,
-        trackOptions
+        trackOptions,
       );
     }
   }
@@ -87,7 +87,7 @@ export function getDefaultPlaySettings(
         previousIndexes.audioIndex,
         previousSource,
         mediaStreams,
-        trackOptions
+        trackOptions,
       );
     }
   }

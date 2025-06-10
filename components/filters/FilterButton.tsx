@@ -2,11 +2,11 @@ import { Text } from "@/components/common/Text";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { TouchableOpacity, View, ViewProps } from "react-native";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { FilterSheet } from "./FilterSheet";
 
 interface FilterButtonProps<T> extends ViewProps {
-  collectionId: string;
+  id: string;
   showSearch?: boolean;
   queryKey: string;
   values: T[];
@@ -15,11 +15,12 @@ interface FilterButtonProps<T> extends ViewProps {
   queryFn: (params: any) => Promise<any>;
   searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
+  multiple?: boolean;
   icon?: "filter" | "sort";
 }
 
 export const FilterButton = <T,>({
-  collectionId,
+  id,
   queryFn,
   queryKey,
   set,
@@ -28,16 +29,17 @@ export const FilterButton = <T,>({
   renderItemLabel,
   searchFilter,
   showSearch = true,
+  multiple = false,
   icon = "filter",
   ...props
 }: FilterButtonProps<T>) => {
   const [open, setOpen] = useState(false);
 
   const { data: filters } = useQuery<T[]>({
-    queryKey: ["filters", title, queryKey, collectionId],
+    queryKey: ["filters", title, queryKey, id],
     queryFn,
     staleTime: 0,
-    enabled: !!collectionId && !!queryFn && !!queryKey,
+    enabled: !!id && !!queryFn && !!queryKey,
   });
 
   return (
@@ -68,16 +70,16 @@ export const FilterButton = <T,>({
           </Text>
           {icon === "filter" ? (
             <Ionicons
-              name="filter"
+              name='filter'
               size={14}
-              color="white"
+              color='white'
               style={{ opacity: 0.5 }}
             />
           ) : (
             <FontAwesome
-              name="sort"
+              name='sort'
               size={14}
-              color="white"
+              color='white'
               style={{ opacity: 0.5 }}
             />
           )}
@@ -93,6 +95,7 @@ export const FilterButton = <T,>({
         renderItemLabel={renderItemLabel}
         searchFilter={searchFilter}
         showSearch={showSearch}
+        multiple={multiple}
       />
     </>
   );

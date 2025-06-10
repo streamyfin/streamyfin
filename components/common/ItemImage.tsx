@@ -1,11 +1,11 @@
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
 import { Ionicons } from "@expo/vector-icons";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image, ImageProps } from "expo-image";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { Image, type ImageProps } from "expo-image";
 import { useAtom } from "jotai";
-import {FC, useMemo} from "react";
-import { View, ViewProps } from "react-native";
+import { type FC, useMemo } from "react";
+import { View, type ViewProps } from "react-native";
 
 interface Props extends ImageProps {
   item: BaseItemDto;
@@ -36,7 +36,7 @@ export const ItemImage: FC<Props> = ({
 
   const source = useMemo(() => {
     if (!api) {
-      onError && onError();
+      onError?.();
       return;
     }
     return getItemImage({
@@ -52,13 +52,13 @@ export const ItemImage: FC<Props> = ({
   if (!source?.uri)
     return (
       <View
-        {...props as ViewProps}
-        className="flex flex-col items-center justify-center border border-neutral-800 bg-neutral-900"
+        {...(props as ViewProps)}
+        className='flex flex-col items-center justify-center border border-neutral-800 bg-neutral-900'
       >
         <Ionicons
-          name="image-outline"
+          name='image-outline'
           size={24}
-          color="white"
+          color='white'
           style={{ opacity: 0.4 }}
         />
       </View>

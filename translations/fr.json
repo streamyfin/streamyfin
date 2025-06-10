@@ -136,9 +136,10 @@
         },
         "show_custom_menu_links": "Afficher les liens personnalisés",
         "hide_libraries": "Cacher des bibliothèques",
-        "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l’onglet Bibliothèque et les sections de la page d’accueil.",
+        "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l'onglet Bibliothèque et les sections de la page d'accueil.",
         "disable_haptic_feedback": "Désactiver le retour haptique",
-        "default_quality": "Qualité par défaut"
+        "default_quality": "Qualité par défaut",
+        "disabled": "Désactivé"
       },
       "downloads": {
         "downloads_title": "Téléchargements",
@@ -206,6 +207,9 @@
       },
       "logs": {
         "logs_title": "Journaux",
+        "export_logs": "Export logs",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "Aucun journal disponible",
         "delete_all_logs": "Supprimer tous les journaux"
       },
@@ -345,7 +349,9 @@
     "episodes": "Épisodes",
     "videos": "Vidéos",
     "boxsets": "Coffrets",
-    "playlists": "Listes de lecture"
+    "playlists": "Listes de lecture",
+    "noDataTitle": "Pas encore de favoris",
+    "noData": "Marquez des éléments comme favoris pour les voir apparaître ici pour un accès rapide."
   },
   "custom_links": {
     "no_links": "Aucuns liens"
@@ -365,7 +371,9 @@
     "audio_tracks": "Pistes audio:",
     "playback_state": "État de lecture:",
     "no_data_available": "Aucune donnée disponible",
-    "index": "Index:"
+    "index": "Index :",
+    "continue_watching": "Continuer à regarder",
+    "go_back": "Retour"
   },
   "item_card": {
     "next_up": "À suivre",

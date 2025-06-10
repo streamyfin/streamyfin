@@ -1,9 +1,10 @@
-import { atomWithStorage, createJSONStorage } from "jotai/utils";
-import { storage } from "./mmkv";
 import { useQuery } from "@tanstack/react-query";
-import React, { createContext, useContext } from "react";
+import { atomWithStorage, createJSONStorage } from "jotai/utils";
+import type React from "react";
+import { createContext, useContext } from "react";
+import { storage } from "./mmkv";
 
-type LogLevel = "INFO" | "WARN" | "ERROR";
+export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG";
 
 interface LogEntry {
   timestamp: string;
@@ -20,10 +21,10 @@ const mmkvStorage = createJSONStorage(() => ({
 const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 
 const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null
+  null,
 );
 const DownloadContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null
+  null,
 );
 
 function useLogProvider() {
@@ -61,6 +62,11 @@ export const writeInfoLog = (message: string, data?: any) =>
   writeToLog("INFO", message, data);
 export const writeErrorLog = (message: string, data?: any) =>
   writeToLog("ERROR", message, data);
+export const writeDebugLog = (message: string, data?: any) => {
+  if (process.env.EXPO_PUBLIC_WRITE_DEBUG === "1") {
+    writeToLog("DEBUG", message, data);
+  }
+};
 
 export const readFromLog = (): LogEntry[] => {
   const logs = storage.getString("logs");

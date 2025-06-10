@@ -205,6 +205,9 @@
       },
       "logs": {
         "logs_title": "日志",
+        "export_logs": "Export logs",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "无可用日志",
         "delete_all_logs": "删除所有日志"
       },
@@ -344,7 +347,9 @@
     "episodes": "单集",
     "videos": "视频",
     "boxsets": "套装",
-    "playlists": "播放列表"
+    "playlists": "播放列表",
+    "noDataTitle": "暂无收藏",
+    "noData": "将项目标记为收藏，它们将显示在此处以便快速访问。"
   },
   "custom_links": {
     "no_links": "无链接"
@@ -364,7 +369,9 @@
     "audio_tracks": "音频轨道：",
     "playback_state": "播放状态：",
     "no_data_available": "无可用数据",
-    "index": "索引："
+    "index": "索引：",
+    "continue_watching": "继续观看",
+    "go_back": "返回"
   },
   "item_card": {
     "next_up": "下一个",

@@ -1,11 +1,11 @@
+import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
-import { WatchedIndicator } from "@/components/WatchedIndicator";
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -27,12 +27,12 @@ const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
   }, [item]);
 
   const blurhash = useMemo(() => {
-    const key = item.ImageTags?.["Primary"] as string;
-    return item.ImageBlurHashes?.["Primary"]?.[key];
+    const key = item.ImageTags?.Primary as string;
+    return item.ImageBlurHashes?.Primary?.[key];
   }, [item]);
 
   return (
-    <View className="w-28 aspect-[10/15] relative rounded-lg overflow-hidden border border-neutral-900 ">
+    <View className='w-28 aspect-[10/15] relative rounded-lg overflow-hidden border border-neutral-900 '>
       <Image
         placeholder={{
           blurhash,
@@ -47,12 +47,13 @@ const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
             : null
         }
         cachePolicy={"memory-disk"}
-        contentFit="cover"
+        contentFit='cover'
         style={{
           height: "100%",
           width: "100%",
         }}
       />
+      {<WatchedIndicator item={item} />}
     </View>
   );
 };

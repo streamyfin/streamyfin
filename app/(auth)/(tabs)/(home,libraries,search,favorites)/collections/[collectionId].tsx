@@ -1,22 +1,23 @@
+import { ItemCardText } from "@/components/ItemCardText";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
-import { ItemCardText } from "@/components/ItemCardText";
 import { ItemPoster } from "@/components/posters/ItemPoster";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  SortByOption,
+  SortOrderOption,
   genreFilterAtom,
   sortByAtom,
-  SortByOption,
   sortOptions,
   sortOrderAtom,
-  SortOrderOption,
   sortOrderOptions,
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
-import {
+import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
   ItemSortBy,
@@ -29,11 +30,11 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, View } from "react-native";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FlatList, View } from "react-native";
 
 const page: React.FC = () => {
   const searchParams = useLocalSearchParams();
@@ -43,7 +44,7 @@ const page: React.FC = () => {
   const [user] = useAtom(userAtom);
   const navigation = useNavigation();
   const [orientation, setOrientation] = useState(
-    ScreenOrientation.Orientation.PORTRAIT_UP
+    ScreenOrientation.Orientation.PORTRAIT_UP,
   );
 
   const { t } = useTranslation();
@@ -111,7 +112,7 @@ const page: React.FC = () => {
         recursive: true,
         genres: selectedGenres,
         tags: selectedTags,
-        years: selectedYears.map((year) => parseInt(year)),
+        years: selectedYears.map((year) => Number.parseInt(year)),
         includeItemTypes: ["Movie", "Series"],
       });
 
@@ -126,7 +127,7 @@ const page: React.FC = () => {
       selectedTags,
       sortBy,
       sortOrder,
-    ]
+    ],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
@@ -151,14 +152,13 @@ const page: React.FC = () => {
       const totalItems = lastPage.TotalRecordCount;
       const accumulatedItems = pages.reduce(
         (acc, curr) => acc + (curr?.Items?.length || 0),
-        0
+        0,
       );
 
       if (accumulatedItems < totalItems) {
         return lastPage?.Items?.length * pages.length;
-      } else {
-        return undefined;
       }
+      return undefined;
     },
     initialPageParam: 0,
     enabled: !!api && !!user?.Id && !!collection,
@@ -188,8 +188,8 @@ const page: React.FC = () => {
               index % 3 === 0
                 ? "flex-end"
                 : (index + 1) % 3 === 0
-                ? "flex-start"
-                : "center",
+                  ? "flex-start"
+                  : "center",
             width: "89%",
           }}
         >
@@ -199,14 +199,14 @@ const page: React.FC = () => {
         </View>
       </TouchableItemRouter>
     ),
-    [orientation]
+    [orientation],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
 
   const ListHeaderComponent = useCallback(
     () => (
-      <View className="">
+      <View className=''>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -232,13 +232,13 @@ const page: React.FC = () => {
               key: "genre",
               component: (
                 <FilterButton
-                  className="mr-1"
-                  collectionId={collectionId}
-                  queryKey="genreFilter"
+                  className='mr-1'
+                  id={collectionId}
+                  queryKey='genreFilter'
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: collectionId,
@@ -259,13 +259,13 @@ const page: React.FC = () => {
               key: "year",
               component: (
                 <FilterButton
-                  className="mr-1"
-                  collectionId={collectionId}
-                  queryKey="yearFilter"
+                  className='mr-1'
+                  id={collectionId}
+                  queryKey='yearFilter'
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: collectionId,
@@ -284,13 +284,13 @@ const page: React.FC = () => {
               key: "tags",
               component: (
                 <FilterButton
-                  className="mr-1"
-                  collectionId={collectionId}
-                  queryKey="tagsFilter"
+                  className='mr-1'
+                  id={collectionId}
+                  queryKey='tagsFilter'
                   queryFn={async () => {
                     if (!api) return null;
                     const response = await getFilterApi(
-                      api
+                      api,
                     ).getQueryFiltersLegacy({
                       userId: user?.Id,
                       parentId: collectionId,
@@ -311,9 +311,9 @@ const page: React.FC = () => {
               key: "sortBy",
               component: (
                 <FilterButton
-                  className="mr-1"
-                  collectionId={collectionId}
-                  queryKey="sortBy"
+                  className='mr-1'
+                  id={collectionId}
+                  queryKey='sortBy'
                   queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
                   values={sortBy}
@@ -331,9 +331,9 @@ const page: React.FC = () => {
               key: "sortOrder",
               component: (
                 <FilterButton
-                  className="mr-1"
-                  collectionId={collectionId}
-                  queryKey="sortOrder"
+                  className='mr-1'
+                  id={collectionId}
+                  queryKey='sortOrder'
                   queryFn={async () => sortOrderOptions.map((s) => s.key)}
                   set={setSortOrder}
                   values={sortOrder}
@@ -368,7 +368,7 @@ const page: React.FC = () => {
       sortOrder,
       setSortOrder,
       isFetching,
-    ]
+    ],
   );
 
   if (!collection) return null;
@@ -376,8 +376,10 @@ const page: React.FC = () => {
   return (
     <FlashList
       ListEmptyComponent={
-        <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("search.no_results")}</Text>
+        <View className='flex flex-col items-center justify-center h-full'>
+          <Text className='font-bold text-xl text-neutral-500'>
+            {t("search.no_results")}
+          </Text>
         </View>
       }
       extraData={[
@@ -387,7 +389,7 @@ const page: React.FC = () => {
         sortBy,
         sortOrder,
       ]}
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior='automatic'
       data={flatData}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
@@ -409,7 +411,7 @@ const page: React.FC = () => {
             width: 10,
             height: 10,
           }}
-        ></View>
+        />
       )}
     />
   );

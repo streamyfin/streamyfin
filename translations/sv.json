@@ -22,9 +22,32 @@
     "next_up": "Nästa upp",
     "recently_added_in": "Nyligen tillagt i {{libraryName}}"
   },
+  "favorites": {
+    "noDataTitle": "Inga favoriter än",
+    "noData": "Markera objekt som favoriter för att se dem visas här för snabb åtkomst."
+  },
   "tabs": {
     "home": "Hem",
     "search": "Sök",
     "library": "Bibliotek"
+  },
+  "player": {
+    "error": "Fel",
+    "failed_to_get_stream_url": "Kunde inte hämta stream-URL",
+    "an_error_occured_while_playing_the_video": "Ett fel uppstod vid uppspelning av videon. Kontrollera loggarna i inställningarna.",
+    "client_error": "Klientfel",
+    "could_not_create_stream_for_chromecast": "Kunde inte skapa stream för Chromecast",
+    "message_from_server": "Meddelande från servern: {{message}}",
+    "video_has_finished_playing": "Videon har spelat klart!",
+    "no_video_source": "Ingen videokälla...",
+    "next_episode": "Nästa avsnitt",
+    "refresh_tracks": "Uppdatera spår",
+    "subtitle_tracks": "Textspår:",
+    "audio_tracks": "Ljudspår:",
+    "playback_state": "Uppspelningsstatus:",
+    "no_data_available": "Inga data tillgängliga",
+    "index": "Index:",
+    "continue_watching": "Fortsätt titta",
+    "go_back": "Tillbaka"
   }
 }

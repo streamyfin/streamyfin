@@ -138,7 +138,8 @@
         "hide_libraries": "Ocultar bibliotecas",
         "select_liraries_you_want_to_hide": "Selecciona las bibliotecas que quieres ocultar de la pestaña Bibliotecas y de Inicio.",
         "disable_haptic_feedback": "Desactivar feedback háptico",
-        "default_quality": "Calidad por defecto"
+        "default_quality": "Calidad por defecto",
+        "disabled": "Deshabilitado"
       },
       "downloads": {
         "downloads_title": "Descargas",
@@ -206,6 +207,9 @@
       },
       "logs": {
         "logs_title": "Registros",
+        "export_logs": "Export logs",
+        "click_for_more_info": "Click for more info",
+        "level": "Level",
         "no_logs_available": "No hay registros disponibles",
         "delete_all_logs": "Eliminar todos los registros"
       },
@@ -345,7 +349,9 @@
     "episodes": "Episodios",
     "videos": "Vídeos",
     "boxsets": "Colecciones",
-    "playlists": "Playlists"
+    "playlists": "Playlists",
+    "noDataTitle": "Aún no hay favoritos",
+    "noData": "Marca elementos como favoritos para verlos aparecer aquí para un acceso rápido."
   },
   "custom_links": {
     "no_links": "Sin enlaces"
@@ -365,7 +371,9 @@
     "audio_tracks": "Pistas de audio:",
     "playback_state": "Estado de la reproducción:",
     "no_data_available": "No hay datos disponibles",
-    "index": "Índice:"
+    "index": "Índice:",
+    "continue_watching": "Continuar viendo",
+    "go_back": "Volver"
   },
   "item_card": {
     "next_up": "A continuación",

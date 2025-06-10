@@ -3,15 +3,15 @@ import {
   nestedTabPageScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
 import { Stack } from "expo-router";
-import { Platform } from "react-native";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 
 export default function SearchLayout() {
   const { t } = useTranslation();
   return (
     <Stack>
       <Stack.Screen
-        name="index"
+        name='index'
         options={{
           headerShown: true,
           headerLargeTitle: true,
@@ -20,7 +20,7 @@ export default function SearchLayout() {
             backgroundColor: "black",
           },
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
@@ -28,26 +28,26 @@ export default function SearchLayout() {
         <Stack.Screen key={name} name={name} options={options} />
       ))}
       <Stack.Screen
-        name="collections/[collectionId]"
+        name='collections/[collectionId]'
         options={{
           title: "",
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios" ? true : false,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
-      <Stack.Screen name="jellyseerr/page" options={commonScreenOptions} />
+      <Stack.Screen name='jellyseerr/page' options={commonScreenOptions} />
       <Stack.Screen
-        name="jellyseerr/person/[personId]"
+        name='jellyseerr/person/[personId]'
         options={commonScreenOptions}
       />
       <Stack.Screen
-        name="jellyseerr/company/[companyId]"
+        name='jellyseerr/company/[companyId]'
         options={commonScreenOptions}
       />
       <Stack.Screen
-        name="jellyseerr/genre/[genreId]"
+        name='jellyseerr/genre/[genreId]'
         options={commonScreenOptions}
       />
     </Stack>

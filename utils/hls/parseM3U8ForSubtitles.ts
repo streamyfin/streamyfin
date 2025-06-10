@@ -11,7 +11,7 @@ export interface SubtitleTrack {
 }
 
 export async function parseM3U8ForSubtitles(
-  url: string
+  url: string,
 ): Promise<SubtitleTrack[]> {
   try {
     const response = await axios.get(url, { responseType: "text" });
@@ -24,12 +24,12 @@ export async function parseM3U8ForSubtitles(
         const attributes = parseAttributes(line);
         const track: SubtitleTrack = {
           index: index++,
-          name: attributes["NAME"] || "",
-          uri: attributes["URI"] || "",
-          language: attributes["LANGUAGE"] || "",
-          default: attributes["DEFAULT"] === "YES",
-          forced: attributes["FORCED"] === "YES",
-          autoSelect: attributes["AUTOSELECT"] === "YES",
+          name: attributes.NAME || "",
+          uri: attributes.URI || "",
+          language: attributes.LANGUAGE || "",
+          default: attributes.DEFAULT === "YES",
+          forced: attributes.FORCED === "YES",
+          autoSelect: attributes.AUTOSELECT === "YES",
         };
         subtitleTracks.push(track);
       }

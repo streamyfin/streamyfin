@@ -1,15 +1,15 @@
+import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
-import { Loader } from "@/components/Loader";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 import { Switch, View } from "react-native";
-import { useTranslation } from "react-i18next"; 
-import DisabledSetting from "@/components/settings/DisabledSetting";
 
 export default function page() {
   const [settings, updateSettings, pluginSettings] = useSettings();
@@ -18,7 +18,7 @@ export default function page() {
 
   const { t } = useTranslation();
 
-  const { data, isLoading: isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
     queryFn: async () => {
       const response = await getUserViewsApi(api!).getUserViews({
@@ -33,7 +33,7 @@ export default function page() {
 
   if (isLoading)
     return (
-      <View className="mt-4">
+      <View className='mt-4'>
         <Loader />
       </View>
     );
@@ -41,7 +41,7 @@ export default function page() {
   return (
     <DisabledSetting
       disabled={pluginSettings?.hiddenLibraries?.locked === true}
-      className="px-4"
+      className='px-4'
     >
       <ListGroup>
         {data?.map((view) => (
@@ -59,8 +59,8 @@ export default function page() {
           </ListItem>
         ))}
       </ListGroup>
-      <Text className="px-4 text-xs text-neutral-500 mt-1">
-      {t("home.settings.other.select_liraries_you_want_to_hide")}
+      <Text className='px-4 text-xs text-neutral-500 mt-1'>
+        {t("home.settings.other.select_liraries_you_want_to_hide")}
       </Text>
     </DisabledSetting>
   );

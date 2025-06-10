@@ -8,6 +8,7 @@ export enum SortByOption {
   CommunityRating = "CommunityRating",
   CriticRating = "CriticRating",
   DateCreated = "DateCreated",
+  DateLastContentAdded = "DateLastContentAdded",
   DatePlayed = "DatePlayed",
   PlayCount = "PlayCount",
   ProductionYear = "ProductionYear",
@@ -37,6 +38,7 @@ export const sortOptions: {
   { key: SortByOption.CommunityRating, value: "Community Rating" },
   { key: SortByOption.CriticRating, value: "Critics Rating" },
   { key: SortByOption.DateCreated, value: "Date Added" },
+  { key: SortByOption.DateLastContentAdded, value: "Date Episode Added" },
   { key: SortByOption.DatePlayed, value: "Date Played" },
   { key: SortByOption.PlayCount, value: "Play Count" },
   { key: SortByOption.ProductionYear, value: "Production Year" },
@@ -93,7 +95,7 @@ export const sortByPreferenceAtom = atomWithStorage<SortPreference>(
     removeItem: (key) => {
       storage.delete(key);
     },
-  }
+  },
 );
 
 export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
@@ -110,19 +112,19 @@ export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
     removeItem: (key) => {
       storage.delete(key);
     },
-  }
+  },
 );
 
 export const getSortByPreference = (
   libraryId: string,
-  preferences: SortPreference
+  preferences: SortPreference,
 ) => {
   return preferences?.[libraryId] || null;
 };
 
 export const getSortOrderPreference = (
   libraryId: string,
-  preferences: SortOrderPreference
+  preferences: SortOrderPreference,
 ) => {
   return preferences?.[libraryId] || null;
 };

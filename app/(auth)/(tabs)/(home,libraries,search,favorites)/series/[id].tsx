@@ -14,9 +14,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useEffect, useMemo } from "react";
-import { Platform, View } from "react-native";
+import type React from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform, View } from "react-native";
 
 const page: React.FC = () => {
   const navigation = useNavigation();
@@ -49,7 +50,7 @@ const page: React.FC = () => {
         quality: 90,
         width: 1000,
       }),
-    [item]
+    [item],
   );
 
   const logoUrl = useMemo(
@@ -58,7 +59,7 @@ const page: React.FC = () => {
         api,
         item,
       }),
-    [item]
+    [item],
   );
 
   const { data: allEpisodes, isLoading } = useQuery({
@@ -83,26 +84,24 @@ const page: React.FC = () => {
         item &&
         allEpisodes &&
         allEpisodes.length > 0 && (
-          <View className="flex flex-row items-center space-x-2">
+          <View className='flex flex-row items-center space-x-2'>
             <AddToFavorites item={item} />
             {!Platform.isTV && (
-              <>
-                <DownloadItems
-                  size="large"
-                  title={t("item_card.download.download_series")}
-                  items={allEpisodes || []}
-                  MissingDownloadIconComponent={() => (
-                    <Ionicons name="download" size={22} color="white" />
-                  )}
-                  DownloadedIconComponent={() => (
-                    <Ionicons
-                      name="checkmark-done-outline"
-                      size={24}
-                      color="#9333ea"
-                    />
-                  )}
-                />
-              </>
+              <DownloadItems
+                size='large'
+                title={t("item_card.download.download_series")}
+                items={allEpisodes || []}
+                MissingDownloadIconComponent={() => (
+                  <Ionicons name='download' size={22} color='white' />
+                )}
+                DownloadedIconComponent={() => (
+                  <Ionicons
+                    name='checkmark-done-outline'
+                    size={24}
+                    color='#9333ea'
+                  />
+                )}
+              />
             )}
           </View>
         ),
@@ -126,25 +125,23 @@ const page: React.FC = () => {
         />
       }
       logo={
-        <>
-          {logoUrl ? (
-            <Image
-              source={{
-                uri: logoUrl,
-              }}
-              style={{
-                height: 130,
-                width: "100%",
-                resizeMode: "contain",
-              }}
-            />
-          ) : null}
-        </>
+        logoUrl ? (
+          <Image
+            source={{
+              uri: logoUrl,
+            }}
+            style={{
+              height: 130,
+              width: "100%",
+              resizeMode: "contain",
+            }}
+          />
+        ) : null
       }
     >
-      <View className="flex flex-col pt-4">
+      <View className='flex flex-col pt-4'>
         <SeriesHeader item={item} />
-        <View className="mb-4">
+        <View className='mb-4'>
           <NextUp seriesId={seriesId} />
         </View>
         <SeasonPicker item={item} initialSeasonIndex={Number(seasonIndex)} />

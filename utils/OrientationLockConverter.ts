@@ -4,7 +4,7 @@ import {
 } from "@/packages/expo-screen-orientation";
 
 function orientationToOrientationLock(
-  orientation: Orientation
+  orientation: Orientation,
 ): OrientationLock {
   switch (orientation) {
     case Orientation.PORTRAIT_UP:
@@ -15,7 +15,6 @@ function orientationToOrientationLock(
       return OrientationLock.LANDSCAPE_LEFT;
     case Orientation.LANDSCAPE_RIGHT:
       return OrientationLock.LANDSCAPE_RIGHT;
-    case Orientation.UNKNOWN:
     default:
       return OrientationLock.DEFAULT;
   }

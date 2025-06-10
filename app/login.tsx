@@ -1,16 +1,17 @@
 import { Button } from "@/components/Button";
-import { Input } from "@/components/common/Input";
-import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { PreviousServersList } from "@/components/PreviousServersList";
+import { Input } from "@/components/common/Input";
+import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
+import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -21,8 +22,8 @@ import {
 } from "react-native";
 import { Keyboard } from "react-native";
 
-import { z } from "zod";
 import { t } from "i18next";
+import { z } from "zod";
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
 });
@@ -81,10 +82,10 @@ const Login: React.FC = () => {
             onPress={() => {
               removeServer();
             }}
-            className="flex flex-row items-center"
+            className='flex flex-row items-center'
           >
-            <Ionicons name="chevron-back" size={18} color={Colors.primary} />
-            <Text className="ml-2 text-purple-600">
+            <Ionicons name='chevron-back' size={18} color={Colors.primary} />
+            <Text className='ml-2 text-purple-600'>
               {t("login.change_server")}
             </Text>
           </TouchableOpacity>
@@ -107,7 +108,7 @@ const Login: React.FC = () => {
       } else {
         Alert.alert(
           t("login.connection_failed"),
-          t("login.an_unexpected_error_occured")
+          t("login.an_unexpected_error_occured"),
         );
       }
     } finally {
@@ -176,7 +177,7 @@ const Login: React.FC = () => {
     if (result === undefined) {
       Alert.alert(
         t("login.connection_failed"),
-        t("login.could_not_connect_to_server")
+        t("login.could_not_connect_to_server"),
       );
       return;
     }
@@ -195,13 +196,13 @@ const Login: React.FC = () => {
             {
               text: t("login.got_it"),
             },
-          ]
+          ],
         );
       }
     } catch (error) {
       Alert.alert(
         t("login.error_title"),
-        t("login.failed_to_initiate_quick_connect")
+        t("login.failed_to_initiate_quick_connect"),
       );
     }
   };
@@ -213,22 +214,20 @@ const Login: React.FC = () => {
       >
         {api?.basePath ? (
           <>
-            <View className="flex flex-col h-full relative items-center justify-center">
-              <View className="px-4 -mt-20 w-full">
-                <View className="flex flex-col space-y-2">
-                  <Text className="text-2xl font-bold -mb-2">
-                    <>
-                      {serverName ? (
-                        <>
-                          {t("login.login_to_title") + " "}
-                          <Text className="text-purple-600">{serverName}</Text>
-                        </>
-                      ) : (
-                        t("login.login_title")
-                      )}
-                    </>
+            <View className='flex flex-col h-full relative items-center justify-center'>
+              <View className='px-4 -mt-20 w-full'>
+                <View className='flex flex-col space-y-2'>
+                  <Text className='text-2xl font-bold -mb-2'>
+                    {serverName ? (
+                      <>
+                        {`${t("login.login_to_title")} `}
+                        <Text className='text-purple-600'>{serverName}</Text>
+                      </>
+                    ) : (
+                      t("login.login_title")
+                    )}
                   </Text>
-                  <Text className="text-xs text-neutral-400">
+                  <Text className='text-xs text-neutral-400'>
                     {api.basePath}
                   </Text>
                   <Input
@@ -237,13 +236,13 @@ const Login: React.FC = () => {
                       setCredentials({ ...credentials, username: text })
                     }
                     value={credentials.username}
-                    keyboardType="default"
-                    returnKeyType="done"
-                    autoCapitalize="none"
+                    keyboardType='default'
+                    returnKeyType='done'
+                    autoCapitalize='none'
                     // Changed from username to oneTimeCode because it is a known issue in RN
                     // https://github.com/facebook/react-native/issues/47106#issuecomment-2521270037
-                    textContentType="oneTimeCode"
-                    clearButtonMode="while-editing"
+                    textContentType='oneTimeCode'
+                    clearButtonMode='while-editing'
                     maxLength={500}
                   />
 
@@ -254,42 +253,42 @@ const Login: React.FC = () => {
                     }
                     value={credentials.password}
                     secureTextEntry
-                    keyboardType="default"
-                    returnKeyType="done"
-                    autoCapitalize="none"
-                    textContentType="password"
-                    clearButtonMode="while-editing"
+                    keyboardType='default'
+                    returnKeyType='done'
+                    autoCapitalize='none'
+                    textContentType='password'
+                    clearButtonMode='while-editing'
                     maxLength={500}
                   />
-                  <View className="flex flex-row items-center justify-between">
+                  <View className='flex flex-row items-center justify-between'>
                     <Button
                       onPress={handleLogin}
                       loading={loading}
-                      className="flex-1 mr-2"
+                      className='flex-1 mr-2'
                     >
                       {t("login.login_button")}
                     </Button>
                     <TouchableOpacity
                       onPress={handleQuickConnect}
-                      className="p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center"
+                      className='p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center'
                     >
                       <MaterialCommunityIcons
-                        name="cellphone-lock"
+                        name='cellphone-lock'
                         size={24}
-                        color="white"
+                        color='white'
                       />
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
 
-              <View className="absolute bottom-0 left-0 w-full px-4 mb-2"></View>
+              <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
             </View>
           </>
         ) : (
           <>
-            <View className="flex flex-col h-full items-center justify-center w-full">
-              <View className="flex flex-col gap-y-2 px-4 w-full -mt-36">
+            <View className='flex flex-col h-full items-center justify-center w-full'>
+              <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
                 <Image
                   style={{
                     width: 100,
@@ -299,19 +298,19 @@ const Login: React.FC = () => {
                   }}
                   source={require("@/assets/images/StreamyFinFinal.png")}
                 />
-                <Text className="text-3xl font-bold">Streamyfin</Text>
-                <Text className="text-neutral-500">
+                <Text className='text-3xl font-bold'>Streamyfin</Text>
+                <Text className='text-neutral-500'>
                   {t("server.enter_url_to_jellyfin_server")}
                 </Text>
                 <Input
-                  aria-label="Server URL"
+                  aria-label='Server URL'
                   placeholder={t("server.server_url_placeholder")}
                   onChangeText={setServerURL}
                   value={serverURL}
-                  keyboardType="url"
-                  returnKeyType="done"
-                  autoCapitalize="none"
-                  textContentType="URL"
+                  keyboardType='url'
+                  returnKeyType='done'
+                  autoCapitalize='none'
+                  textContentType='URL'
                   maxLength={500}
                 />
                 <Button
@@ -320,7 +319,7 @@ const Login: React.FC = () => {
                   onPress={async () => {
                     await handleConnect(serverURL);
                   }}
-                  className="w-full grow"
+                  className='w-full grow'
                 >
                   {t("server.connect_button")}
                 </Button>

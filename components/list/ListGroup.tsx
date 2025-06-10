@@ -1,13 +1,13 @@
 import {
-  PropsWithChildren,
   Children,
-  isValidElement,
+  type PropsWithChildren,
+  type ReactElement,
   cloneElement,
-  ReactElement,
+  isValidElement,
 } from "react";
-import { StyleSheet, View, ViewProps, ViewStyle } from "react-native";
-import { ListItem } from "./ListItem";
+import { StyleSheet, View, type ViewProps, type ViewStyle } from "react-native";
 import { Text } from "../common/Text";
+import { ListItem } from "./ListItem";
 
 interface Props extends ViewProps {
   title?: string | null | undefined;
@@ -24,12 +24,12 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
 
   return (
     <View {...props}>
-      <Text className="ml-4 mb-1 uppercase text-[#8E8D91] text-xs">
+      <Text className='ml-4 mb-1 uppercase text-[#8E8D91] text-xs'>
         {title}
       </Text>
       <View
         style={[]}
-        className="flex flex-col rounded-xl overflow-hidden pl-0 bg-neutral-900"
+        className='flex flex-col rounded-xl overflow-hidden pl-0 bg-neutral-900'
       >
         {Children.map(childrenArray, (child, index) => {
           if (isValidElement<{ style?: ViewStyle }>(child)) {
@@ -38,14 +38,14 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
                 child.props.style,
                 index < childrenArray.length - 1
                   ? styles.borderBottom
-                  : undefined
+                  : undefined,
               ),
             });
           }
           return child;
         })}
       </View>
-      {description && <View className="pl-4 mt-1">{description}</View>}
+      {description && <View className='pl-4 mt-1'>{description}</View>}
     </View>
   );
 };

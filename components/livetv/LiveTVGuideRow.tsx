@@ -1,4 +1,4 @@
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo, useRef } from "react";
 import { Dimensions, View } from "react-native";
 import { Text } from "../common/Text";
@@ -53,7 +53,7 @@ export const LiveTVGuideRow = ({
   }
 
   return (
-    <View key={channel.ChannelNumber} className="flex flex-row h-16">
+    <View key={channel.ChannelNumber} className='flex flex-row h-16'>
       {programsWithPositions?.map((p) => (
         <TouchableItemRouter item={p} key={p.Id}>
           <View
@@ -66,7 +66,7 @@ export const LiveTVGuideRow = ({
                 ? "rgba(255, 255, 255, 0.1)"
                 : "transparent",
             }}
-            className="flex flex-col items-center justify-center border border-neutral-800 overflow-hidden"
+            className='flex flex-col items-center justify-center border border-neutral-800 overflow-hidden'
           >
             {(() => {
               return (
@@ -77,11 +77,11 @@ export const LiveTVGuideRow = ({
                         ? scrollX - p.position
                         : 0,
                   }}
-                  className="px-4 self-start"
+                  className='px-4 self-start'
                 >
                   <Text
                     numberOfLines={2}
-                    className="text-xs text-start self-start"
+                    className='text-xs text-start self-start'
                   >
                     {p.Name}
                   </Text>

@@ -1,13 +1,13 @@
+import { Text } from "@/components/common/Text";
+import { ListItem } from "@/components/list/ListItem";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useAtom } from "jotai/index";
+import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { FlatList, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useCallback, useEffect, useState } from "react";
-import { useAtom } from "jotai/index";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { ListItem } from "@/components/list/ListItem";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { Text } from "@/components/common/Text";
-import { useTranslation } from "react-i18next";
 
 const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
 
@@ -26,11 +26,11 @@ export default function menuLinks() {
   const getMenuLinks = useCallback(async () => {
     try {
       const response = await api?.axiosInstance.get(
-        api?.basePath + "/web/config.json"
+        `${api?.basePath}/web/config.json`,
       );
       const config = response?.data;
 
-      if (!config && !config.hasOwnProperty("menuLinks")) {
+      if (!config && !Object.hasOwn(config, "menuLinks")) {
         console.error("Menu links not found");
         return;
       }
@@ -46,7 +46,7 @@ export default function menuLinks() {
   }, []);
   return (
     <FlatList
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior='automatic'
       contentContainerStyle={{
         paddingTop: 10,
         paddingLeft: insets.left,
@@ -63,7 +63,7 @@ export default function menuLinks() {
         >
           <ListItem
             title={item.name}
-            iconAfter={<Ionicons name="link" size={24} color="white" />}
+            iconAfter={<Ionicons name='link' size={24} color='white' />}
           />
         </TouchableOpacity>
       )}
@@ -76,8 +76,10 @@ export default function menuLinks() {
         />
       )}
       ListEmptyComponent={
-        <View className="flex flex-col items-center justify-center h-full">
-          <Text className="font-bold text-xl text-neutral-500">{t("custom_links.no_links")}</Text>
+        <View className='flex flex-col items-center justify-center h-full'>
+          <Text className='font-bold text-xl text-neutral-500'>
+            {t("custom_links.no_links")}
+          </Text>
         </View>
       }
     />

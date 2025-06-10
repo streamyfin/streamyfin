@@ -1,5 +1,5 @@
 import { AudioTrackSelector } from "@/components/AudioTrackSelector";
-import { Bitrate, BitrateSelector } from "@/components/BitrateSelector";
+import { type Bitrate, BitrateSelector } from "@/components/BitrateSelector";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
@@ -17,9 +17,10 @@ import { useImageColors } from "@/hooks/useImageColors";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import {
+import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
@@ -34,6 +35,7 @@ import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
+import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
 export type SelectedOptions = {
@@ -50,6 +52,8 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
+    const [user] = useAtom(userAtom);
+
     useImageColors({ item });
 
     const [loadingLogo, setLoadingLogo] = useState(true);
@@ -86,18 +90,22 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
         navigation.setOptions({
           headerRight: () =>
             item && (
-              <View className="flex flex-row items-center space-x-2">
+              <View className='flex flex-row items-center space-x-2'>
                 <Chromecast.Chromecast
-                  background="blur"
+                  background='blur'
                   width={22}
                   height={22}
                 />
                 {item.Type !== "Program" && (
-                  <View className="flex flex-row items-center space-x-2">
+                  <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
-                      <DownloadSingleItem item={item} size="large" />
+                      <DownloadSingleItem item={item} size='large' />
                     )}
-                    <PlayedStatus items={[item]} size="large" />
+                    {user?.Policy?.IsAdministrator && (
+                      <PlayInRemoteSessionButton item={item} size='large' />
+                    )}
+
+                    <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
                   </View>
                 )}
@@ -123,7 +131,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
 
     return (
       <View
-        className="flex-1 relative"
+        className='flex-1 relative'
         style={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
@@ -147,40 +155,38 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
             </View>
           }
           logo={
-            <>
-              {logoUrl ? (
-                <Image
-                  source={{
-                    uri: logoUrl,
-                  }}
-                  style={{
-                    height: 130,
-                    width: "100%",
-                    resizeMode: "contain",
-                  }}
-                  onLoad={() => setLoadingLogo(false)}
-                  onError={() => setLoadingLogo(false)}
-                />
-              ) : null}
-            </>
+            logoUrl ? (
+              <Image
+                source={{
+                  uri: logoUrl,
+                }}
+                style={{
+                  height: 130,
+                  width: "100%",
+                  resizeMode: "contain",
+                }}
+                onLoad={() => setLoadingLogo(false)}
+                onError={() => setLoadingLogo(false)}
+              />
+            ) : null
           }
         >
-          <View className="flex flex-col bg-transparent shrink">
-            <View className="flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink">
-              <ItemHeader item={item} className="mb-4" />
+          <View className='flex flex-col bg-transparent shrink'>
+            <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
+              <ItemHeader item={item} className='mb-4' />
               {item.Type !== "Program" && !Platform.isTV && (
-                <View className="flex flex-row items-center justify-start w-full h-16">
+                <View className='flex flex-row items-center justify-start w-full h-16'>
                   <BitrateSelector
-                    className="mr-1"
+                    className='mr-1'
                     onChange={(val) =>
                       setSelectedOptions(
-                        (prev) => prev && { ...prev, bitrate: val }
+                        (prev) => prev && { ...prev, bitrate: val },
                       )
                     }
                     selected={selectedOptions.bitrate}
                   />
                   <MediaSourceSelector
-                    className="mr-1"
+                    className='mr-1'
                     item={item}
                     onChange={(val) =>
                       setSelectedOptions(
@@ -188,13 +194,13 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                           prev && {
                             ...prev,
                             mediaSource: val,
-                          }
+                          },
                       )
                     }
                     selected={selectedOptions.mediaSource}
                   />
                   <AudioTrackSelector
-                    className="mr-1"
+                    className='mr-1'
                     source={selectedOptions.mediaSource}
                     onChange={(val) => {
                       setSelectedOptions(
@@ -202,7 +208,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                           prev && {
                             ...prev,
                             audioIndex: val,
-                          }
+                          },
                       );
                     }}
                     selected={selectedOptions.audioIndex}
@@ -215,7 +221,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                           prev && {
                             ...prev,
                             subtitleIndex: val,
-                          }
+                          },
                       )
                     }
                     selected={selectedOptions.subtitleIndex}
@@ -224,7 +230,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
               )}
 
               <PlayButton
-                className="grow"
+                className='grow'
                 selectedOptions={selectedOptions}
                 item={item}
               />
@@ -235,24 +241,24 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
             )}
 
             <ItemTechnicalDetails source={selectedOptions.mediaSource} />
-            <OverviewText text={item.Overview} className="px-4 mb-4" />
+            <OverviewText text={item.Overview} className='px-4 mb-4' />
 
             {item.Type !== "Program" && (
               <>
                 {item.Type === "Episode" && (
-                  <CurrentSeries item={item} className="mb-4" />
+                  <CurrentSeries item={item} className='mb-4' />
                 )}
 
-                <CastAndCrew item={item} className="mb-4" loading={loading} />
+                <CastAndCrew item={item} className='mb-4' loading={loading} />
 
                 {item.People && item.People.length > 0 && (
-                  <View className="mb-4">
+                  <View className='mb-4'>
                     {item.People.slice(0, 3).map((person, idx) => (
                       <MoreMoviesWithActor
                         currentItem={item}
                         key={idx}
                         actorId={person.Id!}
-                        className="mb-4"
+                        className='mb-4'
                       />
                     ))}
                   </View>
@@ -265,5 +271,5 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
         </ParallaxScrollView>
       </View>
     );
-  }
+  },
 );

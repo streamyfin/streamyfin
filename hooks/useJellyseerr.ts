@@ -1,45 +1,52 @@
-import axios, { AxiosError, AxiosInstance } from "axios";
-import {MovieResult, Results, TvResult} from "@/utils/jellyseerr/server/models/Search";
+import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
+import type {
+  MovieResult,
+  Results,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
 import { storage } from "@/utils/mmkv";
-import { inRange } from "lodash";
-import { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
+import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom } from "jotai";
 import { useAtom } from "jotai/index";
+import { inRange } from "lodash";
 import "@/augmentations";
-import { useCallback, useMemo } from "react";
 import { useSettings } from "@/utils/atoms/settings";
-import { toast } from "sonner-native";
+import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
+import {
+  IssueStatus,
+  type IssueType,
+} from "@/utils/jellyseerr/server/constants/issue";
 import {
   MediaRequestStatus,
   MediaType,
 } from "@/utils/jellyseerr/server/constants/media";
-import MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import {MediaRequestBody, RequestResultsResponse} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import {
-  SeasonWithEpisodes,
-  TvDetails,
-} from "@/utils/jellyseerr/server/models/Tv";
-import {
-  IssueStatus,
-  IssueType,
-} from "@/utils/jellyseerr/server/constants/issue";
-import Issue from "@/utils/jellyseerr/server/entity/Issue";
-import { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
-import { writeErrorLog } from "@/utils/log";
-import DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
-import { t } from "i18next";
-import {
+import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import type Issue from "@/utils/jellyseerr/server/entity/Issue";
+import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
+import type { GenreSliderItem } from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
+import type {
+  MediaRequestBody,
+  RequestResultsResponse,
+} from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import type {
+  ServiceCommonServer,
+  ServiceCommonServerWithDetails,
+} from "@/utils/jellyseerr/server/interfaces/api/serviceInterfaces";
+import type { UserResultsResponse } from "@/utils/jellyseerr/server/interfaces/api/userInterfaces";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type {
   CombinedCredit,
   PersonDetails,
 } from "@/utils/jellyseerr/server/models/Person";
+import type {
+  SeasonWithEpisodes,
+  TvDetails,
+} from "@/utils/jellyseerr/server/models/Tv";
+import { writeErrorLog } from "@/utils/log";
 import { useQueryClient } from "@tanstack/react-query";
-import {GenreSliderItem} from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
-import {UserResultsResponse} from "@/utils/jellyseerr/server/interfaces/api/userInterfaces";
-import {
-  ServiceCommonServer,
-  ServiceCommonServerWithDetails
-} from "@/utils/jellyseerr/server/interfaces/api/serviceInterfaces";
+import { t } from "i18next";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner-native";
 
 interface SearchParams {
   query: string;
@@ -80,11 +87,11 @@ export enum Endpoints {
   STUDIO = "/studio",
   GENRE_SLIDER = "/genreslider",
   DISCOVER = "/discover",
-  DISCOVER_TRENDING = DISCOVER + "/trending",
-  DISCOVER_MOVIES = DISCOVER + "/movies",
+  DISCOVER_TRENDING = `${DISCOVER}/trending`,
+  DISCOVER_MOVIES = `${DISCOVER}/movies`,
   DISCOVER_TV = DISCOVER + TV,
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
-  DISCOVER_MOVIES_STUDIO = DISCOVER + `${MOVIE}s` + STUDIO,
+  DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
 }
 
@@ -134,15 +141,16 @@ export class JellyseerrApi {
         const { status, headers, data } = response;
         if (inRange(status, 200, 299)) {
           if (data.version < "2.0.0") {
-            const error =
-              t("jellyseerr.toasts.jellyseer_does_not_meet_requirements");
+            const error = t(
+              "jellyseerr.toasts.jellyseer_does_not_meet_requirements",
+            );
             toast.error(error);
             throw Error(error);
           }
 
           storage.setAny(
             JELLYSEERR_COOKIES,
-            headers["set-cookie"]?.flatMap((c) => c.split("; ")) ?? []
+            headers["set-cookie"]?.flatMap((c) => c.split("; ")) ?? [],
           );
           return {
             isValid: true,
@@ -151,10 +159,8 @@ export class JellyseerrApi {
         }
         toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
         writeErrorLog(
-          `Jellyseerr returned a ${status} for url:\n` +
-            response.config.url +
-            "\n" +
-            JSON.stringify(response.data)
+          `Jellyseerr returned a ${status} for url:\n${response.config.url}`,
+          response.data,
         );
         return {
           isValid: false,
@@ -190,14 +196,14 @@ export class JellyseerrApi {
   async discoverSettings(): Promise<DiscoverSlider[]> {
     return this.axios
       ?.get<DiscoverSlider[]>(
-        Endpoints.API_V1 + Endpoints.SETTINGS + Endpoints.DISCOVER
+        Endpoints.API_V1 + Endpoints.SETTINGS + Endpoints.DISCOVER,
       )
       .then(({ data }) => data);
   }
 
   async discover(
     endpoint: DiscoverEndpoint | string,
-    params: any
+    params: any,
   ): Promise<SearchResults> {
     return this.axios
       ?.get<SearchResults>(Endpoints.API_V1 + endpoint, { params })
@@ -206,18 +212,23 @@ export class JellyseerrApi {
 
   async getGenreSliders(
     endpoint: Endpoints.TV | Endpoints.MOVIE,
-    params: any = undefined
+    params: any = undefined,
   ): Promise<GenreSliderItem[]> {
     return this.axios
-      ?.get<GenreSliderItem[]>(Endpoints.API_V1 + Endpoints.DISCOVER + Endpoints.GENRE_SLIDER + endpoint, { params })
+      ?.get<GenreSliderItem[]>(
+        Endpoints.API_V1 +
+          Endpoints.DISCOVER +
+          Endpoints.GENRE_SLIDER +
+          endpoint,
+        { params },
+      )
       .then(({ data }) => data);
   }
 
   async search(params: SearchParams): Promise<SearchResults> {
-    return this.axios?.get<SearchResults>(
-      Endpoints.API_V1 + Endpoints.SEARCH,
-      { params }
-    ).then(({ data }) => data)
+    return this.axios
+      ?.get<SearchResults>(Endpoints.API_V1 + Endpoints.SEARCH, { params })
+      .then(({ data }) => data);
   }
 
   async request(request: MediaRequestBody): Promise<MediaRequest> {
@@ -228,24 +239,28 @@ export class JellyseerrApi {
 
   async getRequest(id: number): Promise<MediaRequest> {
     return this.axios
-      ?.get<MediaRequest>(Endpoints.API_V1 + Endpoints.REQUEST + `/${id}`)
+      ?.get<MediaRequest>(`${Endpoints.API_V1 + Endpoints.REQUEST}/${id}`)
       .then(({ data }) => data);
   }
 
-  async requests(params = {
-    filter: "all",
-    take: 10,
-    sort: "modified",
-    skip: 0
-  }): Promise<RequestResultsResponse> {
+  async requests(
+    params = {
+      filter: "all",
+      take: 10,
+      sort: "modified",
+      skip: 0,
+    },
+  ): Promise<RequestResultsResponse> {
     return this.axios
-      ?.get<RequestResultsResponse>(Endpoints.API_V1 + Endpoints.REQUEST, {params})
-      .then(({data}) => data);
+      ?.get<RequestResultsResponse>(Endpoints.API_V1 + Endpoints.REQUEST, {
+        params,
+      })
+      .then(({ data }) => data);
   }
 
   async movieDetails(id: number) {
     return this.axios
-      ?.get<MovieDetails>(Endpoints.API_V1 + Endpoints.MOVIE + `/${id}`)
+      ?.get<MovieDetails>(`${Endpoints.API_V1 + Endpoints.MOVIE}/${id}`)
       .then((response) => {
         return response?.data;
       });
@@ -253,7 +268,7 @@ export class JellyseerrApi {
 
   async personDetails(id: number | string): Promise<PersonDetails> {
     return this.axios
-      ?.get<PersonDetails>(Endpoints.API_V1 + Endpoints.PERSON + `/${id}`)
+      ?.get<PersonDetails>(`${Endpoints.API_V1 + Endpoints.PERSON}/${id}`)
       .then((response) => {
         return response?.data;
       });
@@ -262,10 +277,9 @@ export class JellyseerrApi {
   async personCombinedCredits(id: number | string): Promise<CombinedCredit> {
     return this.axios
       ?.get<CombinedCredit>(
-        Endpoints.API_V1 +
-          Endpoints.PERSON +
-          `/${id}` +
-          Endpoints.COMBINED_CREDITS
+        `${
+          Endpoints.API_V1 + Endpoints.PERSON
+        }/${id}${Endpoints.COMBINED_CREDITS}`,
       )
       .then((response) => {
         return response?.data;
@@ -275,7 +289,7 @@ export class JellyseerrApi {
   async movieRatings(id: number) {
     return this.axios
       ?.get<RTRating>(
-        `${Endpoints.API_V1}${Endpoints.MOVIE}/${id}${Endpoints.RATINGS}`
+        `${Endpoints.API_V1}${Endpoints.MOVIE}/${id}${Endpoints.RATINGS}`,
       )
       .then(({ data }) => data);
   }
@@ -291,7 +305,7 @@ export class JellyseerrApi {
   async tvRatings(id: number) {
     return this.axios
       ?.get<RTRating>(
-        `${Endpoints.API_V1}${Endpoints.TV}/${id}${Endpoints.RATINGS}`
+        `${Endpoints.API_V1}${Endpoints.TV}/${id}${Endpoints.RATINGS}`,
       )
       .then(({ data }) => data);
   }
@@ -299,7 +313,7 @@ export class JellyseerrApi {
   async tvSeason(id: number, seasonId: number) {
     return this.axios
       ?.get<SeasonWithEpisodes>(
-        `${Endpoints.API_V1}${Endpoints.TV}/${id}/season/${seasonId}`
+        `${Endpoints.API_V1}${Endpoints.TV}/${id}/season/${seasonId}`,
       )
       .then((response) => {
         return response?.data;
@@ -308,24 +322,18 @@ export class JellyseerrApi {
 
   async user(params: any) {
     return this.axios
-      ?.get<UserResultsResponse>(`${Endpoints.API_V1}${Endpoints.USER}`, { params })
-      .then(({data}) =>  data.results)
+      ?.get<UserResultsResponse>(`${Endpoints.API_V1}${Endpoints.USER}`, {
+        params,
+      })
+      .then(({ data }) => data.results);
   }
 
-  imageProxy(
-    path?: string,
-    filter: string = "original",
-    width: number = 1920,
-    quality: number = 75
-  ) {
+  imageProxy(path?: string, filter = "original", width = 1920, quality = 75) {
     return path
-      ? this.axios.defaults.baseURL +
-          `/_next/image?` +
-          new URLSearchParams(
-            `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`
-          ).toString()
-      : this.axios?.defaults.baseURL +
-          `/images/overseerr_poster_not_found_logo_top.png`;
+      ? `${this.axios.defaults.baseURL}/_next/image?${new URLSearchParams(
+          `url=https://image.tmdb.org/t/p/${filter}/${path}&w=${width}&q=${quality}`,
+        ).toString()}`
+      : `${this.axios?.defaults.baseURL}/images/overseerr_poster_not_found_logo_top.png`;
   }
 
   async submitIssue(mediaId: number, issueType: IssueType, message: string) {
@@ -345,16 +353,20 @@ export class JellyseerrApi {
       });
   }
 
-  async service(type: 'radarr' | 'sonarr') {
+  async service(type: "radarr" | "sonarr") {
     return this.axios
-      ?.get<ServiceCommonServer[]>(Endpoints.API_V1 + Endpoints.SERVICE + `/${type}`)
-      .then(({data}) => data);
+      ?.get<ServiceCommonServer[]>(
+        `${Endpoints.API_V1 + Endpoints.SERVICE}/${type}`,
+      )
+      .then(({ data }) => data);
   }
 
-  async serviceDetails(type: 'radarr' | 'sonarr', id: number) {
+  async serviceDetails(type: "radarr" | "sonarr", id: number) {
     return this.axios
-      ?.get<ServiceCommonServerWithDetails>(Endpoints.API_V1 + Endpoints.SERVICE + `/${type}` + `/${id}`)
-      .then(({data}) => data);
+      ?.get<ServiceCommonServerWithDetails>(
+        `${Endpoints.API_V1 + Endpoints.SERVICE}/${type}/${id}`,
+      )
+      .then(({ data }) => data);
   }
 
   private setInterceptors() {
@@ -364,37 +376,31 @@ export class JellyseerrApi {
         if (cookies) {
           storage.setAny(
             JELLYSEERR_COOKIES,
-            response.headers["set-cookie"]?.flatMap((c) => c.split("; "))
+            response.headers["set-cookie"]?.flatMap((c) => c.split("; ")),
           );
         }
         return response;
       },
       (error: AxiosError) => {
-        const errorMsg = "Jellyseerr response error";
-        console.error(errorMsg, error, error.response?.data);
         writeErrorLog(
-          errorMsg +
-            `\n` +
-            `error: ${error.toString()}\n` +
-            `url: ${error?.config?.url}\n` +
-            `data:\n` +
-            JSON.stringify(error.response?.data)
+          `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
+          error.response?.data,
         );
         if (error.status === 403) {
           clearJellyseerrStorageData();
         }
         return Promise.reject(error);
-      }
+      },
     );
 
     this.axios.interceptors.request.use(
       async (config) => {
         const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
         if (cookies) {
-          const headerName = this.axios.defaults.xsrfHeaderName!!;
+          const headerName = this.axios.defaults.xsrfHeaderName!;
           const xsrfToken = cookies
             .find((c) => c.includes(headerName))
-            ?.split(headerName + "=")?.[1];
+            ?.split(`${headerName}=`)?.[1];
           if (xsrfToken) {
             config.headers[headerName] = xsrfToken;
           }
@@ -403,7 +409,7 @@ export class JellyseerrApi {
       },
       (error) => {
         console.error("Jellyseerr request error", error);
-      }
+      },
     );
   }
 }
@@ -439,55 +445,74 @@ export const useJellyseerr = () => {
         switch (mediaRequest.status) {
           case MediaRequestStatus.PENDING:
           case MediaRequestStatus.APPROVED:
-            toast.success(t("jellyseerr.toasts.requested_item", {item: title}));
-            onSuccess?.()
+            toast.success(
+              t("jellyseerr.toasts.requested_item", { item: title }),
+            );
+            onSuccess?.();
             break;
           case MediaRequestStatus.DECLINED:
-            toast.error(t("jellyseerr.toasts.you_dont_have_permission_to_request"));
+            toast.error(
+              t("jellyseerr.toasts.you_dont_have_permission_to_request"),
+            );
             break;
           case MediaRequestStatus.FAILED:
-            toast.error(t("jellyseerr.toasts.something_went_wrong_requesting_media"));
+            toast.error(
+              t("jellyseerr.toasts.something_went_wrong_requesting_media"),
+            );
             break;
         }
       });
     },
-    [jellyseerrApi]
+    [jellyseerrApi],
   );
 
   const isJellyseerrResult = (
-    items: any | null | undefined
+    items: any | null | undefined,
   ): items is Results => {
     return (
       items &&
-        Object.hasOwn(items, "mediaType") &&
-        Object.values(MediaType).includes(items["mediaType"])
-    )
+      Object.hasOwn(items, "mediaType") &&
+      Object.values(MediaType).includes(items.mediaType)
+    );
   };
 
-  const getTitle = (item?: TvResult | TvDetails | MovieResult | MovieDetails) => {
+  const getTitle = (
+    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+  ) => {
     return isJellyseerrResult(item)
-      ? (item.mediaType == MediaType.MOVIE ? item?.title : item?.name)
-      : (item?.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.title : (item as TvDetails)?.name)
+      ? item.mediaType === MediaType.MOVIE
+        ? item?.title
+        : item?.name
+      : item?.mediaInfo.mediaType === MediaType.MOVIE
+        ? (item as MovieDetails)?.title
+        : (item as TvDetails)?.name;
   };
 
-  const getYear = (item?: TvResult | TvDetails | MovieResult | MovieDetails) => {
-    return new Date((
-      isJellyseerrResult(item)
-      ? (item.mediaType == MediaType.MOVIE ? item?.releaseDate : item?.firstAirDate)
-      : (item?.mediaInfo.mediaType == MediaType.MOVIE ? (item as MovieDetails)?.releaseDate : (item as TvDetails)?.firstAirDate))
-      || ""
-    )?.getFullYear?.()
+  const getYear = (
+    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+  ) => {
+    return new Date(
+      (isJellyseerrResult(item)
+        ? item.mediaType === MediaType.MOVIE
+          ? item?.releaseDate
+          : item?.firstAirDate
+        : item?.mediaInfo.mediaType === MediaType.MOVIE
+          ? (item as MovieDetails)?.releaseDate
+          : (item as TvDetails)?.firstAirDate) || "",
+    )?.getFullYear?.();
   };
 
-  const getMediaType = (item?: TvResult | TvDetails | MovieResult | MovieDetails): MediaType => {
+  const getMediaType = (
+    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+  ): MediaType => {
     return isJellyseerrResult(item)
       ? item.mediaType
-      : item?.mediaInfo?.mediaType
+      : item?.mediaInfo?.mediaType;
   };
 
   const jellyseerrRegion = useMemo(
     () => jellyseerrUser?.settings?.region || "US",
-    [jellyseerrUser]
+    [jellyseerrUser],
   );
 
   const jellyseerrLocale = useMemo(() => {
