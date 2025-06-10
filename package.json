@@ -6,12 +6,13 @@
     "submodule-reload": "git submodule update --init --remote --recursive",
     "clean": "echo y | expo prebuild --clean",
     "start": "bun run submodule-reload && expo start",
-    "ios": "EXPO_TV=0 expo run:ios",
-    "ios:tv": "EXPO_TV=1 expo run:ios",
-    "android": "EXPO_TV=0 expo run:android",
-    "android:tv": "EXPO_TV=1 expo run:android",
-    "prebuild": "EXPO_TV=0 bun run clean",
-    "prebuild:tv": "EXPO_TV=1 bun run clean",
+    "ios": "cross-env EXPO_TV=0 expo run:ios",
+    "ios:tv": "cross-env EXPO_TV=1 expo run:ios",
+    "android": "cross-env EXPO_TV=0 expo run:android",
+    "android:tv": "cross-env EXPO_TV=1 expo run:android",
+    "prebuild": "cross-env EXPO_TV=0 bun run clean",
+    "prebuild:tv": "cross-env EXPO_TV=1 bun run clean",
+    "build:android:local": "cd android && cross-env NODE_ENV=production ./gradlew assembleRelease",
     "prepare": "husky",
     "check": "biome check .",
     "lint": "biome check --write --unsafe"
@@ -112,6 +113,6 @@
   "private": true,
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": ["biome check --write --unsafe"],
-    "*.{json,md}": ["biome format --write"]
+    "*.{json}": ["biome format --write"]
   }
 }
