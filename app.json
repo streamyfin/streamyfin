@@ -38,8 +38,8 @@
       "jsEngine": "hermes",
       "versionCode": 56,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-plain.png",
-        "monochromeImage": "./assets/images/icon-mono.png",
+        "foregroundImage": "./assets/images/icon-android-plain.png",
+        "monochromeImage": "./assets/images/icon-android-themed.png",
         "backgroundColor": "#464646"
       },
       "package": "com.fredrikburmester.streamyfin",
