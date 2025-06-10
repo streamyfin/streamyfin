@@ -59,6 +59,7 @@
     "jotai": "^2.11.3",
     "lodash": "^4.17.21",
     "nativewind": "^2.0.11",
+    "cross-env": "^7.0.3",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-i18next": "^15.4.0",
