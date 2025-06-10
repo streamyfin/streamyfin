@@ -3,7 +3,7 @@
   "description": "Default Renovate preset for Streamyfin repositories",
   "extends": [
     "config:base",
-    ":disableDependencyDashboard",
+    ":dependencyDashboard",
     ":enableVulnerabilityAlertsWithLabel(security)",
     ":semanticCommits",
     ":timezone(Etc/UTC)",
