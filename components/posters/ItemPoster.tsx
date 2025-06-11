@@ -1,4 +1,3 @@
-import { Text } from "@/components/common/Text";
 import { Ionicons } from "@expo/vector-icons";
 import {
   type BaseItemDto,
