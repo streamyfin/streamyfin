@@ -22,7 +22,7 @@ export const getPhotoImageUrl = ({
   quality?: number | null;
   width?: number | null;
   height?: number | null;
-}) => {
+}): string | null => {
   if (!item || !api) {
     return null;
   }
@@ -53,13 +53,13 @@ export const getPhotoImageUrl = ({
   if (item.Type === "Photo") {
     // First option: Use the direct download URL to get original image
     if (api.accessToken) {
-      return `${api.basePath}/Items/${item.Id}/Download?api_key=${api.accessToken}`;
+      return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Download?api_key=${api.accessToken ?? ""}`;
     }
 
     // Second option: Try to get the image using a different endpoint
-    return `${api.basePath}/Items/${item.Id}/Images/Primary/0/Original?${params.toString()}`;
+    return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Images/Primary/0/Original?${params.toString()}`;
   }
 
   // Fallback to standard Images/Primary endpoint
-  return `${api.basePath}/Items/${item.Id}/Images/Primary?${params.toString()}`;
+  return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Images/Primary?${params.toString()}`;
 };
