@@ -145,7 +145,7 @@ const Page = () => {
 
       // Change itemType to array of types if needed
       let itemTypes = [] as BaseItemKind[];
-      let reccursive = true;
+      let recursive = true;
       let customSortBy = [] as SortByOption[];
 
       // This fix makes sure to only return 1 type of items, if defined.
@@ -158,7 +158,7 @@ const Page = () => {
         itemTypes = ["BoxSet"];
       } else if (library.CollectionType === "homevideos") {
         itemTypes = ["Folder", "Video", "PhotoAlbum"];
-        reccursive = false; // Important: Only get videos from the main folder
+        recursive = false; // Important: Only get videos from the main folder
         customSortBy = [SortByOption.IsFolder, SortByOption.SortName];
       }
 
@@ -174,7 +174,7 @@ const Page = () => {
         sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
         // true is needed for merged versions
-        recursive: reccursive,
+        recursive: recursive,
         imageTypeLimit: 1,
         fields: ["PrimaryImageAspectRatio", "SortName"],
         genres: selectedGenres,
