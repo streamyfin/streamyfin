@@ -86,34 +86,6 @@ const PhotoViewPage: React.FC = () => {
         })
       : null;
 
-  // Debug - log image URL and item details
-  useEffect(() => {
-    if (imageUrl) {
-      console.log("Photo URL:", imageUrl);
-      console.log(
-        "Photo item:",
-        JSON.stringify({
-          id: item?.Id,
-          name: item?.Name,
-          imageTag: item?.ImageTags?.Primary,
-          type: item?.Type,
-          width: item?.Width,
-          height: item?.Height,
-        }),
-      );
-    } else if (item) {
-      console.log(
-        "Failed to generate URL for item:",
-        JSON.stringify({
-          id: item?.Id,
-          name: item?.Name,
-          imageTag: item?.ImageTags?.Primary,
-          type: item?.Type,
-        }),
-      );
-    }
-  }, [imageUrl, item]);
-
   // Set the background color to black
   useEffect(() => {
     navigation.setOptions({
