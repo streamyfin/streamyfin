@@ -143,16 +143,23 @@ const Page = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !library) return null;
 
-      let itemType: BaseItemKind | undefined;
+      // Change itemType to array of types if needed
+      let itemTypes = [] as BaseItemKind[];
+      let reccursive = true;
+      let customSortBy = [] as SortByOption[];
 
       // This fix makes sure to only return 1 type of items, if defined.
       // This is because the underlying directory some times contains other types, and we don't want to show them.
       if (library.CollectionType === "movies") {
-        itemType = "Movie";
+        itemTypes = ["Movie"];
       } else if (library.CollectionType === "tvshows") {
-        itemType = "Series";
+        itemTypes = ["Series"];
       } else if (library.CollectionType === "boxsets") {
-        itemType = "BoxSet";
+        itemTypes = ["BoxSet"];
+      } else if (library.CollectionType === "homevideos") {
+        itemTypes = ["Folder", "Video", "PhotoAlbum"];
+        reccursive = false; // Important: Only get videos from the main folder
+        customSortBy = [SortByOption.IsFolder, SortByOption.SortName];
       }
 
       const response = await getItemsApi(api).getItems({
@@ -160,17 +167,20 @@ const Page = () => {
         parentId: libraryId,
         limit: 36,
         startIndex: pageParam,
-        sortBy: [sortBy[0], "SortName", "ProductionYear"],
+        sortBy:
+          customSortBy.length > 0
+            ? customSortBy
+            : [sortBy[0], "SortName", "ProductionYear"],
         sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
         // true is needed for merged versions
-        recursive: true,
+        recursive: reccursive,
         imageTypeLimit: 1,
         fields: ["PrimaryImageAspectRatio", "SortName"],
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => Number.parseInt(year)),
-        includeItemTypes: itemType ? [itemType] : undefined,
+        includeItemTypes: itemTypes ? itemTypes : undefined,
       });
 
       return response.data || null;
