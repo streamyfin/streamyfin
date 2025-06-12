@@ -55,7 +55,6 @@
     "expo-status-bar": "~2.2.3",
     "expo-system-ui": "~5.0.7",
     "expo-task-manager": "~13.1.5",
-    "expo-video": "~2.1.8",
     "expo-web-browser": "~14.1.6",
     "i18next": "^24.2.2",
     "jotai": "^2.11.3",
