@@ -102,7 +102,7 @@
     "@types/jest": "^29.5.12",
     "@types/lodash": "^4.17.15",
     "@types/react": "~19.0.10",
-    "@types/react-test-renderer": "^18.0.7",
+    "@types/react-test-renderer": "^19.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.0",
     "postinstall-postinstall": "^2.1.0",
