@@ -82,6 +82,10 @@ class VlcPlayerModule : Module() {
       AsyncFunction("setSubtitleURL") { view: VlcPlayerView, url: String, name: String ->
         view.setSubtitleURL(url, name)
       }
+
+      AsyncFunction("setRate") { view: VlcPlayerView, rate: Float ->
+        view.setRate(rate)
+      }
     }
   }
 }
