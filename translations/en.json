@@ -480,5 +480,10 @@
     "library": "Library",
     "custom_links": "Custom Links",
     "favorites": "Favorites"
+  },
+  "photo": {
+    "view": "Photo Viewer",
+    "notFound": "Photo could not be loaded",
+    "imageGallery": "Image Gallery"
   }
 }
