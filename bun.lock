@@ -93,7 +93,7 @@
         "tailwindcss": "3.3.2",
         "use-debounce": "^10.0.4",
         "uuid": "^11.0.5",
-        "zeego": "^2.0.4",
+        "zeego": "^3.0.0",
         "zod": "^3.24.1",
       },
       "devDependencies": {
@@ -2295,7 +2295,7 @@
 
     "yocto-queue": ["yocto-queue@0.1.0", "", {}, "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q=="],
 
-    "zeego": ["zeego@2.0.4", "", { "dependencies": { "@radix-ui/react-context-menu": "^2.0.1", "@radix-ui/react-dropdown-menu": "^2.0.1", "sf-symbols-typescript": "^2.0.0" }, "peerDependencies": { "@react-native-menu/menu": "*", "react": "*", "react-native": "*", "react-native-ios-context-menu": "~2.5.1" } }, "sha512-mkKfUJmgcSGCTqWXW7ccqap8d8z6guQoLF5/mWlH17Jckd0BaFLVZ74y/uWvfBGaC9OawYVt/1MchPnQ8ieSxg=="],
+    "zeego": ["zeego@3.0.6", "", { "dependencies": { "@radix-ui/react-context-menu": "^2.0.1", "@radix-ui/react-dropdown-menu": "^2.0.1", "sf-symbols-typescript": "^2.0.0" }, "peerDependencies": { "@react-native-menu/menu": "1.2.2", "react": "*", "react-native": "*", "react-native-ios-context-menu": "3.1.0", "react-native-ios-utilities": "5.1.2" } }, "sha512-vg0GCMPYg6or/J91bwRnUpIYwz7QnhkyeKOdd3FjvICg+Gzq2D5QhD8k5RUSv1B+048LpNmNYdLm8qJVIbBONw=="],
 
     "zod": ["zod@3.24.2", "", {}, "sha512-lY7CDW43ECgW9u1TcT3IoXHflywfVqDYze4waEz812jR/bZ8FHDsl7pFQoSZTz5N+2NqRXs8GBwnAwo3ZNxqhQ=="],
 
