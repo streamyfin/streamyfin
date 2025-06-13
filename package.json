@@ -103,7 +103,7 @@
     "react-native-volume-manager": "^2.0.8",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.13.2",
-    "sonner-native": "^0.17.0",
+    "sonner-native": "^0.21.0",
     "tailwindcss": "3.3.2",
     "use-debounce": "^10.0.4",
     "uuid": "^11.0.5",
