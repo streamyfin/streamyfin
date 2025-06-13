@@ -29,7 +29,7 @@ if (useManagedAndroidSdkVersions) {
       mavenCentral()
     }
     dependencies {
-      classpath "com.android.tools.build:gradle:7.1.3"
+      classpath "com.android.tools.build:gradle:8.10.1"
     }
   }
   project.android {
