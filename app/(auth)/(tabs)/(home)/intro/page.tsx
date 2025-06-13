@@ -6,7 +6,7 @@ import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, TouchableOpacity, View } from "react-native";
+import { Linking, Platform, TouchableOpacity, View } from "react-native";
 
 export default function page() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function page() {
   );
 
   return (
-    <View className='bg-neutral-900 h-full py-16 px-4 space-y-8'>
+    <View className='bg-neutral-900 h-full {Platform.isTV ? py-5 space-y-4 : py-16 space-y-8} px-4'>
       <View>
         <Text className='text-3xl font-bold text-center mb-2'>
           {t("home.intro.welcome_to_streamyfin")}
@@ -49,42 +49,50 @@ export default function page() {
             </Text>
           </View>
         </View>
-        <View className='flex flex-row items-center mt-4'>
-          <View
-            style={{
-              width: 50,
-              height: 50,
-            }}
-            className='flex items-center justify-center'
-          >
-            <Ionicons name='cloud-download-outline' size={32} color='white' />
-          </View>
-          <View className='shrink ml-2'>
-            <Text className='font-bold mb-1'>
-              {t("home.intro.downloads_feature_title")}
-            </Text>
-            <Text className='shrink text-xs'>
-              {t("home.intro.downloads_feature_description")}
-            </Text>
-          </View>
-        </View>
-        <View className='flex flex-row items-center mt-4'>
-          <View
-            style={{
-              width: 50,
-              height: 50,
-            }}
-            className='flex items-center justify-center'
-          >
-            <Feather name='cast' size={28} color={"white"} />
-          </View>
-          <View className='shrink ml-2'>
-            <Text className='font-bold mb-1'>Chromecast</Text>
-            <Text className='shrink text-xs'>
-              {t("home.intro.chromecast_feature_description")}
-            </Text>
-          </View>
-        </View>
+        {!Platform.isTV && (
+          <>
+            <View className='flex flex-row items-center mt-4'>
+              <View
+                style={{
+                  width: 50,
+                  height: 50,
+                }}
+                className='flex items-center justify-center'
+              >
+                <Ionicons
+                  name='cloud-download-outline'
+                  size={32}
+                  color='white'
+                />
+              </View>
+              <View className='shrink ml-2'>
+                <Text className='font-bold mb-1'>
+                  {t("home.intro.downloads_feature_title")}
+                </Text>
+                <Text className='shrink text-xs'>
+                  {t("home.intro.downloads_feature_description")}
+                </Text>
+              </View>
+            </View>
+            <View className='flex flex-row items-center mt-4'>
+              <View
+                style={{
+                  width: 50,
+                  height: 50,
+                }}
+                className='flex items-center justify-center'
+              >
+                <Feather name='cast' size={28} color={"white"} />
+              </View>
+              <View className='shrink ml-2'>
+                <Text className='font-bold mb-1'>Chromecast</Text>
+                <Text className='shrink text-xs'>
+                  {t("home.intro.chromecast_feature_description")}
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
         <View className='flex flex-row items-center mt-4'>
           <View
             style={{
@@ -99,19 +107,22 @@ export default function page() {
             <Text className='font-bold mb-1'>
               {t("home.intro.centralised_settings_plugin_title")}
             </Text>
-            <Text className='shrink text-xs'>
-              {t("home.intro.centralised_settings_plugin_description")}{" "}
-              <Text
-                className='text-purple-600'
+            <View className='flex-row flex-wrap items-baseline'>
+              <Text className='shrink text-xs'>
+                {t("home.intro.centralised_settings_plugin_description")}{" "}
+              </Text>
+              <TouchableOpacity
                 onPress={() => {
                   Linking.openURL(
                     "https://github.com/streamyfin/jellyfin-plugin-streamyfin",
                   );
                 }}
               >
-                {t("home.intro.read_more")}
-              </Text>
-            </Text>
+                <Text className='text-xs text-purple-600 underline'>
+                  {t("home.intro.read_more")}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
