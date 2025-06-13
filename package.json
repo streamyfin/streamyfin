@@ -64,7 +64,7 @@
     "expo-task-manager": "~12.0.5",
     "expo-updates": "~0.26.17",
     "expo-web-browser": "~14.0.2",
-    "i18next": "^24.2.2",
+    "i18next": "^25.0.0",
     "jotai": "^2.11.3",
     "lodash": "^4.17.21",
     "nativewind": "^2.0.11",
