@@ -296,7 +296,7 @@ const Login: React.FC = () => {
                     marginLeft: -23,
                     marginBottom: -20,
                   }}
-                  source={require("@/assets/images/StreamyFinFinal.png")}
+                  source={require("@/assets/images/icon-ios-plain.png")}
                 />
                 <Text className='text-3xl font-bold'>Streamyfin</Text>
                 <Text className='text-neutral-500'>
