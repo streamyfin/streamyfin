@@ -6,8 +6,6 @@ concurrency:
 
 on:
   workflow_dispatch:
-  pull_request_target:
-    branches: [develop, master]
   pull_request:
     branches: [develop, master]
   push:
