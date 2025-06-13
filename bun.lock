@@ -111,7 +111,7 @@
         "husky": "^9.1.7",
         "lint-staged": "^15.5.0",
         "postinstall-postinstall": "^2.1.0",
-        "react-test-renderer": "19.0.0",
+        "react-test-renderer": "19.1.0",
         "typescript": "~5.7.3",
       },
     },
@@ -1849,7 +1849,7 @@
 
     "react-i18next": ["react-i18next@15.4.1", "", { "dependencies": { "@babel/runtime": "^7.25.0", "html-parse-stringify": "^3.0.1" }, "peerDependencies": { "i18next": ">= 23.2.3", "react": ">= 16.8.0" } }, "sha512-ahGab+IaSgZmNPYXdV1n+OYky95TGpFwnKRflX/16dY04DsYYKHtVLjeny7sBSCREEcoMbAgSkFiGLF5g5Oofw=="],
 
-    "react-is": ["react-is@19.0.0", "", {}, "sha512-H91OHcwjZsbq3ClIDHMzBShc1rotbfACdWENsmEf0IFvZ3FgGPtdHMcsv45bQ1hAbgdfiA8SnxTKfDS+x/8m2g=="],
+    "react-is": ["react-is@19.1.0", "", {}, "sha512-Oe56aUPnkHyyDxxkvqtd7KkdQP5uIUfHxd5XTb3wE9d/kRnZLmKbDB0GWk919tdQ+mxxPtG6EAs6RMT6i1qtHg=="],
 
     "react-native": ["react-native-tvos@0.77.2-0", "", { "dependencies": { "@jest/create-cache-key-function": "^29.6.3", "@react-native-tvos/virtualized-lists": "0.77.2-0", "@react-native/assets-registry": "0.77.2", "@react-native/codegen": "0.77.2", "@react-native/community-cli-plugin": "0.77.2", "@react-native/gradle-plugin": "0.77.2", "@react-native/js-polyfills": "0.77.2", "@react-native/normalize-colors": "0.77.2", "abort-controller": "^3.0.0", "anser": "^1.4.9", "ansi-regex": "^5.0.0", "babel-jest": "^29.7.0", "babel-plugin-syntax-hermes-parser": "0.25.1", "base64-js": "^1.5.1", "chalk": "^4.0.0", "commander": "^12.0.0", "event-target-shim": "^5.0.1", "flow-enums-runtime": "^0.0.6", "glob": "^7.1.1", "invariant": "^2.2.4", "jest-environment-node": "^29.6.3", "jsc-android": "^250231.0.0", "memoize-one": "^5.0.0", "metro-runtime": "^0.81.3", "metro-source-map": "^0.81.3", "nullthrows": "^1.1.1", "pretty-format": "^29.7.0", "promise": "^8.3.0", "react-devtools-core": "^6.0.1", "react-refresh": "^0.14.0", "regenerator-runtime": "^0.13.2", "scheduler": "0.24.0-canary-efb381bbf-20230505", "semver": "^7.1.3", "stacktrace-parser": "^0.1.10", "whatwg-fetch": "^3.0.0", "ws": "^6.2.3", "yargs": "^17.6.2" }, "peerDependencies": { "@types/react": "^18.2.6", "react": "^18.2.0" }, "optionalPeers": ["@types/react"], "bin": { "react-native": "cli.js" } }, "sha512-Ys0tka4VRxClE8oGV4itR0CaeQwtI7jQ51uO7DedmUpt3m8I5uUUFQANgH8IhdEeTtvyPFbnCUffbpcFm59jKg=="],
 
@@ -1927,7 +1927,7 @@
 
     "react-style-singleton": ["react-style-singleton@2.2.3", "", { "dependencies": { "get-nonce": "^1.0.0", "tslib": "^2.0.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-b6jSvxvVnyptAiLjbkWLE/lOnR4lfTtDAl+eUC7RZy+QQWc6wRzIV2CE6xBuMmDxc2qIihtDCZD5NPOFl7fRBQ=="],
 
-    "react-test-renderer": ["react-test-renderer@19.0.0", "", { "dependencies": { "react-is": "^19.0.0", "scheduler": "^0.25.0" }, "peerDependencies": { "react": "^19.0.0" } }, "sha512-oX5u9rOQlHzqrE/64CNr0HB0uWxkCQmZNSfozlYvwE71TLVgeZxVf0IjouGEr1v7r1kcDifdAJBeOhdhxsG/DA=="],
+    "react-test-renderer": ["react-test-renderer@19.1.0", "", { "dependencies": { "react-is": "^19.1.0", "scheduler": "^0.26.0" }, "peerDependencies": { "react": "^19.1.0" } }, "sha512-jXkSl3CpvPYEF+p/eGDLB4sPoDX8pKkYvRl9+rR8HxLY0X04vW7hCm1/0zHoUSjPZ3bDa+wXWNTDVIw/R8aDVw=="],
 
     "read-cache": ["read-cache@1.0.0", "", { "dependencies": { "pify": "^2.3.0" } }, "sha512-Owdv/Ft7IjOgm/i0xvNDZ1LrRANRfew4b2prF3OWMQLxLfu3bS8FVhCsrSCMK4lR56Y9ya+AThoTpDCTxCmpRA=="],
 
@@ -1993,7 +1993,7 @@
 
     "sax": ["sax@1.4.1", "", {}, "sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg=="],
 
-    "scheduler": ["scheduler@0.25.0", "", {}, "sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA=="],
+    "scheduler": ["scheduler@0.26.0", "", {}, "sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA=="],
 
     "schema-utils": ["schema-utils@4.3.0", "", { "dependencies": { "@types/json-schema": "^7.0.9", "ajv": "^8.9.0", "ajv-formats": "^2.1.1", "ajv-keywords": "^5.1.0" } }, "sha512-Gf9qqc58SpCA/xdziiHz35F4GNIWYWZrEshUc/G/r5BnLph6xpKuLeoJoQuj5WfBIx/eQLf+hmVPYHaxJu7V2g=="],
 
