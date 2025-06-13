@@ -67,7 +67,7 @@
     "i18next": "^24.2.2",
     "jotai": "^2.11.3",
     "lodash": "^4.17.21",
-    "nativewind": "^2.0.11",
+    "nativewind": "^4.0.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-i18next": "^15.4.0",
