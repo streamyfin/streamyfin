@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useMemo } from "react";
 import { Platform, TouchableOpacity } from "react-native";
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { BITRATES } from "@/components/BitrateSelector";
