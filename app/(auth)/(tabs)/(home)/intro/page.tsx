@@ -19,7 +19,9 @@ export default function page() {
   );
 
   return (
-    <View className='bg-neutral-900 h-full {Platform.isTV ? py-5 space-y-4 : py-16 space-y-8} px-4'>
+    <View
+      className={`bg-neutral-900 h-full ${Platform.isTV ? "py-5 space-y-4" : "py-16 space-y-8"} px-4`}
+    >
       <View>
         <Text className='text-3xl font-bold text-center mb-2'>
           {t("home.intro.welcome_to_streamyfin")}
