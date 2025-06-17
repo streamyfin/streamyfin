@@ -254,26 +254,28 @@ const Page: React.FC = () => {
               ) : (
                 details?.mediaInfo?.jellyfinMediaId && (
                   <View className='flex flex-row space-x-2 mt-4'>
-                    <Button
-                      className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
-                      color='transparent'
-                      onPress={() => bottomSheetModalRef?.current?.present()}
-                      iconLeft={
-                        <Ionicons
-                          name='warning-outline'
-                          size={20}
-                          color='white'
-                        />
-                      }
-                      style={{
-                        borderWidth: 1,
-                        borderStyle: "solid",
-                      }}
-                    >
-                      <Text className='text-sm'>
-                        {t("jellyseerr.report_issue_button")}
-                      </Text>
-                    </Button>
+                    {!Platform.isTV && (
+                      <Button
+                        className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
+                        color='transparent'
+                        onPress={() => bottomSheetModalRef?.current?.present()}
+                        iconLeft={
+                          <Ionicons
+                            name='warning-outline'
+                            size={20}
+                            color='white'
+                          />
+                        }
+                        style={{
+                          borderWidth: 1,
+                          borderStyle: "solid",
+                        }}
+                      >
+                        <Text className='text-sm'>
+                          {t("jellyseerr.report_issue_button")}
+                        </Text>
+                      </Button>
+                    )}
                     <Button
                       className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
                       onPress={() => {
@@ -331,92 +333,95 @@ const Page: React.FC = () => {
         }}
         onDismiss={() => _setRequestBody(undefined)}
       />
-      <BottomSheetModal
-        ref={bottomSheetModalRef}
-        enableDynamicSizing
-        handleIndicatorStyle={{
-          backgroundColor: "white",
-        }}
-        backgroundStyle={{
-          backgroundColor: "#171717",
-        }}
-        backdropComponent={renderBackdrop}
-      >
-        <BottomSheetView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
-            <View>
-              <Text className='font-bold text-2xl text-neutral-100'>
-                {t("jellyseerr.whats_wrong")}
-              </Text>
-            </View>
-            <View className='flex flex-col space-y-2 items-start'>
-              <View className='flex flex-col'>
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <View className='flex flex-col'>
-                      <Text className='opacity-50 mb-1 text-xs'>
-                        {t("jellyseerr.issue_type")}
-                      </Text>
-                      <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                        <Text style={{}} className='' numberOfLines={1}>
-                          {issueType
-                            ? IssueTypeName[issueType]
-                            : t("jellyseerr.select_an_issue")}
+      {!Platform.isTV && (
+        // This is till it's fixed because the menu isn't selectable on TV
+        <BottomSheetModal
+          ref={bottomSheetModalRef}
+          enableDynamicSizing
+          handleIndicatorStyle={{
+            backgroundColor: "white",
+          }}
+          backgroundStyle={{
+            backgroundColor: "#171717",
+          }}
+          backdropComponent={renderBackdrop}
+        >
+          <BottomSheetView>
+            <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+              <View>
+                <Text className='font-bold text-2xl text-neutral-100'>
+                  {t("jellyseerr.whats_wrong")}
+                </Text>
+              </View>
+              <View className='flex flex-col space-y-2 items-start'>
+                <View className='flex flex-col'>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <View className='flex flex-col'>
+                        <Text className='opacity-50 mb-1 text-xs'>
+                          {t("jellyseerr.issue_type")}
                         </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content
-                    loop={false}
-                    side='bottom'
-                    align='center'
-                    alignOffset={0}
-                    avoidCollisions={true}
-                    collisionPadding={0}
-                    sideOffset={0}
-                  >
-                    <DropdownMenu.Label>
-                      {t("jellyseerr.types")}
-                    </DropdownMenu.Label>
-                    {Object.entries(IssueTypeName)
-                      .reverse()
-                      .map(([key, value], idx) => (
-                        <DropdownMenu.Item
-                          key={value}
-                          onSelect={() =>
-                            setIssueType(key as unknown as IssueType)
-                          }
-                        >
-                          <DropdownMenu.ItemTitle>
-                            {value}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.Item>
-                      ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
-              </View>
+                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text style={{}} className='' numberOfLines={1}>
+                            {issueType
+                              ? IssueTypeName[issueType]
+                              : t("jellyseerr.select_an_issue")}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content
+                      loop={false}
+                      side='bottom'
+                      align='center'
+                      alignOffset={0}
+                      avoidCollisions={true}
+                      collisionPadding={0}
+                      sideOffset={0}
+                    >
+                      <DropdownMenu.Label>
+                        {t("jellyseerr.types")}
+                      </DropdownMenu.Label>
+                      {Object.entries(IssueTypeName)
+                        .reverse()
+                        .map(([key, value], idx) => (
+                          <DropdownMenu.Item
+                            key={value}
+                            onSelect={() =>
+                              setIssueType(key as unknown as IssueType)
+                            }
+                          >
+                            <DropdownMenu.ItemTitle>
+                              {value}
+                            </DropdownMenu.ItemTitle>
+                          </DropdownMenu.Item>
+                        ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                </View>
 
-              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full'>
-                <BottomSheetTextInput
-                  multiline
-                  maxLength={254}
-                  style={{ color: "white" }}
-                  clearButtonMode='always'
-                  placeholder={t("jellyseerr.describe_the_issue")}
-                  placeholderTextColor='#9CA3AF'
-                  // Issue with multiline + Textinput inside a portal
-                  // https://github.com/callstack/react-native-paper/issues/1668
-                  defaultValue={issueMessage}
-                  onChangeText={setIssueMessage}
-                />
+                <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full'>
+                  <BottomSheetTextInput
+                    multiline
+                    maxLength={254}
+                    style={{ color: "white" }}
+                    clearButtonMode='always'
+                    placeholder={t("jellyseerr.describe_the_issue")}
+                    placeholderTextColor='#9CA3AF'
+                    // Issue with multiline + Textinput inside a portal
+                    // https://github.com/callstack/react-native-paper/issues/1668
+                    defaultValue={issueMessage}
+                    onChangeText={setIssueMessage}
+                  />
+                </View>
               </View>
+              <Button className='mt-auto' onPress={submitIssue} color='purple'>
+                {t("jellyseerr.submit_button")}
+              </Button>
             </View>
-            <Button className='mt-auto' onPress={submitIssue} color='purple'>
-              {t("jellyseerr.submit_button")}
-            </Button>
-          </View>
-        </BottomSheetView>
-      </BottomSheetModal>
+          </BottomSheetView>
+        </BottomSheetModal>
+      )}
     </View>
   );
 };

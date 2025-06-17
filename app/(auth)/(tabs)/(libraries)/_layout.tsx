@@ -18,7 +18,7 @@ export default function IndexLayout() {
       <Stack.Screen
         name='index'
         options={{
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerLargeTitle: true,
           headerTitle: t("tabs.library"),
           headerBlurEffect: "prominent",
@@ -198,7 +198,7 @@ export default function IndexLayout() {
         name='[libraryId]'
         options={{
           title: "",
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -211,7 +211,7 @@ export default function IndexLayout() {
         name='collections/[collectionId]'
         options={{
           title: "",
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,

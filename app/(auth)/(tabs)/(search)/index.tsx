@@ -1,6 +1,7 @@
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Tag } from "@/components/GenreTags";
 import { ItemCardText } from "@/components/ItemCardText";
+import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
@@ -258,6 +259,20 @@ export default function search() {
           paddingRight: insets.right,
         }}
       >
+        {Platform.isTV && (
+          <Input
+            placeholder={t("search.search")}
+            onChangeText={(text) => {
+              router.setParams({ q: "" });
+              setSearch(text);
+            }}
+            keyboardType='default'
+            returnKeyType='done'
+            autoCapitalize='none'
+            clearButtonMode='while-editing'
+            maxLength={500}
+          />
+        )}
         <View
           className='flex flex-col'
           style={{
