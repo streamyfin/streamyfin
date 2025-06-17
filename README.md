@@ -220,6 +220,9 @@ I'd also like to thank the following people and projects for their contributions
 - [Jellyseerr](https://github.com/Fallenbagel/jellyseerr) for enabling API integration with their project.
 - The Jellyfin devs for always being helpful in the Discord.
 
-## Star History
+## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=streamyfin/streamyfin&type=Date)](https://star-history.com/#streamyfin/streamyfin&Date)
+
+## ⚠️ Disclaimer
+Streamyfin does not promote, support, or condone piracy in any form. The app is intended solely for streaming media that you personally own and control. It does not provide or include any media content. Any discussions or support requests related to piracy are strictly prohibited across all our channels.
