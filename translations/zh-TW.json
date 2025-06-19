@@ -139,6 +139,7 @@
         "select_liraries_you_want_to_hide": "選擇您想從媒體庫頁面和主頁隱藏的媒體庫。",
         "disable_haptic_feedback": "禁用觸覺回饋",
         "default_quality": "預設品質",
+        "max_auto_play_episode_count": "自動播放劇集的最大次數",
         "disabled": "已停用"
       },
       "downloads": {
@@ -227,6 +228,10 @@
         "could_not_connect": "無法連接",
         "invalid_url": "無效的 URL"
       }
+    },
+    "sessions": {
+      "title": "會話",
+      "no_active_sessions": "沒有使用中的會話"
     },
     "downloads": {
       "downloads_title": "下載",
