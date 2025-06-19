@@ -104,7 +104,7 @@
     "@types/react": "~19.0.10",
     "@types/react-test-renderer": "^19.0.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.5.0",
+    "lint-staged": "^16.0.0",
     "postinstall-postinstall": "^2.1.0",
     "react-test-renderer": "18.3.1",
     "typescript": "~5.8.3"
