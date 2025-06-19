@@ -107,7 +107,7 @@
     "tailwindcss": "3.3.2",
     "use-debounce": "^10.0.4",
     "uuid": "^11.0.5",
-    "zeego": "^2.0.4",
+    "zeego": "^3.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
