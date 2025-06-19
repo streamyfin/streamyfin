@@ -2,7 +2,7 @@
 
 <a href="https://www.buymeacoffee.com/fredrikbur3" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
-Welcome to Streamyfin, a simple and user-friendly Jellyfin video streaming client built with Expo. If you're looking for an alternative to other Jellyfin clients, we hope you'll find Streamyfin to be a useful addition to your media streaming toolbox.
+A simple and user-friendly Jellyfin video streaming client built with Expo. If you are looking for an alternative to other Jellyfin clients, we hope you find Streamyfin a useful addition to your media streaming toolbox.
 
 <div style="display: flex; flex-direction: row; gap: 8px">
   <img width=150 src="./assets/images/screenshots/screenshot1.png" />
@@ -23,17 +23,17 @@ Welcome to Streamyfin, a simple and user-friendly Jellyfin video streaming clien
 
 ## 🧪 Experimental Features
 
-Streamyfin includes some exciting experimental features like media downloading and Chromecast support. These are still in development, and we appreciate your patience and feedback as we work to improve them.
+Streamyfin includes some exciting experimental features like media downloading and Chromecast support. These features are still in development, and your patience and feedback are much appreciated as we work to improve them.
 
-### Downloading
+### 📥 Downloading
 
 Downloading works by using ffmpeg to convert an HLS stream into a video file on the device. This means that you can download and view any file you can stream! The file is converted by Jellyfin on the server in real time as it is downloaded. This means a **bit longer download times** but supports any file that your server can transcode.
 
-### Chromecast
+### 🎥 Chromecast
 
 Chromecast support is still in development, and we're working on improving it. Currently, it supports casting videos, but we're working on adding support for subtitles and other features.
 
-### Streamyfin Plugin
+### 🧩 Streamyfin Plugin
 
 The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that holds all settings for the client Streamyfin. This allows you to synchronize settings across all your users, like for example:
 
@@ -41,21 +41,21 @@ The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that ho
 - Choose the default languages
 - Set download method and search provider
 - Customize home screen
-- And more...
+- And much more...
 
 [Streamyfin Plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin)
 
-### Jellysearch
+### 🔍 Jellysearch
 
 [Jellysearch](https://gitlab.com/DomiStyle/jellysearch) now works with Streamyfin! 🚀
 
 > A fast full-text search proxy for Jellyfin. Integrates seamlessly with most Jellyfin clients.
 
-## Roadmap for V1
+## 🛣️ Roadmap for V1
 
-Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) to see what we're working on next. We are always open for feedback and suggestions, so please let us know if you have any ideas or feature requests.
+Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) To see what we're working on next, we are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
 
-## Get it now
+## 📥 Get it now
 
 <div style="display: flex; gap: 5px;">
   <a href="https://apps.apple.com/app/streamyfin/id6593660679?l=en-GB"><img height=50 alt="Get Streamyfin on App Store" src="./assets/Download_on_the_App_Store_Badge.png"/></a>
@@ -64,7 +64,7 @@ Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) to
 
 Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/releases) for Android.
 
-### Beta testing
+### 🧪 Beta testing
 
 To access the Streamyfin beta, you need to subscribe to the Member tier (or higher) on [Patreon](https://www.patreon.com/streamyfin). This will give you immediate access to the ⁠🧪-public-beta channel on Discord and I'll know that you have subscribed. This is where I post APKs and IPAs. This won't give automatic access to the TestFlight, however, so you need to send me a DM with the email you use for Apple so that I can manually add you.
 
@@ -81,7 +81,7 @@ To access the Streamyfin beta, you need to subscribe to the Member tier (or high
 
 We welcome any help to make Streamyfin better. If you'd like to contribute, please fork the repository and submit a pull request. For major changes, it's best to open an issue first to discuss your ideas.
 
-### Development info
+### 👨‍💻 Development info
 
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
@@ -118,7 +118,7 @@ If you have questions or need support, feel free to reach out:
 - GitHub Issues: Report bugs or request features here.
 - Email: [fredrik.burmester@gmail.com](mailto:fredrik.burmester@gmail.com)
 
-## FAQ
+## ❓ FAQ
 
 1. Q: Why can't I see my libraries in Streamyfin?   
    A: Make sure your server is running one of the latest versions and that you have at least one library that isn't audio only.
@@ -135,7 +135,7 @@ We would like to thank the Jellyfin team for their great software and awesome su
 
 Special shoutout to the JF official clients for being an inspiration to ours.
 
-### Core Developers
+### 🏆 Core Developers
 
 Thanks to the following contributors for their significant contributions:
 
@@ -226,3 +226,6 @@ I'd also like to thank the following people and projects for their contributions
 
 ## ⚠️ Disclaimer
 Streamyfin does not promote, support, or condone piracy in any form. The app is intended solely for streaming media that you personally own and control. It does not provide or include any media content. Any discussions or support requests related to piracy are strictly prohibited across all our channels.
+
+## 🤝 Sponsorship
+VPS hosting generously provided by [Hexabyte](https://hexabyte.se/en/vps/?currency=eur)
