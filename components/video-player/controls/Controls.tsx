@@ -13,6 +13,8 @@ import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { writeToLog } from "@/utils/log";
+import { Keyboard } from "react-native";
+import { useEffect } from "react";
 import {
   formatTimeString,
   msToTicks,
@@ -156,6 +158,22 @@ export const Controls: FC<Props> = ({
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, []);
+
+  useEffect(() => {
+    const onKeyPress = (e: any) => {
+      // Check for spacebar (key could be ' ' or 'Spacebar' depending on platform)
+      if (e?.key === ' ' || e?.key === 'Spacebar') {
+        togglePlay(progress.value);
+      }
+    };
+
+    // Add event listener (works on some platforms)
+    window?.addEventListener?.('keydown', onKeyPress);
+
+    return () => {
+      window?.removeEventListener?.('keydown', onKeyPress);
+    };
+  }, [togglePlay, progress]);
 
   useEffect(() => {
     if (item) {
