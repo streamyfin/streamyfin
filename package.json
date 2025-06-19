@@ -125,7 +125,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.0.0",
     "postinstall-postinstall": "^2.1.0",
-    "react-test-renderer": "19.0.0",
+    "react-test-renderer": "19.1.0",
     "typescript": "~5.7.3"
   },
   "private": true,
