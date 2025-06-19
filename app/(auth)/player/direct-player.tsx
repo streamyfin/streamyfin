@@ -510,7 +510,7 @@ export default function page() {
     return () => setIsMounted(false);
   }, []);
 
-  if (itemStatus.isLoading || streamStatus.isLoading) {
+  if (itemStatus.isLoading || streamStatus.isLoading || !item || !stream) {
     return (
       <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
         <Loader />
