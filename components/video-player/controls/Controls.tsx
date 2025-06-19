@@ -97,6 +97,7 @@ const CONTROLS_TIMEOUT = 4000;
 
 export const Controls: FC<Props> = ({
   item,
+  videoRef,
   seek,
   startPictureInPicture,
   play,
@@ -566,6 +567,7 @@ export const Controls: FC<Props> = ({
             {!Platform.isTV && (
               <View className='mr-auto'>
                 <VideoProvider
+                  videoRef={videoRef}
                   getAudioTracks={getAudioTracks}
                   getSubtitleTracks={getSubtitleTracks}
                   setAudioTrack={setAudioTrack}
