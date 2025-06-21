@@ -31,6 +31,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddToFavorites } from "./AddToFavorites";
+import { RecommendItemButton } from "./RecommendItemButton";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
@@ -107,6 +108,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
+                    <RecommendItemButton item={item} size='large' />
                   </View>
                 )}
               </View>
