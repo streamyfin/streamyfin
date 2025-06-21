@@ -2,7 +2,9 @@ import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
 import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
+import { RecentBanner } from "@/components/home/RecentBanner";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
+import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
@@ -476,6 +478,11 @@ export const HomeIndex = () => {
       </View>
     );
 
+  const handlePressBannerItem = (item: BaseItemDto) => {
+    if (!item) return;
+    router.push(`/series/${item.Id}`);
+  };
+
   return (
     <ScrollView
       scrollToOverflowEnabled={true}
@@ -491,6 +498,14 @@ export const HomeIndex = () => {
         paddingBottom: 16,
       }}
     >
+      <View>
+        {collections[0] && (
+          <RecentBanner
+            collection={collections[0]}
+            onPressItem={handlePressBannerItem}
+          />
+        )}
+      </View>
       <View className='flex flex-col space-y-4'>
         <LargeMovieCarousel />
 

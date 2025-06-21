@@ -59,6 +59,11 @@
       "go_to_settings_button": "Allez dans les paramètres",
       "read_more": "Lisez-en plus"
     },
+    "banner": {
+      "more_infos": "En savoir plus",
+      "movie": "Film",
+      "serie": "Série TV"
+    },
     "settings": {
       "settings_title": "Paramètres",
       "log_out_button": "Déconnexion",
@@ -467,7 +472,8 @@
       "requested_item": "{{item}}} demandé!",
       "you_dont_have_permission_to_request": "Vous n'avez pas la permission de demander {{item}}",
       "something_went_wrong_requesting_media": "Quelque chose s'est mal passé en demandant le média!"
-    }
+    },
+    "play_button": "Lire"
   },
   "tabs": {
     "home": "Accueil",

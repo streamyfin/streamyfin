@@ -253,7 +253,7 @@ const Page: React.FC = () => {
                 </Button>
               ) : (
                 details?.mediaInfo?.jellyfinMediaId && (
-                  <View className='flex flex-row space-x-2 mt-4'>
+                  <View className='flex flex-col-reverse gap-3 space-x-2 mt-4'>
                     <Button
                       className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
                       color='transparent'
@@ -292,7 +292,9 @@ const Page: React.FC = () => {
                         borderStyle: "solid",
                       }}
                     >
-                      <Text className='text-sm'>Play</Text>
+                      <Text className='text-sm'>
+                        {t("jellyseerr.play_button")}
+                      </Text>
                     </Button>
                   </View>
                 )
