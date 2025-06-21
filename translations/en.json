@@ -407,6 +407,7 @@
     "appeared_in": "Appeared in",
     "could_not_load_item": "Could not load item",
     "none": "None",
+    "recommend_button": "Recommend",
     "download": {
       "download_season": "Download Season",
       "download_series": "Download Series",
@@ -416,6 +417,10 @@
       "download_button": "Download",
       "using_optimized_server": "Using optimized server",
       "using_default_method": "Using default method"
+    },
+    "toasts": {
+      "recommendation_sent": "Recommendation sent",
+      "recommendation_failed": "Failed to send recommendation"
     }
   },
   "live_tv": {
