@@ -1,16 +1,14 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
+  "$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
   "files": {
-    "ignore": [
-      "node_modules",
-      "ios",
-      "android",
-      "Streamyfin.app",
-      "utils/jellyseerr",
-      ".expo"
+    "includes": [
+      "*",
+      "!node_modules/**",
+      "!ios/**",
+      "!android/**",
+      "!Streamyfin.app/**",
+      "!utils/jellyseerr/**",
+      "!.expo/**"
     ]
   },
   "linter": {
