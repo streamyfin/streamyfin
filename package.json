@@ -131,11 +131,17 @@
   "private": true,
   "expo": {
     "install": {
-      "exclude": ["react-native"]
+      "exclude": [
+        "react-native"
+      ]
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": ["biome check --write --unsafe"],
-    "*.{json}": ["biome format --write"]
+    "*.{js,jsx,ts,tsx}": [
+      "biome check --write --unsafe"
+    ],
+    "*.{json}": [
+      "biome format --write"
+    ]
   }
 }
