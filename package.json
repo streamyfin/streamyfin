@@ -89,7 +89,7 @@
     "react-native-mmkv": "^2.12.2",
     "react-native-pager-view": "6.5.1",
     "react-native-progress": "^5.0.1",
-    "react-native-reanimated": "~3.16.7",
+    "react-native-reanimated": "~3.18.0",
     "react-native-reanimated-carousel": "3.5.1",
     "react-native-safe-area-context": "5.1.0",
     "react-native-screens": "~4.5.0",
