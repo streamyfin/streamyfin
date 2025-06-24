@@ -1,10 +1,10 @@
-const VolumeManager = Platform.isTV
-  ? null
-  : require("react-native-volume-manager");
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
+const VolumeManager = Platform.isTV
+  ? null
+  : require("react-native-volume-manager");
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
 import type { VolumeResult } from "react-native-volume-manager";
@@ -46,7 +46,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
 
   const handleValueChange = async (value: number) => {
     volume.value = value;
-    // await VolumeManager.setVolume(value / 100);
+    await VolumeManager.setVolume(value / 100);
 
     // Re-call showNativeVolumeUI to ensure the setting is applied on iOS
     VolumeManager.showNativeVolumeUI({ enabled: false });
@@ -71,7 +71,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
     );
 
     return () => {
-      // volumeListener.remove();
+      volumeListener.remove();
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
