@@ -1,7 +1,6 @@
+import { getLocales } from "expo-localization";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-
-import { getLocales } from "expo-localization";
 import da from "./translations/da.json";
 import de from "./translations/de.json";
 import en from "./translations/en.json";
