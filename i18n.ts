@@ -13,7 +13,7 @@ import nl from "./translations/nl.json";
 import pl from "./translations/pl.json";
 import ptBR from "./translations/pt-BR.json";
 import ru from "./translations/ru.json";
-import sq from "./translations/sq.json"
+import sq from "./translations/sq.json";
 import sv from "./translations/sv.json";
 import tlh from "./translations/tlh.json";
 import tr from "./translations/tr.json";
