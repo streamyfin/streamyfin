@@ -17,7 +17,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
-import native from "@/utils/profiles/native";
+import { storage } from "@/utils/mmkv";
+import generateDeviceProfile from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import {
   type BaseItemDto,
@@ -49,6 +50,8 @@ const downloadProvider = !Platform.isTV
   ? require("@/providers/DownloadProvider")
   : null;
 
+const IGNORE_SAFE_AREAS_KEY = "video_player_ignore_safe_areas";
+
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
@@ -58,8 +61,13 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
-  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
+  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(() => {
+    // Load persisted state from storage
+    const saved = storage.getBoolean(IGNORE_SAFE_AREAS_KEY);
+    return saved ?? false;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [isPipStarted, setIsPipStarted] = useState(false);
@@ -67,6 +75,10 @@ export default function page() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
+  const VolumeManager = Platform.isTV
+    ? null
+    : require("react-native-volume-manager");
+
   let getDownloadedItem = null;
   if (!Platform.isTV) {
     getDownloadedItem = downloadProvider.useDownload();
@@ -80,6 +92,11 @@ export default function page() {
     _setShowControls(show);
     lightHapticFeedback();
   }, []);
+
+  // Persist ignoreSafeAreas state whenever it changes
+  useEffect(() => {
+    storage.set(IGNORE_SAFE_AREAS_KEY, ignoreSafeAreas);
+  }, [ignoreSafeAreas]);
 
   const {
     itemId,
@@ -132,11 +149,10 @@ export default function page() {
           fetchedItem = res.data;
         }
         setItem(fetchedItem);
+        setItemStatus({ isLoading: false, isError: false });
       } catch (error) {
         console.error("Failed to fetch item:", error);
         setItemStatus({ isLoading: false, isError: true });
-      } finally {
-        setItemStatus({ isLoading: false, isError: false });
       }
     };
 
@@ -159,6 +175,8 @@ export default function page() {
 
   useEffect(() => {
     const fetchStreamData = async () => {
+      setStreamStatus({ isLoading: true, isError: false });
+      const native = await generateDeviceProfile();
       try {
         let result: Stream | null = null;
         if (offline && !Platform.isTV) {
@@ -192,11 +210,10 @@ export default function page() {
           result = { mediaSource, sessionId, url };
         }
         setStream(result);
+        setStreamStatus({ isLoading: false, isError: false });
       } catch (error) {
         console.error("Failed to fetch stream:", error);
         setStreamStatus({ isLoading: false, isError: true });
-      } finally {
-        setStreamStatus({ isLoading: false, isError: false });
       }
     };
     fetchStreamData();
@@ -219,7 +236,7 @@ export default function page() {
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
-      reportPlaybackStopped();
+      reportPlaybackProgress();
     } else {
       videoRef.current?.play();
       await getPlaystateApi(api!).reportPlaybackStart({
@@ -239,7 +256,15 @@ export default function page() {
     });
 
     revalidateProgressCache();
-  }, [api, item, mediaSourceId, stream]);
+  }, [
+    api,
+    item,
+    mediaSourceId,
+    stream,
+    progress,
+    offline,
+    revalidateProgressCache,
+  ]);
 
   const stop = useCallback(() => {
     reportPlaybackStopped();
@@ -265,7 +290,7 @@ export default function page() {
       isPaused: !isPlaying,
       playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
       playSessionId: stream.sessionId,
-      isMuted: false,
+      isMuted: isMuted,
       canSeek: true,
       repeatMode: RepeatMode.RepeatNone,
       playbackOrder: PlaybackOrder.Default,
@@ -329,13 +354,84 @@ export default function page() {
     return item?.UserData?.PlaybackPositionTicks
       ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
       : 0;
-  }, [item]);
+  }, [item, offline]);
+
+  const volumeUpCb = useCallback(async () => {
+    if (Platform.isTV) return;
+
+    try {
+      const { volume: currentVolume } = await VolumeManager.getVolume();
+      const newVolume = Math.min(currentVolume + 0.1, 1.0);
+
+      await VolumeManager.setVolume(newVolume);
+    } catch (error) {
+      console.error("Error adjusting volume:", error);
+    }
+  }, []);
+  const [previousVolume, setPreviousVolume] = useState<number | null>(null);
+
+  const toggleMuteCb = useCallback(async () => {
+    if (Platform.isTV) return;
+
+    try {
+      const { volume: currentVolume } = await VolumeManager.getVolume();
+      const currentVolumePercent = currentVolume * 100;
+
+      if (currentVolumePercent > 0) {
+        // Currently not muted, so mute
+        setPreviousVolume(currentVolumePercent);
+        await VolumeManager.setVolume(0);
+        setIsMuted(true);
+      } else {
+        // Currently muted, so restore previous volume
+        const volumeToRestore = previousVolume || 50; // Default to 50% if no previous volume
+        await VolumeManager.setVolume(volumeToRestore / 100);
+        setPreviousVolume(null);
+        setIsMuted(false);
+      }
+    } catch (error) {
+      console.error("Error toggling mute:", error);
+    }
+  }, [previousVolume]);
+  const volumeDownCb = useCallback(async () => {
+    if (Platform.isTV) return;
+
+    try {
+      const { volume: currentVolume } = await VolumeManager.getVolume();
+      const newVolume = Math.max(currentVolume - 0.1, 0); // Decrease by 10%
+      console.log(
+        "Volume Down",
+        Math.round(currentVolume * 100),
+        "→",
+        Math.round(newVolume * 100),
+      );
+      await VolumeManager.setVolume(newVolume);
+    } catch (error) {
+      console.error("Error adjusting volume:", error);
+    }
+  }, []);
+
+  const setVolumeCb = useCallback(async (newVolume: number) => {
+    if (Platform.isTV) return;
+
+    try {
+      const clampedVolume = Math.max(0, Math.min(newVolume, 100));
+      console.log("Setting volume to", clampedVolume);
+      await VolumeManager.setVolume(clampedVolume / 100);
+    } catch (error) {
+      console.error("Error setting volume:", error);
+    }
+  }, []);
 
   useWebSocket({
     isPlaying: isPlaying,
     togglePlay: togglePlay,
     stopPlayback: stop,
     offline,
+    toggleMute: toggleMuteCb,
+    volumeUp: volumeUpCb,
+    volumeDown: volumeDownCb,
+    setVolume: setVolumeCb,
   });
 
   const onPlaybackStateChanged = useCallback(
@@ -422,7 +518,7 @@ export default function page() {
     );
   }
 
-  if (!item || !stream || itemStatus.isError || streamStatus.isError)
+  if (itemStatus.isError || streamStatus.isError)
     return (
       <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
         <Text className='text-white'>{t("player.error")}</Text>
@@ -471,7 +567,7 @@ export default function page() {
           }}
         />
       </View>
-      {videoRef.current && !isPipStarted && isMounted === true ? (
+      {videoRef.current && !isPipStarted && isMounted === true && item ? (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}

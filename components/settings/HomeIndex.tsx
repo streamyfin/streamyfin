@@ -36,6 +36,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Platform,
   RefreshControl,
   ScrollView,
   TouchableOpacity,
@@ -87,6 +88,12 @@ export const HomeIndex = () => {
 
   const { downloadedFiles, cleanCacheDirectory } = useDownload();
   useEffect(() => {
+    if (Platform.isTV) {
+      navigation.setOptions({
+        headerLeft: () => null,
+      });
+      return;
+    }
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
     navigation.setOptions({
       headerLeft: () => (
@@ -206,19 +213,43 @@ export const HomeIndex = () => {
       queryKey,
       queryFn: async () => {
         if (!api) return [];
-        return (
-          (
-            await getUserLibraryApi(api).getLatestMedia({
-              userId: user?.Id,
-              limit: 20,
-              fields: ["PrimaryImageAspectRatio", "Path"],
-              imageTypeLimit: 1,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              includeItemTypes,
-              parentId,
-            })
-          ).data || []
-        );
+
+        const response = await getItemsApi(api).getItems({
+          userId: user?.Id,
+          limit: 40,
+          recursive: true,
+          includeItemTypes,
+          sortBy: ["DateCreated"],
+          sortOrder: ["Descending"],
+          fields: ["PrimaryImageAspectRatio", "Path"],
+          parentId,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        });
+
+        let items = response.data.Items || [];
+
+        if (includeItemTypes.includes("Episode")) {
+          // Removes individual episodes from the list if they are part of a series
+          //    and only keeps the series item
+          // Note: The 'Latest' API endpoint does not work well with combining batch episode imports
+          //    and will either only show the series or the episodes, not both.
+          //    This is a workaround to filter out the episodes from the list
+          const seriesIds = new Set(
+            items.filter((i) => i.Type === "Series").map((i) => i.Id),
+          );
+
+          items = items.filter(
+            (i) =>
+              i.Type === "Series" ||
+              (i.Type === "Episode" && !seriesIds.has(i.SeriesId!)),
+          );
+        }
+
+        if (items.length > 20) {
+          items = items.slice(0, 20);
+        }
+
+        return items;
       },
       type: "ScrollingCollectionList",
     }),
@@ -232,7 +263,7 @@ export const HomeIndex = () => {
 
       const latestMediaViews = collections.map((c) => {
         const includeItemTypes: BaseItemKind[] =
-          c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
+          c.CollectionType === "tvshows" ? ["Episode", "Series"] : ["Movie"];
         const title = t("home.recently_added_in", { libraryName: c.Name });
         const queryKey = [
           "home",
@@ -358,10 +389,10 @@ export const HomeIndex = () => {
               const response = await getTvShowsApi(api).getNextUp({
                 userId: user?.Id,
                 fields: ["MediaSourceCount"],
-                limit: section.items?.limit || 25,
+                limit: section.nextUp?.limit || 25,
                 enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-                enableResumable: section.items?.enableResumable,
-                enableRewatching: section.items?.enableRewatching,
+                enableResumable: section.nextUp?.enableResumable,
+                enableRewatching: section.nextUp?.enableRewatching,
               });
               return response.data.Items || [];
             }

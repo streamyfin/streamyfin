@@ -138,7 +138,9 @@
         "hide_libraries": "Hide Libraries",
         "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable Haptic Feedback",
-        "default_quality": "Default quality"
+        "default_quality": "Default quality",
+        "max_auto_play_episode_count": "Max auto play episode count",
+        "disabled": "Disabled"
       },
       "downloads": {
         "downloads_title": "Downloads",
@@ -380,6 +382,8 @@
     "cancel": "Cancel",
     "failed_to_get_episodes": "Failed to get episodes from this season",
     "failed_to_get_media_info": "Failed to get media information"
+    "continue_watching": "Continue Watching",
+    "go_back": "Go back"
   },
   "item_card": {
     "next_up": "Next up",

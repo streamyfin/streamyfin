@@ -8,7 +8,6 @@ import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
-import ios from "@/utils/profiles/ios";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -73,11 +72,14 @@ export const PlayButton: React.FC<Props> = ({
   const startColor = useSharedValue(colorAtom);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
-  const [settings] = useSettings();
+  const [settings, updateSettings] = useSettings();
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
     (q: string) => {
+      if (settings.maxAutoPlayEpisodeCount.value !== -1) {
+        updateSettings({ autoPlayEpisodeCount: 0 });
+      }
       router.push(`/player/direct-player?${q}`);
     },
     [router],
