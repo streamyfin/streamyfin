@@ -377,6 +377,11 @@
     "playback_state": "Playback State:",
     "no_data_available": "No data available",
     "index": "Index:",
+    "random_episode": "Random Episode",
+    "play": "Play",
+    "cancel": "Cancel",
+    "failed_to_get_episodes": "Failed to get episodes from this season",
+    "failed_to_get_media_info": "Failed to get media information"
     "continue_watching": "Continue Watching",
     "go_back": "Go back"
   },
