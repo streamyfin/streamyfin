@@ -73,7 +73,7 @@
         "react-native-ios-context-menu": "^3.1.0",
         "react-native-ios-utilities": "5.1.1",
         "react-native-mmkv": "^2.12.2",
-        "react-native-pager-view": "6.5.1",
+        "react-native-pager-view": "6.8.1",
         "react-native-progress": "^5.0.1",
         "react-native-reanimated": "~3.16.7",
         "react-native-reanimated-carousel": "3.5.1",
@@ -1905,7 +1905,7 @@
 
     "react-native-mmkv": ["react-native-mmkv@2.12.2", "", { "peerDependencies": { "react": "*", "react-native": ">=0.71.0" } }, "sha512-6058Aq0p57chPrUutLGe9fYoiDVDNMU2PKV+lLFUJ3GhoHvUrLdsS1PDSCLr00yqzL4WJQ7TTzH+V8cpyrNcfg=="],
 
-    "react-native-pager-view": ["react-native-pager-view@6.5.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-YdX7bP+rPYvATMU7HzlMq9JaG3ui/+cVRbFZFGW+QshDULANFg9ECR1BA7H7JTIcO/ZgWCwF+1aVmYG5yBA9Og=="],
+    "react-native-pager-view": ["react-native-pager-view@6.8.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-XIyVEMhwq7sZqM7GobOJZXxFCfdFgVNq/CFB2rZIRNRSVPJqE1k1fsc8xfQKfdzsp6Rpt6I7VOIvhmP7/YHdVg=="],
 
     "react-native-progress": ["react-native-progress@5.0.1", "", { "dependencies": { "prop-types": "^15.7.2" }, "peerDependencies": { "react-native-svg": "*" } }, "sha512-TYfJ4auAe5vubDma2yfFvt7ktSI+UCfysqJnkdHEcLXqAitRFOozgF/cLgN5VNi/iLdaf3ga1ETi2RF4jVZ/+g=="],
 
