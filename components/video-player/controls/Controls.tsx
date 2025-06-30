@@ -578,6 +578,58 @@ export const Controls: FC<Props> = ({
             )}
 
             <View className='flex flex-row items-center space-x-2 '>
+              {/* Button to manually rotate orientation of video */}
+              {!Platform.isTV && (
+                <TouchableOpacity
+                  onPress={async () => {
+                    try {
+                      // Get current orientation
+                      const orientation =
+                        await ScreenOrientation.getOrientationAsync();
+                      // Toggle orientation
+                      if (
+                        orientation ===
+                        ScreenOrientation.Orientation.PORTRAIT_UP
+                      ) {
+                        await ScreenOrientation.lockAsync(
+                          ScreenOrientation.OrientationLock.LANDSCAPE,
+                        );
+                      } else if (
+                        orientation ===
+                          ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+                        orientation ===
+                          ScreenOrientation.Orientation.LANDSCAPE_RIGHT
+                      ) {
+                        await ScreenOrientation.lockAsync(
+                          ScreenOrientation.OrientationLock.PORTRAIT_UP,
+                        );
+                      } else {
+                        await ScreenOrientation.lockAsync(
+                          ScreenOrientation.OrientationLock.LANDSCAPE,
+                        );
+                      }
+                      lightHapticFeedback();
+                    } catch (error) {
+                      writeToLog(
+                        "ERROR",
+                        "Error toggling screen orientation",
+                        error,
+                      );
+                      lightHapticFeedback(); // Still provide feedback even if orientation change fails
+                    }
+                  }}
+                  className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+                  accessibilityLabel='Toggle screen orientation'
+                  accessibilityHint='Toggles the screen orientation between portrait and landscape'
+                >
+                  <MaterialIcons
+                    name='screen-rotation'
+                    size={24}
+                    color='white'
+                    style={{ opacity: showControls ? 1 : 0 }}
+                  />
+                </TouchableOpacity>
+              )}
               {!Platform.isTV &&
                 settings.defaultPlayer === VideoPlayer.VLC_4 && (
                   <TouchableOpacity
