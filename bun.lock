@@ -71,7 +71,7 @@
         "react-native-google-cast": "^4.8.3",
         "react-native-image-colors": "^2.4.0",
         "react-native-ios-context-menu": "^3.1.0",
-        "react-native-ios-utilities": "5.1.1",
+        "react-native-ios-utilities": "5.1.5",
         "react-native-mmkv": "^2.12.2",
         "react-native-pager-view": "6.5.1",
         "react-native-progress": "^5.0.1",
@@ -1899,7 +1899,7 @@
 
     "react-native-ios-context-menu": ["react-native-ios-context-menu@3.1.0", "", { "dependencies": { "@dominicstop/ts-event-emitter": "^1.1.0" }, "peerDependencies": { "react": "*", "react-native": "*", "react-native-ios-utilities": "*" } }, "sha512-qdPSXMKUp5lDgmZeUPdv5sgBFhkFrIqma+zsnqJQYOvekb6Qs17yJy1Rqhrj0bJrwuduHzZX0aYbaA8whxqpDw=="],
 
-    "react-native-ios-utilities": ["react-native-ios-utilities@5.1.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-fOm7IR2KCn3MzghITbrnZfpJ3Z7wai4S46GwXwTql1fzX25eO8MXVgaUeMd5EvPwg1zAqF5I6c3T6Dby8DoF3A=="],
+    "react-native-ios-utilities": ["react-native-ios-utilities@5.1.5", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-s+gsFwMk2Ty5ZXnCmdgPtxJ3ij1v5v4nJjEqyMD35dzGrI1FISj3UxNusGElT6edV8YaEinAnX/LkXhDA6lnYg=="],
 
     "react-native-is-edge-to-edge": ["react-native-is-edge-to-edge@1.1.6", "", { "peerDependencies": { "react": ">=18.2.0", "react-native": ">=0.73.0" } }, "sha512-1pHnFTlBahins6UAajXUqeCOHew9l9C2C8tErnpGC3IyLJzvxD+TpYAixnCbrVS52f7+NvMttbiSI290XfwN0w=="],
 
