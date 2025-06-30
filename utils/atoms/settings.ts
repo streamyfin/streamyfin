@@ -170,6 +170,9 @@ export type Settings = {
   defaultPlayer: VideoPlayer;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
+  defaultPlaybackSpeed: number;
+  playbackSpeedPerMedia: Record<string, number>;
+  playbackSpeedPerShow: Record<string, number>;
 };
 
 export interface Lockable<T> {
@@ -227,6 +230,9 @@ const defaultValues: Settings = {
   defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
+  defaultPlaybackSpeed: 1.0,
+  playbackSpeedPerMedia: {},
+  playbackSpeedPerShow: {},
 };
 
 const loadSettings = (): Partial<Settings> => {

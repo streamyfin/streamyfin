@@ -1,8 +1,9 @@
-import type { TrackInfo } from "@/modules/VlcPlayer.types";
+import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
+  type MutableRefObject,
   type ReactNode,
   createContext,
   useContext,
@@ -19,6 +20,7 @@ interface VideoContextProps {
   setAudioTrack: ((index: number) => void) | undefined;
   setSubtitleTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
+  videoRef: MutableRefObject<VlcPlayerViewRef | null> | undefined;
 }
 
 const VideoContext = createContext<VideoContextProps | undefined>(undefined);
@@ -36,6 +38,7 @@ interface VideoProviderProps {
   setAudioTrack: ((index: number) => void) | undefined;
   setSubtitleTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
+  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
 }
 
 export const VideoProvider: React.FC<VideoProviderProps> = ({
@@ -45,6 +48,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   setSubtitleTrack,
   setSubtitleURL,
   setAudioTrack,
+  videoRef,
 }) => {
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
@@ -208,6 +212,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         setSubtitleTrack,
         setSubtitleURL,
         setAudioTrack,
+        videoRef,
       }}
     >
       {children}
