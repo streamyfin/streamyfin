@@ -22,6 +22,7 @@ export enum SortByOption {
   Studio = "Studio",
   IsFavoriteOrLiked = "IsFavoriteOrLiked",
   Random = "Random",
+  IsFolder = "IsFolder",
 }
 
 export enum SortOrderOption {

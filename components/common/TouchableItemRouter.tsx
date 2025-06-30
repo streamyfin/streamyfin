@@ -45,6 +45,18 @@ export const itemRouter = (
     return `/(auth)/(tabs)/(libraries)/${item.Id}`;
   }
 
+  if (item.Type === "Folder") {
+    return `/(auth)/(tabs)/(libraries)/${item.Id}`;
+  }
+
+  if (item.Type === "PhotoAlbum") {
+    return `/(auth)/(tabs)/(libraries)/${item.Id}`;
+  }
+
+  if (item.Type === "Photo") {
+    return `/(auth)/(tabs)/${from}/photos/view?id=${item.Id}`;
+  }
+
   return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
 };
 
