@@ -43,6 +43,7 @@ import {
   Platform,
   TouchableOpacity,
   View,
+  useTVEventHandler,
   useWindowDimensions,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
@@ -156,6 +157,134 @@ export const Controls: FC<Props> = ({
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, []);
+
+  const remoteScrubProgress = useSharedValue<number | null>(null);
+  const isRemoteScrubbing = useSharedValue(false);
+  const SCRUB_INTERVAL = isVlc ? secondsToMs(10) : msToTicks(secondsToMs(10));
+  const [showRemoteBubble, setShowRemoteBubble] = useState(false);
+
+  const [longPressScrubMode, setLongPressScrubMode] = useState<
+    "FF" | "RW" | null
+  >(null);
+
+  useTVEventHandler((evt) => {
+    if (!evt) return;
+
+    switch (evt.eventType) {
+      case "longLeft": {
+        setLongPressScrubMode((prev) => (!prev ? "RW" : null));
+        break;
+      }
+      case "longRight": {
+        setLongPressScrubMode((prev) => (!prev ? "FF" : null));
+        break;
+      }
+      case "left":
+      case "right": {
+        isRemoteScrubbing.value = true;
+        setShowRemoteBubble(true);
+
+        const direction = evt.eventType === "left" ? -1 : 1;
+        const base = remoteScrubProgress.value ?? progress.value;
+        const updated = Math.max(
+          min.value,
+          Math.min(max.value, base + direction * SCRUB_INTERVAL),
+        );
+        remoteScrubProgress.value = updated;
+        const progressInTicks = isVlc ? msToTicks(updated) : updated;
+        calculateTrickplayUrl(progressInTicks);
+        const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
+        const hours = Math.floor(progressInSeconds / 3600);
+        const minutes = Math.floor((progressInSeconds % 3600) / 60);
+        const seconds = progressInSeconds % 60;
+        setTime({ hours, minutes, seconds });
+        break;
+      }
+      case "select": {
+        if (isRemoteScrubbing.value && remoteScrubProgress.value != null) {
+          progress.value = remoteScrubProgress.value;
+
+          const seekTarget = isVlc
+            ? Math.max(0, remoteScrubProgress.value)
+            : Math.max(0, ticksToSeconds(remoteScrubProgress.value));
+
+          seek(seekTarget);
+          if (isPlaying) play();
+
+          isRemoteScrubbing.value = false;
+          remoteScrubProgress.value = null;
+          setShowRemoteBubble(false);
+        } else {
+          togglePlay();
+        }
+        break;
+      }
+      case "down":
+      case "up":
+        // cancel scrubbing on other directions
+        isRemoteScrubbing.value = false;
+        remoteScrubProgress.value = null;
+        setShowRemoteBubble(false);
+        break;
+      default:
+        break;
+    }
+
+    if (!showControls) toggleControls();
+  });
+
+  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let isActive = true;
+    let seekTime = 10;
+
+    const scrubWithLongPress = () => {
+      if (!isActive || !longPressScrubMode) return;
+
+      setIsSliding(true);
+      const scrubFn =
+        longPressScrubMode === "FF" ? handleSeekForward : handleSeekBackward;
+      scrubFn(seekTime);
+      seekTime *= 1.1;
+
+      longPressTimeoutRef.current = setTimeout(scrubWithLongPress, 300);
+    };
+
+    if (longPressScrubMode) {
+      isActive = true;
+      scrubWithLongPress();
+    }
+
+    return () => {
+      isActive = false;
+      setIsSliding(false);
+      if (longPressTimeoutRef.current) {
+        clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+    };
+  }, [longPressScrubMode]);
+
+  const effectiveProgress = useSharedValue(0);
+
+  // Recompute progress whenever remote scrubbing is active
+  useAnimatedReaction(
+    () => ({
+      isScrubbing: isRemoteScrubbing.value,
+      scrub: remoteScrubProgress.value,
+      actual: progress.value,
+    }),
+    (current) => {
+      effectiveProgress.value =
+        current.isScrubbing && current.scrub != null
+          ? current.scrub
+          : current.actual;
+    },
+    [],
+  );
 
   useEffect(() => {
     if (item) {
@@ -372,20 +501,19 @@ export const Controls: FC<Props> = ({
 
     pause();
     isSeeking.value = true;
-  }, [showControls, isPlaying]);
+  }, [showControls, isPlaying, pause]);
 
   const handleSliderComplete = useCallback(
     async (value: number) => {
       isSeeking.value = false;
       progress.value = value;
       setIsSliding(false);
-
       seek(Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value))));
       if (wasPlayingRef.current) {
         play();
       }
     },
-    [isVlc],
+    [isVlc, seek, play],
   );
 
   const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -422,7 +550,43 @@ export const Controls: FC<Props> = ({
     } catch (error) {
       writeToLog("ERROR", "Error seeking video backwards", error);
     }
-  }, [settings, isPlaying, isVlc]);
+  }, [settings, isPlaying, isVlc, play, seek]);
+
+  const handleSeekBackward = useCallback(
+    async (seconds: number) => {
+      wasPlayingRef.current = isPlaying;
+      try {
+        const curr = progress.value;
+        if (curr !== undefined) {
+          const newTime = isVlc
+            ? Math.max(0, curr - secondsToMs(seconds))
+            : Math.max(0, ticksToSeconds(curr) - seconds);
+          seek(newTime);
+        }
+      } catch (error) {
+        writeToLog("ERROR", "Error seeking video backwards", error);
+      }
+    },
+    [isPlaying, isVlc, seek],
+  );
+
+  const handleSeekForward = useCallback(
+    async (seconds: number) => {
+      wasPlayingRef.current = isPlaying;
+      try {
+        const curr = progress.value;
+        if (curr !== undefined) {
+          const newTime = isVlc
+            ? curr + secondsToMs(seconds)
+            : ticksToSeconds(curr) + seconds;
+          seek(Math.max(0, newTime));
+        }
+      } catch (error) {
+        writeToLog("ERROR", "Error seeking video forwards", error);
+      }
+    },
+    [isPlaying, isVlc, seek],
+  );
 
   const handleSkipForward = useCallback(async () => {
     if (!settings?.forwardSkipTime) {
@@ -444,7 +608,7 @@ export const Controls: FC<Props> = ({
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
     }
-  }, [settings, isPlaying, isVlc]);
+  }, [settings, isPlaying, isVlc, play, seek]);
 
   const toggleIgnoreSafeAreas = useCallback(() => {
     setIgnoreSafeAreas((prev) => !prev);
@@ -668,80 +832,88 @@ export const Controls: FC<Props> = ({
             >
               <BrightnessSlider />
             </View>
-            <TouchableOpacity onPress={handleSkipBackward}>
-              <View
-                style={{
-                  position: "relative",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: showControls ? 1 : 0,
-                }}
-              >
-                <Ionicons
-                  name='refresh-outline'
-                  size={50}
-                  color='white'
+            {!Platform.isTV && (
+              <TouchableOpacity onPress={handleSkipBackward}>
+                <View
                   style={{
-                    transform: [{ scaleY: -1 }, { rotate: "180deg" }],
-                  }}
-                />
-                <Text
-                  style={{
-                    position: "absolute",
-                    color: "white",
-                    fontSize: 16,
-                    fontWeight: "bold",
-                    bottom: 10,
-                  }}
-                >
-                  {settings?.rewindSkipTime}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                togglePlay();
-              }}
-            >
-              {!isBuffering ? (
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={50}
-                  color='white'
-                  style={{
+                    position: "relative",
+                    justifyContent: "center",
+                    alignItems: "center",
                     opacity: showControls ? 1 : 0,
                   }}
-                />
-              ) : (
-                <Loader size={"large"} />
-              )}
-            </TouchableOpacity>
+                >
+                  <Ionicons
+                    name='refresh-outline'
+                    size={50}
+                    color='white'
+                    style={{
+                      transform: [{ scaleY: -1 }, { rotate: "180deg" }],
+                    }}
+                  />
+                  <Text
+                    style={{
+                      position: "absolute",
+                      color: "white",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                      bottom: 10,
+                    }}
+                  >
+                    {settings?.rewindSkipTime}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity onPress={handleSkipForward}>
-              <View
-                style={{
-                  position: "relative",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: showControls ? 1 : 0,
+            <View
+              style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  togglePlay();
                 }}
+                style={Platform.isTV ? {} : { marginHorizontal: 40 }}
               >
-                <Ionicons name='refresh-outline' size={50} color='white' />
-                <Text
+                {!isBuffering ? (
+                  <Ionicons
+                    name={isPlaying ? "pause" : "play"}
+                    size={50}
+                    color='white'
+                    style={{
+                      opacity: showControls ? 1 : 0,
+                    }}
+                  />
+                ) : (
+                  <Loader size={"large"} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {!Platform.isTV && (
+              <TouchableOpacity onPress={handleSkipForward}>
+                <View
                   style={{
-                    position: "absolute",
-                    color: "white",
-                    fontSize: 16,
-                    fontWeight: "bold",
-                    bottom: 10,
+                    position: "relative",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    opacity: showControls ? 1 : 0,
                   }}
                 >
-                  {settings?.forwardSkipTime}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
+                  <Ionicons name='refresh-outline' size={50} color='white' />
+                  <Text
+                    style={{
+                      position: "absolute",
+                      color: "white",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                      bottom: 10,
+                    }}
+                  >
+                    {settings?.forwardSkipTime}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
             <View
               style={{
                 position: "absolute",
@@ -848,13 +1020,16 @@ export const Controls: FC<Props> = ({
                   onSlidingStart={handleSliderStart}
                   onSlidingComplete={handleSliderComplete}
                   onValueChange={handleSliderChange}
+                  onTap={() => console.log("tapped")}
                   containerStyle={{
                     borderRadius: 100,
                   }}
-                  renderBubble={() => isSliding && memoizedRenderBubble()}
+                  renderBubble={() =>
+                    (isSliding || showRemoteBubble) && memoizedRenderBubble()
+                  }
                   sliderHeight={10}
                   thumbWidth={0}
-                  progress={progress}
+                  progress={effectiveProgress}
                   minimumValue={min}
                   maximumValue={max}
                 />
