@@ -539,33 +539,37 @@ export default function page() {
           paddingRight: ignoreSafeAreas ? 0 : insets.right,
         }}
       >
-        <VlcPlayerView
-          ref={videoRef}
-          source={{
-            uri: stream?.url || "",
-            autoplay: true,
-            isNetwork: true,
-            startPosition,
-            externalSubtitles,
-            initOptions,
-          }}
-          style={{ width: "100%", height: "100%" }}
-          onVideoProgress={onProgress}
-          progressUpdateInterval={1000}
-          onVideoStateChange={onPlaybackStateChanged}
-          onPipStarted={onPipStarted}
-          onVideoLoadEnd={() => {
-            setIsVideoLoaded(true);
-          }}
-          onVideoError={(e) => {
-            console.error("Video Error:", e.nativeEvent);
-            Alert.alert(
-              t("player.error"),
-              t("player.an_error_occured_while_playing_the_video"),
-            );
-            writeToLog("ERROR", "Video Error", e.nativeEvent);
-          }}
-        />
+        {
+          stream && (
+            <VlcPlayerView
+              ref={videoRef}
+              source={{
+                uri: stream.url,
+                autoplay: true,
+                isNetwork: true,
+                startPosition,
+                externalSubtitles,
+                initOptions,
+              }}
+              style={{ width: "100%", height: "100%" }}
+              onVideoProgress={onProgress}
+              progressUpdateInterval={1000}
+              onVideoStateChange={onPlaybackStateChanged}
+              onPipStarted={onPipStarted}
+              onVideoLoadEnd={() => {
+                setIsVideoLoaded(true);
+              }}
+              onVideoError={(e) => {
+                console.error("Video Error:", e.nativeEvent);
+                Alert.alert(
+                  t("player.error"),
+                  t("player.an_error_occured_while_playing_the_video"),
+                );
+                writeToLog("ERROR", "Video Error", e.nativeEvent);
+              }}
+            />
+          )
+        }
       </View>
       {videoRef.current && !isPipStarted && isMounted === true && item ? (
         <Controls
