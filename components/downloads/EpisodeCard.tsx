@@ -19,7 +19,6 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
