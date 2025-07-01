@@ -66,7 +66,7 @@
         "react-native-country-flag": "^2.0.2",
         "react-native-device-info": "^14.0.4",
         "react-native-edge-to-edge": "^1.4.3",
-        "react-native-gesture-handler": "2.22.0",
+        "react-native-gesture-handler": "2.27.1",
         "react-native-get-random-values": "^1.11.0",
         "react-native-google-cast": "^4.8.3",
         "react-native-image-colors": "^2.4.0",
@@ -1887,7 +1887,7 @@
 
     "react-native-edge-to-edge": ["react-native-edge-to-edge@1.4.3", "", { "peerDependencies": { "react": ">=18.2.0", "react-native": ">=0.74.0" } }, "sha512-fYchwiQ2D/8NzcvJK1sD9Cm25GFQfsLgYmGpohoSpRxwBwR5UCL0wUf4scoQgYncRh9Hmc2t8ml/sikTwMM3ng=="],
 
-    "react-native-gesture-handler": ["react-native-gesture-handler@2.22.0", "", { "dependencies": { "@egjs/hammerjs": "^2.0.17", "hoist-non-react-statics": "^3.3.0", "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-m5Ps1cOSxSiMP4re+XsbeWcC9DNJuIEjMSmtUxBdyfYEJtdu5iAAiX7KlHHrf2mnK4I/56Ncy4PvPKWBwSpWpQ=="],
+    "react-native-gesture-handler": ["react-native-gesture-handler@2.27.1", "", { "dependencies": { "@egjs/hammerjs": "^2.0.17", "hoist-non-react-statics": "^3.3.0", "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-57TUWerhdz589OcDD21e/YlL923Ma4OIpyWsP0hy7gItBCPm5d7qIUW7Yo/cS2wo1qDdOhJaNlvlBD1lDou1fA=="],
 
     "react-native-get-random-values": ["react-native-get-random-values@1.11.0", "", { "dependencies": { "fast-base64-decode": "^1.0.0" }, "peerDependencies": { "react-native": ">=0.56" } }, "sha512-4BTbDbRmS7iPdhYLRcz3PGFIpFJBwNZg9g42iwa2P6FOv9vZj/xJc678RZXnLNZzd0qd7Q3CCF6Yd+CU2eoXKQ=="],
 
