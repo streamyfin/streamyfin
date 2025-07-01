@@ -80,7 +80,7 @@
     "react-native-country-flag": "^2.0.2",
     "react-native-device-info": "^14.0.4",
     "react-native-edge-to-edge": "^1.4.3",
-    "react-native-gesture-handler": "2.22.0",
+    "react-native-gesture-handler": "2.27.1",
     "react-native-get-random-values": "^1.11.0",
     "react-native-google-cast": "^4.8.3",
     "react-native-image-colors": "^2.4.0",
