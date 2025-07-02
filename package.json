@@ -99,7 +99,7 @@
     "react-native-uitextview": "^1.4.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-uuid": "^2.0.3",
-    "react-native-video": "6.10.0",
+    "react-native-video": "6.16.0",
     "react-native-volume-manager": "^2.0.8",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.13.2",
