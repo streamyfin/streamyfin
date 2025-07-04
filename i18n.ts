@@ -62,7 +62,7 @@ i18n.use(initReactI18next).init({
     uk: { translation: uk },
     "zh-CN": { translation: zhCN },
     "zh-TW": { translation: zhTW },
-    "vi": { translation: vi },
+    vi: { translation: vi },
   },
 
   lng: getLocales()[0].languageCode || "en",
