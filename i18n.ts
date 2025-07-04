@@ -16,9 +16,9 @@ import sv from "./translations/sv.json";
 import tlh from "./translations/tlh.json";
 import tr from "./translations/tr.json";
 import uk from "./translations/uk.json";
+import vi from "./translations/vi.json";
 import zhCN from "./translations/zh-CN.json";
 import zhTW from "./translations/zh-TW.json";
-import vi from "./translations/vi.json";
 
 export const APP_LANGUAGES = [
   { label: "Deutsch", value: "de" },
@@ -60,9 +60,9 @@ i18n.use(initReactI18next).init({
     tr: { translation: tr },
     tlh: { translation: tlh },
     uk: { translation: uk },
+    vi: { translation: vi },
     "zh-CN": { translation: zhCN },
     "zh-TW": { translation: zhTW },
-    vi: { translation: vi },
   },
 
   lng: getLocales()[0].languageCode || "en",
