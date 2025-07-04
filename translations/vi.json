@@ -49,7 +49,7 @@
       "a_free_and_open_source_client_for_jellyfin": "Một ứng dụng miễn phí và mã nguồn mở cho Jellyfin.",
       "features_title": "Tính năng",
       "features_description": "Streamyfin có nhiều tính năng và tích hợp với nhiều phần mềm, xem trong mục cài đặt, bao gồm:",
-      "jellyseerr_feature_description": "Kết nối với Jellyseerr và yêu cầu phim ngay trong app.",
+      "jellyseerr_feature_description": "Kết nối với Jellyseerr và yêu cầu phim ngay trong ứng dụng.",
       "downloads_feature_title": "Tải xuống",
       "downloads_feature_description": "Tải phim và chương trình để xem ngoại tuyến. Có thể dùng phương pháp mặc định hoặc cài đặt máy chủ tối ưu để hỗ trợ tải trong nền.",
       "chromecast_feature_description": "Phát phim lên Chromecast.",
@@ -83,7 +83,7 @@
         "media_controls_title": "Điều khiển đa phương tiện",
         "forward_skip_length": "Thời gian tua tới",
         "rewind_length": "Thời gian tua lui",
-        "seconds_unit": "giây"
+        "seconds_unit": "s"
       },
       "audio": {
         "audio_title": "Âm thanh",
@@ -197,7 +197,7 @@
       },
       "storage": {
         "storage_title": "Lưu trữ",
-        "app_usage": "App sử dụng {{usedSpace}}%",
+        "app_usage": "Ứng dụng sử dụng {{usedSpace}}%",
         "device_usage": "Thiết bị sử dụng {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} đã dùng",
         "delete_all_downloaded_files": "Xóa toàn bộ tập tin đã tải"
@@ -217,7 +217,7 @@
       "languages": {
         "title": "Ngôn ngữ",
         "app_language": "Ngôn ngữ ứng dụng",
-        "app_language_description": "Chọn ngôn ngữ cho app.",
+        "app_language_description": "Chọn ngôn ngữ cho ứng dụng.",
         "system": "Hệ thống"
       },
       "toasts": {
@@ -238,7 +238,7 @@
       "tvseries": "Chương trình TV",
       "movies": "Phim",
       "queue": "Hàng đợi",
-      "queue_hint": "Hàng đợi và tải xuống sẽ bị mất khi khởi động lại app",
+      "queue_hint": "Hàng đợi và tải xuống sẽ bị mất khi khởi động lại ứng dụng",
       "no_items_in_queue": "Không có mục trong hàng đợi",
       "no_downloaded_items": "Không có mục đã tải",
       "delete_all_movies_button": "Xóa tất cả phim",
@@ -247,7 +247,7 @@
       "active_download": "Đang tải xuống",
       "no_active_downloads": "Không có tải xuống đang diễn ra",
       "active_downloads": "Đang tải xuống",
-      "new_app_version_requires_re_download": "Phiên bản app mới yêu cầu tải lại",
+      "new_app_version_requires_re_download": "Phiên bản ứng dụng mới yêu cầu tải lại",
       "new_app_version_requires_re_download_description": "Cập nhật mới yêu cầu phải tải lại nội dung. Vui lòng xóa toàn bộ nội dung đã tải và thử lại.",
       "back": "Quay lại",
       "delete": "Xóa",
