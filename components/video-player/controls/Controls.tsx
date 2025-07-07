@@ -872,7 +872,6 @@ export const Controls: FC<Props> = ({
                 onPress={() => {
                   togglePlay();
                 }}
-                style={Platform.isTV ? {} : { marginHorizontal: 40 }}
               >
                 {!isBuffering ? (
                   <Ionicons
@@ -1020,7 +1019,6 @@ export const Controls: FC<Props> = ({
                   onSlidingStart={handleSliderStart}
                   onSlidingComplete={handleSliderComplete}
                   onValueChange={handleSliderChange}
-                  onTap={() => console.log("tapped")}
                   containerStyle={{
                     borderRadius: 100,
                   }}
