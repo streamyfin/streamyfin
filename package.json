@@ -112,7 +112,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.8",
-    "@biomejs/biome": "^2.0.0",
+    "@biomejs/biome": "^1.9.4",
     "@react-native-community/cli": "18.0.0",
     "@react-native-tvos/config-tv": "^0.1.1",
     "@types/jest": "^30.0.0",
@@ -131,17 +131,11 @@
   "private": true,
   "expo": {
     "install": {
-      "exclude": [
-        "react-native"
-      ]
+      "exclude": ["react-native"]
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "biome check --write --unsafe"
-    ],
-    "*.{json}": [
-      "biome format --write"
-    ]
+    "*.{js,jsx,ts,tsx}": ["biome check --write --unsafe"],
+    "*.{json}": ["biome format --write"]
   }
 }
