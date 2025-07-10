@@ -1,0 +1,51 @@
+# CodeRabbit configuration for React Native project
+language: en-US
+reviews:
+  profile: chill
+  tools:
+    ast-grep:
+      essential_rules: true
+    biome:
+      enabled: true
+  request_changes_workflow: false
+  high_level_summary: false
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    # Build outputs and dependencies
+    - "!**/node_modules/**"
+    - "!**/dist/**" 
+    - "!**/.expo/**"
+    - "!**/build/**"
+    - "!**/android/build/**"
+    - "!**/android/app/build/**"
+    - "!**/ios/build/**"
+    - "!**/ios/Pods/**"
+    - "!**/ios/*.xcworkspace/**"
+    - "!**/ios/*.xcodeproj/**"
+    
+    # Lock files and configs
+    - "!**/package-lock.json"
+    - "!**/yarn.lock"
+    - "!**/bun.lockb"
+    - "!**/pnpm-lock.yaml"
+    - "!**/.DS_Store"
+    
+    # Generated and binary files
+    - "!**/assets/images/**/*.png"
+    - "!**/assets/images/**/*.jpg"
+    - "!**/assets/images/**/*.jpeg"
+    - "!**/assets/fonts/**"
+    - "!**/google-services.json"
+    - "!**/*-firebase-adminsdk.json"
+    - "!**/android/app/google-services.json"
+    
+    # Development files
+    - "!**/.vscode/**"
+    - "!**/.idea/**"
+    - "!**/*.log"
+chat:
+  auto_reply: true
