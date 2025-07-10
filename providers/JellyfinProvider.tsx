@@ -1,22 +1,16 @@
 import "@/augmentations";
-import { useInterval } from "@/hooks/useInterval";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { useSettings } from "@/utils/atoms/settings";
-import { writeErrorLog, writeInfoLog } from "@/utils/log";
-import { storage } from "@/utils/mmkv";
-import { store } from "@/utils/store";
 import { type Api, Jellyfin } from "@jellyfin/sdk";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { atom, useAtom } from "jotai";
 import type React from "react";
 import {
-  type ReactNode,
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -27,6 +21,12 @@ import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import { getDeviceName } from "react-native-device-info";
 import uuid from "react-native-uuid";
+import { useInterval } from "@/hooks/useInterval";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSettings } from "@/utils/atoms/settings";
+import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
+import { store } from "@/utils/store";
 
 interface Server {
   address: string;
@@ -64,7 +64,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.28.0" },
+            clientInfo: { name: "Streamyfin", version: "0.28.1" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -80,9 +80,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
   const [
-    settings,
-    updateSettings,
-    pluginSettings,
+    _settings,
+    _updateSettings,
+    _pluginSettings,
     setPluginSettings,
     refreshStreamyfinPluginSettings,
   ] = useSettings();
@@ -93,7 +93,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.28.0"`,
+      }, DeviceId="${deviceId}", Version="0.28.1"`,
     };
   }, [deviceId]);
 
@@ -287,8 +287,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async () => {
       api
         ?.delete(`/Streamyfin/device/${deviceId}`)
-        .then((r) => writeInfoLog("Deleted expo push token for device"))
-        .catch((e) =>
+        .then((_r) => writeInfoLog("Deleted expo push token for device"))
+        .catch((_e) =>
           writeErrorLog("Failed to delete expo push token for device"),
         );
 
