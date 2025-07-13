@@ -94,7 +94,7 @@ extension VLCPlayerWrapper: VLCPictureInPictureMediaControlling {
     }
 
     func isMediaSeekable() -> Bool {
-        return player.isSeekable
+        return false
     }
 
     func isMediaPlaying() -> Bool {
