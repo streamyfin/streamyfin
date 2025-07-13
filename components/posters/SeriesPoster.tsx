@@ -53,7 +53,6 @@ const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
           width: "100%",
         }}
       />
-      {<WatchedIndicator item={item} />}
     </View>
   );
 };

@@ -367,15 +367,7 @@ const Page = () => {
                   className='mr-1'
                   id={libraryId}
                   queryKey='sortBy'
-                  queryFn={async () =>
-                    sortOptions
-                      .filter(
-                        (s) =>
-                          library?.CollectionType !== "movies" ||
-                          s.key !== SortByOption.DateLastContentAdded,
-                      )
-                      .map((s) => s.key)
-                  }
+                  queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
                   values={sortBy}
                   title={t("library.filters.sort_by")}
