@@ -32,6 +32,7 @@
     "@react-navigation/native": "^7.0.14",
     "@shopify/flash-list": "^2.0.0-rc.4",
     "@tanstack/react-query": "^5.66.0",
+    "axios": "^1.7.9",
     "expo": "^53.0.6",
     "expo-application": "~6.1.4",
     "expo-background-fetch": "~13.1.5",
@@ -71,6 +72,7 @@
     "react-native-collapsible": "^1.6.2",
     "react-native-country-flag": "^2.0.2",
     "react-native-device-info": "^14.0.4",
+    "react-native-edge-to-edge": "^1.4.3",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-google-cast": "github:Nasseratic/react-native-google-cast#with-lib-tracked",
     "react-native-image-colors": "^2.4.0",
@@ -109,7 +111,7 @@
     "@types/react-test-renderer": "^19.0.0",
     "cross-env": "^7.0.3",
     "husky": "^9.1.7",
-    "lint-staged": "^16.0.0",
+    "lint-staged": "^16.1.2",
     "postinstall-postinstall": "^2.1.0",
     "react-test-renderer": "19.0.0",
     "typescript": "~5.8.3"
@@ -121,7 +123,9 @@
   },
   "private": true,
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": ["biome check --write --unsafe"],
-    "*.{json}": ["biome format --write"]
+    "*.{js,jsx,ts,tsx}": [
+      "biome check --write --unsafe --no-errors-on-unmatched"
+    ],
+    "*.json": ["biome format --write"]
   }
 }
