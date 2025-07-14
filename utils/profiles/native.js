@@ -62,7 +62,7 @@ export const generateDeviceProfile = async () => {
     DirectPlayProfiles: [
       {
         Type: MediaTypes.Video,
-        Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
+        Container: "mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
         VideoCodec:
           "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
         AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma,dts",

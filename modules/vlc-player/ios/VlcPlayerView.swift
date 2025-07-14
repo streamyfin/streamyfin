@@ -143,7 +143,7 @@ extension VLCPlayerWrapper: VLCMediaPlayerDelegate {
         guard let vlcPlayerView = self.playerView.superview as? VlcPlayerView,
               !vlcPlayerView.initialSeekPerformed,
               vlcPlayerView.startPosition > 0,
-              vlcPlayerView.isTranscoding,
+              vlcPlayerView.shouldPerformInitialSeek,
               player.isSeekable else { return }
         vlcPlayerView.initialSeekPerformed = true
         // Use a logger from the VlcPlayerView if available, or create a new one
@@ -167,7 +167,9 @@ class VlcPlayerView: ExpoView {
     private var externalSubtitles: [[String: String]]?
     var hasSource = false
     var initialSeekPerformed = false
-    var isTranscoding: Bool = false
+    // A flag variable determinging if we should perform the initial seek. Its either transcoding or offline playback. that makes
+    var shouldPerformInitialSeek: Bool = false
+    
 
     // MARK: - Initialization
     required init(appContext: AppContext? = nil) {
@@ -265,12 +267,11 @@ class VlcPlayerView: ExpoView {
                 return
             }
 
-            if uri.contains("m3u8") {
-                self.isTranscoding = true
-            }
             let autoplay = source["autoplay"] as? Bool ?? false
             let isNetwork = source["isNetwork"] as? Bool ?? false
 
+            // Set shouldPeformIntial based on isTranscoding and is not a network stream
+            self.shouldPerformInitialSeek = uri.contains("m3u8") || !isNetwork
             self.onVideoLoadStart?(["target": self.reactTag ?? NSNull()])
 
             let media: VLCMedia!
@@ -295,7 +296,7 @@ class VlcPlayerView: ExpoView {
             if autoplay {
                 logger.info("Playing...")
                 // The Video is not transcoding so it its safe to seek to the start position.
-                if !self.isTranscoding {
+                if !self.shouldPerformInitialSeek {
                     self.vlc.player.time = VLCTime(number: NSNumber(value: self.startPosition * 1000))
                 }
                 self.play()

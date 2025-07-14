@@ -1,12 +1,10 @@
-import generateDeviceProfile from "@/utils/profiles/native";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
-  PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import { Alert } from "react-native";
+import generateDeviceProfile from "@/utils/profiles/native";
 
 export const getStreamUrl = async ({
   api,
@@ -33,7 +31,7 @@ export const getStreamUrl = async ({
   subtitleStreamIndex?: number;
   height?: number;
   mediaSourceId?: string | null;
-  download?: bool;
+  download?: boolean;
   deviceId?: string | null;
 }): Promise<{
   url: string | null;
@@ -73,8 +71,8 @@ export const getStreamUrl = async ({
   }
 
   sessionId = res.data.PlaySessionId || null;
-  mediaSource = res.data.MediaSources[0];
-  let transcodeUrl = mediaSource.TranscodingUrl;
+  mediaSource = res.data.MediaSources?.[0];
+  let transcodeUrl = mediaSource?.TranscodingUrl;
 
   if (transcodeUrl) {
     if (download) {
@@ -125,7 +123,7 @@ export const getStreamUrl = async ({
 
   return {
     url: directPlayUrl,
-    sessionId: sessionId || playSessionId,
+    sessionId: sessionId || playSessionId || null,
     mediaSource,
   };
 };

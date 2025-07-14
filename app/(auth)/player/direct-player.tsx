@@ -550,7 +550,7 @@ export default function page() {
           source={{
             uri: stream?.url || "",
             autoplay: true,
-            isNetwork: true,
+            isNetwork: !offline,
             startPosition,
             externalSubtitles,
             initOptions,
