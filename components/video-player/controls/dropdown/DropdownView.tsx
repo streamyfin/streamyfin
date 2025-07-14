@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { Platform, TouchableOpacity } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { BITRATES } from "@/components/BitrateSelector";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { BITRATES } from "@/components/BitrateSelector";
 import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
 
@@ -17,13 +19,15 @@ const DropdownView = () => {
   ];
   const router = useRouter();
 
-  const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
-    itemId: string;
-    audioIndex: string;
-    subtitleIndex: string;
-    mediaSourceId: string;
-    bitrateValue: string;
-  }>();
+  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition } =
+    useLocalSearchParams<{
+      itemId: string;
+      audioIndex: string;
+      subtitleIndex: string;
+      mediaSourceId: string;
+      bitrateValue: string;
+      playbackPosition: string;
+    }>();
 
   const changeBitrate = useCallback(
     (bitrate: string) => {
@@ -33,11 +37,12 @@ const DropdownView = () => {
         subtitleIndex: subtitleIndex.toString() ?? "",
         mediaSourceId: mediaSource?.Id ?? "",
         bitrateValue: bitrate.toString(),
+        playbackPosition: playbackPosition,
       }).toString();
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
     },
-    [item, mediaSource, subtitleIndex, audioIndex],
+    [item, mediaSource, subtitleIndex, audioIndex, playbackPosition],
   );
 
   return (
