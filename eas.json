@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 9.1.0",
-    "appVersionSource": "local"
+    "version": ">= 9.1.0"
   },
   "build": {
     "development": {
@@ -47,14 +46,14 @@
     },
     "production": {
       "environment": "production",
-      "channel": "0.28.1",
+      "channel": "0.29.0",
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
       "environment": "production",
-      "channel": "0.28.1",
+      "channel": "0.29.0",
       "android": {
         "buildType": "apk",
         "image": "latest"
@@ -62,7 +61,7 @@
     },
     "production-apk-tv": {
       "environment": "production",
-      "channel": "0.28.1",
+      "channel": "0.29.0",
       "android": {
         "buildType": "apk",
         "image": "latest"
