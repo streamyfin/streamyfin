@@ -414,21 +414,32 @@ function Layout() {
     }, []);
 
     useEffect(() => {
-      if (Platform.isTV) return;
-      if (segments.includes("direct-player" as never)) {
+      if (Platform.isTV) {
         return;
       }
 
-      // If the user has auto rotate enabled, unlock the orientation
+      if (segments.includes("direct-player" as never)) {
+        if (
+          !settings.followDeviceOrientation &&
+          settings.defaultVideoOrientation
+        ) {
+          ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
+        }
+        return;
+      }
+
       if (settings.followDeviceOrientation === true) {
         ScreenOrientation.unlockAsync();
       } else {
-        // If the user has auto rotate disabled, lock the orientation to portrait
         ScreenOrientation.lockAsync(
           ScreenOrientation.OrientationLock.PORTRAIT_UP,
         );
       }
-    }, [settings.followDeviceOrientation, segments]);
+    }, [
+      settings.followDeviceOrientation,
+      settings.defaultVideoOrientation,
+      segments,
+    ]);
 
     useEffect(() => {
       const subscription = AppState.addEventListener(

@@ -30,8 +30,7 @@ jobs:
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
         with:
-          # @todo: update to 1.x once this is fixed: https://github.com/streamyfin/streamyfin/pull/690#discussion_r2089749689
-          bun-version: '1.2.13'
+          bun-version: '1.2.17'
 
       - name: ☕ Setup JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
@@ -73,7 +72,7 @@ jobs:
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: streamyfin-apk-${{ github.sha }}-${{ env.DATE_TAG }}
+          name: streamyfin-apk-${{ env.DATE_TAG }}
           path: |
             android/app/build/outputs/apk/release/*.apk
             android/app/build/outputs/bundle/release/*.aab
