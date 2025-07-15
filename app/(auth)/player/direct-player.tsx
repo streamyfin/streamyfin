@@ -1,6 +1,26 @@
+import {
+  type BaseItemDto,
+  type MediaSourceInfo,
+  PlaybackOrder,
+  type PlaybackProgressInfo,
+  PlaybackStartInfo,
+  RepeatMode,
+} from "@jellyfin/sdk/lib/generated-client";
+import {
+  getPlaystateApi,
+  getUserLibraryApi,
+} from "@jellyfin/sdk/lib/utils/api";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import { router, useGlobalSearchParams, useNavigation } from "expo-router";
+import { useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert, Platform, View } from "react-native";
+import { useSharedValue } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
-import { Loader } from "@/components/Loader";
 import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { getDownloadedFileUrl } from "@/hooks/useDownloadedFileOpener";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -17,37 +37,15 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 import generateDeviceProfile from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
-import {
-  type BaseItemDto,
-  type MediaSourceInfo,
-  PlaybackOrder,
-  type PlaybackProgressInfo,
-  PlaybackStartInfo,
-  RepeatMode,
-} from "@jellyfin/sdk/lib/generated-client";
-import {
-  getPlaystateApi,
-  getUserLibraryApi,
-} from "@jellyfin/sdk/lib/utils/api";
-import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { useGlobalSearchParams, useNavigation } from "expo-router";
-import { useAtomValue } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { Alert, Platform, View } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 const downloadProvider = !Platform.isTV
   ? require("@/providers/DownloadProvider")
-  : null;
+  : { useDownload: () => null };
+
+const IGNORE_SAFE_AREAS_KEY = "video_player_ignore_safe_areas";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -58,7 +56,11 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
-  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(false);
+  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(() => {
+    // Load persisted state from storage
+    const saved = storage.getBoolean(IGNORE_SAFE_AREAS_KEY);
+    return saved ?? false;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -72,10 +74,7 @@ export default function page() {
     ? null
     : require("react-native-volume-manager");
 
-  let getDownloadedItem = null;
-  if (!Platform.isTV) {
-    getDownloadedItem = downloadProvider.useDownload();
-  }
+  const getDownloadedItem = downloadProvider.useDownload();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -86,6 +85,11 @@ export default function page() {
     lightHapticFeedback();
   }, []);
 
+  // Persist ignoreSafeAreas state whenever it changes
+  useEffect(() => {
+    storage.set(IGNORE_SAFE_AREAS_KEY, ignoreSafeAreas);
+  }, [ignoreSafeAreas]);
+
   const {
     itemId,
     audioIndex: audioIndexStr,
@@ -93,6 +97,7 @@ export default function page() {
     mediaSourceId,
     bitrateValue: bitrateValueStr,
     offline: offlineStr,
+    playbackPosition: playbackPositionFromUrl,
   } = useGlobalSearchParams<{
     itemId: string;
     audioIndex: string;
@@ -100,6 +105,8 @@ export default function page() {
     mediaSourceId: string;
     bitrateValue: string;
     offline: string;
+    /** Playback position in ticks. */
+    playbackPosition?: string;
   }>();
   const [settings] = useSettings();
   const insets = useSafeAreaInsets();
@@ -120,6 +127,14 @@ export default function page() {
     isLoading: true,
     isError: false,
   });
+
+  /** Gets the initial playback position from the URL or the item's user data. */
+  const getInitialPlaybackTicks = useCallback((): number => {
+    if (playbackPositionFromUrl) {
+      return Number.parseInt(playbackPositionFromUrl, 10);
+    }
+    return item?.UserData?.PlaybackPositionTicks ?? 0;
+  }, [playbackPositionFromUrl, item]);
 
   useEffect(() => {
     const fetchItemData = async () => {
@@ -178,7 +193,7 @@ export default function page() {
           const res = await getStreamUrl({
             api,
             item,
-            startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+            startTimeTicks: getInitialPlaybackTicks(),
             userId: user?.Id,
             audioStreamIndex: audioIndex,
             maxStreamingBitrate: bitrateValue,
@@ -296,8 +311,12 @@ export default function page() {
 
       progress.set(currentTime);
 
-      if (offline) return;
+      // Update the playback position in the URL.
+      router.setParams({
+        playbackPosition: msToTicks(currentTime).toString(),
+      });
 
+      if (offline) return;
       if (!item?.Id || !stream) return;
 
       reportPlaybackProgress();
@@ -337,12 +356,11 @@ export default function page() {
     progress,
   ]);
 
+  /** Gets the initial playback position in seconds. */
   const startPosition = useMemo(() => {
     if (offline) return 0;
-    return item?.UserData?.PlaybackPositionTicks
-      ? ticksToSeconds(item.UserData.PlaybackPositionTicks)
-      : 0;
-  }, [item, offline]);
+    return ticksToSeconds(getInitialPlaybackTicks());
+  }, [offline, getInitialPlaybackTicks]);
 
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
@@ -555,7 +573,7 @@ export default function page() {
           }}
         />
       </View>
-      {videoRef.current && !isPipStarted && isMounted === true ? (
+      {videoRef.current && !isPipStarted && isMounted === true && item ? (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
