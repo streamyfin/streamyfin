@@ -96,7 +96,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.1.1",
     "@react-native-community/cli": "^14.1.1",
     "@react-native-tvos/config-tv": "^0.1.1",
     "@types/jest": "^29.5.12",
@@ -111,7 +111,9 @@
   },
   "expo": {
     "install": {
-      "exclude": ["react-native"]
+      "exclude": [
+        "react-native"
+      ]
     }
   },
   "private": true,
@@ -119,6 +121,8 @@
     "*.{js,jsx,ts,tsx}": [
       "biome check --write --unsafe --no-errors-on-unmatched"
     ],
-    "*.json": ["biome format --write"]
+    "*.json": [
+      "biome format --write"
+    ]
   }
 }
