@@ -9,7 +9,9 @@ import es from "./translations/es.json";
 import fr from "./translations/fr.json";
 import it from "./translations/it.json";
 import ja from "./translations/ja.json";
+import nb from "./translations/nb.json";
 import nl from "./translations/nl.json";
+import nn from "./translations/nn.json";
 import pl from "./translations/pl.json";
 import ptBR from "./translations/pt-BR.json";
 import fi from "./translations/fi.json";
@@ -39,10 +41,11 @@ export const APP_LANGUAGES = [
   { label: "Português (Brasil)", value: "pt-BR" },
   { label: "Română", value: "ro" },
   { label: "Svenska", value: "sv" },
+  { label: "Norsk Bokmål", value: "nb" },
+  { label: "Norsk Nynorsk", value: "nn" },
   { label: "Suomi", value: "fi" },
   { label: "Shqip", value: "sq" },
   { label: "Русский", value: "ru" },
-  { label: "Українська", value: "uk" },
   { label: "Українська", value: "uk" },
   { label: "简体中文", value: "zh-CN" },
   { label: "繁體中文", value: "zh-TW" },
@@ -64,6 +67,8 @@ i18n.use(initReactI18next).init({
     "pt-BR": { translation: ptBR },
     ro: { translation: ro },
     sv: { translation: sv },
+    nb: { translation: nb },
+    nn: { translation: nn },
     fi: { translation: fi },
     sq: { translation: sq },
     ru: { translation: ru },
