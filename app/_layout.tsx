@@ -1,11 +1,31 @@
 import "@/augmentations";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
+import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Device from "expo-device";
+import * as FileSystem from "expo-file-system";
+import { getLocales } from "expo-localization";
+import type { EventSubscription } from "expo-modules-core";
+import { router, Stack, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { Provider as JotaiProvider, useAtom } from "jotai";
+import { useEffect, useRef, useState } from "react";
+import { I18nextProvider } from "react-i18next";
+import { Appearance, AppState, Platform } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import i18n from "@/i18n";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
-  JellyfinProvider,
   apiAtom,
   getOrSetDeviceId,
   getTokenFromStorage,
+  JellyfinProvider,
+  userAtom,
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
@@ -24,46 +44,111 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
-import { ActionSheetProvider } from "@expo/react-native-action-sheet";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Platform } from "react-native";
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
-import { DarkTheme, ThemeProvider } from "@react-navigation/native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
-import * as Device from "expo-device";
-import * as FileSystem from "expo-file-system";
-const Notifications = !Platform.isTV ? require("expo-notifications") : null;
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { Stack, router, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
-import { getLocales } from "expo-localization";
-import { Provider as JotaiProvider } from "jotai";
-import { useEffect, useRef, useState } from "react";
-import { I18nextProvider } from "react-i18next";
-import { AppState, Appearance } from "react-native";
-import { SystemBars } from "react-native-edge-to-edge";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import "react-native-reanimated";
-import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
-import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
-import type { EventSubscription } from "expo-modules-core";
-import type {
-  Notification,
-  NotificationResponse,
-} from "expo-notifications/build/Notifications.types";
-import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { useAtom } from "jotai";
+import "react-native-reanimated";
 import { Toaster } from "sonner-native";
 
-if (!Platform.isTV) {
+// Type definitions for conditionally imported modules
+interface BackgroundDownloaderTask {
+  id: string;
+  percent: number;
+  bytesDownloaded: number;
+  bytesTotal: number;
+}
+
+interface BackgroundDownloaderModule {
+  download: (config: {
+    id: string;
+    url: string;
+    destination: string;
+    headers?: Record<string, string>;
+  }) => {
+    begin: (callback: () => void) => any;
+    done: (callback: () => void) => any;
+    error: (callback: (error: any) => void) => any;
+  };
+  checkForExistingDownloads: () => Promise<BackgroundDownloaderTask[]>;
+  completeHandler: (id: string) => void;
+}
+
+interface BackgroundFetchModule {
+  BackgroundFetchResult: {
+    NewData: number;
+    NoData: number;
+    Failed: number;
+  };
+  registerTaskAsync: (
+    taskName: string,
+    options: {
+      minimumInterval: number;
+      stopOnTerminate: boolean;
+      startOnBoot: boolean;
+    },
+  ) => Promise<void>;
+  unregisterTaskAsync: (taskName: string) => Promise<void>;
+  getStatusAsync: () => Promise<any>;
+}
+
+interface TaskManagerModule {
+  defineTask: (taskName: string, task: () => Promise<number>) => void;
+  isTaskRegisteredAsync: (taskName: string) => Promise<boolean>;
+}
+
+interface NotificationContent {
+  title?: string;
+  body?: string;
+  data?: Record<string, any>;
+}
+
+interface NotificationRequest {
+  content: NotificationContent;
+  trigger: any;
+}
+
+interface NotificationModule {
+  setNotificationHandler: (config: {
+    handleNotification: () => Promise<{
+      shouldShowAlert: boolean;
+      shouldPlaySound: boolean;
+      shouldSetBadge: boolean;
+    }>;
+  }) => void;
+  getLastNotificationResponseAsync: () => Promise<{ notification: any } | null>;
+  addNotificationResponseReceivedListener: (
+    listener: (response: { notification: any }) => void,
+  ) => EventSubscription;
+  scheduleNotificationAsync: (request: NotificationRequest) => Promise<string>;
+  setBadgeCountAsync: (count: number) => Promise<void>;
+  setNotificationChannelAsync: (
+    channelId: string,
+    channel: { name: string },
+  ) => Promise<void>;
+  requestPermissionsAsync: () => Promise<{ status: string }>;
+  addNotificationReceivedListener: (
+    listener: (notification: any) => void,
+  ) => EventSubscription;
+  removeNotificationSubscription: (subscription: EventSubscription) => void;
+  getExpoPushTokenAsync: () => Promise<{ data: string }>;
+}
+
+// Conditional imports with proper typing
+const BackGroundDownloader: BackgroundDownloaderModule | null = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
+
+const BackgroundFetch: BackgroundFetchModule | null = !Platform.isTV
+  ? require("expo-background-fetch")
+  : null;
+
+const Notifications: NotificationModule | null = !Platform.isTV
+  ? require("expo-notifications")
+  : null;
+
+const TaskManager: TaskManagerModule | null = !Platform.isTV
+  ? require("expo-task-manager")
+  : null;
+
+if (!Platform.isTV && Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -83,29 +168,27 @@ SplashScreen.setOptions({
 });
 
 function useNotificationObserver() {
-  if (Platform.isTV) return;
-
   useEffect(() => {
+    if (Platform.isTV || !Notifications) return;
+
     let isMounted = true;
 
-    function redirect(notification: typeof Notifications.Notification) {
+    function redirect(notification: any) {
       const url = notification.request.content.data?.url;
       if (url) {
         router.push(url);
       }
     }
 
-    Notifications.getLastNotificationResponseAsync().then(
-      (response: { notification: any }) => {
-        if (!isMounted || !response?.notification) {
-          return;
-        }
-        redirect(response?.notification);
-      },
-    );
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!isMounted || !response?.notification) {
+        return;
+      }
+      redirect(response.notification);
+    });
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: any }) => {
+      (response) => {
         redirect(response.notification);
       },
     );
@@ -117,12 +200,13 @@ function useNotificationObserver() {
   }, []);
 }
 
-if (!Platform.isTV) {
+if (!Platform.isTV && TaskManager && BackgroundFetch && Notifications) {
   TaskManager.defineTask(BACKGROUND_FETCH_TASK_SESSIONS, async () => {
     console.log("TaskManager ~ sessions trigger");
 
     const api = store.get(apiAtom);
-    if (api === null || api === undefined) return;
+    if (api === null || api === undefined)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const response = await getSessionApi(api).getSessions({
       activeWithinSeconds: 360,
@@ -153,7 +237,7 @@ if (!Platform.isTV) {
     const deviceId = getOrSetDeviceId();
     const baseDirectory = FileSystem.documentDirectory;
 
-    if (!token || !deviceId || !baseDirectory)
+    if (!token || !deviceId || !baseDirectory || !BackGroundDownloader)
       return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const jobs = await getAllJobsByDeviceId({
@@ -169,7 +253,7 @@ if (!Platform.isTV) {
         const downloadUrl = `${url}download/${job.id}`;
         const tasks = await BackGroundDownloader.checkForExistingDownloads();
 
-        if (tasks.find((task: { id: string }) => task.id === job.id)) {
+        if (tasks.find((task) => task.id === job.id)) {
           console.log("TaskManager ~ Download already in progress: ", job.id);
           continue;
         }
@@ -194,30 +278,34 @@ if (!Platform.isTV) {
               id: job.id,
               url: url,
             });
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: job.item.Name,
-                body: "Download completed",
-                data: {
-                  url: "/downloads",
+            if (Notifications) {
+              Notifications.scheduleNotificationAsync({
+                content: {
+                  title: job.item.Name ?? "",
+                  body: "Download completed",
+                  data: {
+                    url: "/downloads",
+                  },
                 },
-              },
-              trigger: null,
-            });
+                trigger: null,
+              });
+            }
           })
           .error((error: any) => {
             console.log("TaskManager ~ Download error: ", job.id, error);
             BackGroundDownloader.completeHandler(job.id);
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: job.item.Name,
-                body: "Download failed",
-                data: {
-                  url: "/downloads",
+            if (Notifications) {
+              Notifications.scheduleNotificationAsync({
+                content: {
+                  title: job.item.Name ?? "",
+                  body: "Download failed",
+                  data: {
+                    url: "/downloads",
+                  },
                 },
-              },
-              trigger: null,
-            });
+                trigger: null,
+              });
+            }
           });
       }
     }
@@ -230,6 +318,8 @@ if (!Platform.isTV) {
 }
 
 const checkAndRequestPermissions = async () => {
+  if (Platform.isTV || !Notifications) return;
+
   try {
     const hasAskedBefore = storage.getString(
       "hasAskedForNotificationPermission",
@@ -295,38 +385,46 @@ function Layout() {
   const appState = useRef(AppState.currentState);
   const segments = useSegments();
 
+  // Always call hooks, but make their effects conditional
+  const [expoPushToken, setExpoPushToken] = useState<{ data: string }>();
+  const notificationListener = useRef<EventSubscription | null>(null);
+  const responseListener = useRef<EventSubscription | null>(null);
+
   useEffect(() => {
     i18n.changeLanguage(
       settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
     );
   }, [settings?.preferedLanguage, i18n]);
 
-  if (!Platform.isTV) {
-    useNotificationObserver();
+  // Always call useNotificationObserver, but make it conditional inside
+  useNotificationObserver();
 
-    const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
-    const notificationListener = useRef<EventSubscription>();
-    const responseListener = useRef<EventSubscription>();
+  useEffect(() => {
+    if (Platform.isTV || !Notifications || !expoPushToken || !api || !user) {
+      return;
+    }
 
-    useEffect(() => {
-      if (expoPushToken && api && user) {
-        api
-          ?.post("/Streamyfin/device", {
-            token: expoPushToken.data,
-            deviceId: getOrSetDeviceId(),
-            userId: user.Id,
-          })
-          .then((_) => console.log("Posted expo push token"))
-          .catch((_) =>
-            writeErrorLog("Failed to push expo push token to plugin"),
-          );
-      } else console.log("No token available");
-    }, [api, expoPushToken, user]);
+    api
+      ?.post("/Streamyfin/device", {
+        token: expoPushToken.data,
+        deviceId: getOrSetDeviceId(),
+        userId: user.Id,
+      })
+      .then((_) => console.log("Posted expo push token"))
+      .catch((_) => writeErrorLog("Failed to push expo push token to plugin"));
+  }, [api, expoPushToken, user]);
+
+  useEffect(() => {
+    if (Platform.isTV || !Notifications) {
+      return;
+    }
 
     async function registerNotifications() {
+      if (!Notifications) return;
+
       if (Platform.OS === "android") {
         console.log("Setting android notification channel 'default'");
-        await Notifications?.setNotificationChannelAsync("default", {
+        await Notifications.setNotificationChannelAsync("default", {
           name: "default",
         });
       }
@@ -339,128 +437,120 @@ function Layout() {
 
       // only create push token for real devices (pointless for emulators)
       if (Device.isDevice) {
-        Notifications?.getExpoPushTokenAsync()
-          .then((token: ExpoPushToken) => token && setExpoPushToken(token))
+        Notifications.getExpoPushTokenAsync()
+          .then((token) => token && setExpoPushToken(token))
           .catch((reason: any) => console.log("Failed to get token", reason));
       }
     }
 
-    useEffect(() => {
-      registerNotifications();
+    registerNotifications();
 
-      notificationListener.current =
-        Notifications?.addNotificationReceivedListener(
-          (notification: Notification) => {
-            console.log(
-              "Notification received while app running",
-              notification,
-            );
-          },
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        console.log("Notification received while app running", notification);
+      });
+
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        // Currently the notifications supported by the plugin will send data for deep links.
+        const { title, data } = response.notification.request.content;
+
+        writeDebugLog(
+          `Notification ${title} opened`,
+          response.notification.request.content,
         );
 
-      responseListener.current =
-        Notifications?.addNotificationResponseReceivedListener(
-          (response: NotificationResponse) => {
-            // Currently the notifications supported by the plugin will send data for deep links.
-            const { title, data } = response.notification.request.content;
+        if (data && Object.keys(data).length > 0) {
+          const type = data?.type?.toLowerCase?.();
+          const itemId = data?.id ?? "";
 
-            writeDebugLog(
-              `Notification ${title} opened`,
-              response.notification.request.content,
-            );
-
-            if (data && Object.keys(data).length > 0) {
-              const type = data?.type?.toLower?.();
-              const itemId = data?.id;
-
-              switch (type) {
-                case "movie":
-                  router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                  break;
-                case "episode":
-                  // We just clicked a notification for an individual episode.
-                  if (itemId) {
-                    router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                  }
-                  // summarized season notification for multiple episodes. Bring them to series season
-                  else {
-                    const seriesId = data.seriesId;
-                    const seasonIndex = data.seasonIndex;
-
-                    if (seasonIndex) {
-                      router.push(
-                        `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`,
-                      );
-                    } else {
-                      router.push(`/(auth)/(tabs)/home/series/${seriesId}`);
-                    }
-                  }
-                  break;
+          switch (type) {
+            case "movie":
+              router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
+              break;
+            case "episode":
+              // We just clicked a notification for an individual episode.
+              if (itemId) {
+                router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
               }
-            }
-          },
-        );
+              // summarized season notification for multiple episodes. Bring them to series season
+              else {
+                const seriesId = data.seriesId ?? "";
+                const seasonIndex = data.seasonIndex;
 
-      return () => {
-        notificationListener.current &&
-          Notifications?.removeNotificationSubscription(
-            notificationListener.current,
-          );
-        responseListener.current &&
-          Notifications?.removeNotificationSubscription(
-            responseListener.current,
-          );
-      };
-    }, []);
-
-    useEffect(() => {
-      if (Platform.isTV) {
-        return;
-      }
-
-      if (segments.includes("direct-player" as never)) {
-        if (
-          !settings.followDeviceOrientation &&
-          settings.defaultVideoOrientation
-        ) {
-          ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
-        }
-        return;
-      }
-
-      if (settings.followDeviceOrientation === true) {
-        ScreenOrientation.unlockAsync();
-      } else {
-        ScreenOrientation.lockAsync(
-          ScreenOrientation.OrientationLock.PORTRAIT_UP,
-        );
-      }
-    }, [
-      settings.followDeviceOrientation,
-      settings.defaultVideoOrientation,
-      segments,
-    ]);
-
-    useEffect(() => {
-      const subscription = AppState.addEventListener(
-        "change",
-        (nextAppState) => {
-          if (
-            appState.current.match(/inactive|background/) &&
-            nextAppState === "active"
-          ) {
-            BackGroundDownloader.checkForExistingDownloads();
+                if (seasonIndex && seriesId) {
+                  router.push(
+                    `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`,
+                  );
+                } else if (seriesId) {
+                  router.push(`/(auth)/(tabs)/home/series/${seriesId}`);
+                }
+              }
+              break;
           }
-        },
+        }
+      });
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(
+          notificationListener.current,
+        );
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.isTV || !BackGroundDownloader) {
+      return;
+    }
+
+    if (segments.includes("direct-player" as never)) {
+      if (
+        !settings.followDeviceOrientation &&
+        settings.defaultVideoOrientation
+      ) {
+        ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
+      }
+      return;
+    }
+
+    if (settings.followDeviceOrientation === true) {
+      ScreenOrientation.unlockAsync();
+    } else {
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
       );
+    }
+  }, [
+    settings.followDeviceOrientation,
+    settings.defaultVideoOrientation,
+    segments,
+  ]);
 
-      BackGroundDownloader.checkForExistingDownloads();
+  useEffect(() => {
+    if (Platform.isTV || !BackGroundDownloader) {
+      return;
+    }
 
-      return () => {
-        subscription.remove();
-      };
-    }, []);
-  }
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        BackGroundDownloader.checkForExistingDownloads();
+      }
+    });
+
+    BackGroundDownloader.checkForExistingDownloads();
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
