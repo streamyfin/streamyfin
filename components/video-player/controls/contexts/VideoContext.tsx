@@ -57,13 +57,14 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   const allSubs =
     mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
 
-  const { itemId, audioIndex, bitrateValue, subtitleIndex } =
+  const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
       itemId: string;
       audioIndex: string;
       subtitleIndex: string;
       mediaSourceId: string;
       bitrateValue: string;
+      playbackPosition: string;
     }>();
 
   const onTextBasedSubtitle = useMemo(
@@ -88,6 +89,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       subtitleIndex: chosenSubtitleIndex,
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
+      playbackPosition: playbackPosition,
     }).toString();
 
     //@ts-ignore
