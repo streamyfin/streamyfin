@@ -19,7 +19,12 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import i18n from "@/i18n";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { DownloadProvider } from "@/providers/DownloadProvider";
+
+// Conditional import for DownloadProvider
+const DownloadProvider = !Platform.isTV
+  ? require("@/providers/DownloadProvider").DownloadProvider
+  : ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
 import {
   apiAtom,
   getOrSetDeviceId,

@@ -1,32 +1,12 @@
-import { useHaptic } from "@/hooks/useHaptic";
-import useImageStorage from "@/hooks/useImageStorage";
-import { useInterval } from "@/hooks/useInterval";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { getOrSetDeviceId } from "@/utils/device";
-import useDownloadHelper from "@/utils/download";
-import { getItemImage } from "@/utils/getItemImage";
-import { useLog, writeToLog } from "@/utils/log";
-import { storage } from "@/utils/mmkv";
-import {
-  type JobStatus,
-  cancelAllJobs,
-  cancelJobById,
-  deleteDownloadItemInfoFromDiskTmp,
-  getAllJobsByDeviceId,
-  getDownloadItemInfoFromDiskTmp,
-} from "@/utils/optimize-server";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
-import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
 import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import * as Application from "expo-application";
-import * as FileSystem from "expo-file-system";
 import type { FileInfo } from "expo-file-system";
-import Notifications from "expo-notifications";
+import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { atom, useAtom } from "jotai";
 import type React from "react";
@@ -40,8 +20,75 @@ import {
 import { useTranslation } from "react-i18next";
 import { AppState, type AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
+import { useHaptic } from "@/hooks/useHaptic";
+import useImageStorage from "@/hooks/useImageStorage";
+import { useInterval } from "@/hooks/useInterval";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { getOrSetDeviceId } from "@/utils/device";
+import useDownloadHelper from "@/utils/download";
+import { getItemImage } from "@/utils/getItemImage";
+import { useLog, writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
+import {
+  cancelAllJobs,
+  cancelJobById,
+  deleteDownloadItemInfoFromDiskTmp,
+  getAllJobsByDeviceId,
+  getDownloadItemInfoFromDiskTmp,
+  type JobStatus,
+} from "@/utils/optimize-server";
 import { Bitrate } from "../components/BitrateSelector";
 import { apiAtom } from "./JellyfinProvider";
+
+// Type definitions for conditionally imported modules
+interface BackgroundDownloaderTask {
+  id: string;
+  percent: number;
+  bytesDownloaded: number;
+  bytesTotal: number;
+  metadata?: any;
+}
+
+interface BackgroundDownloaderModule {
+  download: (config: {
+    id: string;
+    url: string;
+    destination: string;
+    metadata?: any;
+  }) => {
+    begin: (callback: () => void) => any;
+    progress: (callback: (data: BackgroundDownloaderTask) => void) => any;
+    done: (callback: (data: BackgroundDownloaderTask) => void) => any;
+    error: (callback: (error: any) => void) => any;
+  };
+  checkForExistingDownloads: () => Promise<BackgroundDownloaderTask[]>;
+  completeHandler: (id: string) => void;
+  setConfig: (config: {
+    isLogsEnabled: boolean;
+    progressInterval: number;
+    headers: Record<string, string>;
+  }) => void;
+}
+
+interface NotificationModule {
+  scheduleNotificationAsync: (request: {
+    content: {
+      title?: string;
+      body?: string;
+      data?: Record<string, any>;
+    };
+    trigger: any;
+  }) => Promise<string>;
+}
+
+// Conditional imports
+const BackGroundDownloader: BackgroundDownloaderModule | null = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
+
+const Notifications: NotificationModule | null = !Platform.isTV
+  ? require("expo-notifications")
+  : null;
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;
@@ -157,16 +204,18 @@ function useDownloadProvider() {
                 },
               },
             );
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: job.item.Name,
-                body: `${job.item.Name} is ready to be downloaded`,
-                data: {
-                  url: "/downloads",
+            if (Notifications) {
+              Notifications.scheduleNotificationAsync({
+                content: {
+                  title: job.item.Name ?? "",
+                  body: `${job.item.Name ?? ""} is ready to be downloaded`,
+                  data: {
+                    url: "/downloads",
+                  },
                 },
-              },
-              trigger: null,
-            });
+                trigger: null,
+              });
+            }
           }
         }
       }
@@ -180,7 +229,10 @@ function useDownloadProvider() {
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
-    if (settings?.downloadMethod === DownloadMethod.Optimized) {
+    if (
+      settings?.downloadMethod === DownloadMethod.Optimized ||
+      !BackGroundDownloader
+    ) {
       return;
     }
 
@@ -211,12 +263,12 @@ function useDownloadProvider() {
       // fallback. Doesn't really work for transcodes as they may be a lot smaller.
       // We make an wild guess by comparing bitrates
       const task = tasks.find((s) => s.id === p.id);
-      if (task) {
+      if (task && "mediaSource" in p && "maxBitrate" in p) {
         let progress = p.progress;
-        let size = p.mediaSource.Size;
-        const maxBitrate = p.maxBitrate.value;
-        if (maxBitrate && maxBitrate < p.mediaSource.Bitrate) {
-          size = (size / p.mediaSource.Bitrate) * maxBitrate;
+        let size = (p as any).mediaSource.Size;
+        const maxBitrate = (p as any).maxBitrate.value;
+        if (maxBitrate && maxBitrate < (p as any).mediaSource.Bitrate) {
+          size = (size / (p as any).mediaSource.Bitrate) * maxBitrate;
         }
         progress = (100 / size) * task.bytesDownloaded;
         if (progress >= 100) {
@@ -238,8 +290,8 @@ function useDownloadProvider() {
 
   useEffect(() => {
     const checkIfShouldStartDownload = async () => {
-      if (processes.length === 0) return;
-      await BackGroundDownloader?.checkForExistingDownloads();
+      if (processes.length === 0 || !BackGroundDownloader) return;
+      await BackGroundDownloader.checkForExistingDownloads();
     };
 
     checkIfShouldStartDownload();
@@ -255,7 +307,7 @@ function useDownloadProvider() {
           await cancelJobById({
             authHeader,
             id,
-            url: settings?.optimizedVersionsServerUrl,
+            url: settings?.optimizedVersionsServerUrl ?? "",
           });
         } catch (error) {
           console.error(error);
@@ -263,9 +315,7 @@ function useDownloadProvider() {
       }
 
       setProcesses((prev: any[]) => {
-        return prev.filter(
-          (process: { itemId: string | undefined }) => process.id !== id,
-        );
+        return prev.filter((process: any) => process.id !== id);
       });
     },
     [settings?.optimizedVersionsServerUrl, authHeader],
@@ -275,7 +325,8 @@ function useDownloadProvider() {
 
   const startDownload = useCallback(
     async (process: JobStatus) => {
-      if (!process?.item.Id || !authHeader) throw new Error("No item id");
+      if (!process?.item.Id || !authHeader || !BackGroundDownloader)
+        throw new Error("No item id or BackGroundDownloader not available");
 
       setProcesses((prev) =>
         prev.map((p) =>
@@ -290,7 +341,7 @@ function useDownloadProvider() {
         ),
       );
 
-      BackGroundDownloader?.setConfig({
+      BackGroundDownloader.setConfig({
         isLogsEnabled: true,
         progressInterval: 500,
         headers: {
@@ -315,7 +366,7 @@ function useDownloadProvider() {
 
       const baseDirectory = FileSystem.documentDirectory;
 
-      BackGroundDownloader?.download({
+      BackGroundDownloader.download({
         id: process.id,
         url: getDownloadUrl(process),
         destination: `${baseDirectory}/${process.item.Id}.mp4`,
@@ -335,7 +386,7 @@ function useDownloadProvider() {
             ),
           );
         })
-        .progress((data) => {
+        .progress((data: BackgroundDownloaderTask) => {
           if (!usingOptimizedServer) {
             return;
           }
@@ -353,14 +404,14 @@ function useDownloadProvider() {
             ),
           );
         })
-        .done(async (doneHandler) => {
+        .done(async (doneHandler: BackgroundDownloaderTask) => {
           await saveDownloadedItemInfo(
             process.item,
             doneHandler.bytesDownloaded,
           );
           toast.success(
             t("home.downloads.toasts.download_completed_for_item", {
-              item: process.item.Name,
+              item: process.item.Name ?? "",
             }),
             {
               duration: 3000,
@@ -378,7 +429,7 @@ function useDownloadProvider() {
             removeProcess(process.id);
           }, 1000);
         })
-        .error(async (error) => {
+        .error(async (error: any) => {
           removeProcess(process.id);
           BackGroundDownloader.completeHandler(process.id);
           let errorMsg = "";
@@ -390,18 +441,22 @@ function useDownloadProvider() {
           }
           toast.error(
             t("home.downloads.toasts.download_failed_for_item", {
-              item: process.item.Name,
+              item: process.item.Name ?? "",
               error: errorMsg,
             }),
           );
-          writeToLog("ERROR", `Download failed for ${process.item.Name}`, {
-            error,
-            processDetails: {
-              id: process.id,
-              itemName: process.item.Name,
-              itemId: process.item.Id,
+          writeToLog(
+            "ERROR",
+            `Download failed for ${process.item.Name ?? ""}`,
+            {
+              error,
+              processDetails: {
+                id: process.id,
+                itemName: process.item.Name ?? "",
+                itemId: process.item.Id ?? "",
+              },
             },
-          });
+          );
           console.error("Error details:", {
             errorCode: error.errorCode,
           });
@@ -415,7 +470,7 @@ function useDownloadProvider() {
       url: string,
       item: BaseItemDto,
       mediaSource: MediaSourceInfo,
-      maxBitrate?: Bitrate,
+      _maxBitrate?: Bitrate,
     ) => {
       if (!api || !item.Id || !authHeader)
         throw new Error("startBackgroundDownload ~ Missing required params");
@@ -461,9 +516,8 @@ function useDownloadProvider() {
             inputUrl: url,
             item: item,
             itemId: item.Id!,
-            mediaSource,
+            outputPath: `${FileSystem.documentDirectory}/${item.Id}.mp4`,
             progress: 0,
-            maxBitrate,
             status: "downloading",
             timestamp: new Date(),
           };
@@ -842,37 +896,40 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useDownload() {
+  const context = useContext(DownloadContext);
+
+  // TV-specific no-op functions
+  const tvNoOpFunctions = {
+    processes: [],
+    startBackgroundDownload: useCallback(
+      async (
+        _url: string,
+        _item: BaseItemDto,
+        _mediaSource: MediaSourceInfo,
+        _maxBitrate?: Bitrate,
+      ) => {},
+      [],
+    ),
+    downloadedFiles: [],
+    deleteAllFiles: async (): Promise<void> => {},
+    deleteFile: async (_id: string): Promise<void> => {},
+    deleteItems: async (_items: BaseItemDto[]) => {},
+    saveDownloadedItemInfo: (_item: BaseItemDto, _size?: number) => {},
+    removeProcess: (_id: string) => {},
+    setProcesses: () => {},
+    startDownload: async (_process: JobStatus): Promise<void> => {},
+    getDownloadedItem: (_itemId: string) => null,
+    deleteFileByType: async (_type: BaseItemDto["Type"]) => {},
+    appSizeUsage: Promise.resolve(0),
+    getDownloadedItemSize: (_itemId: string) => 0,
+    APP_CACHE_DOWNLOAD_DIRECTORY: "",
+    cleanCacheDirectory: async (): Promise<void> => {},
+  };
+
   if (Platform.isTV) {
-    // Since tv doesn't do downloads, just return no-op functions for everything
-    return {
-      processes: [],
-      startBackgroundDownload: useCallback(
-        async (
-          _url: string,
-          _item: BaseItemDto,
-          _mediaSource: MediaSourceInfo,
-          _maxBitrate?: Bitrate,
-        ) => {},
-        [],
-      ),
-      downloadedFiles: [],
-      deleteAllFiles: async (): Promise<void> => {},
-      deleteFile: async (id: string): Promise<void> => {},
-      deleteItems: async (items: BaseItemDto[]) => {},
-      saveDownloadedItemInfo: (item: BaseItemDto, size?: number) => {},
-      removeProcess: (id: string) => {},
-      setProcesses: () => {},
-      startDownload: async (_process: JobStatus): Promise<void> => {},
-      getDownloadedItem: (itemId: string) => {},
-      deleteFileByType: async (_type: BaseItemDto["Type"]) => {},
-      appSizeUsage: async () => 0,
-      getDownloadedItemSize: (itemId: string) => {},
-      APP_CACHE_DOWNLOAD_DIRECTORY: "",
-      cleanCacheDirectory: async (): Promise<void> => {},
-    };
+    return tvNoOpFunctions;
   }
 
-  const context = useContext(DownloadContext);
   if (context === null) {
     throw new Error("useDownload must be used within a DownloadProvider");
   }

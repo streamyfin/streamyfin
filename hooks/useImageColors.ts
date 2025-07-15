@@ -1,3 +1,7 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { useAtom, useAtomValue } from "jotai";
+import { useEffect, useMemo } from "react";
+import { Platform } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   adjustToNearBlack,
@@ -7,11 +11,20 @@ import {
 } from "@/utils/atoms/primaryColor";
 import { getItemImage } from "@/utils/getItemImage";
 import { storage } from "@/utils/mmkv";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useAtom, useAtomValue } from "jotai";
-import { useEffect, useMemo } from "react";
-import { Platform } from "react-native";
-import { ImageColorsResult, getColors } from "react-native-image-colors";
+
+// Conditional import for TV builds
+const imageColors = !Platform.isTV
+  ? require("react-native-image-colors")
+  : null;
+
+// Type definition for image colors result
+type ImageColorsResult = {
+  platform: "android" | "ios";
+  dominant: string;
+  vibrant: string;
+  detail: string;
+  primary: string;
+};
 
 /**
  * Custom hook to extract and manage image colors for a given item.
@@ -29,8 +42,6 @@ export const useImageColors = ({
   url?: string | null;
   disabled?: boolean;
 }) => {
-  if (Platform.isTV) return;
-
   const api = useAtomValue(apiAtom);
   const [, setPrimaryColor] = useAtom(itemThemeColorAtom);
 
@@ -49,7 +60,7 @@ export const useImageColors = ({
   }, [api, item]);
 
   useEffect(() => {
-    if (disabled) return;
+    if (disabled || Platform.isTV || !imageColors) return;
     if (source?.uri) {
       // Check if colors are already cached in storage
       const _primary = storage.getString(`${source.uri}-primary`);
@@ -65,10 +76,11 @@ export const useImageColors = ({
       }
 
       // Extract colors from the image
-      getColors(source.uri, {
-        fallback: "#fff",
-        cache: false,
-      })
+      imageColors
+        .getColors(source.uri, {
+          fallback: "#fff",
+          cache: false,
+        })
         .then((colors: ImageColorsResult) => {
           let primary = "#fff";
           let text = "#000";

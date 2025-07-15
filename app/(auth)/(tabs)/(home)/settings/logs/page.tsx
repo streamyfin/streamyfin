@@ -1,14 +1,16 @@
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import { FilterButton } from "@/components/filters/FilterButton";
-import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 import * as FileSystem from "expo-file-system";
 import { useNavigation } from "expo-router";
-import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
+import { Text } from "@/components/common/Text";
+import { FilterButton } from "@/components/filters/FilterButton";
+import { Loader } from "@/components/Loader";
+import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
+
+// Conditional import for TV builds
+const Sharing = !Platform.isTV ? require("expo-sharing") : null;
 
 export default function page() {
   const navigation = useNavigation();
@@ -42,6 +44,11 @@ export default function page() {
 
   // Sharing it as txt while its formatted allows us to share it with many more applications
   const share = useCallback(async () => {
+    if (!Sharing) {
+      // TV builds don't support sharing
+      return;
+    }
+
     const uri = `${FileSystem.documentDirectory}logs.txt`;
 
     setLoading(true);
@@ -59,13 +66,15 @@ export default function page() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () =>
-        loading ? (
-          <Loader />
-        ) : (
-          <TouchableOpacity onPress={share}>
-            <Text>{t("home.settings.logs.export_logs")}</Text>
-          </TouchableOpacity>
-        ),
+        !Platform.isTV ? (
+          loading ? (
+            <Loader />
+          ) : (
+            <TouchableOpacity onPress={share}>
+              <Text>{t("home.settings.logs.export_logs")}</Text>
+            </TouchableOpacity>
+          )
+        ) : null,
     });
   }, [share, loading]);
 
