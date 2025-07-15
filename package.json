@@ -30,7 +30,6 @@
     "@react-navigation/material-top-tabs": "^7.2.14",
     "@shopify/flash-list": "^2.0.0-rc.4",
     "@tanstack/react-query": "^5.66.0",
-    "cross-env": "^7.0.3",
     "expo": "^53.0.6",
     "expo-application": "~6.1.4",
     "expo-background-fetch": "~13.1.5",
@@ -97,6 +96,7 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@biomejs/biome": "^2.1.1",
+    "cross-env": "^7.0.3",
     "@react-native-community/cli": "^14.1.1",
     "@react-native-tvos/config-tv": "^0.1.1",
     "@types/jest": "^29.5.12",
