@@ -413,18 +413,6 @@
       "using_default_method": "Using default method"
     }
   },
-  "live_tv": {
-    "next": "Next",
-    "previous": "Previous",
-    "live_tv": "Live TV",
-    "coming_soon": "Coming soon",
-    "on_now": "On now",
-    "shows": "Shows",
-    "movies": "Movies",
-    "sports": "Sports",
-    "for_kids": "For Kids",
-    "news": "News"
-  },
   "jellyseerr": {
     "confirm": "Confirm",
     "cancel": "Cancel",

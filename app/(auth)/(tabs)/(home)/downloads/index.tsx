@@ -1,13 +1,3 @@
-import { Button } from "@/components/Button";
-import { Text } from "@/components/common/Text";
-import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
-import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { MovieCard } from "@/components/downloads/MovieCard";
-import { SeriesCard } from "@/components/downloads/SeriesCard";
-import { type DownloadedItem, useDownload } from "@/providers/DownloadProvider";
-import { queueAtom } from "@/utils/atoms/queue";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { writeToLog } from "@/utils/log";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
@@ -18,11 +8,21 @@ import {
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
-import React, { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
+import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
+import { DownloadSize } from "@/components/downloads/DownloadSize";
+import { MovieCard } from "@/components/downloads/MovieCard";
+import { SeriesCard } from "@/components/downloads/SeriesCard";
+import { type DownloadedItem, useDownload } from "@/providers/DownloadProvider";
+import { queueAtom } from "@/utils/atoms/queue";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { writeToLog } from "@/utils/log";
 
 export default function page() {
   const navigation = useNavigation();

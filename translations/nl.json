@@ -408,18 +408,6 @@
       "using_default_method": "Standaard methode gebruiken"
     }
   },
-  "live_tv": {
-    "next": "Volgende ",
-    "previous": "Vorige",
-    "live_tv": "Live TV",
-    "coming_soon": "Binnenkort beschikbaar",
-    "on_now": "Nu op",
-    "shows": "Shows",
-    "movies": "Films",
-    "sports": "Sport",
-    "for_kids": "Voor kinderen",
-    "news": "Nieuws"
-  },
   "jellyseerr": {
     "confirm": "Bevestig",
     "cancel": "Annuleer",

@@ -1,3 +1,10 @@
+import { useMutation } from "@tanstack/react-query";
+import { useNavigation } from "expo-router";
+import { useAtom } from "jotai";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ActivityIndicator, TouchableOpacity } from "react-native";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { OptimizedServerForm } from "@/components/settings/OptimizedServerForm";
@@ -5,13 +12,6 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import { getStatistics } from "@/utils/optimize-server";
-import { useMutation } from "@tanstack/react-query";
-import { useNavigation } from "expo-router";
-import { useAtom } from "jotai";
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { ActivityIndicator, TouchableOpacity, View } from "react-native";
-import { toast } from "sonner-native";
 
 export default function page() {
   const navigation = useNavigation();

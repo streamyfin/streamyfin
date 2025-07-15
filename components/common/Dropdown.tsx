@@ -1,13 +1,14 @@
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { Text } from "@/components/common/Text";
-import DisabledSetting from "@/components/settings/DisabledSetting";
-import React, {
+
+import {
   type PropsWithChildren,
   type ReactNode,
   useEffect,
   useState,
 } from "react";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 
 interface Props<T> {
   data: T[];
@@ -58,7 +59,7 @@ const Dropdown = <T,>({
               </TouchableOpacity>
             </View>
           ) : (
-            <>{title}</>
+            title
           )}
         </DropdownMenu.Trigger>
         <DropdownMenu.Content
@@ -71,7 +72,7 @@ const Dropdown = <T,>({
           sideOffset={0}
         >
           <DropdownMenu.Label>{label}</DropdownMenu.Label>
-          {data.map((item, idx) =>
+          {data.map((item, _idx) =>
             multiple ? (
               <DropdownMenu.CheckboxItem
                 value={
@@ -80,7 +81,10 @@ const Dropdown = <T,>({
                     : "off"
                 }
                 key={keyExtractor(item)}
-                onValueChange={(next: "on" | "off", previous: "on" | "off") => {
+                onValueChange={(
+                  next: "on" | "off",
+                  _previous: "on" | "off",
+                ) => {
                   setSelected((p) => {
                     const prev = p || [];
                     if (next === "on") {

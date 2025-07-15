@@ -409,18 +409,6 @@
       "using_default_method": "Utilizando método padrão"
     }
   },
-  "live_tv": {
-    "next": "Próximo",
-    "previous": "Anterior",
-    "live_tv": "TV ao vivo",
-    "coming_soon": "Em breve",
-    "on_now": "Agora",
-    "shows": "Séries",
-    "movies": "Filmes",
-    "sports": "Esportes",
-    "for_kids": "Para crianças",
-    "news": "Notícias"
-  },
   "jellyseerr": {
     "confirm": "Confirmar",
     "cancel": "Cancelar",

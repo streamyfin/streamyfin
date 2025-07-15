@@ -1,15 +1,3 @@
-import { Button } from "@/components/Button";
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
-import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
-import { MediaListSection } from "@/components/medialists/MediaListSection";
-import { Colors } from "@/constants/Colors";
-import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import { eventBus } from "@/utils/eventBus";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import type { Api } from "@jellyfin/sdk";
 import type {
@@ -25,24 +13,30 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import NetInfo from "@react-native-community/netinfo";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
-import {
-  useNavigation,
-  usePathname,
-  useRouter,
-  useSegments,
-} from "expo-router";
+import { useNavigation, useRouter, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Platform,
   RefreshControl,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
+import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
+import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
+import { Loader } from "@/components/Loader";
+import { MediaListSection } from "@/components/medialists/MediaListSection";
+import { Colors } from "@/constants/Colors";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { eventBus } from "@/utils/eventBus";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -71,9 +65,9 @@ export const HomeIndex = () => {
   const [loading, setLoading] = useState(false);
   const [
     settings,
-    updateSettings,
-    pluginSettings,
-    setPluginSettings,
+    _updateSettings,
+    _pluginSettings,
+    _setPluginSettings,
     refreshStreamyfinPluginSettings,
   ] = useSettings();
 
@@ -88,12 +82,6 @@ export const HomeIndex = () => {
 
   const { downloadedFiles, cleanCacheDirectory } = useDownload();
   useEffect(() => {
-    if (Platform.isTV) {
-      navigation.setOptions({
-        headerLeft: () => null,
-      });
-      return;
-    }
     const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
     navigation.setOptions({
       headerLeft: () => (
@@ -114,7 +102,7 @@ export const HomeIndex = () => {
   }, [downloadedFiles, navigation, router]);
 
   useEffect(() => {
-    cleanCacheDirectory().catch((e) =>
+    cleanCacheDirectory().catch((_e) =>
       console.error("Something went wrong cleaning cache directory"),
     );
   }, []);

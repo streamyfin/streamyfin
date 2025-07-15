@@ -1,11 +1,9 @@
-import { formatBitrate } from "@/utils/bitrate";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type {
   MediaSourceInfo,
@@ -15,8 +13,8 @@ import type React from "react";
 import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import { formatBitrate } from "@/utils/bitrate";
 import { Badge } from "./Badge";
-import { Button } from "./Button";
 import { Text } from "./common/Text";
 
 interface Props {
@@ -103,7 +101,7 @@ const SubtitleStreamInfo = ({
 }) => {
   return (
     <View className='flex flex-col'>
-      {subtitleStreams.map((stream, index) => (
+      {subtitleStreams.map((stream, _index) => (
         <View key={stream.Index} className='flex flex-col'>
           <Text className='text-xs mb-3 text-neutral-400'>
             {stream.DisplayTitle}

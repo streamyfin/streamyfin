@@ -1,3 +1,7 @@
+import { sortBy } from "lodash";
+import type React from "react";
+import { useMemo } from "react";
+import { View } from "react-native";
 import CompanySlide from "@/components/jellyseerr/discover/CompanySlide";
 import GenreSlide from "@/components/jellyseerr/discover/GenreSlide";
 import MovieTvSlide from "@/components/jellyseerr/discover/MovieTvSlide";
@@ -6,10 +10,6 @@ import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 import { networks } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 import { studios } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
-import { sortBy } from "lodash";
-import type React from "react";
-import { useMemo } from "react";
-import { View } from "react-native";
 
 interface Props {
   sliders?: DiscoverSlider[];

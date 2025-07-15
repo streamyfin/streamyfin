@@ -1,7 +1,4 @@
-import { Platform } from "react-native";
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
+const BackgroundFetch = require("expo-background-fetch");
 
 export const BACKGROUND_FETCH_TASK = "background-fetch";
 

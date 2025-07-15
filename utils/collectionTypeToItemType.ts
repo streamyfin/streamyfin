@@ -15,7 +15,6 @@ import {
     readonly Boxsets: "boxsets";
     readonly Books: "books";
     readonly Photos: "photos";
-    readonly Livetv: "livetv";
     readonly Playlists: "playlists";
     readonly Folders: "folders";
  */

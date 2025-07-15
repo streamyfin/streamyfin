@@ -409,18 +409,6 @@
       "using_default_method": "Bruger standardmetode"
     }
   },
-  "live_tv": {
-    "next": "Næste",
-    "previous": "Forrige",
-    "live_tv": "Live TV",
-    "coming_soon": "Kommer snart",
-    "on_now": "Lige nu",
-    "shows": "Shows",
-    "movies": "Film",
-    "sports": "Sport",
-    "for_kids": "For børn",
-    "news": "Nyheder"
-  },
   "jellyseerr": {
     "confirm": "Bekræft",
     "cancel": "Annuller",

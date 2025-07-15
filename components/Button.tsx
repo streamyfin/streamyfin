@@ -1,7 +1,7 @@
-import { useHaptic } from "@/hooks/useHaptic";
 import type React from "react";
 import { type PropsWithChildren, type ReactNode, useMemo } from "react";
-import { Platform, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
+import { useHaptic } from "@/hooks/useHaptic";
 import { Loader } from "./Loader";
 
 export interface ButtonProps

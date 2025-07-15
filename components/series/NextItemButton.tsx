@@ -1,4 +1,3 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
@@ -6,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Button } from "../Button";
 
 interface Props extends React.ComponentProps<typeof Button> {

@@ -1,21 +1,14 @@
-import type { Bitrate } from "@/components/BitrateSelector";
-import { settingsAtom } from "@/utils/atoms/settings";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import generateDeviceProfile from "@/utils/profiles/native";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import type React from "react";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useState } from "react";
+import type { Bitrate } from "@/components/BitrateSelector";
+import { settingsAtom } from "@/utils/atoms/settings";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import generateDeviceProfile from "@/utils/profiles/native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
 
 export type PlaybackType = {

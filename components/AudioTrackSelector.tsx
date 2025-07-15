@@ -1,7 +1,9 @@
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+import { TouchableOpacity, View } from "react-native";
+
+const DropdownMenu = require("zeego/dropdown-menu");
+
 import { useTranslation } from "react-i18next";
 import { Text } from "./common/Text";
 
@@ -17,7 +19,6 @@ export const AudioTrackSelector: React.FC<Props> = ({
   selected,
   ...props
 }) => {
-  if (Platform.isTV) return null;
   const audioStreams = useMemo(
     () => source?.MediaStreams?.filter((x) => x.Type === "Audio"),
     [source],

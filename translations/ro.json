@@ -413,18 +413,6 @@
       "using_default_method": "Utilizeză metoda implicită"
     }
   },
-  "live_tv": {
-    "next": "Următorul",
-    "previous": "Anterior",
-    "live_tv": "Live TV",
-    "coming_soon": "În curând",
-    "on_now": "Acum",
-    "shows": "Emisiuni",
-    "movies": "Filme",
-    "sports": "Sport",
-    "for_kids": "Pt copii",
-    "news": "Știri"
-  },
   "jellyseerr": {
     "confirm": "Confirmă",
     "cancel": "Anulează",

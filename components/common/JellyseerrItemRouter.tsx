@@ -1,9 +1,13 @@
+import { useRouter, useSegments } from "expo-router";
+import type React from "react";
+import { type PropsWithChildren, useCallback, useMemo } from "react";
+import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import * as ContextMenu from "@/components/ContextMenu";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import {
-  Permission,
   hasPermission,
+  Permission,
 } from "@/utils/jellyseerr/server/lib/permissions";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
@@ -11,10 +15,6 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import { useRouter, useSegments } from "expo-router";
-import type React from "react";
-import { type PropsWithChildren, useCallback, useMemo } from "react";
-import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 
 interface Props extends TouchableOpacityProps {
   result?: MovieResult | TvResult | MovieDetails | TvDetails;

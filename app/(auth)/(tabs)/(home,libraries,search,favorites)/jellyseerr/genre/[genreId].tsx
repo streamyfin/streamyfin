@@ -1,21 +1,17 @@
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useLocalSearchParams } from "expo-router";
+import { uniqBy } from "lodash";
+import { useMemo } from "react";
 import { Text } from "@/components/common/Text";
-import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
-import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
+import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import Poster from "@/components/posters/Poster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import {
   type MovieResult,
-  Results,
   type TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { router, useLocalSearchParams, useSegments } from "expo-router";
-import { uniqBy } from "lodash";
-import React, { useMemo } from "react";
-import { TouchableOpacity } from "react-native";
 
 export default function page() {
   const local = useLocalSearchParams();
@@ -96,7 +92,7 @@ export default function page() {
           {name}
         </Text>
       }
-      renderItem={(item, index) => (
+      renderItem={(item, _index) => (
         <JellyseerrPoster item={item as MovieResult | TvResult} />
       )}
     />

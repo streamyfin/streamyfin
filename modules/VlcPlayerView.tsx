@@ -1,8 +1,7 @@
 import { requireNativeViewManager } from "expo-modules-core";
 import * as React from "react";
-
-import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
 import { Platform, ViewStyle } from "react-native";
+import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import type {
   VlcPlayerSource,
   VlcPlayerViewProps,
@@ -21,7 +20,7 @@ const NativeView = React.forwardRef<NativeViewRef, VlcPlayerViewProps>(
   (props, ref) => {
     const [settings] = useSettings();
 
-    if (Platform.OS === "ios" || Platform.isTVOS) {
+    if (Platform.OS === "ios") {
       if (settings.defaultPlayer === VideoPlayer.VLC_3) {
         console.log("[Apple] Using Vlc Player 3");
         return <VLC3ViewManager {...props} ref={ref} />;

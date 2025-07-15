@@ -1,9 +1,3 @@
-import { Text } from "@/components/common/Text";
-import { useDownload } from "@/providers/DownloadProvider";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { storage } from "@/utils/mmkv";
-import type { JobStatus } from "@/utils/optimize-server";
-import { formatTimeString } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -19,7 +13,14 @@ import {
   type ViewProps,
 } from "react-native";
 import { toast } from "sonner-native";
+import { Text } from "@/components/common/Text";
+import { useDownload } from "@/providers/DownloadProvider";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { storage } from "@/utils/mmkv";
+import type { JobStatus } from "@/utils/optimize-server";
+import { formatTimeString } from "@/utils/time";
 import { Button } from "../Button";
+
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;

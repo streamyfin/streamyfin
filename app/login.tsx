@@ -1,29 +1,29 @@
-import { Button } from "@/components/Button";
-import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
-import { PreviousServersList } from "@/components/PreviousServersList";
-import { Input } from "@/components/common/Input";
-import { Text } from "@/components/common/Text";
-import { Colors } from "@/constants/Colors";
-import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
+import { t } from "i18next";
 import { useAtomValue } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
   TouchableOpacity,
   View,
 } from "react-native";
-import { Keyboard } from "react-native";
-
-import { t } from "i18next";
 import { z } from "zod";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/common/Input";
+import { Text } from "@/components/common/Text";
+import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
+import { PreviousServersList } from "@/components/PreviousServersList";
+import { Colors } from "@/constants/Colors";
+import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
+
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
 });
@@ -199,7 +199,7 @@ const Login: React.FC = () => {
           ],
         );
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         t("login.error_title"),
         t("login.failed_to_initiate_quick_connect"),
@@ -213,133 +213,127 @@ const Login: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {api?.basePath ? (
-          <>
-            <View className='flex flex-col h-full relative items-center justify-center'>
-              <View className='px-4 -mt-20 w-full'>
-                <View className='flex flex-col space-y-2'>
-                  <Text className='text-2xl font-bold -mb-2'>
-                    {serverName ? (
-                      <>
-                        {`${t("login.login_to_title")} `}
-                        <Text className='text-purple-600'>{serverName}</Text>
-                      </>
-                    ) : (
-                      t("login.login_title")
-                    )}
-                  </Text>
-                  <Text className='text-xs text-neutral-400'>
-                    {api.basePath}
-                  </Text>
-                  <Input
-                    placeholder={t("login.username_placeholder")}
-                    onChangeText={(text) =>
-                      setCredentials({ ...credentials, username: text })
-                    }
-                    value={credentials.username}
-                    keyboardType='default'
-                    returnKeyType='done'
-                    autoCapitalize='none'
-                    // Changed from username to oneTimeCode because it is a known issue in RN
-                    // https://github.com/facebook/react-native/issues/47106#issuecomment-2521270037
-                    textContentType='oneTimeCode'
-                    clearButtonMode='while-editing'
-                    maxLength={500}
-                  />
-
-                  <Input
-                    placeholder={t("login.password_placeholder")}
-                    onChangeText={(text) =>
-                      setCredentials({ ...credentials, password: text })
-                    }
-                    value={credentials.password}
-                    secureTextEntry
-                    keyboardType='default'
-                    returnKeyType='done'
-                    autoCapitalize='none'
-                    textContentType='password'
-                    clearButtonMode='while-editing'
-                    maxLength={500}
-                  />
-                  <View className='flex flex-row items-center justify-between'>
-                    <Button
-                      onPress={handleLogin}
-                      loading={loading}
-                      className='flex-1 mr-2'
-                    >
-                      {t("login.login_button")}
-                    </Button>
-                    <TouchableOpacity
-                      onPress={handleQuickConnect}
-                      className='p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center'
-                    >
-                      <MaterialCommunityIcons
-                        name='cellphone-lock'
-                        size={24}
-                        color='white'
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-
-              <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
-            </View>
-          </>
-        ) : (
-          <>
-            <View className='flex flex-col h-full items-center justify-center w-full'>
-              <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
-                <Image
-                  style={{
-                    width: 100,
-                    height: 100,
-                    marginLeft: -23,
-                    marginBottom: -20,
-                  }}
-                  source={require("@/assets/images/StreamyFinFinal.png")}
-                />
-                <Text className='text-3xl font-bold'>Streamyfin</Text>
-                <Text className='text-neutral-500'>
-                  {t("server.enter_url_to_jellyfin_server")}
+          <View className='flex flex-col h-full relative items-center justify-center'>
+            <View className='px-4 -mt-20 w-full'>
+              <View className='flex flex-col space-y-2'>
+                <Text className='text-2xl font-bold -mb-2'>
+                  {serverName ? (
+                    <>
+                      {`${t("login.login_to_title")} `}
+                      <Text className='text-purple-600'>{serverName}</Text>
+                    </>
+                  ) : (
+                    t("login.login_title")
+                  )}
                 </Text>
+                <Text className='text-xs text-neutral-400'>{api.basePath}</Text>
                 <Input
-                  aria-label='Server URL'
-                  placeholder={t("server.server_url_placeholder")}
-                  onChangeText={setServerURL}
-                  value={serverURL}
-                  keyboardType='url'
+                  placeholder={t("login.username_placeholder")}
+                  onChangeText={(text) =>
+                    setCredentials({ ...credentials, username: text })
+                  }
+                  value={credentials.username}
+                  keyboardType='default'
                   returnKeyType='done'
                   autoCapitalize='none'
-                  textContentType='URL'
+                  // Changed from username to oneTimeCode because it is a known issue in RN
+                  // https://github.com/facebook/react-native/issues/47106#issuecomment-2521270037
+                  textContentType='oneTimeCode'
+                  clearButtonMode='while-editing'
                   maxLength={500}
                 />
-                <Button
-                  loading={loadingServerCheck}
-                  disabled={loadingServerCheck}
-                  onPress={async () => {
-                    await handleConnect(serverURL);
-                  }}
-                  className='w-full grow'
-                >
-                  {t("server.connect_button")}
-                </Button>
-                <JellyfinServerDiscovery
-                  onServerSelect={async (server) => {
-                    setServerURL(server.address);
-                    if (server.serverName) {
-                      setServerName(server.serverName);
-                    }
-                    await handleConnect(server.address);
-                  }}
+
+                <Input
+                  placeholder={t("login.password_placeholder")}
+                  onChangeText={(text) =>
+                    setCredentials({ ...credentials, password: text })
+                  }
+                  value={credentials.password}
+                  secureTextEntry
+                  keyboardType='default'
+                  returnKeyType='done'
+                  autoCapitalize='none'
+                  textContentType='password'
+                  clearButtonMode='while-editing'
+                  maxLength={500}
                 />
-                <PreviousServersList
-                  onServerSelect={async (s) => {
-                    await handleConnect(s.address);
-                  }}
-                />
+                <View className='flex flex-row items-center justify-between'>
+                  <Button
+                    onPress={handleLogin}
+                    loading={loading}
+                    className='flex-1 mr-2'
+                  >
+                    {t("login.login_button")}
+                  </Button>
+                  <TouchableOpacity
+                    onPress={handleQuickConnect}
+                    className='p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center'
+                  >
+                    <MaterialCommunityIcons
+                      name='cellphone-lock'
+                      size={24}
+                      color='white'
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </>
+
+            <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
+          </View>
+        ) : (
+          <View className='flex flex-col h-full items-center justify-center w-full'>
+            <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
+              <Image
+                style={{
+                  width: 100,
+                  height: 100,
+                  marginLeft: -23,
+                  marginBottom: -20,
+                }}
+                source={require("@/assets/images/StreamyFinFinal.png")}
+              />
+              <Text className='text-3xl font-bold'>Streamyfin</Text>
+              <Text className='text-neutral-500'>
+                {t("server.enter_url_to_jellyfin_server")}
+              </Text>
+              <Input
+                aria-label='Server URL'
+                placeholder={t("server.server_url_placeholder")}
+                onChangeText={setServerURL}
+                value={serverURL}
+                keyboardType='url'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='URL'
+                maxLength={500}
+              />
+              <Button
+                loading={loadingServerCheck}
+                disabled={loadingServerCheck}
+                onPress={async () => {
+                  await handleConnect(serverURL);
+                }}
+                className='w-full grow'
+              >
+                {t("server.connect_button")}
+              </Button>
+              <JellyfinServerDiscovery
+                onServerSelect={async (server) => {
+                  setServerURL(server.address);
+                  if (server.serverName) {
+                    setServerName(server.serverName);
+                  }
+                  await handleConnect(server.address);
+                }}
+              />
+              <PreviousServersList
+                onServerSelect={async (s) => {
+                  await handleConnect(s.address);
+                }}
+              />
+            </View>
+          </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>

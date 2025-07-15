@@ -14,18 +14,6 @@
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
-    "development_tv": {
-      "environment": "development",
-      "developmentClient": true,
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "EXPO_TV": "1",
-        "EXPO_PUBLIC_WRITE_DEBUG": "1"
-      }
-    },
     "preview": {
       "environment": "development",
       "distribution": "internal",
@@ -57,17 +45,6 @@
       "android": {
         "buildType": "apk",
         "image": "latest"
-      }
-    },
-    "production-apk-tv": {
-      "environment": "production",
-      "channel": "0.29.1",
-      "android": {
-        "buildType": "apk",
-        "image": "latest"
-      },
-      "env": {
-        "EXPO_TV": "1"
       }
     }
   },

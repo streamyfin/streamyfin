@@ -409,18 +409,6 @@
       }
     }
   },
-  "live_tv": {
-    "next": "Seuraava",
-    "previous": "Edellinen",
-    "live_tv": "Live TV",
-    "coming_soon": "Tulossa pian",
-    "on_now": "Nykyään",
-    "shows": "Ohjelmat",
-    "movies": "Elokuvat",
-    "sports": "Urheilu",
-    "for_kids": "Lapsille",
-    "news": "Uutiset"
-  },
   "jellyseerr": {
     "confirm": "Vahvista",
     "cancel": "Peruuta",

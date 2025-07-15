@@ -1,7 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useEffect, useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import { t } from "i18next";
 import { Text } from "../common/Text";
 

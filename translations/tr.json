@@ -408,18 +408,6 @@
       "using_default_method": "Varsayılan yöntem kullanılıyor"
     }
   },
-  "live_tv": {
-    "next": "Sonraki",
-    "previous": "Önceki",
-    "live_tv": "Canlı TV",
-    "coming_soon": "Yakında",
-    "on_now": "Şu anda yayında",
-    "shows": "Programlar",
-    "movies": "Filmler",
-    "sports": "Spor",
-    "for_kids": "Çocuklar İçin",
-    "news": "Haberler"
-  },
   "jellyseerr": {
     "confirm": "Onayla",
     "cancel": "İptal",

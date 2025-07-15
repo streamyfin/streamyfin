@@ -1,5 +1,7 @@
-import { Platform, TouchableOpacity, View } from "react-native";
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+import { TouchableOpacity, View } from "react-native";
+
+const DropdownMenu = require("zeego/dropdown-menu");
+
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Text } from "./common/Text";
@@ -58,7 +60,6 @@ export const BitrateSelector: React.FC<Props> = ({
   inverted,
   ...props
 }) => {
-  if (Platform.isTV) return null;
   const sorted = useMemo(() => {
     if (inverted)
       return BITRATES.sort(

@@ -1,21 +1,3 @@
-import { Tags } from "@/components/GenreTags";
-import { RoundButton } from "@/components/RoundButton";
-import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
-import { Text } from "@/components/common/Text";
-import { dateOpts } from "@/components/jellyseerr/DetailFacts";
-import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
-import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import {
-  MediaStatus,
-  MediaType,
-} from "@/utils/jellyseerr/server/constants/media";
-import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type Season from "@/utils/jellyseerr/server/entity/Season";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import { TvResult } from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import {
@@ -29,6 +11,23 @@ import { orderBy } from "lodash";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
+import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
+import { Text } from "@/components/common/Text";
+import { Tags } from "@/components/GenreTags";
+import { dateOpts } from "@/components/jellyseerr/DetailFacts";
+import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
+import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
+import { RoundButton } from "@/components/RoundButton";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  MediaStatus,
+  MediaType,
+} from "@/utils/jellyseerr/server/constants/media";
+import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
+import type Season from "@/utils/jellyseerr/server/entity/Season";
+import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Loader } from "../Loader";
 
 const JellyseerrSeasonEpisodes: React.FC<{
@@ -91,7 +90,7 @@ const RenderItem = ({ item, index }: any) => {
               cachePolicy={"memory-disk"}
               contentFit='cover'
               className='w-full h-full'
-              onError={(e) => {
+              onError={(_e) => {
                 setImageError(true);
               }}
             />

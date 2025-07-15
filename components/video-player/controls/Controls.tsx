@@ -1,5 +1,33 @@
-import { Loader } from "@/components/Loader";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
+import { Image } from "expo-image";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useAtom } from "jotai";
+import { debounce } from "lodash";
+import {
+  type Dispatch,
+  type FC,
+  type MutableRefObject,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { Slider } from "react-native-awesome-slider";
+import {
+  runOnJS,
+  type SharedValue,
+  useAnimatedReaction,
+  useSharedValue,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
 import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
@@ -7,9 +35,8 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
+import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { writeToLog } from "@/utils/log";
@@ -20,49 +47,16 @@ import {
   ticksToMs,
   ticksToSeconds,
 } from "@/utils/time";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import type {
-  BaseItemDto,
-  MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useAtom } from "jotai";
-import { debounce } from "lodash";
-import React, {
-  type Dispatch,
-  type FC,
-  type MutableRefObject,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
-  Platform,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from "react-native";
-import { Slider } from "react-native-awesome-slider";
-import {
-  type SharedValue,
-  runOnJS,
-  useAnimatedReaction,
-  useSharedValue,
-} from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
-import { EpisodeList } from "./EpisodeList";
-import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
-import SkipButton from "./SkipButton";
-import { VideoTouchOverlay } from "./VideoTouchOverlay";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
+import { EpisodeList } from "./EpisodeList";
+import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
+import SkipButton from "./SkipButton";
 import { useControlsTimeout } from "./useControlsTimeout";
+import { VideoTouchOverlay } from "./VideoTouchOverlay";
 
 interface Props {
   item: BaseItemDto;
@@ -241,7 +235,10 @@ export const Controls: FC<Props> = ({
     ({
       isAutoPlay,
       resetWatchCount,
-    }: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
+    }: {
+      isAutoPlay?: boolean;
+      resetWatchCount?: boolean;
+    }) => {
       if (!nextItem) {
         return;
       }
@@ -560,35 +557,32 @@ export const Controls: FC<Props> = ({
             pointerEvents={showControls ? "auto" : "none"}
             className={"flex flex-row w-full pt-2"}
           >
-            {!Platform.isTV && (
-              <View className='mr-auto'>
-                <VideoProvider
-                  getAudioTracks={getAudioTracks}
-                  getSubtitleTracks={getSubtitleTracks}
-                  setAudioTrack={setAudioTrack}
-                  setSubtitleTrack={setSubtitleTrack}
-                  setSubtitleURL={setSubtitleURL}
-                >
-                  <DropdownView />
-                </VideoProvider>
-              </View>
-            )}
+            <View className='mr-auto'>
+              <VideoProvider
+                getAudioTracks={getAudioTracks}
+                getSubtitleTracks={getSubtitleTracks}
+                setAudioTrack={setAudioTrack}
+                setSubtitleTrack={setSubtitleTrack}
+                setSubtitleURL={setSubtitleURL}
+              >
+                <DropdownView />
+              </VideoProvider>
+            </View>
 
             <View className='flex flex-row items-center space-x-2 '>
-              {!Platform.isTV &&
-                settings.defaultPlayer === VideoPlayer.VLC_4 && (
-                  <TouchableOpacity
-                    onPress={startPictureInPicture}
-                    className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-                  >
-                    <MaterialIcons
-                      name='picture-in-picture'
-                      size={24}
-                      color='white'
-                      style={{ opacity: showControls ? 1 : 0 }}
-                    />
-                  </TouchableOpacity>
-                )}
+              {settings.defaultPlayer === VideoPlayer.VLC_4 && (
+                <TouchableOpacity
+                  onPress={startPictureInPicture}
+                  className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+                >
+                  <MaterialIcons
+                    name='picture-in-picture'
+                    size={24}
+                    color='white'
+                    style={{ opacity: showControls ? 1 : 0 }}
+                  />
+                </TouchableOpacity>
+              )}
 
               {item?.Type === "Episode" && !offline && (
                 <TouchableOpacity

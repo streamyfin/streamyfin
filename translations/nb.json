@@ -409,18 +409,6 @@
       "using_default_method": "Bruker standard metode"
     }
   },
-  "live_tv": {
-    "next": "Neste",
-    "previous": "Forrige",
-    "live_tv": "Direkte TV",
-    "coming_soon": "Kommer snart",
-    "on_now": "Vises nå",
-    "shows": "Programmer",
-    "movies": "Filmer",
-    "sports": "Sport",
-    "for_kids": "For barn",
-    "news": "Nyheter"
-  },
   "jellyseerr": {
     "confirm": "Bekreft",
     "cancel": "Avbryt",

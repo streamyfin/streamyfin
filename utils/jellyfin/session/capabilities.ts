@@ -1,7 +1,7 @@
-import type { Settings } from "@/utils/atoms/settings";
-import generateDeviceProfile from "@/utils/profiles/native";
 import type { Api } from "@jellyfin/sdk";
 import type { AxiosResponse } from "axios";
+import type { Settings } from "@/utils/atoms/settings";
+import generateDeviceProfile from "@/utils/profiles/native";
 import { getAuthHeaders } from "../jellyfin";
 
 interface PostCapabilitiesParams {
@@ -50,7 +50,7 @@ export const postCapabilities = async ({
       },
     );
     return d;
-  } catch (error) {
+  } catch (_error) {
     throw new Error("Failed to mark as not played");
   }
 };

@@ -1,9 +1,30 @@
+import type {
+  BaseItemDto,
+  BaseItemKind,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useAtom } from "jotai";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useTranslation } from "react-i18next";
+import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDebounce } from "use-debounce";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
-import { Tag } from "@/components/GenreTags";
-import { ItemCardText } from "@/components/ItemCardText";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
+import { Tag } from "@/components/GenreTags";
+import { ItemCardText } from "@/components/ItemCardText";
 import {
   JellyseerrSearchSort,
   JellyserrIndexPage,
@@ -16,27 +37,6 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import type {
-  BaseItemDto,
-  BaseItemKind,
-} from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi, getSearchApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { useAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDebounce } from "use-debounce";
 
 type SearchType = "Library" | "Discover";
 

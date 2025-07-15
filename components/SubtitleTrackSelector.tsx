@@ -1,8 +1,10 @@
-import { tc } from "@/utils/textTools";
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { tc } from "@/utils/textTools";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import { useTranslation } from "react-i18next";
 import { Text } from "./common/Text";
 

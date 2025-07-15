@@ -15,7 +15,7 @@ import { router, useGlobalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, View } from "react-native";
+import { Alert, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
@@ -41,9 +41,7 @@ import { storage } from "@/utils/mmkv";
 import generateDeviceProfile from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
-const downloadProvider = !Platform.isTV
-  ? require("@/providers/DownloadProvider")
-  : { useDownload: () => null };
+const downloadProvider = require("@/providers/DownloadProvider");
 
 const IGNORE_SAFE_AREAS_KEY = "video_player_ignore_safe_areas";
 
@@ -70,9 +68,7 @@ export default function page() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
-  const VolumeManager = Platform.isTV
-    ? null
-    : require("react-native-volume-manager");
+  const VolumeManager = require("react-native-volume-manager");
 
   const getDownloadedItem = downloadProvider.useDownload();
 
@@ -141,7 +137,7 @@ export default function page() {
       setItemStatus({ isLoading: true, isError: false });
       try {
         let fetchedItem: BaseItemDto | null = null;
-        if (offline && !Platform.isTV) {
+        if (offline) {
           const data = await getDownloadedItem.getDownloadedItem(itemId);
           if (data) fetchedItem = data.item as BaseItemDto;
         } else {
@@ -182,7 +178,7 @@ export default function page() {
       const native = await generateDeviceProfile();
       try {
         let result: Stream | null = null;
-        if (offline && !Platform.isTV) {
+        if (offline) {
           const data = await getDownloadedItem.getDownloadedItem(itemId);
           if (!data?.mediaSource) return;
           const url = await getDownloadedFileUrl(data.item.Id!);
@@ -363,8 +359,6 @@ export default function page() {
   }, [offline, getInitialPlaybackTicks]);
 
   const volumeUpCb = useCallback(async () => {
-    if (Platform.isTV) return;
-
     try {
       const { volume: currentVolume } = await VolumeManager.getVolume();
       const newVolume = Math.min(currentVolume + 0.1, 1.0);
@@ -377,8 +371,6 @@ export default function page() {
   const [previousVolume, setPreviousVolume] = useState<number | null>(null);
 
   const toggleMuteCb = useCallback(async () => {
-    if (Platform.isTV) return;
-
     try {
       const { volume: currentVolume } = await VolumeManager.getVolume();
       const currentVolumePercent = currentVolume * 100;
@@ -400,8 +392,6 @@ export default function page() {
     }
   }, [previousVolume]);
   const volumeDownCb = useCallback(async () => {
-    if (Platform.isTV) return;
-
     try {
       const { volume: currentVolume } = await VolumeManager.getVolume();
       const newVolume = Math.max(currentVolume - 0.1, 0); // Decrease by 10%
@@ -418,8 +408,6 @@ export default function page() {
   }, []);
 
   const setVolumeCb = useCallback(async (newVolume: number) => {
-    if (Platform.isTV) return;
-
     try {
       const clampedVolume = Math.max(0, Math.min(newVolume, 100));
       console.log("Setting volume to", clampedVolume);
@@ -446,14 +434,14 @@ export default function page() {
       if (state === "Playing") {
         setIsPlaying(true);
         reportPlaybackProgress();
-        if (!Platform.isTV) await activateKeepAwakeAsync();
+        await activateKeepAwakeAsync();
         return;
       }
 
       if (state === "Paused") {
         setIsPlaying(false);
         reportPlaybackProgress();
-        if (!Platform.isTV) await deactivateKeepAwake();
+        await deactivateKeepAwake();
         return;
       }
 

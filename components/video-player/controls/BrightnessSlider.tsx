@@ -1,11 +1,12 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
+
 // import * as Brightness from "expo-brightness";
 const Brightness = !Platform.isTV ? require("expo-brightness") : null;
+
 import { Ionicons } from "@expo/vector-icons";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 const BrightnessSlider = () => {
   if (Platform.isTV) return;

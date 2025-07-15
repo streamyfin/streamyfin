@@ -1,7 +1,8 @@
-import { useSettings } from "@/utils/atoms/settings";
 import { useCallback, useMemo } from "react";
 import { Platform } from "react-native";
-const Haptics = !Platform.isTV ? require("expo-haptics") : null;
+import { useSettings } from "@/utils/atoms/settings";
+
+const Haptics = require("expo-haptics");
 
 export type HapticFeedbackType =
   | "light"
@@ -15,21 +16,15 @@ export type HapticFeedbackType =
 export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
   const [settings] = useSettings();
 
-  if (Platform.isTV) {
-    return () => {};
-  }
-
   const createHapticHandler = useCallback(
     (type: typeof Haptics.ImpactFeedbackStyle) => {
-      return Platform.OS === "web" || Platform.isTV
-        ? () => {}
-        : () => Haptics.impactAsync(type);
+      return Platform.OS === "web" ? () => {} : () => Haptics.impactAsync(type);
     },
     [],
   );
   const createNotificationFeedback = useCallback(
     (type: typeof Haptics.NotificationFeedbackType) => {
-      return Platform.OS === "web" || Platform.isTV
+      return Platform.OS === "web"
         ? () => {}
         : () => Haptics.notificationAsync(type);
     },
@@ -41,10 +36,7 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
       light: createHapticHandler(Haptics.ImpactFeedbackStyle.Light),
       medium: createHapticHandler(Haptics.ImpactFeedbackStyle.Medium),
       heavy: createHapticHandler(Haptics.ImpactFeedbackStyle.Heavy),
-      selection:
-        Platform.OS === "web" || Platform.isTV
-          ? () => {}
-          : Haptics.selectionAsync,
+      selection: Platform.OS === "web" ? () => {} : Haptics.selectionAsync,
       success: createNotificationFeedback(
         Haptics.NotificationFeedbackType.Success,
       ),

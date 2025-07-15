@@ -1,11 +1,11 @@
-import { WatchedIndicator } from "@/components/WatchedIndicator";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
+import { WatchedIndicator } from "@/components/WatchedIndicator";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -26,7 +26,7 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
     });
   }, [item]);
 
-  const [progress, setProgress] = useState(
+  const [progress, _setProgress] = useState(
     item.UserData?.PlayedPercentage || 0,
   );
 

@@ -408,18 +408,6 @@
       "using_default_method": "使用默認方法"
     }
   },
-  "live_tv": {
-    "next": "下一個",
-    "previous": "上一個",
-    "live_tv": "直播電視",
-    "coming_soon": "即將推出",
-    "on_now": "正在播放",
-    "shows": "節目",
-    "movies": "電影",
-    "sports": "體育",
-    "for_kids": "兒童",
-    "news": "新聞"
-  },
   "jellyseerr": {
     "confirm": "確認",
     "cancel": "取消",

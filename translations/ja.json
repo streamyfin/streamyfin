@@ -408,18 +408,6 @@
       "using_default_method": "デフォルトの方法を使用"
     }
   },
-  "live_tv": {
-    "next": "次",
-    "previous": "前",
-    "live_tv": "ライブTV",
-    "coming_soon": "近日公開",
-    "on_now": "現在",
-    "shows": "表示",
-    "movies": "映画",
-    "sports": "スポーツ",
-    "for_kids": "子供向け",
-    "news": "ニュース"
-  },
   "jellyseerr": {
     "confirm": "確認",
     "cancel": "キャンセル",

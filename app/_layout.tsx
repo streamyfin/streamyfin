@@ -1,11 +1,15 @@
 import "@/augmentations";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
-  JellyfinProvider,
   apiAtom,
   getOrSetDeviceId,
   getTokenFromStorage,
+  JellyfinProvider,
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
@@ -24,35 +28,37 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
-import { ActionSheetProvider } from "@expo/react-native-action-sheet";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Platform } from "react-native";
+
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
+
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 const BackgroundFetch = !Platform.isTV
   ? require("expo-background-fetch")
   : null;
+
 import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system";
+
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { Stack, router, useSegments } from "expo-router";
+
+import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
+
 import { getLocales } from "expo-localization";
 import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { AppState, Appearance } from "react-native";
+import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { store } from "@/utils/store";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import type { EventSubscription } from "expo-modules-core";
 import type {
@@ -62,6 +68,8 @@ import type {
 import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
 import { useAtom } from "jotai";
 import { Toaster } from "sonner-native";
+import { userAtom } from "@/providers/JellyfinProvider";
+import { store } from "@/utils/store";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -441,26 +449,25 @@ function Layout() {
       segments,
     ]);
 
-    useEffect(() => {
-      const subscription = AppState.addEventListener(
-        "change",
-        (nextAppState) => {
-          if (
-            appState.current.match(/inactive|background/) &&
-            nextAppState === "active"
-          ) {
-            BackGroundDownloader.checkForExistingDownloads();
-          }
-        },
-      );
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState) => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === "active"
+        ) {
+          BackGroundDownloader.checkForExistingDownloads();
+        }
+      },
+    );
 
-      BackGroundDownloader.checkForExistingDownloads();
+    BackGroundDownloader.checkForExistingDownloads();
 
-      return () => {
-        subscription.remove();
-      };
-    }, []);
-  }
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -526,7 +533,7 @@ function Layout() {
   );
 }
 
-function saveDownloadedItemInfo(item: BaseItemDto) {
+function _saveDownloadedItemInfo(item: BaseItemDto) {
   try {
     const downloadedItems = storage.getString("downloadedItems");
     const items: BaseItemDto[] = downloadedItems

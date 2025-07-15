@@ -409,18 +409,6 @@
       "using_default_method": "Duke përdorur metodën standarde"
     }
   },
-  "live_tv": {
-    "next": "E ardhmja",
-    "previous": "E para",
-    "live_tv": "TV e drejtpërdrejtë",
-    "coming_soon": "Së shpejti",
-    "on_now": "Tani",
-    "shows": "Shou",
-    "movies": "Filma",
-    "sports": "Sport",
-    "for_kids": "Për fëmijë",
-    "news": "Lajme"
-  },
   "jellyseerr": {
     "confirm": "Konfirmo",
     "cancel": "Anullo",

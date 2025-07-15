@@ -1,3 +1,11 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { TFunction } from "i18next";
+import type React from "react";
+import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { Linking, Switch, TouchableOpacity } from "react-native";
+import { toast } from "sonner-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import Dropdown from "@/components/common/Dropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
@@ -8,21 +16,12 @@ import {
   registerBackgroundFetchAsync,
   unregisterBackgroundFetchAsync,
 } from "@/utils/background-tasks";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import i18n, { TFunction } from "i18next";
-import type React from "react";
-import { useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { Linking, Platform, Switch, TouchableOpacity } from "react-native";
-import { toast } from "sonner-native";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
+
+const BackgroundFetch = require("expo-background-fetch");
+const TaskManager = require("expo-task-manager");
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
@@ -34,8 +33,6 @@ export const OtherSettings: React.FC = () => {
    * Background task
    *******************/
   const checkStatusAsync = async () => {
-    if (Platform.isTV) return;
-
     await BackgroundFetch.getStatusAsync();
     return await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   };

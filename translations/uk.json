@@ -412,18 +412,6 @@
       "using_default_method": "Використовуючи метод за замовченням"
     }
   },
-  "live_tv": {
-    "next": "Наступний",
-    "previous": "Попередній",
-    "live_tv": "Live TV",
-    "coming_soon": "Скоро",
-    "on_now": "Просто зараз",
-    "shows": "Серіали",
-    "movies": "Фільми",
-    "sports": "Спорт",
-    "for_kids": "Для дітей",
-    "news": "Новини"
-  },
   "jellyseerr": {
     "confirm": "Підтвердити",
     "cancel": "Скасувати",

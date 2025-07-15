@@ -409,18 +409,6 @@
       "using_default_method": "Uzante defaŭltan metodon"
     }
   },
-  "live_tv": {
-    "next": "Sekva",
-    "previous": "Antaŭa",
-    "live_tv": "Viva Televido",
-    "coming_soon": "Baldaŭ",
-    "on_now": "Nun",
-    "shows": "Spektakloj",
-    "movies": "Filmoj",
-    "sports": "Sportoj",
-    "for_kids": "Por Infanoj",
-    "news": "Novaĵoj"
-  },
   "jellyseerr": {
     "confirm": "Konfirmi",
     "cancel": "Nuligi",

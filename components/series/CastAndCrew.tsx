@@ -1,5 +1,3 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import type {
   BaseItemDto,
   BaseItemPerson,
@@ -10,6 +8,8 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { Text } from "../common/Text";
 import { itemRouter } from "../common/TouchableItemRouter";
@@ -48,7 +48,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
       </Text>
       <HorizontalScroll
         loading={loading}
-        keyExtractor={(i, idx) => i.Id.toString()}
+        keyExtractor={(i, _idx) => i.Id.toString()}
         height={247}
         data={destinctPeople}
         renderItem={(i) => (

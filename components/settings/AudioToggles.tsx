@@ -1,9 +1,11 @@
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { useSettings } from "@/utils/atoms/settings";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Switch } from "react-native-gesture-handler";
+import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";

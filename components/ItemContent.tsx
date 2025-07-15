@@ -1,25 +1,3 @@
-import { AudioTrackSelector } from "@/components/AudioTrackSelector";
-import { type Bitrate, BitrateSelector } from "@/components/BitrateSelector";
-import { DownloadSingleItem } from "@/components/DownloadItem";
-import { OverviewText } from "@/components/OverviewText";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
-import { PlayButton } from "@/components/PlayButton";
-import { PlayedStatus } from "@/components/PlayedStatus";
-import { SimilarItems } from "@/components/SimilarItems";
-import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
-import { ItemImage } from "@/components/common/ItemImage";
-import { CastAndCrew } from "@/components/series/CastAndCrew";
-import { CurrentSeries } from "@/components/series/CurrentSeries";
-import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
-import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useImageColors } from "@/hooks/useImageColors";
-import { useOrientation } from "@/hooks/useOrientation";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -28,15 +6,37 @@ import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AudioTrackSelector } from "@/components/AudioTrackSelector";
+import { type Bitrate, BitrateSelector } from "@/components/BitrateSelector";
+import { ItemImage } from "@/components/common/ItemImage";
+import { DownloadSingleItem } from "@/components/DownloadItem";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
+import { PlayButton } from "@/components/PlayButton";
+import { PlayedStatus } from "@/components/PlayedStatus";
+import { SimilarItems } from "@/components/SimilarItems";
+import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
+import { CastAndCrew } from "@/components/series/CastAndCrew";
+import { CurrentSeries } from "@/components/series/CurrentSeries";
+import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useImageColors } from "@/hooks/useImageColors";
+import { useOrientation } from "@/hooks/useOrientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
-const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
+
+const Chromecast = require("./Chromecast");
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -85,35 +85,27 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultMediaSource,
     ]);
 
-    if (!Platform.isTV) {
-      useEffect(() => {
-        navigation.setOptions({
-          headerRight: () =>
-            item && (
-              <View className='flex flex-row items-center space-x-2'>
-                <Chromecast.Chromecast
-                  background='blur'
-                  width={22}
-                  height={22}
-                />
-                {item.Type !== "Program" && (
-                  <View className='flex flex-row items-center space-x-2'>
-                    {!Platform.isTV && (
-                      <DownloadSingleItem item={item} size='large' />
-                    )}
-                    {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
+    useEffect(() => {
+      navigation.setOptions({
+        headerRight: () =>
+          item && (
+            <View className='flex flex-row items-center space-x-2'>
+              <Chromecast.Chromecast background='blur' width={22} height={22} />
+              {item.Type !== "Program" && (
+                <View className='flex flex-row items-center space-x-2'>
+                  <DownloadSingleItem item={item} size='large' />
+                  {user?.Policy?.IsAdministrator && (
+                    <PlayInRemoteSessionButton item={item} size='large' />
+                  )}
 
-                    <PlayedStatus items={[item]} size='large' />
-                    <AddToFavorites item={item} />
-                  </View>
-                )}
-              </View>
-            ),
-        });
-      }, [item]);
-    }
+                  <PlayedStatus items={[item]} size='large' />
+                  <AddToFavorites item={item} />
+                </View>
+              )}
+            </View>
+          ),
+      });
+    }, [item]);
 
     useEffect(() => {
       if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
@@ -174,7 +166,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           <View className='flex flex-col bg-transparent shrink'>
             <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-4' />
-              {item.Type !== "Program" && !Platform.isTV && (
+              {item.Type !== "Program" && (
                 <View className='flex flex-row items-center justify-start w-full h-16'>
                   <BitrateSelector
                     className='mr-1'

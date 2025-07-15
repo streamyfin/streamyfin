@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(for file in /Users/fredrikburmester/Documents/GitHub/streamyfin/translations/*.json)",
+      "Bash(do)",
+      "Bash(if grep -q \"live_tv\" \"$file\")",
+      "Bash(then)",
+      "Bash(echo \"Processing $file\")",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(bun run:*)",
+      "Bash(pod install:*)",
+      "Bash(bun install:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": []
+  }
+}
