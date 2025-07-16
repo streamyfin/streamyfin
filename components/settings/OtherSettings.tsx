@@ -20,8 +20,7 @@ import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
-const BackgroundFetch = require("expo-background-fetch");
-const TaskManager = require("expo-task-manager");
+import * as TaskManager from "expo-task-manager";
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
@@ -33,7 +32,8 @@ export const OtherSettings: React.FC = () => {
    * Background task
    *******************/
   const checkStatusAsync = async () => {
-    await BackgroundFetch.getStatusAsync();
+    // expo-background-task doesn't have a direct status check
+    // Just check if the task is registered
     return await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   };
 

@@ -36,10 +36,6 @@ const BackGroundDownloader = !Platform.isTV
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
-
 import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system";
 
@@ -49,7 +45,7 @@ import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
+import * as TaskManager from "expo-task-manager";
 
 import { getLocales } from "expo-localization";
 import { Provider as JotaiProvider } from "jotai";
@@ -130,7 +126,9 @@ if (!Platform.isTV) {
     console.log("TaskManager ~ sessions trigger");
 
     const api = store.get(apiAtom);
-    if (api === null || api === undefined) return;
+    if (api === null || api === undefined) {
+      return { value: null };
+    }
 
     const response = await getSessionApi(api).getSessions({
       activeWithinSeconds: 360,
@@ -139,7 +137,7 @@ if (!Platform.isTV) {
     const result = response.data.filter((s) => s.NowPlayingItem);
     Notifications.setBadgeCountAsync(result.length);
 
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    return { value: "success" };
   });
 
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
@@ -149,20 +147,18 @@ if (!Platform.isTV) {
 
     const settingsData = storage.getString("settings");
 
-    if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!settingsData) return { value: null };
 
     const settings: Partial<Settings> = JSON.parse(settingsData);
     const url = settings?.optimizedVersionsServerUrl;
 
-    if (!settings?.autoDownload || !url)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!settings?.autoDownload || !url) return { value: null };
 
     const token = getTokenFromStorage();
     const deviceId = getOrSetDeviceId();
     const baseDirectory = FileSystem.documentDirectory;
 
-    if (!token || !deviceId || !baseDirectory)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!token || !deviceId || !baseDirectory) return { value: null };
 
     const jobs = await getAllJobsByDeviceId({
       deviceId,
@@ -195,7 +191,7 @@ if (!Platform.isTV) {
           })
           .done(() => {
             console.log("TaskManager ~ Download completed: ", job.id);
-            saveDownloadedItemInfo(job.item);
+            _saveDownloadedItemInfo(job.item);
             BackGroundDownloader.completeHandler(job.id);
             cancelJobById({
               authHeader: token,
@@ -233,7 +229,7 @@ if (!Platform.isTV) {
     console.log(`Auto download started: ${new Date(now).toISOString()}`);
 
     // Be sure to return the successful result type!
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    return { value: "success" };
   });
 }
 
