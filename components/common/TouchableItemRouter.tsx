@@ -1,5 +1,3 @@
-import { useFavorite } from "@/hooks/useFavorite";
-import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import type {
   BaseItemDto,
@@ -8,9 +6,12 @@ import type {
 import { useRouter, useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import { useFavorite } from "@/hooks/useFavorite";
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
+  isOffline?: boolean;
 }
 
 export const itemRouter = (
@@ -50,6 +51,7 @@ export const itemRouter = (
 
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
+  isOffline = false,
   children,
   ...props
 }) => {
@@ -105,7 +107,10 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         onLongPress={showActionSheet}
         onPress={() => {
-          const url = itemRouter(item, from);
+          let url = itemRouter(item, from);
+          if (isOffline) {
+            url += `&offline=true`;
+          }
           // @ts-expect-error
           router.push(url);
         }}
@@ -114,4 +119,6 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
         {children}
       </TouchableOpacity>
     );
+
+  return null;
 };

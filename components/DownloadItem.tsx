@@ -1,11 +1,3 @@
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { queueActions, queueAtom } from "@/utils/atoms/queue";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
-import download from "@/utils/profiles/download";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
@@ -24,15 +16,23 @@ import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Platform, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { queueAtom } from "@/utils/atoms/queue";
+import { useSettings } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
+import download from "@/utils/profiles/download";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
+import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { Text } from "./common/Text";
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
@@ -58,7 +58,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [settings] = useSettings();
 
   const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
-  //const { startRemuxing } = useRemuxHlsToMp4();
 
   const [selectedMediaSource, setSelectedMediaSource] = useState<
     MediaSourceInfo | undefined | null
@@ -77,10 +76,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     () => user?.Policy?.EnableContentDownloading,
     [user],
   );
-  const usingOptimizedServer = useMemo(
-    () => settings?.downloadMethod === DownloadMethod.Optimized,
-    [settings],
-  );
 
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -88,7 +83,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((index: number) => {}, []);
+  const handleSheetChanges = useCallback((_index: number) => {}, []);
 
   const closeModal = useCallback(() => {
     bottomSheetModalRef.current?.dismiss();
@@ -161,7 +156,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     queue,
     setQueue,
     itemsNotDownloaded,
-    usingOptimizedServer,
     userCanDownload,
     maxBitrate,
     selectedMediaSource,
@@ -204,7 +198,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           subtitleStreamIndex: subtitleIndex,
           deviceProfile: download,
           download: true,
-          // deviceId: mediaSource?.Id,
         });
 
         if (!res) {
@@ -232,7 +225,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       selectedSubtitleStream,
       settings,
       maxBitrate,
-      usingOptimizedServer,
       startBackgroundDownload,
     ],
   );
@@ -253,7 +245,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       if (itemsNotDownloaded.length !== 1) return;
       const { bitrate, mediaSource, audioIndex, subtitleIndex } =
         getDefaultPlaySettings(items[0], settings);
-
       setSelectedMediaSource(mediaSource ?? undefined);
       setSelectedAudioStream(audioIndex ?? 0);
       setSelectedSubtitleStream(subtitleIndex ?? -1);
@@ -368,13 +359,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             >
               {t("item_card.download.download_button")}
             </Button>
-            <View className='opacity-70 text-center w-full flex items-center'>
-              <Text className='text-xs'>
-                {usingOptimizedServer
-                  ? t("item_card.download.using_optimized_server")
-                  : t("item_card.download.using_default_method")}
-              </Text>
-            </View>
           </View>
         </BottomSheetView>
       </BottomSheetModal>

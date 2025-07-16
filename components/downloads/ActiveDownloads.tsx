@@ -1,9 +1,3 @@
-import { Text } from "@/components/common/Text";
-import { useDownload } from "@/providers/DownloadProvider";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { storage } from "@/utils/mmkv";
-import type { JobStatus } from "@/utils/optimize-server";
-import { formatTimeString } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -19,12 +13,23 @@ import {
   type ViewProps,
 } from "react-native";
 import { toast } from "sonner-native";
+import { Text } from "@/components/common/Text";
+import { useDownload } from "@/providers/DownloadProvider";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { storage } from "@/utils/mmkv";
+import type { JobStatus } from "@/utils/optimize-server";
+import { formatTimeString } from "@/utils/time";
 import { Button } from "../Button";
+
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
 
 interface Props extends ViewProps {}
+
+const bytesToMB = (bytes: number) => {
+  return bytes / 1024 / 1024;
+};
 
 export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
   const { processes } = useDownload();
@@ -59,11 +64,12 @@ interface DownloadCardProps extends TouchableOpacityProps {
 }
 
 const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
-  const { processes, startDownload } = useDownload();
+  const { startDownload, removeProcess } = useDownload();
   const router = useRouter();
-  const { removeProcess, setProcesses } = useDownload();
   const [settings] = useSettings();
   const queryClient = useQueryClient();
+
+  console.log("process", process.progress);
 
   const cancelJobMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -93,11 +99,14 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   });
 
   const eta = (p: JobStatus) => {
-    if (!p.speed || !p.progress) return null;
+    if (!p.speed || p.speed <= 0 || !p.estimatedTotalSizeBytes) return null;
 
-    const length = p?.item?.RunTimeTicks || 0;
-    const timeLeft = (length - length * (p.progress / 100)) / p.speed;
-    return formatTimeString(timeLeft, "tick");
+    const bytesRemaining = p.estimatedTotalSizeBytes - (p.bytesDownloaded || 0);
+    if (bytesRemaining <= 0) return null;
+
+    const secondsRemaining = bytesRemaining / p.speed;
+
+    return formatTimeString(secondsRemaining, "s");
   };
 
   const base64Image = useMemo(() => {
@@ -110,8 +119,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       className='relative bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden'
       {...props}
     >
-      {(process.status === "optimizing" ||
-        process.status === "downloading") && (
+      {process.status === "downloading" && (
         <View
           className={`
         bg-purple-600 h-1 absolute bottom-0 left-0
@@ -151,8 +159,10 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               ) : (
                 <Text className='text-xs'>{process.progress.toFixed(0)}%</Text>
               )}
-              {process.speed && (
-                <Text className='text-xs'>{process.speed?.toFixed(2)}x</Text>
+              {process.speed && process.speed > 0 && (
+                <Text className='text-xs'>
+                  {bytesToMB(process.speed).toFixed(2)} MB/s
+                </Text>
               )}
               {eta(process) && (
                 <Text className='text-xs'>

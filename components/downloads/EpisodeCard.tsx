@@ -1,25 +1,16 @@
-import { useHaptic } from "@/hooks/useHaptic";
 import {
   ActionSheetProvider,
   useActionSheet,
 } from "@expo/react-native-action-sheet";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models/base-item-dto";
 import type React from "react";
-import { useCallback, useMemo } from "react";
-import {
-  TouchableOpacity,
-  type TouchableOpacityProps,
-  View,
-} from "react-native";
-
+import { useCallback } from "react";
+import { type TouchableOpacityProps, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
-import { storage } from "@/utils/mmkv";
 import { runtimeTicksToSeconds } from "@/utils/time";
-import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
@@ -27,26 +18,17 @@ interface EpisodeCardProps extends TouchableOpacityProps {
   item: BaseItemDto;
 }
 
-export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
+export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
-  const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
   const successHapticFeedback = useHaptic("success");
-
-  const base64Image = useMemo(() => {
-    return storage.getString(item.Id!);
-  }, [item]);
-
-  const handleOpenFile = useCallback(() => {
-    openFile(item);
-  }, [item, openFile]);
 
   /**
    * Handles deleting the file with haptic feedback.
    */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
-      deleteFile(item.Id);
+      deleteFile(item.Id, "Episode");
       successHapticFeedback();
     }
   }, [deleteFile, item.Id]);
@@ -77,10 +59,10 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
   }, [showActionSheetWithOptions, handleDeleteFile]);
 
   return (
-    <TouchableOpacity
-      onPress={handleOpenFile}
+    <TouchableItemRouter
+      item={item}
+      isOffline={true}
       onLongPress={showActionSheet}
-      key={item.Id}
       className='flex flex-col mb-4'
     >
       <View className='flex flex-row items-start mb-2'>
@@ -104,7 +86,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
       <Text numberOfLines={3} className='text-xs text-neutral-500 shrink'>
         {item.Overview}
       </Text>
-    </TouchableOpacity>
+    </TouchableItemRouter>
   );
 };
 

@@ -1,11 +1,10 @@
-import { itemRouter } from "@/components/common/TouchableItemRouter";
-import { DownloadedItem } from "@/providers/DownloadProvider";
-import type {
+import {
   BaseItemDto,
   MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
+} from "@jellyfin/sdk/lib/generated-client/models";
 import axios from "axios";
 import { MMKV } from "react-native-mmkv";
+import { Bitrate } from "@/components/BitrateSelector";
 import { writeToLog } from "./log";
 
 interface IJobInput {
@@ -14,25 +13,22 @@ interface IJobInput {
   url?: string | null;
 }
 
-export interface JobStatus {
+export type JobStatus = {
   id: string;
-  status:
-    | "queued"
-    | "optimizing"
-    | "completed"
-    | "failed"
-    | "cancelled"
-    | "downloading";
-  progress: number;
-  outputPath: string;
   inputUrl: string;
-  deviceId: string;
-  itemId: string;
   item: BaseItemDto;
-  speed?: number;
+  itemId: string;
+  deviceId: string;
+  progress: number;
+  status: "downloading" | "paused" | "error" | "pending";
   timestamp: Date;
-  base64Image?: string;
-}
+  mediaSource: MediaSourceInfo;
+  maxBitrate: Bitrate;
+  bytesDownloaded?: number;
+  lastProgressUpdateTime?: Date;
+  speed?: number;
+  estimatedTotalSizeBytes?: number;
+};
 
 /**
  * Fetches all jobs for a specific device.
