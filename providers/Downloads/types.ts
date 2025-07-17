@@ -1,7 +1,7 @@
 import type {
   BaseItemDto,
   MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
+} from "@jellyfin/sdk/lib/generated-client/models";
 
 /**
  * Represents the data for downloaded trickplay files.
@@ -22,27 +22,57 @@ interface UserData {
   audioStreamIndex: number;
 }
 
+export interface SyncPolicy {
+  type: "series" | "movie";
+  id: string; // SeriesId or MovieId
+  rule: "next_unwatched" | "all";
+  limit?: number;
+}
+
+export enum SyncStatus {
+  SYNCED = "synced",
+  PENDING_DOWNLOAD = "pending_download",
+  PENDING_DELETION = "pending_deletion",
+  ERROR = "error",
+}
+
+/** Represents a segment of time in a media item, used for intro/credit skipping. */
+export interface MediaTimeSegment {
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
+export interface Segment {
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
 /** Represents a single downloaded media item with all necessary metadata for offline playback. */
 export interface DownloadedItem {
-  /** The full Jellyfin item object. */
+  /** The Jellyfin item DTO. */
   item: BaseItemDto;
-  /** The local file path to the downloaded video file. The path is already prefixed with file:// */
-  videoFilePath: string;
-  /** The size of the downloaded video file in bytes. */
-  videoFileSize: number;
-  /** The data for the associated trickplay files. */
-  trickPlayData?: TrickPlayData;
-  /**
-   * The specific media source that was downloaded.
-   * Contains info on available audio/subtitle tracks within the file.
-   */
+  /** The media source information. */
   mediaSource: MediaSourceInfo;
+  /** The local file path of the downloaded video. */
+  videoFilePath: string;
+  /** The size of the video file in bytes. */
+  videoFileSize: number;
+  /** The local file path of the downloaded trickplay images. */
+  trickPlayData?: TrickPlayData;
   /** The intro segments for the item. */
-  introSegments?: MediaTimeSegments[];
+  introSegments?: MediaTimeSegment[];
   /** The credit segments for the item. */
-  creditSegments?: MediaTimeSegments[];
+  creditSegments?: MediaTimeSegment[];
   /** The user data for the item. */
-  userData?: UserData;
+  offlineUserData: {
+    audioStreamIndex: number;
+    subtitleStreamIndex: number;
+  };
+  syncStatus: SyncStatus;
+  lastSyncedAt: string;
+  serverEtag?: string;
 }
 
 /**
@@ -57,10 +87,16 @@ export interface DownloadedSeason {
  * Represents a downloaded series, containing seasons and their episodes.
  */
 export interface DownloadedSeries {
-  /** The Jellyfin item object for the series itself. */
+  /** The Jellyfin item DTO for the series. */
   seriesInfo: BaseItemDto;
   /** A map of season numbers to their downloaded season data. */
-  seasons: Record<number, DownloadedSeason>;
+  seasons: Record<
+    number,
+    {
+      /** A map of episode numbers to their downloaded episode data. */
+      episodes: Record<number, DownloadedItem>;
+    }
+  >;
 }
 
 /**
@@ -68,8 +104,9 @@ export interface DownloadedSeries {
  * This object is what will be saved to your local storage.
  */
 export interface DownloadsDatabase {
-  /** A map of movie IDs to their downloaded item data. */
+  /** A map of movie IDs to their downloaded movie data. */
   movies: Record<string, DownloadedItem>;
   /** A map of series IDs to their downloaded series data. */
   series: Record<string, DownloadedSeries>;
+  syncPolicies: SyncPolicy[];
 }

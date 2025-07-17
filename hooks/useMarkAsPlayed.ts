@@ -1,18 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { QueryKey, useQueryClient } from "@tanstack/react-query";
-import { useAtom } from "jotai";
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { togglePlayState } from "@/utils/jellyfin/playstate/togglePlayState";
 import { useHaptic } from "./useHaptic";
+import { usePlaybackManager } from "./usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgressCache";
 
-export const useMarkAsPlayed = (items: BaseItemDto[], isOffline = false) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
+export const useMarkAsPlayed = (items: BaseItemDto[]) => {
   const queryClient = useQueryClient();
   const lightHapticFeedback = useHaptic("light");
-  const downloads = useDownload();
+  const { markItemPlayed, markItemUnplayed } = usePlaybackManager();
   const invalidatePlaybackProgressCache = useInvalidatePlaybackProgressCache();
   const invalidateQueries = async () => {
     const queriesToInvalidate: QueryKey[] = [];
@@ -31,16 +26,10 @@ export const useMarkAsPlayed = (items: BaseItemDto[], isOffline = false) => {
     lightHapticFeedback();
     // Process all items
     await Promise.all(
-      items.map((item) =>
-        togglePlayState({
-          api,
-          item,
-          userId: user?.Id,
-          isOffline,
-          downloads,
-          played,
-        }),
-      ),
+      items.map((item) => {
+        if (!item.Id) return Promise.resolve();
+        return played ? markItemPlayed(item.Id) : markItemUnplayed(item.Id);
+      }),
     );
     invalidatePlaybackProgressCache();
     invalidateQueries();

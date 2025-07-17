@@ -2,7 +2,6 @@ import {
   type BaseItemDto,
   type MediaSourceInfo,
   PlaybackOrder,
-  type PlaybackProgressInfo,
   PlaybackStartInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
@@ -23,6 +22,7 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { useHaptic } from "@/hooks/useHaptic";
+import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules";
@@ -108,6 +108,7 @@ export default function page() {
   const [settings] = useSettings();
   const insets = useSafeAreaInsets();
   const offline = offlineStr === "true";
+  const playbackManager = usePlaybackManager();
 
   const audioIndex = audioIndexStr
     ? Number.parseInt(audioIndexStr, 10)
@@ -253,7 +254,10 @@ export default function page() {
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
-      reportPlaybackProgress();
+      playbackManager.reportPlaybackProgress(
+        item?.Id!,
+        msToTicks(progress.get()),
+      );
     } else {
       videoRef.current?.play();
       await getPlaystateApi(api!).reportPlaybackStart({
@@ -331,7 +335,10 @@ export default function page() {
 
       if (!item?.Id) return;
 
-      reportPlaybackProgress();
+      playbackManager.reportPlaybackProgress(
+        item.Id,
+        msToTicks(progress.get()),
+      );
     },
     [
       item?.Id,
@@ -350,42 +357,6 @@ export default function page() {
     const { pipStarted } = e.nativeEvent;
     setIsPipStarted(pipStarted);
   }, []);
-
-  const reportPlaybackProgress = useCallback(async () => {
-    // If offline we constant want to be writing to our local cache t
-    if (offline) {
-      const downloadedItem = downloadUtils.getDownloadedItemById(itemId);
-      if (downloadedItem) {
-        downloadedItem.item.UserData = {
-          ...downloadedItem.item.UserData,
-          PlaybackPositionTicks: msToTicks(progress.get()),
-          LastPlayedDate: new Date().toISOString(),
-          PlayedPercentage: downloadedItem.item.RunTimeTicks
-            ? (msToTicks(progress.get()) / downloadedItem.item.RunTimeTicks) *
-              100
-            : 0,
-          Played: false,
-        };
-        downloadUtils.updateDownloadedItem(itemId, downloadedItem);
-      }
-      console.log("reported playback progress", itemId, progress.get());
-      return;
-    }
-    if (!api || !stream) return;
-    await getPlaystateApi(api).reportPlaybackProgress({
-      playbackProgressInfo: currentPlayStateInfo() as PlaybackProgressInfo,
-    });
-  }, [
-    api,
-    isPlaying,
-    offline,
-    stream,
-    item?.Id,
-    audioIndex,
-    subtitleIndex,
-    mediaSourceId,
-    progress,
-  ]);
 
   /** Gets the initial playback position in seconds. */
   const startPosition = useMemo(() => {
@@ -475,14 +446,24 @@ export default function page() {
       const { state, isBuffering, isPlaying } = e.nativeEvent;
       if (state === "Playing") {
         setIsPlaying(true);
-        reportPlaybackProgress();
+        if (item?.Id) {
+          playbackManager.reportPlaybackProgress(
+            item.Id,
+            msToTicks(progress.get()),
+          );
+        }
         if (!Platform.isTV) await activateKeepAwakeAsync();
         return;
       }
 
       if (state === "Paused") {
         setIsPlaying(false);
-        reportPlaybackProgress();
+        if (item?.Id) {
+          playbackManager.reportPlaybackProgress(
+            item.Id,
+            msToTicks(progress.get()),
+          );
+        }
         if (!Platform.isTV) await deactivateKeepAwake();
         return;
       }
@@ -494,7 +475,7 @@ export default function page() {
         setIsBuffering(true);
       }
     },
-    [reportPlaybackProgress],
+    [playbackManager, item?.Id, progress],
   );
 
   const allAudio =
