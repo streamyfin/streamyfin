@@ -438,7 +438,6 @@ function useDownloadProvider() {
       await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {
         intermediates: true,
       });
-      toast.success(t("Cache directory has been cleaned."));
     } catch (_error) {
       toast.error(t("Failed to clean cache directory."));
     }

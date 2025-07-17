@@ -155,10 +155,6 @@ export const HomeIndex = () => {
       setIsConnected(state.isConnected);
     });
 
-    // cleanCacheDirectory().catch((e) =>
-    //   console.error("Something went wrong cleaning cache directory")
-    // );
-
     return () => {
       unsubscribe();
     };
