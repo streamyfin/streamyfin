@@ -13,9 +13,7 @@ export const useItemQuery = (itemId: string, isOffline: boolean) => {
     queryKey: ["item", itemId],
     queryFn: async () => {
       if (isOffline) {
-        const downloadedItem = downloadedFiles?.find(
-          (item) => item.item.Id === itemId,
-        );
+        const downloadedItem = downloadedFiles?.find((item) => item.item.Id === itemId);
         if (downloadedItem) return downloadedItem.item;
         return null;
       }

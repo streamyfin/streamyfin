@@ -267,7 +267,6 @@ export default function page() {
   };
 
   const reportPlaybackStopped = useCallback(async () => {
-    if (offline) return;
     const currentTimeInTicks = msToTicks(progress.get());
     await getPlaystateApi(api!).onPlaybackStopped({
       itemId: item?.Id!,

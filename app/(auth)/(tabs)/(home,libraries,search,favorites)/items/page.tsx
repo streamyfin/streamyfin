@@ -90,7 +90,7 @@ const Page: React.FC = () => {
         <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
         <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
       </Animated.View>
-      {item && <ItemContent />}
+      {item && <ItemContent item={item} isOffline={isOffline} />}
     </View>
   );
 };
