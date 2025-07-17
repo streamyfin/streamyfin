@@ -199,6 +199,9 @@ function useDownloadProvider() {
     refetchOnMount: true,
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
+
+    // We always want fetch, even if there is no internet.
+    networkMode: "always",
   });
 
   useEffect(() => {

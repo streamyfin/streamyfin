@@ -14,7 +14,8 @@ export const useTwoWaySync = () => {
   const user = useAtomValue(userAtom);
   const netInfo = useNetInfo();
   const { getDownloadedItemById, updateDownloadedItem } = useDownload();
-  const { reportPlaybackProgress } = usePlaybackManager();
+  const { reportPlaybackProgress, markItemUnplayed, markItemPlayed } =
+    usePlaybackManager();
 
   /**
    * Syncs the playback state of an offline item with the server.
@@ -61,6 +62,11 @@ export const useTwoWaySync = () => {
       });
       return false;
     } else {
+      // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
+      localItem.item.UserData?.Played
+        ? await markItemPlayed(localItem.item.Id!)
+        : await markItemUnplayed(localItem.item.Id!);
+
       // The local item was played more recently (i.e., while offline),
       // so we need to push its state to the server using our manager.
       await reportPlaybackProgress(

@@ -76,6 +76,7 @@ export const usePlaybackManager = () => {
           UserData: {
             ...localItem.item.UserData,
             PlaybackPositionTicks: positionTicks,
+            Played: false,
             LastPlayedDate: new Date().toISOString(),
             PlayedPercentage:
               (positionTicks / localItem.item.RunTimeTicks!) * 100,
@@ -114,7 +115,7 @@ export const usePlaybackManager = () => {
     const localItem = getDownloadedItemById(itemId);
 
     // Handle local state update for downloaded items
-    if (localItem && !isOnline) {
+    if (localItem) {
       updateDownloadedItem(itemId, {
         ...localItem,
         item: {
@@ -158,7 +159,7 @@ export const usePlaybackManager = () => {
     const localItem = getDownloadedItemById(itemId);
 
     // Handle local state update for downloaded items
-    if (localItem && !isOnline) {
+    if (localItem) {
       updateDownloadedItem(itemId, {
         ...localItem,
         item: {
