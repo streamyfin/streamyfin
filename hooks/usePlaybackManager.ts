@@ -124,6 +124,8 @@ export const usePlaybackManager = () => {
           UserData: {
             ...localItem.item.UserData,
             Played: true,
+            PlaybackPositionTicks: 0,
+            PlayedPercentage: 0,
             LastPlayedDate: new Date().toISOString(),
           },
         },
@@ -169,6 +171,7 @@ export const usePlaybackManager = () => {
             ...localItem.item.UserData,
             Played: false,
             PlaybackPositionTicks: 0,
+            PlayedPercentage: 0,
             LastPlayedDate: new Date().toISOString(), // Keep track of when it was marked unplayed
           },
         },

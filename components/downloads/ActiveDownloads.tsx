@@ -65,24 +65,23 @@ interface DownloadCardProps extends TouchableOpacityProps {
 const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const { startDownload, removeProcess } = useDownload();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const cancelJobMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!process) throw new Error("No active download");
+      const tasks = await BackGroundDownloader.checkForExistingDownloads();
 
-      try {
-        const tasks = await BackGroundDownloader.checkForExistingDownloads();
-        for (const task of tasks) {
-          if (task.id === id) {
-            task.stop();
-          }
+      for (const task of tasks) {
+        if (task.id === id) {
+          await task.stop();
         }
-      } finally {
-        await removeProcess(id);
       }
+      removeProcess(id);
     },
     onSuccess: () => {
       toast.success(t("home.downloads.toasts.download_cancelled"));
+      queryClient.invalidateQueries({ queryKey: ["downloads"] });
     },
     onError: (e) => {
       console.error(e);

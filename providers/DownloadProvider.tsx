@@ -9,13 +9,13 @@ import * as FileSystem from "expo-file-system";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
-import type React from "react";
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { AppState, type AppStateStatus } from "react-native";
@@ -76,9 +76,6 @@ const calculateSpeed = (
 
 export const processesAtom = atom<JobStatus[]>([]);
 const DOWNLOADS_DATABASE_KEY = "downloads.v2.json";
-function onAppStateChange(status: AppStateStatus) {
-  focusManager.setFocused(status === "active");
-}
 
 const DownloadContext = createContext<ReturnType<
   typeof useDownloadProvider
@@ -108,12 +105,11 @@ function useDownloadProvider() {
       });
 
     const currentProcesses = [...processes, ...missingProcesses];
-
     const updatedProcesses = currentProcesses.map((p) => {
       // fallback. Doesn't really work for transcodes as they may be a lot smaller.
       // We make an wild guess by comparing bitrates
       const task = tasks.find((s) => s.id === p.id);
-      if (task) {
+      if (task && p.status === "downloading") {
         const estimatedSize = calculateEstimatedSize(p);
         let progress = p.progress;
         if (estimatedSize > 0) {
@@ -168,9 +164,9 @@ function useDownloadProvider() {
         prev.map((p) =>
           p.id === processId
             ? {
-                ...p,
-                ...newStatus,
-              }
+              ...p,
+              ...newStatus,
+            }
             : p,
         ),
       );
@@ -205,18 +201,9 @@ function useDownloadProvider() {
     networkMode: "always",
   });
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", onAppStateChange);
-
-    return () => subscription.remove();
-  }, []);
-
-  const removeProcess = useCallback(
-    async (id: string) => {
-      setProcesses((prev) => prev.filter((process) => process.id !== id));
-    },
-    [setProcesses],
-  );
+  const removeProcess = useCallback((id: string) => {
+    setProcesses((prev) => prev.filter((process) => process.id !== id));
+  }, [setProcesses]);
 
   const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;
 
@@ -309,7 +296,7 @@ function useDownloadProvider() {
       });
 
       BackGroundDownloader?.setConfig({
-        isLogsEnabled: true,
+        isLogsEnabled: false,
         progressInterval: 500,
         headers: {
           Authorization: authHeader,
@@ -331,11 +318,10 @@ function useDownloadProvider() {
         })
         .progress((data) => {
           const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
-          console.log("Progress:", percent);
           updateProcess(process.id, {
             speed: undefined,
             status: "downloading",
-            progress: 50,
+            progress: percent,
           });
         })
         .done(async () => {
@@ -409,11 +395,19 @@ function useDownloadProvider() {
           );
           BackGroundDownloader.completeHandler(process.id);
           removeProcess(process.id);
+          const itemName =
+            process.item.Type === "Episode" &&
+              process.item.SeriesName &&
+              process.item.ParentIndexNumber != null &&
+              process.item.IndexNumber != null
+              ? `${process.item.SeriesName} - S${String(process.item.ParentIndexNumber).padStart(2, "0")}E${String(process.item.IndexNumber).padStart(2, "0")} - ${process.item.Name}`
+              : process.item.Name;
+
           await Notifications.scheduleNotificationAsync({
             content: {
               title: t("home.downloads.toasts.download_completed"),
               body: t("home.downloads.toasts.download_completed_for_item", {
-                item: process.item.Name,
+                item: itemName,
               }),
               data: {
                 url: `/items/${process.item.Id}`,
@@ -436,10 +430,10 @@ function useDownloadProvider() {
   );
 
   const manageDownloadQueue = useCallback(() => {
-    const activeDownloads = processes.filter(
-      (p) => p.status === "downloading",
-    ).length;
+    const activeDownloads = processes.filter((p) => p.status === "downloading").length;
     const concurrentLimit = settings?.remuxConcurrentLimit || 1;
+    console.log("processes", processes.map((p) => p.status));
+
     if (activeDownloads < concurrentLimit) {
       const queuedDownload = processes.find((p) => p.status === "queued");
       if (queuedDownload) {
@@ -582,7 +576,7 @@ function useDownloadProvider() {
   const deleteItems = async (items: BaseItemDto[]) => {
     for (const item of items) {
       if (item.Id && (item.Type === "Movie" || item.Type === "Episode")) {
-        deleteFile(item.Id, item.Type);
+        await deleteFile(item.Id, item.Type);
       }
     }
   };
@@ -671,7 +665,6 @@ function useDownloadProvider() {
     deleteFile,
     deleteItems,
     removeProcess,
-    setProcesses,
     startDownload,
     deleteFileByType,
     getDownloadedItemSize,

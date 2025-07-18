@@ -6,6 +6,7 @@ import { useGlobalSearchParams } from "expo-router";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -183,7 +184,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   }
 
   return (
-    <View
+    <SafeAreaView
       style={{
         position: "absolute",
         backgroundColor: "black",
@@ -211,10 +212,8 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           />
         )}
         <TouchableOpacity
-          onPress={async () => {
-            close();
-          }}
-          className='aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2'
+          onPress={close}
+          className='aspect-square flex flex-col l items-center justify-center p-2'
         >
           <Ionicons name='close' size={24} color='white' />
         </TouchableOpacity>
@@ -228,9 +227,8 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           <View
             key={_item.Id}
             style={{}}
-            className={`flex flex-col w-44 ${
-              item.Id !== _item.Id ? "opacity-75" : ""
-            }`}
+            className={`flex flex-col w-44 ${item.Id !== _item.Id ? "opacity-75" : ""
+              }`}
           >
             <TouchableOpacity
               onPress={() => {
@@ -260,11 +258,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
                 {runtimeTicksToSeconds(_item.RunTimeTicks)}
               </Text>
             </View>
-            {!isOffline && (
-              <View className='self-start mt-2'>
-                <DownloadSingleItem item={_item} />
-              </View>
-            )}
             <Text numberOfLines={5} className='text-xs text-neutral-500 shrink'>
               {_item.Overview}
             </Text>
@@ -274,6 +267,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         estimatedItemSize={200}
         showsHorizontalScrollIndicator={false}
       />
-    </View>
+    </SafeAreaView>
   );
 };

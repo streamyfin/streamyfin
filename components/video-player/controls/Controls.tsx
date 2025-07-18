@@ -527,9 +527,8 @@ export const Controls: FC<Props> = ({
             fontSize: 16,
           }}
         >
-          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${
-            time.seconds < 10 ? `0${time.seconds}` : time.seconds
-          }`}
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${time.seconds < 10 ? `0${time.seconds}` : time.seconds
+            }`}
         </Text>
       </View>
     );
@@ -644,10 +643,9 @@ export const Controls: FC<Props> = ({
                   color='white'
                 />
               </TouchableOpacity>
-              {/* )} */}
               <TouchableOpacity
                 onPress={onClose}
-                className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+                className='aspect-square flex flex-col l items-center justify-center p-2'
               >
                 <Ionicons name='close' size={24} color='white' />
               </TouchableOpacity>
@@ -822,19 +820,19 @@ export const Controls: FC<Props> = ({
                 />
                 {(settings.maxAutoPlayEpisodeCount.value === -1 ||
                   settings.autoPlayEpisodeCount <
-                    settings.maxAutoPlayEpisodeCount.value) && (
-                  <NextEpisodeCountDownButton
-                    show={
-                      !nextItem
-                        ? false
-                        : isVlc
-                          ? remainingTime < 10000
-                          : remainingTime < 10
-                    }
-                    onFinish={handleNextEpisodeAutoPlay}
-                    onPress={handleNextEpisodeManual}
-                  />
-                )}
+                  settings.maxAutoPlayEpisodeCount.value) && (
+                    <NextEpisodeCountDownButton
+                      show={
+                        !nextItem
+                          ? false
+                          : isVlc
+                            ? remainingTime < 10000
+                            : remainingTime < 10
+                      }
+                      onFinish={handleNextEpisodeAutoPlay}
+                      onPress={handleNextEpisodeManual}
+                    />
+                  )}
               </View>
             </View>
             <View

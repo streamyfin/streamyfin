@@ -14,7 +14,7 @@ import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Platform, View, type ViewProps } from "react-native";
+import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -55,6 +55,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [user] = useAtom(userAtom);
   const [queue, setQueue] = useAtom(queueAtom);
   const [settings] = useSettings();
+  const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
   const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
 
@@ -95,6 +96,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
     [items, downloadedFiles],
   );
+
+  const itemsToDownload = useMemo(() => {
+    if (downloadUnwatchedOnly) {
+      return itemsNotDownloaded.filter((item) => !item.UserData?.Played);
+    }
+    return itemsNotDownloaded;
+  }, [itemsNotDownloaded, downloadUnwatchedOnly]);
 
   const allItemsDownloaded = useMemo(() => {
     if (items.length === 0) return false;
@@ -138,30 +146,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     );
   };
 
-  const acceptDownloadOptions = useCallback(() => {
-    if (userCanDownload === true) {
-      if (itemsNotDownloaded.some((i) => !i.Id)) {
-        throw new Error("No item id");
-      }
-      closeModal();
-
-      initiateDownload(...itemsNotDownloaded);
-    } else {
-      toast.error(
-        t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
-      );
-    }
-  }, [
-    queue,
-    setQueue,
-    itemsNotDownloaded,
-    userCanDownload,
-    maxBitrate,
-    selectedMediaSource,
-    selectedAudioStream,
-    selectedSubtitleStream,
-  ]);
-
   const initiateDownload = useCallback(
     async (...items: BaseItemDto[]) => {
       if (
@@ -174,18 +158,15 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           "DownloadItem ~ initiateDownload: No api or user or item",
         );
       }
-      let mediaSource = selectedMediaSource;
-      let audioIndex: number | undefined = selectedAudioStream;
-      let subtitleIndex: number | undefined = selectedSubtitleStream;
-
-      for (const item of items) {
-        if (itemsNotDownloaded.length > 1) {
-          const defaults = getDefaultPlaySettings(item, settings!);
-          mediaSource = defaults.mediaSource;
-          audioIndex = defaults.audioIndex;
-          subtitleIndex = defaults.subtitleIndex;
-        }
-
+      const downloadDetailsPromises = items.map(async (item) => {
+        const { mediaSource, audioIndex, subtitleIndex } =
+          itemsNotDownloaded.length > 1
+            ? getDefaultPlaySettings(item, settings!)
+            : {
+              mediaSource: selectedMediaSource,
+              audioIndex: selectedAudioStream,
+              subtitleIndex: selectedSubtitleStream,
+            };
         const res = await getStreamUrl({
           api,
           item,
@@ -198,7 +179,10 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           deviceProfile: download,
           download: true,
         });
-
+        return { res, item };
+      });
+      const downloadDetails = await Promise.all(downloadDetailsPromises);
+      for (const { res, item } of downloadDetails) {
         if (!res) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
@@ -206,11 +190,16 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
-
         const { mediaSource: source, url } = res;
-
-        if (!url || !source) throw new Error("No url");
-
+        if (!url || !source) {
+          console.error(`Could not get download URL for ${item.Name}`);
+          toast.error(
+            t("Could not get download URL for {{itemName}}", {
+              itemName: item.Name,
+            }),
+          );
+          continue;
+        }
         await startBackgroundDownload(url, item, source, maxBitrate);
       }
     },
@@ -226,6 +215,26 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       startBackgroundDownload,
     ],
   );
+
+  const acceptDownloadOptions = useCallback(() => {
+    if (userCanDownload === true) {
+      if (itemsToDownload.some((i) => !i.Id)) {
+        throw new Error("No item id");
+      }
+      closeModal();
+
+      initiateDownload(...itemsToDownload);
+    } else {
+      toast.error(
+        t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
+      );
+    }
+  }, [
+    closeModal,
+    initiateDownload,
+    itemsToDownload,
+    userCanDownload,
+  ]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -316,7 +325,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               <Text className='text-neutral-300'>
                 {subtitle ||
                   t("item_card.download.download_x_item", {
-                    item_count: itemsNotDownloaded.length,
+                    item_count: itemsToDownload.length,
                   })}
               </Text>
             </View>
@@ -326,6 +335,17 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 onChange={setMaxBitrate}
                 selected={maxBitrate}
               />
+              {itemsNotDownloaded.length > 1 && (
+                <View className='flex flex-row items-center justify-between w-full py-2'>
+                  <Text>
+                    {t("item_card.download.download_unwatched_only")}
+                  </Text>
+                  <Switch
+                    onValueChange={setDownloadUnwatchedOnly}
+                    value={downloadUnwatchedOnly}
+                  />
+                </View>
+              )}
               {itemsNotDownloaded.length === 1 && (
                 <>
                   <MediaSourceSelector
@@ -350,6 +370,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 </>
               )}
             </View>
+
             <Button
               className='mt-auto'
               onPress={acceptDownloadOptions}

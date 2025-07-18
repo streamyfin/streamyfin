@@ -69,10 +69,15 @@ const page: React.FC = () => {
         seriesId: item?.Id!,
         userId: user?.Id!,
         enableUserData: true,
-        fields: ["MediaSources", "MediaStreams", "Overview"],
+        // Note: Including trick play is necessary to enable trick play downloads
+        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
       });
       return res?.data.Items || [];
     },
+    select: (data) =>
+      [...(data || [])].sort(
+        (a, b) => (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) || (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0)
+      ),
     staleTime: 60,
     enabled: !!api && !!user?.Id && !!item?.Id,
   });
