@@ -313,7 +313,8 @@ export const Controls: FC<Props> = ({
       if (offline) {
         const queryParams = new URLSearchParams({
           itemId: itemId,
-          playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "",
+          playbackPosition:
+            item.UserData?.PlaybackPositionTicks?.toString() ?? "",
         }).toString();
         // @ts-expect-error
         router.replace(`player/direct-player?${queryParams}`);
@@ -406,7 +407,6 @@ export const Controls: FC<Props> = ({
   const handleSliderChange = useCallback(
     debounce((value: number) => {
       const progressInTicks = isVlc ? msToTicks(value) : value;
-      console.log("handleSliderChange", progressInTicks);
       calculateTrickplayUrl(progressInTicks);
       const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
       const hours = Math.floor(progressInSeconds / 3600);
@@ -527,8 +527,9 @@ export const Controls: FC<Props> = ({
             fontSize: 16,
           }}
         >
-          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${time.seconds < 10 ? `0${time.seconds}` : time.seconds
-            }`}
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${
+            time.seconds < 10 ? `0${time.seconds}` : time.seconds
+          }`}
         </Text>
       </View>
     );
@@ -821,19 +822,19 @@ export const Controls: FC<Props> = ({
                 />
                 {(settings.maxAutoPlayEpisodeCount.value === -1 ||
                   settings.autoPlayEpisodeCount <
-                  settings.maxAutoPlayEpisodeCount.value) && (
-                    <NextEpisodeCountDownButton
-                      show={
-                        !nextItem
-                          ? false
-                          : isVlc
-                            ? remainingTime < 10000
-                            : remainingTime < 10
-                      }
-                      onFinish={handleNextEpisodeAutoPlay}
-                      onPress={handleNextEpisodeManual}
-                    />
-                  )}
+                    settings.maxAutoPlayEpisodeCount.value) && (
+                  <NextEpisodeCountDownButton
+                    show={
+                      !nextItem
+                        ? false
+                        : isVlc
+                          ? remainingTime < 10000
+                          : remainingTime < 10
+                    }
+                    onFinish={handleNextEpisodeAutoPlay}
+                    onPress={handleNextEpisodeManual}
+                  />
+                )}
               </View>
             </View>
             <View

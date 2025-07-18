@@ -380,8 +380,6 @@ function useProtectedRoute(user: UserDto | null, loaded = false) {
   useEffect(() => {
     if (loaded === false) return;
 
-    console.log("Loaded", user);
-
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!user?.Id && inAuthGroup) {

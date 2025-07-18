@@ -1,8 +1,8 @@
-import { Bitrate } from "@/components/BitrateSelector";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { Bitrate } from "@/components/BitrateSelector";
 
 /**
  * Represents the data for downloaded trickplay files.
@@ -101,7 +101,13 @@ export type JobStatus = {
   itemId: string;
   deviceId: string;
   progress: number;
-  status: "downloading" | "paused" | "error" | "pending" | "completed";
+  status:
+    | "downloading"
+    | "paused"
+    | "error"
+    | "pending"
+    | "completed"
+    | "queued";
   timestamp: Date;
   mediaSource: MediaSourceInfo;
   maxBitrate: Bitrate;

@@ -5,8 +5,9 @@ import type {
 import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
 import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Application from "expo-application";
-import type { FileInfo } from "expo-file-system";
 import * as FileSystem from "expo-file-system";
+import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
 import type React from "react";
 import {
@@ -22,19 +23,19 @@ import { toast } from "sonner-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import useImageStorage from "@/hooks/useImageStorage";
 import { useInterval } from "@/hooks/useInterval";
+import { generateTrickplayUrl, getTrickplayInfo } from "@/hooks/useTrickplay";
 import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
 import { getItemImage } from "@/utils/getItemImage";
 import { writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { JobStatus } from "./Downloads/types";
 import { fetchAndParseSegments } from "@/utils/segments";
-import { getTrickplayInfo, generateTrickplayUrl } from "@/hooks/useTrickplay";
 import { Bitrate } from "../components/BitrateSelector";
 import {
   DownloadedItem,
   DownloadsDatabase,
+  JobStatus,
   TrickPlayData,
 } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
@@ -90,7 +91,7 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-  const [_settings] = useSettings();
+  const [settings] = useSettings();
   const successHapticFeedback = useHaptic("success");
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
@@ -167,9 +168,9 @@ function useDownloadProvider() {
         prev.map((p) =>
           p.id === processId
             ? {
-              ...p,
-              ...newStatus,
-            }
+                ...p,
+                ...newStatus,
+              }
             : p,
         ),
       );
@@ -283,7 +284,10 @@ function useDownloadProvider() {
           totalSize += fileInfo.size;
         }
       } catch (e) {
-        console.error(`Failed to download trickplay image ${index} for item ${item.Id}`, e);
+        console.error(
+          `Failed to download trickplay image ${index} for item ${item.Id}`,
+          e,
+        );
       }
     }
 
@@ -403,10 +407,20 @@ function useDownloadProvider() {
               item: process.item.Name,
             }),
           );
-          setTimeout(() => {
-            BackGroundDownloader.completeHandler(process.id);
-            removeProcess(process.id);
-          }, 1000);
+          BackGroundDownloader.completeHandler(process.id);
+          removeProcess(process.id);
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: t("home.downloads.toasts.download_completed"),
+              body: t("home.downloads.toasts.download_completed_for_item", {
+                item: process.item.Name,
+              }),
+              data: {
+                url: `/items/${process.item.Id}`,
+              },
+            },
+            trigger: null,
+          });
         })
         .error((error) => {
           console.error("Download error:", error);
@@ -420,6 +434,23 @@ function useDownloadProvider() {
     },
     [authHeader, queryClient],
   );
+
+  const manageDownloadQueue = useCallback(() => {
+    const activeDownloads = processes.filter(
+      (p) => p.status === "downloading",
+    ).length;
+    const concurrentLimit = settings?.remuxConcurrentLimit || 1;
+    if (activeDownloads < concurrentLimit) {
+      const queuedDownload = processes.find((p) => p.status === "queued");
+      if (queuedDownload) {
+        startDownload(queuedDownload);
+      }
+    }
+  }, [processes, settings?.remuxConcurrentLimit, startDownload]);
+
+  useEffect(() => {
+    manageDownloadQueue();
+  }, [processes, manageDownloadQueue]);
 
   /**
    * Cleans the cache directory.
@@ -466,16 +497,23 @@ function useDownloadProvider() {
           itemId: item.Id!,
           mediaSource,
           progress: 0,
-          status: "downloading",
+          status: "queued",
           timestamp: new Date(),
         };
         setProcesses((prev) => [...prev, job]);
-        startDownload(job);
-
         toast.success(
           t("home.downloads.toasts.download_stated_for_item", {
             item: item.Name,
           }),
+          {
+            action: {
+              label: t("home.downloads.toasts.go_to_downloads"),
+              onClick: () => {
+                router.push("/downloads");
+                toast.dismiss();
+              },
+            },
+          },
         );
       } catch (error) {
         writeToLog("ERROR", "Error in startBackgroundDownload", error);
@@ -544,27 +582,15 @@ function useDownloadProvider() {
   const deleteItems = async (items: BaseItemDto[]) => {
     for (const item of items) {
       if (item.Id && (item.Type === "Movie" || item.Type === "Episode")) {
-        await deleteFile(item.Id, item.Type);
+        deleteFile(item.Id, item.Type);
       }
     }
   };
 
+  /** Deletes all files */
   const deleteAllFiles = async (): Promise<void> => {
-    const db = getDownloadsDatabase();
-    const allItems = [
-      ...Object.values(db.movies),
-      ...Object.values(db.series).flatMap((series) =>
-        Object.values(series.seasons).flatMap((season) =>
-          Object.values(season.episodes),
-        ),
-      ),
-    ];
-
-    for (const item of allItems) {
-      await FileSystem.deleteAsync(item.videoFilePath, { idempotent: true });
-    }
-
-    await saveDownloadsDatabase({ movies: {}, series: {} } as DownloadsDatabase);
+    await deleteFileByType("Movie");
+    await deleteFileByType("Episode");
     toast.success(
       t(
         "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully",
@@ -572,64 +598,15 @@ function useDownloadProvider() {
     );
   };
 
-  const forEveryDocumentDirFile = async (
-    includeMMKV: boolean,
-    ignoreList: string[],
-    callback: (file: FileInfo) => void,
-  ) => {
-    const baseDirectory = FileSystem.documentDirectory;
-    if (!baseDirectory) {
-      throw new Error("Base directory not found");
-    }
-
-    const dirContents = await FileSystem.readDirectoryAsync(baseDirectory);
-    for (const item of dirContents) {
-      // Exclude mmkv directory.
-      // Deleting this deletes all user information as well. Logout should handle this.
-      if (
-        (item === "mmkv" && !includeMMKV) ||
-        ignoreList.some((i) => item.includes(i))
-      ) {
-        continue;
-      }
-      await FileSystem.getInfoAsync(`${baseDirectory}${item}`)
-        .then((itemInfo) => {
-          if (itemInfo.exists && !itemInfo.isDirectory) {
-            callback(itemInfo);
-          }
-        })
-        .catch((e) => console.error(e));
-    }
-  };
-
-  /** Deletes all files in the document directory */
-  const _deleteLocalFiles = async (): Promise<void> => {
-    await forEveryDocumentDirFile(false, [], (file) => {
-      console.warn("Deleting file", file.uri);
-      FileSystem.deleteAsync(file.uri, { idempotent: true });
-    });
-  };
-
-  /** Removes downloaded items from storage */
-  const _removeDownloadedItemsFromStorage = async () => {
-    // delete any saved images first
-    Promise.all([deleteFileByType("Movie"), deleteFileByType("Episode")])
-      .then(() => storage.delete("downloadedItems"))
-      .catch((reason) => {
-        console.error("Failed to remove downloadedItems from storage:", reason);
-        throw reason;
-      });
-  };
-
+  /** Deletes all files of a given type. */
   const deleteFileByType = async (type: BaseItemDto["Type"]) => {
     const itemsToDelete = downloadedItems?.filter(
       (file) => file.item.Type === type,
     );
-    if (itemsToDelete) {
-      await deleteItems(itemsToDelete.map((i) => i.item));
-    }
+    if (itemsToDelete) await deleteItems(itemsToDelete.map((i) => i.item));
   };
 
+  /** Returns the size of a downloaded item. */
   const getDownloadedItemSize = (itemId: string): number => {
     const downloadedItem = getDownloadedItemById(itemId);
     if (!downloadedItem) return 0;
@@ -638,6 +615,7 @@ function useDownloadProvider() {
     return downloadedItem.videoFileSize + trickplaySize;
   };
 
+  /** Updates a downloaded item. */
   const updateDownloadedItem = (
     itemId: string,
     updatedItem: DownloadedItem,
@@ -658,6 +636,32 @@ function useDownloadProvider() {
     }
     saveDownloadsDatabase(db);
   };
+
+  /**
+   * Returns the size of the app and the remaining space on the device.
+   * @returns The size of the app and the remaining space on the device.
+   */
+  const appSizeUsage = async () => {
+    const [total, remaining] = await Promise.all([
+      FileSystem.getTotalDiskCapacityAsync(),
+      FileSystem.getFreeDiskStorageAsync(),
+    ]);
+
+    let appSize = 0;
+    const downloadedFiles = await FileSystem.readDirectoryAsync(
+      `${FileSystem.documentDirectory!}`,
+    );
+    for (const file of downloadedFiles) {
+      const fileInfo = await FileSystem.getInfoAsync(
+        `${FileSystem.documentDirectory!}${file}`,
+      );
+      if (fileInfo.exists) {
+        appSize += fileInfo.size;
+      }
+    }
+    return { total, remaining, app: appSize };
+  };
+
   return {
     processes,
     startBackgroundDownload,
@@ -675,6 +679,7 @@ function useDownloadProvider() {
     APP_CACHE_DOWNLOAD_DIRECTORY,
     cleanCacheDirectory,
     updateDownloadedItem,
+    appSizeUsage,
   };
 }
 
