@@ -22,20 +22,6 @@ interface UserData {
   audioStreamIndex: number;
 }
 
-export interface SyncPolicy {
-  type: "series" | "movie";
-  id: string; // SeriesId or MovieId
-  rule: "next_unwatched" | "all";
-  limit?: number;
-}
-
-export enum SyncStatus {
-  SYNCED = "synced",
-  PENDING_DOWNLOAD = "pending_download",
-  PENDING_DELETION = "pending_deletion",
-  ERROR = "error",
-}
-
 /** Represents a segment of time in a media item, used for intro/credit skipping. */
 export interface MediaTimeSegment {
   startTime: number;
@@ -108,5 +94,4 @@ export interface DownloadsDatabase {
   movies: Record<string, DownloadedItem>;
   /** A map of series IDs to their downloaded series data. */
   series: Record<string, DownloadedSeries>;
-  syncPolicies: SyncPolicy[];
 }
