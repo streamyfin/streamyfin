@@ -10,7 +10,6 @@ npm-debug.*
 *.orig.*
 web-build/
 modules/vlc-player/android/build
-modules/vlc-player/android/.gradle
 
 # macOS
 .DS_Store
