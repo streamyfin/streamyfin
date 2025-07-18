@@ -22,7 +22,6 @@ import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
 import download from "@/utils/profiles/download";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
@@ -83,7 +82,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((_index: number) => {}, []);
+  const handleSheetChanges = useCallback((_index: number) => { }, []);
 
   const closeModal = useCallback(() => {
     bottomSheetModalRef.current?.dismiss();
@@ -131,11 +130,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       firstItem.Type !== "Episode"
         ? "/downloads"
         : ({
-            pathname: `/downloads/${firstItem.SeriesId}`,
-            params: {
-              episodeSeasonIndex: firstItem.ParentIndexNumber,
-            },
-          } as Href),
+          pathname: `/downloads/${firstItem.SeriesId}`,
+          params: {
+            episodeSeasonIndex: firstItem.ParentIndexNumber,
+          },
+        } as Href),
     );
   };
 
@@ -212,7 +211,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         if (!url || !source) throw new Error("No url");
 
-        saveDownloadItemInfoToDiskTmp(item, source, url);
         await startBackgroundDownload(url, item, source, maxBitrate);
       }
     },

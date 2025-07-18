@@ -3,7 +3,7 @@ import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 import { processesAtom } from "@/providers/DownloadProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import type { JobStatus } from "@/utils/optimize-server";
+import { JobStatus } from "@/providers/Downloads/types";
 
 export interface Job {
   id: string;

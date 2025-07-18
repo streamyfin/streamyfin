@@ -28,9 +28,9 @@ import useDownloadHelper from "@/utils/download";
 import { getItemImage } from "@/utils/getItemImage";
 import { writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { type JobStatus } from "@/utils/optimize-server";
+import { JobStatus } from "./Downloads/types";
 import { fetchAndParseSegments } from "@/utils/segments";
-import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
+import { getTrickplayInfo, generateTrickplayUrl } from "@/hooks/useTrickplay";
 import { Bitrate } from "../components/BitrateSelector";
 import {
   DownloadedItem,
@@ -167,9 +167,9 @@ function useDownloadProvider() {
         prev.map((p) =>
           p.id === processId
             ? {
-                ...p,
-                ...newStatus,
-              }
+              ...p,
+              ...newStatus,
+            }
             : p,
         ),
       );
@@ -268,18 +268,12 @@ function useDownloadProvider() {
     }
 
     const filename = generateFilename(item);
-    const trickplayDir = `${
-      FileSystem.documentDirectory
-    }${filename}_trickplay/`;
+    const trickplayDir = `${FileSystem.documentDirectory}${filename}_trickplay/`;
     await FileSystem.makeDirectoryAsync(trickplayDir, { intermediates: true });
     let totalSize = 0;
 
     for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
-      const url = generateTrickplayUrl(
-        item.Id,
-        trickplayInfo.resolution,
-        index,
-      );
+      const url = generateTrickplayUrl(item, index);
       if (!url) continue;
       const destination = `${trickplayDir}${index}.jpg`;
       try {
@@ -289,10 +283,7 @@ function useDownloadProvider() {
           totalSize += fileInfo.size;
         }
       } catch (e) {
-        console.error(
-          `Failed to download trickplay image ${index} for item ${item.Id}`,
-          e,
-        );
+        console.error(`Failed to download trickplay image ${index} for item ${item.Id}`, e);
       }
     }
 
@@ -573,7 +564,7 @@ function useDownloadProvider() {
       await FileSystem.deleteAsync(item.videoFilePath, { idempotent: true });
     }
 
-    await saveDownloadsDatabase({ movies: {}, series: {} });
+    await saveDownloadsDatabase({ movies: {}, series: {} } as DownloadsDatabase);
     toast.success(
       t(
         "home.downloads.toasts.all_files_folders_and_jobs_deleted_successfully",

@@ -136,7 +136,7 @@ const page: React.FC = () => {
               resizeMode: "contain",
             }}
           />
-        ) : null
+        ) : undefined
       }
     >
       <View className='flex flex-col pt-4'>

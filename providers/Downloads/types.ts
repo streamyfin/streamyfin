@@ -1,3 +1,4 @@
+import { Bitrate } from "@/components/BitrateSelector";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -52,13 +53,7 @@ export interface DownloadedItem {
   /** The credit segments for the item. */
   creditSegments?: MediaTimeSegment[];
   /** The user data for the item. */
-  offlineUserData: {
-    audioStreamIndex: number;
-    subtitleStreamIndex: number;
-  };
-  syncStatus: SyncStatus;
-  lastSyncedAt: string;
-  serverEtag?: string;
+  userData: UserData;
 }
 
 /**
@@ -95,3 +90,23 @@ export interface DownloadsDatabase {
   /** A map of series IDs to their downloaded series data. */
   series: Record<string, DownloadedSeries>;
 }
+
+/**
+ * Represents the status of a download job.
+ */
+export type JobStatus = {
+  id: string;
+  inputUrl: string;
+  item: BaseItemDto;
+  itemId: string;
+  deviceId: string;
+  progress: number;
+  status: "downloading" | "paused" | "error" | "pending" | "completed";
+  timestamp: Date;
+  mediaSource: MediaSourceInfo;
+  maxBitrate: Bitrate;
+  bytesDownloaded?: number;
+  lastProgressUpdateTime?: Date;
+  speed?: number;
+  estimatedTotalSizeBytes?: number;
+};

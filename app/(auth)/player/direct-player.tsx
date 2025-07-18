@@ -611,7 +611,6 @@ export default function page() {
           setSubtitleURL={videoRef.current.setSubtitleURL}
           setAudioTrack={videoRef.current.setAudioTrack}
           isVlc
-          downloadedItem={downloadedItem}
         />
       ) : null}
     </View>

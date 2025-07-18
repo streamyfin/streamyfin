@@ -20,6 +20,7 @@ export const usePlaybackManager = () => {
   const netInfo = useNetInfo();
   const { getDownloadedItemById, updateDownloadedItem } = useDownload();
 
+  /** Whether the device is online. actually it's connected to the internet. */
   const isOnline = netInfo.isConnected;
 
   /**

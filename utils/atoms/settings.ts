@@ -81,7 +81,6 @@ export type DefaultLanguageOption = {
 
 export enum DownloadMethod {
   Remux = "remux",
-  Optimized = "optimized",
 }
 
 export type Home = {
@@ -154,7 +153,6 @@ export type Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
   rewindSkipTime: number;
-  optimizedVersionsServerUrl?: string | null;
   downloadMethod: DownloadMethod;
   autoDownload: boolean;
   showCustomMenuLinks: boolean;
@@ -211,7 +209,6 @@ const defaultValues: Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,
   rewindSkipTime: 10,
-  optimizedVersionsServerUrl: null,
   downloadMethod: DownloadMethod.Remux,
   autoDownload: false,
   showCustomMenuLinks: false,
@@ -222,7 +219,7 @@ const defaultValues: Settings = {
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
+  defaultPlayer: VideoPlayer.VLC_4, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
 };

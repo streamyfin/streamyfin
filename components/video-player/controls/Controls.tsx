@@ -90,7 +90,6 @@ interface Props {
   setSubtitleTrack?: (index: number) => void;
   setAudioTrack?: (index: number) => void;
   isVlc?: boolean;
-  downloadedItem?: DownloadedItem | null;
 }
 
 const CONTROLS_TIMEOUT = 4000;
@@ -120,7 +119,6 @@ export const Controls: FC<Props> = ({
   setAudioTrack,
   offline = false,
   isVlc = false,
-  downloadedItem = null,
 }) => {
   const [settings, updateSettings] = useSettings();
   const router = useRouter();
@@ -143,7 +141,7 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     trickplayInfo,
     prefetchAllTrickplayImages,
-  } = useTrickplay(item, downloadedItem);
+  } = useTrickplay(item);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(Number.POSITIVE_INFINITY);
@@ -312,21 +310,17 @@ export const Controls: FC<Props> = ({
 
   const goToItem = useCallback(
     async (itemId: string) => {
-      if (downloadedItem) {
+      if (offline) {
         const queryParams = new URLSearchParams({
           itemId: itemId,
-          playbackPosition:
-            item.UserData?.PlaybackPositionTicks?.toString() ?? "",
+          playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "",
         }).toString();
-
         // @ts-expect-error
         router.replace(`player/direct-player?${queryParams}`);
         return;
       }
       const gotoItem = await getItemById(api, itemId);
-      if (!gotoItem) {
-        return;
-      }
+      if (!gotoItem) return;
       goToItemCommon(gotoItem);
     },
     [goToItemCommon, api],
@@ -533,9 +527,8 @@ export const Controls: FC<Props> = ({
             fontSize: 16,
           }}
         >
-          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${
-            time.seconds < 10 ? `0${time.seconds}` : time.seconds
-          }`}
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${time.seconds < 10 ? `0${time.seconds}` : time.seconds
+            }`}
         </Text>
       </View>
     );
@@ -828,19 +821,19 @@ export const Controls: FC<Props> = ({
                 />
                 {(settings.maxAutoPlayEpisodeCount.value === -1 ||
                   settings.autoPlayEpisodeCount <
-                    settings.maxAutoPlayEpisodeCount.value) && (
-                  <NextEpisodeCountDownButton
-                    show={
-                      !nextItem
-                        ? false
-                        : isVlc
-                          ? remainingTime < 10000
-                          : remainingTime < 10
-                    }
-                    onFinish={handleNextEpisodeAutoPlay}
-                    onPress={handleNextEpisodeManual}
-                  />
-                )}
+                  settings.maxAutoPlayEpisodeCount.value) && (
+                    <NextEpisodeCountDownButton
+                      show={
+                        !nextItem
+                          ? false
+                          : isVlc
+                            ? remainingTime < 10000
+                            : remainingTime < 10
+                      }
+                      onFinish={handleNextEpisodeAutoPlay}
+                      onPress={handleNextEpisodeManual}
+                    />
+                  )}
               </View>
             </View>
             <View

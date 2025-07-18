@@ -15,9 +15,8 @@ import {
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { JobStatus } from "@/providers/Downloads/types";
 import { storage } from "@/utils/mmkv";
-import type { JobStatus } from "@/utils/optimize-server";
 import { formatTimeString } from "@/utils/time";
 import { Button } from "../Button";
 
@@ -25,7 +24,7 @@ const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
 
-interface Props extends ViewProps {}
+interface Props extends ViewProps { }
 
 const bytesToMB = (bytes: number) => {
   return bytes / 1024 / 1024;
@@ -66,10 +65,6 @@ interface DownloadCardProps extends TouchableOpacityProps {
 const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const { startDownload, removeProcess } = useDownload();
   const router = useRouter();
-  const [settings] = useSettings();
-  const queryClient = useQueryClient();
-
-  console.log("process", process.progress);
 
   const cancelJobMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -84,9 +79,6 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
         }
       } finally {
         await removeProcess(id);
-        if (settings?.downloadMethod === DownloadMethod.Optimized) {
-          await queryClient.refetchQueries({ queryKey: ["jobs"] });
-        }
       }
     },
     onSuccess: () => {

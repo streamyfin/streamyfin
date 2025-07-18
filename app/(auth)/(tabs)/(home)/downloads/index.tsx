@@ -22,7 +22,7 @@ import { SeriesCard } from "@/components/downloads/SeriesCard";
 import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { queueAtom } from "@/utils/atoms/queue";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
 
 function migration_20241124(
@@ -51,8 +51,7 @@ export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const { deleteFileByType, downloadedFiles, removeProcess, deleteAllFiles } =
-    useDownload();
+  const { deleteFileByType, downloadedFiles, removeProcess, deleteAllFiles } = useDownload();
   const router = useRouter();
   const [settings] = useSettings();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -121,51 +120,49 @@ export default function page() {
         <ScrollView showsVerticalScrollIndicator={false} className='flex-1'>
           <View className='py-4'>
             <View className='mb-4 flex flex-col space-y-4 px-4'>
-              {settings?.downloadMethod === DownloadMethod.Remux && (
-                <View className='bg-neutral-900 p-4 rounded-2xl'>
-                  <Text className='text-lg font-bold'>
-                    {t("home.downloads.queue")}
-                  </Text>
-                  <Text className='text-xs opacity-70 text-red-600'>
-                    {t("home.downloads.queue_hint")}
-                  </Text>
-                  <View className='flex flex-col space-y-2 mt-2'>
-                    {queue.map((q, index) => (
+              <View className='bg-neutral-900 p-4 rounded-2xl'>
+                <Text className='text-lg font-bold'>
+                  {t("home.downloads.queue")}
+                </Text>
+                <Text className='text-xs opacity-70 text-red-600'>
+                  {t("home.downloads.queue_hint")}
+                </Text>
+                <View className='flex flex-col space-y-2 mt-2'>
+                  {queue.map((q, index) => (
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push(`/(auth)/items/page?id=${q.item.Id}`)
+                      }
+                      className='relative bg-neutral-900 border border-neutral-800 p-4 rounded-2xl overflow-hidden flex flex-row items-center justify-between'
+                      key={index}
+                    >
+                      <View>
+                        <Text className='font-semibold'>{q.item.Name}</Text>
+                        <Text className='text-xs opacity-50'>
+                          {q.item.Type}
+                        </Text>
+                      </View>
                       <TouchableOpacity
-                        onPress={() =>
-                          router.push(`/(auth)/items/page?id=${q.item.Id}`)
-                        }
-                        className='relative bg-neutral-900 border border-neutral-800 p-4 rounded-2xl overflow-hidden flex flex-row items-center justify-between'
-                        key={index}
+                        onPress={() => {
+                          removeProcess(q.id);
+                          setQueue((prev) => {
+                            if (!prev) return [];
+                            return [...prev.filter((i) => i.id !== q.id)];
+                          });
+                        }}
                       >
-                        <View>
-                          <Text className='font-semibold'>{q.item.Name}</Text>
-                          <Text className='text-xs opacity-50'>
-                            {q.item.Type}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => {
-                            removeProcess(q.id);
-                            setQueue((prev) => {
-                              if (!prev) return [];
-                              return [...prev.filter((i) => i.id !== q.id)];
-                            });
-                          }}
-                        >
-                          <Ionicons name='close' size={24} color='red' />
-                        </TouchableOpacity>
+                        <Ionicons name='close' size={24} color='red' />
                       </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {queue.length === 0 && (
-                    <Text className='opacity-50'>
-                      {t("home.downloads.no_items_in_queue")}
-                    </Text>
-                  )}
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              )}
+
+                {queue.length === 0 && (
+                  <Text className='opacity-50'>
+                    {t("home.downloads.no_items_in_queue")}
+                  </Text>
+                )}
+              </View>
 
               <ActiveDownloads />
             </View>
