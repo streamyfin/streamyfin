@@ -98,7 +98,6 @@ export default function page() {
     if (showMigration) {
       migration_20241124();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMigration]);
 
   const deleteMovies = () =>
