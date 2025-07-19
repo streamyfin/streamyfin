@@ -49,10 +49,3 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
     jvmTarget = "17"
   }
 }
-
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-  kotlinOptions {
-    freeCompilerArgs += ["-Xshow-kotlin-compiler-errors"]
-    jvmTarget = "17"
-  }
-}
