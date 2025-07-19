@@ -133,7 +133,8 @@
           "icon": "./assets/images/notification.png",
           "color": "#9333EA"
         }
-      ]
+      ],
+      "./plugins/with-runtime-framework-headers.js"
     ],
     "experiments": {
       "typedRoutes": true
