@@ -13,7 +13,7 @@ export function Text(props: TextProps) {
     );
 
   return (
-    <Text
+    <RNText
       allowFontScaling={false}
       style={[{ color: "white" }, style]}
       {...otherProps}
