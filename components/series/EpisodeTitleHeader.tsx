@@ -12,7 +12,7 @@ export const EpisodeTitleHeader: React.FC<Props> = ({ item, ...props }) => {
 
   return (
     <View {...props}>
-      <Text uiTextView className='font-bold text-2xl' selectable>
+      <Text className='font-bold text-2xl' selectable>
         {item?.Name}
       </Text>
       <View className='flex flex-row items-center mb-1'>

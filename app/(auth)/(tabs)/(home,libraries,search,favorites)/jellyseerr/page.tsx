@@ -219,11 +219,7 @@ const Page: React.FC = () => {
                         | TvDetails
                     }
                   />
-                  <Text
-                    uiTextView
-                    selectable
-                    className='font-bold text-2xl mb-1'
-                  >
+                  <Text selectable className='font-bold text-2xl mb-1'>
                     {mediaTitle}
                   </Text>
                   <Text className='opacity-50'>{releaseYear}</Text>
