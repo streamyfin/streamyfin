@@ -1,11 +1,11 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useAtom } from "jotai";
+import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import {
   genreFilterAtom,
   tagsFilterAtom,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
-import { Ionicons } from "@expo/vector-icons";
-import { useAtom } from "jotai";
-import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 
 interface Props extends TouchableOpacityProps {}
 

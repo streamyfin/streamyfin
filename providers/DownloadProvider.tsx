@@ -1,31 +1,13 @@
-import { useHaptic } from "@/hooks/useHaptic";
-import useImageStorage from "@/hooks/useImageStorage";
-import { useInterval } from "@/hooks/useInterval";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { getOrSetDeviceId } from "@/utils/device";
-import useDownloadHelper from "@/utils/download";
-import { getItemImage } from "@/utils/getItemImage";
-import { useLog, writeToLog } from "@/utils/log";
-import { storage } from "@/utils/mmkv";
-import {
-  type JobStatus,
-  cancelAllJobs,
-  cancelJobById,
-  deleteDownloadItemInfoFromDiskTmp,
-  getAllJobsByDeviceId,
-  getDownloadItemInfoFromDiskTmp,
-} from "@/utils/optimize-server";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
 import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import * as Application from "expo-application";
-import * as FileSystem from "expo-file-system";
 import type { FileInfo } from "expo-file-system";
+import * as FileSystem from "expo-file-system";
 import Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { atom, useAtom } from "jotai";
@@ -40,6 +22,23 @@ import {
 import { useTranslation } from "react-i18next";
 import { AppState, type AppStateStatus, Platform } from "react-native";
 import { toast } from "sonner-native";
+import { useHaptic } from "@/hooks/useHaptic";
+import useImageStorage from "@/hooks/useImageStorage";
+import { useInterval } from "@/hooks/useInterval";
+import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
+import { getOrSetDeviceId } from "@/utils/device";
+import useDownloadHelper from "@/utils/download";
+import { getItemImage } from "@/utils/getItemImage";
+import { useLog, writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
+import {
+  cancelAllJobs,
+  cancelJobById,
+  deleteDownloadItemInfoFromDiskTmp,
+  getAllJobsByDeviceId,
+  getDownloadItemInfoFromDiskTmp,
+  type JobStatus,
+} from "@/utils/optimize-server";
 import { Bitrate } from "../components/BitrateSelector";
 import { apiAtom } from "./JellyfinProvider";
 
@@ -842,37 +841,35 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useDownload() {
+  const context = useContext(DownloadContext);
+
   if (Platform.isTV) {
     // Since tv doesn't do downloads, just return no-op functions for everything
     return {
       processes: [],
-      startBackgroundDownload: useCallback(
-        async (
-          _url: string,
-          _item: BaseItemDto,
-          _mediaSource: MediaSourceInfo,
-          _maxBitrate?: Bitrate,
-        ) => {},
-        [],
-      ),
+      startBackgroundDownload: async (
+        _url: string,
+        _item: BaseItemDto,
+        _mediaSource: MediaSourceInfo,
+        _maxBitrate?: Bitrate,
+      ) => {},
       downloadedFiles: [],
       deleteAllFiles: async (): Promise<void> => {},
-      deleteFile: async (id: string): Promise<void> => {},
-      deleteItems: async (items: BaseItemDto[]) => {},
-      saveDownloadedItemInfo: (item: BaseItemDto, size?: number) => {},
-      removeProcess: (id: string) => {},
+      deleteFile: async (_id: string): Promise<void> => {},
+      deleteItems: async (_items: BaseItemDto[]) => {},
+      saveDownloadedItemInfo: (_item: BaseItemDto, _size?: number) => {},
+      removeProcess: (_id: string) => {},
       setProcesses: () => {},
       startDownload: async (_process: JobStatus): Promise<void> => {},
-      getDownloadedItem: (itemId: string) => {},
+      getDownloadedItem: (_itemId: string) => {},
       deleteFileByType: async (_type: BaseItemDto["Type"]) => {},
       appSizeUsage: async () => 0,
-      getDownloadedItemSize: (itemId: string) => {},
+      getDownloadedItemSize: (_itemId: string) => {},
       APP_CACHE_DOWNLOAD_DIRECTORY: "",
       cleanCacheDirectory: async (): Promise<void> => {},
     };
   }
 
-  const context = useContext(DownloadContext);
   if (context === null) {
     throw new Error("useDownload must be used within a DownloadProvider");
   }

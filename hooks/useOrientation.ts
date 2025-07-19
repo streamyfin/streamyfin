@@ -1,7 +1,7 @@
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import orientationToOrientationLock from "@/utils/OrientationLockConverter";
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import orientationToOrientationLock from "@/utils/OrientationLockConverter";
 
 export const useOrientation = () => {
   const [orientation, setOrientation] = useState(
@@ -10,9 +10,9 @@ export const useOrientation = () => {
       : ScreenOrientation.OrientationLock.UNKNOWN,
   );
 
-  if (Platform.isTV) return { orientation, setOrientation };
-
   useEffect(() => {
+    if (Platform.isTV) return;
+
     const orientationSubscription =
       ScreenOrientation.addOrientationChangeListener((event) => {
         setOrientation(

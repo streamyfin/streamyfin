@@ -1,15 +1,15 @@
-import { Text } from "@/components/common/Text";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
-import type { TmdbRelease } from "@/utils/jellyseerr/server/api/themoviedb/interfaces";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { uniqBy } from "lodash";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import CountryFlag from "react-native-country-flag";
+import { Text } from "@/components/common/Text";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
+import type { TmdbRelease } from "@/utils/jellyseerr/server/api/themoviedb/interfaces";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
 interface Release {
   certification: string;

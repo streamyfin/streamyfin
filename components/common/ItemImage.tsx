@@ -1,11 +1,11 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { getItemImage } from "@/utils/getItemImage";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image, type ImageProps } from "expo-image";
 import { useAtom } from "jotai";
 import { type FC, useMemo } from "react";
 import { View, type ViewProps } from "react-native";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getItemImage } from "@/utils/getItemImage";
 
 interface Props extends ImageProps {
   item: BaseItemDto;

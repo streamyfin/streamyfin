@@ -1,25 +1,3 @@
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
-import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
-import { useHaptic } from "@/hooks/useHaptic";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
-import { useTrickplay } from "@/hooks/useTrickplay";
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
-import { writeToLog } from "@/utils/log";
-import {
-  formatTimeString,
-  msToTicks,
-  secondsToMs,
-  ticksToMs,
-  ticksToSeconds,
-} from "@/utils/time";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
@@ -29,7 +7,7 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { debounce } from "lodash";
-import React, {
+import {
   type Dispatch,
   type FC,
   type MutableRefObject,
@@ -42,27 +20,48 @@ import React, {
 import {
   Platform,
   TouchableOpacity,
-  View,
   useWindowDimensions,
+  View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
-  type SharedValue,
   runOnJS,
+  type SharedValue,
   useAnimatedReaction,
   useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
+import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
+import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
+import { useCreditSkipper } from "@/hooks/useCreditSkipper";
+import { useHaptic } from "@/hooks/useHaptic";
+import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { useTrickplay } from "@/hooks/useTrickplay";
+import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
+import { writeToLog } from "@/utils/log";
+import {
+  formatTimeString,
+  msToTicks,
+  secondsToMs,
+  ticksToMs,
+  ticksToSeconds,
+} from "@/utils/time";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
-import { EpisodeList } from "./EpisodeList";
-import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
-import SkipButton from "./SkipButton";
-import { VideoTouchOverlay } from "./VideoTouchOverlay";
 import { ControlProvider } from "./contexts/ControlContext";
 import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
+import { EpisodeList } from "./EpisodeList";
+import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
+import SkipButton from "./SkipButton";
 import { useControlsTimeout } from "./useControlsTimeout";
+import { VideoTouchOverlay } from "./VideoTouchOverlay";
 
 interface Props {
   item: BaseItemDto;
@@ -241,7 +240,10 @@ export const Controls: FC<Props> = ({
     ({
       isAutoPlay,
       resetWatchCount,
-    }: { isAutoPlay?: boolean; resetWatchCount?: boolean }) => {
+    }: {
+      isAutoPlay?: boolean;
+      resetWatchCount?: boolean;
+    }) => {
       if (!nextItem) {
         return;
       }

@@ -1,7 +1,4 @@
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { Text } from "@/components/common/Text";
 import { FlashList } from "@shopify/flash-list";
-import { useFocusEffect } from "expo-router";
 import type React from "react";
 import {
   type PropsWithChildren,
@@ -10,9 +7,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { Dimensions, View, type ViewProps } from "react-native";
-import { Animated } from "react-native";
+import { Animated, View, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "@/components/common/Text";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
 
 const ANIMATION_ENTER = 250;
 const ANIMATION_EXIT = 250;

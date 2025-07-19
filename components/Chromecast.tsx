@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useCallback, useEffect } from "react";
-import { Platform, TouchableOpacity, type ViewProps } from "react-native";
+import { useCallback, useEffect } from "react";
+import { Platform, type ViewProps } from "react-native";
 import GoogleCast, {
   CastButton,
   CastContext,

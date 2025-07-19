@@ -2,8 +2,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { View, type ViewProps } from "react-native";
 import { GenreTags } from "./GenreTags";
-import { Ratings } from "./Ratings";
 import { MoviesTitleHeader } from "./movies/MoviesTitleHeader";
+import { Ratings } from "./Ratings";
 import { EpisodeTitleHeader } from "./series/EpisodeTitleHeader";
 import { ItemActions } from "./series/SeriesActions";
 

@@ -1,8 +1,3 @@
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import { LibraryItemCard } from "@/components/library/LibraryItemCard";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import {
   getUserLibraryApi,
   getUserViewsApi,
@@ -14,6 +9,11 @@ import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
+import { LibraryItemCard } from "@/components/library/LibraryItemCard";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
 
 export default function index() {
   const [api] = useAtom(apiAtom);

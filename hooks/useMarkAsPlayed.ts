@@ -1,9 +1,9 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { markAsNotPlayed } from "@/utils/jellyfin/playstate/markAsNotPlayed";
-import { markAsPlayed } from "@/utils/jellyfin/playstate/markAsPlayed";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { markAsNotPlayed } from "@/utils/jellyfin/playstate/markAsNotPlayed";
+import { markAsPlayed } from "@/utils/jellyfin/playstate/markAsPlayed";
 import { useHaptic } from "./useHaptic";
 
 export const useMarkAsPlayed = (items: BaseItemDto[]) => {

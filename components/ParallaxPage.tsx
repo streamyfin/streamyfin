@@ -1,11 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import type { PropsWithChildren, ReactElement } from "react";
-import {
-  type NativeScrollEvent,
-  NativeSyntheticEvent,
-  View,
-  type ViewProps,
-} from "react-native";
+import { type NativeScrollEvent, View, type ViewProps } from "react-native";
 import Animated, {
   interpolate,
   useAnimatedRef,

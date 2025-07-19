@@ -1,3 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
 import {
@@ -6,11 +11,6 @@ import {
 } from "@/components/series/SeasonDropdown";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
-import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 
 export default function page() {
   const navigation = useNavigation();

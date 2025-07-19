@@ -1,10 +1,3 @@
-import { ItemCardText } from "@/components/ItemCardText";
-import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
-import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import MoviePoster from "@/components/posters/MoviePoster";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +5,13 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
+import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
+import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import { ItemCardText } from "@/components/ItemCardText";
+import MoviePoster from "@/components/posters/MoviePoster";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 interface Props extends ViewProps {
   actorId: string;

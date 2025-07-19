@@ -15,7 +15,7 @@ export const LiveTVGuideRow = ({
   scrollX?: number;
   isVisible?: boolean;
 }) => {
-  const positionRefs = useRef<{ [key: string]: number }>({});
+  const _positionRefs = useRef<{ [key: string]: number }>({});
   const screenWidth = Dimensions.get("window").width;
 
   const calculateWidth = (s?: string | null, e?: string | null) => {

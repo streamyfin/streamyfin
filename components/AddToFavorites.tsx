@@ -1,8 +1,8 @@
-import { RoundButton } from "@/components/RoundButton";
-import { useFavorite } from "@/hooks/useFavorite";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { FC } from "react";
 import { View, type ViewProps } from "react-native";
+import { RoundButton } from "@/components/RoundButton";
+import { useFavorite } from "@/hooks/useFavorite";
 
 interface Props extends ViewProps {
   item: BaseItemDto;

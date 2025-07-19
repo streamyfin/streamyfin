@@ -1,8 +1,8 @@
-import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
 import type React from "react";
 import { View, type ViewProps } from "react-native";
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
@@ -13,7 +13,7 @@ interface Props extends ViewProps {
 export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
   const queryClient = useQueryClient();
 
-  const invalidateQueries = () => {
+  const _invalidateQueries = () => {
     items.forEach((item) => {
       queryClient.invalidateQueries({
         queryKey: ["item", item.Id],

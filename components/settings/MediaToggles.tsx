@@ -1,10 +1,10 @@
-import { Stepper } from "@/components/inputs/Stepper";
-import DisabledSetting from "@/components/settings/DisabledSetting";
-import { useSettings } from "@/utils/atoms/settings";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
+import { Stepper } from "@/components/inputs/Stepper";
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -15,14 +15,14 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
 
   const [settings, updateSettings, pluginSettings] = useSettings();
 
-  if (!settings) return null;
-
   const disabled = useMemo(
     () =>
       pluginSettings?.forwardSkipTime?.locked === true &&
       pluginSettings?.rewindSkipTime?.locked === true,
     [pluginSettings],
   );
+
+  if (!settings) return null;
 
   return (
     <DisabledSetting disabled={disabled} {...props}>
