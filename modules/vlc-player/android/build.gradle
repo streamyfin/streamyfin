@@ -7,10 +7,6 @@ plugins {
 group = 'expo.modules.vlcplayer'
 version = '0.6.0'
 
-def safeExtGet(prop, fallback) {
-  rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
-}
-
 def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
 def kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
 

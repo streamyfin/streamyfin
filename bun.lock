@@ -4,7 +4,6 @@
     "": {
       "name": "streamyfin",
       "dependencies": {
-        "@bottom-tabs/react-navigation": "0.8.6",
         "@expo/config-plugins": "~9.0.15",
         "@expo/react-native-action-sheet": "^4.1.1",
         "@expo/vector-icons": "^14.0.4",
@@ -21,7 +20,7 @@
         "@tanstack/react-query": "^5.66.0",
         "add": "^2.0.6",
         "axios": "^1.7.9",
-        "expo": "^52.0.31",
+        "expo": "~52.0.31",
         "expo-asset": "~11.0.3",
         "expo-background-fetch": "~13.0.5",
         "expo-blur": "~14.0.3",
@@ -400,8 +399,6 @@
     "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.1.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-G8KWZli5ASOXA3yUQgx+M4pZRv3ND16h77UsdunUL17uYpcL/UC7RkWTdkfvMQvogVsAuz5JUcBDjgZHXxlKoA=="],
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.1.2", "", { "os": "win32", "cpu": "x64" }, "sha512-9zajnk59PMpjBkty3bK2IrjUsUHvqe9HWwyAWQBjGLE7MIBjbX2vwv1XPEhmO2RRuGoTkVx3WCanHrjAytICLA=="],
-
-    "@bottom-tabs/react-navigation": ["@bottom-tabs/react-navigation@0.8.6", "", { "dependencies": { "color": "^4.2.3" }, "peerDependencies": { "@react-navigation/native": ">=7", "react": "*", "react-native": "*", "react-native-bottom-tabs": "*" } }, "sha512-hLlyBAUz4ahaVK2Op2VcJeAkCSpm3KKho4IojkPyXsos4WEHtO44EYWC71TDbVGeOP5HQ9k7FSwAW3IiZs0wHw=="],
 
     "@dominicstop/ts-event-emitter": ["@dominicstop/ts-event-emitter@1.1.0", "", {}, "sha512-CcxmJIvUb1vsFheuGGVSQf4KdPZC44XolpUT34+vlal+LyQoBUOn31pjFET5M9ctOxEpt8xa0M3/2M7uUiAoJw=="],
 

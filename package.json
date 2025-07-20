@@ -19,7 +19,6 @@
     "format": "biome format --write ."
   },
   "dependencies": {
-    "@bottom-tabs/react-navigation": "0.8.6",
     "@expo/config-plugins": "~9.0.15",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/vector-icons": "^14.0.4",
@@ -36,7 +35,7 @@
     "@tanstack/react-query": "^5.66.0",
     "add": "^2.0.6",
     "axios": "^1.7.9",
-    "expo": "^52.0.31",
+    "expo": "~52.0.31",
     "expo-asset": "~11.0.3",
     "expo-background-fetch": "~13.0.5",
     "expo-blur": "~14.0.3",
