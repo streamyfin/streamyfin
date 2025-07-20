@@ -1,30 +1,29 @@
 import {
-  createNativeBottomTabNavigator,
-  type NativeBottomTabNavigationEventMap,
-} from "@bottom-tabs/react-navigation";
-import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
-
-const { Navigator } = createNativeBottomTabNavigator();
-
-import type { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
+  type BottomTabNavigationEventMap,
+  type BottomTabNavigationOptions,
+  createBottomTabNavigator,
+} from "@react-navigation/bottom-tabs";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
+import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
 
+const { Navigator } = createBottomTabNavigator();
+
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
   typeof Navigator,
   TabNavigationState<ParamListBase>,
-  NativeBottomTabNavigationEventMap
+  BottomTabNavigationEventMap
 >(Navigator);
 
 export default function TabLayout() {
