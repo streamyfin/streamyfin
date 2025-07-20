@@ -51,7 +51,7 @@ const Slide = <T,>({
         onEndReached={onEndReached}
         //@ts-ignore
         renderItem={({ item, index }) =>
-          item ? renderItem(item, index) : <></>
+          item ? renderItem(item, index) : null
         }
       />
     </View>

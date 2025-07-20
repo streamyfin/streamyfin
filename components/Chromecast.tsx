@@ -44,11 +44,7 @@ export function Chromecast({
   // Android requires the cast button to be present for startDiscovery to work
   const AndroidCastButton = useCallback(
     () =>
-      Platform.OS === "android" ? (
-        <CastButton tintColor='transparent' />
-      ) : (
-        <></>
-      ),
+      Platform.OS === "android" ? <CastButton tintColor='transparent' /> : null,
     [Platform.OS],
   );
 

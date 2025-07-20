@@ -1,3 +1,3 @@
 export default function DownloadSettings({ ...props }) {
-  return <></>;
+  return null;
 }
