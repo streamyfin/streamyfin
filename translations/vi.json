@@ -26,7 +26,7 @@
     "enter_url_to_jellyfin_server": "Nhập URL máy chủ Jellyfin của bạn",
     "server_url_placeholder": "http(s)://your-server.com",
     "connect_button": "Kết nối",
-    "previous_servers": "các máy chủ trước",
+    "previous_servers": "Máy chủ trước đó",
     "clear_button": "Xóa",
     "search_for_local_servers": "Tìm máy chủ trong mạng",
     "searching": "Đang tìm...",
@@ -35,7 +35,7 @@
   "home": {
     "no_internet": "Không có Internet",
     "no_items": "Không có nội dung",
-    "no_internet_message": "Không sao đâu, ông vẫn xem được nội dung đã tải xuống.",
+    "no_internet_message": "Không sao, bạn vẫn có thể xem được nội dung đã tải xuống.",
     "go_to_downloads": "Tới phần tải về",
     "oops": "Ối!",
     "error_message": "Có lỗi xảy ra.\nVui lòng đăng xuất rồi đăng nhập lại.",
