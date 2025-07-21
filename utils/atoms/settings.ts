@@ -238,25 +238,38 @@ const loadSettings = (): Partial<Settings> => {
     return loadedValues;
   } catch (error) {
     console.error("Failed to load settings:", error);
-    return defaultValues;
+    return {};
   }
 };
 
 const EXCLUDE_FROM_SAVE = ["home"];
 
 const saveSettings = (settings: Settings) => {
-  for (const key of Object.keys(settings)) {
-    if (EXCLUDE_FROM_SAVE.includes(key)) {
-      delete settings[key as keyof Settings];
+  try {
+    for (const key of Object.keys(settings)) {
+      if (EXCLUDE_FROM_SAVE.includes(key)) {
+        delete settings[key as keyof Settings];
+      }
     }
+    const jsonValue = JSON.stringify(settings);
+    storage.set("settings", jsonValue);
+  } catch (error) {
+    console.error("Failed to save settings:", error);
   }
-  const jsonValue = JSON.stringify(settings);
-  storage.set("settings", jsonValue);
 };
 
 export const settingsAtom = atom<Partial<Settings> | null>(null);
-export const pluginSettingsAtom = atom(
-  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS),
+const loadPluginSettings = () => {
+  try {
+    return storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS);
+  } catch (error) {
+    console.error("Failed to load plugin settings:", error);
+    return undefined;
+  }
+};
+
+export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
+  loadPluginSettings(),
 );
 
 export const useSettings = () => {

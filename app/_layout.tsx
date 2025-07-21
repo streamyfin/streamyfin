@@ -139,93 +139,98 @@ if (!Platform.isTV) {
 
     const now = Date.now();
 
-    const settingsData = storage.getString("settings");
+    try {
+      const settingsData = storage.getString("settings");
 
-    if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
+      if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
 
-    const settings: Partial<Settings> = JSON.parse(settingsData);
-    const url = settings?.optimizedVersionsServerUrl;
+      const settings: Partial<Settings> = JSON.parse(settingsData);
+      const url = settings?.optimizedVersionsServerUrl;
 
-    if (!settings?.autoDownload || !url)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+      if (!settings?.autoDownload || !url)
+        return BackgroundFetch.BackgroundFetchResult.NoData;
 
-    const token = getTokenFromStorage();
-    const deviceId = getOrSetDeviceId();
-    const baseDirectory = FileSystem.documentDirectory;
+      const token = getTokenFromStorage();
+      const deviceId = getOrSetDeviceId();
+      const baseDirectory = FileSystem.documentDirectory;
 
-    if (!token || !deviceId || !baseDirectory)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+      if (!token || !deviceId || !baseDirectory)
+        return BackgroundFetch.BackgroundFetchResult.NoData;
 
-    const jobs = await getAllJobsByDeviceId({
-      deviceId,
-      authHeader: token,
-      url,
-    });
+      const jobs = await getAllJobsByDeviceId({
+        deviceId,
+        authHeader: token,
+        url,
+      });
 
-    console.log("TaskManager ~ Active jobs: ", jobs.length);
+      console.log("TaskManager ~ Active jobs: ", jobs.length);
 
-    for (const job of jobs) {
-      if (job.status === "completed") {
-        const downloadUrl = `${url}download/${job.id}`;
-        const tasks = await BackGroundDownloader.checkForExistingDownloads();
+      for (const job of jobs) {
+        if (job.status === "completed") {
+          const downloadUrl = `${url}download/${job.id}`;
+          const tasks = await BackGroundDownloader.checkForExistingDownloads();
 
-        if (tasks.find((task: { id: string }) => task.id === job.id)) {
-          console.log("TaskManager ~ Download already in progress: ", job.id);
-          continue;
+          if (tasks.find((task: { id: string }) => task.id === job.id)) {
+            console.log("TaskManager ~ Download already in progress: ", job.id);
+            continue;
+          }
+
+          BackGroundDownloader.download({
+            id: job.id,
+            url: downloadUrl,
+            destination: `${baseDirectory}${job.item.Id}.mp4`,
+            headers: {
+              Authorization: token,
+            },
+          })
+            .begin(() => {
+              console.log("TaskManager ~ Download started: ", job.id);
+            })
+            .done(() => {
+              console.log("TaskManager ~ Download completed: ", job.id);
+              saveDownloadedItemInfo(job.item);
+              BackGroundDownloader.completeHandler(job.id);
+              cancelJobById({
+                authHeader: token,
+                id: job.id,
+                url: url,
+              });
+              Notifications.scheduleNotificationAsync({
+                content: {
+                  title: job.item.Name,
+                  body: "Download completed",
+                  data: {
+                    url: "/downloads",
+                  },
+                },
+                trigger: null,
+              });
+            })
+            .error((error: any) => {
+              console.log("TaskManager ~ Download error: ", job.id, error);
+              BackGroundDownloader.completeHandler(job.id);
+              Notifications.scheduleNotificationAsync({
+                content: {
+                  title: job.item.Name,
+                  body: "Download failed",
+                  data: {
+                    url: "/downloads",
+                  },
+                },
+                trigger: null,
+              });
+            });
         }
-
-        BackGroundDownloader.download({
-          id: job.id,
-          url: downloadUrl,
-          destination: `${baseDirectory}${job.item.Id}.mp4`,
-          headers: {
-            Authorization: token,
-          },
-        })
-          .begin(() => {
-            console.log("TaskManager ~ Download started: ", job.id);
-          })
-          .done(() => {
-            console.log("TaskManager ~ Download completed: ", job.id);
-            saveDownloadedItemInfo(job.item);
-            BackGroundDownloader.completeHandler(job.id);
-            cancelJobById({
-              authHeader: token,
-              id: job.id,
-              url: url,
-            });
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: job.item.Name,
-                body: "Download completed",
-                data: {
-                  url: "/downloads",
-                },
-              },
-              trigger: null,
-            });
-          })
-          .error((error: any) => {
-            console.log("TaskManager ~ Download error: ", job.id, error);
-            BackGroundDownloader.completeHandler(job.id);
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: job.item.Name,
-                body: "Download failed",
-                data: {
-                  url: "/downloads",
-                },
-              },
-              trigger: null,
-            });
-          });
       }
+
+      console.log(`Auto download started: ${new Date(now).toISOString()}`);
+
+      // Be sure to return the successful result type!
+      return BackgroundFetch.BackgroundFetchResult.NewData;
+    } catch (error) {
+      console.error("Background task error:", error);
+      return BackgroundFetch.BackgroundFetchResult.Failed;
     }
-
-    console.log(`Auto download started: ${new Date(now).toISOString()}`);
-
-    // Be sure to return the successful result type!
-    return BackgroundFetch.BackgroundFetchResult.NewData;
   });
 }
 

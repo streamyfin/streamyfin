@@ -1,11 +1,11 @@
 import { itemRouter } from "@/components/common/TouchableItemRouter";
 import { DownloadedItem } from "@/providers/DownloadProvider";
+import { storage } from "@/utils/mmkv";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import axios from "axios";
-import { MMKV } from "react-native-mmkv";
 import { writeToLog } from "./log";
 
 interface IJobInput {
@@ -175,8 +175,6 @@ export function saveDownloadItemInfoToDiskTmp(
   url: string,
 ): boolean {
   try {
-    const storage = new MMKV();
-
     const downloadInfo = JSON.stringify({
       item,
       mediaSource,
@@ -208,7 +206,6 @@ export function getDownloadItemInfoFromDiskTmp(itemId: string): {
   url: string;
 } | null {
   try {
-    const storage = new MMKV();
     const rawInfo = storage.getString(`tmp_download_info_${itemId}`);
 
     if (rawInfo) {
@@ -229,7 +226,6 @@ export function getDownloadItemInfoFromDiskTmp(itemId: string): {
  */
 export function deleteDownloadItemInfoFromDiskTmp(itemId: string): boolean {
   try {
-    const storage = new MMKV();
     storage.delete(`tmp_download_info_${itemId}`);
     return true;
   } catch (error) {
