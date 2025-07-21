@@ -12,6 +12,8 @@ on:
     branches: [develop, master]
 
 jobs:
+  main-repo-only:
+    if: github.repository == 'streamyfin/streamyfin' && (github.event_name != 'pull_request' || github.event.pull_request?.head.repo.full_name == 'streamyfin/streamyfin')
   build:
     runs-on: macos-15
     name: 🏗️ Build iOS IPA
