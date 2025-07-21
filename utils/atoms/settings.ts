@@ -1,8 +1,3 @@
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { Video } from "@/utils/jellyseerr/server/models/Movie";
-import { writeInfoLog } from "@/utils/log";
 import {
   type BaseItemKind,
   type CultureDto,
@@ -14,9 +9,13 @@ import {
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { Platform } from "react-native";
+import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
 
-const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
+const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
 
 export type DownloadQuality = "original" | "high" | "low";
@@ -288,7 +287,7 @@ export const useSettings = () => {
         writeInfoLog("Got plugin settings", data?.settings);
         return data?.settings;
       },
-      (err) => undefined,
+      (_err) => undefined,
     );
     setPluginSettings(settings);
     return settings;

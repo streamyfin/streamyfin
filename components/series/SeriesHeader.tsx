@@ -1,8 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
 import { View } from "react-native";
-import { Ratings } from "../Ratings";
 import { Text } from "../common/Text";
+import { Ratings } from "../Ratings";
 import { ItemActions } from "./SeriesActions";
 
 interface Props {

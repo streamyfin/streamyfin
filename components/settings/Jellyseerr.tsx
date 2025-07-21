@@ -1,12 +1,12 @@
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import { useMutation } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 import { Text } from "../common/Text";
@@ -24,7 +24,7 @@ export const JellyseerrSettings = () => {
   const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
-  const [settings, updateSettings, pluginSettings] = useSettings();
+  const [settings, updateSettings, _pluginSettings] = useSettings();
 
   const [jellyseerrPassword, setJellyseerrPassword] = useState<
     string | undefined

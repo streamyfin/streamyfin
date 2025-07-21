@@ -13,58 +13,30 @@ def kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
 apply from: expoModulesCorePlugin
 
 applyKotlinExpoModulesCorePlugin()
+useDefaultAndroidSdkVersions()
 useCoreDependencies()
 useExpoPublishing()
 
-// If you want to use the managed Android SDK versions from expo-modules-core, set this to true.
-// The Android SDK versions will be bumped from time to time in SDK releases and may introduce breaking changes in your module code.
-// Most of the time, you may like to manage the Android SDK versions yourself.
-def useManagedAndroidSdkVersions = false
-if (useManagedAndroidSdkVersions) {
-  useDefaultAndroidSdkVersions()
-} else {
-  buildscript {
-    repositories {
-      google()
-      mavenCentral()
-    }
-    dependencies {
-      classpath "com.android.tools.build:gradle:8.11.0"
-    }
+android {
+  namespace "expo.modules.vlcplayer"
+  
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
   }
-  project.android {
-    compileSdkVersion safeExtGet("compileSdkVersion", 34)
-    defaultConfig {
-      minSdkVersion safeExtGet("minSdkVersion", 21)
-      targetSdkVersion safeExtGet("targetSdkVersion", 34)
-    }
+  
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+  
+  lintOptions {
+    abortOnError false
   }
 }
 
 dependencies {
   implementation 'org.videolan.android:libvlc-all:3.6.0'
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
-}
-
-android {
-  namespace "expo.modules.vlcplayer"
-  compileSdkVersion 34
-  defaultConfig {
-    minSdkVersion 21
-    targetSdkVersion 34
-    versionCode 1
-    versionName "0.6.0"
-  }
-  compileOptions {
-    sourceCompatibility JavaVersion.VERSION_17
-    targetCompatibility JavaVersion.VERSION_17
-  }
-  kotlinOptions {
-    jvmTarget = "17"
-  }
-  lintOptions {
-    abortOnError false
-  }
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {

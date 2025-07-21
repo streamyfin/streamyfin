@@ -1,7 +1,7 @@
-import { useJellyfinDiscovery } from "@/hooks/useJellyfinDiscovery";
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, View } from "react-native";
+import { useJellyfinDiscovery } from "@/hooks/useJellyfinDiscovery";
 import { Button } from "./Button";
 import { ListGroup } from "./list/ListGroup";
 import { ListItem } from "./list/ListItem";

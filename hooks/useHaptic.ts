@@ -1,6 +1,7 @@
-import { useSettings } from "@/utils/atoms/settings";
 import { useCallback, useMemo } from "react";
 import { Platform } from "react-native";
+import { useSettings } from "@/utils/atoms/settings";
+
 const Haptics = !Platform.isTV ? require("expo-haptics") : null;
 
 export type HapticFeedbackType =
@@ -14,10 +15,7 @@ export type HapticFeedbackType =
 
 export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
   const [settings] = useSettings();
-
-  if (Platform.isTV) {
-    return () => {};
-  }
+  const isTv = Platform.isTV;
 
   const createHapticHandler = useCallback(
     (type: typeof Haptics.ImpactFeedbackStyle) => {
@@ -27,6 +25,7 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
     },
     [],
   );
+
   const createNotificationFeedback = useCallback(
     (type: typeof Haptics.NotificationFeedbackType) => {
       return Platform.OS === "web" || Platform.isTV
@@ -55,6 +54,10 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
     }),
     [createHapticHandler, createNotificationFeedback],
   );
+
+  if (isTv) {
+    return () => {};
+  }
 
   if (settings?.disableHapticFeedback) {
     return () => {};

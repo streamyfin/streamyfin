@@ -3,9 +3,11 @@ import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
+
 const VolumeManager = Platform.isTV
   ? null
   : require("react-native-volume-manager");
+
 import { Ionicons } from "@expo/vector-icons";
 import type { VolumeResult } from "react-native-volume-manager";
 
@@ -14,9 +16,7 @@ interface AudioSliderProps {
 }
 
 const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
-  if (Platform.isTV) {
-    return;
-  }
+  const isTv = Platform.isTV;
 
   const volume = useSharedValue<number>(50); // Explicitly type as number
   const min = useSharedValue<number>(0); // Explicitly type as number
@@ -25,6 +25,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   const timeoutRef = useRef<number | null>(null); // Use a ref to store the timeout ID
 
   useEffect(() => {
+    if (isTv) return;
     const fetchInitialVolume = async () => {
       try {
         const { volume: initialVolume } = await VolumeManager.getVolume();
@@ -42,7 +43,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
       // Re-enable the native volume UI when the component unmounts
       VolumeManager.showNativeVolumeUI({ enabled: true });
     };
-  }, []);
+  }, [isTv, volume]);
 
   const handleValueChange = async (value: number) => {
     volume.value = value;
@@ -53,6 +54,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   };
 
   useEffect(() => {
+    if (isTv) return;
     const volumeListener = VolumeManager.addVolumeListener(
       (result: VolumeResult) => {
         volume.value = result.volume * 100;
@@ -76,7 +78,9 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [volume]);
+  }, [isTv, volume, setVisibility]);
+
+  if (isTv) return;
 
   return (
     <View style={styles.sliderContainer}>

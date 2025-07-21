@@ -1,5 +1,3 @@
-import { Colors } from "@/constants/Colors";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
@@ -7,10 +5,11 @@ import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import { Image, Text, View } from "react-native";
-import { ScrollingCollectionList } from "./ScrollingCollectionList";
-
 // PNG ASSET
 import heart from "@/assets/icons/heart.fill.png";
+import { Colors } from "@/constants/Colors";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { ScrollingCollectionList } from "./ScrollingCollectionList";
 
 type FavoriteTypes =
   | "Series"

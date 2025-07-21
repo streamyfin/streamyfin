@@ -1,9 +1,9 @@
-import { Text } from "@/components/common/Text";
-import Poster from "@/components/posters/Poster";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useRouter, useSegments } from "expo-router";
 import type React from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import Poster from "@/components/posters/Poster";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
 
 interface Props {
   id: string;

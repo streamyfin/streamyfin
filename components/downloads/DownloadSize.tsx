@@ -1,9 +1,9 @@
-import { Text } from "@/components/common/Text";
-import { useDownload } from "@/providers/DownloadProvider";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { TextProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import { useDownload } from "@/providers/DownloadProvider";
 
 interface DownloadSizeProps extends TextProps {
   items: BaseItemDto[];
@@ -39,10 +39,8 @@ export const DownloadSize: React.FC<DownloadSizeProps> = ({
   }, [size]);
 
   return (
-    <>
-      <Text className='text-xs text-neutral-500' {...props}>
-        {sizeText}
-      </Text>
-    </>
+    <Text className='text-xs text-neutral-500' {...props}>
+      {sizeText}
+    </Text>
   );
 };

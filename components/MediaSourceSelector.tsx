@@ -4,7 +4,9 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import { useTranslation } from "react-i18next";
 import { Text } from "./common/Text";
 
@@ -20,7 +22,8 @@ export const MediaSourceSelector: React.FC<Props> = ({
   selected,
   ...props
 }) => {
-  if (Platform.isTV) return null;
+  const isTv = Platform.isTV;
+
   const selectedName = useMemo(
     () =>
       item.MediaSources?.find((x) => x.Id === selected?.Id)?.MediaStreams?.find(
@@ -51,6 +54,8 @@ export const MediaSourceSelector: React.FC<Props> = ({
   const name = (name?: string | null) => {
     return name?.replace(commonPrefix, "").toLowerCase();
   };
+
+  if (isTv) return null;
 
   return (
     <View

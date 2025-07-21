@@ -1,9 +1,9 @@
-import { processesAtom } from "@/providers/DownloadProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import type { JobStatus } from "@/utils/optimize-server";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
+import { processesAtom } from "@/providers/DownloadProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import type { JobStatus } from "@/utils/optimize-server";
 
 export interface Job {
   id: string;
