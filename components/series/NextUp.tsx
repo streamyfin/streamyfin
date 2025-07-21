@@ -1,18 +1,15 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { View } from "react-native";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
-import { ItemCardText } from "../ItemCardText";
-import { HorizontalScroll } from "../common/HorrizontalScroll";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import { ItemCardText } from "../ItemCardText";
 
 export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
   const [user] = useAtom(userAtom);

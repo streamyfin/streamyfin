@@ -1,9 +1,9 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 export const useFavorite = (item: BaseItemDto) => {
   const queryClient = useQueryClient();
@@ -49,7 +49,7 @@ export const useFavorite = (item: BaseItemDto) => {
 
       return { previousItem };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousItem) {
         queryClient.setQueryData([type, item.Id], context.previousItem);
       }
@@ -80,7 +80,7 @@ export const useFavorite = (item: BaseItemDto) => {
 
       return { previousItem };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousItem) {
         queryClient.setQueryData([type, item.Id], context.previousItem);
       }

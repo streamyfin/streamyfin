@@ -1,3 +1,7 @@
+import { router, useSegments } from "expo-router";
+import type React from "react";
+import { useCallback } from "react";
+import { TouchableOpacity, type ViewProps } from "react-native";
 import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard";
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
@@ -6,10 +10,6 @@ import {
   type Network,
 } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 import type { Studio } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
-import { router, useSegments } from "expo-router";
-import type React from "react";
-import { useCallback } from "react";
-import { TouchableOpacity, type ViewProps } from "react-native";
 
 const CompanySlide: React.FC<
   { data: Network[] | Studio[] } & SlideProps & ViewProps
@@ -33,7 +33,7 @@ const CompanySlide: React.FC<
       slide={slide}
       data={data}
       keyExtractor={(item) => item.id.toString()}
-      renderItem={(item, index) => (
+      renderItem={(item, _index) => (
         <TouchableOpacity className='mr-2' onPress={() => navigate(item)}>
           <GenericSlideCard
             className='w-28 rounded-lg overflow-hidden border border-neutral-900 p-4'

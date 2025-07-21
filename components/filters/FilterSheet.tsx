@@ -1,16 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
-  BottomSheetFlatList,
   BottomSheetModal,
   BottomSheetScrollView,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { Text } from "@/components/common/Text";
-import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import {
   StyleSheet,
@@ -18,6 +14,7 @@ import {
   View,
   type ViewProps,
 } from "react-native";
+import { Text } from "@/components/common/Text";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 

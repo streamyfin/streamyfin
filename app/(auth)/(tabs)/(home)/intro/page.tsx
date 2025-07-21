@@ -1,12 +1,12 @@
-import { Button } from "@/components/Button";
-import { Text } from "@/components/common/Text";
-import { storage } from "@/utils/mmkv";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Linking, TouchableOpacity, View } from "react-native";
+import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
+import { storage } from "@/utils/mmkv";
 
 export default function page() {
   const router = useRouter();

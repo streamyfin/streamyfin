@@ -1,8 +1,8 @@
-import { Text } from "@/components/common/Text";
-import { tc } from "@/utils/textTools";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import { tc } from "@/utils/textTools";
 
 interface Props extends ViewProps {
   text?: string | null;

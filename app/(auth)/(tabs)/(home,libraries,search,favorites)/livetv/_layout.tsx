@@ -8,7 +8,6 @@ import type {
   TabNavigationState,
 } from "@react-navigation/native";
 import { Stack, withLayoutContext } from "expo-router";
-import React from "react";
 
 const { Navigator } = createMaterialTopTabNavigator();
 

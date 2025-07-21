@@ -1,3 +1,14 @@
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
+import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
+import { useQuery } from "@tanstack/react-query";
+import { forwardRef, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { View, type ViewProps } from "react-native";
 import { Button } from "@/components/Button";
 import Dropdown from "@/components/common/Dropdown";
 import { Text } from "@/components/common/Text";
@@ -10,17 +21,6 @@ import type {
 import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
 import { writeDebugLog } from "@/utils/log";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
-import { useQuery } from "@tanstack/react-query";
-import React, { forwardRef, useCallback, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { View, type ViewProps } from "react-native";
 
 interface Props {
   id: number;

@@ -1,14 +1,13 @@
-import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
-import { useSettings } from "@/utils/atoms/settings";
 import { useRouter } from "expo-router";
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
+import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
+import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const Dashboard = () => {
-  const [settings, updateSettings] = useSettings();
+  const [settings, _updateSettings] = useSettings();
   const { sessions = [], isLoading } = useSessions({} as useSessionsProps);
   const router = useRouter();
 

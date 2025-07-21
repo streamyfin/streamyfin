@@ -1,25 +1,3 @@
-import { Button } from "@/components/Button";
-import { GenreTags } from "@/components/GenreTags";
-import { OverviewText } from "@/components/OverviewText";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { JellyserrRatings } from "@/components/Ratings";
-import { Text } from "@/components/common/Text";
-import Cast from "@/components/jellyseerr/Cast";
-import DetailFacts from "@/components/jellyseerr/DetailFacts";
-import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
-import { ItemActions } from "@/components/series/SeriesActions";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
-import {
-  type IssueType,
-  IssueTypeName,
-} from "@/utils/jellyseerr/server/constants/issue";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
@@ -36,7 +14,31 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
+import { GenreTags } from "@/components/GenreTags";
+import Cast from "@/components/jellyseerr/Cast";
+import DetailFacts from "@/components/jellyseerr/DetailFacts";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { JellyserrRatings } from "@/components/Ratings";
+import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
+import { ItemActions } from "@/components/series/SeriesActions";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import {
+  type IssueType,
+  IssueTypeName,
+} from "@/utils/jellyseerr/server/constants/issue";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import type {
+  MovieResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import RequestModal from "@/components/jellyseerr/RequestModal";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
@@ -380,7 +382,7 @@ const Page: React.FC = () => {
                     </DropdownMenu.Label>
                     {Object.entries(IssueTypeName)
                       .reverse()
-                      .map(([key, value], idx) => (
+                      .map(([key, value], _idx) => (
                         <DropdownMenu.Item
                           key={value}
                           onSelect={() =>

@@ -1,5 +1,3 @@
-import { itemRouter } from "@/components/common/TouchableItemRouter";
-import { DownloadedItem } from "@/providers/DownloadProvider";
 import type {
   BaseItemDto,
   MediaSourceInfo,

@@ -1,15 +1,17 @@
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
+
+import { useAtom } from "jotai";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { useAtom } from "jotai";
 
 export default function IndexLayout() {
-  const router = useRouter();
+  const _router = useRouter();
   const [user] = useAtom(userAtom);
   const { t } = useTranslation();
 

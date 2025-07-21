@@ -1,10 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useState } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { writeToLog } from "@/utils/log";
 import { msToSeconds, secondsToMs } from "@/utils/time";
-import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
 import { useHaptic } from "./useHaptic";
 
 interface IntroTimestamps {

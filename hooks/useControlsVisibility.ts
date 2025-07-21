@@ -1,9 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  runOnJS,
-  useAnimatedReaction,
-  useSharedValue,
-} from "react-native-reanimated";
+import { useCallback, useEffect, useRef } from "react";
+import { useSharedValue } from "react-native-reanimated";
 
 export const useControlsVisibility = (timeout = 3000) => {
   const opacity = useSharedValue(1);

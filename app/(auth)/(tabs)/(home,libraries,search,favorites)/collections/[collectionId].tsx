@@ -1,22 +1,3 @@
-import { ItemCardText } from "@/components/ItemCardText";
-import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { FilterButton } from "@/components/filters/FilterButton";
-import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
-import { ItemPoster } from "@/components/posters/ItemPoster";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  SortByOption,
-  SortOrderOption,
-  genreFilterAtom,
-  sortByAtom,
-  sortOptions,
-  sortOrderAtom,
-  sortOrderOptions,
-  tagsFilterAtom,
-  yearFilterAtom,
-} from "@/utils/atoms/filters";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -35,6 +16,25 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, View } from "react-native";
+import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import { FilterButton } from "@/components/filters/FilterButton";
+import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
+import { ItemCardText } from "@/components/ItemCardText";
+import { ItemPoster } from "@/components/posters/ItemPoster";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  genreFilterAtom,
+  SortByOption,
+  SortOrderOption,
+  sortByAtom,
+  sortOptions,
+  sortOrderAtom,
+  sortOrderOptions,
+  tagsFilterAtom,
+  yearFilterAtom,
+} from "@/utils/atoms/filters";
 
 const page: React.FC = () => {
   const searchParams = useLocalSearchParams();
@@ -43,7 +43,7 @@ const page: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const navigation = useNavigation();
-  const [orientation, setOrientation] = useState(
+  const [orientation, _setOrientation] = useState(
     ScreenOrientation.Orientation.PORTRAIT_UP,
   );
 

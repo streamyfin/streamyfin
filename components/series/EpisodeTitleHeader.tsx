@@ -1,7 +1,7 @@
-import { Text } from "@/components/common/Text";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useRouter } from "expo-router";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
 
 interface Props extends ViewProps {
   item: BaseItemDto;

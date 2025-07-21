@@ -2,7 +2,6 @@ import {
   ActivityIndicator,
   type ActivityIndicatorProps,
   Platform,
-  View,
 } from "react-native";
 
 interface Props extends ActivityIndicatorProps {}

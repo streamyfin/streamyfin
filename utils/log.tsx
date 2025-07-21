@@ -23,9 +23,9 @@ const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(
   null,
 );
-const DownloadContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null,
-);
+const _DownloadContext = createContext<ReturnType<
+  typeof useLogProvider
+> | null>(null);
 
 function useLogProvider() {
   const { data: logs } = useQuery({

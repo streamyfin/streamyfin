@@ -1,32 +1,29 @@
-import React, { useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
-
-import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
-
 import {
-  type NativeBottomTabNavigationEventMap,
-  createNativeBottomTabNavigator,
-} from "@bottom-tabs/react-navigation";
-
-const { Navigator } = createNativeBottomTabNavigator();
-import type { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
-
-import { Colors } from "@/constants/Colors";
-import { useSettings } from "@/utils/atoms/settings";
-import { eventBus } from "@/utils/eventBus";
-import { storage } from "@/utils/mmkv";
+  type BottomTabNavigationEventMap,
+  type BottomTabNavigationOptions,
+  createBottomTabNavigator,
+} from "@react-navigation/bottom-tabs";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
+import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { Colors } from "@/constants/Colors";
+import { useSettings } from "@/utils/atoms/settings";
+import { eventBus } from "@/utils/eventBus";
+import { storage } from "@/utils/mmkv";
+
+const { Navigator } = createBottomTabNavigator();
 
 export const NativeTabs = withLayoutContext<
   BottomTabNavigationOptions,
   typeof Navigator,
   TabNavigationState<ParamListBase>,
-  NativeBottomTabNavigationEventMap
+  BottomTabNavigationEventMap
 >(Navigator);
 
 export default function TabLayout() {
@@ -64,7 +61,7 @@ export default function TabLayout() {
         <NativeTabs.Screen redirect name='index' />
         <NativeTabs.Screen
           listeners={({ navigation }) => ({
-            tabPress: (e) => {
+            tabPress: (_e) => {
               eventBus.emit("scrollToTop");
             },
           })}
@@ -83,7 +80,7 @@ export default function TabLayout() {
         />
         <NativeTabs.Screen
           listeners={({ navigation }) => ({
-            tabPress: (e) => {
+            tabPress: (_e) => {
               eventBus.emit("searchTabPressed");
             },
           })}
