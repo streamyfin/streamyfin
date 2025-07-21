@@ -1,9 +1,13 @@
+import { useRouter, useSegments } from "expo-router";
+import type React from "react";
+import { type PropsWithChildren, useCallback, useMemo } from "react";
+import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import * as ContextMenu from "@/components/ContextMenu";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import {
-  Permission,
   hasPermission,
+  Permission,
 } from "@/utils/jellyseerr/server/lib/permissions";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
@@ -11,10 +15,6 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import { useRouter, useSegments } from "expo-router";
-import type React from "react";
-import { type PropsWithChildren, useCallback, useMemo } from "react";
-import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 
 interface Props extends TouchableOpacityProps {
   result?: MovieResult | TvResult | MovieDetails | TvDetails;
@@ -60,69 +60,67 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
 
   if (from === "(home)" || from === "(search)" || from === "(libraries)")
     return (
-      <>
-        <ContextMenu.Root>
-          <ContextMenu.Trigger>
-            <TouchableOpacity
-              onPress={() => {
-                if (!result) return;
+      <ContextMenu.Root>
+        <ContextMenu.Trigger>
+          <TouchableOpacity
+            onPress={() => {
+              if (!result) return;
 
-                // @ts-ignore
-                router.push({
-                  pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
-                  params: {
-                    ...result,
-                    mediaTitle,
-                    releaseYear,
-                    canRequest,
-                    posterSrc,
-                    mediaType,
-                  },
-                });
-              }}
-              {...props}
-            >
-              {children}
-            </TouchableOpacity>
-          </ContextMenu.Trigger>
-          <ContextMenu.Content
-            avoidCollisions
-            alignOffset={0}
-            collisionPadding={0}
-            loop={false}
-            key={"content"}
+              // @ts-ignore
+              router.push({
+                pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
+                params: {
+                  ...result,
+                  mediaTitle,
+                  releaseYear,
+                  canRequest,
+                  posterSrc,
+                  mediaType,
+                },
+              });
+            }}
+            {...props}
           >
-            <ContextMenu.Label key='label-1'>Actions</ContextMenu.Label>
-            {canRequest && mediaType === MediaType.MOVIE && (
-              <ContextMenu.Item
-                key='item-1'
-                onSelect={() => {
-                  if (autoApprove) {
-                    request();
-                  }
+            {children}
+          </TouchableOpacity>
+        </ContextMenu.Trigger>
+        <ContextMenu.Content
+          avoidCollisions
+          alignOffset={0}
+          collisionPadding={0}
+          loop={false}
+          key={"content"}
+        >
+          <ContextMenu.Label key='label-1'>Actions</ContextMenu.Label>
+          {canRequest && mediaType === MediaType.MOVIE && (
+            <ContextMenu.Item
+              key='item-1'
+              onSelect={() => {
+                if (autoApprove) {
+                  request();
+                }
+              }}
+              shouldDismissMenuOnSelect
+            >
+              <ContextMenu.ItemTitle key='item-1-title'>
+                Request
+              </ContextMenu.ItemTitle>
+              <ContextMenu.ItemIcon
+                ios={{
+                  name: "arrow.down.to.line",
+                  pointSize: 18,
+                  weight: "semibold",
+                  scale: "medium",
+                  hierarchicalColor: {
+                    dark: "purple",
+                    light: "purple",
+                  },
                 }}
-                shouldDismissMenuOnSelect
-              >
-                <ContextMenu.ItemTitle key='item-1-title'>
-                  Request
-                </ContextMenu.ItemTitle>
-                <ContextMenu.ItemIcon
-                  ios={{
-                    name: "arrow.down.to.line",
-                    pointSize: 18,
-                    weight: "semibold",
-                    scale: "medium",
-                    hierarchicalColor: {
-                      dark: "purple",
-                      light: "purple",
-                    },
-                  }}
-                  androidIconName='download'
-                />
-              </ContextMenu.Item>
-            )}
-          </ContextMenu.Content>
-        </ContextMenu.Root>
-      </>
+                androidIconName='download'
+              />
+            </ContextMenu.Item>
+          )}
+        </ContextMenu.Content>
+      </ContextMenu.Root>
     );
 };

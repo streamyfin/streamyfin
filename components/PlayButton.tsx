@@ -1,13 +1,3 @@
-import { useHaptic } from "@/hooks/useHaptic";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { useSettings } from "@/utils/atoms/settings";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
-import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -15,7 +5,6 @@ import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable } from "react-native";
 import { Alert, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
@@ -33,6 +22,16 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useHaptic } from "@/hooks/useHaptic";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
+import { useSettings } from "@/utils/atoms/settings";
+import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { chromecast } from "@/utils/profiles/chromecast";
+import { chromecasth265 } from "@/utils/profiles/chromecasth265";
+import { runtimeTicksToMinutes } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
 

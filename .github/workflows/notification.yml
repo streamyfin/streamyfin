@@ -1,0 +1,23 @@
+name: 🛎️ Discord Pull Request Notification
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches: [develop]
+
+jobs:
+  notify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 🛎️ Notify Discord
+        uses: Ilshidur/action-discord@0c4b27844ba47cb1c7bee539c8eead5284ce9fa9 # 0.3.2
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_AVATAR: https://avatars.githubusercontent.com/u/193271640
+        with:
+          args: |
+            📢 New Pull Request in **${{ github.repository }}**
+            **Title:** ${{ github.event.pull_request.title }}
+            **By:** ${{ github.event.pull_request.user.login }}
+            **Branch:** ${{ github.event.pull_request.head.ref }}
+            🔗 ${{ github.event.pull_request.html_url }}

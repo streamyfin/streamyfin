@@ -6,20 +6,21 @@
     "submodule-reload": "git submodule update --init --remote --recursive",
     "clean": "echo y | expo prebuild --clean",
     "start": "bun run submodule-reload && expo start",
-    "ios": "EXPO_TV=0 expo run:ios",
-    "ios:tv": "EXPO_TV=1 expo run:ios",
-    "android": "EXPO_TV=0 expo run:android",
-    "android:tv": "EXPO_TV=1 expo run:android",
-    "prebuild": "EXPO_TV=0 bun run clean",
-    "prebuild:tv": "EXPO_TV=1 bun run clean",
+    "ios": "cross-env EXPO_TV=0 expo run:ios",
+    "ios:tv": "cross-env EXPO_TV=1 expo run:ios",
+    "android": "cross-env EXPO_TV=0 expo run:android",
+    "android:tv": "cross-env EXPO_TV=1 expo run:android",
+    "prebuild": "cross-env EXPO_TV=0 bun run clean",
+    "prebuild:tv": "cross-env EXPO_TV=1 bun run clean",
+    "build:android:local": "cd android && cross-env NODE_ENV=production ./gradlew assembleRelease",
     "prepare": "husky",
-    "check": "biome check .",
-    "lint": "biome check --write --unsafe"
+    "check": "biome check . --max-diagnostics 1000",
+    "lint": "biome check --write --unsafe --max-diagnostics 1000",
+    "format": "biome format --write ."
   },
   "dependencies": {
-    "@bottom-tabs/react-navigation": "0.8.6",
     "@expo/config-plugins": "~9.0.15",
-    "@expo/react-native-action-sheet": "^4.1.0",
+    "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/vector-icons": "^14.0.4",
     "@futurejj/react-native-visibility-sensor": "^1.3.10",
     "@gorhom/bottom-sheet": "^5.1.0",
@@ -27,14 +28,14 @@
     "@kesha-antonov/react-native-background-downloader": "3.2.6",
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-menu/menu": "^1.2.2",
-    "@react-navigation/bottom-tabs": "^7.2.0",
+    "@react-navigation/bottom-tabs": "^7.4.2",
     "@react-navigation/material-top-tabs": "^7.1.0",
     "@react-navigation/native": "^7.0.14",
     "@shopify/flash-list": "1.7.3",
     "@tanstack/react-query": "^5.66.0",
     "add": "^2.0.6",
     "axios": "^1.7.9",
-    "expo": "^52.0.31",
+    "expo": "~52.0.31",
     "expo-asset": "~11.0.3",
     "expo-background-fetch": "~13.0.5",
     "expo-blur": "~14.0.3",
@@ -63,7 +64,8 @@
     "expo-task-manager": "~12.0.5",
     "expo-updates": "~0.26.17",
     "expo-web-browser": "~14.0.2",
-    "i18next": "^24.2.2",
+    "i18next": "^25.0.0",
+    "install": "^0.13.0",
     "jotai": "^2.11.3",
     "lodash": "^4.17.21",
     "nativewind": "^2.0.11",
@@ -72,7 +74,6 @@
     "react-i18next": "^15.4.0",
     "react-native": "npm:react-native-tvos@~0.77.2-0",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-bottom-tabs": "0.8.6",
     "react-native-circular-progress": "^1.4.1",
     "react-native-collapsible": "^1.6.2",
     "react-native-compressor": "^1.10.3",
@@ -90,7 +91,7 @@
     "react-native-progress": "^5.0.1",
     "react-native-reanimated": "~3.16.7",
     "react-native-reanimated-carousel": "3.5.1",
-    "react-native-safe-area-context": "5.1.0",
+    "react-native-safe-area-context": "5.5.0",
     "react-native-screens": "~4.5.0",
     "react-native-svg": "15.11.1",
     "react-native-tab-view": "^4.0.5",
@@ -111,17 +112,18 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.8",
-    "@biomejs/biome": "^1.9.4",
-    "@react-native-community/cli": "15.1.3",
+    "@biomejs/biome": "^2.1.2",
+    "@react-native-community/cli": "18.0.0",
     "@react-native-tvos/config-tv": "^0.1.1",
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.15",
     "@types/react": "~18.3.12",
     "@types/react-native-vector-icons": "^6.4.18",
     "@types/react-test-renderer": "^19.0.0",
     "@types/uuid": "^10.0.0",
+    "cross-env": "^7.0.3",
     "husky": "^9.1.7",
-    "lint-staged": "^15.5.0",
+    "lint-staged": "^16.1.2",
     "postinstall-postinstall": "^2.1.0",
     "react-test-renderer": "19.0.0",
     "typescript": "~5.7.3"
@@ -129,11 +131,21 @@
   "private": true,
   "expo": {
     "install": {
-      "exclude": ["react-native"]
+      "exclude": [
+        "react-native"
+      ]
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": ["biome check --write --unsafe"],
-    "*.{json,md}": ["biome format --write"]
-  }
+    "*.{js,jsx,ts,tsx}": [
+      "biome check --write --unsafe --no-errors-on-unmatched"
+    ],
+    "*.json": [
+      "biome format --write"
+    ]
+  },
+  "trustedDependencies": [
+    "postinstall-postinstall",
+    "unrs-resolver"
+  ]
 }

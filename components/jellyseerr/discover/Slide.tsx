@@ -1,12 +1,12 @@
-import { Text } from "@/components/common/Text";
-import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 import { FlashList } from "@shopify/flash-list";
 import type { ContentStyle } from "@shopify/flash-list/src/FlashListProps";
 import { t } from "i18next";
 import type React from "react";
 import type { PropsWithChildren } from "react";
 import { View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
+import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 
 export interface SlideProps {
   slide: DiscoverSlider;
@@ -51,7 +51,7 @@ const Slide = <T,>({
         onEndReached={onEndReached}
         //@ts-ignore
         renderItem={({ item, index }) =>
-          item ? renderItem(item, index) : <></>
+          item ? renderItem(item, index) : null
         }
       />
     </View>

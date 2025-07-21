@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Default Renovate preset for Streamyfin repositories",
+  "extends": [
+    "config:base",
+    ":dependencyDashboard",
+    ":enableVulnerabilityAlertsWithLabel(security)",
+    ":semanticCommits",
+    ":timezone(Etc/UTC)",
+    "docker:enableMajor",
+    "group:testNonMajor",
+    "group:monorepos",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "addLabels": ["dependencies"],
+  "rebaseWhen": "conflicted",
+  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "groupName": "lockfiles",
+    "schedule": ["every month"]
+  },
+  "packageRules": [
+    {
+      "description": "Add 'ci' and 'github-actions' labels to GitHub Action update PRs",
+      "matchManagers": ["github-actions"],
+      "addLabels": ["ci", "github-actions"]
+    },
+    {
+      "description": "Group minor and patch GitHub Action updates into a single PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "CI dependencies",
+      "groupSlug": "ci-deps",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Group lock file maintenance updates",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "groupName": "lockfiles",
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Add specific labels for Expo and React Native dependencies",
+      "matchPackagePatterns": ["expo", "react-native"],
+      "addLabels": ["expo", "react-native"]
+    }
+  ]
+}

@@ -1,9 +1,9 @@
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import { Text } from "../common/Text";
 
 interface Props extends ViewProps {

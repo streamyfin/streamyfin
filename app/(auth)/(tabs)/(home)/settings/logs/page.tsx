@@ -1,14 +1,14 @@
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import { FilterButton } from "@/components/filters/FilterButton";
-import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 import * as FileSystem from "expo-file-system";
 import { useNavigation } from "expo-router";
 import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
+import { Text } from "@/components/common/Text";
+import { FilterButton } from "@/components/filters/FilterButton";
+import { Loader } from "@/components/Loader";
+import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 
 export default function page() {
   const navigation = useNavigation();
