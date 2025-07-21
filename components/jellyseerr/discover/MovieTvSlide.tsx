@@ -1,3 +1,8 @@
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { uniqBy } from "lodash";
+import type React from "react";
+import { useMemo } from "react";
+import type { ViewProps } from "react-native";
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import {
@@ -10,11 +15,6 @@ import type {
   MovieResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { uniqBy } from "lodash";
-import type React from "react";
-import { useMemo } from "react";
-import type { ViewProps } from "react-native";
 
 const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
   slide,
@@ -25,7 +25,7 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey: ["jellyseerr", "discover", slide.id],
     queryFn: async ({ pageParam }) => {
-      let endpoint: DiscoverEndpoint | undefined = undefined;
+      let endpoint: DiscoverEndpoint | undefined;
       let params: any = {
         page: Number(pageParam),
       };

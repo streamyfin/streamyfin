@@ -1,17 +1,23 @@
 import { getLocales } from "expo-localization";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import da from "./translations/da.json";
 import de from "./translations/de.json";
 import en from "./translations/en.json";
 import eo from "./translations/eo.json";
 import es from "./translations/es.json";
+import fi from "./translations/fi.json";
 import fr from "./translations/fr.json";
 import it from "./translations/it.json";
 import ja from "./translations/ja.json";
+import nb from "./translations/nb.json";
 import nl from "./translations/nl.json";
+import nn from "./translations/nn.json";
 import pl from "./translations/pl.json";
 import ptBR from "./translations/pt-BR.json";
+import ro from "./translations/ro.json";
 import ru from "./translations/ru.json";
+import sq from "./translations/sq.json";
 import sv from "./translations/sv.json";
 import tlh from "./translations/tlh.json";
 import tr from "./translations/tr.json";
@@ -20,6 +26,7 @@ import zhCN from "./translations/zh-CN.json";
 import zhTW from "./translations/zh-TW.json";
 
 export const APP_LANGUAGES = [
+  { label: "Dansk", value: "da" },
   { label: "Deutsch", value: "de" },
   { label: "English", value: "en" },
   { label: "Español", value: "es" },
@@ -32,9 +39,13 @@ export const APP_LANGUAGES = [
   { label: "Nederlands", value: "nl" },
   { label: "Polski", value: "pl" },
   { label: "Português (Brasil)", value: "pt-BR" },
+  { label: "Română", value: "ro" },
   { label: "Svenska", value: "sv" },
+  { label: "Norsk Bokmål", value: "nb" },
+  { label: "Norsk Nynorsk", value: "nn" },
+  { label: "Suomi", value: "fi" },
+  { label: "Shqip", value: "sq" },
   { label: "Русский", value: "ru" },
-  { label: "Українська", value: "uk" },
   { label: "Українська", value: "uk" },
   { label: "简体中文", value: "zh-CN" },
   { label: "繁體中文", value: "zh-TW" },
@@ -43,6 +54,7 @@ export const APP_LANGUAGES = [
 i18n.use(initReactI18next).init({
   compatibilityJSON: "v4",
   resources: {
+    da: { translation: da },
     de: { translation: de },
     en: { translation: en },
     es: { translation: es },
@@ -53,7 +65,12 @@ i18n.use(initReactI18next).init({
     nl: { translation: nl },
     pl: { translation: pl },
     "pt-BR": { translation: ptBR },
+    ro: { translation: ro },
     sv: { translation: sv },
+    nb: { translation: nb },
+    nn: { translation: nn },
+    fi: { translation: fi },
+    sq: { translation: sq },
     ru: { translation: ru },
     tr: { translation: tr },
     tlh: { translation: tlh },

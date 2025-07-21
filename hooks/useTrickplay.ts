@@ -1,9 +1,9 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { ticksToMs } from "@/utils/time";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { ticksToMs } from "@/utils/time";
 
 interface TrickplayData {
   Interval?: number;

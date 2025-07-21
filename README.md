@@ -107,13 +107,13 @@ Key points of the MPL-2.0:
 - You must disclose your source code for any modifications to the covered files
 - Larger works may combine MPL code with code under other licenses
 - MPL-licensed components must remain under the MPL, but the larger work can be under a different license
-- For the full text of the license, please see the LICENSE file in this repository.
+- For the full text of the license, please see the LICENSE file in this repository
 
 ## 🌐 Connect with Us
 
 Join our Discord: [https://discord.gg/aJvAYeycyY](https://discord.gg/aJvAYeycyY)
 
-If you have questions or need support, feel free to reach out:
+Need support or have questions:
 
 - GitHub Issues: Report bugs or request features here.
 - Email: [fredrik.burmester@gmail.com](mailto:fredrik.burmester@gmail.com)
@@ -139,77 +139,74 @@ Special shoutout to the JF official clients for being an inspiration to ours.
 
 Thanks to the following contributors for their significant contributions:
 
+<div align="left">
 <table>
-  <tr
-    style="
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      flex-wrap: wrap;
-    "
-  >
+  <tr>
     <td align="center">
       <a href="https://github.com/Alexk2309">
-        <img src="https://github.com/Alexk2309.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/Alexk2309.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@Alexk2309</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/herrrta">
-        <img src="https://github.com/herrrta.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/herrrta.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@herrrta</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/lostb1t">
-        <img src="https://github.com/lostb1t.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/lostb1t.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@lostb1t</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/Simon-Eklundh">
-        <img src="https://github.com/Simon-Eklundh.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/Simon-Eklundh.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@Simon-Eklundh</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/topiga">
-        <img src="https://github.com/topiga.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/topiga.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@topiga</b></sub>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/simoncaron">
-        <img src="https://github.com/simoncaron.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/simoncaron.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@simoncaron</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/jakequade">
-        <img src="https://github.com/jakequade.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/jakequade.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@jakequade</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/Ryan0204">
-        <img src="https://github.com/Ryan0204.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/Ryan0204.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@Ryan0204</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/retardgerman">
-        <img src="https://github.com/retardgerman.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/retardgerman.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@retardgerman</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/whoopsi-daisy">
-        <img src="https://github.com/whoopsi-daisy.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/whoopsi-daisy.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@whoopsi-daisy</b></sub>
       </a>
     </td>
   </tr>
 </table>
+</div>
 
 And all other developers who have contributed to Streamyfin, thank you for your contributions.
 
@@ -228,4 +225,4 @@ I'd also like to thank the following people and projects for their contributions
 Streamyfin does not promote, support, or condone piracy in any form. The app is intended solely for streaming media that you personally own and control. It does not provide or include any media content. Any discussions or support requests related to piracy are strictly prohibited across all our channels.
 
 ## 🤝 Sponsorship
-VPS hosting generously provided by [Hexabyte](https://hexabyte.se/en/vps/?currency=eur)
+VPS hosting generously provided by [Hexabyte](https://hexabyte.se/en/vps/?currency=eur) and [SweHosting](https://swehosting.se/en/#tj%C3%A4nster)

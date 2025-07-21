@@ -1,23 +1,16 @@
-import MoviePoster from "@/components/posters/MoviePoster";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ScrollView,
-  TouchableOpacity,
-  View,
-  type ViewProps,
-} from "react-native";
-import { ItemCardText } from "./ItemCardText";
-import { Loader } from "./Loader";
+import { View, type ViewProps } from "react-native";
+import MoviePoster from "@/components/posters/MoviePoster";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { HorizontalScroll } from "./common/HorrizontalScroll";
 import { Text } from "./common/Text";
 import { TouchableItemRouter } from "./common/TouchableItemRouter";
+import { ItemCardText } from "./ItemCardText";
 
 interface SimilarItemsProps extends ViewProps {
   itemId?: string | null;

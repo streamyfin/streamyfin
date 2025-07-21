@@ -1,4 +1,3 @@
-import { useHaptic } from "@/hooks/useHaptic";
 import {
   ActionSheetProvider,
   useActionSheet,
@@ -11,17 +10,14 @@ import {
   type TouchableOpacityProps,
   View,
 } from "react-native";
-
 import { Text } from "@/components/common/Text";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { runtimeTicksToSeconds } from "@/utils/time";
-import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
 interface EpisodeCardProps extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -33,7 +29,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
   const { showActionSheetWithOptions } = useActionSheet();
   const successHapticFeedback = useHaptic("success");
 
-  const base64Image = useMemo(() => {
+  const _base64Image = useMemo(() => {
     return storage.getString(item.Id!);
   }, [item]);
 

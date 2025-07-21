@@ -1,6 +1,7 @@
 import { requireNativeViewManager } from "expo-modules-core";
 import * as React from "react";
-import { ViewStyle } from "react-native";
+import { Platform, ViewStyle } from "react-native";
+import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import type {
   VlcPlayerSource,
   VlcPlayerViewProps,

@@ -1,6 +1,6 @@
-import type { StreamyfinPluginConfig } from "@/utils/atoms/settings";
-import { AUTHORIZATION_HEADER, Api } from "@jellyfin/sdk";
+import { Api, AUTHORIZATION_HEADER } from "@jellyfin/sdk";
 import type { AxiosRequestConfig, AxiosResponse } from "axios";
+import type { StreamyfinPluginConfig } from "@/utils/atoms/settings";
 
 declare module "@jellyfin/sdk" {
   interface Api {

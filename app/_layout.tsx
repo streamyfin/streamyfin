@@ -1,11 +1,15 @@
 import "@/augmentations";
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
-  JellyfinProvider,
   apiAtom,
   getOrSetDeviceId,
   getTokenFromStorage,
+  JellyfinProvider,
 } from "@/providers/JellyfinProvider";
 import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
@@ -24,35 +28,37 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
-import { ActionSheetProvider } from "@expo/react-native-action-sheet";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Platform } from "react-native";
+
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
+
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 const BackgroundFetch = !Platform.isTV
   ? require("expo-background-fetch")
   : null;
+
 import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system";
+
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { Stack, router, useSegments } from "expo-router";
+
+import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+
 const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
+
 import { getLocales } from "expo-localization";
 import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { AppState, Appearance } from "react-native";
+import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { store } from "@/utils/store";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import type { EventSubscription } from "expo-modules-core";
 import type {
@@ -62,6 +68,8 @@ import type {
 import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
 import { useAtom } from "jotai";
 import { Toaster } from "sonner-native";
+import { userAtom } from "@/providers/JellyfinProvider";
+import { store } from "@/utils/store";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -83,9 +91,9 @@ SplashScreen.setOptions({
 });
 
 function useNotificationObserver() {
-  if (Platform.isTV) return;
-
   useEffect(() => {
+    if (Platform.isTV) return;
+
     let isMounted = true;
 
     function redirect(notification: typeof Notifications.Notification) {
@@ -138,14 +146,12 @@ if (!Platform.isTV) {
     console.log("TaskManager ~ trigger");
 
     const now = Date.now();
-
     const settingsData = storage.getString("settings");
 
     if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
 
     const settings: Partial<Settings> = JSON.parse(settingsData);
     const url = settings?.optimizedVersionsServerUrl;
-
     if (!settings?.autoDownload || !url)
       return BackgroundFetch.BackgroundFetchResult.NoData;
 
@@ -223,7 +229,6 @@ if (!Platform.isTV) {
     }
 
     console.log(`Auto download started: ${new Date(now).toISOString()}`);
-
     // Be sure to return the successful result type!
     return BackgroundFetch.BackgroundFetchResult.NewData;
   });
@@ -301,51 +306,51 @@ function Layout() {
     );
   }, [settings?.preferedLanguage, i18n]);
 
-  if (!Platform.isTV) {
-    useNotificationObserver();
+  useNotificationObserver();
 
-    const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
-    const notificationListener = useRef<EventSubscription>();
-    const responseListener = useRef<EventSubscription>();
+  const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
+  const notificationListener = useRef<EventSubscription>();
+  const responseListener = useRef<EventSubscription>();
 
-    useEffect(() => {
-      if (expoPushToken && api && user) {
-        api
-          ?.post("/Streamyfin/device", {
-            token: expoPushToken.data,
-            deviceId: getOrSetDeviceId(),
-            userId: user.Id,
-          })
-          .then((_) => console.log("Posted expo push token"))
-          .catch((_) =>
-            writeErrorLog("Failed to push expo push token to plugin"),
-          );
-      } else console.log("No token available");
-    }, [api, expoPushToken, user]);
+  useEffect(() => {
+    if (!Platform.isTV && expoPushToken && api && user) {
+      api
+        ?.post("/Streamyfin/device", {
+          token: expoPushToken.data,
+          deviceId: getOrSetDeviceId(),
+          userId: user.Id,
+        })
+        .then((_) => console.log("Posted expo push token"))
+        .catch((_) =>
+          writeErrorLog("Failed to push expo push token to plugin"),
+        );
+    } else console.log("No token available");
+  }, [api, expoPushToken, user]);
 
-    async function registerNotifications() {
-      if (Platform.OS === "android") {
-        console.log("Setting android notification channel 'default'");
-        await Notifications?.setNotificationChannelAsync("default", {
-          name: "default",
-        });
-      }
-
-      await checkAndRequestPermissions();
-
-      if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
-        await registerBackgroundFetchAsyncSessions();
-      }
-
-      // only create push token for real devices (pointless for emulators)
-      if (Device.isDevice) {
-        Notifications?.getExpoPushTokenAsync()
-          .then((token: ExpoPushToken) => token && setExpoPushToken(token))
-          .catch((reason: any) => console.log("Failed to get token", reason));
-      }
+  async function registerNotifications() {
+    if (Platform.OS === "android") {
+      console.log("Setting android notification channel 'default'");
+      await Notifications?.setNotificationChannelAsync("default", {
+        name: "default",
+      });
     }
 
-    useEffect(() => {
+    await checkAndRequestPermissions();
+
+    if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
+      await registerBackgroundFetchAsyncSessions();
+    }
+
+    // only create push token for real devices (pointless for emulators)
+    if (Device.isDevice) {
+      Notifications?.getExpoPushTokenAsync()
+        .then((token: ExpoPushToken) => token && setExpoPushToken(token))
+        .catch((reason: any) => console.log("Failed to get token", reason));
+    }
+  }
+
+  useEffect(() => {
+    if (!Platform.isTV) {
       registerNotifications();
 
       notificationListener.current =
@@ -363,12 +368,10 @@ function Layout() {
           (response: NotificationResponse) => {
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
-
             writeDebugLog(
               `Notification ${title} opened`,
               response.notification.request.content,
             );
-
             if (data && Object.keys(data).length > 0) {
               const type = data?.type?.toLower?.();
               const itemId = data?.id;
@@ -381,12 +384,10 @@ function Layout() {
                   // We just clicked a notification for an individual episode.
                   if (itemId) {
                     router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                  }
-                  // summarized season notification for multiple episodes. Bring them to series season
-                  else {
+                    // summarized season notification for multiple episodes. Bring them to series season
+                  } else {
                     const seriesId = data.seriesId;
                     const seasonIndex = data.seasonIndex;
-
                     if (seasonIndex) {
                       router.push(
                         `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`,
@@ -411,56 +412,57 @@ function Layout() {
             responseListener.current,
           );
       };
-    }, []);
+    }
+  }, [user, api]);
 
-    useEffect(() => {
-      if (Platform.isTV) {
-        return;
+  useEffect(() => {
+    if (Platform.isTV) {
+      return;
+    }
+
+    if (segments.includes("direct-player" as never)) {
+      if (
+        !settings.followDeviceOrientation &&
+        settings.defaultVideoOrientation
+      ) {
+        ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
       }
+      return;
+    }
 
-      if (segments.includes("direct-player" as never)) {
-        if (
-          !settings.followDeviceOrientation &&
-          settings.defaultVideoOrientation
-        ) {
-          ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
-        }
-        return;
-      }
-
-      if (settings.followDeviceOrientation === true) {
-        ScreenOrientation.unlockAsync();
-      } else {
-        ScreenOrientation.lockAsync(
-          ScreenOrientation.OrientationLock.PORTRAIT_UP,
-        );
-      }
-    }, [
-      settings.followDeviceOrientation,
-      settings.defaultVideoOrientation,
-      segments,
-    ]);
-
-    useEffect(() => {
-      const subscription = AppState.addEventListener(
-        "change",
-        (nextAppState) => {
-          if (
-            appState.current.match(/inactive|background/) &&
-            nextAppState === "active"
-          ) {
-            BackGroundDownloader.checkForExistingDownloads();
-          }
-        },
+    if (settings.followDeviceOrientation === true) {
+      ScreenOrientation.unlockAsync();
+    } else {
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
       );
+    }
+  }, [
+    settings.followDeviceOrientation,
+    settings.defaultVideoOrientation,
+    segments,
+  ]);
 
-      BackGroundDownloader.checkForExistingDownloads();
+  useEffect(() => {
+    if (Platform.isTV) {
+      return;
+    }
 
-      return () => {
-        subscription.remove();
-      };
-    }, []);
-  }
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        BackGroundDownloader.checkForExistingDownloads();
+      }
+    });
+
+    BackGroundDownloader.checkForExistingDownloads();
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

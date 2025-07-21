@@ -1,17 +1,11 @@
-import { useHaptic } from "@/hooks/useHaptic";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { useSettings } from "@/utils/atoms/settings";
-import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
-import { Alert, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
   interpolate,
@@ -22,6 +16,11 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useHaptic } from "@/hooks/useHaptic";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
+import { useSettings } from "@/utils/atoms/settings";
+import { runtimeTicksToMinutes } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
 
@@ -42,8 +41,8 @@ export const PlayButton: React.FC<Props> = ({
   const { t } = useTranslation();
 
   const [colorAtom] = useAtom(itemThemeColorAtom);
-  const api = useAtomValue(apiAtom);
-  const user = useAtomValue(userAtom);
+  const _api = useAtomValue(apiAtom);
+  const _user = useAtomValue(userAtom);
 
   const router = useRouter();
 
