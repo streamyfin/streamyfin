@@ -1,10 +1,3 @@
-import { Button } from "@/components/Button";
-import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
-import { PreviousServersList } from "@/components/PreviousServersList";
-import { Input } from "@/components/common/Input";
-import { Text } from "@/components/common/Text";
-import { Colors } from "@/constants/Colors";
-import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
@@ -23,6 +16,13 @@ import {
   View,
 } from "react-native";
 import { z } from "zod";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/common/Input";
+import { Text } from "@/components/common/Text";
+import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
+import { PreviousServersList } from "@/components/PreviousServersList";
+import { Colors } from "@/constants/Colors";
+import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
