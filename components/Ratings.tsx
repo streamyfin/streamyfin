@@ -1,3 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { useMemo } from "react";
+import { View, type ViewProps } from "react-native";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
@@ -6,12 +12,6 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
-import { useMemo } from "react";
-import { View, type ViewProps } from "react-native";
 import { Badge } from "./Badge";
 
 interface Props extends ViewProps {

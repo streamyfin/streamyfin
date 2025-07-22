@@ -16,7 +16,7 @@ export const calculateTextColor = (backgroundColor: string): string => {
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
 
   // Calculate contrast ratio with white and black
-  const contrastWithWhite = calculateContrastRatio([255, 255, 255], [r, g, b]);
+  const _contrastWithWhite = calculateContrastRatio([255, 255, 255], [r, g, b]);
   const contrastWithBlack = calculateContrastRatio([0, 0, 0], [r, g, b]);
 
   // Use black text if the background is bright and has good contrast with black
@@ -55,7 +55,7 @@ export const isCloseToBlack = (color: string): boolean => {
   return r < 20 && g < 20 && b < 20;
 };
 
-export const adjustToNearBlack = (color: string): string => {
+export const adjustToNearBlack = (_color: string): string => {
   return "#313131"; // A very dark gray, almost black
 };
 

@@ -1,11 +1,8 @@
-import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import * as Application from "expo-application";
-import Constants from "expo-constants";
 import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
-import { Button } from "../Button";
-import { Text } from "../common/Text";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 

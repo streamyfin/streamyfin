@@ -1,25 +1,3 @@
-import { AudioTrackSelector } from "@/components/AudioTrackSelector";
-import { type Bitrate, BitrateSelector } from "@/components/BitrateSelector";
-import { DownloadSingleItem } from "@/components/DownloadItem";
-import { OverviewText } from "@/components/OverviewText";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
-import { PlayButton } from "@/components/PlayButton";
-import { PlayedStatus } from "@/components/PlayedStatus";
-import { SimilarItems } from "@/components/SimilarItems";
-import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
-import { ItemImage } from "@/components/common/ItemImage";
-import { CastAndCrew } from "@/components/series/CastAndCrew";
-import { CurrentSeries } from "@/components/series/CurrentSeries";
-import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
-import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useImageColors } from "@/hooks/useImageColors";
-import { useOrientation } from "@/hooks/useOrientation";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -30,12 +8,34 @@ import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AudioTrackSelector } from "@/components/AudioTrackSelector";
+import { type Bitrate, BitrateSelector } from "@/components/BitrateSelector";
+import { ItemImage } from "@/components/common/ItemImage";
+import { DownloadSingleItem } from "@/components/DownloadItem";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
+import { PlayButton } from "@/components/PlayButton";
+import { PlayedStatus } from "@/components/PlayedStatus";
+import { SimilarItems } from "@/components/SimilarItems";
+import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
+import { CastAndCrew } from "@/components/series/CastAndCrew";
+import { CurrentSeries } from "@/components/series/CurrentSeries";
+import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useImageColors } from "@/hooks/useImageColors";
+import { useOrientation } from "@/hooks/useOrientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
+
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
 export type SelectedOptions = {
@@ -85,8 +85,8 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultMediaSource,
     ]);
 
-    if (!Platform.isTV) {
-      useEffect(() => {
+    useEffect(() => {
+      if (!Platform.isTV) {
         navigation.setOptions({
           headerRight: () =>
             item && (
@@ -112,8 +112,8 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
               </View>
             ),
         });
-      }, [item]);
-    }
+      }
+    }, [item, navigation, user]);
 
     useEffect(() => {
       if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
@@ -122,12 +122,16 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       else setHeaderHeight(350);
     }, [item.Type, orientation]);
 
-    const logoUrl = useMemo(() => getLogoImageUrlById({ api, item }), [item]);
+    const logoUrl = useMemo(
+      () => getLogoImageUrlById({ api, item }),
+      [api, item],
+    );
 
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
-    if (!selectedOptions) return null;
+
+    if (!selectedOptions) return <View />;
 
     return (
       <View
@@ -168,7 +172,9 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 onLoad={() => setLoadingLogo(false)}
                 onError={() => setLoadingLogo(false)}
               />
-            ) : null
+            ) : (
+              <View />
+            )
           }
         >
           <View className='flex flex-col bg-transparent shrink'>

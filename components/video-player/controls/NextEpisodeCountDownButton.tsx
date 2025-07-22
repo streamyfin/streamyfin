@@ -1,5 +1,3 @@
-import { Text } from "@/components/common/Text";
-import { Colors } from "@/constants/Colors";
 import type React from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,12 +7,14 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  Easing,
-  runOnJS,
 } from "react-native-reanimated";
+import { Text } from "@/components/common/Text";
+import { Colors } from "@/constants/Colors";
 
 interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   onFinish?: () => void;

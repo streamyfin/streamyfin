@@ -1,10 +1,11 @@
 // utils/getDefaultPlaySettings.ts
-import { BITRATES } from "@/components/BitrateSelector";
+
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { type Settings, useSettings } from "../atoms/settings";
+import { BITRATES } from "@/components/BitrateSelector";
+import { type Settings } from "../atoms/settings";
 import {
   AudioStreamRanker,
   StreamRanker,
@@ -52,10 +53,10 @@ export function getDefaultPlaySettings(
 
   // 2. Get default or preferred audio
   const defaultAudioIndex = mediaSource?.DefaultAudioStreamIndex;
-  const preferedAudioIndex = mediaSource?.MediaStreams?.find(
+  const _preferedAudioIndex = mediaSource?.MediaStreams?.find(
     (x) => x.Type === "Audio" && x.Language === settings?.defaultAudioLanguage,
   )?.Index;
-  const firstAudioIndex = mediaSource?.MediaStreams?.find(
+  const _firstAudioIndex = mediaSource?.MediaStreams?.find(
     (x) => x.Type === "Audio",
   )?.Index;
 

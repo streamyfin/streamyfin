@@ -1,15 +1,6 @@
-import { getOrSetDeviceId } from "@/providers/JellyfinProvider";
-import type { Settings } from "@/utils/atoms/settings";
-import old from "@/utils/profiles/old";
 import type { Api } from "@jellyfin/sdk";
-import { DeviceProfile } from "@jellyfin/sdk/lib/generated-client";
-import {
-  getMediaInfoApi,
-  getPlaystateApi,
-  getSessionApi,
-} from "@jellyfin/sdk/lib/utils/api";
-import { getAuthHeaders } from "../jellyfin";
-import { postCapabilities } from "../session/capabilities";
+import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import type { Settings } from "@/utils/atoms/settings";
 
 interface ReportPlaybackProgressParams {
   api?: Api | null;

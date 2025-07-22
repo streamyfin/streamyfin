@@ -1,11 +1,9 @@
-import { formatBitrate } from "@/utils/bitrate";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type {
   MediaSourceInfo,
@@ -15,15 +13,15 @@ import type React from "react";
 import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import { formatBitrate } from "@/utils/bitrate";
 import { Badge } from "./Badge";
-import { Button } from "./Button";
 import { Text } from "./common/Text";
 
 interface Props {
   source?: MediaSourceInfo;
 }
 
-export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
+export const ItemTechnicalDetails: React.FC<Props> = ({ source }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const { t } = useTranslation();
 
@@ -55,7 +53,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
       >
         <BottomSheetScrollView>
           <View className='flex flex-col space-y-2 p-4 mb-4'>
-            <View className=''>
+            <View>
               <Text className='text-lg font-bold mb-4'>
                 {t("item_card.video")}
               </Text>
@@ -64,7 +62,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
               </View>
             </View>
 
-            <View className=''>
+            <View>
               <Text className='text-lg font-bold mb-2'>
                 {t("item_card.audio")}
               </Text>
@@ -77,7 +75,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source, ...props }) => {
               />
             </View>
 
-            <View className=''>
+            <View>
               <Text className='text-lg font-bold mb-2'>
                 {t("item_card.subtitles")}
               </Text>
@@ -103,7 +101,7 @@ const SubtitleStreamInfo = ({
 }) => {
   return (
     <View className='flex flex-col'>
-      {subtitleStreams.map((stream, index) => (
+      {subtitleStreams.map((stream, _index) => (
         <View key={stream.Index} className='flex flex-col'>
           <Text className='text-xs mb-3 text-neutral-400'>
             {stream.DisplayTitle}
@@ -177,15 +175,13 @@ const AudioStreamInfo = ({ audioStreams }: { audioStreams: MediaStream[] }) => {
 };
 
 const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
-  if (!source) return null;
-
   const videoStream = useMemo(() => {
-    return source.MediaStreams?.find(
-      (stream) => stream.Type === "Video",
-    ) as MediaStream;
-  }, [source.MediaStreams]);
+    return source?.MediaStreams?.find((stream) => stream.Type === "Video") as
+      | MediaStream
+      | undefined;
+  }, [source?.MediaStreams]);
 
-  if (!videoStream) return null;
+  if (!source || !videoStream) return null;
 
   return (
     <View className='flex-row flex-wrap gap-2'>
@@ -223,7 +219,11 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
       <Badge
         variant='gray'
         iconLeft={<Ionicons name='play-outline' size={16} color='white' />}
-        text={`${videoStream.AverageFrameRate?.toFixed(0)} fps`}
+        text={
+          videoStream.AverageFrameRate != null
+            ? `${videoStream.AverageFrameRate.toFixed(0)} fps`
+            : ""
+        }
       />
     </View>
   );

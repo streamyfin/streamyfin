@@ -1,11 +1,4 @@
-import {
-  SeasonDropdown,
-  type SeasonIndexState,
-} from "@/components/series/SeasonDropdown";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
-import { runtimeTicksToSeconds } from "@/utils/time";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,12 +6,19 @@ import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
+import {
+  SeasonDropdown,
+  type SeasonIndexState,
+} from "@/components/series/SeasonDropdown";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
+import { Text } from "../common/Text";
+import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
 import { PlayedStatus } from "../PlayedStatus";
-import { Text } from "../common/Text";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
 type Props = {
   item: BaseItemDto;
