@@ -1,4 +1,3 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -12,10 +11,11 @@ import {
 import { useAtom } from "jotai";
 import { useCallback } from "react";
 import { View, type ViewProps } from "react-native";
-import { ItemCardText } from "../ItemCardText";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { InfiniteHorizontalScroll } from "../common/InfiniteHorrizontalScroll";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import { ItemCardText } from "../ItemCardText";
 import MoviePoster from "../posters/MoviePoster";
 
 interface Props extends ViewProps {

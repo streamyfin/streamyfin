@@ -1,9 +1,18 @@
-import { Tag, Tags } from "@/components/GenreTags";
+import { Image } from "expo-image";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { View, type ViewProps } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { TouchableJellyseerrRouter } from "@/components/common/JellyseerrItemRouter";
 import { Text } from "@/components/common/Text";
+import { Tag, Tags } from "@/components/GenreTags";
+import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
 import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
 import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
-import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
 import { Colors } from "@/constants/Colors";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
@@ -16,15 +25,6 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-import { Image } from "expo-image";
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { View, type ViewProps } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 
 interface Props extends ViewProps {
   item?: MovieResult | TvResult | MovieDetails | TvDetails;

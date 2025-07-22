@@ -1,9 +1,9 @@
-import { usePlaySettings } from "@/providers/PlaySettingsProvider";
-import { writeToLog } from "@/utils/log";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useCallback } from "react";
+import { usePlaySettings } from "@/providers/PlaySettingsProvider";
+import { writeToLog } from "@/utils/log";
 
 export const getDownloadedFileUrl = async (itemId: string): Promise<string> => {
   const directory = FileSystem.documentDirectory;

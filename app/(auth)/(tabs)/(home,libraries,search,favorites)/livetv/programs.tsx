@@ -1,13 +1,11 @@
-import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
-import { TAB_HEIGHT } from "@/constants/Values";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 export default function page() {
   const [api] = useAtom(apiAtom);

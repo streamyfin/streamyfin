@@ -1,4 +1,3 @@
-import { tc } from "@/utils/textTools";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { View } from "react-native";

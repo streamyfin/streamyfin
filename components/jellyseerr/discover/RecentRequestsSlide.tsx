@@ -1,12 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+import type React from "react";
+import type { ViewProps } from "react-native";
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import type { NonFunctionProperties } from "@/utils/jellyseerr/server/interfaces/api/common";
-import { useQuery } from "@tanstack/react-query";
-import type React from "react";
-import type { ViewProps } from "react-native";
 
 const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
   const { jellyseerrApi } = useJellyseerr();

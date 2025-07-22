@@ -1,15 +1,15 @@
-import type { TrackInfo } from "@/modules/VlcPlayer.types";
-import { VideoPlayer, useSettings } from "@/utils/atoms/settings";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
-  type ReactNode,
   createContext,
+  type ReactNode,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from "react";
+import type { TrackInfo } from "@/modules/VlcPlayer.types";
+import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import type { Track } from "../types";
 import { useControlContext } from "./ControlContext";
 
@@ -57,13 +57,14 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   const allSubs =
     mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
 
-  const { itemId, audioIndex, bitrateValue, subtitleIndex } =
+  const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
       itemId: string;
       audioIndex: string;
       subtitleIndex: string;
       mediaSourceId: string;
       bitrateValue: string;
+      playbackPosition: string;
     }>();
 
   const onTextBasedSubtitle = useMemo(
@@ -88,6 +89,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       subtitleIndex: chosenSubtitleIndex,
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
+      playbackPosition: playbackPosition,
     }).toString();
 
     //@ts-ignore

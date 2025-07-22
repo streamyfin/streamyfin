@@ -1,11 +1,11 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
-import { useMemo } from "react";
 import type React from "react";
+import { useMemo } from "react";
 import { View } from "react-native";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { WatchedIndicator } from "./WatchedIndicator";
 
 type ContinueWatchingPosterProps = {

@@ -1,11 +1,11 @@
-import { Text } from "@/components/common/Text";
-import PersonPoster from "@/components/jellyseerr/PersonPoster";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { FlashList } from "@shopify/flash-list";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import PersonPoster from "@/components/jellyseerr/PersonPoster";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
 const CastSlide: React.FC<
   { details?: MovieDetails | TvDetails } & ViewProps

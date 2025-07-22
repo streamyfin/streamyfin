@@ -1,5 +1,3 @@
-import { useFavorite } from "@/hooks/useFavorite";
-import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import type {
   BaseItemDto,
@@ -8,6 +6,8 @@ import type {
 import { useRouter, useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import { useFavorite } from "@/hooks/useFavorite";
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;

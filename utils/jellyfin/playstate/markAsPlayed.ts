@@ -31,7 +31,7 @@ export const markAsPlayed = async ({
     });
 
     return response.status === 200;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 };

@@ -1,9 +1,11 @@
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { useSettings } from "@/utils/atoms/settings";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
+import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import { useSettings } from "@/utils/atoms/settings";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import { useTranslation } from "react-i18next";
 
 export default function IndexLayout() {
