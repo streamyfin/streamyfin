@@ -1,8 +1,8 @@
 import {
-  type BottomTabNavigationEventMap,
-  type BottomTabNavigationOptions,
-  createBottomTabNavigator,
-} from "@react-navigation/bottom-tabs";
+  createNativeBottomTabNavigator,
+  type NativeBottomTabNavigationEventMap,
+  type NativeBottomTabNavigationOptions,
+} from "@bottom-tabs/react-navigation";
 import type {
   ParamListBase,
   TabNavigationState,
@@ -17,13 +17,13 @@ import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
 
-const { Navigator } = createBottomTabNavigator();
+const { Navigator } = createNativeBottomTabNavigator();
 
 export const NativeTabs = withLayoutContext<
-  BottomTabNavigationOptions,
+  NativeBottomTabNavigationOptions,
   typeof Navigator,
   TabNavigationState<ParamListBase>,
-  BottomTabNavigationEventMap
+  NativeBottomTabNavigationEventMap
 >(Navigator);
 
 export default function TabLayout() {
@@ -51,7 +51,6 @@ export default function TabLayout() {
       <SystemBars hidden={false} style='light' />
       <NativeTabs
         sidebarAdaptable={false}
-        ignoresTopSafeArea
         tabBarStyle={{
           backgroundColor: "#121212",
         }}
@@ -70,8 +69,7 @@ export default function TabLayout() {
             title: t("tabs.home"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ color, focused, size }) =>
-                    require("@/assets/icons/house.fill.png")
+                ? ({ focused }) => require("@/assets/icons/house.fill.png")
                 : ({ focused }) =>
                     focused
                       ? { sfSymbol: "house.fill" }
@@ -89,8 +87,7 @@ export default function TabLayout() {
             title: t("tabs.search"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ color, focused, size }) =>
-                    require("@/assets/icons/magnifyingglass.png")
+                ? ({ focused }) => require("@/assets/icons/magnifyingglass.png")
                 : ({ focused }) =>
                     focused
                       ? { sfSymbol: "magnifyingglass" }
@@ -103,7 +100,7 @@ export default function TabLayout() {
             title: t("tabs.favorites"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ color, focused, size }) =>
+                ? ({ focused }) =>
                     focused
                       ? require("@/assets/icons/heart.fill.png")
                       : require("@/assets/icons/heart.png")
@@ -119,8 +116,7 @@ export default function TabLayout() {
             title: t("tabs.library"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ color, focused, size }) =>
-                    require("@/assets/icons/server.rack.png")
+                ? ({ focused }) => require("@/assets/icons/server.rack.png")
                 : ({ focused }) =>
                     focused
                       ? { sfSymbol: "rectangle.stack.fill" }
@@ -131,7 +127,6 @@ export default function TabLayout() {
           name='(custom-links)'
           options={{
             title: t("tabs.custom_links"),
-            // @ts-expect-error
             tabBarItemHidden: !settings?.showCustomMenuLinks,
             tabBarIcon:
               Platform.OS === "android"
