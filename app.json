@@ -72,7 +72,10 @@
         {
           "ios": {
             "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "extraPods": [
+              { "name": "SDWebImage", "modular_headers": true },
+              { "name": "SDWebImageSVGCoder", "modular_headers": true }
+            ]
           },
           "android": {
             "compileSdkVersion": 35,
@@ -138,7 +141,8 @@
         {
           "useDefaultExpandedMediaControls": true
         }
-      ]
+      ],
+      "react-native-bottom-tabs"
     ],
     "experiments": {
       "typedRoutes": true
