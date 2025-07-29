@@ -1,3 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { useMemo } from "react";
+import { Platform, Switch, TouchableOpacity } from "react-native";
 import { Stepper } from "@/components/inputs/Stepper";
 import { useDownload } from "@/providers/DownloadProvider";
 import {
@@ -5,14 +10,11 @@ import {
   type Settings,
   useSettings,
 } from "@/utils/atoms/settings";
-import { Ionicons } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import React, { useMemo } from "react";
-import { Platform, Switch, TouchableOpacity } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import DisabledSetting from "@/components/settings/DisabledSetting";
+
 import { useTranslation } from "react-i18next";
+import DisabledSetting from "@/components/settings/DisabledSetting";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";

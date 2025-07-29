@@ -1,10 +1,10 @@
-import { Button } from "@/components/Button";
-import { Text } from "@/components/common/Text";
-import { useSettings } from "@/utils/atoms/settings";
 import { useRouter } from "expo-router";
 import { t } from "i18next";
 import React from "react";
 import { View } from "react-native";
+import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
+import { useSettings } from "@/utils/atoms/settings";
 
 export interface ContinueWatchingOverlayProps {
   goToNextItem: (options: {

@@ -1,8 +1,3 @@
-import { useHaptic } from "@/hooks/useHaptic";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +16,11 @@ import Carousel, {
   type ICarouselInstance,
   Pagination,
 } from "react-native-reanimated-carousel";
+import { useHaptic } from "@/hooks/useHaptic";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { itemRouter } from "../common/TouchableItemRouter";
 
 interface Props extends ViewProps {}

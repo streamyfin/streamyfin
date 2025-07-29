@@ -1,12 +1,12 @@
-import { Text } from "@/components/common/Text";
-import { Colors } from "@/constants/Colors";
-import { useHaptic } from "@/hooks/useHaptic";
-import { useDownload } from "@/providers/DownloadProvider";
 import { useQuery } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
+import { Text } from "@/components/common/Text";
+import { Colors } from "@/constants/Colors";
+import { useHaptic } from "@/hooks/useHaptic";
+import { useDownload } from "@/providers/DownloadProvider";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -16,7 +16,7 @@ export const StorageSettings = () => {
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
 
-  const { data: size, isLoading: appSizeLoading } = useQuery({
+  const { data: size } = useQuery({
     queryKey: ["appSize", appSizeUsage],
     queryFn: async () => {
       const app = await appSizeUsage;
@@ -32,7 +32,7 @@ export const StorageSettings = () => {
     try {
       await deleteAllFiles();
       successHapticFeedback();
-    } catch (e) {
+    } catch (_e) {
       errorHapticFeedback();
       toast.error(t("home.settings.toasts.error_deleting_files"));
     }

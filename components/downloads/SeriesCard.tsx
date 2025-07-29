@@ -1,6 +1,3 @@
-import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { useDownload } from "@/providers/DownloadProvider";
-import { storage } from "@/utils/mmkv";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
@@ -9,6 +6,9 @@ import { router } from "expo-router";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
+import { DownloadSize } from "@/components/downloads/DownloadSize";
+import { useDownload } from "@/providers/DownloadProvider";
+import { storage } from "@/utils/mmkv";
 import { Text } from "../common/Text";
 
 export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {

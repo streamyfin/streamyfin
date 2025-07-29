@@ -1,3 +1,17 @@
+import { Ionicons } from "@expo/vector-icons";
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
+import { useNavigation, useRouter } from "expo-router";
+import { useAtom } from "jotai";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
@@ -8,36 +22,47 @@ import { type DownloadedItem, useDownload } from "@/providers/DownloadProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
-import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import { useNavigation, useRouter } from "expo-router";
-import { t } from "i18next";
-import { useAtom } from "jotai";
-import React, { useEffect, useMemo, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { toast } from "sonner-native";
 
 export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const { removeProcess, downloadedFiles, deleteFileByType } = useDownload();
+  const { removeProcess, downloadedFiles, deleteFileByType, deleteAllFiles } =
+    useDownload();
   const router = useRouter();
   const [settings] = useSettings();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  const [showMigration, setShowMigration] = useState(false);
+
+  const insets = useSafeAreaInsets();
+
+  const migration_20241124 = () => {
+    Alert.alert(
+      t("home.downloads.new_app_version_requires_re_download"),
+      t("home.downloads.new_app_version_requires_re_download_description"),
+      [
+        {
+          text: t("home.downloads.back"),
+          onPress: () => setShowMigration(false) || router.back(),
+        },
+        {
+          text: t("home.downloads.delete"),
+          style: "destructive",
+          onPress: async () => {
+            await deleteAllFiles();
+            setShowMigration(false);
+          },
+        },
+      ],
+    );
+  };
 
   const movies = useMemo(() => {
     try {
       return downloadedFiles?.filter((f) => f.item.Type === "Movie") || [];
     } catch {
-      migration_20241124();
+      setShowMigration(true);
       return [];
     }
   }, [downloadedFiles]);
@@ -54,12 +79,10 @@ export default function page() {
       });
       return Object.values(series);
     } catch {
-      migration_20241124();
+      setShowMigration(true);
       return [];
     }
   }, [downloadedFiles]);
-
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     navigation.setOptions({
@@ -70,6 +93,12 @@ export default function page() {
       ),
     });
   }, [downloadedFiles]);
+
+  useEffect(() => {
+    if (showMigration) {
+      migration_20241124();
+    }
+  }, [showMigration]);
 
   const deleteMovies = () =>
     deleteFileByType("Movie")
@@ -247,25 +276,5 @@ export default function page() {
         </BottomSheetView>
       </BottomSheetModal>
     </>
-  );
-}
-
-function migration_20241124() {
-  const router = useRouter();
-  const { deleteAllFiles } = useDownload();
-  Alert.alert(
-    t("home.downloads.new_app_version_requires_re_download"),
-    t("home.downloads.new_app_version_requires_re_download_description"),
-    [
-      {
-        text: t("home.downloads.back"),
-        onPress: () => router.back(),
-      },
-      {
-        text: t("home.downloads.delete"),
-        style: "destructive",
-        onPress: async () => await deleteAllFiles(),
-      },
-    ],
   );
 }

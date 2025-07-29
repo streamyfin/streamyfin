@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.28.0",
+    "version": "0.29.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -72,7 +72,10 @@
         {
           "ios": {
             "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "extraPods": [
+              { "name": "SDWebImage", "modular_headers": true },
+              { "name": "SDWebImageSVGCoder", "modular_headers": true }
+            ]
           },
           "android": {
             "compileSdkVersion": 35,
@@ -113,7 +116,6 @@
           }
         }
       ],
-      ["react-native-bottom-tabs"],
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
@@ -134,7 +136,8 @@
           "color": "#9333EA"
         }
       ],
-      "./plugins/with-runtime-framework-headers.js"
+      "./plugins/with-runtime-framework-headers.js",
+      "react-native-bottom-tabs"
     ],
     "experiments": {
       "typedRoutes": true

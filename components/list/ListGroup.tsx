@@ -1,13 +1,12 @@
 import {
   Children,
-  type PropsWithChildren,
-  type ReactElement,
   cloneElement,
   isValidElement,
+  type PropsWithChildren,
+  type ReactElement,
 } from "react";
 import { StyleSheet, View, type ViewProps, type ViewStyle } from "react-native";
 import { Text } from "../common/Text";
-import { ListItem } from "./ListItem";
 
 interface Props extends ViewProps {
   title?: string | null | undefined;

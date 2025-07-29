@@ -1,3 +1,9 @@
+import { useNavigation, useRouter } from "expo-router";
+import { t } from "i18next";
+import { useAtom } from "jotai";
+import { useEffect } from "react";
+import { ScrollView, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -14,21 +20,14 @@ import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useJellyfin } from "@/providers/JellyfinProvider";
-import { userAtom } from "@/providers/JellyfinProvider";
+import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { useNavigation, useRouter } from "expo-router";
-import { t } from "i18next";
-import { useAtom } from "jotai";
-import React, { useEffect } from "react";
-import { ScrollView, Switch, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [user] = useAtom(userAtom);
+  const [_user] = useAtom(userAtom);
   const { logout } = useJellyfin();
   const successHapticFeedback = useHaptic("success");
 

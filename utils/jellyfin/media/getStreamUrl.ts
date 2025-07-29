@@ -1,12 +1,10 @@
-import generateDeviceProfile from "@/utils/profiles/native";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
-  PlaybackInfoResponse,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import { Alert } from "react-native";
+import generateDeviceProfile from "@/utils/profiles/native";
 
 export const getStreamUrl = async ({
   api,

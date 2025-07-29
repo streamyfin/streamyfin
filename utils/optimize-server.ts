@@ -1,11 +1,9 @@
-import { itemRouter } from "@/components/common/TouchableItemRouter";
-import { DownloadedItem } from "@/providers/DownloadProvider";
-import { storage } from "@/utils/mmkv";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import axios from "axios";
+import { storage } from "@/utils/mmkv";
 import { writeToLog } from "./log";
 
 interface IJobInput {

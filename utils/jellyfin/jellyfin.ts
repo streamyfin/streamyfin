@@ -18,7 +18,7 @@ export const getAuthHeaders = (api: Api): Record<string, string> => ({
  * @returns {string} - The bitrate as a human-readable string.
  */
 export const bitrateToString = (bitrate: number): string => {
-  const kbps = bitrate / 1000;
+  const _kbps = bitrate / 1000;
   const mbps = (bitrate / 1000000).toFixed(2);
 
   return `${mbps} Mb/s`;

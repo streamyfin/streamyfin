@@ -1,6 +1,6 @@
-import { Text } from "@/components/common/Text";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
 
 interface Props extends ViewProps {
   item: BaseItemDto;

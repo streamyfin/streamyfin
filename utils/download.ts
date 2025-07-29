@@ -1,9 +1,9 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { useAtom } from "jotai";
 import useImageStorage from "@/hooks/useImageStorage";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { storage } from "@/utils/mmkv";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useAtom } from "jotai";
 
 const useDownloadHelper = () => {
   const [api] = useAtom(apiAtom);

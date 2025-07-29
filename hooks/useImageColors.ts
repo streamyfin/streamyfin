@@ -1,3 +1,8 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { useAtom, useAtomValue } from "jotai";
+import { useEffect, useMemo } from "react";
+import { Platform } from "react-native";
+import { getColors, ImageColorsResult } from "react-native-image-colors";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   adjustToNearBlack,
@@ -7,11 +12,6 @@ import {
 } from "@/utils/atoms/primaryColor";
 import { getItemImage } from "@/utils/getItemImage";
 import { storage } from "@/utils/mmkv";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useAtom, useAtomValue } from "jotai";
-import { useEffect, useMemo } from "react";
-import { Platform } from "react-native";
-import { ImageColorsResult, getColors } from "react-native-image-colors";
 
 /**
  * Custom hook to extract and manage image colors for a given item.
@@ -29,10 +29,10 @@ export const useImageColors = ({
   url?: string | null;
   disabled?: boolean;
 }) => {
-  if (Platform.isTV) return;
-
   const api = useAtomValue(apiAtom);
   const [, setPrimaryColor] = useAtom(itemThemeColorAtom);
+
+  const isTv = Platform.isTV;
 
   const source = useMemo(() => {
     if (!api) return;
@@ -46,16 +46,15 @@ export const useImageColors = ({
         width: 300,
       });
     return null;
-  }, [api, item]);
+  }, [api, item, url]);
 
   useEffect(() => {
+    if (isTv) return;
     if (disabled) return;
     if (source?.uri) {
-      // Check if colors are already cached in storage
       const _primary = storage.getString(`${source.uri}-primary`);
       const _text = storage.getString(`${source.uri}-text`);
 
-      // If colors are cached, use them and exit
       if (_primary && _text) {
         setPrimaryColor({
           primary: _primary,
@@ -107,5 +106,7 @@ export const useImageColors = ({
           console.error("Error getting colors", error);
         });
     }
-  }, [source?.uri, setPrimaryColor, disabled]);
+  }, [isTv, source?.uri, setPrimaryColor, disabled]);
+
+  if (isTv) return;
 };

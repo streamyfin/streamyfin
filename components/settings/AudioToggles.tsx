@@ -1,9 +1,11 @@
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { useSettings } from "@/utils/atoms/settings";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Switch } from "react-native-gesture-handler";
+import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -12,13 +14,15 @@ import { useMedia } from "./MediaContext";
 interface Props extends ViewProps {}
 
 export const AudioToggles: React.FC<Props> = ({ ...props }) => {
-  if (Platform.isTV) return null;
+  const isTv = Platform.isTV;
+
   const media = useMedia();
   const [_, __, pluginSettings] = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
 
+  if (isTv) return null;
   if (!settings) return null;
 
   return (

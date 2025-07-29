@@ -1,19 +1,4 @@
-import { Badge } from "@/components/Badge";
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import Poster from "@/components/posters/Poster";
-import { useInterval } from "@/hooks/useInterval";
-import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { formatBitrate } from "@/utils/bitrate";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { formatTimeString } from "@/utils/time";
-import {
-  AntDesign,
-  Entypo,
-  Ionicons,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   HardwareAccelerationType,
   type SessionInfoDto,
@@ -26,10 +11,19 @@ import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { get } from "lodash";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import { Badge } from "@/components/Badge";
+import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
+import Poster from "@/components/posters/Poster";
+import { useInterval } from "@/hooks/useInterval";
+import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { formatBitrate } from "@/utils/bitrate";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { formatTimeString } from "@/utils/time";
 
 export default function page() {
   const { sessions, isLoading } = useSessions({} as useSessionsProps);
@@ -454,20 +448,18 @@ const TranscodingStreamView = ({
         </Text>
       </View>
       {isTranscoding && transcodeProperties ? (
-        <>
-          <View className='flex flex-row'>
-            <Text className='-mt-0 text-xs opacity-50 w-20 font-bold text-right pr-4'>
-              <MaterialCommunityIcons
-                name='arrow-right-bottom'
-                size={14}
-                color='white'
-              />
-            </Text>
-            <Text className='flex-1 text-sm mt-1'>
-              <TranscodingBadges properties={transcodeProperties} />
-            </Text>
-          </View>
-        </>
+        <View className='flex flex-row'>
+          <Text className='-mt-0 text-xs opacity-50 w-20 font-bold text-right pr-4'>
+            <MaterialCommunityIcons
+              name='arrow-right-bottom'
+              size={14}
+              color='white'
+            />
+          </Text>
+          <Text className='flex-1 text-sm mt-1'>
+            <TranscodingBadges properties={transcodeProperties} />
+          </Text>
+        </View>
       ) : null}
     </View>
   );

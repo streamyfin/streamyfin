@@ -1,7 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useEffect, useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import { t } from "i18next";
 import { Text } from "../common/Text";
 
@@ -30,7 +32,7 @@ export const SeasonDropdown: React.FC<Props> = ({
   state,
   onSelect,
 }) => {
-  if (Platform.isTV) return null;
+  const isTv = Platform.isTV;
 
   const keys = useMemo<SeasonKeys>(
     () =>
@@ -50,10 +52,11 @@ export const SeasonDropdown: React.FC<Props> = ({
 
   const seasonIndex = useMemo(
     () => state[(item[keys.id] as string) ?? ""],
-    [state],
+    [state, item, keys],
   );
 
   useEffect(() => {
+    if (isTv) return;
     if (seasons && seasons.length > 0 && seasonIndex === undefined) {
       let initialIndex: number | undefined;
 
@@ -79,15 +82,25 @@ export const SeasonDropdown: React.FC<Props> = ({
         const initialSeason = seasons.find(
           (season: any) => season[keys.index] === initialIndex,
         );
-
         if (initialSeason) onSelect(initialSeason!);
         else throw Error("Initial index could not be found!");
       }
     }
-  }, [seasons, seasonIndex, item[keys.id], initialSeasonIndex]);
+  }, [
+    isTv,
+    seasons,
+    seasonIndex,
+    item,
+    item[keys.id],
+    initialSeasonIndex,
+    keys,
+    onSelect,
+  ]);
 
   const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
     Number(a[keys.index]) - Number(b[keys.index]);
+
+  if (isTv) return null;
 
   return (
     <DropdownMenu.Root>
