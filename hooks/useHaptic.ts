@@ -38,8 +38,20 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
     [],
   );
 
-  const hapticHandlers = useMemo(
-    () => ({
+  const hapticHandlers = useMemo(() => {
+    if (!Haptics) {
+      return {
+        light: () => {},
+        medium: () => {},
+        heavy: () => {},
+        selection: () => {},
+        success: () => {},
+        warning: () => {},
+        error: () => {},
+      };
+    }
+
+    return {
       light: createHapticHandler(Haptics.ImpactFeedbackStyle.Light),
       medium: createHapticHandler(Haptics.ImpactFeedbackStyle.Medium),
       heavy: createHapticHandler(Haptics.ImpactFeedbackStyle.Heavy),
@@ -51,9 +63,8 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
         Haptics.NotificationFeedbackType.Warning,
       ),
       error: createNotificationFeedback(Haptics.NotificationFeedbackType.Error),
-    }),
-    [createHapticHandler, createNotificationFeedback],
-  );
+    };
+  }, [createHapticHandler, createNotificationFeedback]);
 
   if (settings?.disableHapticFeedback) {
     return () => {};
