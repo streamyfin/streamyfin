@@ -9,16 +9,15 @@ import * as FileSystem from "expo-file-system";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
+import { throttle } from "lodash";
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
-  useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, type AppStateStatus } from "react-native";
 import { toast } from "sonner-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import useImageStorage from "@/hooks/useImageStorage";
@@ -40,7 +39,6 @@ import {
 } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
 
-// Helper to calculate estimated download size based on bitrate
 const calculateEstimatedSize = (p: JobStatus): number => {
   let size = p.mediaSource.Size;
   const maxBitrate = p.maxBitrate.value;
@@ -91,6 +89,14 @@ function useDownloadProvider() {
   const [settings] = useSettings();
   const successHapticFeedback = useHaptic("success");
 
+  const removeProcess = useCallback(async (id: string) => {
+    const tasks = await BackGroundDownloader.checkForExistingDownloads();
+    const task = tasks?.find((t) => t.id === id);
+    task?.stop();
+    BackGroundDownloader.completeHandler(id);
+    setProcesses((prev) => prev.filter((process) => process.id !== id));
+  }, [setProcesses]);
+
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
     const tasks = await BackGroundDownloader.checkForExistingDownloads();
@@ -98,40 +104,42 @@ function useDownloadProvider() {
       return;
     }
     // check if processes are missing
-    const missingProcesses = tasks
-      .filter((t) => t.metadata && !processes.some((p) => p.id === t.id))
-      .map((t) => {
-        return t.metadata as JobStatus;
+    setProcesses((processes) => {
+      const missingProcesses = tasks
+        .filter((t) => t.metadata && !processes.some((p) => p.id === t.id))
+        .map((t) => {
+          return t.metadata as JobStatus;
+        });
+
+      const currentProcesses = [...processes, ...missingProcesses];
+      const updatedProcesses = currentProcesses.map((p) => {
+        // fallback. Doesn't really work for transcodes as they may be a lot smaller.
+        // We make an wild guess by comparing bitrates
+        const task = tasks.find((s) => s.id === p.id);
+        if (task && p.status === "downloading") {
+          const estimatedSize = calculateEstimatedSize(p);
+          let progress = p.progress;
+          if (estimatedSize > 0) {
+            progress = (100 / estimatedSize) * task.bytesDownloaded;
+          }
+          if (progress >= 100) {
+            progress = 99;
+          }
+          const speed = calculateSpeed(p, task.bytesDownloaded);
+          return {
+            ...p,
+            progress,
+            speed,
+            bytesDownloaded: task.bytesDownloaded,
+            lastProgressUpdateTime: new Date(),
+            estimatedTotalSizeBytes: estimatedSize,
+          };
+        }
+        return p;
       });
 
-    const currentProcesses = [...processes, ...missingProcesses];
-    const updatedProcesses = currentProcesses.map((p) => {
-      // fallback. Doesn't really work for transcodes as they may be a lot smaller.
-      // We make an wild guess by comparing bitrates
-      const task = tasks.find((s) => s.id === p.id);
-      if (task && p.status === "downloading") {
-        const estimatedSize = calculateEstimatedSize(p);
-        let progress = p.progress;
-        if (estimatedSize > 0) {
-          progress = (100 / estimatedSize) * task.bytesDownloaded;
-        }
-        if (progress >= 100) {
-          progress = 99;
-        }
-        const speed = calculateSpeed(p, task.bytesDownloaded);
-        return {
-          ...p,
-          progress,
-          speed,
-          bytesDownloaded: task.bytesDownloaded,
-          lastProgressUpdateTime: new Date(),
-          estimatedTotalSizeBytes: estimatedSize,
-        };
-      }
-      return p;
+      return updatedProcesses;
     });
-
-    setProcesses(updatedProcesses);
   };
 
   useInterval(updateProgress, 2000);
@@ -159,16 +167,21 @@ function useDownloadProvider() {
   };
 
   const updateProcess = useCallback(
-    (processId: string, newStatus: Partial<JobStatus>) => {
+    (
+      processId: string,
+      updater:
+        | Partial<JobStatus>
+        | ((current: JobStatus) => Partial<JobStatus>),
+    ) => {
       setProcesses((prev) =>
-        prev.map((p) =>
-          p.id === processId
-            ? {
-              ...p,
-              ...newStatus,
-            }
-            : p,
-        ),
+        prev.map((p) => {
+          if (p.id !== processId) return p;
+          const newStatus = typeof updater === "function" ? updater(p) : updater;
+          return {
+            ...p,
+            ...newStatus,
+          };
+        }),
       );
     },
     [setProcesses],
@@ -200,10 +213,6 @@ function useDownloadProvider() {
     // We always want fetch, even if there is no internet.
     networkMode: "always",
   });
-
-  const removeProcess = useCallback((id: string) => {
-    setProcesses((prev) => prev.filter((process) => process.id !== id));
-  }, [setProcesses]);
 
   const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;
 
@@ -314,16 +323,24 @@ function useDownloadProvider() {
           updateProcess(process.id, {
             status: "downloading",
             progress: 0,
+            bytesDownloaded: 0,
+            lastProgressUpdateTime: new Date(),
           });
         })
-        .progress((data) => {
-          const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
-          updateProcess(process.id, {
-            speed: undefined,
-            status: "downloading",
-            progress: percent,
-          });
-        })
+        .progress(
+          throttle((data) => {
+            updateProcess(process.id, (currentProcess) => {
+              const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
+              return {
+                speed: calculateSpeed(currentProcess, data.bytesDownloaded),
+                status: "downloading",
+                progress: percent,
+                bytesDownloaded: data.bytesDownloaded,
+                lastProgressUpdateTime: new Date(),
+              };
+            });
+          }, 500),
+        )
         .done(async () => {
           const trickPlayData = await downloadTrickplayImages(process.item);
           const videoFileInfo = await FileSystem.getInfoAsync(videoFilePath);
@@ -393,7 +410,6 @@ function useDownloadProvider() {
               item: process.item.Name,
             }),
           );
-          BackGroundDownloader.completeHandler(process.id);
           removeProcess(process.id);
           const itemName =
             process.item.Type === "Episode" &&
@@ -410,7 +426,7 @@ function useDownloadProvider() {
                 item: itemName,
               }),
               data: {
-                url: `/items/${process.item.Id}`,
+                url: `/(auth)/(tabs)/home/items/page?id=${process.item.Id}?offline=true`,
               },
             },
             trigger: null,

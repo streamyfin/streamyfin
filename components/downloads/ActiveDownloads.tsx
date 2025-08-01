@@ -70,13 +70,6 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const cancelJobMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!process) throw new Error("No active download");
-      const tasks = await BackGroundDownloader.checkForExistingDownloads();
-
-      for (const task of tasks) {
-        if (task.id === id) {
-          await task.stop();
-        }
-      }
       removeProcess(id);
     },
     onSuccess: () => {

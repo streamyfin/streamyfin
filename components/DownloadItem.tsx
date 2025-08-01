@@ -21,8 +21,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import download from "@/utils/profiles/download";
+import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -167,31 +166,29 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               audioIndex: selectedAudioStream,
               subtitleIndex: selectedSubtitleStream,
             };
-        const res = await getStreamUrl({
+
+        const url = await getDownloadUrl({
           api,
           item,
-          startTimeTicks: 0,
-          userId: user?.Id,
-          audioStreamIndex: audioIndex,
-          maxStreamingBitrate: maxBitrate.value,
-          mediaSourceId: mediaSource?.Id,
-          subtitleStreamIndex: subtitleIndex,
-          deviceProfile: download,
-          download: true,
+          userId: user.Id!,
+          mediaSource: mediaSource!,
+          audioStreamIndex: audioIndex ?? -1,
+          subtitleStreamIndex: subtitleIndex ?? -1,
+          maxBitrate,
+          deviceId: api.deviceInfo.id,
         });
-        return { res, item };
+        return { url, item, mediaSource };
       });
       const downloadDetails = await Promise.all(downloadDetailsPromises);
-      for (const { res, item } of downloadDetails) {
-        if (!res) {
+      for (const { url, item, mediaSource } of downloadDetails) {
+        if (!url) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
             t("home.downloads.could_not_get_stream_url_from_jellyfin"),
           );
           continue;
         }
-        const { mediaSource: source, url } = res;
-        if (!url || !source) {
+        if (!mediaSource) {
           console.error(`Could not get download URL for ${item.Name}`);
           toast.error(
             t("Could not get download URL for {{itemName}}", {
@@ -200,7 +197,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
-        await startBackgroundDownload(url, item, source, maxBitrate);
+        await startBackgroundDownload(url, item, mediaSource, maxBitrate);
       }
     },
     [

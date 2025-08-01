@@ -575,7 +575,7 @@ export const Controls: FC<Props> = ({
             className={"flex flex-row w-full pt-2"}
           >
             <View className='mr-auto'>
-              {!Platform.isTV && !offline && (
+              {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
                 <VideoProvider
                   getAudioTracks={getAudioTracks}
                   getSubtitleTracks={getSubtitleTracks}
