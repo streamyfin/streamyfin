@@ -127,6 +127,7 @@ export type HomeSectionLatestResolver = {
 
 export enum VideoPlayer {
   // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
+  VLC_3 = 0,
   VLC_4 = 1,
 }
 

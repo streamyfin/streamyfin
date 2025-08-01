@@ -118,7 +118,6 @@ extension VLCPlayerWrapper: VLCMediaPlayerDelegate {
     func mediaPlayerTimeChanged(_ aNotification: Notification) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.performInitialSeek()
             let timeNow = Date().timeIntervalSince1970
             if timeNow - self.lastProgressCall >= 1 {
                 self.lastProgressCall = timeNow
@@ -136,6 +135,7 @@ extension VLCPlayerWrapper: VLCMediaPlayerDelegate {
             pipController.invalidatePlaybackState()
         }
     }
+}
 
     // Workaround: When playing an HLS video for the first time, seeking to a specific time immediately can cause a crash.
     // To avoid this, we wait until the video has started playing before performing the initial seek.
@@ -161,7 +161,7 @@ class VlcPlayerView: ExpoView {
     private var progressUpdateInterval: TimeInterval = 1.0  // Update interval set to 1 second
     private var isPaused: Bool = false
     private var customSubtitles: [(internalName: String, originalName: String)] = []
-    var startPosition: Int32 = 0
+    private var startPosition: Int32 = 0
     private var externalTrack: [String: String]?
     private var isStopping: Bool = false  // Define isStopping here
     private var externalSubtitles: [[String: String]]?
@@ -300,6 +300,7 @@ class VlcPlayerView: ExpoView {
                     self.vlc.player.time = VLCTime(number: NSNumber(value: self.startPosition * 1000))
                 }
                 self.play()
+                self.vlc.player.time = VLCTime(number: NSNumber(value: self.startPosition * 1000))
             }
         }
     }

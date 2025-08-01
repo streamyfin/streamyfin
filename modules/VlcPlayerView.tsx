@@ -1,6 +1,7 @@
 import { requireNativeViewManager } from "expo-modules-core";
 import * as React from "react";
-import { ViewStyle } from "react-native";
+import { Platform, ViewStyle } from "react-native";
+import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import type {
   VlcPlayerSource,
   VlcPlayerViewProps,
@@ -12,10 +13,22 @@ interface NativeViewRef extends VlcPlayerViewRef {
 }
 
 const VLCViewManager = requireNativeViewManager("VlcPlayer");
+const VLC3ViewManager = requireNativeViewManager("VlcPlayer3");
 
 // Create a forwarded ref version of the native view
 const NativeView = React.forwardRef<NativeViewRef, VlcPlayerViewProps>(
-  (props, ref) => <VLCViewManager {...props} ref={ref} />,
+  (props, ref) => {
+    const [settings] = useSettings();
+
+    if (Platform.OS === "ios" || Platform.isTVOS) {
+      if (settings.defaultPlayer === VideoPlayer.VLC_3) {
+        console.log("[Apple] Using Vlc Player 3");
+        return <VLC3ViewManager {...props} ref={ref} />;
+      }
+    }
+    console.log("Using default Vlc Player");
+    return <VLCViewManager {...props} ref={ref} />;
+  },
 );
 
 const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
