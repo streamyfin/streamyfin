@@ -75,6 +75,7 @@ const page: React.FC = () => {
       return res?.data.Items || [];
     },
     select: (data) =>
+      // This needs to be sorted by parent index number and then index number, that way we can download the episodes in the correct order.
       [...(data || [])].sort(
         (a, b) => (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) || (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0)
       ),

@@ -3,9 +3,8 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
+import { getDownloadStreamUrl } from "./getStreamUrl";
 import { Bitrate } from "@/components/BitrateSelector";
-import native from "@/utils/profiles/native";
 
 export const getDownloadUrl = async ({
   api,
@@ -28,24 +27,6 @@ export const getDownloadUrl = async ({
 }): Promise<string | null> => {
 
   // Try check if we can play the item directly
-  const directPlayUrl = await getStreamUrl({
-    api,
-    item,
-    userId,
-    startTimeTicks: 0,
-    mediaSourceId: mediaSource.Id,
-    maxStreamingBitrate: maxBitrate.value,
-    audioStreamIndex,
-    subtitleStreamIndex,
-    deviceId,
-    deviceProfile: native,
-  });
-
-  if (maxBitrate.key === "Max" && !directPlayUrl?.mediaSource?.TranscodingUrl) {
-    console.log("Downloading item directly");
-    return `${api.basePath}/Items/${item.Id}/Download?api_key=${api.accessToken}`;
-  }
-
   const streamUrl = await getDownloadStreamUrl({
     api,
     item,
@@ -56,6 +37,11 @@ export const getDownloadUrl = async ({
     subtitleStreamIndex,
     deviceId,
   });
+
+  if (maxBitrate.key === "Max" && !streamUrl?.mediaSource?.TranscodingUrl) {
+    console.log("Downloading item directly");
+    return `${api.basePath}/Items/${item.Id}/Download?api_key=${api.accessToken}`;
+  }
 
   return streamUrl?.url ?? null;
 };

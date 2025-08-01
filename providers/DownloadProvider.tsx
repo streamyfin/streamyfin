@@ -34,6 +34,7 @@ import { Bitrate } from "../components/BitrateSelector";
 import {
   DownloadedItem,
   DownloadsDatabase,
+  ExternalSubtitle,
   JobStatus,
   TrickPlayData,
 } from "./Downloads/types";

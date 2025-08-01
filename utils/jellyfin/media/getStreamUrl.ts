@@ -207,8 +207,6 @@ export const getDownloadStreamUrl = async ({
     api.basePath
   }/Videos/${item.Id}/stream?${streamParams.toString()}`;
 
-  console.log("Video is being direct played:", directPlayUrl);
-
   return {
     url: directPlayUrl,
     sessionId: sessionId || null,

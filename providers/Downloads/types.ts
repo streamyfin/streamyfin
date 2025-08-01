@@ -54,6 +54,17 @@ export interface DownloadedItem {
   creditSegments?: MediaTimeSegment[];
   /** The user data for the item. */
   userData: UserData;
+  /** The external subtitles for the item. */
+  externalSubtitles?: ExternalSubtitle[];
+}
+
+export interface ExternalSubtitle {
+  /** The index of the subtitle stream. */
+  index: number;
+  /** The local file path of the downloaded subtitle. */
+  path: string;
+  /** The size of the subtitle file in bytes. */
+  size: number;
 }
 
 /**
