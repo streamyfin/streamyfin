@@ -137,22 +137,22 @@ extension VLCPlayerWrapper: VLCMediaPlayerDelegate {
     }
 }
 
-    // Workaround: When playing an HLS video for the first time, seeking to a specific time immediately can cause a crash.
-    // To avoid this, we wait until the video has started playing before performing the initial seek.
-    func performInitialSeek() {
-        guard let vlcPlayerView = self.playerView.superview as? VlcPlayerView,
-              !vlcPlayerView.initialSeekPerformed,
-              vlcPlayerView.startPosition > 0,
-              vlcPlayerView.shouldPerformInitialSeek,
-              player.isSeekable else { return }
-        vlcPlayerView.initialSeekPerformed = true
-        // Use a logger from the VlcPlayerView if available, or create a new one
-        let logger = (vlcPlayerView).logger
-        logger.debug("First time update, performing initial seek to \(vlcPlayerView.startPosition) seconds")
-        player.time = VLCTime(int: vlcPlayerView.startPosition * 1000)
-        self.updateVideoProgress?()
-    }
+// Workaround: When playing an HLS video for the first time, seeking to a specific time immediately can cause a crash.
+// To avoid this, we wait until the video has started playing before performing the initial seek.
+func performInitialSeek() {
+    guard let vlcPlayerView = self.playerView.superview as? VlcPlayerView,
+            !vlcPlayerView.initialSeekPerformed,
+            vlcPlayerView.startPosition > 0,
+            vlcPlayerView.shouldPerformInitialSeek,
+            player.isSeekable else { return }
+    vlcPlayerView.initialSeekPerformed = true
+    // Use a logger from the VlcPlayerView if available, or create a new one
+    let logger = (vlcPlayerView).logger
+    logger.debug("First time update, performing initial seek to \(vlcPlayerView.startPosition) seconds")
+    player.time = VLCTime(int: vlcPlayerView.startPosition * 1000)
+    self.updateVideoProgress?()
 }
+
 
 class VlcPlayerView: ExpoView {
     let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "VlcPlayerView")
