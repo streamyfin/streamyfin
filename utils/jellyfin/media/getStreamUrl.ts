@@ -74,10 +74,12 @@ export const getStreamUrl = async ({
 
   if (transcodeUrl) {
     // We need to change the subtitle method to hls for the transcoded url.
-    transcodeUrl = transcodeUrl.replace(
-      "SubtitleMethod=Encode",
-      "SubtitleMethod=Hls",
-    );
+    if (subtitleStreamIndex === -1) {
+      transcodeUrl = transcodeUrl.replace(
+        "SubtitleMethod=Encode",
+        "SubtitleMethod=Hls",
+      );
+    }
     console.log("Video is being transcoded:", transcodeUrl);
     return {
       url: `${api.basePath}${transcodeUrl}`,

@@ -7,7 +7,7 @@
 const COMMON_SUBTITLE_PROFILES = [
   // Official formats
 
-  { Format: "dvbsub", Method: "Embed" },
+  { Format: "dvdsub", Method: "Embed" },
   { Format: "dvdsub", Method: "Encode" },
 
   { Format: "idx", Method: "Embed" },
