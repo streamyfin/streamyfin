@@ -52,7 +52,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const [queue, setQueue] = useAtom(queueAtom);
+  const [queue, _setQueue] = useAtom(queueAtom);
   const [settings] = useSettings();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
@@ -167,7 +167,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               subtitleIndex: selectedSubtitleStream,
             };
 
-        const url = await getDownloadUrl({
+        const downloadDetails = await getDownloadUrl({
           api,
           item,
           userId: user.Id!,
@@ -177,8 +177,14 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           maxBitrate,
           deviceId: api.deviceInfo.id,
         });
-        return { url, item, mediaSource };
+
+        return {
+          url: downloadDetails?.url,
+          item,
+          mediaSource: downloadDetails?.mediaSource,
+        };
       });
+
       const downloadDetails = await Promise.all(downloadDetailsPromises);
       for (const { url, item, mediaSource } of downloadDetails) {
         if (!url) {
@@ -226,12 +232,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
       );
     }
-  }, [
-    closeModal,
-    initiateDownload,
-    itemsToDownload,
-    userCanDownload,
-  ]);
+  }, [closeModal, initiateDownload, itemsToDownload, userCanDownload]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -334,9 +335,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               />
               {itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
-                  <Text>
-                    {t("item_card.download.download_unwatched_only")}
-                  </Text>
+                  <Text>{t("item_card.download.download_unwatched_only")}</Text>
                   <Switch
                     onValueChange={setDownloadUnwatchedOnly}
                     value={downloadUnwatchedOnly}

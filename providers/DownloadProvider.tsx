@@ -3,10 +3,9 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
-import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
-import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
 import { throttle } from "lodash";
@@ -34,7 +33,6 @@ import { Bitrate } from "../components/BitrateSelector";
 import {
   DownloadedItem,
   DownloadsDatabase,
-  ExternalSubtitle,
   JobStatus,
   TrickPlayData,
 } from "./Downloads/types";
@@ -89,14 +87,6 @@ function useDownloadProvider() {
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
   const [settings] = useSettings();
   const successHapticFeedback = useHaptic("success");
-
-  const removeProcess = useCallback(async (id: string) => {
-    const tasks = await BackGroundDownloader.checkForExistingDownloads();
-    const task = tasks?.find((t) => t.id === id);
-    task?.stop();
-    BackGroundDownloader.completeHandler(id);
-    setProcesses((prev) => prev.filter((process) => process.id !== id));
-  }, [setProcesses]);
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
@@ -177,7 +167,8 @@ function useDownloadProvider() {
       setProcesses((prev) =>
         prev.map((p) => {
           if (p.id !== processId) return p;
-          const newStatus = typeof updater === "function" ? updater(p) : updater;
+          const newStatus =
+            typeof updater === "function" ? updater(p) : updater;
           return {
             ...p,
             ...newStatus,
@@ -292,6 +283,31 @@ function useDownloadProvider() {
   };
 
   /**
+   * Downloads and links external subtitles to the media source.
+   * @param mediaSource - The media source to download the subtitles for.
+   */
+  const downloadAndLinkSubtitles = async (
+    mediaSource: MediaSourceInfo,
+    item: BaseItemDto,
+  ) => {
+    const externalSubtitles = mediaSource.MediaStreams?.filter(
+      (stream) =>
+        stream.Type === "Subtitle" && stream.DeliveryMethod === "External",
+    );
+    if (externalSubtitles && api) {
+      await Promise.all(
+        externalSubtitles.map(async (subtitle) => {
+          const url = api.basePath + subtitle.DeliveryUrl;
+          const filename = generateFilename(item);
+          const destination = `${FileSystem.documentDirectory}${filename}_subtitle_${subtitle.Index}`;
+          await FileSystem.downloadAsync(url, destination);
+          subtitle.DeliveryUrl = destination;
+        }),
+      );
+    }
+  };
+
+  /**
    * Starts a download for a given process.
    * @param process - The process to start the download for.
    */
@@ -351,7 +367,10 @@ function useDownloadProvider() {
           const videoFileSize = videoFileInfo.size;
           const db = getDownloadsDatabase();
           const { item, mediaSource } = process;
-
+          // Only download external subtitles for non-transcoded streams.
+          if (!mediaSource.TranscodingUrl) {
+            await downloadAndLinkSubtitles(mediaSource, item);
+          }
           const { introSegments, creditSegments } = await fetchAndParseSegments(
             item.Id!,
             api!,
@@ -412,26 +431,6 @@ function useDownloadProvider() {
             }),
           );
           removeProcess(process.id);
-          const itemName =
-            process.item.Type === "Episode" &&
-              process.item.SeriesName &&
-              process.item.ParentIndexNumber != null &&
-              process.item.IndexNumber != null
-              ? `${process.item.SeriesName} - S${String(process.item.ParentIndexNumber).padStart(2, "0")}E${String(process.item.IndexNumber).padStart(2, "0")} - ${process.item.Name}`
-              : process.item.Name;
-
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: t("home.downloads.toasts.download_completed"),
-              body: t("home.downloads.toasts.download_completed_for_item", {
-                item: itemName,
-              }),
-              data: {
-                url: `/(auth)/(tabs)/home/items/page?id=${process.item.Id}?offline=true`,
-              },
-            },
-            trigger: null,
-          });
         })
         .error((error) => {
           console.error("Download error:", error);
@@ -447,10 +446,10 @@ function useDownloadProvider() {
   );
 
   const manageDownloadQueue = useCallback(() => {
-    const activeDownloads = processes.filter((p) => p.status === "downloading").length;
+    const activeDownloads = processes.filter(
+      (p) => p.status === "downloading",
+    ).length;
     const concurrentLimit = settings?.remuxConcurrentLimit || 1;
-    console.log("processes", processes.map((p) => p.status));
-
     if (activeDownloads < concurrentLimit) {
       const queuedDownload = processes.find((p) => p.status === "queued");
       if (queuedDownload) {
@@ -458,6 +457,18 @@ function useDownloadProvider() {
       }
     }
   }, [processes, settings?.remuxConcurrentLimit, startDownload]);
+
+  const removeProcess = useCallback(
+    async (id: string) => {
+      const tasks = await BackGroundDownloader.checkForExistingDownloads();
+      const task = tasks?.find((t) => t.id === id);
+      task?.stop();
+      BackGroundDownloader.completeHandler(id);
+      setProcesses((prev) => prev.filter((process) => process.id !== id));
+      manageDownloadQueue();
+    },
+    [setProcesses, manageDownloadQueue],
+  );
 
   useEffect(() => {
     manageDownloadQueue();
@@ -578,6 +589,19 @@ function useDownloadProvider() {
       await FileSystem.deleteAsync(downloadedItem.videoFilePath, {
         idempotent: true,
       });
+    }
+
+    if (downloadedItem?.mediaSource?.MediaStreams) {
+      for (const stream of downloadedItem.mediaSource.MediaStreams) {
+        if (
+          stream.Type === "Subtitle" &&
+          stream.DeliveryMethod === "External"
+        ) {
+          await FileSystem.deleteAsync(stream.DeliveryUrl!, {
+            idempotent: true,
+          });
+        }
+      }
     }
 
     if (downloadedItem?.trickPlayData?.path) {

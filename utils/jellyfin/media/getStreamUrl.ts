@@ -4,7 +4,6 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import generateDeviceProfile from "@/utils/profiles/native";
 import download from "@/utils/profiles/download";
 
 export const getStreamUrl = async ({
@@ -14,7 +13,7 @@ export const getStreamUrl = async ({
   startTimeTicks = 0,
   maxStreamingBitrate,
   playSessionId,
-  deviceProfile = generateDeviceProfile(),
+  deviceProfile,
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
@@ -26,7 +25,7 @@ export const getStreamUrl = async ({
   startTimeTicks: number;
   maxStreamingBitrate?: number;
   playSessionId?: string | null;
-  deviceProfile?: any;
+  deviceProfile: any;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   height?: number;
@@ -74,6 +73,11 @@ export const getStreamUrl = async ({
   let transcodeUrl = mediaSource?.TranscodingUrl;
 
   if (transcodeUrl) {
+    // We need to change the subtitle method to hls for the transcoded url.
+    transcodeUrl = transcodeUrl.replace(
+      "SubtitleMethod=Encode",
+      "SubtitleMethod=Hls",
+    );
     console.log("Video is being transcoded:", transcodeUrl);
     return {
       url: `${api.basePath}${transcodeUrl}`,

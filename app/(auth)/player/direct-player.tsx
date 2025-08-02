@@ -39,7 +39,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import generateDeviceProfile from "@/utils/profiles/native";
+import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 const IGNORE_SAFE_AREAS_KEY = "video_player_ignore_safe_areas";
@@ -183,7 +183,6 @@ export default function page() {
   useEffect(() => {
     const fetchStreamData = async () => {
       setStreamStatus({ isLoading: true, isError: false });
-      const native = await generateDeviceProfile();
       try {
         let result: Stream | null = null;
         if (offline && downloadedItem) {
@@ -197,6 +196,8 @@ export default function page() {
             };
           }
         } else {
+          const native = await generateDeviceProfile();
+          const transcoding = await generateDeviceProfile({ transcode: true });
           const res = await getStreamUrl({
             api,
             item,
@@ -206,7 +207,7 @@ export default function page() {
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: native,
+            deviceProfile: bitrateValue ? transcoding : native,
           });
           if (!res) return;
           const { mediaSource, sessionId, url } = res;
@@ -337,6 +338,10 @@ export default function page() {
       playbackManager.reportPlaybackProgress(
         item.Id,
         msToTicks(progress.get()),
+        {
+          AudioStreamIndex: audioIndex ?? -1,
+          SubtitleStreamIndex: subtitleIndex ?? -1,
+        },
       );
     },
     [
@@ -492,25 +497,29 @@ export default function page() {
     .filter((sub: any) => sub.DeliveryMethod === "External")
     .map((sub: any) => ({
       name: sub.DisplayTitle,
-      DeliveryUrl: api?.basePath + sub.DeliveryUrl,
+      DeliveryUrl: offline ? sub.DeliveryUrl : api?.basePath + sub.DeliveryUrl,
     }));
-
+  /** The text based subtitle tracks */
   const textSubs = allSubs.filter((sub) => sub.IsTextSubtitleStream);
-
+  /** The user chosen subtitle track from the server */
   const chosenSubtitleTrack = allSubs.find(
     (sub) => sub.Index === subtitleIndex,
   );
+  /** The user chosen audio track from the server */
   const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
-
+  /** Whether the stream we're playing is not transcoding*/
   const notTranscoding = !stream?.mediaSource.TranscodingUrl;
+  /** The initial options to pass to the VLC Player */
   const initOptions = [`--sub-text-scale=${settings.subtitleSize}`];
   if (
     chosenSubtitleTrack &&
     (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
   ) {
+    // If not transcoding, we can the index as normal.
+    // If transcoding, we need to reverse the text based subtitles, because VLC reverses the HLS subtitles.
     const finalIndex = notTranscoding
       ? allSubs.indexOf(chosenSubtitleTrack)
-      : textSubs.indexOf(chosenSubtitleTrack);
+      : [...textSubs].reverse().indexOf(chosenSubtitleTrack);
     initOptions.push(`--sub-track=${finalIndex}`);
   }
 

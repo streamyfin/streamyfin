@@ -65,6 +65,10 @@ export const usePlaybackManager = () => {
   const reportPlaybackProgress = async (
     itemId: string,
     positionTicks: number,
+    metadata?: {
+      AudioStreamIndex: number;
+      SubtitleStreamIndex: number;
+    },
   ) => {
     const localItem = getDownloadedItemById(itemId);
 
@@ -92,6 +96,8 @@ export const usePlaybackManager = () => {
         playbackProgressInfo: {
           ItemId: itemId,
           PositionTicks: positionTicks,
+          AudioStreamIndex: metadata?.AudioStreamIndex,
+          SubtitleStreamIndex: metadata?.SubtitleStreamIndex,
         } as PlaybackProgressInfo,
       });
 

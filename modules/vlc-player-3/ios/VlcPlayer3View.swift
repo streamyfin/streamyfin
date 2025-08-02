@@ -22,6 +22,8 @@ class VlcPlayer3View: ExpoView {
     private var isStopping: Bool = false  // Define isStopping here
     private var lastProgressCall = Date().timeIntervalSince1970
     var hasSource = false
+    var isTranscoding = false
+    private var initialSeekPerformed: Bool = false
 
     // MARK: - Initialization
 
@@ -88,7 +90,6 @@ class VlcPlayer3View: ExpoView {
             // If the specified time is greater than the duration, seek to the end
             let seekTime = time > duration ? duration - 1000 : time
             player.time = VLCTime(int: seekTime)
-
             if wasPlaying {
                 self.play()
             }
@@ -110,12 +111,17 @@ class VlcPlayer3View: ExpoView {
             var initOptions = source["initOptions"] as? [Any] ?? []
             self.startPosition = source["startPosition"] as? Int32 ?? 0
             self.externalSubtitles = source["externalSubtitles"] as? [[String: String]]
-            initOptions.append("--start-time=\(self.startPosition)")
 
             guard let uri = source["uri"] as? String, !uri.isEmpty else {
                 print("Error: Invalid or empty URI")
                 self.onVideoError?(["error": "Invalid or empty URI"])
                 return
+            }
+            
+            self.isTranscoding = uri.contains("m3u8")
+
+            if !self.isTranscoding, self.startPosition > 0 {
+                initOptions.append("--start-time=\(self.startPosition)")
             }
 
             let autoplay = source["autoplay"] as? Bool ?? false
@@ -126,6 +132,7 @@ class VlcPlayer3View: ExpoView {
             self.mediaPlayer?.delegate = self
             self.mediaPlayer?.drawable = self.videoView
             self.mediaPlayer?.scaleFactor = 0
+            self.initialSeekPerformed = false
 
             let media: VLCMedia
             if isNetwork {
@@ -287,9 +294,14 @@ class VlcPlayer3View: ExpoView {
 
         let currentTimeMs = player.time.intValue
         let durationMs = player.media?.length.intValue ?? 0
+        
 
         print("Debug: Current time: \(currentTimeMs)")
         if currentTimeMs >= 0 && currentTimeMs < durationMs {
+            if self.isTranscoding, !self.initialSeekPerformed, self.startPosition > 0 {
+                player.time = VLCTime(int: self.startPosition * 1000)
+                self.initialSeekPerformed = true
+            }
             self.onVideoProgress?([
                 "currentTime": currentTimeMs,
                 "duration": durationMs,

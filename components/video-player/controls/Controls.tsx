@@ -41,7 +41,7 @@ import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { writeToLog } from "@/utils/log";
@@ -527,8 +527,9 @@ export const Controls: FC<Props> = ({
             fontSize: 16,
           }}
         >
-          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${time.seconds < 10 ? `0${time.seconds}` : time.seconds
-            }`}
+          {`${time.hours > 0 ? `${time.hours}:` : ""}${time.minutes < 10 ? `0${time.minutes}` : time.minutes}:${
+            time.seconds < 10 ? `0${time.seconds}` : time.seconds
+          }`}
         </Text>
       </View>
     );
@@ -589,20 +590,19 @@ export const Controls: FC<Props> = ({
             </View>
 
             <View className='flex flex-row items-center space-x-2 '>
-              {!Platform.isTV &&
-                settings.defaultPlayer === VideoPlayer.VLC_4 && (
-                  <TouchableOpacity
-                    onPress={startPictureInPicture}
-                    className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-                  >
-                    <MaterialIcons
-                      name='picture-in-picture'
-                      size={24}
-                      color='white'
-                      style={{ opacity: showControls ? 1 : 0 }}
-                    />
-                  </TouchableOpacity>
-                )}
+              {false && (
+                <TouchableOpacity
+                  onPress={startPictureInPicture}
+                  className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+                >
+                  <MaterialIcons
+                    name='picture-in-picture'
+                    size={24}
+                    color='white'
+                    style={{ opacity: showControls ? 1 : 0 }}
+                  />
+                </TouchableOpacity>
+              )}
 
               {item?.Type === "Episode" && (
                 <TouchableOpacity
@@ -820,19 +820,19 @@ export const Controls: FC<Props> = ({
                 />
                 {(settings.maxAutoPlayEpisodeCount.value === -1 ||
                   settings.autoPlayEpisodeCount <
-                  settings.maxAutoPlayEpisodeCount.value) && (
-                    <NextEpisodeCountDownButton
-                      show={
-                        !nextItem
-                          ? false
-                          : isVlc
-                            ? remainingTime < 10000
-                            : remainingTime < 10
-                      }
-                      onFinish={handleNextEpisodeAutoPlay}
-                      onPress={handleNextEpisodeManual}
-                    />
-                  )}
+                    settings.maxAutoPlayEpisodeCount.value) && (
+                  <NextEpisodeCountDownButton
+                    show={
+                      !nextItem
+                        ? false
+                        : isVlc
+                          ? remainingTime < 10000
+                          : remainingTime < 10
+                    }
+                    onFinish={handleNextEpisodeAutoPlay}
+                    onPress={handleNextEpisodeManual}
+                  />
+                )}
               </View>
             </View>
             <View

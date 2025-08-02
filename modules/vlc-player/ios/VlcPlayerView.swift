@@ -137,21 +137,6 @@ extension VLCPlayerWrapper: VLCMediaPlayerDelegate {
     }
 }
 
-// Workaround: When playing an HLS video for the first time, seeking to a specific time immediately can cause a crash.
-// To avoid this, we wait until the video has started playing before performing the initial seek.
-func performInitialSeek() {
-    guard let vlcPlayerView = self.playerView.superview as? VlcPlayerView,
-            !vlcPlayerView.initialSeekPerformed,
-            vlcPlayerView.startPosition > 0,
-            vlcPlayerView.shouldPerformInitialSeek,
-            player.isSeekable else { return }
-    vlcPlayerView.initialSeekPerformed = true
-    // Use a logger from the VlcPlayerView if available, or create a new one
-    let logger = (vlcPlayerView).logger
-    logger.debug("First time update, performing initial seek to \(vlcPlayerView.startPosition) seconds")
-    player.time = VLCTime(int: vlcPlayerView.startPosition * 1000)
-    self.updateVideoProgress?()
-}
 
 
 class VlcPlayerView: ExpoView {
@@ -186,6 +171,19 @@ class VlcPlayerView: ExpoView {
             updatePlayerState: updatePlayerState,
             updateVideoProgress: updateVideoProgress
         )
+    }
+
+    // Workaround: When playing an HLS video for the first time, seeking to a specific time immediately can cause a crash.
+    // To avoid this, we wait until the video has started playing before performing the initial seek.
+    func performInitialSeek() {
+        guard !initialSeekPerformed,
+              startPosition > 0,
+              shouldPerformInitialSeek,
+              vlc.player.isSeekable else { return }
+
+        initialSeekPerformed = true
+        logger.debug("First time update, performing initial seek to \(self.startPosition) seconds")
+        vlc.player.time = VLCTime(int: startPosition * 1000)
     }
 
     private func setupNotifications() {
@@ -300,7 +298,6 @@ class VlcPlayerView: ExpoView {
                     self.vlc.player.time = VLCTime(number: NSNumber(value: self.startPosition * 1000))
                 }
                 self.play()
-                self.vlc.player.time = VLCTime(number: NSNumber(value: self.startPosition * 1000))
             }
         }
     }
@@ -437,6 +434,9 @@ class VlcPlayerView: ExpoView {
 
     private func updatePlayerState() {
         let player = self.vlc.player
+        if player.isPlaying {
+            performInitialSeek()
+        }
         self.onVideoStateChange?([
             "target": self.reactTag ?? NSNull(),
             "currentTime": player.time.intValue,
