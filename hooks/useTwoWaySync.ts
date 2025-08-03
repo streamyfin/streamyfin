@@ -44,9 +44,7 @@ export const useTwoWaySync = () => {
       ? new Date(remoteItem.UserData.LastPlayedDate)
       : new Date(0);
 
-    // If the remote item has been played more recently or at the same time,
-    // we take the server's version as the source of truth.
-
+    // If the remote item has been played more recently, we take the server's version as the source of truth.
     if (remoteLastPlayed > localLastPlayed) {
       updateDownloadedItem(itemId, {
         ...localItem,
