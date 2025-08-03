@@ -1,4 +1,4 @@
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -46,7 +46,8 @@ export const useTwoWaySync = () => {
 
     // If the remote item has been played more recently or at the same time,
     // we take the server's version as the source of truth.
-    if (remoteLastPlayed >= localLastPlayed) {
+
+    if (remoteLastPlayed > localLastPlayed) {
       updateDownloadedItem(itemId, {
         ...localItem,
         item: {
@@ -61,20 +62,21 @@ export const useTwoWaySync = () => {
         },
       });
       return false;
-    } else {
+    } else if (remoteLastPlayed < localLastPlayed) {
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
-      localItem.item.UserData?.Played
-        ? await markItemPlayed(localItem.item.Id!)
-        : await markItemUnplayed(localItem.item.Id!);
-
-      // The local item was played more recently (i.e., while offline),
-      // so we need to push its state to the server using our manager.
-      await reportPlaybackProgress(
-        localItem.item.Id!,
-        localItem.item.UserData?.PlaybackPositionTicks || 0,
-      );
+      await getItemsApi(api).updateItemUserData({
+        itemId: localItem.item.Id!,
+        userId: user.Id,
+        updateUserItemDataDto: {
+          Played: localItem.item.UserData?.Played,
+          PlaybackPositionTicks: localItem.item.UserData?.PlaybackPositionTicks,
+          PlayedPercentage: localItem.item.UserData?.PlayedPercentage,
+          LastPlayedDate: localItem.item.UserData?.LastPlayedDate,
+        },
+      });
       return true;
     }
+    return false;
   };
 
   return { syncPlaybackState };

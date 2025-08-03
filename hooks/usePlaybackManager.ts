@@ -1,4 +1,3 @@
-import { PlaybackProgressInfo } from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api/user-library-api";
 import { useNetInfo } from "@react-native-community/netinfo";
@@ -74,17 +73,20 @@ export const usePlaybackManager = () => {
 
     // Handle local state update for downloaded items
     if (localItem) {
+      const isItemConsideredPlayed =
+        (localItem.item.UserData?.PlayedPercentage ?? 0) > 90;
       updateDownloadedItem(itemId, {
         ...localItem,
         item: {
           ...localItem.item,
           UserData: {
             ...localItem.item.UserData,
-            PlaybackPositionTicks: positionTicks,
-            Played: false,
+            PlaybackPositionTicks: isItemConsideredPlayed ? 0 : positionTicks,
+            Played: isItemConsideredPlayed,
             LastPlayedDate: new Date().toISOString(),
-            PlayedPercentage:
-              (positionTicks / localItem.item.RunTimeTicks!) * 100,
+            PlayedPercentage: isItemConsideredPlayed
+              ? 0
+              : (positionTicks / localItem.item.RunTimeTicks!) * 100,
           },
         },
       });
@@ -92,15 +94,20 @@ export const usePlaybackManager = () => {
 
     // Handle remote state update if online
     if (isOnline && api) {
-      await getPlaystateApi(api).reportPlaybackProgress({
-        playbackProgressInfo: {
-          ItemId: itemId,
-          PositionTicks: positionTicks,
-          AudioStreamIndex: metadata?.AudioStreamIndex,
-          SubtitleStreamIndex: metadata?.SubtitleStreamIndex,
-        } as PlaybackProgressInfo,
-      });
-
+      try {
+        await getPlaystateApi(api).reportPlaybackProgress({
+          playbackProgressInfo: {
+            ItemId: itemId,
+            PositionTicks: positionTicks,
+            ...(metadata && { AudioStreamIndex: metadata.AudioStreamIndex }),
+            ...(metadata && {
+              SubtitleStreamIndex: metadata.SubtitleStreamIndex,
+            }),
+          },
+        });
+      } catch (error) {
+        console.error("Failed to report playback progress on server", error);
+      }
       // If it was a downloaded item, re-sync with the server for the latest state.
       // This is crucial because the server might have marked the item as "Played"
       // based on its own rules (e.g., >95% progress).

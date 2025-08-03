@@ -239,16 +239,15 @@ export default function page() {
   ]);
 
   useEffect(() => {
-    if (!stream || offline) return;
-
+    if (!stream || !api) return;
     const reportPlaybackStart = async () => {
-      await getPlaystateApi(api!).reportPlaybackStart({
+      console.log("reporting playback start", currentPlayStateInfo());
+      await getPlaystateApi(api).reportPlaybackStart({
         playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
       });
     };
-
     reportPlaybackStart();
-  }, [stream]);
+  }, [stream, api]);
 
   const togglePlay = async () => {
     lightHapticFeedback();
