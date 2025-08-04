@@ -140,7 +140,8 @@
         "disable_haptic_feedback": "Disable Haptic Feedback",
         "default_quality": "Default quality",
         "max_auto_play_episode_count": "Max auto play episode count",
-        "disabled": "Disabled"
+        "disabled": "Disabled",
+        "volume_and_brightness_sliders": "Volume and Brightness Sliders"
       },
       "downloads": {
         "downloads_title": "Downloads",

@@ -651,22 +651,26 @@ export const Controls: FC<Props> = ({
               justifyContent: "space-between",
               alignItems: "center",
               transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
-              paddingHorizontal: "28%", // Add some padding to the left and right
+              paddingHorizontal: settings?.volumeAndBrightnessSlidersEnabled
+                ? "28%"
+                : "20%", // Add some padding to the left and right
             }}
             pointerEvents={showControls ? "box-none" : "none"}
           >
-            <View
-              style={{
-                position: "absolute",
-                alignItems: "center",
-                transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
-                left: 0,
-                bottom: 30,
-                opacity: showControls ? 1 : 0,
-              }}
-            >
-              <BrightnessSlider />
-            </View>
+            {settings?.volumeAndBrightnessSlidersEnabled && (
+              <View
+                style={{
+                  position: "absolute",
+                  alignItems: "center",
+                  transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
+                  left: 0,
+                  bottom: 30,
+                  opacity: showControls ? 1 : 0,
+                }}
+              >
+                <BrightnessSlider />
+              </View>
+            )}
             <TouchableOpacity onPress={handleSkipBackward}>
               <View
                 style={{
@@ -741,18 +745,20 @@ export const Controls: FC<Props> = ({
               </View>
             </TouchableOpacity>
 
-            <View
-              style={{
-                position: "absolute",
-                alignItems: "center",
-                transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
-                bottom: 30,
-                right: 0,
-                opacity: showAudioSlider || showControls ? 1 : 0,
-              }}
-            >
-              <AudioSlider setVisibility={setShowAudioSlider} />
-            </View>
+            {settings?.volumeAndBrightnessSlidersEnabled && (
+              <View
+                style={{
+                  position: "absolute",
+                  alignItems: "center",
+                  transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
+                  bottom: 30,
+                  right: 0,
+                  opacity: showAudioSlider || showControls ? 1 : 0,
+                }}
+              >
+                <AudioSlider setVisibility={setShowAudioSlider} />
+              </View>
+            )}
           </View>
 
           <View

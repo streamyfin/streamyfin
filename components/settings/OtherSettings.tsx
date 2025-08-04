@@ -164,6 +164,19 @@ export const OtherSettings: React.FC = () => {
           />
         </ListItem>
 
+        <ListItem
+          title={t("home.settings.other.volume_and_brightness_sliders")}
+          disabled={false}
+        >
+          <Switch
+            value={settings.volumeAndBrightnessSlidersEnabled}
+            disabled={pluginSettings?.volumeAndBrightnessSlidersEnabled?.locked}
+            onValueChange={(value) =>
+              updateSettings({ volumeAndBrightnessSlidersEnabled: value })
+            }
+          />
+        </ListItem>
+
         {/* {(Platform.OS === "ios" || Platform.isTVOS)&& (
           <ListItem
             title={t("home.settings.other.video_player")}
