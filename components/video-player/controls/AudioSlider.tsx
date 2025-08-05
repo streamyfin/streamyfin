@@ -1,7 +1,3 @@
-const VolumeManager = Platform.isTV
-  ? null
-  : require("react-native-volume-manager");
-
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useEffect, useRef } from "react";
@@ -9,6 +5,10 @@ import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
 import type { VolumeResult } from "react-native-volume-manager";
+
+const VolumeManager = Platform.isTV
+  ? null
+  : require("react-native-volume-manager");
 
 interface AudioSliderProps {
   setVisibility: (show: boolean) => void;
