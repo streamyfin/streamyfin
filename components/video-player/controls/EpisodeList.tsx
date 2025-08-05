@@ -93,7 +93,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     [seasons, seasonIndex],
   );
 
-  const { data: episodes, isFetching } = useQuery({
+  const { data: episodes } = useQuery({
     queryKey: ["episodes", item.SeriesId, selectedSeasonId],
     queryFn: async () => {
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];

@@ -237,25 +237,38 @@ const loadSettings = (): Partial<Settings> => {
     return loadedValues;
   } catch (error) {
     console.error("Failed to load settings:", error);
-    return defaultValues;
+    return {};
   }
 };
 
 const EXCLUDE_FROM_SAVE = ["home"];
 
 const saveSettings = (settings: Settings) => {
-  for (const key of Object.keys(settings)) {
-    if (EXCLUDE_FROM_SAVE.includes(key)) {
-      delete settings[key as keyof Settings];
+  try {
+    for (const key of Object.keys(settings)) {
+      if (EXCLUDE_FROM_SAVE.includes(key)) {
+        delete settings[key as keyof Settings];
+      }
     }
+    const jsonValue = JSON.stringify(settings);
+    storage.set("settings", jsonValue);
+  } catch (error) {
+    console.error("Failed to save settings:", error);
   }
-  const jsonValue = JSON.stringify(settings);
-  storage.set("settings", jsonValue);
 };
 
 export const settingsAtom = atom<Partial<Settings> | null>(null);
-export const pluginSettingsAtom = atom(
-  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS),
+const loadPluginSettings = () => {
+  try {
+    return storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS);
+  } catch (error) {
+    console.error("Failed to load plugin settings:", error);
+    return undefined;
+  }
+};
+
+export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
+  loadPluginSettings(),
 );
 
 export const useSettings = () => {
@@ -317,7 +330,7 @@ export const useSettings = () => {
   // If admin sets locked to false but provides a value,
   // use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
-    const unlockedPluginDefaults = {} as Settings;
+    const unlockedPluginDefaults: Partial<Settings> = {};
     const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
       Partial<Settings>
     >((acc, [key, setting]) => {
@@ -331,14 +344,12 @@ export const useSettings = () => {
           value !== undefined &&
           _settings?.[settingsKey] !== value
         ) {
-          Object.assign(unlockedPluginDefaults, {
-            [settingsKey]: value,
-          });
+          (unlockedPluginDefaults as any)[settingsKey] = value;
         }
 
-        Object.assign(acc, {
-          [settingsKey]: locked ? value : (_settings?.[settingsKey] ?? value),
-        });
+        (acc as any)[settingsKey] = locked
+          ? value
+          : (_settings?.[settingsKey] ?? value);
       }
       return acc;
     }, {});

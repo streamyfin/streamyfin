@@ -1,3 +1,3 @@
-export default function DownloadSettings({ ...props }) {
+export default function DownloadSettings() {
   return null;
 }

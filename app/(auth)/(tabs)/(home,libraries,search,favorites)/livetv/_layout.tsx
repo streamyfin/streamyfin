@@ -1,8 +1,8 @@
-import type {
+import {
+  createMaterialTopTabNavigator,
   MaterialTopTabNavigationEventMap,
   MaterialTopTabNavigationOptions,
 } from "@react-navigation/material-top-tabs";
-import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import type {
   ParamListBase,
   TabNavigationState,

@@ -14,12 +14,6 @@ interface TrickplayData {
   ThumbnailCount?: number;
 }
 
-interface TrickplayInfo {
-  resolution: string;
-  aspectRatio: number;
-  data: TrickplayData;
-}
-
 interface TrickplayUrl {
   x: number;
   y: number;

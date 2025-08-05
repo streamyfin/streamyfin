@@ -136,12 +136,7 @@
           "color": "#9333EA"
         }
       ],
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ],
+      "./plugins/with-runtime-framework-headers.js",
       "react-native-bottom-tabs"
     ],
     "experiments": {

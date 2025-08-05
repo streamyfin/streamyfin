@@ -20,6 +20,7 @@ import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
@@ -257,6 +258,26 @@ export default function search() {
         paddingRight: insets.right,
       }}
     >
+      {/* <View
+        className='flex flex-col'
+        style={{
+          marginTop: Platform.OS === "android" ? 16 : 0,
+        }}
+      > */}
+      {Platform.isTV && (
+        <Input
+          placeholder={t("search.search")}
+          onChangeText={(text) => {
+            router.setParams({ q: "" });
+            setSearch(text);
+          }}
+          keyboardType='default'
+          returnKeyType='done'
+          autoCapitalize='none'
+          clearButtonMode='while-editing'
+          maxLength={500}
+        />
+      )}
       <View
         className='flex flex-col'
         style={{
