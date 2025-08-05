@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noTemplateCurlyInString: Xcode shell var is intended
 const { withPodfile } = require("expo/config-plugins");
 
 const PATCH_START = "## >>> runtime-framework headers";

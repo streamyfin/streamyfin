@@ -34,9 +34,16 @@ function withRNBackgroundDownloader(config) {
     const headerAbs = path.join(iosDir, headerRel);
 
     // create / append import if missing
-    const headerText = fs.existsSync(headerAbs)
-      ? fs.readFileSync(headerAbs, "utf8")
-      : "";
+    let headerText = "";
+    try {
+      headerText = fs.readFileSync(headerAbs, "utf8");
+    } catch (err) {
+      if (err.code !== "ENOENT") {
+        throw err; // rethrow unexpected errors
+      }
+      // File does not exist, so headerText remains ""
+    }
+
     if (!headerText.includes("RNBackgroundDownloader.h")) {
       fs.mkdirSync(path.dirname(headerAbs), { recursive: true });
       fs.appendFileSync(headerAbs, '#import "RNBackgroundDownloader.h"\n');

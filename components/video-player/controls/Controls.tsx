@@ -554,40 +554,33 @@ export const Controls: FC<Props> = ({
     }
   }, [settings, isPlaying, isVlc, play, seek]);
 
-  const handleSeekBackward = useCallback(
-    async (seconds: number) => {
+  const handleSeek = useCallback(
+    async (seconds: number, direction: "forward" | "backward") => {
       wasPlayingRef.current = isPlaying;
       try {
         const curr = progress.value;
         if (curr !== undefined) {
+          const delta = direction === "forward" ? seconds : -seconds;
           const newTime = isVlc
-            ? Math.max(0, curr - secondsToMs(seconds))
-            : Math.max(0, ticksToSeconds(curr) - seconds);
+            ? Math.max(0, curr + secondsToMs(delta))
+            : Math.max(0, ticksToSeconds(curr) + delta);
           seek(newTime);
         }
       } catch (error) {
-        writeToLog("ERROR", "Error seeking video backwards", error);
+        writeToLog("ERROR", `Error seeking video ${direction}`, error);
       }
     },
     [isPlaying, isVlc, seek],
   );
 
+  const handleSeekBackward = useCallback(
+    (seconds: number) => handleSeek(seconds, "backward"),
+    [handleSeek],
+  );
+
   const handleSeekForward = useCallback(
-    async (seconds: number) => {
-      wasPlayingRef.current = isPlaying;
-      try {
-        const curr = progress.value;
-        if (curr !== undefined) {
-          const newTime = isVlc
-            ? curr + secondsToMs(seconds)
-            : ticksToSeconds(curr) + seconds;
-          seek(Math.max(0, newTime));
-        }
-      } catch (error) {
-        writeToLog("ERROR", "Error seeking video forwards", error);
-      }
-    },
-    [isPlaying, isVlc, seek],
+    (seconds: number) => handleSeek(seconds, "forward"),
+    [handleSeek],
   );
 
   const handleSkipForward = useCallback(async () => {
