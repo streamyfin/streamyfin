@@ -516,7 +516,18 @@ export default function page() {
     return () => setIsMounted(false);
   }, []);
 
-  if (itemStatus.isLoading || streamStatus.isLoading) {
+  // Show error UI first, before checking loading/missing‐data
+  if (itemStatus.isError || streamStatus.isError) {
+    return (
+      <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
+        <Text className='text-white'>{t("player.error")}</Text>
+      </View>
+    );
+  }
+
+  // Then show loader while either side is still fetching or data isn’t present
+  if (itemStatus.isLoading || streamStatus.isLoading || !item || !stream) {
+    // …loader UI…
     return (
       <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
         <Loader />
