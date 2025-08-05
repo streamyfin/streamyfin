@@ -1,6 +1,4 @@
-import React from "react";
-import { Platform, type TextProps } from "react-native";
-import { Text as RNText } from "react-native";
+import { Platform, Text as RNText, type TextProps } from "react-native";
 export function Text(props: TextProps) {
   const { style, ...otherProps } = props;
   if (Platform.isTV)

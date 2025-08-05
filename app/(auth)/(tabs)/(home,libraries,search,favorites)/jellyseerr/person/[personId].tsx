@@ -21,14 +21,13 @@ export default function page() {
 
   const {
     jellyseerrApi,
-    jellyseerrUser,
     jellyseerrRegion: region,
     jellyseerrLocale: locale,
   } = useJellyseerr();
 
   const { personId } = local as { personId: string };
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data } = useQuery({
     queryKey: ["jellyseerr", "person", personId],
     queryFn: async () => ({
       details: await jellyseerrApi?.personDetails(personId),

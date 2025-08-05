@@ -59,7 +59,7 @@ export default function TabLayout() {
       >
         <NativeTabs.Screen redirect name='index' />
         <NativeTabs.Screen
-          listeners={({ navigation }) => ({
+          listeners={(_e) => ({
             tabPress: (_e) => {
               eventBus.emit("scrollToTop");
             },
@@ -69,7 +69,7 @@ export default function TabLayout() {
             title: t("tabs.home"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ focused }) => require("@/assets/icons/house.fill.png")
+                ? (_e) => require("@/assets/icons/house.fill.png")
                 : ({ focused }) =>
                     focused
                       ? { sfSymbol: "house.fill" }
@@ -77,7 +77,7 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
-          listeners={({ navigation }) => ({
+          listeners={(_e) => ({
             tabPress: (_e) => {
               eventBus.emit("searchTabPressed");
             },
@@ -87,7 +87,7 @@ export default function TabLayout() {
             title: t("tabs.search"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ focused }) => require("@/assets/icons/magnifyingglass.png")
+                ? (_e) => require("@/assets/icons/magnifyingglass.png")
                 : ({ focused }) =>
                     focused
                       ? { sfSymbol: "magnifyingglass" }
@@ -116,7 +116,7 @@ export default function TabLayout() {
             title: t("tabs.library"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ focused }) => require("@/assets/icons/server.rack.png")
+                ? (_e) => require("@/assets/icons/server.rack.png")
                 : ({ focused }) =>
                     focused
                       ? { sfSymbol: "rectangle.stack.fill" }
@@ -130,7 +130,7 @@ export default function TabLayout() {
             tabBarItemHidden: !settings?.showCustomMenuLinks,
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ focused }) => require("@/assets/icons/list.png")
+                ? (_e) => require("@/assets/icons/list.png")
                 : ({ focused }) =>
                     focused
                       ? { sfSymbol: "list.dash.fill" }

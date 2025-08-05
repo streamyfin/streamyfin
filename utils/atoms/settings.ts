@@ -330,7 +330,7 @@ export const useSettings = () => {
   // If admin sets locked to false but provides a value,
   // use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
-    const unlockedPluginDefaults = {} as Settings;
+    const unlockedPluginDefaults: Partial<Settings> = {};
     const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
       Partial<Settings>
     >((acc, [key, setting]) => {
@@ -344,14 +344,12 @@ export const useSettings = () => {
           value !== undefined &&
           _settings?.[settingsKey] !== value
         ) {
-          Object.assign(unlockedPluginDefaults, {
-            [settingsKey]: value,
-          });
+          (unlockedPluginDefaults as any)[settingsKey] = value;
         }
 
-        Object.assign(acc, {
-          [settingsKey]: locked ? value : (_settings?.[settingsKey] ?? value),
-        });
+        (acc as any)[settingsKey] = locked
+          ? value
+          : (_settings?.[settingsKey] ?? value);
       }
       return acc;
     }, {});

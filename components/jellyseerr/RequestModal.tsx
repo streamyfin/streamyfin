@@ -38,16 +38,7 @@ const RequestModal = forwardRef<
   Props & Omit<ViewProps, "id">
 >(
   (
-    {
-      id,
-      title,
-      requestBody,
-      type,
-      isAnime = false,
-      onRequested,
-      onDismiss,
-      ...props
-    },
+    { id, title, requestBody, type, isAnime = false, onRequested, onDismiss },
     ref,
   ) => {
     const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();

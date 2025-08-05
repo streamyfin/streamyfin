@@ -57,7 +57,7 @@ const JellyseerrSeasonEpisodes: React.FC<{
   );
 };
 
-const RenderItem = ({ item, index }: any) => {
+const RenderItem = ({ item }: any) => {
   const {
     jellyseerrApi,
     jellyseerrRegion: region,
