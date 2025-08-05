@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "^0.9.2",
-    "@expo/config-plugins": "~9.0.15",
+    "@expo/config-plugins": "~10.1.2",
     "@expo/metro-runtime": "~5.0.4",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/vector-icons": "^14.1.0",
@@ -36,7 +36,7 @@
     "axios": "^1.7.9",
     "expo": "^53.0.6",
     "expo-application": "~6.1.4",
-    "expo-asset": "~11.0.3",
+    "expo-asset": "~11.1.7",
     "expo-background-fetch": "~13.1.5",
     "expo-blur": "~14.1.4",
     "expo-brightness": "~13.1.4",

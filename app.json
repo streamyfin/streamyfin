@@ -74,9 +74,7 @@
             "deploymentTarget": "15.6",
             "extraPods": [
               { "name": "SDWebImage", "modular_headers": true },
-              { "name": "SDWebImageSVGCoder", "modular_headers": true },
-              { "name": "SDWebImageWebPCoder", "modular_headers": true },
-              { "name": "SDWebImageAVIFCoder", "modular_headers": true }
+              { "name": "SDWebImageSVGCoder", "modular_headers": true }
             ]
           },
           "android": {
