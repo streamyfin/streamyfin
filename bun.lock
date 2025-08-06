@@ -30,6 +30,7 @@
         "expo-crypto": "~14.0.2",
         "expo-dev-client": "~5.0.11",
         "expo-device": "~7.0.2",
+        "expo-doctor": "^1.13.5",
         "expo-font": "~13.0.3",
         "expo-haptics": "~14.0.1",
         "expo-image": "~2.0.4",
@@ -1149,6 +1150,8 @@
     "expo-dev-menu-interface": ["expo-dev-menu-interface@1.9.3", "", { "peerDependencies": { "expo": "*" } }, "sha512-KY/dWTBE1l47i9V366JN5rC6YIdOc9hz8yAmZzkl5DrPia5l3M2WIjtnpHC9zUkNjiSiG2urYoOAq4H/uLdmyg=="],
 
     "expo-device": ["expo-device@7.0.3", "", { "dependencies": { "ua-parser-js": "^0.7.33" }, "peerDependencies": { "expo": "*" } }, "sha512-uNGhDYmpDj/3GySWZmRiYSt52Phdim11p0pXfgpCq/nMks0+UPZwl3D0vin5N8/gpVe5yzb13GYuFxiVoDyniw=="],
+
+    "expo-doctor": ["expo-doctor@1.13.5", "", { "bin": { "expo-doctor": "build/index.js" } }, "sha512-Kp9c0+qiQ636ZuKyU+TwSe0oO9kdK1Q+xCD6VBM1zPSv8Grqa5yg1F2EkGvqQeDJYUXUZvPUqVhRBz9sLyvQOg=="],
 
     "expo-eas-client": ["expo-eas-client@0.13.3", "", {}, "sha512-t+1F1tiDocSot8iSnrn/CjTUMvVvPV2DpafSVcticpbSzMGybEN7wcamO1t18fK7WxGXpZE9gxtd80qwv/LLqQ=="],
 
