@@ -51,7 +51,7 @@ jobs:
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@main
         with:
-          eas-version: 16.7.1
+          eas-version: 16.17.4
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🏗️ Build iOS app
