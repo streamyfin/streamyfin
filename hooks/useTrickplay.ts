@@ -32,9 +32,9 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
     }
 
     const mediaSourceId = item.Id;
-    const trickplayData = item.Trickplay[mediaSourceId] as
-      | Record<string, TrickplayData>
-      | undefined;
+    const trickplayData: Record<string, TrickplayData> | undefined =
+      item.Trickplay[mediaSourceId];
+
     if (!trickplayData) {
       return null;
     }
@@ -70,8 +70,7 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
       }
 
       const { data, resolution } = trickplayInfo;
-      const { Interval, TileWidth, TileHeight, Width, Height }: TrickplayData =
-        data;
+      const { Interval, TileWidth, TileHeight, Width, Height } = data;
 
       if (
         !Interval ||
@@ -94,7 +93,7 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
       const tileOffsetX = tileOffset % TileWidth;
       const tileOffsetY = Math.floor(tileOffset / TileWidth);
 
-      const newTrickPlayUrl: TrickplayUrl = {
+      const newTrickPlayUrl = {
         x: tileOffsetX,
         y: tileOffsetY,
         url: `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${index}.jpg?api_key=${api.accessToken}`,
@@ -112,8 +111,7 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
     }
 
     const { data, resolution } = trickplayInfo;
-    const { Interval, TileWidth, TileHeight, Width, Height }: TrickplayData =
-      data;
+    const { Interval, TileWidth, TileHeight, Width, Height } = data;
 
     if (
       !Interval ||
