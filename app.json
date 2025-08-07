@@ -134,8 +134,7 @@
         }
       ],
       "./plugins/with-runtime-framework-headers.js",
-      "react-native-bottom-tabs",
-      ["react-native-google-cast"]
+      "react-native-bottom-tabs"
     ],
     "experiments": {
       "typedRoutes": true
