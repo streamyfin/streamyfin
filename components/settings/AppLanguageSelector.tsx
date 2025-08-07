@@ -10,7 +10,7 @@ import { ListItem } from "../list/ListItem";
 
 interface Props extends ViewProps {}
 
-export const AppLanguageSelector: React.FC<Props> = ({ ...props }) => {
+export const AppLanguageSelector: React.FC<Props> = () => {
   const isTv = Platform.isTV;
   const [settings, updateSettings] = useSettings();
   const { t } = useTranslation();

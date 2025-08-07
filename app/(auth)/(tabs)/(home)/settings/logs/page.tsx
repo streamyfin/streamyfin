@@ -122,7 +122,7 @@ export default function page() {
                     {new Date(log.timestamp).toLocaleString()}
                   </Text>
                 </View>
-                <Text uiTextView selectable className='text-xs'>
+                <Text selectable className='text-xs'>
                   {log.message}
                 </Text>
               </TouchableOpacity>

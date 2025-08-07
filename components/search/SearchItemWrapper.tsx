@@ -40,7 +40,7 @@ export const SearchItemWrapper = <T,>({
         onEndReachedThreshold={1}
         onEndReached={onEndReached}
         //@ts-ignore
-        renderItem={({ item, index }) => (item ? renderItem(item) : <></>)}
+        renderItem={({ item }) => (item ? renderItem(item) : null)}
       />
     </>
   );

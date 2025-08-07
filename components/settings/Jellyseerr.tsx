@@ -14,12 +14,8 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const JellyseerrSettings = () => {
-  const {
-    jellyseerrApi,
-    jellyseerrUser,
-    setJellyseerrUser,
-    clearAllJellyseerData,
-  } = useJellyseerr();
+  const { jellyseerrUser, setJellyseerrUser, clearAllJellyseerData } =
+    useJellyseerr();
 
   const { t } = useTranslation();
 

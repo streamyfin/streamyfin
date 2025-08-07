@@ -46,14 +46,14 @@
     },
     "production": {
       "environment": "production",
-      "channel": "0.29.6",
+      "channel": "0.29.13",
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
       "environment": "production",
-      "channel": "0.29.6",
+      "channel": "0.29.13",
       "android": {
         "buildType": "apk",
         "image": "latest"
@@ -61,7 +61,7 @@
     },
     "production-apk-tv": {
       "environment": "production",
-      "channel": "0.29.6",
+      "channel": "0.29.13",
       "android": {
         "buildType": "apk",
         "image": "latest"

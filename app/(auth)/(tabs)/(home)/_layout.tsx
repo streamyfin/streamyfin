@@ -20,7 +20,7 @@ export default function IndexLayout() {
       <Stack.Screen
         name='index'
         options={{
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerLargeTitle: true,
           headerTitle: t("tabs.home"),
           headerBlurEffect: "prominent",

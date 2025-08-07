@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.29.6",
+    "version": "0.29.13",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -32,7 +32,8 @@
         "dark": "./assets/images/icon-plain.png",
         "light": "./assets/images/icon-ios-light.png",
         "tinted": "./assets/images/icon-ios-tinted.png"
-      }
+      },
+      "appleTeamId": "MWD5K362T8"
     },
     "android": {
       "jsEngine": "hermes",
@@ -72,10 +73,7 @@
         {
           "ios": {
             "deploymentTarget": "15.6",
-            "extraPods": [
-              { "name": "SDWebImage", "modular_headers": true },
-              { "name": "SDWebImageSVGCoder", "modular_headers": true }
-            ]
+            "useFrameworks": "static"
           },
           "android": {
             "compileSdkVersion": 35,
@@ -120,7 +118,6 @@
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
-      ["./plugins/withRNBackgroundDownloader.js"],
       [
         "expo-splash-screen",
         {
@@ -136,12 +133,7 @@
           "color": "#9333EA"
         }
       ],
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ],
+      "./plugins/with-runtime-framework-headers.js",
       "react-native-bottom-tabs"
     ],
     "experiments": {

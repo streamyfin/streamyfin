@@ -434,8 +434,6 @@ const TranscodingStreamView = ({
   isTranscoding,
   properties,
   transcodeProperties,
-  value,
-  transcodeValue,
 }: TranscodingStreamViewProps) => {
   return (
     <View className='flex flex-col pt-2 first:pt-0'>
