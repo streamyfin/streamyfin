@@ -135,12 +135,7 @@
       ],
       "./plugins/with-runtime-framework-headers.js",
       "react-native-bottom-tabs",
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ]
+      ["react-native-google-cast"]
     ],
     "experiments": {
       "typedRoutes": true
