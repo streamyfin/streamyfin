@@ -24,14 +24,6 @@ export default function page() {
   const [date, _setDate] = useState<Date>(new Date());
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data: guideInfo } = useQuery({
-    queryKey: ["livetv", "guideInfo"],
-    queryFn: async () => {
-      const res = await getLiveTvApi(api!).getGuideInfo();
-      return res.data;
-    },
-  });
-
   const { data: channels } = useQuery({
     queryKey: ["livetv", "channels", currentPage],
     queryFn: async () => {

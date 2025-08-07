@@ -50,11 +50,8 @@ const Fact: React.FC<{ title: string; fact?: string | null } & ViewProps> = ({
 const DetailFacts: React.FC<
   { details?: MovieDetails | TvDetails } & ViewProps
 > = ({ details, className, ...props }) => {
-  const {
-    jellyseerrUser,
-    jellyseerrRegion: region,
-    jellyseerrLocale: locale,
-  } = useJellyseerr();
+  const { jellyseerrRegion: region, jellyseerrLocale: locale } =
+    useJellyseerr();
   const { t } = useTranslation();
 
   const releases = useMemo(

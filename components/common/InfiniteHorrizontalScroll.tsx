@@ -56,7 +56,7 @@ export function InfiniteHorizontalScroll({
     };
   });
 
-  const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey,
     queryFn,
     getNextPageParam: (lastPage, pages) => {

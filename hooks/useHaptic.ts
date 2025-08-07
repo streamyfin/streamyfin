@@ -16,34 +16,46 @@ export type HapticFeedbackType =
 export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
   const [settings] = useSettings();
   const isTv = Platform.isTV;
+  const isDisabled =
+    isTv ||
+    !Haptics ||
+    settings?.disableHapticFeedback ||
+    Platform.OS === "web";
 
   const createHapticHandler = useCallback(
     (type: typeof Haptics.ImpactFeedbackStyle) => {
-      return Platform.OS === "web" || Platform.isTV
-        ? () => {}
-        : () => Haptics.impactAsync(type);
+      if (!Haptics || !type) return () => {};
+      return () => Haptics.impactAsync(type);
     },
     [],
   );
 
   const createNotificationFeedback = useCallback(
     (type: typeof Haptics.NotificationFeedbackType) => {
-      return Platform.OS === "web" || Platform.isTV
-        ? () => {}
-        : () => Haptics.notificationAsync(type);
+      if (!Haptics || !type) return () => {};
+      return () => Haptics.notificationAsync(type);
     },
     [],
   );
 
-  const hapticHandlers = useMemo(
-    () => ({
+  const hapticHandlers = useMemo(() => {
+    if (!Haptics) {
+      return {
+        light: () => {},
+        medium: () => {},
+        heavy: () => {},
+        selection: () => {},
+        success: () => {},
+        warning: () => {},
+        error: () => {},
+      };
+    }
+
+    return {
       light: createHapticHandler(Haptics.ImpactFeedbackStyle.Light),
       medium: createHapticHandler(Haptics.ImpactFeedbackStyle.Medium),
       heavy: createHapticHandler(Haptics.ImpactFeedbackStyle.Heavy),
-      selection:
-        Platform.OS === "web" || Platform.isTV
-          ? () => {}
-          : Haptics.selectionAsync,
+      selection: Haptics.selectionAsync,
       success: createNotificationFeedback(
         Haptics.NotificationFeedbackType.Success,
       ),
@@ -51,16 +63,11 @@ export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
         Haptics.NotificationFeedbackType.Warning,
       ),
       error: createNotificationFeedback(Haptics.NotificationFeedbackType.Error),
-    }),
-    [createHapticHandler, createNotificationFeedback],
-  );
-
-  if (isTv) {
-    return () => {};
-  }
+    };
+  }, [createHapticHandler, createNotificationFeedback]);
 
   if (settings?.disableHapticFeedback) {
     return () => {};
   }
-  return hapticHandlers[feedbackType];
+  return isDisabled ? () => {} : hapticHandlers[feedbackType];
 };

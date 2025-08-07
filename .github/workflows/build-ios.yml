@@ -13,6 +13,7 @@ on:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'
     runs-on: macos-15
     name: 🏗️ Build iOS IPA
     permissions:
@@ -30,7 +31,7 @@ jobs:
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
         with:
-          bun-version: '1.2.17'
+          bun-version: latest
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
@@ -51,7 +52,7 @@ jobs:
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@main
         with:
-          eas-version: 16.7.1
+          eas-version: 16.17.4
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🏗️ Build iOS app

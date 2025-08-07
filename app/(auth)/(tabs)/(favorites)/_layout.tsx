@@ -10,7 +10,7 @@ export default function SearchLayout() {
       <Stack.Screen
         name='index'
         options={{
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerLargeTitle: true,
           headerTitle: t("tabs.favorites"),
           headerLargeStyle: {

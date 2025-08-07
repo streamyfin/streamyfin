@@ -1,10 +1,5 @@
 import { Platform, Text as RNText, type TextProps } from "react-native";
-import { UITextView } from "react-native-uitextview";
-export function Text(
-  props: TextProps & {
-    uiTextView?: boolean;
-  },
-) {
+export function Text(props: TextProps) {
   const { style, ...otherProps } = props;
   if (Platform.isTV)
     return (
@@ -16,7 +11,7 @@ export function Text(
     );
 
   return (
-    <UITextView
+    <RNText
       allowFontScaling={false}
       style={[{ color: "white" }, style]}
       {...otherProps}

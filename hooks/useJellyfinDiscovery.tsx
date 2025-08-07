@@ -20,7 +20,7 @@ export const useJellyfinDiscovery = () => {
     setServers([]);
 
     const discoveredServers = new Set<string>();
-    let discoveryTimeout: NodeJS.Timeout;
+    let discoveryTimeout: number;
 
     const socket = dgram.createSocket({
       type: "udp4",

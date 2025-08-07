@@ -23,7 +23,7 @@ interface EpisodeCardProps extends TouchableOpacityProps {
   item: BaseItemDto;
 }
 
-export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item, ...props }) => {
+export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
   const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();

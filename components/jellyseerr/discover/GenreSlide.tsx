@@ -24,7 +24,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
     [slide],
   );
 
-  const { data, isFetching, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["jellyseerr", "discover", slide.type, slide.id],
     queryFn: async () => {
       return jellyseerrApi?.getGenreSliders(
