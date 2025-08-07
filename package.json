@@ -117,8 +117,22 @@
   "expo": {
     "install": {
       "exclude": [
-        "react-native"
+        "react-native",
+        "@shopify/flash-list",
+        "react-native-reanimated"
       ]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-google-cast",
+          "react-native-udp",
+          "@bottom-tabs/react-navigation",
+          "@jellyfin/sdk",
+          "expo-doctor"
+        ],
+        "listUnknownPackages": false
+      }
     }
   },
   "private": true,
