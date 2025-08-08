@@ -120,7 +120,7 @@ Key points of the MPL-2.0:
 
 ## 🌐 Connect with Us
 
-Join our Discord: [https://discord.gg/aJvAYeycyY](https://discord.gg/aJvAYeycyY)
+Join our Discord: [https://discord.com/invite/bJUUVgdsGe](https://discord.com/invite/bJUUVgdsGe)
 
 Need support or have questions:
 
