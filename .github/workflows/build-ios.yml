@@ -20,6 +20,7 @@ jobs:
       contents: read
 
     strategy:
+      fail-fast: false
       matrix:
         target: [phone, tv]
 
