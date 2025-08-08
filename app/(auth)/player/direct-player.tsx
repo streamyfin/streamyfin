@@ -517,6 +517,204 @@ export default function page() {
     return () => setIsMounted(false);
   }, []);
 
+  const _makeSafeCallback = <T extends any[]>(
+    method: ((...args: T) => any) | undefined,
+    deps: any[] = [],
+    beforeCall?: (...args: T) => void,
+  ) =>
+    useCallback(
+      (...args: T) => {
+        if (!method) {
+          writeToLog("ERROR", "Method not available", { isVideoLoaded });
+          return;
+        }
+        try {
+          if (beforeCall) {
+            beforeCall(...args);
+          }
+          return method(...args);
+        } catch (error) {
+          writeToLog("ERROR", "Error executing method", {
+            error,
+            isVideoLoaded,
+          });
+        }
+      },
+      [method, isVideoLoaded, ...deps],
+    );
+
+  const play = useCallback(async () => {
+    const playFn = videoRef.current?.play;
+    if (!playFn) {
+      writeToLog("ERROR", "Play function not available", { isVideoLoaded });
+      return;
+    }
+    try {
+      await playFn();
+    } catch (error) {
+      writeToLog("ERROR", "Error during play", { error, isVideoLoaded });
+    }
+  }, [videoRef.current, isVideoLoaded]);
+
+  const pause = useCallback(async () => {
+    const pauseFn = videoRef.current?.pause;
+    if (!pauseFn) {
+      writeToLog("ERROR", "Pause function not available", { isVideoLoaded });
+      return;
+    }
+    try {
+      await pauseFn();
+    } catch (error) {
+      writeToLog("ERROR", "Error during pause", { error, isVideoLoaded });
+    }
+  }, [videoRef.current, isVideoLoaded]);
+
+  const startPictureInPicture = useCallback(async () => {
+    const pipFn = videoRef.current?.startPictureInPicture;
+    if (!pipFn) {
+      writeToLog("ERROR", "PiP function not available", { isVideoLoaded });
+      return;
+    }
+    try {
+      await pipFn();
+    } catch (error) {
+      writeToLog("ERROR", "Error starting PiP", { error, isVideoLoaded });
+    }
+  }, [videoRef.current, isVideoLoaded]);
+
+  const seek = useCallback(
+    (ticks: number) => {
+      const seekFn = videoRef.current?.seekTo;
+      if (!seekFn) {
+        writeToLog("ERROR", "Seek function not available", {
+          isVideoLoaded,
+          hasVideoRef: !!videoRef.current,
+        });
+        return;
+      }
+      try {
+        seekFn(ticks);
+      } catch (error) {
+        writeToLog("ERROR", "Error during seek", {
+          error,
+          ticks,
+          isVideoLoaded,
+        });
+      }
+    },
+    [videoRef.current, isVideoLoaded],
+  );
+
+  const getAudioTracks = useCallback(async () => {
+    const tracksFn = videoRef.current?.getAudioTracks;
+    if (!tracksFn) {
+      writeToLog("ERROR", "Get audio tracks function not available", {
+        isVideoLoaded,
+      });
+      return [];
+    }
+    try {
+      const tracks = await tracksFn();
+      return tracks || [];
+    } catch (error) {
+      writeToLog("ERROR", "Error getting audio tracks", {
+        error,
+        isVideoLoaded,
+      });
+      return [];
+    }
+  }, [videoRef.current, isVideoLoaded]);
+
+  const getSubtitleTracks = useCallback(async () => {
+    const tracksFn = videoRef.current?.getSubtitleTracks;
+    if (!tracksFn) {
+      writeToLog("ERROR", "Get subtitle tracks function not available", {
+        isVideoLoaded,
+      });
+      return [];
+    }
+    try {
+      const tracks = await tracksFn();
+      return tracks || [];
+    } catch (error) {
+      writeToLog("ERROR", "Error getting subtitle tracks", {
+        error,
+        isVideoLoaded,
+      });
+      return [];
+    }
+  }, [videoRef.current, isVideoLoaded]);
+
+  const setAudioTrack = useCallback(
+    (index: number) => {
+      const setTrackFn = videoRef.current?.setAudioTrack;
+      if (!setTrackFn) {
+        writeToLog("ERROR", "Set audio track function not available", {
+          isVideoLoaded,
+          index,
+        });
+        return;
+      }
+      try {
+        setTrackFn(index);
+      } catch (error) {
+        writeToLog("ERROR", "Error setting audio track", {
+          error,
+          index,
+          isVideoLoaded,
+        });
+      }
+    },
+    [videoRef.current, isVideoLoaded],
+  );
+
+  const setSubtitleTrack = useCallback(
+    (index: number) => {
+      const setTrackFn = videoRef.current?.setSubtitleTrack;
+      if (!setTrackFn) {
+        writeToLog("ERROR", "Set subtitle track function not available", {
+          isVideoLoaded,
+          index,
+        });
+        return;
+      }
+      try {
+        setTrackFn(index);
+      } catch (error) {
+        writeToLog("ERROR", "Error setting subtitle track", {
+          error,
+          index,
+          isVideoLoaded,
+        });
+      }
+    },
+    [videoRef.current, isVideoLoaded],
+  );
+
+  const setSubtitleURL = useCallback(
+    (url: string, customName: string) => {
+      const setUrlFn = videoRef.current?.setSubtitleURL;
+      if (!setUrlFn) {
+        writeToLog("ERROR", "Set subtitle URL function not available", {
+          isVideoLoaded,
+          url,
+        });
+        return;
+      }
+      try {
+        setUrlFn(url, customName);
+      } catch (error) {
+        writeToLog("ERROR", "Error setting subtitle URL", {
+          error,
+          url,
+          customName,
+          isVideoLoaded,
+        });
+      }
+    },
+    [videoRef.current, isVideoLoaded],
+  );
+
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
     return (
@@ -601,17 +799,17 @@ export default function page() {
           setIgnoreSafeAreas={setIgnoreSafeAreas}
           ignoreSafeAreas={ignoreSafeAreas}
           isVideoLoaded={isVideoLoaded}
-          startPictureInPicture={videoRef.current?.startPictureInPicture}
-          play={videoRef.current?.play}
-          pause={videoRef.current?.pause}
-          seek={videoRef.current?.seekTo}
+          startPictureInPicture={startPictureInPicture}
+          play={play}
+          pause={pause}
+          seek={seek}
           enableTrickplay={true}
-          getAudioTracks={videoRef.current?.getAudioTracks}
-          getSubtitleTracks={videoRef.current?.getSubtitleTracks}
+          getAudioTracks={getAudioTracks}
+          getSubtitleTracks={getSubtitleTracks}
           offline={offline}
-          setSubtitleTrack={videoRef.current?.setSubtitleTrack}
-          setSubtitleURL={videoRef.current?.setSubtitleURL}
-          setAudioTrack={videoRef.current?.setAudioTrack}
+          setSubtitleTrack={setSubtitleTrack}
+          setSubtitleURL={setSubtitleURL}
+          setAudioTrack={setAudioTrack}
           isVlc
         />
       )}
