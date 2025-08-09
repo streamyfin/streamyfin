@@ -18,6 +18,7 @@ import { ICON_SIZES } from "./constants";
 import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
 import { type ScaleFactor, ScaleFactorSelector } from "./ScaleFactorSelector";
+import { SleepTimerButton } from "./SleepTimerButton";
 import {
   type AspectRatio,
   AspectRatioSelector,
@@ -174,6 +175,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             />
           </TouchableOpacity>
         )}
+        {!offline && <SleepTimerButton />}
         <AspectRatioSelector
           currentRatio={aspectRatio}
           onRatioChange={handleAspectRatioChange}

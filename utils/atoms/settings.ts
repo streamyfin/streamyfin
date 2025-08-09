@@ -1,3 +1,7 @@
+import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { writeInfoLog } from "@/utils/log";
 import {
   type BaseItemKind,
   type CultureDto,
@@ -9,10 +13,6 @@ import {
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { Platform } from "react-native";
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
@@ -23,6 +23,19 @@ export type DownloadQuality = "original" | "high" | "low";
 export type DownloadOption = {
   label: string;
   value: DownloadQuality;
+};
+
+export enum SleepTimerType {
+  DURATION = "duration",
+  EPISODE = "episode",
+}
+
+export type SleepTimerOption = {
+  id: string;
+  label: string;
+  type: SleepTimerType;
+  duration?: number; // in minutes
+  episodeCount?: number;
 };
 
 export const ScreenOrientationEnum: Record<
@@ -162,6 +175,8 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  jellysleepEnabled: boolean;
+  jellysleepTimerOptions: SleepTimerOption[];
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
   defaultPlayer: VideoPlayer;
@@ -194,7 +209,40 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
-export const defaultValues: Settings = {
+const defaultSleepTimerOptions: SleepTimerOption[] = [
+  {
+    id: "15min",
+    label: "15 minutes",
+    type: SleepTimerType.DURATION,
+    duration: 15,
+  },
+  {
+    id: "30min",
+    label: "30 minutes",
+    type: SleepTimerType.DURATION,
+    duration: 30,
+  },
+  {
+    id: "1hour",
+    label: "1 hour",
+    type: SleepTimerType.DURATION,
+    duration: 60,
+  },
+  {
+    id: "2hours",
+    label: "2 hours",
+    type: SleepTimerType.DURATION,
+    duration: 120,
+  },
+  {
+    id: "episode",
+    label: "After this episode",
+    type: SleepTimerType.EPISODE,
+    episodeCount: 1,
+  },
+];
+
+const defaultValues: Settings = {
   home: null,
   deviceProfile: "Expo",
   mediaListCollectionIds: [],
@@ -226,6 +274,8 @@ export const defaultValues: Settings = {
   subtitleSize: Platform.OS === "ios" ? 60 : 100,
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  jellysleepEnabled: false,
+  jellysleepTimerOptions: defaultSleepTimerOptions,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
   defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
