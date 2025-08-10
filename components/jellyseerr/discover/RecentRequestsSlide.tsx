@@ -11,11 +11,7 @@ import type { NonFunctionProperties } from "@/utils/jellyseerr/server/interfaces
 const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
   const { jellyseerrApi } = useJellyseerr();
 
-  const {
-    data: details,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data: details } = useQuery({
     queryKey: [
       "jellyseerr",
       "detail",
@@ -57,11 +53,7 @@ const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({
 }) => {
   const { jellyseerrApi } = useJellyseerr();
 
-  const {
-    data: requests,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data: requests } = useQuery({
     queryKey: ["jellyseerr", "recent_requests"],
     queryFn: async () => jellyseerrApi?.requests(),
     enabled: !!jellyseerrApi,

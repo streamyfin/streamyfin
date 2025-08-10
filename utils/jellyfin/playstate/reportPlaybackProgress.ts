@@ -23,7 +23,6 @@ export const reportPlaybackProgress = async ({
   itemId,
   positionTicks,
   IsPaused = false,
-  deviceProfile,
 }: ReportPlaybackProgressParams): Promise<void> => {
   if (!api || !sessionId || !itemId || !positionTicks) {
     return;

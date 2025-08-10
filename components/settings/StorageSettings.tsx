@@ -16,7 +16,7 @@ export const StorageSettings = () => {
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
 
-  const { data: size, isLoading: appSizeLoading } = useQuery({
+  const { data: size } = useQuery({
     queryKey: ["appSize", appSizeUsage],
     queryFn: async () => {
       const app = await appSizeUsage;

@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useCallback, useEffect } from "react";
-import { Platform, type ViewProps } from "react-native";
+import { Platform } from "react-native";
 import GoogleCast, {
   CastButton,
   CastContext,
@@ -10,12 +10,6 @@ import GoogleCast, {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import { RoundButton } from "./RoundButton";
-
-interface Props extends ViewProps {
-  width?: number;
-  height?: number;
-  background?: "blur" | "transparent";
-}
 
 export function Chromecast({
   width = 48,

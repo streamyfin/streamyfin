@@ -72,7 +72,6 @@ export const FilterSheet = <T,>({
   renderItemLabel,
   showSearch = true,
   multiple = false,
-  ...props
 }: Props<T>) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["80%"], []);

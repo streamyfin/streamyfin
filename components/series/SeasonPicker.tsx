@@ -27,7 +27,7 @@ type Props = {
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
-export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
+export const SeasonPicker: React.FC<Props> = ({ item }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);

@@ -1,15 +1,24 @@
-# 📺 Streamyfin
-
 <a href="https://www.buymeacoffee.com/fredrikbur3" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
-A simple and user-friendly Jellyfin video streaming client built with Expo. If you are looking for an alternative to other Jellyfin clients, we hope you find Streamyfin a useful addition to your media streaming toolbox.
 
-<div style="display: flex; flex-direction: row; gap: 8px">
-  <img width=150 src="./assets/images/screenshots/screenshot1.png" />
-  <img width=150 src="./assets/images/screenshots/screenshot3.png" />
-  <img width=150 src="./assets/images/screenshots/screenshot2.png" />
-  <img width=159 src="./assets/images/jellyseerr.PNG"/>
-</div>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/streamyfin/.github/refs/heads/main/streamyfin-github-banner.png" alt="Streamyfin" width="100%">
+</p>
+
+**Streamyfin is a simple, user-friendly Jellyfin video streaming client built with Expo. Designed as an alternative to other Jellyfin clients, it aims to offer a smooth and reliable streaming experience. We hope you'll find it a valuable addition to your media streaming toolbox.**
+
+---
+
+<p align="center">
+  <img src="./assets/images/screenshots/screenshot1.png" width="22%">
+  &nbsp;
+  <img src="./assets/images/screenshots/screenshot3.png" width="22%">
+  &nbsp;
+  <img src="./assets/images/screenshots/screenshot2.png" width="22%">
+  &nbsp;
+  <img src="./assets/images/jellyseerr.PNG" width="23%">
+</p>
+
 
 ## 🌟 Features
 
@@ -47,7 +56,7 @@ The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that ho
 
 ### 🔍 Jellysearch
 
-[Jellysearch](https://gitlab.com/DomiStyle/jellysearch) now works with Streamyfin! 🚀
+[Jellysearch](https://gitlab.com/DomiStyle/jellysearch) now works with Streamyfin!
 
 > A fast full-text search proxy for Jellyfin. Integrates seamlessly with most Jellyfin clients.
 

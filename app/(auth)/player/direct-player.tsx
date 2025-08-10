@@ -190,6 +190,7 @@ export default function page() {
             result = { mediaSource: data.mediaSource, sessionId: "", url };
           }
         } else {
+          if (!item) return;
           const res = await getStreamUrl({
             api,
             item,
@@ -516,7 +517,18 @@ export default function page() {
     return () => setIsMounted(false);
   }, []);
 
+  // Show error UI first, before checking loading/missing‐data
+  if (itemStatus.isError || streamStatus.isError) {
+    return (
+      <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
+        <Text className='text-white'>{t("player.error")}</Text>
+      </View>
+    );
+  }
+
+  // Then show loader while either side is still fetching or data isn’t present
   if (itemStatus.isLoading || streamStatus.isLoading || !item || !stream) {
+    // …loader UI…
     return (
       <View className='w-screen h-screen flex flex-col items-center justify-center bg-black'>
         <Loader />
@@ -573,7 +585,7 @@ export default function page() {
           }}
         />
       </View>
-      {videoRef.current && !isPipStarted && isMounted === true && item ? (
+      {!isPipStarted && isMounted === true && item && (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
@@ -589,7 +601,7 @@ export default function page() {
           setIgnoreSafeAreas={setIgnoreSafeAreas}
           ignoreSafeAreas={ignoreSafeAreas}
           isVideoLoaded={isVideoLoaded}
-          startPictureInPicture={videoRef?.current?.startPictureInPicture}
+          startPictureInPicture={videoRef.current?.startPictureInPicture}
           play={videoRef.current?.play}
           pause={videoRef.current?.pause}
           seek={videoRef.current?.seekTo}
@@ -597,12 +609,12 @@ export default function page() {
           getAudioTracks={videoRef.current?.getAudioTracks}
           getSubtitleTracks={videoRef.current?.getSubtitleTracks}
           offline={offline}
-          setSubtitleTrack={videoRef.current.setSubtitleTrack}
-          setSubtitleURL={videoRef.current.setSubtitleURL}
-          setAudioTrack={videoRef.current.setAudioTrack}
+          setSubtitleTrack={videoRef.current?.setSubtitleTrack}
+          setSubtitleURL={videoRef.current?.setSubtitleURL}
+          setAudioTrack={videoRef.current?.setAudioTrack}
           isVlc
         />
-      ) : null}
+      )}
     </View>
   );
 }
