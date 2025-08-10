@@ -31,7 +31,7 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
-import { runtimeTicksToMinutes } from "@/utils/time";
+import { runtimeTicksToMinutes, ticksToSeconds } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
 
@@ -202,7 +202,9 @@ export const PlayButton: React.FC<Props> = ({
                                   ],
                                 },
                       },
-                      startTime: 0,
+                      startTime: ticksToSeconds(
+                        item?.UserData?.PlaybackPositionTicks || 0,
+                      ),
                     })
                     .then(() => {
                       // state is already set when reopening current media, so skip it here.
