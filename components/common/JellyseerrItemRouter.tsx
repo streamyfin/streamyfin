@@ -2,7 +2,7 @@ import { useRouter, useSegments } from "expo-router";
 import type React from "react";
 import { type PropsWithChildren, useCallback, useMemo } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
-import * as ContextMenu from "@/components/ContextMenu";
+import * as ContextMenu from "zeego/context-menu";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import {

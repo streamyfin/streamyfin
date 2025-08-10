@@ -38,7 +38,6 @@ const JellyseerrPoster: React.FC<Props> = ({
   horizontal,
   showDownloadInfo,
   mediaRequest,
-  ...props
 }) => {
   const { jellyseerrApi, getTitle, getYear, getMediaType } = useJellyseerr();
   const loadingOpacity = useSharedValue(1);

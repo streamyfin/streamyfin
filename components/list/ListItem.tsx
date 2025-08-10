@@ -82,7 +82,6 @@ const ListItemContent = ({
   showArrow,
   iconAfter,
   children,
-  ...props
 }: Props) => {
   return (
     <>

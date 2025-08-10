@@ -40,7 +40,6 @@ const ParallaxSlideShow = <T,>({
   renderItem,
   keyExtractor,
   onEndReached,
-  ...props
 }: PropsWithChildren<Props<T> & ViewProps>) => {
   const insets = useSafeAreaInsets();
 

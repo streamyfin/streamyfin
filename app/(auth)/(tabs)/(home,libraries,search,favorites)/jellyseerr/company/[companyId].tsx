@@ -17,7 +17,7 @@ export default function page() {
   const local = useLocalSearchParams();
   const { jellyseerrApi } = useJellyseerr();
 
-  const { companyId, name, image, type } = local as unknown as {
+  const { companyId, image, type } = local as unknown as {
     companyId: string;
     name: string;
     image: string;

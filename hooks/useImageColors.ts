@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useMemo } from "react";
 import { Platform } from "react-native";
+import { getColors, ImageColorsResult } from "react-native-image-colors";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   adjustToNearBlack,
@@ -11,9 +12,6 @@ import {
 } from "@/utils/atoms/primaryColor";
 import { getItemImage } from "@/utils/getItemImage";
 import { storage } from "@/utils/mmkv";
-
-// import { getColors } from "react-native-image-colors";
-const Colors = !Platform.isTV ? require("react-native-image-colors") : null;
 
 /**
  * Custom hook to extract and manage image colors for a given item.
@@ -65,48 +63,45 @@ export const useImageColors = ({
         return;
       }
 
-      Colors.getColors(source.uri, {
+      // Extract colors from the image
+      getColors(source.uri, {
         fallback: "#fff",
         cache: false,
       })
-        .then(
-          (colors: {
-            platform: string;
-            dominant: string;
-            vibrant: string;
-            detail: string;
-            primary: string;
-          }) => {
-            let primary = "#fff";
-            let text = "#000";
-            let backup = "#fff";
+        .then((colors: ImageColorsResult) => {
+          let primary = "#fff";
+          let text = "#000";
+          let backup = "#fff";
 
-            if (colors.platform === "android") {
-              primary = colors.dominant;
-              backup = colors.vibrant;
-            } else if (colors.platform === "ios") {
-              primary = colors.detail;
-              backup = colors.primary;
-            }
+          // Select the appropriate color based on the platform
+          if (colors.platform === "android") {
+            primary = colors.dominant;
+            backup = colors.vibrant;
+          } else if (colors.platform === "ios") {
+            primary = colors.detail;
+            backup = colors.primary;
+          }
 
-            if (primary && isCloseToBlack(primary)) {
-              if (backup && !isCloseToBlack(backup)) primary = backup;
-              primary = adjustToNearBlack(primary);
-            }
+          // Adjust the primary color if it's too close to black
+          if (primary && isCloseToBlack(primary)) {
+            if (backup && !isCloseToBlack(backup)) primary = backup;
+            primary = adjustToNearBlack(primary);
+          }
 
-            if (primary) text = calculateTextColor(primary);
+          // Calculate the text color based on the primary color
+          if (primary) text = calculateTextColor(primary);
 
-            setPrimaryColor({
-              primary,
-              text,
-            });
+          setPrimaryColor({
+            primary,
+            text,
+          });
 
-            if (source.uri && primary) {
-              storage.set(`${source.uri}-primary`, primary);
-              storage.set(`${source.uri}-text`, text);
-            }
-          },
-        )
+          // Cache the colors in storage
+          if (source.uri && primary) {
+            storage.set(`${source.uri}-primary`, primary);
+            storage.set(`${source.uri}-text`, text);
+          }
+        })
         .catch((error: any) => {
           console.error("Error getting colors", error);
         });

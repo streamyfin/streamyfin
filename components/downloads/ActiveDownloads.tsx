@@ -60,9 +60,9 @@ interface DownloadCardProps extends TouchableOpacityProps {
 }
 
 const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
-  const { processes, startDownload } = useDownload();
+  const { startDownload } = useDownload();
   const router = useRouter();
-  const { removeProcess, setProcesses } = useDownload();
+  const { removeProcess } = useDownload();
   const [settings] = useSettings();
   const queryClient = useQueryClient();
 

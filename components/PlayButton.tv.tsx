@@ -1,10 +1,8 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { useCallback, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
@@ -17,7 +15,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useHaptic } from "@/hooks/useHaptic";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { runtimeTicksToMinutes } from "@/utils/time";
@@ -37,12 +34,7 @@ export const PlayButton: React.FC<Props> = ({
   selectedOptions,
   ...props
 }: Props) => {
-  const { showActionSheetWithOptions } = useActionSheet();
-  const { t } = useTranslation();
-
   const [colorAtom] = useAtom(itemThemeColorAtom);
-  const _api = useAtomValue(apiAtom);
-  const _user = useAtomValue(userAtom);
 
   const router = useRouter();
 

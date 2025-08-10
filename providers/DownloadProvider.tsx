@@ -2,7 +2,6 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
 import { focusManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import * as Application from "expo-application";
@@ -41,6 +40,10 @@ import {
 } from "@/utils/optimize-server";
 import { Bitrate } from "../components/BitrateSelector";
 import { apiAtom } from "./JellyfinProvider";
+
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 
 export type DownloadedItem = {
   item: Partial<BaseItemDto>;

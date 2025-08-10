@@ -14,12 +14,6 @@ interface TrickplayData {
   ThumbnailCount?: number;
 }
 
-interface TrickplayInfo {
-  resolution: string;
-  aspectRatio: number;
-  data: TrickplayData;
-}
-
 interface TrickplayUrl {
   x: number;
   y: number;
@@ -38,7 +32,8 @@ export const useTrickplay = (item: BaseItemDto, enabled = true) => {
     }
 
     const mediaSourceId = item.Id;
-    const trickplayData = item.Trickplay[mediaSourceId];
+    const trickplayData: Record<string, TrickplayData> | undefined =
+      item.Trickplay[mediaSourceId];
 
     if (!trickplayData) {
       return null;

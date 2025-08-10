@@ -8,7 +8,7 @@ import { ListItem } from "../list/ListItem";
 
 export const Dashboard = () => {
   const [settings, _updateSettings] = useSettings();
-  const { sessions = [], isLoading } = useSessions({} as useSessionsProps);
+  const { sessions = [] } = useSessions({} as useSessionsProps);
   const router = useRouter();
 
   const { t } = useTranslation();
