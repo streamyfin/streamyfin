@@ -33,7 +33,6 @@ module.exports = function withCustomPlugin(config) {
     "org.gradle.configureondemand",
     "true",
   );
-  config = setGradlePropertiesValue(config, "android.useAndroidX", "true");
 
   // Increase memory
   config = setGradlePropertiesValue(
