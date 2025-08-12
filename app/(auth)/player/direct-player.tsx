@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDebounce } from "use-debounce";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -301,45 +302,6 @@ export default function page() {
     };
   };
 
-  const onProgress = useCallback(
-    async (data: ProgressUpdatePayload) => {
-      if (isSeeking.get() || isPlaybackStopped) return;
-
-      const { currentTime } = data.nativeEvent;
-      if (isBuffering) {
-        setIsBuffering(false);
-      }
-
-      progress.set(currentTime);
-
-      // Update the playback position in the URL.
-      router.setParams({
-        playbackPosition: msToTicks(currentTime).toString(),
-      });
-
-      if (offline) return;
-      if (!item?.Id || !stream) return;
-
-      reportPlaybackProgress();
-    },
-    [
-      item?.Id,
-      audioIndex,
-      subtitleIndex,
-      mediaSourceId,
-      isPlaying,
-      stream,
-      isSeeking,
-      isPlaybackStopped,
-      isBuffering,
-    ],
-  );
-
-  const onPipStarted = useCallback((e: PipStartedPayload) => {
-    const { pipStarted } = e.nativeEvent;
-    setIsPipStarted(pipStarted);
-  }, []);
-
   const reportPlaybackProgress = useCallback(async () => {
     if (!api || offline || !stream) return;
     await getPlaystateApi(api).reportPlaybackProgress({
@@ -357,6 +319,47 @@ export default function page() {
     progress,
   ]);
 
+  const [debouncedReportProgress] = useDebounce(reportPlaybackProgress, 2000);
+
+  const onProgress = useCallback(
+    async (data: ProgressUpdatePayload) => {
+      if (isSeeking.get() || isPlaybackStopped) return;
+
+      const { currentTime } = data.nativeEvent;
+      if (isBuffering) {
+        setIsBuffering(false);
+      }
+
+      progress.set(currentTime);
+
+      // Update the playback position in the URL.
+      // Only update URL params every 5 seconds to reduce overhead
+      const currentTimeSeconds = Math.floor(currentTime / 1000);
+      if (currentTimeSeconds % 5 === 0) {
+        router.setParams({
+          playbackPosition: msToTicks(currentTime).toString(),
+        });
+      }
+      if (offline) return;
+      if (!item?.Id || !stream) return;
+
+      debouncedReportProgress();
+    },
+    [
+      item?.Id,
+      stream,
+      isSeeking,
+      isPlaybackStopped,
+      isBuffering,
+      debouncedReportProgress,
+    ],
+  );
+
+  const onPipStarted = useCallback((e: PipStartedPayload) => {
+    const { pipStarted } = e.nativeEvent;
+    setIsPipStarted(pipStarted);
+  }, []);
+
   /** Gets the initial playback position in seconds. */
   const startPosition = useMemo(() => {
     if (offline) return 0;
@@ -366,15 +369,16 @@ export default function page() {
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
 
-    try {
-      const { volume: currentVolume } = await VolumeManager.getVolume();
-      const newVolume = Math.min(currentVolume + 0.1, 1.0);
-
-      await VolumeManager.setVolume(newVolume);
-    } catch (error) {
-      console.error("Error adjusting volume:", error);
-    }
+    VolumeManager.getVolume()
+      .then(({ volume: currentVolume }: { volume: number }) => {
+        const newVolume = Math.min(currentVolume + 0.1, 1.0);
+        return VolumeManager.setVolume(newVolume);
+      })
+      .catch((error: any) => {
+        console.error("Error adjusting volume:", error);
+      });
   }, []);
+
   const [previousVolume, setPreviousVolume] = useState<number | null>(null);
 
   const toggleMuteCb = useCallback(async () => {
