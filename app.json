@@ -37,7 +37,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 57,
+      "versionCode": 58,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
@@ -79,7 +79,7 @@
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
-            "kotlinVersion": "2.0.21",
+            "kotlinVersion": "2.2.0",
             "minSdkVersion": 24,
             "usesCleartextTraffic": true,
             "packagingOptions": {
