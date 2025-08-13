@@ -69,7 +69,7 @@ jobs:
           bun install --frozen-lockfile
           bun run submodule-reload
 
-      - name: 🛠️ Generate project files (expo prebuild)
+      - name: 🛠️ Generate project files
         run: |
           if [ "${{ matrix.target }}" = "tv" ]; then
             bun run prebuild:tv
