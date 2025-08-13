@@ -26,6 +26,13 @@ module.exports = function withCustomPlugin(config) {
   // Expo 52 is not setting this
   // https://github.com/expo/expo/issues/32558
   config = setGradlePropertiesValue(config, "android.enableJetifier", "true");
+  config = setGradlePropertiesValue(config, "org.gradle.daemon", "true");
+  config = setGradlePropertiesValue(config, "org.gradle.parallel", "true");
+  config = setGradlePropertiesValue(
+    config,
+    "org.gradle.configureondemand",
+    "true",
+  );
 
   // Increase memory
   config = setGradlePropertiesValue(
