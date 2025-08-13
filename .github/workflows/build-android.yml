@@ -19,17 +19,18 @@ jobs:
       contents: read
 
     strategy:
+      fail-fast: false
       matrix:
         target: [phone, tv]
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          show-progress: false
-          submodules: recursive
           fetch-depth: 0
+          submodules: recursive
+          show-progress: false
 
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
@@ -40,22 +41,41 @@ jobs:
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-bun-cache-
+            ${{ runner.os }}-${{ runner.arch }}-bun-develop-
+            ${{ runner.os }}-bun-develop-
+
+      - name: 💾 Cache node_modules
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-
+            ${{ runner.os }}-${{ runner.arch }}-modules-develop-
+            ${{ runner.os }}-modules-develop-
+
+      - name: 💾 Cache Expo CLI
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ~/.expo
+          key: ${{ runner.os }}-expo-cli-develop
+          restore-keys: ${{ runner.os }}-expo-cli-develop
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
 
-      - name: 💾 Cache Android dependencies
+      - name: 💾 Cache Gradle global
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
-          path: android/.gradle
-          key: ${{ runner.os }}-android-deps-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-android-deps-
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-develop-
 
       - name: 🛠️ Generate project files
         run: |
@@ -64,6 +84,13 @@ jobs:
           else
             bun run prebuild
           fi
+
+      - name: 💾 Cache project Gradle (.gradle)
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: android/.gradle
+          key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-android-gradle-develop-
 
       - name: 🚀 Build APK
         env:
@@ -81,4 +108,3 @@ jobs:
             android/app/build/outputs/apk/release/*.apk
             android/app/build/outputs/bundle/release/*.aab
           retention-days: 7
-

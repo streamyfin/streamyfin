@@ -24,20 +24,20 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           show-progress: false
           fetch-depth: 0
 
       - name: 🏁 Initialize CodeQL
-        uses: github/codeql-action/init@a4e1a019f5e24960714ff6296aee04b736cbc3cf # v3.29.6
+        uses: github/codeql-action/init@76621b61decf072c1cee8dd1ce2d2a82d33c17ed # v3.29.8
         with:
           languages: ${{ matrix.language }}
           queries: +security-extended,security-and-quality
 
       - name: 🛠️ Autobuild
-        uses: github/codeql-action/autobuild@a4e1a019f5e24960714ff6296aee04b736cbc3cf # v3.29.6
+        uses: github/codeql-action/autobuild@76621b61decf072c1cee8dd1ce2d2a82d33c17ed # v3.29.8
 
       - name: 🧪 Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@a4e1a019f5e24960714ff6296aee04b736cbc3cf # v3.29.6
+        uses: github/codeql-action/analyze@76621b61decf072c1cee8dd1ce2d2a82d33c17ed # v3.29.8
