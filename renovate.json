@@ -10,7 +10,8 @@
     "docker:enableMajor",
     "group:testNonMajor",
     "group:monorepos",
-    "helpers:pinGitHubActionDigests"
+    "helpers:pinGitHubActionDigests",
+    "customManagers:biomeVersions"
   ],
   "addLabels": ["dependencies"],
   "rebaseWhen": "conflicted",
