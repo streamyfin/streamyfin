@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -99,5 +99,5 @@ jobs:
           name: streamyfin-android-${{ matrix.target }}-apk-${{ env.DATE_TAG }}
           path: |
             android/app/build/outputs/apk/release/*.apk
-            android/app/build/outputs/apk/release/*.aab
+            android/app/build/outputs/aab/release/*.aab
           retention-days: 7
