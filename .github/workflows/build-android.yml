@@ -99,5 +99,4 @@ jobs:
           name: streamyfin-android-${{ matrix.target }}-apk-${{ env.DATE_TAG }}
           path: |
             android/app/build/outputs/apk/release/*.apk
-            android/app/build/outputs/aab/release/*.aab
           retention-days: 7
