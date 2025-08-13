@@ -25,11 +25,13 @@ import {
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import {
+import Animated, {
   runOnJS,
   type SharedValue,
   useAnimatedReaction,
+  useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -148,10 +150,34 @@ export const Controls: FC<Props> = ({
   const min = useSharedValue(0);
   const max = useSharedValue(item.RunTimeTicks || 0);
 
+  // Animated opacity for smooth transitions
+  const controlsOpacity = useSharedValue(showControls ? 1 : 0);
+
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
 
   const lightHapticFeedback = useHaptic("light");
+
+  // Animate controls opacity when showControls changes
+  useEffect(() => {
+    controlsOpacity.value = withTiming(showControls ? 1 : 0, {
+      duration: 300,
+    });
+  }, [showControls, controlsOpacity]);
+
+  // Animated styles for controls
+  const animatedControlsStyle = useAnimatedStyle(() => {
+    return {
+      opacity: controlsOpacity.value,
+    };
+  });
+
+  // Animated style for black overlay (75% opacity when visible)
+  const animatedOverlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: controlsOpacity.value * 0.75,
+    };
+  });
 
   useEffect(() => {
     prefetchAllTrickplayImages();
@@ -708,10 +734,10 @@ export const Controls: FC<Props> = ({
           <VideoTouchOverlay
             screenWidth={screenWidth}
             screenHeight={screenHeight}
-            showControls={showControls}
             onToggleControls={toggleControls}
+            animatedStyle={animatedOverlayStyle}
           />
-          <View
+          <Animated.View
             style={[
               {
                 position: "absolute",
@@ -720,8 +746,8 @@ export const Controls: FC<Props> = ({
                 width: settings?.safeAreaInControlsEnabled
                   ? screenWidth - insets.left - insets.right
                   : screenWidth,
-                opacity: showControls ? 1 : 0,
               },
+              animatedControlsStyle,
             ]}
             pointerEvents={showControls ? "auto" : "none"}
             className={"flex flex-row w-full pt-2"}
@@ -803,34 +829,39 @@ export const Controls: FC<Props> = ({
                 <Ionicons name='close' size={24} color='white' />
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
 
-          <View
-            style={{
-              position: "absolute",
-              top: "50%", // Center vertically
-              left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-              right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
-              paddingHorizontal: "28%", // Add some padding to the left and right
-            }}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                top: "50%", // Center vertically
+                left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
+                right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
+                paddingHorizontal: 17,
+              },
+              animatedControlsStyle,
+            ]}
             pointerEvents={showControls ? "box-none" : "none"}
           >
+            {/* Brightness Control */}
             <View
               style={{
-                position: "absolute",
+                width: 50,
+                height: 50,
                 alignItems: "center",
-                transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
-                left: 0,
-                bottom: 30,
-                opacity: showControls ? 1 : 0,
+                justifyContent: "center",
+                transform: [{ rotate: "270deg" }],
               }}
             >
               <BrightnessSlider />
             </View>
+
+            {/* Skip Backward */}
             {!Platform.isTV && (
               <TouchableOpacity onPress={handleSkipBackward}>
                 <View
@@ -838,7 +869,6 @@ export const Controls: FC<Props> = ({
                     position: "relative",
                     justifyContent: "center",
                     alignItems: "center",
-                    opacity: showControls ? 1 : 0,
                   }}
                 >
                   <Ionicons
@@ -864,9 +894,8 @@ export const Controls: FC<Props> = ({
               </TouchableOpacity>
             )}
 
-            <View
-              style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}
-            >
+            {/* Play/Pause Button */}
+            <View style={{ alignItems: "center" }}>
               <TouchableOpacity
                 onPress={() => {
                   togglePlay();
@@ -877,9 +906,6 @@ export const Controls: FC<Props> = ({
                     name={isPlaying ? "pause" : "play"}
                     size={50}
                     color='white'
-                    style={{
-                      opacity: showControls ? 1 : 0,
-                    }}
                   />
                 ) : (
                   <Loader size={"large"} />
@@ -887,6 +913,7 @@ export const Controls: FC<Props> = ({
               </TouchableOpacity>
             </View>
 
+            {/* Skip Forward */}
             {!Platform.isTV && (
               <TouchableOpacity onPress={handleSkipForward}>
                 <View
@@ -894,7 +921,6 @@ export const Controls: FC<Props> = ({
                     position: "relative",
                     justifyContent: "center",
                     alignItems: "center",
-                    opacity: showControls ? 1 : 0,
                   }}
                 >
                   <Ionicons name='refresh-outline' size={50} color='white' />
@@ -912,21 +938,23 @@ export const Controls: FC<Props> = ({
                 </View>
               </TouchableOpacity>
             )}
+
+            {/* Volume/Audio Control */}
             <View
               style={{
-                position: "absolute",
+                width: 50,
+                height: 50,
                 alignItems: "center",
-                transform: [{ rotate: "270deg" }], // Rotate the slider to make it vertical
-                bottom: 30,
-                right: 0,
+                justifyContent: "center",
+                transform: [{ rotate: "270deg" }],
                 opacity: showAudioSlider || showControls ? 1 : 0,
               }}
             >
               <AudioSlider setVisibility={setShowAudioSlider} />
             </View>
-          </View>
+          </Animated.View>
 
-          <View
+          <Animated.View
             style={[
               {
                 position: "absolute",
@@ -934,6 +962,7 @@ export const Controls: FC<Props> = ({
                 left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
                 bottom: settings?.safeAreaInControlsEnabled ? insets.bottom : 0,
               },
+              animatedControlsStyle,
             ]}
             className={"flex flex-col px-2"}
             onTouchStart={handleControlsInteraction}
@@ -949,7 +978,6 @@ export const Controls: FC<Props> = ({
                 style={{
                   flexDirection: "column",
                   alignSelf: "flex-end", // Shrink height based on content
-                  opacity: showControls ? 1 : 0,
                 }}
                 pointerEvents={showControls ? "box-none" : "none"}
               >
@@ -998,9 +1026,6 @@ export const Controls: FC<Props> = ({
             </View>
             <View
               className={"flex flex-col-reverse rounded-lg items-center my-2"}
-              style={{
-                opacity: showControls ? 1 : 0,
-              }}
               pointerEvents={showControls ? "box-none" : "none"}
             >
               <View className={"flex flex-col w-full shrink"}>
@@ -1040,7 +1065,7 @@ export const Controls: FC<Props> = ({
                 </View>
               </View>
             </View>
-          </View>
+          </Animated.View>
         </>
       )}
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (
