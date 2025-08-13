@@ -24,7 +24,9 @@
         "noForEach": "off"
       },
       "recommended": true,
-      "correctness": { "useExhaustiveDependencies": "off" },
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
       "suspicious": {
         "noExplicitAny": "off",
         "noArrayIndexKey": "off"
