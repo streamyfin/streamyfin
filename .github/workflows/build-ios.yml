@@ -29,9 +29,9 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          show-progress: false
-          submodules: recursive
           fetch-depth: 0
+          submodules: recursive
+          show-progress: false
 
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
@@ -42,30 +42,55 @@ jobs:
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-bun-cache-
+            ${{ runner.os }}-${{ runner.arch }}-bun-develop-
+            ${{ runner.os }}-bun-develop-
+
+      - name: 💾 Cache node_modules
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-
+            ${{ runner.os }}-${{ runner.arch }}-modules-develop-
+            ${{ runner.os }}-modules-develop-
+
+      - name: 💾 Cache Expo CLI
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ~/.expo
+          key: ${{ runner.os }}-expo-cli-develop
+          restore-keys: ${{ runner.os }}-expo-cli-develop
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
 
-      - name: 🛠️ Generate project files
+      - name: 🛠️ Generate project files (expo prebuild)
         run: |
           if [ "${{ matrix.target }}" = "tv" ]; then
             bun run prebuild:tv
           else
             bun run prebuild
           fi
-
-      - name: 🏗 Setup EAS
+      
+      - name: 💾 Cache CocoaPods
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-develop-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: ${{ runner.os }}-pods-develop-    
+      
+      - name: 🏗️ Setup EAS
         uses: expo/expo-github-action@main
         with:
           eas-version: 16.17.4
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: 🏗️ Build iOS app
+      - name: 🚀 Build iOS app
         env:
           EXPO_TV: ${{ matrix.target == 'tv' && 1 || 0 }}
         run: eas build -p ios --local --non-interactive
@@ -79,4 +104,3 @@ jobs:
           name: streamyfin-ios-${{ matrix.target }}-ipa-${{ env.DATE_TAG }}
           path: build-*.ipa
           retention-days: 7
-
