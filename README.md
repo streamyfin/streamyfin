@@ -120,7 +120,7 @@ Key points of the MPL-2.0:
 
 ## 🌐 Connect with Us
 
-Join our Discord: [https://discord.gg/aJvAYeycyY](https://discord.gg/aJvAYeycyY)
+Join our Discord: [![](https://dcbadge.limes.pink/api/server/https://discord.gg/BuGG9ZNhaE)](https://discord.gg/BuGG9ZNhaE)
 
 Need support or have questions:
 
