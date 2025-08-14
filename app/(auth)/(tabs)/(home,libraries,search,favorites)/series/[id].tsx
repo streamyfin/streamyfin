@@ -1,13 +1,3 @@
-import { AddToFavorites } from "@/components/AddToFavorites";
-import { DownloadItems } from "@/components/DownloadItem";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { NextUp } from "@/components/series/NextUp";
-import { SeasonPicker } from "@/components/series/SeasonPicker";
-import { SeriesHeader } from "@/components/series/SeriesHeader";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { Ionicons } from "@expo/vector-icons";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +8,16 @@ import type React from "react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
+import { AddToFavorites } from "@/components/AddToFavorites";
+import { DownloadItems } from "@/components/DownloadItem";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { NextUp } from "@/components/series/NextUp";
+import { SeasonPicker } from "@/components/series/SeasonPicker";
+import { SeriesHeader } from "@/components/series/SeriesHeader";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const page: React.FC = () => {
   const navigation = useNavigation();
@@ -77,7 +77,9 @@ const page: React.FC = () => {
     select: (data) =>
       // This needs to be sorted by parent index number and then index number, that way we can download the episodes in the correct order.
       [...(data || [])].sort(
-        (a, b) => (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) || (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0)
+        (a, b) =>
+          (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
+          (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
       ),
     staleTime: 60,
     enabled: !!api && !!user?.Id && !!item?.Id,

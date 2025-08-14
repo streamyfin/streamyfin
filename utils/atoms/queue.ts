@@ -2,8 +2,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 import { processesAtom } from "@/providers/DownloadProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import { JobStatus } from "@/providers/Downloads/types";
+import { useSettings } from "@/utils/atoms/settings";
 
 export interface Job {
   id: string;

@@ -1,5 +1,3 @@
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback, useMemo } from "react";
@@ -10,6 +8,8 @@ import {
   View,
   type ViewProps,
 } from "react-native";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
 interface Props extends ViewProps {
   item: BaseItemDto | MovieDetails | TvDetails;

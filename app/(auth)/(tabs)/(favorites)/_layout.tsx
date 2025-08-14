@@ -1,7 +1,7 @@
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
+import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 
 export default function SearchLayout() {
   const { t } = useTranslation();
@@ -10,7 +10,7 @@ export default function SearchLayout() {
       <Stack.Screen
         name='index'
         options={{
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerLargeTitle: true,
           headerTitle: t("tabs.favorites"),
           headerLargeStyle: {

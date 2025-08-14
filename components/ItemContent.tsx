@@ -24,7 +24,6 @@ import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColors } from "@/hooks/useImageColors";
-import { useItemQuery } from "@/hooks/useItemQuery";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -104,34 +103,34 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     ]);
 
     useEffect(() => {
-      if (Platform.isTV) {
-        return;
+      if (!Platform.isTV) {
+        navigation.setOptions({
+          headerRight: () =>
+            item && (
+              <View className='flex flex-row items-center space-x-2'>
+                <Chromecast.Chromecast
+                  background='blur'
+                  width={22}
+                  height={22}
+                />
+                {item.Type !== "Program" && (
+                  <View className='flex flex-row items-center space-x-2'>
+                    {!Platform.isTV && (
+                      <DownloadSingleItem item={item} size='large' />
+                    )}
+                    {user?.Policy?.IsAdministrator && (
+                      <PlayInRemoteSessionButton item={item} size='large' />
+                    )}
+
+                    <PlayedStatus items={[item]} size='large' />
+                    <AddToFavorites item={item} />
+                  </View>
+                )}
+              </View>
+            ),
+        });
       }
-      navigation.setOptions({
-        headerRight: () =>
-          item && (
-            <View className='flex flex-row items-center space-x-2'>
-              <Chromecast.Chromecast background='blur' width={22} height={22} />
-              {item.Type !== "Program" && (
-                <View className='flex flex-row items-center space-x-2'>
-                  {!Platform.isTV && !isOffline && (
-                    <DownloadSingleItem item={item} size='large' />
-                  )}
-                  {user?.Policy?.IsAdministrator && !isOffline && (
-                    <PlayInRemoteSessionButton item={item} size='large' />
-                  )}
-                  <PlayedStatus
-                    items={[item]}
-                    size='large'
-                    isOffline={isOffline}
-                  />
-                  {!isOffline && <AddToFavorites item={item} />}
-                </View>
-              )}
-            </View>
-          ),
-      });
-    }, [item, navigation, isOffline, user]);
+    }, [item, navigation, user]);
 
     useEffect(() => {
       if (item) {
@@ -183,7 +182,9 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 onLoad={() => setLoadingLogo(false)}
                 onError={() => setLoadingLogo(false)}
               />
-            ) : undefined
+            ) : (
+              <View />
+            )
           }
         >
           <View className='flex flex-col bg-transparent shrink'>

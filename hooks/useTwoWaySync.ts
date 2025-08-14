@@ -3,7 +3,6 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
-import { usePlaybackManager } from "./usePlaybackManager";
 
 /**
  * This hook is used to sync the playback state of a downloaded item with the server
@@ -14,8 +13,6 @@ export const useTwoWaySync = () => {
   const user = useAtomValue(userAtom);
   const netInfo = useNetInfo();
   const { getDownloadedItemById, updateDownloadedItem } = useDownload();
-  const { reportPlaybackProgress, markItemUnplayed, markItemPlayed } =
-    usePlaybackManager();
 
   /**
    * Syncs the playback state of an offline item with the server.

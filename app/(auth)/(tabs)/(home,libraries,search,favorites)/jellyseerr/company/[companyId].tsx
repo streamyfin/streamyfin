@@ -1,24 +1,23 @@
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { useLocalSearchParams } from "expo-router";
+import { uniqBy } from "lodash";
+import { useMemo } from "react";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import {
   type MovieResult,
-  Results,
   type TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { COMPANY_LOGO_IMAGE_FILTER } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
-import { uniqBy } from "lodash";
-import React, { useMemo } from "react";
 
 export default function page() {
   const local = useLocalSearchParams();
   const { jellyseerrApi } = useJellyseerr();
 
-  const { companyId, name, image, type } = local as unknown as {
+  const { companyId, image, type } = local as unknown as {
     companyId: string;
     name: string;
     image: string;
@@ -99,7 +98,7 @@ export default function page() {
           }}
         />
       }
-      renderItem={(item, index) => (
+      renderItem={(item, _index) => (
         <JellyseerrPoster item={item as MovieResult | TvResult} />
       )}
     />

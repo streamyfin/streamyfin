@@ -1,6 +1,5 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { AxiosError } from "axios";
 import { getAuthHeaders } from "../jellyfin";
 
 interface NextUpParams {
@@ -39,7 +38,7 @@ export const nextUp = async ({
     );
 
     return response.data.Items;
-  } catch (error) {
+  } catch (_error) {
     return [];
   }
 };

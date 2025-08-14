@@ -2,7 +2,6 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import BackGroundDownloader from "@kesha-antonov/react-native-background-downloader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
@@ -17,6 +16,7 @@ import React, {
   useMemo,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 import { toast } from "sonner-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import useImageStorage from "@/hooks/useImageStorage";
@@ -37,6 +37,10 @@ import {
   TrickPlayData,
 } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
+
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 
 const calculateEstimatedSize = (p: JobStatus): number => {
   let size = p.mediaSource.Size;
@@ -719,6 +723,29 @@ function useDownloadProvider() {
 
 export function useDownload() {
   const context = useContext(DownloadContext);
+
+  if (Platform.isTV) {
+    // Since tv doesn't do downloads, just return no-op functions for everything
+    return {
+      processes: [],
+      startBackgroundDownload: async () => {},
+      downloadedFiles: [],
+      getDownloadsDatabase: () => ({}),
+      deleteAllFiles: async () => {},
+      deleteFile: async () => {},
+      deleteItems: async () => {},
+      removeProcess: () => {},
+      startDownload: async () => {},
+      deleteFileByType: async () => {},
+      getDownloadedItemSize: async () => 0,
+      getDownloadedItemById: () => undefined,
+      APP_CACHE_DOWNLOAD_DIRECTORY: "",
+      cleanCacheDirectory: async () => {},
+      updateDownloadedItem: () => {},
+      appSizeUsage: async () => ({ total: 0, remaining: 0, app: 0 }),
+    };
+  }
+
   if (context === null) {
     throw new Error("useDownload must be used within a DownloadProvider");
   }

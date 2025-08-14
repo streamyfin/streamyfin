@@ -97,7 +97,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       playbackPosition: playbackPosition,
     }).toString();
 
-    //@ts-ignore
+    //@ts-expect-error
     router.replace(`player/direct-player?${queryParams}`);
   };
 

@@ -1,8 +1,8 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
+import { apiAtom } from "@/providers/JellyfinProvider";
 
 type PosterProps = {
   id?: string;

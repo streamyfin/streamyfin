@@ -10,7 +10,8 @@
     "docker:enableMajor",
     "group:testNonMajor",
     "group:monorepos",
-    "helpers:pinGitHubActionDigests"
+    "helpers:pinGitHubActionDigests",
+    "customManagers:biomeVersions"
   ],
   "addLabels": ["dependencies"],
   "rebaseWhen": "conflicted",
@@ -21,6 +22,10 @@
     "schedule": ["every month"]
   },
   "packageRules": [
+    {
+      "matchDepTypes": ["dependencies", "devDependencies"],
+      "enabled": true
+    },
     {
       "description": "Add 'ci' and 'github-actions' labels to GitHub Action update PRs",
       "matchManagers": ["github-actions"],
@@ -44,5 +49,6 @@
       "matchPackagePatterns": ["expo", "react-native"],
       "addLabels": ["expo", "react-native"]
     }
-  ]
+  ],
+  "enabledManagers": ["bun"]
 }

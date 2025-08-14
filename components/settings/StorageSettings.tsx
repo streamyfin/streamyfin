@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import * as FileSystem from "expo-file-system";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
@@ -15,9 +16,16 @@ export const StorageSettings = () => {
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
 
-  const { data: size, isLoading: appSizeLoading } = useQuery({
+  const { data: size } = useQuery({
     queryKey: ["appSize"],
-    queryFn: appSizeUsage,
+    queryFn: async () => {
+      const app = await appSizeUsage();
+
+      const remaining = await FileSystem.getFreeDiskStorageAsync();
+      const total = await FileSystem.getTotalDiskCapacityAsync();
+
+      return { app, remaining, total, used: (total - remaining) / total };
+    },
   });
 
   const onDeleteClicked = async () => {

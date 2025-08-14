@@ -7,12 +7,12 @@ import type React from "react";
 import { useCallback } from "react";
 import { type TouchableOpacityProps, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
 interface EpisodeCardProps extends TouchableOpacityProps {
   item: BaseItemDto;

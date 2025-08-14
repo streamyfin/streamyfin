@@ -20,11 +20,11 @@ import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
 import { Button } from "../Button";
 
-const BackGroundDownloader = !Platform.isTV
+const _BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
 
-interface Props extends ViewProps { }
+interface Props extends ViewProps {}
 
 const bytesToMB = (bytes: number) => {
   return bytes / 1024 / 1024;

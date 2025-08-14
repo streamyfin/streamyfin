@@ -13,7 +13,6 @@ import {
   type HorizontalScrollRef,
 } from "@/components/common/HorrizontalScroll";
 import { Text } from "@/components/common/Text";
-import { DownloadSingleItem } from "@/components/DownloadItem";
 import { Loader } from "@/components/Loader";
 import {
   SeasonDropdown,
@@ -212,8 +211,10 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           />
         )}
         <TouchableOpacity
-          onPress={close}
-          className='aspect-square flex flex-col l items-center justify-center p-2'
+          onPress={async () => {
+            close();
+          }}
+          className='aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2'
         >
           <Ionicons name='close' size={24} color='white' />
         </TouchableOpacity>
@@ -227,8 +228,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           <View
             key={_item.Id}
             style={{}}
-            className={`flex flex-col w-44 ${item.Id !== _item.Id ? "opacity-75" : ""
-              }`}
+            className={`flex flex-col w-44 ${
+              item.Id !== _item.Id ? "opacity-75" : ""
+            }`}
           >
             <TouchableOpacity
               onPress={() => {

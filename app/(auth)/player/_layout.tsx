@@ -1,5 +1,4 @@
 import { Stack } from "expo-router";
-import React from "react";
 import { SystemBars } from "react-native-edge-to-edge";
 
 export default function Layout() {

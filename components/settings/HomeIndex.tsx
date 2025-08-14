@@ -232,6 +232,7 @@ export const HomeIndex = () => {
     [api, user?.Id],
   );
 
+  // Always call useMemo() at the top-level, using computed dependencies for both "default"/custom sections
   const defaultSections = useMemo(() => {
     if (!api || !user?.Id) return [];
 
@@ -332,12 +333,11 @@ export const HomeIndex = () => {
       },
     ];
     return ss;
-  }, [api, user?.Id, collections, createCollectionConfig, t]);
+  }, [api, user?.Id, collections, t, createCollectionConfig]);
 
   const customSections = useMemo(() => {
-    if (!api || !user?.Id) return [];
+    if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
-
     for (const key in settings.home?.sections) {
       // @ts-expect-error
       const section = settings.home?.sections[key];
@@ -370,7 +370,6 @@ export const HomeIndex = () => {
             });
             return response.data.Items || [];
           }
-
           if (section.latest) {
             const response = await getUserLibraryApi(api).getLatestMedia({
               userId: user?.Id,
@@ -388,12 +387,9 @@ export const HomeIndex = () => {
       });
     }
     return ss;
-  }, [api, user?.Id, settings.home?.sections]);
+  }, [api, user?.Id, settings?.home?.sections]);
 
-  const sections: Section[] =
-    !settings?.home || !settings?.home?.sections
-      ? defaultSections
-      : customSections;
+  const sections = settings?.home?.sections ? customSections : defaultSections;
 
   if (isConnected === false) {
     return (

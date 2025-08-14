@@ -1,13 +1,7 @@
-import { Text } from "@/components/common/Text";
-import { ListGroup } from "@/components/list/ListGroup";
-import { ListItem } from "@/components/list/ListItem";
-import { useSettings } from "@/utils/atoms/settings";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import DisabledSetting from "@/components/settings/DisabledSetting";
-import React, { useEffect, useMemo, useState } from "react";
 import {
   Linking,
   Switch,
@@ -16,6 +10,11 @@ import {
   View,
 } from "react-native";
 import { toast } from "sonner-native";
+import { Text } from "@/components/common/Text";
+import { ListGroup } from "@/components/list/ListGroup";
+import { ListItem } from "@/components/list/ListItem";
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
   const navigation = useNavigation();

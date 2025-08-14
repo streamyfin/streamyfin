@@ -13,12 +13,17 @@ export const useItemQuery = (itemId: string, isOffline: boolean) => {
     queryKey: ["item", itemId],
     queryFn: async () => {
       if (isOffline) {
-        const downloadedItem = downloadedFiles?.find((item) => item.item.Id === itemId);
+        const downloadedItem = downloadedFiles?.find(
+          (item) => item.item.Id === itemId,
+        );
         if (downloadedItem) return downloadedItem.item;
         return null;
       }
       if (!api || !user || !itemId) return null;
-      const res = await getUserLibraryApi(api).getItem({ itemId: itemId, userId: user?.Id });
+      const res = await getUserLibraryApi(api).getItem({
+        itemId: itemId,
+        userId: user?.Id,
+      });
       return res.data;
     },
     staleTime: 0,

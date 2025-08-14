@@ -1,11 +1,11 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
+import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 import { ticksToMs } from "@/utils/time";
-import { useDownload } from "@/providers/DownloadProvider";
-import { useGlobalSearchParams } from "expo-router";
 
 interface TrickplayUrl {
   x: number;
@@ -21,31 +21,42 @@ export const useTrickplay = (item: BaseItemDto) => {
   const throttleDelay = 200;
   const isOffline = useGlobalSearchParams().offline === "true";
   const trickplayInfo = useMemo(() => getTrickplayInfo(item), [item]);
-  
-  /** Generates the trickplay URL for the given item and sheet index. 
+
+  /** Generates the trickplay URL for the given item and sheet index.
    * We change between offline and online trickplay URLs depending on the state of the app. */
-  const getTrickplayUrl = useCallback((item: BaseItemDto, sheetIndex: number) => {
-    // If we are offline, we can use the downloaded item's trickplay data path
-    const downloadedItem = getDownloadedItemById(item.Id!);
-    if (isOffline && downloadedItem?.trickPlayData?.path) {
-      return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
-    }
-    return generateTrickplayUrl(item, sheetIndex);
-  }, [trickplayInfo]);
+  const getTrickplayUrl = useCallback(
+    (item: BaseItemDto, sheetIndex: number) => {
+      // If we are offline, we can use the downloaded item's trickplay data path
+      const downloadedItem = getDownloadedItemById(item.Id!);
+      if (isOffline && downloadedItem?.trickPlayData?.path) {
+        return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
+      }
+      return generateTrickplayUrl(item, sheetIndex);
+    },
+    [trickplayInfo],
+  );
 
   /** Calculates the trickplay URL for the current progress. */
   const calculateTrickplayUrl = useCallback(
     (progress: number) => {
       const now = Date.now();
-      if (!trickplayInfo || !item.Id || now - lastCalculationTime.current < throttleDelay) return;
+      if (
+        !trickplayInfo ||
+        !item.Id ||
+        now - lastCalculationTime.current < throttleDelay
+      )
+        return;
       lastCalculationTime.current = now;
-      const { sheetIndex, x, y } = calculateTrickplayTile(progress, trickplayInfo);
+      const { sheetIndex, x, y } = calculateTrickplayTile(
+        progress,
+        trickplayInfo,
+      );
       const url = getTrickplayUrl(item, sheetIndex);
       if (url) setTrickPlayUrl({ x, y, url });
     },
     [trickplayInfo, item, throttleDelay, getTrickplayUrl],
   );
-  
+
   /** Prefetches all the trickplay images for the item. */
   const prefetchAllTrickplayImages = useCallback(() => {
     if (!trickplayInfo || !item.Id) return;

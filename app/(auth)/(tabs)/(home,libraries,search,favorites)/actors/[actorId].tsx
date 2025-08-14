@@ -1,15 +1,3 @@
-import { ItemCardText } from "@/components/ItemCardText";
-import { Loader } from "@/components/Loader";
-import { OverviewText } from "@/components/OverviewText";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-import { InfiniteHorizontalScroll } from "@/components/common/InfiniteHorrizontalScroll";
-import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { MoviesTitleHeader } from "@/components/movies/MoviesTitleHeader";
-import MoviePoster from "@/components/posters/MoviePoster";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import type { BaseItemDtoQueryResult } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +7,18 @@ import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
+import { InfiniteHorizontalScroll } from "@/components/common/InfiniteHorrizontalScroll";
+import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import { ItemCardText } from "@/components/ItemCardText";
+import { Loader } from "@/components/Loader";
+import { MoviesTitleHeader } from "@/components/movies/MoviesTitleHeader";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import MoviePoster from "@/components/posters/MoviePoster";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
+import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const page: React.FC = () => {
   const local = useLocalSearchParams();

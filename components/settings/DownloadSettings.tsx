@@ -1,11 +1,8 @@
-import { Stepper } from "@/components/inputs/Stepper";
-import {
-  type Settings,
-  useSettings,
-} from "@/utils/atoms/settings";
-import React, { useMemo } from "react";
-import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Stepper } from "@/components/inputs/Stepper";
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import { type Settings, useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -27,9 +24,7 @@ export default function DownloadSettings({ ...props }) {
       <ListGroup title={t("home.settings.downloads.downloads_title")}>
         <ListItem
           title={t("home.settings.downloads.remux_max_download")}
-          disabled={
-            pluginSettings?.remuxConcurrentLimit?.locked
-          }
+          disabled={pluginSettings?.remuxConcurrentLimit?.locked}
         >
           <Stepper
             value={settings.remuxConcurrentLimit}

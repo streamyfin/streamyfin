@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.1.4/schema.json",
   "files": {
     "includes": [
       "**/*",
@@ -24,7 +24,9 @@
         "noForEach": "off"
       },
       "recommended": true,
-      "correctness": { "useExhaustiveDependencies": "off" },
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
       "suspicious": {
         "noExplicitAny": "off",
         "noArrayIndexKey": "off"

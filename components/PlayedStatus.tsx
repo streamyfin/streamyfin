@@ -10,13 +10,9 @@ interface Props extends ViewProps {
   size?: "default" | "large";
 }
 
-export const PlayedStatus: React.FC<Props> = ({
-  items,
-  isOffline = false,
-  ...props
-}) => {
+export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
   const allPlayed = items.every((item) => item.UserData?.Played);
-  const toggle = useMarkAsPlayed(items, isOffline);
+  const toggle = useMarkAsPlayed(items);
 
   return (
     <View {...props}>

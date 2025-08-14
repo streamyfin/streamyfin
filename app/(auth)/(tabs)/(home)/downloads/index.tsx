@@ -7,7 +7,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,39 +25,51 @@ import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
 
-function migration_20241124(
-  deleteAllFiles: () => Promise<void>,
-  router: any,
-  t: any,
-) {
-  Alert.alert(
-    t("home.downloads.new_app_version_requires_re_download"),
-    undefined,
-    [
-      {
-        text: t("common.cancel"),
-        onPress: () => router.back(),
-        style: "cancel",
-      },
-      {
-        text: t("common.continue"),
-        onPress: () => deleteAllFiles(),
-      },
-    ],
-  );
-}
-
 export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const { deleteFileByType, downloadedFiles, removeProcess, deleteAllFiles } = useDownload();
+  const { removeProcess, downloadedFiles, deleteFileByType, deleteAllFiles } =
+    useDownload();
   const router = useRouter();
-  const [settings] = useSettings();
+  const [_settings] = useSettings();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
+  const [showMigration, setShowMigration] = useState(false);
+
+  const _insets = useSafeAreaInsets();
+
+  const migration_20241124 = () => {
+    Alert.alert(
+      t("home.downloads.new_app_version_requires_re_download"),
+      t("home.downloads.new_app_version_requires_re_download_description"),
+      [
+        {
+          text: t("home.downloads.back"),
+          onPress: () => {
+            setShowMigration(false);
+            router.back();
+          },
+        },
+        {
+          text: t("home.downloads.delete"),
+          style: "destructive",
+          onPress: async () => {
+            await deleteAllFiles();
+            setShowMigration(false);
+          },
+        },
+      ],
+    );
+  };
+
   const movies = useMemo(() => {
-    return downloadedFiles?.filter((f) => f.item.Type === "Movie") || [];
+    try {
+      return downloadedFiles?.filter((f) => f.item.Type === "Movie") || [];
+    } catch {
+      setShowMigration(true);
+      return [];
+    }
   }, [downloadedFiles]);
 
   const groupedBySeries = useMemo(() => {
@@ -72,12 +84,10 @@ export default function page() {
       });
       return Object.values(series);
     } catch {
-      migration_20241124(deleteAllFiles, router, t);
+      setShowMigration(true);
       return [];
     }
   }, [downloadedFiles, deleteAllFiles, router, t]);
-
-  const _insets = useSafeAreaInsets();
 
   useEffect(() => {
     navigation.setOptions({
@@ -88,6 +98,12 @@ export default function page() {
       ),
     });
   }, [downloadedFiles]);
+
+  useEffect(() => {
+    if (showMigration) {
+      migration_20241124();
+    }
+  }, [showMigration]);
 
   const deleteMovies = () =>
     deleteFileByType("Movie")

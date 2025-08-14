@@ -1,19 +1,23 @@
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import { FilterButton } from "@/components/filters/FilterButton";
-import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 import * as FileSystem from "expo-file-system";
 import { useNavigation } from "expo-router";
 import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
+import { Text } from "@/components/common/Text";
+import { FilterButton } from "@/components/filters/FilterButton";
+import { Loader } from "@/components/Loader";
+import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 
 export default function page() {
   const navigation = useNavigation();
   const { logs } = useLog();
   const { t } = useTranslation();
+
+  const orderFilterId = useId();
+  s;
+  const levelsFilterId = useId();
 
   const defaultLevels: LogLevel[] = ["INFO", "ERROR", "DEBUG", "WARN"];
   const codeBlockStyle = {
@@ -73,7 +77,7 @@ export default function page() {
     <>
       <View className='flex flex-row justify-end py-2 px-4 space-x-2'>
         <FilterButton
-          id='order'
+          id={orderFilterId}
           queryKey='log'
           queryFn={async () => ["asc", "desc"]}
           set={(values) => setOrder(values[0])}
@@ -83,7 +87,7 @@ export default function page() {
           showSearch={false}
         />
         <FilterButton
-          id='levels'
+          id={levelsFilterId}
           queryKey='log'
           queryFn={async () => defaultLevels}
           set={setLevels}
@@ -122,7 +126,7 @@ export default function page() {
                     {new Date(log.timestamp).toLocaleString()}
                   </Text>
                 </View>
-                <Text uiTextView selectable className='text-xs'>
+                <Text selectable className='text-xs'>
                   {log.message}
                 </Text>
               </TouchableOpacity>

@@ -1,5 +1,3 @@
-import { useHaptic } from "@/hooks/useHaptic";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -13,6 +11,8 @@ import type React from "react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, View, type ViewProps } from "react-native";
+import { useHaptic } from "@/hooks/useHaptic";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
@@ -63,7 +63,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
             t("home.settings.quick_connect.invalid_code"),
           );
         }
-      } catch (e) {
+      } catch (_e) {
         errorHapticFeedback();
         Alert.alert(
           t("home.settings.quick_connect.error"),

@@ -1,8 +1,8 @@
-import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
+import { useWebSocketContext } from "@/providers/WebSocketProvider";
 
 interface UseWebSocketProps {
   isPlaying: boolean;
@@ -88,7 +88,7 @@ export const useWebSocket = ({
     if (!lastMessage) return;
     if (offline) return;
 
-    const messageType = lastMessage.MessageType;
+    const _messageType = lastMessage.MessageType;
     const command: string | undefined =
       lastMessage?.Data?.Command || lastMessage?.Data?.Name;
 
@@ -252,7 +252,7 @@ export const useWebSocket = ({
       });
       if (itemIdsStr) {
         const itemIds = itemIdsStr.split(",");
-        let startPositionTicks: number | undefined = undefined;
+        let startPositionTicks: number | undefined;
         if (startPositionTicksStr) {
           const parsedTicks = Number.parseInt(startPositionTicksStr, 10);
           if (!Number.isNaN(parsedTicks)) {

@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import Animated, {
-  useAnimatedStyle,
   useAnimatedReaction,
+  useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";

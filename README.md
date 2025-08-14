@@ -1,15 +1,24 @@
-# 📺 Streamyfin
-
 <a href="https://www.buymeacoffee.com/fredrikbur3" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
-A simple and user-friendly Jellyfin video streaming client built with Expo. If you are looking for an alternative to other Jellyfin clients, we hope you find Streamyfin a useful addition to your media streaming toolbox.
 
-<div style="display: flex; flex-direction: row; gap: 8px">
-  <img width=150 src="./assets/images/screenshots/screenshot1.png" />
-  <img width=150 src="./assets/images/screenshots/screenshot3.png" />
-  <img width=150 src="./assets/images/screenshots/screenshot2.png" />
-  <img width=159 src="./assets/images/jellyseerr.PNG"/>
-</div>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/streamyfin/.github/refs/heads/main/streamyfin-github-banner.png" alt="Streamyfin" width="100%">
+</p>
+
+**Streamyfin is a simple, user-friendly Jellyfin video streaming client built with Expo. Designed as an alternative to other Jellyfin clients, it aims to offer a smooth and reliable streaming experience. We hope you'll find it a valuable addition to your media streaming toolbox.**
+
+---
+
+<p align="center">
+  <img src="./assets/images/screenshots/screenshot1.png" width="22%">
+  &nbsp;
+  <img src="./assets/images/screenshots/screenshot3.png" width="22%">
+  &nbsp;
+  <img src="./assets/images/screenshots/screenshot2.png" width="22%">
+  &nbsp;
+  <img src="./assets/images/jellyseerr.PNG" width="23%">
+</p>
+
 
 ## 🌟 Features
 
@@ -47,7 +56,7 @@ The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that ho
 
 ### 🔍 Jellysearch
 
-[Jellysearch](https://gitlab.com/DomiStyle/jellysearch) now works with Streamyfin! 🚀
+[Jellysearch](https://gitlab.com/DomiStyle/jellysearch) now works with Streamyfin!
 
 > A fast full-text search proxy for Jellyfin. Integrates seamlessly with most Jellyfin clients.
 
@@ -107,13 +116,13 @@ Key points of the MPL-2.0:
 - You must disclose your source code for any modifications to the covered files
 - Larger works may combine MPL code with code under other licenses
 - MPL-licensed components must remain under the MPL, but the larger work can be under a different license
-- For the full text of the license, please see the LICENSE file in this repository.
+- For the full text of the license, please see the LICENSE file in this repository
 
 ## 🌐 Connect with Us
 
-Join our Discord: [https://discord.gg/aJvAYeycyY](https://discord.gg/aJvAYeycyY)
+Join our Discord: [![](https://dcbadge.limes.pink/api/server/https://discord.gg/BuGG9ZNhaE)](https://discord.gg/BuGG9ZNhaE)
 
-If you have questions or need support, feel free to reach out:
+Need support or have questions:
 
 - GitHub Issues: Report bugs or request features here.
 - Email: [fredrik.burmester@gmail.com](mailto:fredrik.burmester@gmail.com)
@@ -139,77 +148,74 @@ Special shoutout to the JF official clients for being an inspiration to ours.
 
 Thanks to the following contributors for their significant contributions:
 
+<div align="left">
 <table>
-  <tr
-    style="
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      flex-wrap: wrap;
-    "
-  >
+  <tr>
     <td align="center">
       <a href="https://github.com/Alexk2309">
-        <img src="https://github.com/Alexk2309.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/Alexk2309.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@Alexk2309</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/herrrta">
-        <img src="https://github.com/herrrta.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/herrrta.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@herrrta</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/lostb1t">
-        <img src="https://github.com/lostb1t.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/lostb1t.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@lostb1t</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/Simon-Eklundh">
-        <img src="https://github.com/Simon-Eklundh.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/Simon-Eklundh.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@Simon-Eklundh</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/topiga">
-        <img src="https://github.com/topiga.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/topiga.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@topiga</b></sub>
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://github.com/simoncaron">
-        <img src="https://github.com/simoncaron.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/simoncaron.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@simoncaron</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/jakequade">
-        <img src="https://github.com/jakequade.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/jakequade.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@jakequade</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/Ryan0204">
-        <img src="https://github.com/Ryan0204.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/Ryan0204.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@Ryan0204</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/retardgerman">
-        <img src="https://github.com/retardgerman.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/retardgerman.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@retardgerman</b></sub>
       </a>
     </td>
     <td align="center">
       <a href="https://github.com/whoopsi-daisy">
-        <img src="https://github.com/whoopsi-daisy.png?size=80" width="80" style="border-radius: 50%;" />
+        <img src="https://github.com/whoopsi-daisy.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@whoopsi-daisy</b></sub>
       </a>
     </td>
   </tr>
 </table>
+</div>
 
 And all other developers who have contributed to Streamyfin, thank you for your contributions.
 
@@ -228,4 +234,4 @@ I'd also like to thank the following people and projects for their contributions
 Streamyfin does not promote, support, or condone piracy in any form. The app is intended solely for streaming media that you personally own and control. It does not provide or include any media content. Any discussions or support requests related to piracy are strictly prohibited across all our channels.
 
 ## 🤝 Sponsorship
-VPS hosting generously provided by [Hexabyte](https://hexabyte.se/en/vps/?currency=eur)
+VPS hosting generously provided by [Hexabyte](https://hexabyte.se/en/vps/?currency=eur) and [SweHosting](https://swehosting.se/en/#tj%C3%A4nster)

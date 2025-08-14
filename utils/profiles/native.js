@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-import DeviceInfo from "react-native-device-info";
 /**
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,29 +6,7 @@ import DeviceInfo from "react-native-device-info";
 import MediaTypes from "../../constants/MediaTypes";
 import { getSubtitleProfiles } from "./subtitles";
 
-// Helper function to detect Dolby Vision support
-const supportsDolbyVision = async () => {
-  if (Platform.OS === "ios") {
-    const deviceModel = await DeviceInfo.getModel();
-    // iPhone 12 and newer generally support Dolby Vision
-    const modelNumber = Number.parseInt(deviceModel.replace(/iPhone/, ""), 10);
-    return !Number.isNaN(modelNumber) && modelNumber >= 12;
-  }
-
-  if (Platform.OS === "android") {
-    const apiLevel = await DeviceInfo.getApiLevel();
-    const isHighEndDevice =
-      (await DeviceInfo.getTotalMemory()) > 4 * 1024 * 1024 * 1024; // >4GB RAM
-    // Very rough approximation - Android 10+ on higher-end devices may support it
-    return apiLevel >= 29 && isHighEndDevice;
-  }
-
-  return false;
-};
-
-export const generateDeviceProfile = async ({ transcode = false } = {}) => {
-  console.log("generating device profile", { transcode });
-  const dolbyVisionSupported = await supportsDolbyVision();
+export const generateDeviceProfile = async () => {
   /**
    * Device profile for Native video player
    */
@@ -53,7 +29,12 @@ export const generateDeviceProfile = async ({ transcode = false } = {}) => {
             Value: "153",
             IsRequired: false,
           },
-          // We'll add Dolby Vision condition below if not supported
+          {
+            Condition: "NotEquals",
+            Property: "VideoRangeType",
+            Value: "DOVI", //no dolby vision at all
+            IsRequired: true,
+          },
         ],
       },
       {
@@ -96,22 +77,6 @@ export const generateDeviceProfile = async ({ transcode = false } = {}) => {
     ],
     SubtitleProfiles: getSubtitleProfiles(transcode ? "hls" : "External"),
   };
-
-  // Add Dolby Vision restriction if not supported
-  if (!dolbyVisionSupported) {
-    const hevcProfile = profile.CodecProfiles.find(
-      (p) => p.Type === MediaTypes.Video && p.Codec.includes("hevc"),
-    );
-
-    if (hevcProfile) {
-      hevcProfile.Conditions.push({
-        Condition: "NotEquals",
-        Property: "VideoRangeType",
-        Value: "DOVI", //no dolby vision at all
-        IsRequired: true,
-      });
-    }
-  }
 
   return profile;
 };

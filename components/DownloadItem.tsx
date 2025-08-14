@@ -82,7 +82,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((_index: number) => { }, []);
+  const handleSheetChanges = useCallback((_index: number) => {}, []);
 
   const closeModal = useCallback(() => {
     bottomSheetModalRef.current?.dismiss();
@@ -137,11 +137,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       firstItem.Type !== "Episode"
         ? "/downloads"
         : ({
-          pathname: `/downloads/${firstItem.SeriesId}`,
-          params: {
-            episodeSeasonIndex: firstItem.ParentIndexNumber,
-          },
-        } as Href),
+            pathname: `/downloads/${firstItem.SeriesId}`,
+            params: {
+              episodeSeasonIndex: firstItem.ParentIndexNumber,
+            },
+          } as Href),
     );
   };
 
@@ -162,10 +162,10 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           itemsNotDownloaded.length > 1
             ? getDefaultPlaySettings(item, settings!)
             : {
-              mediaSource: selectedMediaSource,
-              audioIndex: selectedAudioStream,
-              subtitleIndex: selectedSubtitleStream,
-            };
+                mediaSource: selectedMediaSource,
+                audioIndex: selectedAudioStream,
+                subtitleIndex: selectedSubtitleStream,
+              };
 
         const downloadDetails = await getDownloadUrl({
           api,

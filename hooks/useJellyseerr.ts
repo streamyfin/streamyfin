@@ -1,3 +1,7 @@
+import axios, { type AxiosError, type AxiosInstance } from "axios";
+import { atom } from "jotai";
+import { useAtom } from "jotai/index";
+import { inRange } from "lodash";
 import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
 import type {
   MovieResult,
@@ -5,11 +9,11 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { storage } from "@/utils/mmkv";
-import axios, { type AxiosError, type AxiosInstance } from "axios";
-import { atom } from "jotai";
-import { useAtom } from "jotai/index";
-import { inRange } from "lodash";
 import "@/augmentations";
+import { useQueryClient } from "@tanstack/react-query";
+import { t } from "i18next";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner-native";
 import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
@@ -43,10 +47,6 @@ import type {
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
 import { writeErrorLog } from "@/utils/log";
-import { useQueryClient } from "@tanstack/react-query";
-import { t } from "i18next";
-import { useCallback, useMemo } from "react";
-import { toast } from "sonner-native";
 
 interface SearchParams {
   query: string;
