@@ -15,7 +15,7 @@
   ],
   "addLabels": ["dependencies"],
   "rebaseWhen": "conflicted",
-  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"],
+  "ignorePaths": ["**/bower_components/**"],
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
