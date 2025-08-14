@@ -23,10 +23,6 @@
   },
   "packageRules": [
     {
-      "matchDepTypes": ["dependencies", "devDependencies"],
-      "enabled": true
-    },
-    {
       "description": "Add 'ci' and 'github-actions' labels to GitHub Action update PRs",
       "matchManagers": ["github-actions"],
       "addLabels": ["ci", "github-actions"]
@@ -49,6 +45,5 @@
       "matchPackagePatterns": ["expo", "react-native"],
       "addLabels": ["expo", "react-native"]
     }
-  ],
-  "enabledManagers": ["bun"]
+  ]
 }
