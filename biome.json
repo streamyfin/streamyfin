@@ -3,12 +3,12 @@
   "files": {
     "includes": [
       "**/*",
-      "!node_modules/**",
-      "!ios/**",
-      "!android/**",
-      "!Streamyfin.app/**",
-      "!utils/jellyseerr/**",
-      "!.expo/**"
+      "!node_modules",
+      "!ios",
+      "!android",
+      "!Streamyfin.app",
+      "!utils/jellyseerr",
+      "!.expo"
     ]
   },
   "linter": {
