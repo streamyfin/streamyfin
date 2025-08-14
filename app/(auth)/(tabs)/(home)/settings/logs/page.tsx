@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system";
 import { useNavigation } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
@@ -10,7 +10,7 @@ import { FilterButton } from "@/components/filters/FilterButton";
 import { Loader } from "@/components/Loader";
 import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 
-export default function page() {
+export default function Page() {
   const navigation = useNavigation();
   const { logs } = useLog();
   const { t } = useTranslation();
@@ -25,9 +25,11 @@ export default function page() {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [state, setState] = useState<Record<string, boolean>>({});
-
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [levels, setLevels] = useState<LogLevel[]>(defaultLevels);
+
+  const orderId = useId();
+  const levelsId = useId();
 
   const filteredLogs = useMemo(
     () =>
@@ -73,7 +75,7 @@ export default function page() {
     <>
       <View className='flex flex-row justify-end py-2 px-4 space-x-2'>
         <FilterButton
-          id='order'
+          id={orderId}
           queryKey='log'
           queryFn={async () => ["asc", "desc"]}
           set={(values) => setOrder(values[0])}
@@ -83,7 +85,7 @@ export default function page() {
           showSearch={false}
         />
         <FilterButton
-          id='levels'
+          id={levelsId}
           queryKey='log'
           queryFn={async () => defaultLevels}
           set={setLevels}

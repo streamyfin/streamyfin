@@ -19,7 +19,9 @@ class EventBus {
   }
 
   emit<T = void>(event: string, data?: T): void {
-    this.listeners[event]?.forEach((callback) => callback(data));
+    this.listeners[event]?.forEach((callback) => {
+      callback(data);
+    });
   }
 }
 

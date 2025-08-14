@@ -328,9 +328,9 @@ export const Controls: FC<Props> = ({
 
       const previousIndexes = {
         subtitleIndex: subtitleIndex
-          ? Number.parseInt(subtitleIndex)
+          ? Number.parseInt(subtitleIndex, 10)
           : undefined,
-        audioIndex: audioIndex ? Number.parseInt(audioIndex) : undefined,
+        audioIndex: audioIndex ? Number.parseInt(audioIndex, 10) : undefined,
       };
 
       const {

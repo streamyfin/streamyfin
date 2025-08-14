@@ -49,7 +49,7 @@ const Slide = <T,>({
         data={data}
         onEndReachedThreshold={1}
         onEndReached={onEndReached}
-        //@ts-ignore
+        //@ts-expect-error
         renderItem={({ item, index }) =>
           item ? renderItem(item, index) : null
         }

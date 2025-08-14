@@ -669,7 +669,7 @@ function useDownloadProvider() {
     Promise.all(
       items.map((i) => {
         if (i.Id) return deleteFile(i.Id);
-        return;
+        return Promise.resolve();
       }),
     ).then(() => successHapticFeedback());
   };
@@ -810,7 +810,7 @@ function useDownloadProvider() {
 
   function getDownloadedItemSize(itemId: string): number {
     const size = storage.getString(`downloadedItemSize-${itemId}`);
-    return size ? Number.parseInt(size) : 0;
+    return size ? Number.parseInt(size, 10) : 0;
   }
 
   return {

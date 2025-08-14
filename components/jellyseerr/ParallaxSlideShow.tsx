@@ -139,7 +139,7 @@ const ParallaxSlideShow = <T,>({
               }
               nestedScrollEnabled
               showsVerticalScrollIndicator={false}
-              //@ts-ignore
+              //@ts-expect-error
               renderItem={({ item, index }) => renderItem(item, index)}
               keyExtractor={keyExtractor}
               numColumns={3}
