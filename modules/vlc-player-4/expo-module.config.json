@@ -1,6 +1,6 @@
 {
   "platforms": ["ios", "tvos"],
   "ios": {
-    "modules": ["VlcPlayer3Module"]
+    "modules": ["VlcPlayer4Module"]
   }
 }

@@ -11,12 +11,12 @@ interface NativeViewRef extends VlcPlayerViewRef {
   setNativeProps?: (props: Partial<VlcPlayerViewProps>) => void;
 }
 
-const VLC3ViewManager = requireNativeViewManager("VlcPlayer3");
+const VLCViewManager = requireNativeViewManager("VlcPlayer");
 
 // Create a forwarded ref version of the native view
 const NativeView = React.forwardRef<NativeViewRef, VlcPlayerViewProps>(
   (props, ref) => {
-    return <VLC3ViewManager {...props} ref={ref} />;
+    return <VLCViewManager {...props} ref={ref} />;
   },
 );
 

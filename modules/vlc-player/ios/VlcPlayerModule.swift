@@ -54,17 +54,16 @@ public class VlcPlayerModule: Module {
                 return view.getAudioTracks()
             }
 
+            AsyncFunction("setSubtitleURL") { (view: VlcPlayerView, url: String, name: String) in
+                view.setSubtitleURL(url, name: name)
+            }
+
             AsyncFunction("setSubtitleTrack") { (view: VlcPlayerView, trackIndex: Int) in
                 view.setSubtitleTrack(trackIndex)
             }
 
             AsyncFunction("getSubtitleTracks") { (view: VlcPlayerView) -> [[String: Any]]? in
                 return view.getSubtitleTracks()
-            }
-
-            AsyncFunction("setSubtitleURL") {
-                (view: VlcPlayerView, url: String, name: String) in
-                view.setSubtitleURL(url, name: name)
             }
         }
     }
