@@ -43,8 +43,8 @@ jobs:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-develop-
-            ${{ runner.os }}-bun-develop-
+            ${{ runner.os }}-${{ runner.arch }}-bun-develop
+            ${{ runner.os }}-bun-develop
 
       - name: 💾 Cache node_modules
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
@@ -52,16 +52,9 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-
-            ${{ runner.os }}-${{ runner.arch }}-modules-develop-
-            ${{ runner.os }}-modules-develop-
-
-      - name: 💾 Cache Expo CLI
-        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
-        with:
-          path: ~/.expo
-          key: ${{ runner.os }}-expo-cli-develop
-          restore-keys: ${{ runner.os }}-expo-cli-develop
+            ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop
+            ${{ runner.os }}-${{ runner.arch }}-modules-develop
+            ${{ runner.os }}-modules-develop
 
       - name: 📦 Install dependencies and reload submodules
         run: |
@@ -75,7 +68,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-gradle-develop-
+          restore-keys: ${{ runner.os }}-gradle-develop
 
       - name: 🛠️ Generate project files
         run: |
@@ -90,7 +83,7 @@ jobs:
         with:
           path: android/.gradle
           key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-android-gradle-develop-
+          restore-keys: ${{ runner.os }}-android-gradle-develop
 
       - name: 🚀 Build APK
         env:
@@ -106,5 +99,4 @@ jobs:
           name: streamyfin-android-${{ matrix.target }}-apk-${{ env.DATE_TAG }}
           path: |
             android/app/build/outputs/apk/release/*.apk
-            android/app/build/outputs/bundle/release/*.aab
           retention-days: 7
