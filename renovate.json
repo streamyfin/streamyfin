@@ -15,17 +15,13 @@
   ],
   "addLabels": ["dependencies"],
   "rebaseWhen": "conflicted",
-  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"],
+  "ignorePaths": ["**/bower_components/**"],
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
     "schedule": ["every month"]
   },
   "packageRules": [
-    {
-      "matchDepTypes": ["dependencies", "devDependencies"],
-      "enabled": true
-    },
     {
       "description": "Add 'ci' and 'github-actions' labels to GitHub Action update PRs",
       "matchManagers": ["github-actions"],
@@ -49,6 +45,5 @@
       "matchPackagePatterns": ["expo", "react-native"],
       "addLabels": ["expo", "react-native"]
     }
-  ],
-  "enabledManagers": ["bun"]
+  ]
 }
