@@ -809,7 +809,7 @@ export const Controls: FC<Props> = ({
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={onClose}
-                className='aspect-square flex flex-col l items-center justify-center p-2'
+                className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
               >
                 <Ionicons name='close' size={24} color='white' />
               </TouchableOpacity>
