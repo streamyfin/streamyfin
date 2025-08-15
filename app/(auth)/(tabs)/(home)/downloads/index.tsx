@@ -82,7 +82,7 @@ export default function page() {
       setShowMigration(true);
       return [];
     }
-  }, [downloadedFiles, deleteAllFiles, router, t]);
+  }, [downloadedFiles]);
 
   useEffect(() => {
     navigation.setOptions({
