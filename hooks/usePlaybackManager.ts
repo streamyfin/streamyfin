@@ -1,6 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi, getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api/user-library-api";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
@@ -132,35 +131,6 @@ export const usePlaybackManager = ({
   }, [adjacentItems, item]);
 
   /**
-   * Fetches the latest state of an item from the server and updates the local
-   * downloaded version to match. This ensures the local item has the
-   * canonical state from the server.
-   */
-  const _syncRemoteToLocal = async (localItem: DownloadedItem) => {
-    if (!isOnline || !api || !user) return;
-
-    try {
-      const remoteItem = (
-        await getUserLibraryApi(api).getItem({
-          itemId: localItem.item.Id!,
-          userId: user.Id,
-        })
-      ).data;
-      if (remoteItem) {
-        updateDownloadedItem(localItem.item.Id!, {
-          ...localItem,
-          item: {
-            ...localItem.item,
-            UserData: { ...remoteItem.UserData },
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Failed to sync remote item state to local", error);
-    }
-  };
-
-  /**
    * Reports playback progress.
    *
    * - If offline and the item is downloaded, updates are saved locally.
@@ -257,11 +227,6 @@ export const usePlaybackManager = ({
           itemId,
           userId: user.Id,
         });
-
-        // If it was a downloaded item, re-sync with server for the latest state
-        if (localItem) {
-          await _syncRemoteToLocal(localItem);
-        }
       } catch (error) {
         console.error("Failed to mark item as played on server", error);
       }
@@ -303,11 +268,6 @@ export const usePlaybackManager = ({
           itemId,
           userId: user.Id,
         });
-
-        // If it was a downloaded item, re-sync with server for the latest state
-        if (localItem) {
-          await _syncRemoteToLocal(localItem);
-        }
       } catch (error) {
         console.error("Failed to mark item as unplayed on server", error);
       }
