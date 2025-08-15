@@ -86,20 +86,17 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
     // Needs to automatically change the selected to the default values for default indexes.
     useEffect(() => {
-      if (item) {
-        setSelectedOptions(() => ({
-          bitrate: defaultBitrate,
-          mediaSource: defaultMediaSource,
-          subtitleIndex: defaultSubtitleIndex ?? -1,
-          audioIndex: defaultAudioIndex,
-        }));
-      }
+      setSelectedOptions(() => ({
+        bitrate: defaultBitrate,
+        mediaSource: defaultMediaSource,
+        subtitleIndex: defaultSubtitleIndex ?? -1,
+        audioIndex: defaultAudioIndex,
+      }));
     }, [
       defaultAudioIndex,
       defaultBitrate,
       defaultSubtitleIndex,
       defaultMediaSource,
-      item,
     ]);
 
     useEffect(() => {

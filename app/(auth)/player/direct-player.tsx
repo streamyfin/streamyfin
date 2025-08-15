@@ -134,7 +134,7 @@ export default function page() {
     if (playbackPositionFromUrl) {
       return Number.parseInt(playbackPositionFromUrl, 10);
     }
-    return 0;
+    return item?.UserData?.PlaybackPositionTicks ?? 0;
   }, [playbackPositionFromUrl]);
 
   useEffect(() => {
@@ -240,7 +240,6 @@ export default function page() {
   useEffect(() => {
     if (!stream || !api) return;
     const reportPlaybackStart = async () => {
-      console.log("reporting playback start", currentPlayStateInfo());
       await getPlaystateApi(api).reportPlaybackStart({
         playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
       });
@@ -256,6 +255,10 @@ export default function page() {
       playbackManager.reportPlaybackProgress(
         item?.Id!,
         msToTicks(progress.get()),
+        {
+          AudioStreamIndex: audioIndex ?? -1,
+          SubtitleStreamIndex: subtitleIndex ?? -1,
+        },
       );
     } else {
       videoRef.current?.play();
