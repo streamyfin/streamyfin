@@ -66,7 +66,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
             onPress={() => {
               if (!result) return;
 
-              // @ts-ignore
+              // @ts-expect-error
               router.push({
                 pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
                 params: {

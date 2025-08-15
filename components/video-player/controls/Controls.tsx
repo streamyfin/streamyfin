@@ -35,10 +35,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
-import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -82,8 +82,8 @@ interface Props {
   isVideoLoaded?: boolean;
   mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
-  startPictureInPicture: () => Promise<void>;
-  play: (() => Promise<void>) | (() => void);
+  startPictureInPicture?: () => Promise<void>;
+  play: () => void;
   pause: () => void;
   getAudioTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
   getSubtitleTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
@@ -119,7 +119,6 @@ export const Controls: FC<Props> = ({
   setSubtitleTrack,
   setAudioTrack,
   offline = false,
-  enableTrickplay = true,
   isVlc = false,
 }) => {
   const [settings, updateSettings] = useSettings();
@@ -134,13 +133,17 @@ export const Controls: FC<Props> = ({
   const [showAudioSlider, setShowAudioSlider] = useState(false);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
-  const { previousItem, nextItem } = useAdjacentItems({ item });
+  const { previousItem, nextItem } = usePlaybackManager({
+    item,
+    isOffline: offline,
+  });
+
   const {
     trickPlayUrl,
     calculateTrickplayUrl,
     trickplayInfo,
     prefetchAllTrickplayImages,
-  } = useTrickplay(item, !offline && enableTrickplay);
+  } = useTrickplay(item);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(Number.POSITIVE_INFINITY);
@@ -303,19 +306,21 @@ export const Controls: FC<Props> = ({
   }>();
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
-    offline ? undefined : item.Id,
+    item?.Id!,
     currentTime,
     seek,
     play,
     isVlc,
+    offline,
   );
 
   const { showSkipCreditButton, skipCredit } = useCreditSkipper(
-    offline ? undefined : item.Id,
+    item?.Id!,
     currentTime,
     seek,
     play,
     isVlc,
+    offline,
   );
 
   const goToItemCommon = useCallback(
@@ -323,14 +328,12 @@ export const Controls: FC<Props> = ({
       if (!item || !settings) {
         return;
       }
-
       lightHapticFeedback();
-
       const previousIndexes = {
         subtitleIndex: subtitleIndex
-          ? Number.parseInt(subtitleIndex)
+          ? Number.parseInt(subtitleIndex, 10)
           : undefined,
-        audioIndex: audioIndex ? Number.parseInt(audioIndex) : undefined,
+        audioIndex: audioIndex ? Number.parseInt(audioIndex, 10) : undefined,
       };
 
       const {
@@ -343,14 +346,17 @@ export const Controls: FC<Props> = ({
         previousIndexes,
         mediaSource ?? undefined,
       );
-
       const queryParams = new URLSearchParams({
         itemId: item.Id ?? "",
         audioIndex: defaultAudioIndex?.toString() ?? "",
         subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
         mediaSourceId: newMediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString(),
+        playbackPosition:
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "",
       }).toString();
+
+      console.log("queryParams", queryParams);
 
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
@@ -434,10 +440,18 @@ export const Controls: FC<Props> = ({
 
   const goToItem = useCallback(
     async (itemId: string) => {
-      const gotoItem = await getItemById(api, itemId);
-      if (!gotoItem) {
+      if (offline) {
+        const queryParams = new URLSearchParams({
+          itemId: itemId,
+          playbackPosition:
+            item.UserData?.PlaybackPositionTicks?.toString() ?? "",
+        }).toString();
+        // @ts-expect-error
+        router.replace(`player/direct-player?${queryParams}`);
         return;
       }
+      const gotoItem = await getItemById(api, itemId);
+      if (!gotoItem) return;
       goToItemCommon(gotoItem);
     },
     [goToItemCommon, api],
@@ -726,8 +740,8 @@ export const Controls: FC<Props> = ({
             pointerEvents={showControls ? "auto" : "none"}
             className={"flex flex-row w-full pt-2"}
           >
-            {!Platform.isTV && (
-              <View className='mr-auto'>
+            <View className='mr-auto'>
+              {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
                 <VideoProvider
                   getAudioTracks={getAudioTracks}
                   getSubtitleTracks={getSubtitleTracks}
@@ -737,12 +751,13 @@ export const Controls: FC<Props> = ({
                 >
                   <DropdownView />
                 </VideoProvider>
-              </View>
-            )}
+              )}
+            </View>
 
             <View className='flex flex-row items-center space-x-2 '>
               {!Platform.isTV &&
-                settings.defaultPlayer === VideoPlayer.VLC_4 && (
+                (settings.defaultPlayer === VideoPlayer.VLC_4 ||
+                  Platform.OS === "android") && (
                   <TouchableOpacity
                     onPress={startPictureInPicture}
                     className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -755,8 +770,7 @@ export const Controls: FC<Props> = ({
                     />
                   </TouchableOpacity>
                 )}
-
-              {item?.Type === "Episode" && !offline && (
+              {item?.Type === "Episode" && (
                 <TouchableOpacity
                   onPress={() => {
                     switchOnEpisodeMode();
@@ -766,7 +780,7 @@ export const Controls: FC<Props> = ({
                   <Ionicons name='list' size={24} color='white' />
                 </TouchableOpacity>
               )}
-              {previousItem && !offline && (
+              {previousItem && (
                 <TouchableOpacity
                   onPress={goToPreviousItem}
                   className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -774,8 +788,7 @@ export const Controls: FC<Props> = ({
                   <Ionicons name='play-skip-back' size={24} color='white' />
                 </TouchableOpacity>
               )}
-
-              {nextItem && !offline && (
+              {nextItem && (
                 <TouchableOpacity
                   onPress={() => goToNextItem({ isAutoPlay: false })}
                   className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -783,7 +796,6 @@ export const Controls: FC<Props> = ({
                   <Ionicons name='play-skip-forward' size={24} color='white' />
                 </TouchableOpacity>
               )}
-
               {/* {mediaSource?.TranscodingUrl && ( */}
               <TouchableOpacity
                 onPress={toggleIgnoreSafeAreas}
@@ -795,7 +807,6 @@ export const Controls: FC<Props> = ({
                   color='white'
                 />
               </TouchableOpacity>
-              {/* )} */}
               <TouchableOpacity
                 onPress={onClose}
                 className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -804,7 +815,6 @@ export const Controls: FC<Props> = ({
               </TouchableOpacity>
             </View>
           </View>
-
           <View
             style={{
               position: "absolute",

@@ -1,3 +1,4 @@
+import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
@@ -9,7 +10,6 @@ import {
   useState,
 } from "react";
 import type { TrackInfo } from "@/modules/VlcPlayer.types";
-import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import type { Track } from "../types";
 import { useControlContext } from "./ControlContext";
 
@@ -48,7 +48,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
 }) => {
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
-  const [settings] = useSettings();
 
   const ControlContext = useControlContext();
   const isVideoLoaded = ControlContext?.isVideoLoaded;
@@ -67,13 +66,17 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       playbackPosition: string;
     }>();
 
-  const onTextBasedSubtitle = useMemo(
-    () =>
+  const onTextBasedSubtitle = useMemo(() => {
+    return (
       allSubs.find(
-        (s) => s.Index?.toString() === subtitleIndex && s.IsTextSubtitleStream,
-      ) || subtitleIndex === "-1",
-    [allSubs, subtitleIndex],
-  );
+        (s) =>
+          s.Index?.toString() === subtitleIndex &&
+          (s.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
+            s.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
+            s.DeliveryMethod === SubtitleDeliveryMethod.External),
+      ) || subtitleIndex === "-1"
+    );
+  }, [allSubs, subtitleIndex]);
 
   const setPlayerParams = ({
     chosenAudioIndex = audioIndex,
@@ -92,7 +95,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       playbackPosition: playbackPosition,
     }).toString();
 
-    //@ts-ignore
+    //@ts-expect-error
     router.replace(`player/direct-player?${queryParams}`);
   };
 
@@ -128,30 +131,32 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   useEffect(() => {
     const fetchTracks = async () => {
       if (getSubtitleTracks) {
-        const subtitleData = await getSubtitleTracks();
+        let subtitleData = await getSubtitleTracks();
+        // Only FOR VLC 3, If we're transcoding, we need to reverse the subtitle data, because VLC reverses the HLS subtitles.
+        if (
+          mediaSource?.TranscodingUrl &&
+          subtitleData &&
+          subtitleData.length > 1
+        ) {
+          subtitleData = [subtitleData[0], ...subtitleData.slice(1).reverse()];
+        }
 
-        // Step 1: Move external subs to the end, because VLC puts external subs at the end
-        const sortedSubs = allSubs.sort(
-          (a, b) => Number(a.IsExternal) - Number(b.IsExternal),
-        );
-
-        // Step 2: Apply VLC indexing logic
-        let textSubIndex = settings.defaultPlayer === VideoPlayer.VLC_4 ? 0 : 1;
-        const processedSubs: Track[] = sortedSubs?.map((sub) => {
-          // Always increment for non-transcoding subtitles
-          // Only increment for text-based subtitles when transcoding
+        let embedSubIndex = 1;
+        const processedSubs: Track[] = allSubs?.map((sub) => {
+          /** A boolean value determining if we should increment the embedSubIndex, currently only Embed and Hls subtitles are automatically added into VLC Player */
           const shouldIncrement =
-            !mediaSource?.TranscodingUrl || sub.IsTextSubtitleStream;
-          const vlcIndex = subtitleData?.at(textSubIndex)?.index ?? -1;
-          const finalIndex = shouldIncrement ? vlcIndex : (sub.Index ?? -1);
-
-          if (shouldIncrement) textSubIndex++;
+            sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
+            sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
+            sub.DeliveryMethod === SubtitleDeliveryMethod.External;
+          /** The index of subtitle inside VLC Player Itself */
+          const vlcIndex = subtitleData?.at(embedSubIndex)?.index ?? -1;
+          if (shouldIncrement) embedSubIndex++;
           return {
             name: sub.DisplayTitle || "Undefined Subtitle",
             index: sub.Index ?? -1,
             setTrack: () =>
               shouldIncrement
-                ? setTrackParams("subtitle", finalIndex, sub.Index ?? -1)
+                ? setTrackParams("subtitle", vlcIndex, sub.Index ?? -1)
                 : setPlayerParams({
                     chosenSubtitleIndex: sub.Index?.toString(),
                   }),

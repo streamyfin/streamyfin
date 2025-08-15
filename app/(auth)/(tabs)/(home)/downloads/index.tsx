@@ -10,32 +10,33 @@ import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
-import { type DownloadedItem, useDownload } from "@/providers/DownloadProvider";
+import { useDownload } from "@/providers/DownloadProvider";
+import { type DownloadedItem } from "@/providers/Downloads/types";
 import { queueAtom } from "@/utils/atoms/queue";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
 
 export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const { removeProcess, downloadedFiles, deleteFileByType, deleteAllFiles } =
-    useDownload();
+  const {
+    removeProcess,
+    getDownloadedItems,
+    deleteFileByType,
+    deleteAllFiles,
+  } = useDownload();
   const router = useRouter();
-  const [settings] = useSettings();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const [showMigration, setShowMigration] = useState(false);
-
-  const insets = useSafeAreaInsets();
 
   const migration_20241124 = () => {
     Alert.alert(
@@ -44,7 +45,10 @@ export default function page() {
       [
         {
           text: t("home.downloads.back"),
-          onPress: () => setShowMigration(false) || router.back(),
+          onPress: () => {
+            setShowMigration(false);
+            router.back();
+          },
         },
         {
           text: t("home.downloads.delete"),
@@ -57,6 +61,8 @@ export default function page() {
       ],
     );
   };
+
+  const downloadedFiles = getDownloadedItems();
 
   const movies = useMemo(() => {
     try {
@@ -127,16 +133,10 @@ export default function page() {
 
   return (
     <>
-      <ScrollView
-        contentContainerStyle={{
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-          paddingBottom: 100,
-        }}
-      >
-        <View className='py-4'>
-          <View className='mb-4 flex flex-col space-y-4 px-4'>
-            {settings?.downloadMethod === DownloadMethod.Remux && (
+      <View style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} className='flex-1'>
+          <View className='py-4'>
+            <View className='mb-4 flex flex-col space-y-4 px-4'>
               <View className='bg-neutral-900 p-4 rounded-2xl'>
                 <Text className='text-lg font-bold'>
                   {t("home.downloads.queue")}
@@ -180,70 +180,74 @@ export default function page() {
                   </Text>
                 )}
               </View>
-            )}
 
-            <ActiveDownloads />
-          </View>
-
-          {movies.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.movies")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>{movies?.length}</Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {movies?.map((item) => (
-                    <View className='mb-2 last:mb-0' key={item.item.Id}>
-                      <MovieCard item={item.item} />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
+              <ActiveDownloads />
             </View>
-          )}
-          {groupedBySeries.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.tvseries")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>
-                    {groupedBySeries?.length}
+
+            {movies.length > 0 && (
+              <View className='mb-4'>
+                <View className='flex flex-row items-center justify-between mb-2 px-4'>
+                  <Text className='text-lg font-bold'>
+                    {t("home.downloads.movies")}
                   </Text>
+                  <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                    <Text className='text-xs font-bold'>{movies?.length}</Text>
+                  </View>
                 </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className='px-4 flex flex-row'>
+                    {movies?.map((item) => (
+                      <TouchableItemRouter
+                        item={item.item}
+                        isOffline
+                        key={item.item.Id}
+                      >
+                        <MovieCard item={item.item} />
+                      </TouchableItemRouter>
+                    ))}
+                  </View>
+                </ScrollView>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {groupedBySeries?.map((items) => (
-                    <View
-                      className='mb-2 last:mb-0'
-                      key={items[0].item.SeriesId}
-                    >
-                      <SeriesCard
-                        items={items.map((i) => i.item)}
-                        key={items[0].item.SeriesId}
-                      />
-                    </View>
-                  ))}
+            )}
+            {groupedBySeries.length > 0 && (
+              <View className='mb-4'>
+                <View className='flex flex-row items-center justify-between mb-2 px-4'>
+                  <Text className='text-lg font-bold'>
+                    {t("home.downloads.tvseries")}
+                  </Text>
+                  <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                    <Text className='text-xs font-bold'>
+                      {groupedBySeries?.length}
+                    </Text>
+                  </View>
                 </View>
-              </ScrollView>
-            </View>
-          )}
-          {downloadedFiles?.length === 0 && (
-            <View className='flex px-4'>
-              <Text className='opacity-50'>
-                {t("home.downloads.no_downloaded_items")}
-              </Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className='px-4 flex flex-row'>
+                    {groupedBySeries?.map((items) => (
+                      <View
+                        className='mb-2 last:mb-0'
+                        key={items[0].item.SeriesId}
+                      >
+                        <SeriesCard
+                          items={items.map((i) => i.item)}
+                          key={items[0].item.SeriesId}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+            {downloadedFiles?.length === 0 && (
+              <View className='flex px-4'>
+                <Text className='opacity-50'>
+                  {t("home.downloads.no_downloaded_items")}
+                </Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </View>
       <BottomSheetModal
         ref={bottomSheetModalRef}
         enableDynamicSizing

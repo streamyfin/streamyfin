@@ -1,7 +1,4 @@
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { useAtom } from "jotai";
 import type React from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,30 +11,16 @@ import Animated, {
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
 import { ItemContent } from "@/components/ItemContent";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useItemQuery } from "@/hooks/useItemQuery";
 
 const Page: React.FC = () => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
   const { id } = useLocalSearchParams() as { id: string };
   const { t } = useTranslation();
 
-  const { data: item, isError } = useQuery({
-    queryKey: ["item", id],
-    queryFn: async () => {
-      if (!api || !user || !id) return;
-      const res = await getUserLibraryApi(api).getItem({
-        itemId: id,
-        userId: user?.Id,
-      });
+  const { offline } = useLocalSearchParams() as { offline?: string };
+  const isOffline = offline === "true";
 
-      return res.data;
-    },
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-  });
+  const { data: item, isError } = useItemQuery(id, isOffline);
 
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
@@ -107,7 +90,7 @@ const Page: React.FC = () => {
         <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
         <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
       </Animated.View>
-      {item && <ItemContent item={item} />}
+      {item && <ItemContent item={item} isOffline={isOffline} />}
     </View>
   );
 };

@@ -59,80 +59,55 @@ export default {
   ],
   SubtitleProfiles: [
     // Official foramts
-    { Format: "vtt", Method: "Embed" },
     { Format: "vtt", Method: "Encode" },
 
-    { Format: "webvtt", Method: "Embed" },
     { Format: "webvtt", Method: "Encode" },
 
-    { Format: "srt", Method: "Embed" },
     { Format: "srt", Method: "Encode" },
 
-    { Format: "subrip", Method: "Embed" },
     { Format: "subrip", Method: "Encode" },
 
-    { Format: "ttml", Method: "Embed" },
     { Format: "ttml", Method: "Encode" },
 
-    { Format: "dvbsub", Method: "Embed" },
     { Format: "dvdsub", Method: "Encode" },
 
-    { Format: "ass", Method: "Embed" },
     { Format: "ass", Method: "Encode" },
 
-    { Format: "idx", Method: "Embed" },
     { Format: "idx", Method: "Encode" },
 
-    { Format: "pgs", Method: "Embed" },
     { Format: "pgs", Method: "Encode" },
 
-    { Format: "pgssub", Method: "Embed" },
     { Format: "pgssub", Method: "Encode" },
 
-    { Format: "ssa", Method: "Embed" },
     { Format: "ssa", Method: "Encode" },
 
     // Other formats
-    { Format: "microdvd", Method: "Embed" },
     { Format: "microdvd", Method: "Encode" },
 
-    { Format: "mov_text", Method: "Embed" },
     { Format: "mov_text", Method: "Encode" },
 
-    { Format: "mpl2", Method: "Embed" },
     { Format: "mpl2", Method: "Encode" },
 
-    { Format: "pjs", Method: "Embed" },
     { Format: "pjs", Method: "Encode" },
 
-    { Format: "realtext", Method: "Embed" },
     { Format: "realtext", Method: "Encode" },
 
-    { Format: "scc", Method: "Embed" },
     { Format: "scc", Method: "Encode" },
 
-    { Format: "smi", Method: "Embed" },
     { Format: "smi", Method: "Encode" },
 
-    { Format: "stl", Method: "Embed" },
     { Format: "stl", Method: "Encode" },
 
-    { Format: "sub", Method: "Embed" },
     { Format: "sub", Method: "Encode" },
 
-    { Format: "subviewer", Method: "Embed" },
     { Format: "subviewer", Method: "Encode" },
 
-    { Format: "teletext", Method: "Embed" },
     { Format: "teletext", Method: "Encode" },
 
-    { Format: "text", Method: "Embed" },
     { Format: "text", Method: "Encode" },
 
-    { Format: "vplayer", Method: "Embed" },
     { Format: "vplayer", Method: "Encode" },
 
-    { Format: "xsub", Method: "Embed" },
     { Format: "xsub", Method: "Encode" },
   ],
 };

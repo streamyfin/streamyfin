@@ -10,6 +10,7 @@ import { useAtom } from "jotai";
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -57,6 +58,9 @@ export default function search() {
   const [user] = useAtom(userAtom);
 
   const { t } = useTranslation();
+
+  const searchFilterId = useId();
+  const orderFilterId = useId();
 
   const { q } = params as { q: string };
 
@@ -313,7 +317,7 @@ export default function search() {
               debouncedSearch.length > 0 && (
                 <View className='flex flex-row justify-end items-center space-x-1'>
                   <FilterButton
-                    id='search'
+                    id={searchFilterId}
                     queryKey='jellyseerr_search'
                     queryFn={async () =>
                       Object.keys(JellyseerrSearchSort).filter((v) =>
@@ -329,7 +333,7 @@ export default function search() {
                     showSearch={false}
                   />
                   <FilterButton
-                    id='order'
+                    id={orderFilterId}
                     queryKey='jellysearr_search'
                     queryFn={async () => ["asc", "desc"]}
                     set={(value) => setJellyseerrSortOrder(value[0])}

@@ -86,7 +86,8 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
         userId: user.Id,
         seasonId: selectedSeasonId,
         enableUserData: true,
-        fields: ["MediaSources", "MediaStreams", "Overview"],
+        // Note: Including trick play is necessary to enable trick play downloads
+        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
       });
 
       if (res.data.TotalRecordCount === 0)
@@ -97,6 +98,10 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
 
       return res.data.Items;
     },
+    select: (data) =>
+      [...(data || [])].sort(
+        (a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
+      ),
     enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
 

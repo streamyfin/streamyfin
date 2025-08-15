@@ -67,12 +67,6 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name='settings/optimized-server/page'
-        options={{
-          title: "",
-        }}
-      />
-      <Stack.Screen
         name='settings/marlin-search/page'
         options={{
           title: "",

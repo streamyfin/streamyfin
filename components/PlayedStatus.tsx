@@ -1,5 +1,4 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQueryClient } from "@tanstack/react-query";
 import type React from "react";
 import { View, type ViewProps } from "react-native";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
@@ -7,44 +6,13 @@ import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
   items: BaseItemDto[];
+  isOffline?: boolean;
   size?: "default" | "large";
 }
 
 export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
-  const queryClient = useQueryClient();
-
-  const _invalidateQueries = () => {
-    items.forEach((item) => {
-      queryClient.invalidateQueries({
-        queryKey: ["item", item.Id],
-      });
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["resumeItems"],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["continueWatching"],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["nextUp-all"],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["nextUp"],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["episodes"],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["seasons"],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["home"],
-    });
-  };
-
   const allPlayed = items.every((item) => item.UserData?.Played);
-
-  const markAsPlayedStatus = useMarkAsPlayed(items);
+  const toggle = useMarkAsPlayed(items);
 
   return (
     <View {...props}>
@@ -52,8 +20,7 @@ export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
         fillColor={allPlayed ? "primary" : undefined}
         icon={allPlayed ? "checkmark" : "checkmark"}
         onPress={async () => {
-          console.log(allPlayed);
-          await markAsPlayedStatus(!allPlayed);
+          await toggle(!allPlayed);
         }}
         size={props.size}
       />

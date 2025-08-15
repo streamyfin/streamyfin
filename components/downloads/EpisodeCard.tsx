@@ -4,18 +4,13 @@ import {
 } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
-import { useCallback, useMemo } from "react";
-import {
-  TouchableOpacity,
-  type TouchableOpacityProps,
-  View,
-} from "react-native";
+import { useCallback } from "react";
+import { type TouchableOpacityProps, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
-import { storage } from "@/utils/mmkv";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 
@@ -25,24 +20,15 @@ interface EpisodeCardProps extends TouchableOpacityProps {
 
 export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
-  const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
   const successHapticFeedback = useHaptic("success");
-
-  const _base64Image = useMemo(() => {
-    return storage.getString(item.Id!);
-  }, [item]);
-
-  const handleOpenFile = useCallback(() => {
-    openFile(item);
-  }, [item, openFile]);
 
   /**
    * Handles deleting the file with haptic feedback.
    */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
-      deleteFile(item.Id);
+      deleteFile(item.Id, "Episode");
       successHapticFeedback();
     }
   }, [deleteFile, item.Id]);
@@ -73,10 +59,10 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
   }, [showActionSheetWithOptions, handleDeleteFile]);
 
   return (
-    <TouchableOpacity
-      onPress={handleOpenFile}
+    <TouchableItemRouter
+      item={item}
+      isOffline={true}
       onLongPress={showActionSheet}
-      key={item.Id}
       className='flex flex-col mb-4'
     >
       <View className='flex flex-row items-start mb-2'>
@@ -100,7 +86,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
       <Text numberOfLines={3} className='text-xs text-neutral-500 shrink'>
         {item.Overview}
       </Text>
-    </TouchableOpacity>
+    </TouchableItemRouter>
   );
 };
 

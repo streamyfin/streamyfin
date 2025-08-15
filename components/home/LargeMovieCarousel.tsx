@@ -154,7 +154,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
     if (!from) return;
     const url = itemRouter(item, from);
     lightHapticFeedback();
-    // @ts-ignore
+    // @ts-expect-error
     if (url) router.push(url);
   }, [item, from]);
 

@@ -45,8 +45,13 @@ export type SelectedOptions = {
   subtitleIndex: number;
 };
 
-export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
-  ({ item }) => {
+interface ItemContentProps {
+  item: BaseItemDto;
+  isOffline: boolean;
+}
+
+export const ItemContent: React.FC<ItemContentProps> = React.memo(
+  ({ item, isOffline }) => {
     const [api] = useAtom(apiAtom);
     const [settings] = useSettings();
     const { orientation } = useOrientation();
@@ -68,7 +73,16 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(item, settings);
+    } = useDefaultPlaySettings(item!, settings);
+
+    const logoUrl = useMemo(
+      () => (item ? getLogoImageUrlById({ api, item }) : null),
+      [api, item],
+    );
+
+    const loading = useMemo(() => {
+      return Boolean(logoUrl && loadingLogo);
+    }, [loadingLogo, logoUrl]);
 
     // Needs to automatically change the selected to the default values for default indexes.
     useEffect(() => {
@@ -116,22 +130,15 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
     }, [item, navigation, user]);
 
     useEffect(() => {
-      if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
-        setHeaderHeight(230);
-      else if (item.Type === "Movie") setHeaderHeight(500);
-      else setHeaderHeight(350);
-    }, [item.Type, orientation]);
+      if (item) {
+        if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
+          setHeaderHeight(230);
+        else if (item.Type === "Movie") setHeaderHeight(500);
+        else setHeaderHeight(350);
+      }
+    }, [item, orientation]);
 
-    const logoUrl = useMemo(
-      () => getLogoImageUrlById({ api, item }),
-      [api, item],
-    );
-
-    const loading = useMemo(() => {
-      return Boolean(logoUrl && loadingLogo);
-    }, [loadingLogo, logoUrl]);
-
-    if (!selectedOptions) return <View />;
+    if (!item || !selectedOptions) return null;
 
     return (
       <View
@@ -180,7 +187,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
           <View className='flex flex-col bg-transparent shrink'>
             <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-4' />
-              {item.Type !== "Program" && !Platform.isTV && (
+              {item.Type !== "Program" && !Platform.isTV && !isOffline && (
                 <View className='flex flex-row items-center justify-start w-full h-16'>
                   <BitrateSelector
                     className='mr-1'
@@ -239,25 +246,34 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 className='grow'
                 selectedOptions={selectedOptions}
                 item={item}
+                isOffline={isOffline}
               />
             </View>
 
             {item.Type === "Episode" && (
-              <SeasonEpisodesCarousel item={item} loading={loading} />
+              <SeasonEpisodesCarousel
+                item={item}
+                loading={loading}
+                isOffline={isOffline}
+              />
             )}
 
-            <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+            {!isOffline && (
+              <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+            )}
             <OverviewText text={item.Overview} className='px-4 mb-4' />
 
             {item.Type !== "Program" && (
               <>
-                {item.Type === "Episode" && (
+                {item.Type === "Episode" && !isOffline && (
                   <CurrentSeries item={item} className='mb-4' />
                 )}
 
-                <CastAndCrew item={item} className='mb-4' loading={loading} />
+                {!isOffline && (
+                  <CastAndCrew item={item} className='mb-4' loading={loading} />
+                )}
 
-                {item.People && item.People.length > 0 && (
+                {item.People && item.People.length > 0 && !isOffline && (
                   <View className='mb-4'>
                     {item.People.slice(0, 3).map((person, idx) => (
                       <MoreMoviesWithActor
@@ -270,7 +286,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                   </View>
                 )}
 
-                <SimilarItems itemId={item.Id} />
+                {!isOffline && <SimilarItems itemId={item.Id} />}
               </>
             )}
           </View>

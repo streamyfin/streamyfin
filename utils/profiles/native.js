@@ -4,13 +4,14 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 import MediaTypes from "../../constants/MediaTypes";
+import { getSubtitleProfiles } from "./subtitles";
 
-export const generateDeviceProfile = async () => {
+export const generateDeviceProfile = ({ transcode = false } = {}) => {
   /**
    * Device profile for Native video player
    */
   const profile = {
-    Name: "1. Vlc Player",
+    Name: `1. Vlc Player${transcode ? " (Transcoding)" : ""}`,
     MaxStaticBitrate: 999_999_999,
     MaxStreamingBitrate: 999_999_999,
     CodecProfiles: [
@@ -74,89 +75,8 @@ export const generateDeviceProfile = async () => {
         MaxAudioChannels: "2",
       },
     ],
-    SubtitleProfiles: [
-      // Official formats
-      { Format: "vtt", Method: "Embed" },
-      { Format: "vtt", Method: "External" },
-
-      { Format: "webvtt", Method: "Embed" },
-      { Format: "webvtt", Method: "External" },
-
-      { Format: "srt", Method: "Embed" },
-      { Format: "srt", Method: "External" },
-
-      { Format: "subrip", Method: "Embed" },
-      { Format: "subrip", Method: "External" },
-
-      { Format: "ttml", Method: "Embed" },
-      { Format: "ttml", Method: "External" },
-
-      { Format: "dvbsub", Method: "Embed" },
-      { Format: "dvdsub", Method: "Encode" },
-
-      { Format: "ass", Method: "Embed" },
-      { Format: "ass", Method: "External" },
-
-      { Format: "idx", Method: "Embed" },
-      { Format: "idx", Method: "Encode" },
-
-      { Format: "pgs", Method: "Embed" },
-      { Format: "pgs", Method: "Encode" },
-
-      { Format: "pgssub", Method: "Embed" },
-      { Format: "pgssub", Method: "Encode" },
-
-      { Format: "ssa", Method: "Embed" },
-      { Format: "ssa", Method: "External" },
-
-      // Other formats
-      { Format: "microdvd", Method: "Embed" },
-      { Format: "microdvd", Method: "External" },
-
-      { Format: "mov_text", Method: "Embed" },
-      { Format: "mov_text", Method: "External" },
-
-      { Format: "mpl2", Method: "Embed" },
-      { Format: "mpl2", Method: "External" },
-
-      { Format: "pjs", Method: "Embed" },
-      { Format: "pjs", Method: "External" },
-
-      { Format: "realtext", Method: "Embed" },
-      { Format: "realtext", Method: "External" },
-
-      { Format: "scc", Method: "Embed" },
-      { Format: "scc", Method: "External" },
-
-      { Format: "smi", Method: "Embed" },
-      { Format: "smi", Method: "External" },
-
-      { Format: "stl", Method: "Embed" },
-      { Format: "stl", Method: "External" },
-
-      { Format: "sub", Method: "Embed" },
-      { Format: "sub", Method: "External" },
-
-      { Format: "subviewer", Method: "Embed" },
-      { Format: "subviewer", Method: "External" },
-
-      { Format: "teletext", Method: "Embed" },
-      { Format: "teletext", Method: "Encode" },
-
-      { Format: "text", Method: "Embed" },
-      { Format: "text", Method: "External" },
-
-      { Format: "vplayer", Method: "Embed" },
-      { Format: "vplayer", Method: "External" },
-
-      { Format: "xsub", Method: "Embed" },
-      { Format: "xsub", Method: "External" },
-    ],
+    SubtitleProfiles: getSubtitleProfiles(transcode ? "hls" : "External"),
   };
 
   return profile;
-};
-
-export default async () => {
-  return await generateDeviceProfile();
 };

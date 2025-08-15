@@ -17,9 +17,9 @@ export const StorageSettings = () => {
   const errorHapticFeedback = useHaptic("error");
 
   const { data: size } = useQuery({
-    queryKey: ["appSize", appSizeUsage],
+    queryKey: ["appSize"],
     queryFn: async () => {
-      const app = await appSizeUsage;
+      const app = await appSizeUsage();
 
       const remaining = await FileSystem.getFreeDiskStorageAsync();
       const total = await FileSystem.getTotalDiskCapacityAsync();
@@ -58,7 +58,7 @@ export const StorageSettings = () => {
         </View>
         <View className='h-3 w-full bg-gray-100/10 rounded-md overflow-hidden flex flex-row'>
           {size && (
-            <>
+            <View className='flex flex-row'>
               <View
                 style={{
                   width: `${(size.app / size.total) * 100}%`,
@@ -67,19 +67,16 @@ export const StorageSettings = () => {
               />
               <View
                 style={{
-                  width: `${
-                    ((size.total - size.remaining - size.app) / size.total) *
-                    100
-                  }%`,
+                  width: `${((size.total - size.remaining - size.app) / size.total) * 100}%`,
                   backgroundColor: Colors.primaryLightRGB,
                 }}
               />
-            </>
+            </View>
           )}
         </View>
         <View className='flex flex-row gap-x-2'>
           {size && (
-            <>
+            <View className='flex flex-row gap-x-2'>
               <View className='flex flex-row items-center'>
                 <View className='w-3 h-3 rounded-full bg-purple-600 mr-1' />
                 <Text className='text-white text-xs'>
@@ -99,7 +96,7 @@ export const StorageSettings = () => {
                   })}
                 </Text>
               </View>
-            </>
+            </View>
           )}
         </View>
       </View>

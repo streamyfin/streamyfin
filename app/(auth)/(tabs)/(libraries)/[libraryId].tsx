@@ -168,7 +168,7 @@ const Page = () => {
         fields: ["PrimaryImageAspectRatio", "SortName"],
         genres: selectedGenres,
         tags: selectedTags,
-        years: selectedYears.map((year) => Number.parseInt(year)),
+        years: selectedYears.map((year) => Number.parseInt(year, 10)),
         includeItemTypes: itemType ? [itemType] : undefined,
       });
 

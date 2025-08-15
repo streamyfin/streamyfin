@@ -408,6 +408,7 @@
       "download_episode": "Download Episode",
       "download_movie": "Download Movie",
       "download_x_item": "Download {{item_count}} items",
+      "download_unwatched_only": "Unwatched Only",
       "download_button": "Download",
       "using_optimized_server": "Using optimized server",
       "using_default_method": "Using default method"

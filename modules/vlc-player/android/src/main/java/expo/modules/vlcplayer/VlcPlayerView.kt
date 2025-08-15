@@ -62,6 +62,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var startPosition: Int? = 0
     private var isMediaReady: Boolean = false
     private var externalTrack: Map<String, String>? = null
+    private var externalSubtitles: List<Map<String, String>>? = null
     var hasSource: Boolean = false
 
     private val handler = Handler(Looper.getMainLooper())
@@ -220,6 +221,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val autoplay = source["autoplay"] as? Boolean ?: false
         val isNetwork = source["isNetwork"] as? Boolean ?: false
         externalTrack = source["externalTrack"] as? Map<String, String>
+        externalSubtitles = source["externalSubtitles"] as? List<Map<String, String>>
         startPosition = (source["startPosition"] as? Double)?.toInt() ?: 0
 
         val initOptions = source["initOptions"] as? MutableList<String> ?: mutableListOf()
@@ -240,20 +242,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         media = Media(libVLC, Uri.parse(uri))
         mediaPlayer?.media = media
 
-
         log.debug("Debug: Media options: $mediaOptions")
         // media.addOptions(mediaOptions)
 
-        // Apply subtitle options
-        // val subtitleTrackIndex = source["subtitleTrackIndex"] as? Int ?: -1
-        // Log.d("VlcPlayerView", "Debug: Subtitle track index from source: $subtitleTrackIndex")
-
-        // if (subtitleTrackIndex >= -1) {
-        //     setSubtitleTrack(subtitleTrackIndex)
-        //     Log.d("VlcPlayerView", "Debug: Set subtitle track to index: $subtitleTrackIndex")
-        // } else {
-        //     Log.d("VlcPlayerView", "Debug: Subtitle track index is less than -1, not setting")
-        // }
+        // Set initial external subtitles immediately like iOS
+        setInitialExternalSubtitles()
 
         hasSource = true
 
@@ -340,6 +333,19 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSubtitleURL(subtitleURL: String, name: String) {
         log.debug("Setting subtitle URL: $subtitleURL, name: $name")
         mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
+    }
+
+    private fun setInitialExternalSubtitles() {
+        externalSubtitles?.let { subtitles ->
+            for (subtitle in subtitles) {
+                val subtitleName = subtitle["name"]
+                val subtitleURL = subtitle["DeliveryUrl"]
+                if (!subtitleName.isNullOrEmpty() && !subtitleURL.isNullOrEmpty()) {
+                    log.debug("Setting external subtitle: $subtitleName $subtitleURL")
+                    setSubtitleURL(subtitleURL, subtitleName)
+                }
+            }
+        }
     }
 
     override fun onDetachedFromWindow() {

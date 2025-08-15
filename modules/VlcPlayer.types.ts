@@ -41,10 +41,10 @@ export type VlcPlayerSource = {
   type?: string;
   isNetwork?: boolean;
   autoplay?: boolean;
-  externalSubtitles: { name: string; DeliveryUrl: string }[];
+  startPosition?: number;
+  externalSubtitles?: { name: string; DeliveryUrl: string }[];
   initOptions?: any[];
   mediaOptions?: { [key: string]: any };
-  startPosition?: number;
 };
 
 export type TrackInfo = {
@@ -94,5 +94,5 @@ export interface VlcPlayerViewRef {
   getChapters: () => Promise<ChapterInfo[] | null>;
   setVideoCropGeometry: (geometry: string | null) => Promise<void>;
   getVideoCropGeometry: () => Promise<string | null>;
-  setSubtitleURL: (url: string, name: string) => Promise<void>;
+  setSubtitleURL: (url: string) => Promise<void>;
 }
