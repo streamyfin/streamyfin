@@ -59,16 +59,24 @@ export const useTwoWaySync = () => {
       return false;
     } else if (remoteLastPlayed < localLastPlayed) {
       // Since we're this is the source of truth, essentially need to make sure the played status matches the local item.
-      await getItemsApi(api).updateItemUserData({
-        itemId: localItem.item.Id!,
-        userId: user.Id,
-        updateUserItemDataDto: {
-          Played: localItem.item.UserData?.Played,
-          PlaybackPositionTicks: localItem.item.UserData?.PlaybackPositionTicks,
-          PlayedPercentage: localItem.item.UserData?.PlayedPercentage,
-          LastPlayedDate: localItem.item.UserData?.LastPlayedDate,
-        },
-      });
+      try {
+        await getItemsApi(api).updateItemUserData({
+          itemId: localItem.item.Id!,
+          userId: user.Id,
+          updateUserItemDataDto: {
+            Played: localItem.item.UserData?.Played,
+            PlaybackPositionTicks:
+              localItem.item.UserData?.PlaybackPositionTicks,
+            PlayedPercentage: localItem.item.UserData?.PlayedPercentage,
+            LastPlayedDate: localItem.item.UserData?.LastPlayedDate,
+          },
+        });
+      } catch (error) {
+        console.error(
+          "Failed to update item user data during syncPlaybackState:",
+          error,
+        );
+      }
       return true;
     }
     return false;
