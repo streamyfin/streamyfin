@@ -195,8 +195,8 @@ export default function page() {
             };
           }
         } else {
-          const native = await generateDeviceProfile();
-          const transcoding = await generateDeviceProfile({ transcode: true });
+          const native = generateDeviceProfile();
+          const transcoding = generateDeviceProfile({ transcode: true });
           const res = await getStreamUrl({
             api,
             item,

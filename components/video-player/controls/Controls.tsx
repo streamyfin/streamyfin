@@ -35,10 +35,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
-import { useAdjacentItems } from "@/hooks/useAdjacentEpisodes";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -82,8 +82,8 @@ interface Props {
   isVideoLoaded?: boolean;
   mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
-  startPictureInPicture: () => Promise<void>;
-  play: (() => Promise<void>) | (() => void);
+  startPictureInPicture?: () => Promise<void>;
+  play: () => void;
   pause: () => void;
   getAudioTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
   getSubtitleTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
@@ -133,10 +133,11 @@ export const Controls: FC<Props> = ({
   const [showAudioSlider, setShowAudioSlider] = useState(false);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
-  const { previousItem, nextItem } = useAdjacentItems({
+  const { previousItem, nextItem } = usePlaybackManager({
     item,
     isOffline: offline,
   });
+
   const {
     trickPlayUrl,
     calculateTrickplayUrl,
@@ -755,7 +756,8 @@ export const Controls: FC<Props> = ({
 
             <View className='flex flex-row items-center space-x-2 '>
               {!Platform.isTV &&
-                settings.defaultPlayer === VideoPlayer.VLC_4 && (
+                (settings.defaultPlayer === VideoPlayer.VLC_4 ||
+                  Platform.OS === "android") && (
                   <TouchableOpacity
                     onPress={startPictureInPicture}
                     className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -768,7 +770,6 @@ export const Controls: FC<Props> = ({
                     />
                   </TouchableOpacity>
                 )}
-
               {item?.Type === "Episode" && (
                 <TouchableOpacity
                   onPress={() => {
@@ -779,7 +780,7 @@ export const Controls: FC<Props> = ({
                   <Ionicons name='list' size={24} color='white' />
                 </TouchableOpacity>
               )}
-              {previousItem && !offline && (
+              {previousItem && (
                 <TouchableOpacity
                   onPress={goToPreviousItem}
                   className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -787,8 +788,7 @@ export const Controls: FC<Props> = ({
                   <Ionicons name='play-skip-back' size={24} color='white' />
                 </TouchableOpacity>
               )}
-
-              {nextItem && !offline && (
+              {nextItem && (
                 <TouchableOpacity
                   onPress={() => goToNextItem({ isAutoPlay: false })}
                   className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -796,7 +796,6 @@ export const Controls: FC<Props> = ({
                   <Ionicons name='play-skip-forward' size={24} color='white' />
                 </TouchableOpacity>
               )}
-
               {/* {mediaSource?.TranscodingUrl && ( */}
               <TouchableOpacity
                 onPress={toggleIgnoreSafeAreas}

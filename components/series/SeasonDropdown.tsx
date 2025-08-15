@@ -94,7 +94,6 @@ export const SeasonDropdown: React.FC<Props> = ({
     item[keys.id],
     initialSeasonIndex,
     keys,
-    onSelect,
   ]);
 
   const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
@@ -123,16 +122,18 @@ export const SeasonDropdown: React.FC<Props> = ({
         sideOffset={8}
       >
         <DropdownMenu.Label>{t("item_card.seasons")}</DropdownMenu.Label>
-        {seasons?.sort(sortByIndex).map((season: any) => (
-          <DropdownMenu.Item
-            key={season[keys.title]}
-            onSelect={() => onSelect(season)}
-          >
-            <DropdownMenu.ItemTitle>
-              {season[keys.title]}
-            </DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-        ))}
+        {seasons?.sort(sortByIndex).map((season: any) => {
+          const title =
+            season[keys.title] || season.Name || `Season ${season.IndexNumber}`;
+          return (
+            <DropdownMenu.Item
+              key={season.Id || season.IndexNumber}
+              onSelect={() => onSelect(season)}
+            >
+              <DropdownMenu.ItemTitle>{title}</DropdownMenu.ItemTitle>
+            </DropdownMenu.Item>
+          );
+        })}
       </DropdownMenu.Content>
     </DropdownMenu.Root>
   );
