@@ -7,17 +7,13 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 export const useItemQuery = (itemId: string, isOffline: boolean) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { downloadedFiles } = useDownload();
+  const { getDownloadedItemById } = useDownload();
 
   return useQuery({
     queryKey: ["item", itemId],
     queryFn: async () => {
       if (isOffline) {
-        const downloadedItem = downloadedFiles?.find(
-          (item) => item.item.Id === itemId,
-        );
-        if (downloadedItem) return downloadedItem.item;
-        return null;
+        return getDownloadedItemById(itemId)?.item;
       }
       if (!api || !user || !itemId) return null;
       const res = await getUserLibraryApi(api).getItem({

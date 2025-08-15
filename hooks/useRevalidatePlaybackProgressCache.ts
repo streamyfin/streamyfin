@@ -7,7 +7,7 @@ import { useTwoWaySync } from "./useTwoWaySync";
  */
 export function useInvalidatePlaybackProgressCache() {
   const queryClient = useQueryClient();
-  const { downloadedFiles } = useDownload();
+  const { getDownloadedItems } = useDownload();
   const { syncPlaybackState } = useTwoWaySync();
 
   const revalidate = async () => {
@@ -31,6 +31,7 @@ export function useInvalidatePlaybackProgressCache() {
       ),
     );
 
+    const downloadedFiles = getDownloadedItems();
     // Sync playback state for downloaded items
     if (downloadedFiles) {
       // We sync the playback state for the downloaded items

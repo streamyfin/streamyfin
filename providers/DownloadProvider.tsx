@@ -2,7 +2,6 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
 import { router } from "expo-router";
@@ -83,7 +82,6 @@ const DownloadContext = createContext<ReturnType<
 > | null>(null);
 
 function useDownloadProvider() {
-  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [api] = useAtom(apiAtom);
   const { saveSeriesPrimaryImage } = useDownloadHelper();
@@ -187,29 +185,6 @@ function useDownloadProvider() {
     return api?.accessToken;
   }, [api]);
 
-  const { data: downloadedItems } = useQuery({
-    queryKey: ["downloadedItems"],
-    queryFn: async () => {
-      const db = getDownloadsDatabase();
-      const allItems = [
-        ...Object.values(db.movies),
-        ...Object.values(db.series).flatMap((series) =>
-          Object.values(series.seasons).flatMap((season) =>
-            Object.values(season.episodes),
-          ),
-        ),
-      ];
-      return allItems;
-    },
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-
-    // We always want fetch, even if there is no internet.
-    networkMode: "always",
-  });
-
   const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;
 
   const getDownloadsDatabase = (): DownloadsDatabase => {
@@ -220,9 +195,23 @@ function useDownloadProvider() {
     return { movies: {}, series: {} };
   };
 
-  const saveDownloadsDatabase = async (db: DownloadsDatabase) => {
+  const getDownloadedItems = () => {
+    const db = getDownloadsDatabase();
+    const allItems = [
+      ...Object.values(db.movies),
+      ...Object.values(db.series).flatMap((series) =>
+        Object.values(series.seasons).flatMap((season) =>
+          Object.values(season.episodes),
+        ),
+      ),
+    ];
+    return allItems;
+  };
+
+  const downloadedItems = getDownloadedItems();
+
+  const saveDownloadsDatabase = (db: DownloadsDatabase) => {
     storage.set(DOWNLOADS_DATABASE_KEY, JSON.stringify(db));
-    queryClient.invalidateQueries({ queryKey: ["downloadedItems"] });
   };
 
   /** Generates a filename for a given item */
@@ -446,7 +435,7 @@ function useDownloadProvider() {
           removeProcess(process.id);
         });
     },
-    [authHeader, queryClient],
+    [authHeader],
   );
 
   const manageDownloadQueue = useCallback(() => {
@@ -545,7 +534,7 @@ function useDownloadProvider() {
         writeToLog("ERROR", "Error in startBackgroundDownload", error);
       }
     },
-    [authHeader, startDownload, queryClient],
+    [authHeader, startDownload],
   );
 
   const deleteFile = async (id: string, type: "Movie" | "Episode") => {
@@ -704,7 +693,7 @@ function useDownloadProvider() {
   return {
     processes,
     startBackgroundDownload,
-    downloadedFiles: downloadedItems,
+    getDownloadedItems,
     getDownloadsDatabase,
     deleteAllFiles,
     deleteFile,
@@ -729,7 +718,7 @@ export function useDownload() {
     return {
       processes: [],
       startBackgroundDownload: async () => {},
-      downloadedFiles: [],
+      getDownloadedItems: () => [],
       getDownloadsDatabase: () => ({}),
       deleteAllFiles: async () => {},
       deleteFile: async () => {},
@@ -737,7 +726,7 @@ export function useDownload() {
       removeProcess: () => {},
       startDownload: async () => {},
       deleteFileByType: async () => {},
-      getDownloadedItemSize: async () => 0,
+      getDownloadedItemSize: () => 0,
       getDownloadedItemById: () => undefined,
       APP_CACHE_DOWNLOAD_DIRECTORY: "",
       cleanCacheDirectory: async () => {},

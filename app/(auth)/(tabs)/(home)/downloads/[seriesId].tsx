@@ -23,12 +23,12 @@ export default function page() {
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>(
     {},
   );
-  const { downloadedFiles, deleteItems } = useDownload();
+  const { getDownloadedItems, deleteItems } = useDownload();
 
   const series = useMemo(() => {
     try {
       return (
-        downloadedFiles
+        getDownloadedItems()
           ?.filter((f) => f.item.SeriesId === seriesId)
           ?.sort(
             (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
@@ -37,7 +37,7 @@ export default function page() {
     } catch {
       return [];
     }
-  }, [downloadedFiles]);
+  }, [getDownloadedItems]);
 
   const seasonIndex =
     seasonIndexState[series?.[0]?.item?.ParentId ?? ""] ||

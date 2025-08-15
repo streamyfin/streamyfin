@@ -27,8 +27,12 @@ export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const { removeProcess, downloadedFiles, deleteFileByType, deleteAllFiles } =
-    useDownload();
+  const {
+    removeProcess,
+    getDownloadedItems,
+    deleteFileByType,
+    deleteAllFiles,
+  } = useDownload();
   const router = useRouter();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -57,6 +61,8 @@ export default function page() {
       ],
     );
   };
+
+  const downloadedFiles = getDownloadedItems();
 
   const movies = useMemo(() => {
     try {

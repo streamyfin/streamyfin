@@ -56,7 +56,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [settings] = useSettings();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
-  const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
+  const { processes, startBackgroundDownload, getDownloadedItems } =
+    useDownload();
+  const downloadedFiles = getDownloadedItems();
 
   const [selectedMediaSource, setSelectedMediaSource] = useState<
     MediaSourceInfo | undefined | null

@@ -66,7 +66,7 @@ export const usePlaybackManager = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const netInfo = useNetInfo();
-  const { getDownloadedItemById, updateDownloadedItem, downloadedFiles } =
+  const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
     useDownload();
 
   /** Whether the device is online. actually it's connected to the internet. */
@@ -81,7 +81,7 @@ export const usePlaybackManager = ({
       }
 
       if (isOffline) {
-        return getOfflineAdjacentItems(item, downloadedFiles || []);
+        return getOfflineAdjacentItems(item, getDownloadedItems() || []);
       }
 
       if (!api) {

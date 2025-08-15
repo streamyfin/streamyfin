@@ -17,7 +17,8 @@ export const useMarkAsPlayed = (items: BaseItemDto[]) => {
         return played ? markItemPlayed(item.Id) : markItemUnplayed(item.Id);
       }),
     );
-    invalidatePlaybackProgressCache();
+
+    await invalidatePlaybackProgressCache();
   };
 
   return toggle;

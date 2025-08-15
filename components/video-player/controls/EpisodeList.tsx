@@ -55,7 +55,8 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, []);
 
-  const { downloadedFiles } = useDownload();
+  const { getDownloadedItems } = useDownload();
+  const downloadedFiles = getDownloadedItems();
 
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
 
