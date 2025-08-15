@@ -98,7 +98,7 @@ export const getStreamUrl = async ({
     api_key: api.accessToken,
     startTimeTicks: startTimeTicks.toString(),
     maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
-    userId: userId || "",
+    userId: userId,
   });
 
   const directPlayUrl = `${
@@ -202,7 +202,7 @@ export const getDownloadStreamUrl = async ({
     api_key: api.accessToken,
     startTimeTicks: "0",
     maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
-    userId: userId || "",
+    userId: userId,
   });
 
   Object.entries(downloadParams).forEach(([key, value]) => {
