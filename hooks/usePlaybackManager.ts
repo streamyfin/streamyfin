@@ -94,20 +94,16 @@ export const usePlaybackManager = () => {
 
     // Handle remote state update if online
     if (isOnline && api) {
-      try {
-        await getPlaystateApi(api).reportPlaybackProgress({
-          playbackProgressInfo: {
-            ItemId: itemId,
-            PositionTicks: positionTicks,
-            ...(metadata && { AudioStreamIndex: metadata.AudioStreamIndex }),
-            ...(metadata && {
-              SubtitleStreamIndex: metadata.SubtitleStreamIndex,
-            }),
-          },
-        });
-      } catch (error) {
-        console.error("Failed to report playback progress on server", error);
-      }
+      await getPlaystateApi(api).reportPlaybackProgress({
+        playbackProgressInfo: {
+          ItemId: itemId,
+          PositionTicks: positionTicks,
+          ...(metadata && { AudioStreamIndex: metadata.AudioStreamIndex }),
+          ...(metadata && {
+            SubtitleStreamIndex: metadata.SubtitleStreamIndex,
+          }),
+        },
+      });
       // If it was a downloaded item, re-sync with the server for the latest state.
       // This is crucial because the server might have marked the item as "Played"
       // based on its own rules (e.g., >95% progress).

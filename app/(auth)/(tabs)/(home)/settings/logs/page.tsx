@@ -16,7 +16,6 @@ export default function page() {
   const { t } = useTranslation();
 
   const orderFilterId = useId();
-  s;
   const levelsFilterId = useId();
 
   const defaultLevels: LogLevel[] = ["INFO", "ERROR", "DEBUG", "WARN"];
