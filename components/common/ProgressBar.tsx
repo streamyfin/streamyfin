@@ -33,7 +33,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ item }) => {
     <>
       <View
         className={
-          "absolute w-100 bottom-0 left-0 h-1 bg-neutral-700 opacity-80 w-full"
+          "absolute bottom-0 left-0 h-1 bg-neutral-700 opacity-80 w-full"
         }
       />
       <View

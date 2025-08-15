@@ -2,7 +2,7 @@ import {
   ActionSheetProvider,
   useActionSheet,
 } from "@expo/react-native-action-sheet";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models/base-item-dto";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { useCallback } from "react";
 import { type TouchableOpacityProps, View } from "react-native";
