@@ -220,7 +220,7 @@ const defaultValues: Settings = {
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  defaultPlayer: VideoPlayer.VLC_4, // ios-only setting. does not matter what this is for android
+  defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
 };
