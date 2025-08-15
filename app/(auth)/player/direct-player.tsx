@@ -185,8 +185,7 @@ export default function page() {
       setStreamStatus({ isLoading: true, isError: false });
       try {
         let result: Stream | null = null;
-        if (offline && downloadedItem) {
-          if (!downloadedItem?.mediaSource) return;
+        if (offline && downloadedItem && downloadedItem.mediaSource) {
           const url = downloadedItem.videoFilePath;
           if (item) {
             result = {
