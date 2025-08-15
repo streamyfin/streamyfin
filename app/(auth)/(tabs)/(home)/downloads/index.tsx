@@ -10,7 +10,6 @@ import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -22,7 +21,6 @@ import { SeriesCard } from "@/components/downloads/SeriesCard";
 import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
 
 export default function page() {
@@ -32,12 +30,9 @@ export default function page() {
   const { removeProcess, downloadedFiles, deleteFileByType, deleteAllFiles } =
     useDownload();
   const router = useRouter();
-  const [_settings] = useSettings();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const [showMigration, setShowMigration] = useState(false);
-
-  const _insets = useSafeAreaInsets();
 
   const migration_20241124 = () => {
     Alert.alert(

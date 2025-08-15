@@ -10,7 +10,6 @@ import {
   useState,
 } from "react";
 import type { TrackInfo } from "@/modules/VlcPlayer.types";
-import { useSettings } from "@/utils/atoms/settings";
 import type { Track } from "../types";
 import { useControlContext } from "./ControlContext";
 
@@ -49,7 +48,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
 }) => {
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
-  const [_settings] = useSettings();
 
   const ControlContext = useControlContext();
   const isVideoLoaded = ControlContext?.isVideoLoaded;
