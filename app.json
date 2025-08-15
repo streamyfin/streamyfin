@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.29.13",
+    "version": "0.30.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
