@@ -62,7 +62,7 @@ export const generateDeviceProfile = ({ transcode = false } = {}) => {
         Type: MediaTypes.Video,
         Context: "Streaming",
         Protocol: "hls",
-        Container: transcode ? "fmp4" : "ts",
+        Container: "ts",
         VideoCodec: "h264, hevc",
         AudioCodec: "aac,mp3,ac3,dts",
       },
