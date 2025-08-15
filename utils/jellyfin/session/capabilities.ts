@@ -43,7 +43,7 @@ export const postCapabilities = async ({
         ],
         supportsMediaControl: true,
         id: sessionId,
-        DeviceProfile: await generateDeviceProfile(),
+        DeviceProfile: generateDeviceProfile(),
       },
       {
         headers: getAuthHeaders(api),

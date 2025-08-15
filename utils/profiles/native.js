@@ -6,7 +6,7 @@
 import MediaTypes from "../../constants/MediaTypes";
 import { getSubtitleProfiles } from "./subtitles";
 
-export const generateDeviceProfile = async ({ transcode = false } = {}) => {
+export const generateDeviceProfile = ({ transcode = false } = {}) => {
   /**
    * Device profile for Native video player
    */
@@ -79,8 +79,4 @@ export const generateDeviceProfile = async ({ transcode = false } = {}) => {
   };
 
   return profile;
-};
-
-export default async () => {
-  return await generateDeviceProfile({ transcode: false });
 };

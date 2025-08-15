@@ -39,7 +39,7 @@ export const getDownloadUrl = async ({
     audioStreamIndex,
     subtitleStreamIndex,
     deviceId,
-    deviceProfile: await generateDeviceProfile(),
+    deviceProfile: generateDeviceProfile(),
   });
 
   if (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl) {

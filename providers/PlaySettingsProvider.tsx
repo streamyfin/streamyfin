@@ -77,7 +77,7 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        const native = await generateDeviceProfile();
+        const native = generateDeviceProfile();
         const data = await getStreamUrl({
           api,
           deviceProfile: native,
