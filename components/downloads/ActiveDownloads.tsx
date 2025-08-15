@@ -6,7 +6,6 @@ import { t } from "i18next";
 import { useMemo } from "react";
 import {
   ActivityIndicator,
-  Platform,
   TouchableOpacity,
   type TouchableOpacityProps,
   View,
@@ -19,10 +18,6 @@ import { JobStatus } from "@/providers/Downloads/types";
 import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
 import { Button } from "../Button";
-
-const _BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
 
 interface Props extends ViewProps {}
 
