@@ -49,7 +49,7 @@ export const useCreditSkipper = (
     } catch (error) {
       console.error("Error skipping credit", error);
     }
-  }, [creditTimestamps]);
+  }, [creditTimestamps, lightHapticFeedback, wrappedSeek, play]);
 
   return { showSkipCreditButton, skipCredit };
 };

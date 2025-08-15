@@ -53,7 +53,7 @@ export const useIntroSkipper = (
     } catch (error) {
       console.error("Error skipping intro", error);
     }
-  }, [introTimestamps]);
+  }, [introTimestamps, lightHapticFeedback, wrappedSeek, play]);
 
   return { showSkipButton, skipIntro };
 };
