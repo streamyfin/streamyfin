@@ -44,21 +44,45 @@ jobs:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-develop
-            ${{ runner.os }}-bun-develop
+            ${{ runner.os }}-${{ runner.arch }}-bun-develop-
+            ${{ runner.os }}-bun-develop-
+
+      - name: 💾 Cache node_modules
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-
+            ${{ runner.os }}-${{ runner.arch }}-modules-develop-
+            ${{ runner.os }}-modules-develop-
+
+      - name: 💾 Cache Expo CLI
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ~/.expo
+          key: ${{ runner.os }}-expo-cli-develop
+          restore-keys: ${{ runner.os }}-expo-cli-develop
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
 
-      - name: 🛠️ Generate project files
+      - name: 🛠️ Generate project files (expo prebuild)
         run: |
           if [ "${{ matrix.target }}" = "tv" ]; then
             bun run prebuild:tv
           else
             bun run prebuild
           fi
+      
+      - name: 💾 Cache CocoaPods
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-develop-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: ${{ runner.os }}-pods-develop
       
       - name: 🏗️ Setup EAS
         uses: expo/expo-github-action@main
