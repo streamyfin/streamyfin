@@ -94,24 +94,39 @@ export interface DownloadsDatabase {
  * Represents the status of a download job.
  */
 export type JobStatus = {
+  /** Unique identifier for the download job (also the {@link itemId}) */
   id: string;
+  /** The input URL for the media to be downloaded (passed in when first downloading) */
   inputUrl: string;
+  /** The Jellyfin {@link BaseItemDto} associated with this job */
   item: BaseItemDto;
+  /** The ID of the item being downloaded */
   itemId: string;
+  /** The device ID where the download is occurring */
   deviceId: string;
+  /** Download progress as a percentage (0-100) */
   progress: number;
+  /** Current status of the download job */
   status:
-    | "downloading"
-    | "paused"
-    | "error"
-    | "pending"
-    | "completed"
-    | "queued";
+    | "downloading" // The job is actively downloading
+    | "paused" // The job is paused
+    | "error" // The job encountered an error
+    | "pending" // The job is waiting to start
+    | "completed" // The job has finished downloading
+    | "queued"; // The job is queued to start
+  /** Timestamp of when the job was created or last updated */
   timestamp: Date;
+  /** The {@link MediaSourceInfo} for the download */
   mediaSource: MediaSourceInfo;
+  /** The bit rate we are downloading the media file atq */
   maxBitrate: Bitrate;
+  /** The number of bytes downloaded so far (optional) */
   bytesDownloaded?: number;
+  /** The last time the download progress was updated (optional) */
   lastProgressUpdateTime?: Date;
+  /** Current download speed in bytes per second (optional) */
   speed?: number;
+  /** Estimated total size of the download in bytes (optional) this is used when we
+   * download transcoded content because we don't know the size of the file until it's downloaded */
   estimatedTotalSizeBytes?: number;
 };
