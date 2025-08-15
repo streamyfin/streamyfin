@@ -749,6 +749,7 @@ export function useDownload() {
   if (context === null) {
     throw new Error("useDownload must be used within a DownloadProvider");
   }
+
   return context;
 }
 

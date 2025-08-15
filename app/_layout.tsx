@@ -1,7 +1,6 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -454,25 +453,4 @@ function Layout() {
       </JellyfinProvider>
     </QueryClientProvider>
   );
-}
-
-function _saveDownloadedItemInfo(item: BaseItemDto) {
-  try {
-    const downloadedItems = storage.getString("downloadedItems");
-    const items: BaseItemDto[] = downloadedItems
-      ? JSON.parse(downloadedItems)
-      : [];
-
-    const existingItemIndex = items.findIndex((i) => i.Id === item.Id);
-    if (existingItemIndex !== -1) {
-      items[existingItemIndex] = item;
-    } else {
-      items.push(item);
-    }
-
-    storage.set("downloadedItems", JSON.stringify(items));
-  } catch (error) {
-    writeToLog("ERROR", "Failed to save downloaded item information:", error);
-    console.error("Failed to save downloaded item information:", error);
-  }
 }
