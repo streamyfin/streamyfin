@@ -3,6 +3,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
 import download from "@/utils/profiles/download";
 
@@ -43,6 +44,41 @@ export const getStreamUrl = async ({
 
   let mediaSource: MediaSourceInfo | undefined;
   let sessionId: string | null | undefined;
+
+  // Please do not remove this we need this for live TV to be working correctly.
+  if (item.Type === BaseItemKind.Program) {
+    console.log("Item is of type program...");
+    const res = await getMediaInfoApi(api).getPlaybackInfo(
+      {
+        userId,
+        itemId: item.ChannelId!,
+      },
+      {
+        method: "POST",
+        params: {
+          startTimeTicks: 0,
+          isPlayback: true,
+          autoOpenLiveStream: true,
+          maxStreamingBitrate,
+          audioStreamIndex,
+        },
+        data: {
+          deviceProfile,
+        },
+      },
+    );
+    const transcodeUrl = res.data.MediaSources?.[0].TranscodingUrl;
+    sessionId = res.data.PlaySessionId || null;
+    mediaSource = res.data.MediaSources?.[0];
+
+    if (transcodeUrl) {
+      return {
+        url: `${api.basePath}${transcodeUrl}`,
+        sessionId,
+        mediaSource,
+      };
+    }
+  }
 
   const res = await getMediaInfoApi(api).getPlaybackInfo(
     {
