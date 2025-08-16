@@ -3,8 +3,135 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
 import download from "@/utils/profiles/download";
+
+interface StreamResult {
+  url: string;
+  sessionId: string | null;
+  mediaSource: MediaSourceInfo | undefined;
+}
+
+/**
+ * Gets the actual streaming URL - handles both transcoded and direct play logic
+ * Returns only the URL string
+ */
+const getPlaybackUrl = (
+  api: Api,
+  itemId: string,
+  mediaSource: MediaSourceInfo | undefined,
+  params: {
+    subtitleStreamIndex?: number;
+    audioStreamIndex?: number;
+    deviceId?: string | null;
+    startTimeTicks?: number;
+    maxStreamingBitrate?: number;
+    userId: string;
+    playSessionId?: string | null;
+    container?: string;
+    static?: string;
+  },
+): string => {
+  let transcodeUrl = mediaSource?.TranscodingUrl;
+
+  // Handle transcoded URL if available
+  if (transcodeUrl) {
+    // For regular streaming, change subtitle method to HLS for transcoded URL
+    if (params.subtitleStreamIndex === -1) {
+      transcodeUrl = transcodeUrl.replace(
+        "SubtitleMethod=Encode",
+        "SubtitleMethod=Hls",
+      );
+    }
+
+    console.log("Video is being transcoded:", transcodeUrl);
+    return `${api.basePath}${transcodeUrl}`;
+  }
+
+  // Fall back to direct play
+  const streamParams = new URLSearchParams({
+    static: params.static || "true",
+    container: params.container || "mp4",
+    mediaSourceId: mediaSource?.Id || "",
+    subtitleStreamIndex: params.subtitleStreamIndex?.toString() || "",
+    audioStreamIndex: params.audioStreamIndex?.toString() || "",
+    deviceId: params.deviceId || api.deviceInfo.id,
+    api_key: api.accessToken,
+    startTimeTicks: params.startTimeTicks?.toString() || "0",
+    maxStreamingBitrate: params.maxStreamingBitrate?.toString() || "",
+    userId: params.userId,
+  });
+
+  // Add additional parameters if provided
+  if (params.playSessionId) {
+    streamParams.append("playSessionId", params.playSessionId);
+  }
+
+  const directPlayUrl = `${api.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
+
+  console.log("Video is being direct played:", directPlayUrl);
+  return directPlayUrl;
+};
+
+/** Wrapper around {@link getPlaybackUrl} that applies download-specific transformations */
+const getDownloadUrl = (
+  api: Api,
+  itemId: string,
+  mediaSource: MediaSourceInfo | undefined,
+  sessionId: string | null | undefined,
+  params: {
+    subtitleStreamIndex?: number;
+    audioStreamIndex?: number;
+    deviceId?: string | null;
+    startTimeTicks?: number;
+    maxStreamingBitrate?: number;
+    userId: string;
+    playSessionId?: string | null;
+  },
+): StreamResult => {
+  // First, handle download-specific transcoding modifications
+  let downloadMediaSource = mediaSource;
+  if (mediaSource?.TranscodingUrl) {
+    downloadMediaSource = {
+      ...mediaSource,
+      TranscodingUrl: mediaSource.TranscodingUrl.replace(
+        "master.m3u8",
+        "stream",
+      ),
+    };
+  }
+
+  // Get the base URL with download-specific parameters
+  let url = getPlaybackUrl(api, itemId, downloadMediaSource, {
+    ...params,
+    container: "ts",
+    static: "false",
+  });
+
+  // If it's a direct play URL, add download-specific parameters
+  if (!mediaSource?.TranscodingUrl) {
+    const urlObj = new URL(url);
+    const downloadParams = {
+      subtitleMethod: "Embed",
+      enableSubtitlesInManifest: "true",
+      allowVideoStreamCopy: "true",
+      allowAudioStreamCopy: "true",
+    };
+
+    Object.entries(downloadParams).forEach(([key, value]) => {
+      urlObj.searchParams.append(key, value);
+    });
+
+    url = urlObj.toString();
+  }
+
+  return {
+    url,
+    sessionId: sessionId || null,
+    mediaSource,
+  };
+};
 
 export const getStreamUrl = async ({
   api,
@@ -44,6 +171,47 @@ export const getStreamUrl = async ({
   let mediaSource: MediaSourceInfo | undefined;
   let sessionId: string | null | undefined;
 
+  // Please do not remove this we need this for live TV to be working correctly.
+  if (item.Type === BaseItemKind.Program) {
+    console.log("Item is of type program...");
+    const res = await getMediaInfoApi(api).getPlaybackInfo(
+      {
+        userId,
+        itemId: item.ChannelId!,
+      },
+      {
+        method: "POST",
+        params: {
+          startTimeTicks: 0,
+          isPlayback: true,
+          autoOpenLiveStream: true,
+          maxStreamingBitrate,
+          audioStreamIndex,
+        },
+        data: {
+          deviceProfile,
+        },
+      },
+    );
+
+    sessionId = res.data.PlaySessionId || null;
+    mediaSource = res.data.MediaSources?.[0];
+    const url = getPlaybackUrl(api, item.ChannelId!, mediaSource, {
+      subtitleStreamIndex,
+      audioStreamIndex,
+      deviceId,
+      startTimeTicks: 0,
+      maxStreamingBitrate,
+      userId,
+    });
+
+    return {
+      url,
+      sessionId: sessionId || null,
+      mediaSource,
+    };
+  }
+
   const res = await getMediaInfoApi(api).getPlaybackInfo(
     {
       itemId: item.Id!,
@@ -70,46 +238,20 @@ export const getStreamUrl = async ({
 
   sessionId = res.data.PlaySessionId || null;
   mediaSource = res.data.MediaSources?.[0];
-  let transcodeUrl = mediaSource?.TranscodingUrl;
 
-  if (transcodeUrl) {
-    // We need to change the subtitle method to hls for the transcoded url.
-    if (subtitleStreamIndex === -1) {
-      transcodeUrl = transcodeUrl.replace(
-        "SubtitleMethod=Encode",
-        "SubtitleMethod=Hls",
-      );
-    }
-    console.log("Video is being transcoded:", transcodeUrl);
-    return {
-      url: `${api.basePath}${transcodeUrl}`,
-      sessionId,
-      mediaSource,
-    };
-  }
-
-  const streamParams = new URLSearchParams({
-    static: "true",
-    container: "mp4",
-    mediaSourceId: mediaSource?.Id || "",
-    subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
-    audioStreamIndex: audioStreamIndex?.toString() || "",
-    deviceId: deviceId || api.deviceInfo.id,
-    api_key: api.accessToken,
-    startTimeTicks: startTimeTicks.toString(),
-    maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
-    userId: userId,
+  const url = getPlaybackUrl(api, item.Id!, mediaSource, {
+    subtitleStreamIndex,
+    audioStreamIndex,
+    deviceId,
+    startTimeTicks,
+    maxStreamingBitrate,
+    userId,
+    playSessionId: playSessionId || undefined,
   });
 
-  const directPlayUrl = `${
-    api.basePath
-  }/Videos/${item.Id}/stream?${streamParams.toString()}`;
-
-  console.log("Video is being direct played:", directPlayUrl);
-
   return {
-    url: directPlayUrl,
-    sessionId: sessionId || playSessionId || null,
+    url,
+    sessionId: sessionId || null,
     mediaSource,
   };
 };
@@ -142,9 +284,6 @@ export const getDownloadStreamUrl = async ({
     return null;
   }
 
-  let mediaSource: MediaSourceInfo | undefined;
-  let sessionId: string | null | undefined;
-
   const res = await getMediaInfoApi(api).getPlaybackInfo(
     {
       itemId: item.Id!,
@@ -169,53 +308,16 @@ export const getDownloadStreamUrl = async ({
     console.error("Error getting playback info:", res.status, res.statusText);
   }
 
-  sessionId = res.data.PlaySessionId || null;
-  mediaSource = res.data.MediaSources?.[0];
-  let transcodeUrl = mediaSource?.TranscodingUrl;
+  const sessionId = res.data.PlaySessionId || null;
+  const mediaSource = res.data.MediaSources?.[0];
 
-  if (transcodeUrl) {
-    transcodeUrl = transcodeUrl.replace("master.m3u8", "stream");
-    console.log("Video is being transcoded:", transcodeUrl);
-    return {
-      url: `${api.basePath}${transcodeUrl}`,
-      sessionId,
-      mediaSource,
-    };
-  }
-
-  const downloadParams = {
-    // We need to disable static so we can have a remux with subtitle.
-    subtitleMethod: "Embed",
-    enableSubtitlesInManifest: true,
-    allowVideoStreamCopy: true,
-    allowAudioStreamCopy: true,
-    playSessionId: sessionId || "",
-  };
-
-  const streamParams = new URLSearchParams({
-    static: "false",
-    container: "ts",
-    mediaSourceId: mediaSource?.Id || "",
-    subtitleStreamIndex: subtitleStreamIndex?.toString() || "",
-    audioStreamIndex: audioStreamIndex?.toString() || "",
-    deviceId: deviceId || api.deviceInfo.id,
-    api_key: api.accessToken,
-    startTimeTicks: "0",
-    maxStreamingBitrate: maxStreamingBitrate?.toString() || "",
-    userId: userId,
+  return getDownloadUrl(api, item.Id!, mediaSource, sessionId, {
+    subtitleStreamIndex,
+    audioStreamIndex,
+    deviceId,
+    startTimeTicks: 0,
+    maxStreamingBitrate,
+    userId,
+    playSessionId: sessionId || undefined,
   });
-
-  Object.entries(downloadParams).forEach(([key, value]) => {
-    streamParams.append(key, value.toString());
-  });
-
-  const directPlayUrl = `${
-    api.basePath
-  }/Videos/${item.Id}/stream?${streamParams.toString()}`;
-
-  return {
-    url: directPlayUrl,
-    sessionId: sessionId || null,
-    mediaSource,
-  };
 };
