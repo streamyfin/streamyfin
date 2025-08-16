@@ -471,6 +471,10 @@ export default function page() {
           playbackManager.reportPlaybackProgress(
             item.Id,
             msToTicks(progress.get()),
+            {
+              AudioStreamIndex: audioIndex ?? -1,
+              SubtitleStreamIndex: subtitleIndex ?? -1,
+            },
           );
         }
         if (!Platform.isTV) await deactivateKeepAwake();

@@ -50,7 +50,7 @@ export const AudioTrackSelector: React.FC<Props> = ({
             </Text>
             <TouchableOpacity className='bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
               <Text className='' numberOfLines={1}>
-                {selectedAudioSteam?.DisplayTitle}
+                {selectedAudioSteam?.DisplayTitle || "Default"}
               </Text>
             </TouchableOpacity>
           </View>

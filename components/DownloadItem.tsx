@@ -9,13 +9,14 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { type Href, router, useFocusEffect } from "expo-router";
+import { type Href, router } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
@@ -31,6 +32,13 @@ import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
+
+export type SelectedOptions = {
+  bitrate: Bitrate;
+  mediaSource: MediaSourceInfo | undefined;
+  audioIndex: number | undefined;
+  subtitleIndex: number;
+};
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
@@ -60,18 +68,16 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     useDownload();
   const downloadedFiles = getDownloadedItems();
 
-  const [selectedMediaSource, setSelectedMediaSource] = useState<
-    MediaSourceInfo | undefined | null
+  const [selectedOptions, setSelectedOptions] = useState<
+    SelectedOptions | undefined
   >(undefined);
-  const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
-  const [selectedSubtitleStream, setSelectedSubtitleStream] =
-    useState<number>(0);
-  const [maxBitrate, setMaxBitrate] = useState<Bitrate>(
-    settings?.defaultBitrate ?? {
-      key: "Max",
-      value: undefined,
-    },
-  );
+
+  const {
+    defaultAudioIndex,
+    defaultBitrate,
+    defaultMediaSource,
+    defaultSubtitleIndex,
+  } = useDefaultPlaySettings(items[0], settings);
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
@@ -97,6 +103,24 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
     [items, downloadedFiles],
   );
+
+  // Initialize selectedOptions with default values
+  useEffect(() => {
+    if (itemsNotDownloaded.length === 1) {
+      setSelectedOptions(() => ({
+        bitrate: defaultBitrate,
+        mediaSource: defaultMediaSource,
+        subtitleIndex: defaultSubtitleIndex ?? -1,
+        audioIndex: defaultAudioIndex,
+      }));
+    }
+  }, [
+    defaultAudioIndex,
+    defaultBitrate,
+    defaultSubtitleIndex,
+    defaultMediaSource,
+    itemsNotDownloaded.length,
+  ]);
 
   const itemsToDownload = useMemo(() => {
     if (downloadUnwatchedOnly) {
@@ -153,7 +177,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         !api ||
         !user?.Id ||
         items.some((p) => !p.Id) ||
-        (itemsNotDownloaded.length === 1 && !selectedMediaSource?.Id)
+        (itemsNotDownloaded.length === 1 && !selectedOptions?.mediaSource?.Id)
       ) {
         throw new Error(
           "DownloadItem ~ initiateDownload: No api or user or item",
@@ -164,9 +188,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           itemsNotDownloaded.length > 1
             ? getDefaultPlaySettings(item, settings!)
             : {
-                mediaSource: selectedMediaSource,
-                audioIndex: selectedAudioStream,
-                subtitleIndex: selectedSubtitleStream,
+                mediaSource: selectedOptions?.mediaSource,
+                audioIndex: selectedOptions?.audioIndex,
+                subtitleIndex: selectedOptions?.subtitleIndex,
               };
 
         const downloadDetails = await getDownloadUrl({
@@ -176,7 +200,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           mediaSource: mediaSource!,
           audioStreamIndex: audioIndex ?? -1,
           subtitleStreamIndex: subtitleIndex ?? -1,
-          maxBitrate,
+          maxBitrate: selectedOptions?.bitrate || defaultBitrate,
           deviceId: api.deviceInfo.id,
         });
 
@@ -205,18 +229,21 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
-        await startBackgroundDownload(url, item, mediaSource, maxBitrate);
+        await startBackgroundDownload(
+          url,
+          item,
+          mediaSource,
+          selectedOptions?.bitrate || defaultBitrate,
+        );
       }
     },
     [
       api,
       user?.Id,
       itemsNotDownloaded,
-      selectedMediaSource,
-      selectedAudioStream,
-      selectedSubtitleStream,
+      selectedOptions,
       settings,
-      maxBitrate,
+      defaultBitrate,
       startBackgroundDownload,
     ],
   );
@@ -245,18 +272,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       />
     ),
     [],
-  );
-  useFocusEffect(
-    useCallback(() => {
-      if (!settings) return;
-      if (itemsNotDownloaded.length !== 1) return;
-      const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-        getDefaultPlaySettings(items[0], settings);
-      setSelectedMediaSource(mediaSource ?? undefined);
-      setSelectedAudioStream(audioIndex ?? 0);
-      setSelectedSubtitleStream(subtitleIndex ?? -1);
-      setMaxBitrate(bitrate);
-    }, [items, itemsNotDownloaded, settings]),
   );
 
   const renderButtonContent = () => {
@@ -332,8 +347,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             <View className='flex flex-col space-y-2 w-full items-start'>
               <BitrateSelector
                 inverted
-                onChange={setMaxBitrate}
-                selected={maxBitrate}
+                onChange={(val) =>
+                  setSelectedOptions(
+                    (prev) => prev && { ...prev, bitrate: val },
+                  )
+                }
+                selected={selectedOptions?.bitrate}
               />
               {itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
@@ -345,27 +364,51 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                 </View>
               )}
               {itemsNotDownloaded.length === 1 && (
-                <>
+                <View>
                   <MediaSourceSelector
                     item={items[0]}
-                    onChange={setSelectedMediaSource}
-                    selected={selectedMediaSource}
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            mediaSource: val,
+                          },
+                      )
+                    }
+                    selected={selectedOptions?.mediaSource}
                   />
-                  {selectedMediaSource && (
+                  {selectedOptions?.mediaSource && (
                     <View className='flex flex-col space-y-2'>
                       <AudioTrackSelector
-                        source={selectedMediaSource}
-                        onChange={setSelectedAudioStream}
-                        selected={selectedAudioStream}
+                        source={selectedOptions.mediaSource}
+                        onChange={(val) => {
+                          setSelectedOptions(
+                            (prev) =>
+                              prev && {
+                                ...prev,
+                                audioIndex: val,
+                              },
+                          );
+                        }}
+                        selected={selectedOptions.audioIndex}
                       />
                       <SubtitleTrackSelector
-                        source={selectedMediaSource}
-                        onChange={setSelectedSubtitleStream}
-                        selected={selectedSubtitleStream}
+                        source={selectedOptions.mediaSource}
+                        onChange={(val) => {
+                          setSelectedOptions(
+                            (prev) =>
+                              prev && {
+                                ...prev,
+                                subtitleIndex: val,
+                              },
+                          );
+                        }}
+                        selected={selectedOptions.subtitleIndex}
                       />
                     </View>
                   )}
-                </>
+                </View>
               )}
             </View>
 

@@ -181,12 +181,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       }
       if (getAudioTracks) {
         const audioData = await getAudioTracks();
-
         const allAudio =
           mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
         const audioTracks: Track[] = allAudio?.map((audio, idx) => {
           if (!mediaSource?.TranscodingUrl) {
-            const vlcIndex = audioData?.at(idx)?.index ?? -1;
+            const vlcIndex = audioData?.at(idx + 1)?.index ?? -1;
             return {
               name: audio.DisplayTitle ?? "Undefined Audio",
               index: audio.Index ?? -1,
@@ -201,6 +200,15 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
               setPlayerParams({ chosenAudioIndex: audio.Index?.toString() }),
           };
         });
+
+        // Add a "Disable Audio" option if its not transcoding.
+        if (!mediaSource?.TranscodingUrl) {
+          audioTracks.unshift({
+            name: "Disable",
+            index: -1,
+            setTrack: () => setTrackParams("audio", -1, -1),
+          });
+        }
         setAudioTracks(audioTracks);
       }
     };
