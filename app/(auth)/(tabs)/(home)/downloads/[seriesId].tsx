@@ -39,26 +39,44 @@ export default function page() {
     }
   }, [getDownloadedItems]);
 
+  // Group episodes by season in a single pass
+  const seasonGroups = useMemo(() => {
+    const groups: Record<number, BaseItemDto[]> = {};
+
+    series.forEach((episode) => {
+      const seasonNumber = episode.item.ParentIndexNumber;
+      if (seasonNumber !== undefined && seasonNumber !== null) {
+        if (!groups[seasonNumber]) {
+          groups[seasonNumber] = [];
+        }
+        groups[seasonNumber].push(episode.item);
+      }
+    });
+
+    // Sort episodes within each season
+    Object.values(groups).forEach((episodes) => {
+      episodes.sort((a, b) => (a.IndexNumber || 0) - (b.IndexNumber || 0));
+    });
+
+    return groups;
+  }, [series]);
+
+  // Get unique seasons (just the season numbers, sorted)
+  const uniqueSeasons = useMemo(() => {
+    const seasonNumbers = Object.keys(seasonGroups)
+      .map(Number)
+      .sort((a, b) => a - b);
+    return seasonNumbers.map((seasonNum) => seasonGroups[seasonNum][0]); // First episode of each season
+  }, [seasonGroups]);
+
   const seasonIndex =
     seasonIndexState[series?.[0]?.item?.ParentId ?? ""] ||
     episodeSeasonIndex ||
     "";
 
   const groupBySeason = useMemo<BaseItemDto[]>(() => {
-    const seasons: Record<string, BaseItemDto[]> = {};
-
-    series?.forEach((episode) => {
-      if (!seasons[episode.item.ParentIndexNumber!]) {
-        seasons[episode.item.ParentIndexNumber!] = [];
-      }
-
-      seasons[episode.item.ParentIndexNumber!].push(episode.item);
-    });
-    return (
-      seasons[seasonIndex]?.sort((a, b) => a.IndexNumber! - b.IndexNumber!) ??
-      []
-    );
-  }, [series, seasonIndex]);
+    return seasonGroups[Number(seasonIndex)] ?? [];
+  }, [seasonGroups, seasonIndex]);
 
   const initialSeasonIndex = useMemo(
     () =>
@@ -102,7 +120,7 @@ export default function page() {
         <View className='flex flex-row items-center justify-start my-2 px-4'>
           <SeasonDropdown
             item={series[0].item}
-            seasons={series.map((s) => s.item)}
+            seasons={uniqueSeasons}
             state={seasonIndexState}
             initialSeasonIndex={initialSeasonIndex!}
             onSelect={(season) => {

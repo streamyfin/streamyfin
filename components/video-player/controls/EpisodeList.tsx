@@ -27,7 +27,7 @@ import { runtimeTicksToSeconds } from "@/utils/time";
 type Props = {
   item: BaseItemDto;
   close: () => void;
-  goToItem: (itemId: string) => Promise<void>;
+  goToItem: (item: BaseItemDto) => void;
 };
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
@@ -221,23 +221,24 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           ref={scrollViewRef}
           data={episodes}
           extraData={item}
-          renderItem={(_item, _idx) => (
+          // Note otherItem is the item that is being rendered, not the item that is currently selected
+          renderItem={(otherItem, _idx) => (
             <View
-              key={_item.Id}
+              key={otherItem.Id}
               style={{}}
               className={`flex flex-col w-44 ${
-                item.Id !== _item.Id ? "opacity-75" : ""
+                item.Id !== otherItem.Id ? "opacity-75" : ""
               }`}
             >
               <TouchableOpacity
                 onPress={() => {
-                  goToItem(_item.Id);
+                  goToItem(otherItem);
                 }}
               >
                 <ContinueWatchingPoster
-                  item={_item}
+                  item={otherItem}
                   useEpisodePoster
-                  showPlayButton={_item.Id !== item.Id}
+                  showPlayButton={otherItem.Id !== item.Id}
                 />
               </TouchableOpacity>
               <View className='shrink'>
@@ -248,20 +249,20 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
                     height: 36, // lineHeight * 2 for consistent two-line space
                   }}
                 >
-                  {_item.Name}
+                  {otherItem.Name}
                 </Text>
                 <Text numberOfLines={1} className='text-xs text-neutral-475'>
-                  {`S${_item.ParentIndexNumber?.toString()}:E${_item.IndexNumber?.toString()}`}
+                  {`S${otherItem.ParentIndexNumber?.toString()}:E${otherItem.IndexNumber?.toString()}`}
                 </Text>
                 <Text className='text-xs text-neutral-500'>
-                  {runtimeTicksToSeconds(_item.RunTimeTicks)}
+                  {runtimeTicksToSeconds(otherItem.RunTimeTicks)}
                 </Text>
               </View>
               <Text
-                numberOfLines={5}
+                numberOfLines={7}
                 className='text-xs text-neutral-500 shrink'
               >
-                {_item.Overview}
+                {otherItem.Overview}
               </Text>
             </View>
           )}

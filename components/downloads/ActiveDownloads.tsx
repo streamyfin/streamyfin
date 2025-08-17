@@ -157,7 +157,7 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
           <TouchableOpacity
             disabled={cancelJobMutation.isPending}
             onPress={() => cancelJobMutation.mutate(process.id)}
-            className='ml-auto'
+            className='ml-auto p-2 rounded-full'
           >
             {cancelJobMutation.isPending ? (
               <ActivityIndicator size='small' color='white' />
