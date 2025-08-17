@@ -5,7 +5,6 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useAtom } from "jotai";
 import { debounce } from "lodash";
 import {
   type Dispatch,
@@ -41,10 +40,8 @@ import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
-import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getItemById } from "@/utils/jellyfin/user-library/getItemById";
 import { writeToLog } from "@/utils/log";
 import {
   formatTimeString,
@@ -124,7 +121,6 @@ export const Controls: FC<Props> = ({
   const [settings, updateSettings] = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [api] = useAtom(apiAtom);
 
   const [episodeView, setEpisodeView] = useState(false);
   const [isSliding, setIsSliding] = useState(false);
@@ -346,7 +342,9 @@ export const Controls: FC<Props> = ({
         previousIndexes,
         mediaSource ?? undefined,
       );
+
       const queryParams = new URLSearchParams({
+        ...(offline && { offline: "true" }),
         itemId: item.Id ?? "",
         audioIndex: defaultAudioIndex?.toString() ?? "",
         subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
@@ -436,25 +434,6 @@ export const Controls: FC<Props> = ({
       goToNextItem(options);
     },
     [goToNextItem],
-  );
-
-  const goToItem = useCallback(
-    async (itemId: string) => {
-      if (offline) {
-        const queryParams = new URLSearchParams({
-          itemId: itemId,
-          playbackPosition:
-            item.UserData?.PlaybackPositionTicks?.toString() ?? "",
-        }).toString();
-        // @ts-expect-error
-        router.replace(`player/direct-player?${queryParams}`);
-        return;
-      }
-      const gotoItem = await getItemById(api, itemId);
-      if (!gotoItem) return;
-      goToItemCommon(gotoItem);
-    },
-    [goToItemCommon, api],
   );
 
   const updateTimes = useCallback(
@@ -715,7 +694,7 @@ export const Controls: FC<Props> = ({
         <EpisodeList
           item={item}
           close={() => setEpisodeView(false)}
-          goToItem={goToItem}
+          goToItem={goToItemCommon}
         />
       ) : (
         <>

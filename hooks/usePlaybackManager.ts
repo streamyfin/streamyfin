@@ -152,22 +152,37 @@ export const usePlaybackManager = ({
 
     // Handle local state update for downloaded items
     if (localItem) {
+      const runTimeTicks = localItem.item.RunTimeTicks ?? 0;
+      const playedPercentage =
+        runTimeTicks > 0 ? (positionTicks / runTimeTicks) * 100 : 0;
+
+      // Jellyfin thresholds
+      const MINIMUM_PERCENTAGE = 5; // 5% minimum to save progress
+      const PLAYED_THRESHOLD_PERCENTAGE = 90; // 90% to mark as played
+
       const isItemConsideredPlayed =
-        (localItem.item.UserData?.PlayedPercentage ?? 0) > 90;
+        playedPercentage > PLAYED_THRESHOLD_PERCENTAGE;
+      const meetsMinimumPercentage = playedPercentage >= MINIMUM_PERCENTAGE;
+
+      const shouldSaveProgress =
+        meetsMinimumPercentage && !isItemConsideredPlayed;
+
       updateDownloadedItem(itemId, {
         ...localItem,
         item: {
           ...localItem.item,
           UserData: {
             ...localItem.item.UserData,
-            PlaybackPositionTicks: isItemConsideredPlayed
-              ? 0
-              : Math.floor(positionTicks),
+            PlaybackPositionTicks:
+              isItemConsideredPlayed || !shouldSaveProgress
+                ? 0
+                : Math.floor(positionTicks),
             Played: isItemConsideredPlayed,
             LastPlayedDate: new Date().toISOString(),
-            PlayedPercentage: isItemConsideredPlayed
-              ? 0
-              : (positionTicks / localItem.item.RunTimeTicks!) * 100,
+            PlayedPercentage:
+              isItemConsideredPlayed || !shouldSaveProgress
+                ? 0
+                : playedPercentage,
           },
         },
       });

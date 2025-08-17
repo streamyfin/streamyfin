@@ -1,5 +1,5 @@
 import { FlashList, type FlashListProps } from "@shopify/flash-list";
-import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import React, { useImperativeHandle, useRef } from "react";
 import { View, type ViewStyle } from "react-native";
 import { Text } from "./Text";
 
@@ -19,64 +19,58 @@ interface HorizontalScrollProps<T>
   keyExtractor?: (item: T, index: number) => string;
   containerStyle?: ViewStyle;
   contentContainerStyle?: ViewStyle;
-  loadingContainerStyle?: ViewStyle;
   height?: number;
   loading?: boolean;
   extraData?: any;
   noItemsText?: string;
 }
 
-export const HorizontalScroll = forwardRef<
-  HorizontalScrollRef,
-  HorizontalScrollProps<any>
->(
-  <T,>(
-    {
-      data = [],
-      keyExtractor,
-      renderItem,
-      containerStyle,
-      contentContainerStyle,
-      loadingContainerStyle,
-      loading = false,
-      height = 164,
-      extraData,
-      noItemsText,
-      ...props
-    }: HorizontalScrollProps<T>,
-    ref: React.ForwardedRef<HorizontalScrollRef>,
-  ) => {
-    const flashListRef = useRef<FlashList<T>>(null);
+export const HorizontalScroll = <T,>(
+  props: HorizontalScrollProps<T> & {
+    ref?: React.ForwardedRef<HorizontalScrollRef>;
+  },
+) => {
+  const {
+    data = [],
+    keyExtractor,
+    renderItem,
+    containerStyle,
+    contentContainerStyle,
+    loading = false,
+    height = 164,
+    extraData,
+    noItemsText,
+    ref,
+    ...restProps
+  } = props;
+  const flashListRef = useRef<FlashList<T>>(null);
 
-    useImperativeHandle(ref!, () => ({
-      scrollToIndex: (index: number, viewOffset: number) => {
-        flashListRef.current?.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0,
-          viewOffset,
-        });
-      },
-    }));
+  useImperativeHandle(ref!, () => ({
+    scrollToIndex: (index: number, viewOffset: number) => {
+      flashListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0,
+        viewOffset,
+      });
+    },
+  }));
 
-    const renderFlashListItem = ({
-      item,
-      index,
-    }: {
-      item: T;
-      index: number;
-    }) => <View className='mr-2'>{renderItem(item, index)}</View>;
+  const renderFlashListItem = ({ item, index }: { item: T; index: number }) => (
+    <View className='mr-2'>{renderItem(item, index)}</View>
+  );
 
-    if (!data || loading) {
-      return (
-        <View className='px-4 mb-2'>
-          <View className='bg-neutral-950 h-24 w-full rounded-md mb-2' />
-          <View className='bg-neutral-950 h-10 w-full rounded-md mb-1' />
-        </View>
-      );
-    }
-
+  if (!data || loading) {
     return (
+      <View className='px-4 mb-2'>
+        <View className='bg-neutral-950 h-24 w-full rounded-md mb-2' />
+        <View className='bg-neutral-950 h-10 w-full rounded-md mb-1' />
+      </View>
+    );
+  }
+
+  return (
+    <View style={containerStyle}>
       <FlashList<T>
         ref={flashListRef}
         data={data}
@@ -97,8 +91,8 @@ export const HorizontalScroll = forwardRef<
             </Text>
           </View>
         )}
-        {...props}
+        {...restProps}
       />
-    );
-  },
-);
+    </View>
+  );
+};
