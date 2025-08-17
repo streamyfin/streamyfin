@@ -259,7 +259,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
                 </Text>
               </View>
               <Text
-                numberOfLines={5}
+                numberOfLines={7}
                 className='text-xs text-neutral-500 shrink'
               >
                 {otherItem.Overview}
