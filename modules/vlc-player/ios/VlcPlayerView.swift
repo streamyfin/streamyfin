@@ -243,6 +243,26 @@ class VlcPlayerView: ExpoView {
         return tracks
     }
 
+    @objc func setVideoAspectRatio(_ aspectRatio: String?) {
+        DispatchQueue.main.async {
+            if let aspectRatio = aspectRatio {
+                // Convert String to C string for VLC
+                let cString = strdup(aspectRatio)
+                self.mediaPlayer?.videoAspectRatio = cString
+            } else {
+                // Reset to default (let VLC determine aspect ratio)
+                self.mediaPlayer?.videoAspectRatio = nil
+            }
+        }
+    }
+
+    @objc func setVideoScaleFactor(_ scaleFactor: Float) {
+        DispatchQueue.main.async {
+            self.mediaPlayer?.scaleFactor = scaleFactor
+            print("Set video scale factor: \(scaleFactor)")
+        }
+    }
+
     @objc func stop(completion: (() -> Void)? = nil) {
         guard !isStopping else {
             completion?()

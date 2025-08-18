@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -38,11 +38,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
-import { storage } from "@/utils/mmkv";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
-
-const IGNORE_SAFE_AREAS_KEY = "video_player_ignore_safe_areas";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -53,11 +50,12 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
-  const [ignoreSafeAreas, setIgnoreSafeAreas] = useState(() => {
-    // Load persisted state from storage
-    const saved = storage.getBoolean(IGNORE_SAFE_AREAS_KEY);
-    return saved ?? false;
-  });
+  const [aspectRatio, setAspectRatio] = useState<
+    "default" | "16:9" | "4:3" | "1:1" | "21:9"
+  >("default");
+  const [scaleFactor, setScaleFactor] = useState<
+    1.0 | 1.1 | 1.2 | 1.3 | 1.4 | 1.5 | 1.6 | 1.7 | 1.8 | 1.9 | 2.0
+  >(1.0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -82,11 +80,6 @@ export default function page() {
     lightHapticFeedback();
   }, []);
 
-  // Persist ignoreSafeAreas state whenever it changes
-  useEffect(() => {
-    storage.set(IGNORE_SAFE_AREAS_KEY, ignoreSafeAreas);
-  }, [ignoreSafeAreas]);
-
   const {
     itemId,
     audioIndex: audioIndexStr,
@@ -106,7 +99,7 @@ export default function page() {
     playbackPosition?: string;
   }>();
   const [settings] = useSettings();
-  const insets = useSafeAreaInsets();
+
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
 
@@ -571,7 +564,14 @@ export default function page() {
     );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "black" }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "blue",
+        height: "100%",
+        width: "100%",
+      }}
+    >
       <View
         style={{
           display: "flex",
@@ -580,8 +580,6 @@ export default function page() {
           position: "relative",
           flexDirection: "column",
           justifyContent: "center",
-          paddingLeft: ignoreSafeAreas ? 0 : insets.left,
-          paddingRight: ignoreSafeAreas ? 0 : insets.right,
         }}
       >
         <VlcPlayerView
@@ -625,13 +623,11 @@ export default function page() {
           isBuffering={isBuffering}
           showControls={showControls}
           setShowControls={setShowControls}
-          setIgnoreSafeAreas={setIgnoreSafeAreas}
-          ignoreSafeAreas={ignoreSafeAreas}
           isVideoLoaded={isVideoLoaded}
           startPictureInPicture={videoRef.current?.startPictureInPicture}
-          play={videoRef.current?.play}
-          pause={videoRef.current?.pause}
-          seek={videoRef.current?.seekTo}
+          play={videoRef.current?.play || (() => {})}
+          pause={videoRef.current?.pause || (() => {})}
+          seek={videoRef.current?.seekTo || (() => {})}
           enableTrickplay={true}
           getAudioTracks={videoRef.current?.getAudioTracks}
           getSubtitleTracks={videoRef.current?.getSubtitleTracks}
@@ -639,6 +635,12 @@ export default function page() {
           setSubtitleTrack={videoRef.current?.setSubtitleTrack}
           setSubtitleURL={videoRef.current?.setSubtitleURL}
           setAudioTrack={videoRef.current?.setAudioTrack}
+          setVideoAspectRatio={videoRef.current?.setVideoAspectRatio}
+          setVideoScaleFactor={videoRef.current?.setVideoScaleFactor}
+          aspectRatio={aspectRatio}
+          scaleFactor={scaleFactor}
+          setAspectRatio={setAspectRatio}
+          setScaleFactor={setScaleFactor}
           isVlc
         />
       )}

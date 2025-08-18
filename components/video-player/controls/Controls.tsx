@@ -59,8 +59,13 @@ import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
+import { type ScaleFactor, ScaleFactorSelector } from "./ScaleFactorSelector";
 import SkipButton from "./SkipButton";
 import { useControlsTimeout } from "./useControlsTimeout";
+import {
+  type AspectRatio,
+  AspectRatioSelector,
+} from "./VideoScalingModeSelector";
 import { VideoTouchOverlay } from "./VideoTouchOverlay";
 
 interface Props {
@@ -72,8 +77,7 @@ interface Props {
   progress: SharedValue<number>;
   isBuffering: boolean;
   showControls: boolean;
-  ignoreSafeAreas?: boolean;
-  setIgnoreSafeAreas: Dispatch<SetStateAction<boolean>>;
+
   enableTrickplay?: boolean;
   togglePlay: () => void;
   setShowControls: (shown: boolean) => void;
@@ -89,6 +93,12 @@ interface Props {
   setSubtitleURL?: (url: string, customName: string) => void;
   setSubtitleTrack?: (index: number) => void;
   setAudioTrack?: (index: number) => void;
+  setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
+  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  aspectRatio?: AspectRatio;
+  scaleFactor?: ScaleFactor;
+  setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
+  setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
   isVlc?: boolean;
 }
 
@@ -108,8 +118,6 @@ export const Controls: FC<Props> = ({
   cacheProgress,
   showControls,
   setShowControls,
-  ignoreSafeAreas,
-  setIgnoreSafeAreas,
   mediaSource,
   isVideoLoaded,
   getAudioTracks,
@@ -117,6 +125,12 @@ export const Controls: FC<Props> = ({
   setSubtitleURL,
   setSubtitleTrack,
   setAudioTrack,
+  setVideoAspectRatio,
+  setVideoScaleFactor,
+  aspectRatio = "default",
+  scaleFactor = 1.0,
+  setAspectRatio,
+  setScaleFactor,
   offline = false,
   isVlc = false,
 }) => {
@@ -631,10 +645,26 @@ export const Controls: FC<Props> = ({
     }
   }, [settings, isPlaying, isVlc, play, seek]);
 
-  const toggleIgnoreSafeAreas = useCallback(() => {
-    setIgnoreSafeAreas((prev) => !prev);
-    lightHapticFeedback();
-  }, []);
+  const handleAspectRatioChange = useCallback(
+    async (newRatio: AspectRatio) => {
+      if (!setAspectRatio || !setVideoAspectRatio) return;
+
+      setAspectRatio(newRatio);
+      const aspectRatioString = newRatio === "default" ? null : newRatio;
+      await setVideoAspectRatio(aspectRatioString);
+    },
+    [setAspectRatio, setVideoAspectRatio],
+  );
+
+  const handleScaleFactorChange = useCallback(
+    async (newScale: ScaleFactor) => {
+      if (!setScaleFactor || !setVideoScaleFactor) return;
+
+      setScaleFactor(newScale);
+      await setVideoScaleFactor(newScale);
+    },
+    [setScaleFactor, setVideoScaleFactor],
+  );
 
   const switchOnEpisodeMode = useCallback(() => {
     setEpisodeView(true);
@@ -801,17 +831,17 @@ export const Controls: FC<Props> = ({
                   <Ionicons name='play-skip-forward' size={24} color='white' />
                 </TouchableOpacity>
               )}
-              {/* {mediaSource?.TranscodingUrl && ( */}
-              <TouchableOpacity
-                onPress={toggleIgnoreSafeAreas}
-                className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-              >
-                <Ionicons
-                  name={ignoreSafeAreas ? "contract-outline" : "expand"}
-                  size={24}
-                  color='white'
-                />
-              </TouchableOpacity>
+              {/* Video Controls */}
+              <AspectRatioSelector
+                currentRatio={aspectRatio}
+                onRatioChange={handleAspectRatioChange}
+                disabled={!setVideoAspectRatio}
+              />
+              <ScaleFactorSelector
+                currentScale={scaleFactor}
+                onScaleChange={handleScaleFactorChange}
+                disabled={!setVideoScaleFactor}
+              />
               <TouchableOpacity
                 onPress={onClose}
                 className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'

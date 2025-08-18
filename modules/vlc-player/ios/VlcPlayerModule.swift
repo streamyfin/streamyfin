@@ -62,6 +62,14 @@ public class VlcPlayerModule: Module {
                 view.setSubtitleTrack(trackIndex)
             }
 
+            AsyncFunction("setVideoAspectRatio") { (view: VlcPlayerView, aspectRatio: String?) in
+                view.setVideoAspectRatio(aspectRatio)
+            }
+
+            AsyncFunction("setVideoScaleFactor") { (view: VlcPlayerView, scaleFactor: Float) in
+                view.setVideoScaleFactor(scaleFactor)
+            }
+
             AsyncFunction("getSubtitleTracks") { (view: VlcPlayerView) -> [[String: Any]]? in
                 return view.getSubtitleTracks()
             }
