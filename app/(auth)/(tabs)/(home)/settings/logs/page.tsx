@@ -10,7 +10,7 @@ import { FilterButton } from "@/components/filters/FilterButton";
 import { Loader } from "@/components/Loader";
 import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
 
-export default function page() {
+export default function Page() {
   const navigation = useNavigation();
   const { logs } = useLog();
   const { t } = useTranslation();
@@ -28,9 +28,11 @@ export default function page() {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [state, setState] = useState<Record<string, boolean>>({});
-
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [levels, setLevels] = useState<LogLevel[]>(defaultLevels);
+
+  const _orderId = useId();
+  const _levelsId = useId();
 
   const filteredLogs = useMemo(
     () =>

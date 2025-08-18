@@ -43,6 +43,7 @@ export const HorizontalScroll = <T,>(
     ref,
     ...restProps
   } = props;
+
   const flashListRef = useRef<FlashList<T>>(null);
 
   useImperativeHandle(ref!, () => ({
@@ -70,7 +71,7 @@ export const HorizontalScroll = <T,>(
   }
 
   return (
-    <View style={containerStyle}>
+    <View style={[{ height }, containerStyle]}>
       <FlashList<T>
         ref={flashListRef}
         data={data}
