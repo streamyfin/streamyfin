@@ -120,7 +120,8 @@
       "exclude": [
         "react-native",
         "@shopify/flash-list",
-        "react-native-reanimated"
+        "react-native-reanimated",
+        "react-native-pager-view"
       ]
     },
     "doctor": {

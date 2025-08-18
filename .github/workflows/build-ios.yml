@@ -58,12 +58,20 @@ jobs:
           else
             bun run prebuild
           fi
-      
+
       - name: 🏗️ Setup EAS
         uses: expo/expo-github-action@main
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: ⚙️ Ensure iOS/tvOS SDKs installed
+        run: |
+          if [ "${{ matrix.target }}" = "tv" ]; then
+            xcodebuild -downloadPlatform tvOS
+          else
+            xcodebuild -downloadPlatform iOS
+          fi
 
       - name: 🚀 Build iOS app
         env:
