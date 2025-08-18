@@ -687,7 +687,7 @@ function useDownloadProvider() {
         appSize += fileInfo.size;
       }
     }
-    return { total, remaining, app: appSize };
+    return { total, remaining, appSize: appSize };
   };
 
   return {
@@ -731,7 +731,7 @@ export function useDownload() {
       APP_CACHE_DOWNLOAD_DIRECTORY: "",
       cleanCacheDirectory: async () => {},
       updateDownloadedItem: () => {},
-      appSizeUsage: async () => ({ total: 0, remaining: 0, app: 0 }),
+      appSizeUsage: async () => ({ total: 0, remaining: 0, appSize: 0 }),
     };
   }
 
