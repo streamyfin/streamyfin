@@ -2,8 +2,8 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 import { processesAtom } from "@/providers/DownloadProvider";
+import { JobStatus } from "@/providers/Downloads/types";
 import { useSettings } from "@/utils/atoms/settings";
-import type { JobStatus } from "@/utils/optimize-server";
 
 export interface Job {
   id: string;
@@ -68,5 +68,5 @@ export const useJobProcessor = () => {
       console.info("Processing queue", queue);
       queueActions.processJob(queue, setQueue, setRunning);
     }
-  }, [processes, queue, running, setQueue, setRunning]);
+  }, [processes, queue, running, setQueue, setRunning, settings]);
 };

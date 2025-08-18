@@ -38,6 +38,7 @@ import type { SelectedOptions } from "./ItemContent";
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
+  isOffline?: boolean;
 }
 
 const ANIMATION_DURATION = 500;
@@ -46,6 +47,7 @@ const MIN_PLAYBACK_WIDTH = 15;
 export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
+  isOffline,
   ...props
 }: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
@@ -75,7 +77,7 @@ export const PlayButton: React.FC<Props> = ({
       }
       router.push(`/player/direct-player?${q}`);
     },
-    [router],
+    [router, isOffline],
   );
 
   const onPress = useCallback(async () => {
@@ -90,6 +92,8 @@ export const PlayButton: React.FC<Props> = ({
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
       bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+      playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+      offline: isOffline ? "true" : "false",
     });
 
     const queryString = queryParams.toString();

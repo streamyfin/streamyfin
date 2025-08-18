@@ -11,6 +11,7 @@ import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
+  isOffline?: boolean;
 }
 
 export const itemRouter = (
@@ -50,6 +51,7 @@ export const itemRouter = (
 
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
+  isOffline = false,
   children,
   ...props
 }) => {
@@ -105,7 +107,10 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         onLongPress={showActionSheet}
         onPress={() => {
-          const url = itemRouter(item, from);
+          let url = itemRouter(item, from);
+          if (isOffline) {
+            url += `&offline=true`;
+          }
           // @ts-expect-error
           router.push(url);
         }}
@@ -114,4 +119,6 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
         {children}
       </TouchableOpacity>
     );
+
+  return null;
 };

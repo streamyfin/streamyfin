@@ -81,7 +81,6 @@ export type DefaultLanguageOption = {
 
 export enum DownloadMethod {
   Remux = "remux",
-  Optimized = "optimized",
 }
 
 export type Home = {
@@ -155,7 +154,6 @@ export type Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
   rewindSkipTime: number;
-  optimizedVersionsServerUrl?: string | null;
   downloadMethod: DownloadMethod;
   autoDownload: boolean;
   showCustomMenuLinks: boolean;
@@ -212,7 +210,6 @@ const defaultValues: Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,
   rewindSkipTime: 10,
-  optimizedVersionsServerUrl: null,
   downloadMethod: DownloadMethod.Remux,
   autoDownload: false,
   showCustomMenuLinks: false,

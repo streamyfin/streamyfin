@@ -7,12 +7,12 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import type React from "react";
 import { useCallback, useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { View } from "react-native";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { useDownloadedFileOpener } from "@/hooks/useDownloadedFileOpener";
-import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
+import { ProgressBar } from "../common/ProgressBar";
+import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
 
 interface MovieCardProps {
@@ -26,16 +26,10 @@ interface MovieCardProps {
  */
 export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
-  const { openFile } = useDownloadedFileOpener();
   const { showActionSheetWithOptions } = useActionSheet();
-  const successHapticFeedback = useHaptic("success");
-
-  const handleOpenFile = useCallback(() => {
-    openFile(item);
-  }, [item, openFile]);
 
   const base64Image = useMemo(() => {
-    return storage.getString(item.Id!);
+    return storage.getString(item?.Id!);
   }, []);
 
   /**
@@ -43,8 +37,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
    */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
-      deleteFile(item.Id);
-      successHapticFeedback();
+      deleteFile(item.Id, "Movie");
     }
   }, [deleteFile, item.Id]);
 
@@ -74,9 +67,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   }, [showActionSheetWithOptions, handleDeleteFile]);
 
   return (
-    <TouchableOpacity onPress={handleOpenFile} onLongPress={showActionSheet}>
+    <TouchableItemRouter onLongPress={showActionSheet} item={item} isOffline>
       {base64Image ? (
-        <View className='w-28 aspect-[10/15] rounded-lg overflow-hidden mr-2 border border-neutral-900'>
+        <View className='relative w-28 aspect-[10/15] rounded-lg overflow-hidden mr-2 border border-neutral-900'>
           <Image
             source={{
               uri: `data:image/jpeg;base64,${base64Image}`,
@@ -87,22 +80,24 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
               resizeMode: "cover",
             }}
           />
+          <ProgressBar item={item} />
         </View>
       ) : (
-        <View className='w-28 aspect-[10/15] rounded-lg bg-neutral-900 mr-2 flex items-center justify-center'>
+        <View className='relative w-28 aspect-[10/15] rounded-lg bg-neutral-900 mr-2 flex items-center justify-center'>
           <Ionicons
             name='image-outline'
             size={24}
             color='gray'
             className='self-center mt-16'
           />
+          <ProgressBar item={item} />
         </View>
       )}
       <View className='w-28'>
         <ItemCardText item={item} />
       </View>
       <DownloadSize items={[item]} />
-    </TouchableOpacity>
+    </TouchableItemRouter>
   );
 };
 

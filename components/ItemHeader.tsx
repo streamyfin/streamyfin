@@ -33,16 +33,16 @@ export const ItemHeader: React.FC<Props> = ({ item, ...props }) => {
           <ItemActions item={item} />
         </View>
         {item.Type === "Episode" && (
-          <>
+          <View>
             <EpisodeTitleHeader item={item} />
             <GenreTags genres={item.Genres!} />
-          </>
+          </View>
         )}
         {item.Type === "Movie" && (
-          <>
+          <View>
             <MoviesTitleHeader item={item} />
             <GenreTags genres={item.Genres!} />
-          </>
+          </View>
         )}
       </View>
     </View>

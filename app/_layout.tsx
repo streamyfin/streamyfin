@@ -1,7 +1,6 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -11,7 +10,6 @@ import {
   getTokenFromStorage,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
-import { JobQueueProvider } from "@/providers/JobQueueProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
@@ -27,7 +25,6 @@ import {
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { cancelJobById, getAllJobsByDeviceId } from "@/utils/optimize-server";
 
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
@@ -145,100 +142,24 @@ if (!Platform.isTV) {
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     console.log("TaskManager ~ trigger");
 
-    const now = Date.now();
+    const settingsData = storage.getString("settings");
 
-    try {
-      const settingsData = storage.getString("settings");
+    if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
 
-      if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
+    const settings: Partial<Settings> = JSON.parse(settingsData);
 
-      const settings: Partial<Settings> = JSON.parse(settingsData);
-      const url = settings?.optimizedVersionsServerUrl;
+    if (!settings?.autoDownload)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
-      if (!settings?.autoDownload || !url)
-        return BackgroundFetch.BackgroundFetchResult.NoData;
+    const token = getTokenFromStorage();
+    const deviceId = getOrSetDeviceId();
+    const baseDirectory = FileSystem.documentDirectory;
 
-      const token = getTokenFromStorage();
-      const deviceId = getOrSetDeviceId();
-      const baseDirectory = FileSystem.documentDirectory;
+    if (!token || !deviceId || !baseDirectory)
+      return BackgroundFetch.BackgroundFetchResult.NoData;
 
-      if (!token || !deviceId || !baseDirectory)
-        return BackgroundFetch.BackgroundFetchResult.NoData;
-
-      const jobs = await getAllJobsByDeviceId({
-        deviceId,
-        authHeader: token,
-        url,
-      });
-
-      console.log("TaskManager ~ Active jobs: ", jobs.length);
-
-      for (const job of jobs) {
-        if (job.status === "completed") {
-          const downloadUrl = `${url}download/${job.id}`;
-          const tasks = await BackGroundDownloader.checkForExistingDownloads();
-
-          if (tasks.find((task: { id: string }) => task.id === job.id)) {
-            console.log("TaskManager ~ Download already in progress: ", job.id);
-            continue;
-          }
-
-          BackGroundDownloader.download({
-            id: job.id,
-            url: downloadUrl,
-            destination: `${baseDirectory}${job.item.Id}.mp4`,
-            headers: {
-              Authorization: token,
-            },
-          })
-            .begin(() => {
-              console.log("TaskManager ~ Download started: ", job.id);
-            })
-            .done(() => {
-              console.log("TaskManager ~ Download completed: ", job.id);
-              saveDownloadedItemInfo(job.item);
-              BackGroundDownloader.completeHandler(job.id);
-              cancelJobById({
-                authHeader: token,
-                id: job.id,
-                url: url,
-              });
-              Notifications.scheduleNotificationAsync({
-                content: {
-                  title: job.item.Name,
-                  body: "Download completed",
-                  data: {
-                    url: "/downloads",
-                  },
-                },
-                trigger: null,
-              });
-            })
-            .error((error: any) => {
-              console.log("TaskManager ~ Download error: ", job.id, error);
-              BackGroundDownloader.completeHandler(job.id);
-              Notifications.scheduleNotificationAsync({
-                content: {
-                  title: job.item.Name,
-                  body: "Download failed",
-                  data: {
-                    url: "/downloads",
-                  },
-                },
-                trigger: null,
-              });
-            });
-        }
-      }
-
-      console.log(`Auto download started: ${new Date(now).toISOString()}`);
-
-      // Be sure to return the successful result type!
-      return BackgroundFetch.BackgroundFetchResult.NewData;
-    } catch (error) {
-      console.error("Background task error:", error);
-      return BackgroundFetch.BackgroundFetchResult.Failed;
-    }
+    // Be sure to return the successful result type!
+    return BackgroundFetch.BackgroundFetchResult.NewData;
   });
 }
 
@@ -474,85 +395,62 @@ function Layout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <JobQueueProvider>
-        <JellyfinProvider>
-          <PlaySettingsProvider>
-            <LogProvider>
-              <WebSocketProvider>
-                <DownloadProvider>
-                  <BottomSheetModalProvider>
-                    <SystemBars style='light' hidden={false} />
-                    <ThemeProvider value={DarkTheme}>
-                      <Stack initialRouteName='(auth)/(tabs)'>
-                        <Stack.Screen
-                          name='(auth)/(tabs)'
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
-                          }}
-                        />
-                        <Stack.Screen
-                          name='(auth)/player'
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
-                          }}
-                        />
-                        <Stack.Screen
-                          name='login'
-                          options={{
-                            headerShown: true,
-                            title: "",
-                            headerTransparent: true,
-                          }}
-                        />
-                        <Stack.Screen name='+not-found' />
-                      </Stack>
-                      <Toaster
-                        duration={4000}
-                        toastOptions={{
-                          style: {
-                            backgroundColor: "#262626",
-                            borderColor: "#363639",
-                            borderWidth: 1,
-                          },
-                          titleStyle: {
-                            color: "white",
-                          },
+      <JellyfinProvider>
+        <PlaySettingsProvider>
+          <LogProvider>
+            <WebSocketProvider>
+              <DownloadProvider>
+                <BottomSheetModalProvider>
+                  <SystemBars style='light' hidden={false} />
+                  <ThemeProvider value={DarkTheme}>
+                    <Stack initialRouteName='(auth)/(tabs)'>
+                      <Stack.Screen
+                        name='(auth)/(tabs)'
+                        options={{
+                          headerShown: false,
+                          title: "",
+                          header: () => null,
                         }}
-                        closeButton
                       />
-                    </ThemeProvider>
-                  </BottomSheetModalProvider>
-                </DownloadProvider>
-              </WebSocketProvider>
-            </LogProvider>
-          </PlaySettingsProvider>
-        </JellyfinProvider>
-      </JobQueueProvider>
+                      <Stack.Screen
+                        name='(auth)/player'
+                        options={{
+                          headerShown: false,
+                          title: "",
+                          header: () => null,
+                        }}
+                      />
+                      <Stack.Screen
+                        name='login'
+                        options={{
+                          headerShown: true,
+                          title: "",
+                          headerTransparent: true,
+                        }}
+                      />
+                      <Stack.Screen name='+not-found' />
+                    </Stack>
+                    <Toaster
+                      duration={4000}
+                      toastOptions={{
+                        style: {
+                          backgroundColor: "#262626",
+                          borderColor: "#363639",
+                          borderWidth: 1,
+                        },
+                        titleStyle: {
+                          color: "white",
+                        },
+                      }}
+                      closeButton
+                    />
+                  </ThemeProvider>
+                </BottomSheetModalProvider>
+              </DownloadProvider>
+            </WebSocketProvider>
+          </LogProvider>
+        </PlaySettingsProvider>
+      </JellyfinProvider>
     </QueryClientProvider>
   );
-}
-
-function saveDownloadedItemInfo(item: BaseItemDto) {
-  try {
-    const downloadedItems = storage.getString("downloadedItems");
-    const items: BaseItemDto[] = downloadedItems
-      ? JSON.parse(downloadedItems)
-      : [];
-
-    const existingItemIndex = items.findIndex((i) => i.Id === item.Id);
-    if (existingItemIndex !== -1) {
-      items[existingItemIndex] = item;
-    } else {
-      items.push(item);
-    }
-
-    storage.set("downloadedItems", JSON.stringify(items));
-  } catch (error) {
-    writeToLog("ERROR", "Failed to save downloaded item information:", error);
-    console.error("Failed to save downloaded item information:", error);
-  }
 }

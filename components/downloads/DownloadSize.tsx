@@ -13,7 +13,8 @@ export const DownloadSize: React.FC<DownloadSizeProps> = ({
   items,
   ...props
 }) => {
-  const { downloadedFiles, getDownloadedItemSize } = useDownload();
+  const { getDownloadedItemSize, getDownloadedItems } = useDownload();
+  const downloadedFiles = getDownloadedItems();
   const [size, setSize] = useState<string | undefined>();
 
   const itemIds = useMemo(() => items.map((i) => i.Id), [items]);

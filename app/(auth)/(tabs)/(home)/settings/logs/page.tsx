@@ -15,6 +15,9 @@ export default function Page() {
   const { logs } = useLog();
   const { t } = useTranslation();
 
+  const orderFilterId = useId();
+  const levelsFilterId = useId();
+
   const defaultLevels: LogLevel[] = ["INFO", "ERROR", "DEBUG", "WARN"];
   const codeBlockStyle = {
     backgroundColor: "#000",
@@ -75,7 +78,7 @@ export default function Page() {
     <>
       <View className='flex flex-row justify-end py-2 px-4 space-x-2'>
         <FilterButton
-          id={orderId}
+          id={orderFilterId}
           queryKey='log'
           queryFn={async () => ["asc", "desc"]}
           set={(values) => setOrder(values[0])}
@@ -85,7 +88,7 @@ export default function Page() {
           showSearch={false}
         />
         <FilterButton
-          id={levelsId}
+          id={levelsFilterId}
           queryKey='log'
           queryFn={async () => defaultLevels}
           set={setLevels}

@@ -69,10 +69,18 @@ const page: React.FC = () => {
         seriesId: item?.Id!,
         userId: user?.Id!,
         enableUserData: true,
-        fields: ["MediaSources", "MediaStreams", "Overview"],
+        // Note: Including trick play is necessary to enable trick play downloads
+        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
       });
       return res?.data.Items || [];
     },
+    select: (data) =>
+      // This needs to be sorted by parent index number and then index number, that way we can download the episodes in the correct order.
+      [...(data || [])].sort(
+        (a, b) =>
+          (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
+          (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
+      ),
     staleTime: 60,
     enabled: !!api && !!user?.Id && !!item?.Id,
   });
@@ -136,7 +144,7 @@ const page: React.FC = () => {
               resizeMode: "contain",
             }}
           />
-        ) : null
+        ) : undefined
       }
     >
       <View className='flex flex-col pt-4'>
