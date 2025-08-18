@@ -92,7 +92,9 @@ export interface VlcPlayerViewRef {
   nextChapter: () => Promise<void>;
   previousChapter: () => Promise<void>;
   getChapters: () => Promise<ChapterInfo[] | null>;
-  setVideoCropGeometry: (geometry: string | null) => Promise<void>;
+  setVideoCropGeometry: (cropGeometry: string | null) => Promise<void>;
   getVideoCropGeometry: () => Promise<string | null>;
   setSubtitleURL: (url: string) => Promise<void>;
+  setVideoAspectRatio: (aspectRatio: string | null) => Promise<void>;
+  setVideoScaleFactor: (scaleFactor: number) => Promise<void>;
 }

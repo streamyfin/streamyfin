@@ -86,6 +86,12 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
       setSubtitleURL: async (url: string) => {
         await nativeRef.current?.setSubtitleURL(url);
       },
+      setVideoAspectRatio: async (aspectRatio: string | null) => {
+        await nativeRef.current?.setVideoAspectRatio(aspectRatio);
+      },
+      setVideoScaleFactor: async (scaleFactor: number) => {
+        await nativeRef.current?.setVideoScaleFactor(scaleFactor);
+      },
     }));
 
     const {

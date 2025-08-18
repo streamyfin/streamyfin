@@ -335,6 +335,16 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         mediaPlayer?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitleURL), true)
     }
 
+    fun setVideoAspectRatio(aspectRatio: String?) {
+        log.debug("Setting video aspect ratio: $aspectRatio")
+        mediaPlayer?.aspectRatio = aspectRatio
+    }
+
+    fun setVideoScaleFactor(scaleFactor: Float) {
+        log.debug("Setting video scale factor: $scaleFactor")
+        mediaPlayer?.scale = scaleFactor
+    }
+
     private fun setInitialExternalSubtitles() {
         externalSubtitles?.let { subtitles ->
             for (subtitle in subtitles) {
