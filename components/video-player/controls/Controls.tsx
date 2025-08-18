@@ -152,6 +152,9 @@ export const Controls: FC<Props> = ({
   // Animated opacity for smooth transitions
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);
 
+  // Animated scale for slider
+  const sliderScale = useSharedValue(1);
+
   const wasPlayingRef = useRef(false);
   const lastProgressRef = useRef<number>(0);
 
@@ -175,6 +178,13 @@ export const Controls: FC<Props> = ({
   const animatedOverlayStyle = useAnimatedStyle(() => {
     return {
       opacity: controlsOpacity.value * 0.75,
+    };
+  });
+
+  // Animated style for slider scale
+  const animatedSliderStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scaleY: sliderScale.value }],
     };
   });
 
@@ -524,11 +534,35 @@ export const Controls: FC<Props> = ({
     isSeeking.value = true;
   }, [showControls, isPlaying, pause]);
 
+  const handleTouchStart = useCallback(() => {
+    if (!showControls) {
+      return;
+    }
+
+    // Scale up the slider immediately on touch
+    sliderScale.value = withTiming(1.4, { duration: 300 });
+  }, [showControls]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!showControls) {
+      return;
+    }
+
+    // Scale down the slider on touch end (only if not sliding, to avoid conflict with onSlidingComplete)
+    if (!isSliding) {
+      sliderScale.value = withTiming(1.0, { duration: 300 });
+    }
+  }, [showControls, isSliding]);
+
   const handleSliderComplete = useCallback(
     async (value: number) => {
       isSeeking.value = false;
       progress.value = value;
       setIsSliding(false);
+
+      // Scale down the slider
+      sliderScale.value = withTiming(1.0, { duration: 200 });
+
       seek(Math.max(0, Math.floor(isVlc ? value : ticksToSeconds(value))));
       if (wasPlayingRef.current) {
         play();
@@ -950,7 +984,9 @@ export const Controls: FC<Props> = ({
                 position: "absolute",
                 right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
                 left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-                bottom: settings?.safeAreaInControlsEnabled ? insets.bottom : 0,
+                bottom: settings?.safeAreaInControlsEnabled
+                  ? Math.max(insets.bottom - 17, 0)
+                  : 0,
               },
               animatedControlsStyle,
             ]}
@@ -1019,32 +1055,45 @@ export const Controls: FC<Props> = ({
               pointerEvents={showControls ? "box-none" : "none"}
             >
               <View className={"flex flex-col w-full shrink"}>
-                <Slider
-                  theme={{
-                    maximumTrackTintColor: "rgba(255,255,255,0.2)",
-                    minimumTrackTintColor: "#fff",
-                    cacheTrackTintColor: "rgba(255,255,255,0.3)",
-                    bubbleBackgroundColor: "#fff",
-                    bubbleTextColor: "#666",
-                    heartbeatColor: "#999",
+                <View
+                  style={{
+                    height: 10,
+                    justifyContent: "center",
+                    alignItems: "stretch",
                   }}
-                  renderThumb={() => null}
-                  cache={cacheProgress}
-                  onSlidingStart={handleSliderStart}
-                  onSlidingComplete={handleSliderComplete}
-                  onValueChange={handleSliderChange}
-                  containerStyle={{
-                    borderRadius: 100,
-                  }}
-                  renderBubble={() =>
-                    (isSliding || showRemoteBubble) && memoizedRenderBubble()
-                  }
-                  sliderHeight={10}
-                  thumbWidth={0}
-                  progress={effectiveProgress}
-                  minimumValue={min}
-                  maximumValue={max}
-                />
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  <Animated.View style={animatedSliderStyle}>
+                    <Slider
+                      theme={{
+                        maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                        minimumTrackTintColor: "#fff",
+                        cacheTrackTintColor: "rgba(255,255,255,0.3)",
+                        bubbleBackgroundColor: "#fff",
+                        bubbleTextColor: "#666",
+                        heartbeatColor: "#999",
+                      }}
+                      renderThumb={() => null}
+                      cache={cacheProgress}
+                      onSlidingStart={handleSliderStart}
+                      onSlidingComplete={handleSliderComplete}
+                      onValueChange={handleSliderChange}
+                      containerStyle={{
+                        borderRadius: 100,
+                      }}
+                      renderBubble={() =>
+                        (isSliding || showRemoteBubble) &&
+                        memoizedRenderBubble()
+                      }
+                      sliderHeight={10}
+                      thumbWidth={0}
+                      progress={effectiveProgress}
+                      minimumValue={min}
+                      maximumValue={max}
+                    />
+                  </Animated.View>
+                </View>
                 <View className='flex flex-row items-center justify-between mt-2'>
                   <Text className='text-[12px] text-neutral-400'>
                     {formatTimeString(currentTime, isVlc ? "ms" : "s")}
@@ -1054,7 +1103,7 @@ export const Controls: FC<Props> = ({
                       -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
                     </Text>
                     <Text className='text-[10px] text-neutral-500 opacity-70'>
-                      {(() => {
+                      ends at {(() => {
                         const now = new Date();
                         const remainingMs = isVlc
                           ? remainingTime
