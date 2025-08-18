@@ -82,6 +82,17 @@ export const HomeIndex = () => {
   const scrollViewRef = useRef<ScrollView>(null);
 
   const { downloadedFiles, cleanCacheDirectory } = useDownload();
+  const prevIsConnected = useRef<boolean | null>(false);
+  const invalidateCache = useInvalidatePlaybackProgressCache();
+  useEffect(() => {
+    // Only invalidate cache when transitioning from offline to online
+    if (isConnected && !prevIsConnected.current) {
+      invalidateCache();
+    }
+    // Update the ref to the current state for the next render
+    prevIsConnected.current = isConnected;
+  }, [isConnected, invalidateCache]);
+
   useEffect(() => {
     if (Platform.isTV) {
       navigation.setOptions({
@@ -144,10 +155,6 @@ export const HomeIndex = () => {
       setIsConnected(state.isConnected);
     });
 
-    // cleanCacheDirectory().catch((e) =>
-    //   console.error("Something went wrong cleaning cache directory")
-    // );
-
     return () => {
       unsubscribe();
     };
@@ -187,8 +194,6 @@ export const HomeIndex = () => {
       ) || []
     );
   }, [userViews]);
-
-  const invalidateCache = useInvalidatePlaybackProgressCache();
 
   const refetch = async () => {
     setLoading(true);

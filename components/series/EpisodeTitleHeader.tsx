@@ -19,7 +19,7 @@ export const EpisodeTitleHeader: React.FC<Props> = ({ item, ...props }) => {
         <TouchableOpacity
           onPress={() => {
             router.push(
-              // @ts-ignore
+              // @ts-expect-error
               `/(auth)/series/${item.SeriesId}?seasonIndex=${item?.ParentIndexNumber}`,
             );
           }}

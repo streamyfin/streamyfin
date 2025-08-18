@@ -42,27 +42,9 @@ jobs:
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-develop
-            ${{ runner.os }}-bun-develop
-
-      - name: 💾 Cache node_modules
-        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-modules-latest-develop
-            ${{ runner.os }}-${{ runner.arch }}-modules-develop
-            ${{ runner.os }}-modules-develop
-
-      - name: 💾 Cache Expo CLI
-        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
-        with:
-          path: ~/.expo
-          key: ${{ runner.os }}-expo-cli-develop
-          restore-keys: ${{ runner.os }}-expo-cli-develop
+            ${{ runner.os }}-bun-cache
 
       - name: 📦 Install dependencies and reload submodules
         run: |
@@ -76,19 +58,20 @@ jobs:
           else
             bun run prebuild
           fi
-      
-      - name: 💾 Cache CocoaPods
-        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
-        with:
-          path: ios/Pods
-          key: ${{ runner.os }}-pods-develop-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: ${{ runner.os }}-pods-develop
-      
+
       - name: 🏗️ Setup EAS
         uses: expo/expo-github-action@main
         with:
-          eas-version: 16.17.4
+          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: ⚙️ Ensure iOS/tvOS SDKs installed
+        run: |
+          if [ "${{ matrix.target }}" = "tv" ]; then
+            xcodebuild -downloadPlatform tvOS
+          else
+            xcodebuild -downloadPlatform iOS
+          fi
 
       - name: 🚀 Build iOS app
         env:

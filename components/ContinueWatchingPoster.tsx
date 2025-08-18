@@ -6,6 +6,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { View } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { ProgressBar } from "./common/ProgressBar";
 import { WatchedIndicator } from "./WatchedIndicator";
 
 type ContinueWatchingPosterProps = {
@@ -62,18 +63,6 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
     return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
   }, [item]);
 
-  const progress = useMemo(() => {
-    if (item.Type === "Program") {
-      const startDate = new Date(item.StartDate || "");
-      const endDate = new Date(item.EndDate || "");
-      const now = new Date();
-      const total = endDate.getTime() - startDate.getTime();
-      const elapsed = now.getTime() - startDate.getTime();
-      return (elapsed / total) * 100;
-    }
-    return item.UserData?.PlayedPercentage || 0;
-  }, [item]);
-
   if (!url)
     return <View className='aspect-video border border-neutral-800 w-44' />;
 
@@ -101,22 +90,8 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
           </View>
         )}
       </View>
-      {!progress && <WatchedIndicator item={item} />}
-      {progress > 0 && (
-        <>
-          <View
-            className={
-              "absolute w-100 bottom-0 left-0 h-1 bg-neutral-700 opacity-80 w-full"
-            }
-          />
-          <View
-            style={{
-              width: `${progress}%`,
-            }}
-            className={"absolute bottom-0 left-0 h-1 bg-purple-600 w-full"}
-          />
-        </>
-      )}
+      {!item.UserData?.Played && <WatchedIndicator item={item} />}
+      <ProgressBar item={item} />
     </View>
   );
 };

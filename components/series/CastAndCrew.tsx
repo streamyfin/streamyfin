@@ -55,7 +55,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
           <TouchableOpacity
             onPress={() => {
               const url = itemRouter(i, from);
-              // @ts-ignore
+              // @ts-expect-error
               router.push(url);
             }}
             className='flex flex-col w-28'

@@ -49,13 +49,13 @@ function withRNBackgroundDownloader(config) {
 
     // Expo 53's xcode‑js doesn't expose pbxTargets().
     // Setting the property once at the project level is sufficient.
-    ["Debug", "Release"].forEach((cfg) =>
+    ["Debug", "Release"].forEach((cfg) => {
       project.updateBuildProperty(
         "SWIFT_OBJC_BRIDGING_HEADER",
         "Streamyfin/Streamyfin-Bridging-Header.h",
         cfg,
-      ),
-    );
+      );
+    });
 
     return mod;
   });

@@ -20,8 +20,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   selected,
   ...props
 }) => {
-  const isTv = Platform.isTV;
-
+  const { t } = useTranslation();
   const subtitleStreams = useMemo(() => {
     return source?.MediaStreams?.filter((x) => x.Type === "Subtitle");
   }, [source]);
@@ -31,10 +30,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
     [subtitleStreams, selected],
   );
 
-  const { t } = useTranslation();
-
-  if (isTv) return null;
-  if (subtitleStreams?.length === 0) return null;
+  if (Platform.isTV || subtitleStreams?.length === 0) return null;
 
   return (
     <View

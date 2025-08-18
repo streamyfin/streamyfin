@@ -1,31 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useCallback } from "react";
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { writeToLog } from "@/utils/log";
-
-export const getDownloadedFileUrl = async (itemId: string): Promise<string> => {
-  const directory = FileSystem.documentDirectory;
-
-  if (!directory) {
-    throw new Error("Document directory is not available");
-  }
-
-  if (!itemId) {
-    throw new Error("Item ID is not available");
-  }
-
-  const files = await FileSystem.readDirectoryAsync(directory);
-  const path = itemId!;
-  const matchingFile = files.find((file) => file.startsWith(path));
-
-  if (!matchingFile) {
-    throw new Error(`No file found for item ${path}`);
-  }
-
-  return `${directory}${matchingFile}`;
-};
 
 export const useDownloadedFileOpener = () => {
   const router = useRouter();
@@ -33,9 +10,19 @@ export const useDownloadedFileOpener = () => {
 
   const openFile = useCallback(
     async (item: BaseItemDto) => {
+      if (!item.Id) {
+        writeToLog("ERROR", "Attempted to open a file without an ID.");
+        console.error("Attempted to open a file without an ID.");
+        return;
+      }
+      const queryParams = new URLSearchParams({
+        itemId: item.Id,
+        offline: "true",
+        playbackPosition:
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+      });
       try {
-        // @ts-expect-error
-        router.push(`/player/direct-player?offline=true&itemId=${item.Id}`);
+        router.push(`/player/direct-player?${queryParams.toString()}`);
       } catch (error) {
         writeToLog("ERROR", "Error opening file", error);
         console.error("Error opening file:", error);

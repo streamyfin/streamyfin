@@ -1,14 +1,14 @@
 import ExpoModulesCore
 
-public class VlcPlayer3Module: Module {
+public class VlcPlayer4Module: Module {
     public func definition() -> ModuleDefinition {
-        Name("VlcPlayer3")
-        View(VlcPlayer3View.self) {
-            Prop("source") { (view: VlcPlayer3View, source: [String: Any]) in
+        Name("VlcPlayer4")
+        View(VlcPlayer4View.self) {
+            Prop("source") { (view: VlcPlayer4View, source: [String: Any]) in
                 view.setSource(source)
             }
 
-            Prop("paused") { (view: VlcPlayer3View, paused: Bool) in
+            Prop("paused") { (view: VlcPlayer4View, paused: Bool) in
                 if paused {
                     view.pause()
                 } else {
@@ -26,44 +26,44 @@ public class VlcPlayer3Module: Module {
                 "onPipStarted"
             )
 
-            AsyncFunction("startPictureInPicture") { (view: VlcPlayer3View) in
+            AsyncFunction("startPictureInPicture") { (view: VlcPlayer4View) in
                 view.startPictureInPicture()
             }
 
-            AsyncFunction("play") { (view: VlcPlayer3View) in
+            AsyncFunction("play") { (view: VlcPlayer4View) in
                 view.play()
             }
 
-            AsyncFunction("pause") { (view: VlcPlayer3View) in
+            AsyncFunction("pause") { (view: VlcPlayer4View) in
                 view.pause()
             }
 
-            AsyncFunction("stop") { (view: VlcPlayer3View) in
+            AsyncFunction("stop") { (view: VlcPlayer4View) in
                 view.stop()
             }
 
-            AsyncFunction("seekTo") { (view: VlcPlayer3View, time: Int32) in
+            AsyncFunction("seekTo") { (view: VlcPlayer4View, time: Int32) in
                 view.seekTo(time)
             }
 
-            AsyncFunction("setAudioTrack") { (view: VlcPlayer3View, trackIndex: Int) in
+            AsyncFunction("setAudioTrack") { (view: VlcPlayer4View, trackIndex: Int) in
                 view.setAudioTrack(trackIndex)
             }
 
-            AsyncFunction("getAudioTracks") { (view: VlcPlayer3View) -> [[String: Any]]? in
+            AsyncFunction("getAudioTracks") { (view: VlcPlayer4View) -> [[String: Any]]? in
                 return view.getAudioTracks()
             }
 
-            AsyncFunction("setSubtitleTrack") { (view: VlcPlayer3View, trackIndex: Int) in
+            AsyncFunction("setSubtitleTrack") { (view: VlcPlayer4View, trackIndex: Int) in
                 view.setSubtitleTrack(trackIndex)
             }
 
-            AsyncFunction("getSubtitleTracks") { (view: VlcPlayer3View) -> [[String: Any]]? in
+            AsyncFunction("getSubtitleTracks") { (view: VlcPlayer4View) -> [[String: Any]]? in
                 return view.getSubtitleTracks()
             }
 
             AsyncFunction("setSubtitleURL") {
-                (view: VlcPlayer3View, url: String, name: String) in
+                (view: VlcPlayer4View, url: String, name: String) in
                 view.setSubtitleURL(url, name: name)
             }
         }

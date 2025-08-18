@@ -19,7 +19,7 @@ const DropdownView = () => {
   ];
   const router = useRouter();
 
-  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition } =
+  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition, offline } =
     useLocalSearchParams<{
       itemId: string;
       audioIndex: string;
@@ -27,7 +27,10 @@ const DropdownView = () => {
       mediaSourceId: string;
       bitrateValue: string;
       playbackPosition: string;
+      offline: string;
     }>();
+
+  const isOffline = offline === "true";
 
   const changeBitrate = useCallback(
     (bitrate: string) => {
@@ -61,32 +64,34 @@ const DropdownView = () => {
         collisionPadding={8}
         sideOffset={8}
       >
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key='qualitytrigger'>
-            Quality
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
-          >
-            {BITRATES?.map((bitrate, idx: number) => (
-              <DropdownMenu.CheckboxItem
-                key={`quality-item-${idx}`}
-                value={bitrateValue === (bitrate.value?.toString() ?? "")}
-                onValueChange={() =>
-                  changeBitrate(bitrate.value?.toString() ?? "")
-                }
-              >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                  {bitrate.key}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.CheckboxItem>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
+        {!isOffline && (
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger key='qualitytrigger'>
+              Quality
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.SubContent
+              alignOffset={-10}
+              avoidCollisions={true}
+              collisionPadding={0}
+              loop={true}
+              sideOffset={10}
+            >
+              {BITRATES?.map((bitrate, idx: number) => (
+                <DropdownMenu.CheckboxItem
+                  key={`quality-item-${idx}`}
+                  value={bitrateValue === (bitrate.value?.toString() ?? "")}
+                  onValueChange={() =>
+                    changeBitrate(bitrate.value?.toString() ?? "")
+                  }
+                >
+                  <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                    {bitrate.key}
+                  </DropdownMenu.ItemTitle>
+                </DropdownMenu.CheckboxItem>
+              ))}
+            </DropdownMenu.SubContent>
+          </DropdownMenu.Sub>
+        )}
         <DropdownMenu.Sub>
           <DropdownMenu.SubTrigger key='subtitle-trigger'>
             Subtitle

@@ -51,18 +51,9 @@ export function getDefaultPlaySettings(
 
   const mediaSource = item.MediaSources?.[0];
 
-  // 2. Get default or preferred audio
-  const defaultAudioIndex = mediaSource?.DefaultAudioStreamIndex;
-  const _preferedAudioIndex = mediaSource?.MediaStreams?.find(
-    (x) => x.Type === "Audio" && x.Language === settings?.defaultAudioLanguage,
-  )?.Index;
-  const _firstAudioIndex = mediaSource?.MediaStreams?.find(
-    (x) => x.Type === "Audio",
-  )?.Index;
-
   // We prefer the previous track over the default track.
   const trackOptions: TrackOptions = {
-    DefaultAudioStreamIndex: defaultAudioIndex ?? -1,
+    DefaultAudioStreamIndex: mediaSource?.DefaultAudioStreamIndex ?? -1,
     DefaultSubtitleStreamIndex: mediaSource?.DefaultSubtitleStreamIndex ?? -1,
   };
 

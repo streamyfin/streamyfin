@@ -20,6 +20,7 @@ interface Props extends ViewProps {
   queryKey: QueryKey;
   queryFn: QueryFunction<BaseItemDto[]>;
   hideIfEmpty?: boolean;
+  isOffline?: boolean;
 }
 
 export const ScrollingCollectionList: React.FC<Props> = ({
@@ -29,6 +30,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   queryFn,
   queryKey,
   hideIfEmpty = false,
+  isOffline = false,
   ...props
 }) => {
   const { data, isLoading } = useQuery({
@@ -90,6 +92,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
+                isOffline={isOffline}
                 className={`mr-2 
                   ${orientation === "horizontal" ? "w-44" : "w-28"}
                 `}

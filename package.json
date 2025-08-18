@@ -81,6 +81,7 @@
     "react-native-ios-context-menu": "^3.1.0",
     "react-native-ios-utilities": "5.1.8",
     "react-native-mmkv": "2.12.2",
+    "react-native-pager-view": "^6.9.1",
     "react-native-reanimated": "~3.16.7",
     "react-native-reanimated-carousel": "4.0.2",
     "react-native-safe-area-context": "5.4.0",
@@ -100,7 +101,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@biomejs/biome": "^2.1.4",
+    "@biomejs/biome": "^2.2.0",
     "@react-native-community/cli": "^20.0.0",
     "@react-native-tvos/config-tv": "^0.1.1",
     "@types/jest": "^29.5.12",
@@ -119,7 +120,8 @@
       "exclude": [
         "react-native",
         "@shopify/flash-list",
-        "react-native-reanimated"
+        "react-native-reanimated",
+        "react-native-pager-view"
       ]
     },
     "doctor": {

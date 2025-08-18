@@ -35,11 +35,11 @@ export const SearchItemWrapper = <T,>({
         showsHorizontalScrollIndicator={false}
         keyExtractor={(_, index) => index.toString()}
         estimatedItemSize={250}
-        /*@ts-ignore */
+        /*@ts-expect-error */
         data={items}
         onEndReachedThreshold={1}
         onEndReached={onEndReached}
-        //@ts-ignore
+        //@ts-expect-error
         renderItem={({ item }) => (item ? renderItem(item) : null)}
       />
     </>
