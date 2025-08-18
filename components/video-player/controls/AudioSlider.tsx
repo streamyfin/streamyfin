@@ -113,7 +113,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
 
 const styles = StyleSheet.create({
   sliderContainer: {
-    width: 150,
+    width: 130,
     display: "flex",
     flexDirection: "row",
     justifyContent: "center",
