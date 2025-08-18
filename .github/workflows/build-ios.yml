@@ -68,11 +68,11 @@ jobs:
       - name: ⚙️ Ensure iOS/tvOS SDKs installed
         run: |
           if [ "${{ matrix.target }}" = "tv" ]; then
-            sudo xcodebuild -downloadPlatform tvOS
+            xcodebuild -downloadPlatform tvOS
           else
-            sudo xcodebuild -downloadPlatform iOS
+            xcodebuild -downloadPlatform iOS
           fi
-   
+
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: ${{ matrix.target == 'tv' && 1 || 0 }}
