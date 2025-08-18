@@ -1,5 +1,3 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { type Settings, useSettings } from "@/utils/atoms/settings";
 import type {
   CultureDto,
   UserConfiguration,
@@ -8,13 +6,9 @@ import type {
 import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import React, {
-  createContext,
-  useContext,
-  type ReactNode,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useEffect } from "react";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { type Settings, useSettings } from "@/utils/atoms/settings";
 
 interface MediaContextType {
   settings: Settings | null;
@@ -51,7 +45,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
             },
           });
           queryClient.invalidateQueries({ queryKey: ["authUser"] });
-        } catch (error) {}
+        } catch (_error) {}
       }
     };
 

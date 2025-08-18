@@ -2,9 +2,11 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import { useTranslation } from "react-i18next";
 import { Text } from "./common/Text";
 
@@ -20,37 +22,31 @@ export const MediaSourceSelector: React.FC<Props> = ({
   selected,
   ...props
 }) => {
-  if (Platform.isTV) return null;
-  const selectedName = useMemo(
-    () =>
-      item.MediaSources?.find((x) => x.Id === selected?.Id)?.MediaStreams?.find(
-        (x) => x.Type === "Video",
-      )?.DisplayTitle || "",
-    [item, selected],
-  );
+  const isTv = Platform.isTV;
 
   const { t } = useTranslation();
 
-  const commonPrefix = useMemo(() => {
-    const mediaSources = item.MediaSources || [];
-    if (!mediaSources.length) return "";
-
-    let commonPrefix = "";
-    for (let i = 0; i < mediaSources[0].Name!.length; i++) {
-      const char = mediaSources[0].Name![i];
-      if (mediaSources.every((source) => source.Name![i] === char)) {
-        commonPrefix += char;
-      } else {
-        commonPrefix = commonPrefix.slice(0, -1);
-        break;
-      }
+  const getDisplayName = useCallback((source: MediaSourceInfo) => {
+    const videoStream = source.MediaStreams?.find((x) => x.Type === "Video");
+    if (videoStream?.DisplayTitle) {
+      return videoStream.DisplayTitle;
     }
-    return commonPrefix;
-  }, [item.MediaSources]);
 
-  const name = (name?: string | null) => {
-    return name?.replace(commonPrefix, "").toLowerCase();
-  };
+    // Fallback to source name
+    if (source.Name) {
+      return source.Name;
+    }
+
+    // Last resort fallback
+    return `Source ${source.Id}`;
+  }, []);
+
+  const selectedName = useMemo(() => {
+    if (!selected) return "";
+    return getDisplayName(selected);
+  }, [selected, getDisplayName]);
+
+  if (isTv) return null;
 
   return (
     <View
@@ -88,7 +84,7 @@ export const MediaSourceSelector: React.FC<Props> = ({
               }}
             >
               <DropdownMenu.ItemTitle>
-                {`${name(source.Name)}`}
+                {getDisplayName(source)}
               </DropdownMenu.ItemTitle>
             </DropdownMenu.Item>
           ))}

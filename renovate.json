@@ -3,18 +3,19 @@
   "description": "Default Renovate preset for Streamyfin repositories",
   "extends": [
     "config:base",
-    ":disableDependencyDashboard",
+    ":dependencyDashboard",
     ":enableVulnerabilityAlertsWithLabel(security)",
     ":semanticCommits",
     ":timezone(Etc/UTC)",
     "docker:enableMajor",
     "group:testNonMajor",
     "group:monorepos",
-    "helpers:pinGitHubActionDigests"
+    "helpers:pinGitHubActionDigests",
+    "customManagers:biomeVersions"
   ],
   "addLabels": ["dependencies"],
   "rebaseWhen": "conflicted",
-  "ignorePaths": ["**/node_modules/**", "**/bower_components/**"],
+  "ignorePaths": ["**/bower_components/**"],
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",

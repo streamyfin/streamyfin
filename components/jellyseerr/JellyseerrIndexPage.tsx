@@ -1,3 +1,13 @@
+import { orderBy, uniqBy } from "lodash";
+import type React from "react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { View, type ViewProps } from "react-native";
+import {
+  useAnimatedReaction,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import Discover from "@/components/jellyseerr/discover/Discover";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
@@ -7,17 +17,6 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { useReactNavigationQuery } from "@/utils/useReactNavigationQuery";
-import { orderBy, uniqBy } from "lodash";
-import type React from "react";
-import { useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { View, type ViewProps } from "react-native";
-import {
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { Text } from "../common/Text";
 import JellyseerrPoster from "../posters/JellyseerrPoster";
 import { LoadingSkeleton } from "../search/LoadingSkeleton";

@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { Platform, TouchableOpacity } from "react-native";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { BITRATES } from "@/components/BitrateSelector";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { BITRATES } from "@/components/BitrateSelector";
 import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
 
@@ -17,13 +19,18 @@ const DropdownView = () => {
   ];
   const router = useRouter();
 
-  const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
-    itemId: string;
-    audioIndex: string;
-    subtitleIndex: string;
-    mediaSourceId: string;
-    bitrateValue: string;
-  }>();
+  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition, offline } =
+    useLocalSearchParams<{
+      itemId: string;
+      audioIndex: string;
+      subtitleIndex: string;
+      mediaSourceId: string;
+      bitrateValue: string;
+      playbackPosition: string;
+      offline: string;
+    }>();
+
+  const isOffline = offline === "true";
 
   const changeBitrate = useCallback(
     (bitrate: string) => {
@@ -33,11 +40,12 @@ const DropdownView = () => {
         subtitleIndex: subtitleIndex.toString() ?? "",
         mediaSourceId: mediaSource?.Id ?? "",
         bitrateValue: bitrate.toString(),
+        playbackPosition: playbackPosition,
       }).toString();
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
     },
-    [item, mediaSource, subtitleIndex, audioIndex],
+    [item, mediaSource, subtitleIndex, audioIndex, playbackPosition],
   );
 
   return (
@@ -56,32 +64,34 @@ const DropdownView = () => {
         collisionPadding={8}
         sideOffset={8}
       >
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key='qualitytrigger'>
-            Quality
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
-          >
-            {BITRATES?.map((bitrate, idx: number) => (
-              <DropdownMenu.CheckboxItem
-                key={`quality-item-${idx}`}
-                value={bitrateValue === (bitrate.value?.toString() ?? "")}
-                onValueChange={() =>
-                  changeBitrate(bitrate.value?.toString() ?? "")
-                }
-              >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                  {bitrate.key}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.CheckboxItem>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
+        {!isOffline && (
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger key='qualitytrigger'>
+              Quality
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.SubContent
+              alignOffset={-10}
+              avoidCollisions={true}
+              collisionPadding={0}
+              loop={true}
+              sideOffset={10}
+            >
+              {BITRATES?.map((bitrate, idx: number) => (
+                <DropdownMenu.CheckboxItem
+                  key={`quality-item-${idx}`}
+                  value={bitrateValue === (bitrate.value?.toString() ?? "")}
+                  onValueChange={() =>
+                    changeBitrate(bitrate.value?.toString() ?? "")
+                  }
+                >
+                  <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
+                    {bitrate.key}
+                  </DropdownMenu.ItemTitle>
+                </DropdownMenu.CheckboxItem>
+              ))}
+            </DropdownMenu.SubContent>
+          </DropdownMenu.Sub>
+        )}
         <DropdownMenu.Sub>
           <DropdownMenu.SubTrigger key='subtitle-trigger'>
             Subtitle

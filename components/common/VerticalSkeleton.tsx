@@ -1,4 +1,3 @@
-import { Text } from "@/components/common/Text";
 import { View, type ViewProps } from "react-native";
 
 interface Props extends ViewProps {

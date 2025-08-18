@@ -1,4 +1,3 @@
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -14,6 +13,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Loader } from "../Loader";
 import { Text } from "./Text";
 
@@ -56,7 +56,7 @@ export function InfiniteHorizontalScroll({
     };
   });
 
-  const { data, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey,
     queryFn,
     getNextPageParam: (lastPage, pages) => {

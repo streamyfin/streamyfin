@@ -1,12 +1,12 @@
-import { useTrickplay } from "@/hooks/useTrickplay";
-import { formatTimeString, msToTicks, ticksToSeconds } from "@/utils/time";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import type React from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Text, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import { type SharedValue, useSharedValue } from "react-native-reanimated";
+import { type SharedValue } from "react-native-reanimated";
+import { useTrickplay } from "@/hooks/useTrickplay";
+import { formatTimeString, msToTicks, ticksToSeconds } from "@/utils/time";
 
 interface SliderScrubberProps {
   cacheProgress: SharedValue<number>;

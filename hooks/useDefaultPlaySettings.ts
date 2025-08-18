@@ -1,10 +1,7 @@
-import { BITRATES, Bitrate } from "@/components/BitrateSelector";
-import type { Settings } from "@/utils/atoms/settings";
-import {
-  type BaseItemDto,
-  MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
+import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
+import { BITRATES } from "@/components/BitrateSelector";
+import type { Settings } from "@/utils/atoms/settings";
 
 // Used only for initial play settings.
 const useDefaultPlaySettings = (
@@ -33,10 +30,10 @@ const useDefaultPlaySettings = (
 
     return {
       defaultAudioIndex:
-        preferedAudioIndex || defaultAudioIndex || firstAudioIndex || undefined,
-      defaultSubtitleIndex: mediaSource?.DefaultSubtitleStreamIndex || -1,
-      defaultMediaSource: mediaSource || undefined,
-      defaultBitrate: bitrate || undefined,
+        preferedAudioIndex ?? defaultAudioIndex ?? firstAudioIndex ?? undefined,
+      defaultSubtitleIndex: mediaSource?.DefaultSubtitleStreamIndex ?? -1,
+      defaultMediaSource: mediaSource ?? undefined,
+      defaultBitrate: bitrate ?? undefined,
     };
   }, [
     item.MediaSources,

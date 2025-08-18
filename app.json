@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.28.0",
+    "version": "0.31.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -29,18 +29,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fredrikburmester.streamyfin",
       "icon": {
-        "dark": "./assets/images/icon-plain.png",
+        "dark": "./assets/images/icon-ios-plain.png",
         "light": "./assets/images/icon-ios-light.png",
         "tinted": "./assets/images/icon-ios-tinted.png"
-      }
+      },
+      "appleTeamId": "MWD5K362T8"
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 56,
+      "versionCode": 59,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-plain.png",
-        "monochromeImage": "./assets/images/icon-mono.png",
-        "backgroundColor": "#464646"
+        "foregroundImage": "./assets/images/icon-android-plain.png",
+        "monochromeImage": "./assets/images/icon-android-themed.png",
+        "backgroundColor": "#2E2E2E"
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
@@ -113,17 +114,15 @@
           }
         }
       ],
-      ["react-native-bottom-tabs"],
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
-      ["./plugins/withRNBackgroundDownloader.js"],
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#2e2e2e",
-          "image": "./assets/images/StreamyFinFinal.png",
+          "image": "./assets/images/icon-ios-plain.png",
           "imageWidth": 100
         }
       ],
@@ -133,7 +132,9 @@
           "icon": "./assets/images/notification.png",
           "color": "#9333EA"
         }
-      ]
+      ],
+      "./plugins/with-runtime-framework-headers.js",
+      "react-native-bottom-tabs"
     ],
     "experiments": {
       "typedRoutes": true

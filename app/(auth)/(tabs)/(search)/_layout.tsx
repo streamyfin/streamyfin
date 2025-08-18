@@ -1,10 +1,10 @@
+import { Stack } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 import {
   commonScreenOptions,
   nestedTabPageScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
-import { Stack } from "expo-router";
-import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
 
 export default function SearchLayout() {
   const { t } = useTranslation();
@@ -13,7 +13,7 @@ export default function SearchLayout() {
       <Stack.Screen
         name='index'
         options={{
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerLargeTitle: true,
           headerTitle: t("tabs.search"),
           headerLargeStyle: {
@@ -31,7 +31,7 @@ export default function SearchLayout() {
         name='collections/[collectionId]'
         options={{
           title: "",
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,

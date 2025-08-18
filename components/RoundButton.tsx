@@ -1,4 +1,3 @@
-import { useHaptic } from "@/hooks/useHaptic";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import type { PropsWithChildren } from "react";
@@ -7,6 +6,7 @@ import {
   TouchableOpacity,
   type TouchableOpacityProps,
 } from "react-native";
+import { useHaptic } from "@/hooks/useHaptic";
 
 interface Props extends TouchableOpacityProps {
   onPress?: () => void;

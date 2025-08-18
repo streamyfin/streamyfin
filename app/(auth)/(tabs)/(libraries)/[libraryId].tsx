@@ -1,34 +1,3 @@
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams, useNavigation } from "expo-router";
-import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo } from "react";
-import { FlatList, View, useWindowDimensions } from "react-native";
-
-import { ItemCardText } from "@/components/ItemCardText";
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { FilterButton } from "@/components/filters/FilterButton";
-import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
-import { ItemPoster } from "@/components/posters/ItemPoster";
-import { useOrientation } from "@/hooks/useOrientation";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  SortByOption,
-  SortOrderOption,
-  genreFilterAtom,
-  getSortByPreference,
-  getSortOrderPreference,
-  sortByAtom,
-  sortByPreferenceAtom,
-  sortOptions,
-  sortOrderAtom,
-  sortOrderOptions,
-  sortOrderPreferenceAtom,
-  tagsFilterAtom,
-  yearFilterAtom,
-} from "@/utils/atoms/filters";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -40,8 +9,38 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useAtom } from "jotai";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { FlatList, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import { FilterButton } from "@/components/filters/FilterButton";
+import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
+import { ItemCardText } from "@/components/ItemCardText";
+import { Loader } from "@/components/Loader";
+import { ItemPoster } from "@/components/posters/ItemPoster";
+import { useOrientation } from "@/hooks/useOrientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  genreFilterAtom,
+  getSortByPreference,
+  getSortOrderPreference,
+  SortByOption,
+  SortOrderOption,
+  sortByAtom,
+  sortByPreferenceAtom,
+  sortOptions,
+  sortOrderAtom,
+  sortOrderOptions,
+  sortOrderPreferenceAtom,
+  tagsFilterAtom,
+  yearFilterAtom,
+} from "@/utils/atoms/filters";
 
 const Page = () => {
   const searchParams = useLocalSearchParams();
@@ -169,7 +168,7 @@ const Page = () => {
         fields: ["PrimaryImageAspectRatio", "SortName"],
         genres: selectedGenres,
         tags: selectedTags,
-        years: selectedYears.map((year) => Number.parseInt(year)),
+        years: selectedYears.map((year) => Number.parseInt(year, 10)),
         includeItemTypes: itemType ? [itemType] : undefined,
       });
 
@@ -367,15 +366,7 @@ const Page = () => {
                   className='mr-1'
                   id={libraryId}
                   queryKey='sortBy'
-                  queryFn={async () =>
-                    sortOptions
-                      .filter(
-                        (s) =>
-                          library?.CollectionType !== "movies" ||
-                          s.key !== SortByOption.DateLastContentAdded,
-                      )
-                      .map((s) => s.key)
-                  }
+                  queryFn={async () => sortOptions.map((s) => s.key)}
                   set={setSortBy}
                   values={sortBy}
                   title={t("library.filters.sort_by")}

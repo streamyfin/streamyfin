@@ -1,15 +1,15 @@
-import { Loader } from "@/components/Loader";
-import { Text } from "@/components/common/Text";
-import { ListGroup } from "@/components/list/ListGroup";
-import { ListItem } from "@/components/list/ListItem";
-import DisabledSetting from "@/components/settings/DisabledSetting";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import { getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 import { Switch, View } from "react-native";
+import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
+import { ListGroup } from "@/components/list/ListGroup";
+import { ListItem } from "@/components/list/ListItem";
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
   const [settings, updateSettings, pluginSettings] = useSettings();

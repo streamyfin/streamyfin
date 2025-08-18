@@ -1,3 +1,8 @@
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
 import {
@@ -6,11 +11,6 @@ import {
 } from "@/components/series/SeasonDropdown";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
-import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 
 export default function page() {
   const navigation = useNavigation();
@@ -23,12 +23,12 @@ export default function page() {
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>(
     {},
   );
-  const { downloadedFiles, deleteItems } = useDownload();
+  const { getDownloadedItems, deleteItems } = useDownload();
 
   const series = useMemo(() => {
     try {
       return (
-        downloadedFiles
+        getDownloadedItems()
           ?.filter((f) => f.item.SeriesId === seriesId)
           ?.sort(
             (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
@@ -37,7 +37,37 @@ export default function page() {
     } catch {
       return [];
     }
-  }, [downloadedFiles]);
+  }, [getDownloadedItems]);
+
+  // Group episodes by season in a single pass
+  const seasonGroups = useMemo(() => {
+    const groups: Record<number, BaseItemDto[]> = {};
+
+    series.forEach((episode) => {
+      const seasonNumber = episode.item.ParentIndexNumber;
+      if (seasonNumber !== undefined && seasonNumber !== null) {
+        if (!groups[seasonNumber]) {
+          groups[seasonNumber] = [];
+        }
+        groups[seasonNumber].push(episode.item);
+      }
+    });
+
+    // Sort episodes within each season
+    Object.values(groups).forEach((episodes) => {
+      episodes.sort((a, b) => (a.IndexNumber || 0) - (b.IndexNumber || 0));
+    });
+
+    return groups;
+  }, [series]);
+
+  // Get unique seasons (just the season numbers, sorted)
+  const uniqueSeasons = useMemo(() => {
+    const seasonNumbers = Object.keys(seasonGroups)
+      .map(Number)
+      .sort((a, b) => a - b);
+    return seasonNumbers.map((seasonNum) => seasonGroups[seasonNum][0]); // First episode of each season
+  }, [seasonGroups]);
 
   const seasonIndex =
     seasonIndexState[series?.[0]?.item?.ParentId ?? ""] ||
@@ -45,20 +75,8 @@ export default function page() {
     "";
 
   const groupBySeason = useMemo<BaseItemDto[]>(() => {
-    const seasons: Record<string, BaseItemDto[]> = {};
-
-    series?.forEach((episode) => {
-      if (!seasons[episode.item.ParentIndexNumber!]) {
-        seasons[episode.item.ParentIndexNumber!] = [];
-      }
-
-      seasons[episode.item.ParentIndexNumber!].push(episode.item);
-    });
-    return (
-      seasons[seasonIndex]?.sort((a, b) => a.IndexNumber! - b.IndexNumber!) ??
-      []
-    );
-  }, [series, seasonIndex]);
+    return seasonGroups[Number(seasonIndex)] ?? [];
+  }, [seasonGroups, seasonIndex]);
 
   const initialSeasonIndex = useMemo(
     () =>
@@ -102,7 +120,7 @@ export default function page() {
         <View className='flex flex-row items-center justify-start my-2 px-4'>
           <SeasonDropdown
             item={series[0].item}
-            seasons={series.map((s) => s.item)}
+            seasons={uniqueSeasons}
             state={seasonIndexState}
             initialSeasonIndex={initialSeasonIndex!}
             onSelect={(season) => {

@@ -1,7 +1,7 @@
-import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
 
 interface Props {
   mediaStatus?: MediaStatus;
