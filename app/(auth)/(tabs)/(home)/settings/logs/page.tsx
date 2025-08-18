@@ -31,8 +31,8 @@ export default function Page() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [levels, setLevels] = useState<LogLevel[]>(defaultLevels);
 
-  const orderId = useId();
-  const levelsId = useId();
+  const _orderId = useId();
+  const _levelsId = useId();
 
   const filteredLogs = useMemo(
     () =>
