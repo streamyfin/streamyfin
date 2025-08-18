@@ -1049,9 +1049,27 @@ export const Controls: FC<Props> = ({
                   <Text className='text-[12px] text-neutral-400'>
                     {formatTimeString(currentTime, isVlc ? "ms" : "s")}
                   </Text>
-                  <Text className='text-[12px] text-neutral-400'>
-                    -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
-                  </Text>
+                  <View className='flex flex-col items-end'>
+                    <Text className='text-[12px] text-neutral-400'>
+                      -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
+                    </Text>
+                    <Text className='text-[10px] text-neutral-500 opacity-70'>
+                      {(() => {
+                        const now = new Date();
+                        const remainingMs = isVlc
+                          ? remainingTime
+                          : remainingTime * 1000;
+                        const finishTime = new Date(
+                          now.getTime() + remainingMs,
+                        );
+                        return finishTime.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        });
+                      })()}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
