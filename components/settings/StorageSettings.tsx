@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import * as FileSystem from "expo-file-system";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
@@ -21,10 +20,12 @@ export const StorageSettings = () => {
     queryFn: async () => {
       const app = await appSizeUsage();
 
-      const remaining = await FileSystem.getFreeDiskStorageAsync();
-      const total = await FileSystem.getTotalDiskCapacityAsync();
-
-      return { app, remaining, total, used: (total - remaining) / total };
+      return {
+        appSize: app.appSize,
+        total: app.total,
+        remaining: app.remaining,
+        used: (app.total - app.remaining) / app.total,
+      };
     },
   });
 
@@ -39,6 +40,7 @@ export const StorageSettings = () => {
   };
 
   const calculatePercentage = (value: number, total: number) => {
+    console.log("usage", value, total);
     return ((value / total) * 100).toFixed(2);
   };
 
@@ -61,13 +63,13 @@ export const StorageSettings = () => {
             <View className='flex flex-row'>
               <View
                 style={{
-                  width: `${(size.app / size.total) * 100}%`,
+                  width: `${(size.appSize / size.total) * 100}%`,
                   backgroundColor: Colors.primaryRGB,
                 }}
               />
               <View
                 style={{
-                  width: `${((size.total - size.remaining - size.app) / size.total) * 100}%`,
+                  width: `${((size.total - size.remaining - size.appSize) / size.total) * 100}%`,
                   backgroundColor: Colors.primaryLightRGB,
                 }}
               />
@@ -81,7 +83,7 @@ export const StorageSettings = () => {
                 <View className='w-3 h-3 rounded-full bg-purple-600 mr-1' />
                 <Text className='text-white text-xs'>
                   {t("home.settings.storage.app_usage", {
-                    usedSpace: calculatePercentage(size.app, size.total),
+                    usedSpace: calculatePercentage(size.appSize, size.total),
                   })}
                 </Text>
               </View>
@@ -90,7 +92,7 @@ export const StorageSettings = () => {
                 <Text className='text-white text-xs'>
                   {t("home.settings.storage.device_usage", {
                     availableSpace: calculatePercentage(
-                      size.total - size.remaining - size.app,
+                      size.total - size.remaining - size.appSize,
                       size.total,
                     ),
                   })}
@@ -100,13 +102,15 @@ export const StorageSettings = () => {
           )}
         </View>
       </View>
-      <ListGroup>
-        <ListItem
-          textColor='red'
-          onPress={onDeleteClicked}
-          title={t("home.settings.storage.delete_all_downloaded_files")}
-        />
-      </ListGroup>
+      {!Platform.isTV && (
+        <ListGroup>
+          <ListItem
+            textColor='red'
+            onPress={onDeleteClicked}
+            title={t("home.settings.storage.delete_all_downloaded_files")}
+          />
+        </ListGroup>
+      )}
     </View>
   );
 };

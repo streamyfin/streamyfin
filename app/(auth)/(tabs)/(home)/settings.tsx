@@ -2,7 +2,7 @@ import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
@@ -73,13 +73,13 @@ export default function settings() {
 
         <OtherSettings />
 
-        <DownloadSettings />
+        {!Platform.isTV && <DownloadSettings />}
 
         <PluginSettings />
 
         <AppLanguageSelector />
 
-        <ChromecastSettings />
+        {!Platform.isTV && <ChromecastSettings />}
 
         <ListGroup title={"Intro"}>
           <ListItem
@@ -112,7 +112,7 @@ export default function settings() {
           </ListGroup>
         </View>
 
-        <StorageSettings />
+        {!Platform.isTV && <StorageSettings />}
       </View>
     </ScrollView>
   );
