@@ -181,6 +181,12 @@ Thanks to the following contributors for their significant contributions:
         <br /><sub><b>@topiga</b></sub>
       </a>
     </td>
+    <td align="center">
+      <a href="https://github.com/lancechant">
+        <img src="https://github.com/lancechant.png?size=55" width="55" style="border-radius: 50%;" />
+        <br /><sub><b>@lancechant</b></sub>
+      </a>
+    </td>
   </tr>
   <tr>
     <td align="center">
@@ -211,6 +217,12 @@ Thanks to the following contributors for their significant contributions:
       <a href="https://github.com/whoopsi-daisy">
         <img src="https://github.com/whoopsi-daisy.png?size=55" width="55" style="border-radius: 50%;" />
         <br /><sub><b>@whoopsi-daisy</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Gauvino">
+        <img src="https://github.com/Gauvino.png?size=55" width="55" style="border-radius: 50%;" />
+        <br /><sub><b>@Gauvino</b></sub>
       </a>
     </td>
   </tr>
