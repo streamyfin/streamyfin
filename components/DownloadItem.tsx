@@ -106,20 +106,17 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   // Initialize selectedOptions with default values
   useEffect(() => {
-    if (itemsNotDownloaded.length === 1) {
-      setSelectedOptions(() => ({
-        bitrate: defaultBitrate,
-        mediaSource: defaultMediaSource,
-        subtitleIndex: defaultSubtitleIndex ?? -1,
-        audioIndex: defaultAudioIndex,
-      }));
-    }
+    setSelectedOptions(() => ({
+      bitrate: defaultBitrate,
+      mediaSource: defaultMediaSource,
+      subtitleIndex: defaultSubtitleIndex ?? -1,
+      audioIndex: defaultAudioIndex,
+    }));
   }, [
     defaultAudioIndex,
     defaultBitrate,
     defaultSubtitleIndex,
     defaultMediaSource,
-    itemsNotDownloaded.length,
   ]);
 
   const itemsToDownload = useMemo(() => {
