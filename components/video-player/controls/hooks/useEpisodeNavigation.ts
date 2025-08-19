@@ -70,8 +70,6 @@ export const useEpisodeNavigation = ({
           item.UserData?.PlaybackPositionTicks?.toString() ?? "",
       }).toString();
 
-      console.log("queryParams", queryParams);
-
       // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
     },
