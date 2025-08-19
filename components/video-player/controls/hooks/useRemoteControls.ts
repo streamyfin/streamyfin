@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useEffect, useRef, useState } from "react";
 import { useTVEventHandler } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
@@ -11,7 +12,7 @@ interface UseRemoteControlsProps {
   isVlc: boolean;
   showControls: boolean;
   isPlaying: boolean;
-  item: any;
+  item: BaseItemDto;
   seek: (ticks: number) => void;
   play: () => void;
   togglePlay: () => void;
