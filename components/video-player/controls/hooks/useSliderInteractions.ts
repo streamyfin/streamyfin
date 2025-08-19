@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { debounce } from "lodash";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -14,7 +15,7 @@ interface UseSliderInteractionsProps {
   isPlaying: boolean;
   isVlc: boolean;
   showControls: boolean;
-  item: any;
+  item: BaseItemDto;
   seek: (ticks: number) => void;
   play: () => void;
   pause: () => void;
