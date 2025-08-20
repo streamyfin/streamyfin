@@ -117,7 +117,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           style={{
             flexDirection: "column",
             alignSelf: "flex-end",
-            opacity: showControls ? 1 : 0,
           }}
           pointerEvents={showControls ? "box-none" : "none"}
         >
@@ -164,9 +163,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
       </View>
       <View
         className={"flex flex-col-reverse rounded-lg items-center my-2"}
-        style={{
-          opacity: showControls ? 1 : 0,
-        }}
         pointerEvents={showControls ? "box-none" : "none"}
       >
         <View className={"flex flex-col w-full shrink"}>

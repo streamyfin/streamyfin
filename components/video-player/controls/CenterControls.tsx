@@ -55,7 +55,6 @@ export const CenterControls: FC<CenterControlsProps> = ({
           transform: [{ rotate: "270deg" }],
           left: 0,
           bottom: 30,
-          opacity: showControls ? 1 : 0,
         }}
       >
         <BrightnessSlider />
@@ -68,7 +67,6 @@ export const CenterControls: FC<CenterControlsProps> = ({
               position: "relative",
               justifyContent: "center",
               alignItems: "center",
-              opacity: showControls ? 1 : 0,
             }}
           >
             <Ionicons
@@ -101,9 +99,6 @@ export const CenterControls: FC<CenterControlsProps> = ({
               name={isPlaying ? "pause" : "play"}
               size={ICON_SIZES.CENTER}
               color='white'
-              style={{
-                opacity: showControls ? 1 : 0,
-              }}
             />
           ) : (
             <Loader size={"large"} />
@@ -118,7 +113,6 @@ export const CenterControls: FC<CenterControlsProps> = ({
               position: "relative",
               justifyContent: "center",
               alignItems: "center",
-              opacity: showControls ? 1 : 0,
             }}
           >
             <Ionicons
