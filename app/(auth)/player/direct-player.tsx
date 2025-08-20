@@ -578,50 +578,56 @@ export default function page() {
   }, []);
 
   // Memoize video ref functions to prevent unnecessary re-renders
-  const startPictureInPicture = useMemo(
-    () => videoRef.current?.startPictureInPicture,
-    [isVideoLoaded],
+  const startPictureInPicture = useCallback(async () => {
+    return videoRef.current?.startPictureInPicture?.();
+  }, []);
+  const play = useCallback(() => {
+    videoRef.current?.play?.();
+  }, []);
+
+  const pause = useCallback(() => {
+    videoRef.current?.pause?.();
+  }, []);
+
+  const seek = useCallback((position: number) => {
+    videoRef.current?.seekTo?.(position);
+  }, []);
+  const getAudioTracks = useCallback(async () => {
+    return videoRef.current?.getAudioTracks?.() || null;
+  }, []);
+
+  const getSubtitleTracks = useCallback(async () => {
+    return videoRef.current?.getSubtitleTracks?.() || null;
+  }, []);
+
+  const setSubtitleTrack = useCallback((index: number) => {
+    videoRef.current?.setSubtitleTrack?.(index);
+  }, []);
+
+  const setSubtitleURL = useCallback((url: string, _customName?: string) => {
+    // Note: VlcPlayer type only expects url parameter
+    videoRef.current?.setSubtitleURL?.(url);
+  }, []);
+
+  const setAudioTrack = useCallback((index: number) => {
+    videoRef.current?.setAudioTrack?.(index);
+  }, []);
+
+  const setVideoAspectRatio = useCallback(
+    async (aspectRatio: string | null) => {
+      return (
+        videoRef.current?.setVideoAspectRatio?.(aspectRatio) ||
+        Promise.resolve()
+      );
+    },
+    [],
   );
-  const play = useMemo(
-    () => videoRef.current?.play || (() => {}),
-    [isVideoLoaded],
-  );
-  const pause = useMemo(
-    () => videoRef.current?.pause || (() => {}),
-    [isVideoLoaded],
-  );
-  const seek = useMemo(
-    () => videoRef.current?.seekTo || (() => {}),
-    [isVideoLoaded],
-  );
-  const getAudioTracks = useMemo(
-    () => videoRef.current?.getAudioTracks,
-    [isVideoLoaded],
-  );
-  const getSubtitleTracks = useMemo(
-    () => videoRef.current?.getSubtitleTracks,
-    [isVideoLoaded],
-  );
-  const setSubtitleTrack = useMemo(
-    () => videoRef.current?.setSubtitleTrack,
-    [isVideoLoaded],
-  );
-  const setSubtitleURL = useMemo(
-    () => videoRef.current?.setSubtitleURL,
-    [isVideoLoaded],
-  );
-  const setAudioTrack = useMemo(
-    () => videoRef.current?.setAudioTrack,
-    [isVideoLoaded],
-  );
-  const setVideoAspectRatio = useMemo(
-    () => videoRef.current?.setVideoAspectRatio,
-    [isVideoLoaded],
-  );
-  const setVideoScaleFactor = useMemo(
-    () => videoRef.current?.setVideoScaleFactor,
-    [isVideoLoaded],
-  );
+
+  const setVideoScaleFactor = useCallback(async (scaleFactor: number) => {
+    return (
+      videoRef.current?.setVideoScaleFactor?.(scaleFactor) || Promise.resolve()
+    );
+  }, []);
 
   console.log("Debug: component render"); // Uncomment to debug re-renders
 
