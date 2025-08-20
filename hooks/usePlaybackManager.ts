@@ -70,7 +70,7 @@ export const usePlaybackManager = ({
     useDownload();
 
   /** Whether the device is online. actually it's connected to the internet. */
-  const isOnline = netInfo.isConnected;
+  const isOnline = useMemo(() => netInfo.isConnected, [netInfo.isConnected]);
 
   // Adjacent episodes logic
   const { data: adjacentItems } = useQuery({

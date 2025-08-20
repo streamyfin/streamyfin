@@ -15,7 +15,7 @@ import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, View } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
+import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
@@ -98,7 +98,7 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  const [settings] = useSettings();
+  const [_settings] = useSettings();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -280,11 +280,15 @@ export default function page() {
   ]);
 
   const stop = useCallback(() => {
+    // Update URL with final playback position before stopping
+    router.setParams({
+      playbackPosition: msToTicks(progress.get()).toString(),
+    });
     reportPlaybackStopped();
     setIsPlaybackStopped(true);
     videoRef.current?.stop();
     revalidateProgressCache();
-  }, [videoRef, reportPlaybackStopped]);
+  }, [videoRef, reportPlaybackStopped, progress]);
 
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
@@ -293,7 +297,7 @@ export default function page() {
     };
   }, [navigation, stop]);
 
-  const currentPlayStateInfo = () => {
+  const currentPlayStateInfo = useCallback(() => {
     if (!stream) return;
     return {
       itemId: item?.Id!,
@@ -309,7 +313,32 @@ export default function page() {
       repeatMode: RepeatMode.RepeatNone,
       playbackOrder: PlaybackOrder.Default,
     };
-  };
+  }, [
+    stream,
+    item?.Id,
+    audioIndex,
+    subtitleIndex,
+    mediaSourceId,
+    progress,
+    isPlaying,
+    isMuted,
+  ]);
+
+  const lastUrlUpdateTime = useSharedValue(0);
+  const wasJustSeeking = useSharedValue(false);
+  const URL_UPDATE_INTERVAL = 30000; // Update URL every 30 seconds instead of every second
+
+  // Track when seeking ends to update URL immediately
+  useAnimatedReaction(
+    () => isSeeking.get(),
+    (currentSeeking, previousSeeking) => {
+      if (previousSeeking && !currentSeeking) {
+        // Seeking just ended
+        wasJustSeeking.value = true;
+      }
+    },
+    [],
+  );
 
   const onProgress = useCallback(
     async (data: ProgressUpdatePayload) => {
@@ -322,10 +351,20 @@ export default function page() {
 
       progress.set(currentTime);
 
-      // Update the playback position in the URL.
-      router.setParams({
-        playbackPosition: msToTicks(currentTime).toString(),
-      });
+      // Update URL immediately after seeking, or every 30 seconds during normal playback
+      const now = Date.now();
+      const shouldUpdateUrl = wasJustSeeking.get();
+      wasJustSeeking.value = false;
+
+      if (
+        shouldUpdateUrl ||
+        now - lastUrlUpdateTime.get() > URL_UPDATE_INTERVAL
+      ) {
+        router.setParams({
+          playbackPosition: msToTicks(currentTime).toString(),
+        });
+        lastUrlUpdateTime.value = now;
+      }
 
       if (!item?.Id) return;
 
@@ -398,6 +437,7 @@ export default function page() {
       console.error("Error toggling mute:", error);
     }
   }, [previousVolume]);
+
   const volumeDownCb = useCallback(async () => {
     if (Platform.isTV) return;
 
@@ -512,7 +552,7 @@ export default function page() {
   /** Whether the stream we're playing is not transcoding*/
   const notTranscoding = !stream?.mediaSource.TranscodingUrl;
   /** The initial options to pass to the VLC Player */
-  const initOptions = [`--sub-text-scale=${settings.subtitleSize}`];
+  const initOptions = [``];
   if (
     chosenSubtitleTrack &&
     (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
@@ -536,6 +576,54 @@ export default function page() {
     setIsMounted(true);
     return () => setIsMounted(false);
   }, []);
+
+  // Memoize video ref functions to prevent unnecessary re-renders
+  const startPictureInPicture = useMemo(
+    () => videoRef.current?.startPictureInPicture,
+    [isVideoLoaded],
+  );
+  const play = useMemo(
+    () => videoRef.current?.play || (() => {}),
+    [isVideoLoaded],
+  );
+  const pause = useMemo(
+    () => videoRef.current?.pause || (() => {}),
+    [isVideoLoaded],
+  );
+  const seek = useMemo(
+    () => videoRef.current?.seekTo || (() => {}),
+    [isVideoLoaded],
+  );
+  const getAudioTracks = useMemo(
+    () => videoRef.current?.getAudioTracks,
+    [isVideoLoaded],
+  );
+  const getSubtitleTracks = useMemo(
+    () => videoRef.current?.getSubtitleTracks,
+    [isVideoLoaded],
+  );
+  const setSubtitleTrack = useMemo(
+    () => videoRef.current?.setSubtitleTrack,
+    [isVideoLoaded],
+  );
+  const setSubtitleURL = useMemo(
+    () => videoRef.current?.setSubtitleURL,
+    [isVideoLoaded],
+  );
+  const setAudioTrack = useMemo(
+    () => videoRef.current?.setAudioTrack,
+    [isVideoLoaded],
+  );
+  const setVideoAspectRatio = useMemo(
+    () => videoRef.current?.setVideoAspectRatio,
+    [isVideoLoaded],
+  );
+  const setVideoScaleFactor = useMemo(
+    () => videoRef.current?.setVideoScaleFactor,
+    [isVideoLoaded],
+  );
+
+  console.log("Debug: component render"); // Uncomment to debug re-renders
 
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
@@ -567,7 +655,7 @@ export default function page() {
     <View
       style={{
         flex: 1,
-        backgroundColor: "blue",
+        backgroundColor: "black",
         height: "100%",
         width: "100%",
       }}
@@ -624,19 +712,19 @@ export default function page() {
           showControls={showControls}
           setShowControls={setShowControls}
           isVideoLoaded={isVideoLoaded}
-          startPictureInPicture={videoRef.current?.startPictureInPicture}
-          play={videoRef.current?.play || (() => {})}
-          pause={videoRef.current?.pause || (() => {})}
-          seek={videoRef.current?.seekTo || (() => {})}
+          startPictureInPicture={startPictureInPicture}
+          play={play}
+          pause={pause}
+          seek={seek}
           enableTrickplay={true}
-          getAudioTracks={videoRef.current?.getAudioTracks}
-          getSubtitleTracks={videoRef.current?.getSubtitleTracks}
+          getAudioTracks={getAudioTracks}
+          getSubtitleTracks={getSubtitleTracks}
           offline={offline}
-          setSubtitleTrack={videoRef.current?.setSubtitleTrack}
-          setSubtitleURL={videoRef.current?.setSubtitleURL}
-          setAudioTrack={videoRef.current?.setAudioTrack}
-          setVideoAspectRatio={videoRef.current?.setVideoAspectRatio}
-          setVideoScaleFactor={videoRef.current?.setVideoScaleFactor}
+          setSubtitleTrack={setSubtitleTrack}
+          setSubtitleURL={setSubtitleURL}
+          setAudioTrack={setAudioTrack}
+          setVideoAspectRatio={setVideoAspectRatio}
+          setVideoScaleFactor={setVideoScaleFactor}
           aspectRatio={aspectRatio}
           scaleFactor={scaleFactor}
           setAspectRatio={setAspectRatio}

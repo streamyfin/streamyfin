@@ -282,18 +282,31 @@ export const Controls: FC<Props> = ({
 
   const effectiveProgress = useSharedValue(0);
 
-  // Recompute progress whenever remote scrubbing is active
+  // Recompute progress whenever remote scrubbing is active or when progress significantly changes
   useAnimatedReaction(
     () => ({
       isScrubbing: isRemoteScrubbing.value,
       scrub: remoteScrubProgress.value,
       actual: progress.value,
     }),
-    (current) => {
-      effectiveProgress.value =
-        current.isScrubbing && current.scrub != null
-          ? current.scrub
-          : current.actual;
+    (current, previous) => {
+      // Always update if scrubbing state changed or we're currently scrubbing
+      if (
+        current.isScrubbing !== previous?.isScrubbing ||
+        current.isScrubbing
+      ) {
+        effectiveProgress.value =
+          current.isScrubbing && current.scrub != null
+            ? current.scrub
+            : current.actual;
+      } else {
+        // When not scrubbing, only update if progress changed significantly (1 second)
+        const progressUnit = isVlc ? 1000 : 10000000; // 1 second in ms or ticks
+        const progressDiff = Math.abs(current.actual - effectiveProgress.value);
+        if (progressDiff >= progressUnit) {
+          effectiveProgress.value = current.actual;
+        }
+      }
     },
     [],
   );
@@ -450,6 +463,9 @@ export const Controls: FC<Props> = ({
     [goToNextItem],
   );
 
+  const lastCurrentTimeRef = useRef(0);
+  const lastRemainingTimeRef = useRef(0);
+
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
       const current = isVlc ? currentProgress : ticksToSeconds(currentProgress);
@@ -457,8 +473,25 @@ export const Controls: FC<Props> = ({
         ? maxValue - currentProgress
         : ticksToSeconds(maxValue - currentProgress);
 
-      setCurrentTime(current);
-      setRemainingTime(remaining);
+      // Only update state if the displayed time actually changed (avoid sub-second updates)
+      const currentSeconds = Math.floor(current / (isVlc ? 1000 : 1));
+      const remainingSeconds = Math.floor(remaining / (isVlc ? 1000 : 1));
+      const lastCurrentSeconds = Math.floor(
+        lastCurrentTimeRef.current / (isVlc ? 1000 : 1),
+      );
+      const lastRemainingSeconds = Math.floor(
+        lastRemainingTimeRef.current / (isVlc ? 1000 : 1),
+      );
+
+      if (
+        currentSeconds !== lastCurrentSeconds ||
+        remainingSeconds !== lastRemainingSeconds
+      ) {
+        setCurrentTime(current);
+        setRemainingTime(remaining);
+        lastCurrentTimeRef.current = current;
+        lastRemainingTimeRef.current = remaining;
+      }
     },
     [goToNextItem, isVlc],
   );
