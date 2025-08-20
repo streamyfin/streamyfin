@@ -27,7 +27,6 @@ import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybac
 import { useWebSocket } from "@/hooks/useWebsockets";
 import { VlcPlayerView } from "@/modules";
 import type {
-  PipStartedPayload,
   PlaybackStatePayload,
   ProgressUpdatePayload,
   VlcPlayerViewRef,
@@ -60,7 +59,6 @@ export default function page() {
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
-  const [isPipStarted, setIsPipStarted] = useState(false);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -390,11 +388,6 @@ export default function page() {
     ],
   );
 
-  const onPipStarted = useCallback((e: PipStartedPayload) => {
-    const { pipStarted } = e.nativeEvent;
-    setIsPipStarted(pipStarted);
-  }, []);
-
   /** Gets the initial playback position in seconds. */
   const startPosition = useMemo(() => {
     return ticksToSeconds(getInitialPlaybackTicks());
@@ -690,7 +683,6 @@ export default function page() {
           onVideoProgress={onProgress}
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}
-          onPipStarted={onPipStarted}
           onVideoLoadEnd={() => {
             setIsVideoLoaded(true);
           }}
@@ -704,7 +696,7 @@ export default function page() {
           }}
         />
       </View>
-      {!isPipStarted && isMounted === true && item && (
+      {isMounted === true && item && (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}

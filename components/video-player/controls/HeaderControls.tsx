@@ -106,7 +106,6 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
           width: settings?.safeAreaInControlsEnabled
             ? screenWidth - insets.left - insets.right
             : screenWidth,
-          opacity: showControls ? 1 : 0,
         },
       ]}
       pointerEvents={showControls ? "auto" : "none"}
@@ -138,7 +137,6 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
                 name='picture-in-picture'
                 size={ICON_SIZES.HEADER}
                 color='white'
-                style={{ opacity: showControls ? 1 : 0 }}
               />
             </TouchableOpacity>
           )}

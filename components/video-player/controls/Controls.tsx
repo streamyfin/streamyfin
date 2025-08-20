@@ -13,10 +13,13 @@ import {
   useState,
 } from "react";
 import { useWindowDimensions } from "react-native";
-import {
+import Animated, {
+  Easing,
   type SharedValue,
   useAnimatedReaction,
+  useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
@@ -130,9 +133,60 @@ export const Controls: FC<Props> = ({
   const min = useSharedValue(0);
   const max = useSharedValue(item.RunTimeTicks || 0);
 
+  // Animation values for controls
+  const controlsOpacity = useSharedValue(showControls ? 1 : 0);
+  const headerTranslateY = useSharedValue(showControls ? 0 : -50);
+  const bottomTranslateY = useSharedValue(showControls ? 0 : 50);
+
   useEffect(() => {
     prefetchAllTrickplayImages();
   }, [prefetchAllTrickplayImages]);
+
+  // Animate controls visibility
+  useEffect(() => {
+    const animationConfig = {
+      duration: 300,
+      easing: Easing.out(Easing.quad),
+    };
+
+    controlsOpacity.value = withTiming(showControls ? 1 : 0, animationConfig);
+    headerTranslateY.value = withTiming(
+      showControls ? 0 : -10,
+      animationConfig,
+    );
+    bottomTranslateY.value = withTiming(showControls ? 0 : 10, animationConfig);
+  }, [showControls, controlsOpacity, headerTranslateY, bottomTranslateY]);
+
+  // Create animated styles
+  const headerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: controlsOpacity.value,
+    transform: [{ translateY: headerTranslateY.value }],
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  }));
+
+  const centerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: controlsOpacity.value,
+    position: "absolute" as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
+  }));
+
+  const bottomAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: controlsOpacity.value,
+    transform: [{ translateY: bottomTranslateY.value }],
+    position: "absolute" as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  }));
 
   // Initialize progress values
   useEffect(() => {
@@ -435,68 +489,83 @@ export const Controls: FC<Props> = ({
             showControls={showControls}
             onToggleControls={toggleControls}
           />
-          <HeaderControls
-            item={item}
-            showControls={showControls}
-            offline={offline}
-            mediaSource={mediaSource}
-            startPictureInPicture={startPictureInPicture}
-            switchOnEpisodeMode={switchOnEpisodeMode}
-            goToPreviousItem={goToPreviousItem}
-            goToNextItem={goToNextItem}
-            previousItem={previousItem}
-            nextItem={nextItem}
-            getAudioTracks={getAudioTracks}
-            getSubtitleTracks={getSubtitleTracks}
-            setAudioTrack={setAudioTrack}
-            setSubtitleTrack={setSubtitleTrack}
-            setSubtitleURL={setSubtitleURL}
-            aspectRatio={aspectRatio}
-            scaleFactor={scaleFactor}
-            setAspectRatio={setAspectRatio}
-            setScaleFactor={setScaleFactor}
-            setVideoAspectRatio={setVideoAspectRatio}
-            setVideoScaleFactor={setVideoScaleFactor}
-          />
-          <CenterControls
-            showControls={showControls}
-            isPlaying={isPlaying}
-            isBuffering={isBuffering}
-            showAudioSlider={showAudioSlider}
-            setShowAudioSlider={setShowAudioSlider}
-            togglePlay={togglePlay}
-            handleSkipBackward={handleSkipBackward}
-            handleSkipForward={handleSkipForward}
-          />
-          <BottomControls
-            item={item}
-            showControls={showControls}
-            isSliding={isSliding}
-            showRemoteBubble={showRemoteBubble}
-            currentTime={currentTime}
-            remainingTime={remainingTime}
-            isVlc={isVlc}
-            showSkipButton={showSkipButton}
-            showSkipCreditButton={showSkipCreditButton}
-            skipIntro={skipIntro}
-            skipCredit={skipCredit}
-            nextItem={nextItem}
-            handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
-            handleNextEpisodeManual={handleNextEpisodeManual}
-            handleControlsInteraction={handleControlsInteraction}
-            min={min}
-            max={max}
-            effectiveProgress={effectiveProgress}
-            cacheProgress={cacheProgress}
-            handleSliderStart={handleSliderStart}
-            handleSliderComplete={handleSliderComplete}
-            handleSliderChange={handleSliderChange}
-            handleTouchStart={handleTouchStart}
-            handleTouchEnd={handleTouchEnd}
-            trickPlayUrl={trickPlayUrl}
-            trickplayInfo={trickplayInfo}
-            time={isSliding || showRemoteBubble ? time : remoteTime}
-          />
+          <Animated.View
+            style={headerAnimatedStyle}
+            pointerEvents={showControls ? "auto" : "none"}
+          >
+            <HeaderControls
+              item={item}
+              showControls={showControls}
+              offline={offline}
+              mediaSource={mediaSource}
+              startPictureInPicture={startPictureInPicture}
+              switchOnEpisodeMode={switchOnEpisodeMode}
+              goToPreviousItem={goToPreviousItem}
+              goToNextItem={goToNextItem}
+              previousItem={previousItem}
+              nextItem={nextItem}
+              getAudioTracks={getAudioTracks}
+              getSubtitleTracks={getSubtitleTracks}
+              setAudioTrack={setAudioTrack}
+              setSubtitleTrack={setSubtitleTrack}
+              setSubtitleURL={setSubtitleURL}
+              aspectRatio={aspectRatio}
+              scaleFactor={scaleFactor}
+              setAspectRatio={setAspectRatio}
+              setScaleFactor={setScaleFactor}
+              setVideoAspectRatio={setVideoAspectRatio}
+              setVideoScaleFactor={setVideoScaleFactor}
+            />
+          </Animated.View>
+          <Animated.View
+            style={centerAnimatedStyle}
+            pointerEvents={showControls ? "box-none" : "none"}
+          >
+            <CenterControls
+              showControls={showControls}
+              isPlaying={isPlaying}
+              isBuffering={isBuffering}
+              showAudioSlider={showAudioSlider}
+              setShowAudioSlider={setShowAudioSlider}
+              togglePlay={togglePlay}
+              handleSkipBackward={handleSkipBackward}
+              handleSkipForward={handleSkipForward}
+            />
+          </Animated.View>
+          <Animated.View
+            style={bottomAnimatedStyle}
+            pointerEvents={showControls ? "auto" : "none"}
+          >
+            <BottomControls
+              item={item}
+              showControls={showControls}
+              isSliding={isSliding}
+              showRemoteBubble={showRemoteBubble}
+              currentTime={currentTime}
+              remainingTime={remainingTime}
+              isVlc={isVlc}
+              showSkipButton={showSkipButton}
+              showSkipCreditButton={showSkipCreditButton}
+              skipIntro={skipIntro}
+              skipCredit={skipCredit}
+              nextItem={nextItem}
+              handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
+              handleNextEpisodeManual={handleNextEpisodeManual}
+              handleControlsInteraction={handleControlsInteraction}
+              min={min}
+              max={max}
+              effectiveProgress={effectiveProgress}
+              cacheProgress={cacheProgress}
+              handleSliderStart={handleSliderStart}
+              handleSliderComplete={handleSliderComplete}
+              handleSliderChange={handleSliderChange}
+              handleTouchStart={handleTouchStart}
+              handleTouchEnd={handleTouchEnd}
+              trickPlayUrl={trickPlayUrl}
+              trickplayInfo={trickplayInfo}
+              time={isSliding || showRemoteBubble ? time : remoteTime}
+            />
+          </Animated.View>
         </>
       )}
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (
