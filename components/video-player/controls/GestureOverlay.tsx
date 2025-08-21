@@ -299,7 +299,7 @@ export const GestureOverlay = ({
                   ? "80%"
                   : "50%",
             transform: [
-              { translateY: -50 },
+              { translateY: -25 },
               {
                 translateX:
                   feedback.side === "right"
