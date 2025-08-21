@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
-import { Platform, TouchableOpacity } from "react-native";
+import React, { useMemo } from "react";
+import { View } from "react-native";
+import SelectBottomSheet, {
+  type SelectOptionGroup,
+} from "@/components/common/SelectBottomSheet";
 import { useHaptic } from "@/hooks/useHaptic";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 
 export type ScaleFactor =
   | 1.0
@@ -95,41 +96,43 @@ export const ScaleFactorSelector: React.FC<ScaleFactorSelectorProps> = ({
 }) => {
   const lightHapticFeedback = useHaptic("light");
 
-  // Hide on TV platforms since zeego doesn't support TV
-  if (Platform.isTV || !DropdownMenu) return null;
-
   const handleScaleSelect = (scale: ScaleFactor) => {
     onScaleChange(scale);
     lightHapticFeedback();
   };
 
+  const optionGroups = useMemo((): SelectOptionGroup[] => {
+    return [
+      {
+        id: "scale-factor",
+        title: "Scale Factor",
+        options: SCALE_FACTOR_OPTIONS.map((option) => ({
+          id: option.id.toString(),
+          label: option.label,
+          value: option.id,
+          selected: currentScale === option.id,
+          onSelect: () => handleScaleSelect(option.id),
+        })),
+      },
+    ];
+  }, [currentScale, handleScaleSelect]);
+
+  if (disabled) {
+    return (
+      <View className='aspect-square flex flex-col rounded-xl items-center justify-center p-2 opacity-50'>
+        <Ionicons name='search-outline' size={24} color='white' />
+      </View>
+    );
+  }
+
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <TouchableOpacity
-          disabled={disabled}
-          className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-          style={{ opacity: disabled ? 0.5 : 1 }}
-        >
-          <Ionicons name='search-outline' size={24} color='white' />
-        </TouchableOpacity>
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content>
-        <DropdownMenu.Label>Scale Factor</DropdownMenu.Label>
-        <DropdownMenu.Separator />
-
-        {SCALE_FACTOR_OPTIONS.map((option) => (
-          <DropdownMenu.CheckboxItem
-            key={option.id}
-            value={currentScale === option.id ? "on" : "off"}
-            onValueChange={() => handleScaleSelect(option.id)}
-          >
-            <DropdownMenu.ItemTitle>{option.label}</DropdownMenu.ItemTitle>
-            <DropdownMenu.ItemIndicator />
-          </DropdownMenu.CheckboxItem>
-        ))}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <SelectBottomSheet
+      title='Scale Factor'
+      subtitle='Adjust video zoom level'
+      groups={optionGroups}
+      triggerIcon='search-outline'
+      triggerSize={24}
+      triggerColor='white'
+    />
   );
 };

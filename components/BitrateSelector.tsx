@@ -1,9 +1,9 @@
-import { Platform, TouchableOpacity, View } from "react-native";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform, View } from "react-native";
+import SelectBottomSheet, {
+  type SelectOptionGroup,
+} from "./common/SelectBottomSheet";
 import { Text } from "./common/Text";
 
 export type Bitrate = {
@@ -61,6 +61,7 @@ export const BitrateSelector: React.FC<Props> = ({
   ...props
 }) => {
   const isTv = Platform.isTV;
+  const { t } = useTranslation();
 
   const sorted = useMemo(() => {
     if (inverted)
@@ -76,7 +77,32 @@ export const BitrateSelector: React.FC<Props> = ({
     );
   }, [inverted]);
 
-  const { t } = useTranslation();
+  const optionGroups = useMemo((): SelectOptionGroup[] => {
+    return [
+      {
+        id: "bitrates",
+        title: "Quality",
+        options: sorted.map((bitrate) => ({
+          id: bitrate.key,
+          label: bitrate.key,
+          value: bitrate.value,
+          selected: selected?.value === bitrate.value,
+          onSelect: () => onChange(bitrate),
+        })),
+      },
+    ];
+  }, [sorted, selected, onChange]);
+
+  const customTrigger = (
+    <View className='flex flex-col' {...props}>
+      <Text className='opacity-50 mb-1 text-xs'>{t("item_card.quality")}</Text>
+      <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+        <Text style={{}} className='' numberOfLines={1}>
+          {BITRATES.find((b) => b.value === selected?.value)?.key}
+        </Text>
+      </View>
+    </View>
+  );
 
   if (isTv) return null;
 
@@ -88,41 +114,12 @@ export const BitrateSelector: React.FC<Props> = ({
         maxWidth: 200,
       }}
     >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <View className='flex flex-col' {...props}>
-            <Text className='opacity-50 mb-1 text-xs'>
-              {t("item_card.quality")}
-            </Text>
-            <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-              <Text style={{}} className='' numberOfLines={1}>
-                {BITRATES.find((b) => b.value === selected?.value)?.key}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          loop={false}
-          side='bottom'
-          align='center'
-          alignOffset={0}
-          avoidCollisions={true}
-          collisionPadding={0}
-          sideOffset={0}
-        >
-          <DropdownMenu.Label>Bitrates</DropdownMenu.Label>
-          {sorted.map((b) => (
-            <DropdownMenu.Item
-              key={b.key}
-              onSelect={() => {
-                onChange(b);
-              }}
-            >
-              <DropdownMenu.ItemTitle>{b.key}</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
+      <SelectBottomSheet
+        title='Quality'
+        subtitle='Select video quality'
+        groups={optionGroups}
+        customTrigger={customTrigger}
+      />
     </View>
   );
 };

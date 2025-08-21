@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
-import { Platform, TouchableOpacity } from "react-native";
+import React, { useMemo } from "react";
+import { View } from "react-native";
+import SelectBottomSheet, {
+  type SelectOptionGroup,
+} from "@/components/common/SelectBottomSheet";
 import { useHaptic } from "@/hooks/useHaptic";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 
 export type AspectRatio = "default" | "16:9" | "4:3" | "1:1" | "21:9";
 
@@ -54,44 +55,43 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
 }) => {
   const lightHapticFeedback = useHaptic("light");
 
-  // Hide on TV platforms since zeego doesn't support TV
-  if (Platform.isTV || !DropdownMenu) return null;
-
   const handleRatioSelect = (ratio: AspectRatio) => {
     onRatioChange(ratio);
     lightHapticFeedback();
   };
 
+  const optionGroups = useMemo((): SelectOptionGroup[] => {
+    return [
+      {
+        id: "aspect-ratio",
+        title: "Aspect Ratio",
+        options: ASPECT_RATIO_OPTIONS.map((option) => ({
+          id: option.id,
+          label: option.label,
+          value: option.id,
+          selected: currentRatio === option.id,
+          onSelect: () => handleRatioSelect(option.id),
+        })),
+      },
+    ];
+  }, [currentRatio, handleRatioSelect]);
+
+  if (disabled) {
+    return (
+      <View className='aspect-square flex flex-col rounded-xl items-center justify-center p-2 opacity-50'>
+        <Ionicons name='crop-outline' size={24} color='white' />
+      </View>
+    );
+  }
+
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <TouchableOpacity
-          disabled={disabled}
-          className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-          style={{ opacity: disabled ? 0.5 : 1 }}
-        >
-          <Ionicons name='crop-outline' size={24} color='white' />
-        </TouchableOpacity>
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content>
-        <DropdownMenu.Label>Aspect Ratio</DropdownMenu.Label>
-        <DropdownMenu.Separator />
-
-        {ASPECT_RATIO_OPTIONS.map((option) => (
-          <DropdownMenu.CheckboxItem
-            key={option.id}
-            value={currentRatio === option.id ? "on" : "off"}
-            onValueChange={() => handleRatioSelect(option.id)}
-          >
-            <DropdownMenu.ItemTitle>{option.label}</DropdownMenu.ItemTitle>
-            <DropdownMenu.ItemSubtitle>
-              {option.description}
-            </DropdownMenu.ItemSubtitle>
-            <DropdownMenu.ItemIndicator />
-          </DropdownMenu.CheckboxItem>
-        ))}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <SelectBottomSheet
+      title='Aspect Ratio'
+      subtitle='Choose video aspect ratio format'
+      groups={optionGroups}
+      triggerIcon='crop-outline'
+      triggerSize={24}
+      triggerColor='white'
+    />
   );
 };
