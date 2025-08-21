@@ -39,7 +39,7 @@ export const MediaSourceSheet: React.FC<Props> = ({
   if (isTv || (item.MediaStreams && item.MediaStreams.length <= 1)) return null;
 
   return (
-    <View className='flex shrink' style={{ minWidth: 50 }}>
+    <View className='flex shrink' style={{ minWidth: 75 }}>
       <View className='flex flex-col' {...props}>
         <Text className='opacity-50 mb-1 text-xs'>{t("item_card.video")}</Text>
         <TouchableOpacity

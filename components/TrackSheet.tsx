@@ -38,7 +38,7 @@ export const TrackSheet: React.FC<Props> = ({
   if (isTv || (streams && streams.length === 0)) return null;
 
   return (
-    <View className='flex shrink' style={{ minWidth: 50 }} {...props}>
+    <View className='flex shrink' style={{ minWidth: 25 }} {...props}>
       <View className='flex flex-col'>
         <Text className='opacity-50 mb-1 text-xs'>{title}</Text>
         <TouchableOpacity
