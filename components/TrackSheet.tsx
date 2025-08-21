@@ -10,7 +10,7 @@ interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: number) => void;
   selected?: number | undefined;
   streamType?: string;
-  title?: string;
+  title: string;
 }
 
 export const TrackSheet: React.FC<Props> = ({
@@ -22,6 +22,7 @@ export const TrackSheet: React.FC<Props> = ({
   ...props
 }) => {
   const isTv = Platform.isTV;
+  const { t } = useTranslation();
 
   const streams = useMemo(
     () => source?.MediaStreams?.filter((x) => x.Type === streamType),
@@ -32,11 +33,9 @@ export const TrackSheet: React.FC<Props> = ({
     () => streams?.find((x) => x.Index === selected),
     [streams, selected],
   );
-
-  const { t } = useTranslation();
-
   const [open, setOpen] = useState(false);
-  if (isTv) return null;
+
+  if (isTv || (streams && streams.length === 0)) return null;
 
   return (
     <View className='flex shrink' style={{ minWidth: 50 }} {...props}>
@@ -54,7 +53,7 @@ export const TrackSheet: React.FC<Props> = ({
       <FilterSheet
         open={open}
         setOpen={setOpen}
-        title={t("item_card.audio")}
+        title={title}
         data={streams || []}
         values={selectedSteam ? [selectedSteam] : []}
         multiple={false}
