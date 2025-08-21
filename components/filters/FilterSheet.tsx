@@ -5,6 +5,7 @@ import {
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
+import { isEqual } from "lodash";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -168,7 +169,7 @@ export const FilterSheet = <T,>({
           {showSearch && (
             <Input
               placeholder={t("search.search")}
-              className='my-2'
+              className='my-2 border-neutral-800 border'
               value={search}
               onChangeText={(text) => {
                 setSearch(text);
@@ -206,7 +207,7 @@ export const FilterSheet = <T,>({
                   className=' bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
                 >
                   <Text className='flex shrink'>{renderItemLabel(item)}</Text>
-                  {values.some((i) => i === item) ? (
+                  {values.some((i) => isEqual(i, item)) ? (
                     <Ionicons name='radio-button-on' size={24} color='white' />
                   ) : (
                     <Ionicons name='radio-button-off' size={24} color='white' />
