@@ -15,6 +15,7 @@ import {
   View,
   type ViewProps,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
@@ -77,6 +78,7 @@ export const FilterSheet = <T,>({
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["85%"], []);
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const [data, setData] = useState<T[]>([]);
   const [offset, setOffset] = useState<number>(0);
@@ -161,7 +163,13 @@ export const FilterSheet = <T,>({
           flex: 1,
         }}
       >
-        <View className='px-4 mt-2 mb-8'>
+        <View
+          className='mt-2 mb-8'
+          style={{
+            paddingLeft: Math.max(16, insets.left),
+            paddingRight: Math.max(16, insets.right),
+          }}
+        >
           <Text className='font-bold text-2xl'>{title}</Text>
           <Text className='mb-2 text-neutral-500'>
             {t("search.x_items", { count: _data?.length })}
