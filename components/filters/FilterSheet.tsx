@@ -5,6 +5,7 @@ import {
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
+import { isEqual } from "lodash";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,7 +28,7 @@ interface Props<T> extends ViewProps {
   title: string;
   searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
-  showSearch?: boolean;
+  disableSearch?: boolean;
   multiple?: boolean;
 }
 
@@ -49,7 +50,7 @@ const LIMIT = 100;
  * @param {string} props.title - The title of the bottom sheet
  * @param {function} props.searchFilter - Function to filter items based on search query
  * @param {function} props.renderItemLabel - Function to render the label for each item
- * @param {boolean} [props.showSearch=true] - Whether to show the search input
+ * @param {boolean} [props.disableSearch=false] - Whether to disable the search input
  *
  * @returns {React.ReactElement} The FilterSheet component
  *
@@ -70,17 +71,19 @@ export const FilterSheet = <T,>({
   title,
   searchFilter,
   renderItemLabel,
-  showSearch = true,
+  disableSearch = false,
   multiple = false,
 }: Props<T>) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["80%"], []);
+  const snapPoints = useMemo(() => ["85%"], []);
   const { t } = useTranslation();
 
   const [data, setData] = useState<T[]>([]);
   const [offset, setOffset] = useState<number>(0);
 
   const [search, setSearch] = useState<string>("");
+
+  const [showSearch, setShowSearch] = useState<boolean>(false);
 
   const filteredData = useMemo(() => {
     if (!search) return _data;
@@ -92,6 +95,13 @@ export const FilterSheet = <T,>({
     }
     return results.slice(0, 100);
   }, [search, _data, searchFilter]);
+
+  useEffect(() => {
+    if (!data || data.length === 0 || disableSearch) return;
+    if (data.length > 15) {
+      setShowSearch(true);
+    }
+  }, [data]);
 
   // Loads data in batches of LIMIT size, starting from offset,
   // to implement efficient "load more" functionality
@@ -159,7 +169,7 @@ export const FilterSheet = <T,>({
           {showSearch && (
             <Input
               placeholder={t("search.search")}
-              className='my-2'
+              className='my-2 border-neutral-800 border'
               value={search}
               onChangeText={(text) => {
                 setSearch(text);
@@ -196,8 +206,8 @@ export const FilterSheet = <T,>({
                   }}
                   className=' bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
                 >
-                  <Text>{renderItemLabel(item)}</Text>
-                  {values.some((i) => i === item) ? (
+                  <Text className='flex shrink'>{renderItemLabel(item)}</Text>
+                  {values.some((i) => isEqual(i, item)) ? (
                     <Ionicons name='radio-button-on' size={24} color='white' />
                   ) : (
                     <Ionicons name='radio-button-off' size={24} color='white' />
