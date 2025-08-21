@@ -42,6 +42,7 @@ export const GestureOverlay = ({
   const [fadeAnim] = useState(new Animated.Value(0));
   const isDraggingRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
+  const lastUpdateTime = useRef(0);
 
   const showFeedback = useCallback(
     (
@@ -56,36 +57,40 @@ export const GestureOverlay = ({
         hideTimeoutRef.current = null;
       }
 
-      // Update feedback state immediately
-      setFeedback({ visible: true, icon, text, side });
+      // Defer ALL state updates to avoid useInsertionEffect warning
+      requestAnimationFrame(() => {
+        setFeedback({ visible: true, icon, text, side });
 
-      if (!isDuringDrag) {
-        // For discrete actions (like skip), show normal animation
-        Animated.sequence([
+        if (!isDuringDrag) {
+          // For discrete actions (like skip), show normal animation
+          Animated.sequence([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.delay(1000),
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            requestAnimationFrame(() => {
+              setFeedback((prev) => ({ ...prev, visible: false }));
+            });
+          });
+        } else if (!isDraggingRef.current) {
+          // For drag start, just fade in and stay visible
+          isDraggingRef.current = true;
           Animated.timing(fadeAnim, {
             toValue: 1,
             duration: 200,
             useNativeDriver: true,
-          }),
-          Animated.delay(1000),
-          Animated.timing(fadeAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setFeedback((prev) => ({ ...prev, visible: false }));
-        });
-      } else if (!isDraggingRef.current) {
-        // For drag start, just fade in and stay visible
-        isDraggingRef.current = true;
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }
-      // For drag updates, just update the state, don't restart animation
+          }).start();
+        }
+        // For drag updates, just update the state, don't restart animation
+      });
     },
     [fadeAnim],
   );
@@ -100,7 +105,9 @@ export const GestureOverlay = ({
         duration: 300,
         useNativeDriver: true,
       }).start(() => {
-        setFeedback((prev) => ({ ...prev, visible: false }));
+        requestAnimationFrame(() => {
+          setFeedback((prev) => ({ ...prev, visible: false }));
+        });
       });
     }, 100) as unknown as number;
   }, [fadeAnim]);
@@ -114,18 +121,37 @@ export const GestureOverlay = ({
     endBrightnessDrag,
   } = useVolumeAndBrightness({
     onVolumeChange: (volume: number) => {
-      showFeedback("volume-high", `${volume}%`, "right", true);
+      // Throttle feedback updates during dragging to reduce callback frequency
+      const now = Date.now();
+      if (now - lastUpdateTime.current < 50) return; // 50ms throttle
+      lastUpdateTime.current = now;
+
+      // Defer feedback update to avoid useInsertionEffect warning
+      requestAnimationFrame(() => {
+        showFeedback("volume-high", `${volume}%`, "right", true);
+      });
     },
     onBrightnessChange: (brightness: number) => {
-      showFeedback("sunny", `${brightness}%`, "left", true);
+      // Throttle feedback updates during dragging to reduce callback frequency
+      const now = Date.now();
+      if (now - lastUpdateTime.current < 50) return; // 50ms throttle
+      lastUpdateTime.current = now;
+
+      // Defer feedback update to avoid useInsertionEffect warning
+      requestAnimationFrame(() => {
+        showFeedback("sunny", `${brightness}%`, "left", true);
+      });
     },
   });
 
   const handleSkipForward = useCallback(() => {
     if (!settings.enableHorizontalSwipeSkip) return;
     lightHaptic();
-    onSkipForward();
-    showFeedback("play-forward", `+${settings.forwardSkipTime}s`);
+    // Defer all actions to avoid useInsertionEffect warning
+    requestAnimationFrame(() => {
+      onSkipForward();
+      showFeedback("play-forward", `+${settings.forwardSkipTime}s`);
+    });
   }, [
     settings.enableHorizontalSwipeSkip,
     settings.forwardSkipTime,
@@ -137,8 +163,11 @@ export const GestureOverlay = ({
   const handleSkipBackward = useCallback(() => {
     if (!settings.enableHorizontalSwipeSkip) return;
     lightHaptic();
-    onSkipBackward();
-    showFeedback("play-back", `-${settings.rewindSkipTime}s`);
+    // Defer all actions to avoid useInsertionEffect warning
+    requestAnimationFrame(() => {
+      onSkipBackward();
+      showFeedback("play-back", `-${settings.rewindSkipTime}s`);
+    });
   }, [
     settings.enableHorizontalSwipeSkip,
     settings.rewindSkipTime,
@@ -151,10 +180,16 @@ export const GestureOverlay = ({
     (side: "left" | "right", startY: number) => {
       if (side === "left" && settings.enableLeftSideBrightnessSwipe) {
         lightHaptic();
-        startBrightnessDrag(startY);
+        // Defer drag start to avoid useInsertionEffect warning
+        requestAnimationFrame(() => {
+          startBrightnessDrag(startY);
+        });
       } else if (side === "right" && settings.enableRightSideVolumeSwipe) {
         lightHaptic();
-        startVolumeDrag(startY);
+        // Defer drag start to avoid useInsertionEffect warning
+        requestAnimationFrame(() => {
+          startVolumeDrag(startY);
+        });
       }
     },
     [
@@ -168,11 +203,14 @@ export const GestureOverlay = ({
 
   const handleVerticalDragMove = useCallback(
     (side: "left" | "right", deltaY: number) => {
-      if (side === "left" && settings.enableLeftSideBrightnessSwipe) {
-        updateBrightnessDrag(deltaY);
-      } else if (side === "right" && settings.enableRightSideVolumeSwipe) {
-        updateVolumeDrag(deltaY);
-      }
+      // Use requestAnimationFrame to defer drag move updates too
+      requestAnimationFrame(() => {
+        if (side === "left" && settings.enableLeftSideBrightnessSwipe) {
+          updateBrightnessDrag(deltaY);
+        } else if (side === "right" && settings.enableRightSideVolumeSwipe) {
+          updateVolumeDrag(deltaY);
+        }
+      });
     },
     [
       settings.enableLeftSideBrightnessSwipe,
@@ -184,12 +222,15 @@ export const GestureOverlay = ({
 
   const handleVerticalDragEnd = useCallback(
     (side: "left" | "right") => {
-      if (side === "left") {
-        endBrightnessDrag();
-      } else {
-        endVolumeDrag();
-      }
-      hideDragFeedback();
+      // Defer drag end to avoid useInsertionEffect warning
+      requestAnimationFrame(() => {
+        if (side === "left") {
+          endBrightnessDrag();
+        } else {
+          endVolumeDrag();
+        }
+        hideDragFeedback();
+      });
     },
     [endBrightnessDrag, endVolumeDrag, hideDragFeedback],
   );
