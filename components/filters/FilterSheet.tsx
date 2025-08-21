@@ -205,7 +205,7 @@ export const FilterSheet = <T,>({
                   }}
                   className=' bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
                 >
-                  <Text>{renderItemLabel(item)}</Text>
+                  <Text className='flex shrink'>{renderItemLabel(item)}</Text>
                   {values.some((i) => i === item) ? (
                     <Ionicons name='radio-button-on' size={24} color='white' />
                   ) : (
