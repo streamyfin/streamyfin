@@ -27,7 +27,7 @@ interface Props<T> extends ViewProps {
   title: string;
   searchFilter?: (item: T, query: string) => boolean;
   renderItemLabel: (item: T) => React.ReactNode;
-  showSearch?: boolean;
+  disableSearch?: boolean;
   multiple?: boolean;
 }
 
@@ -49,7 +49,7 @@ const LIMIT = 100;
  * @param {string} props.title - The title of the bottom sheet
  * @param {function} props.searchFilter - Function to filter items based on search query
  * @param {function} props.renderItemLabel - Function to render the label for each item
- * @param {boolean} [props.showSearch=true] - Whether to show the search input
+ * @param {boolean} [props.disableSearch=false] - Whether to disable the search input
  *
  * @returns {React.ReactElement} The FilterSheet component
  *
@@ -70,7 +70,7 @@ export const FilterSheet = <T,>({
   title,
   searchFilter,
   renderItemLabel,
-  showSearch = true,
+  disableSearch = false,
   multiple = false,
 }: Props<T>) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -82,6 +82,8 @@ export const FilterSheet = <T,>({
 
   const [search, setSearch] = useState<string>("");
 
+  const [showSearch, setShowSearch] = useState<boolean>(false);
+
   const filteredData = useMemo(() => {
     if (!search) return _data;
     const results = [];
@@ -92,6 +94,13 @@ export const FilterSheet = <T,>({
     }
     return results.slice(0, 100);
   }, [search, _data, searchFilter]);
+
+  useEffect(() => {
+    if (!data || data.length === 0 || disableSearch) return;
+    if (data.length > 15) {
+      setShowSearch(true);
+    }
+  }, [data]);
 
   // Loads data in batches of LIMIT size, starting from offset,
   // to implement efficient "load more" functionality

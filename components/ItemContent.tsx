@@ -8,8 +8,7 @@ import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AudioTrackSelector } from "@/components/AudioTrackSelector";
-import { type Bitrate, BitrateSelector } from "@/components/BitrateSelector";
+import { type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { OverviewText } from "@/components/OverviewText";
@@ -18,7 +17,6 @@ import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlayButton } from "@/components/PlayButton";
 import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
-import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
@@ -30,11 +28,13 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
+import { BitrateSheet } from "./BitRateSheet";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
-import { MediaSourceSelector } from "./MediaSourceSelector";
+import { MediaSourceSheet } from "./MediaSourceSheet";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
+import { TrackSheet } from "./TrackSheet";
 
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
@@ -189,7 +189,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
               <ItemHeader item={item} className='mb-2' />
               {item.Type !== "Program" && !Platform.isTV && !isOffline && (
                 <View className='flex flex-row items-center justify-start w-full h-16'>
-                  <BitrateSelector
+                  <BitrateSheet
                     className='mr-1'
                     onChange={(val) =>
                       setSelectedOptions(
@@ -198,7 +198,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     }
                     selected={selectedOptions.bitrate}
                   />
-                  <MediaSourceSelector
+                  <MediaSourceSheet
                     className='mr-1'
                     item={item}
                     onChange={(val) =>
@@ -212,8 +212,9 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     }
                     selected={selectedOptions.mediaSource}
                   />
-                  <AudioTrackSelector
+                  <TrackSheet
                     className='mr-1'
+                    streamType='Audio'
                     source={selectedOptions.mediaSource}
                     onChange={(val) => {
                       setSelectedOptions(
@@ -226,8 +227,9 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     }}
                     selected={selectedOptions.audioIndex}
                   />
-                  <SubtitleTrackSelector
+                  <TrackSheet
                     source={selectedOptions.mediaSource}
+                    streamType='Subtitle'
                     onChange={(val) =>
                       setSelectedOptions(
                         (prev) =>
