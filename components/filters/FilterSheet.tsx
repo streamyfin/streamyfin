@@ -74,7 +74,7 @@ export const FilterSheet = <T,>({
   multiple = false,
 }: Props<T>) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["80%"], []);
+  const snapPoints = useMemo(() => ["85%"], []);
   const { t } = useTranslation();
 
   const [data, setData] = useState<T[]>([]);
