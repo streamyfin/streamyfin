@@ -167,6 +167,10 @@ export type Settings = {
   defaultPlayer: VideoPlayer;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
+  // Gesture controls
+  enableHorizontalSwipeSkip: boolean;
+  enableLeftSideBrightnessSwipe: boolean;
+  enableRightSideVolumeSwipe: boolean;
 };
 
 export interface Lockable<T> {
@@ -223,6 +227,10 @@ const defaultValues: Settings = {
   defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
+  // Gesture controls
+  enableHorizontalSwipeSkip: true,
+  enableLeftSideBrightnessSwipe: true,
+  enableRightSideVolumeSwipe: true,
 };
 
 const loadSettings = (): Partial<Settings> => {

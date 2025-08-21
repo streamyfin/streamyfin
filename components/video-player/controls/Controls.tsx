@@ -36,6 +36,7 @@ import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { ControlProvider } from "./contexts/ControlContext";
 import { EpisodeList } from "./EpisodeList";
+import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
@@ -44,7 +45,6 @@ import { useVideoTime } from "./hooks/useVideoTime";
 import { type ScaleFactor } from "./ScaleFactorSelector";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { type AspectRatio } from "./VideoScalingModeSelector";
-import { VideoTouchOverlay } from "./VideoTouchOverlay";
 
 interface Props {
   item: BaseItemDto;
@@ -483,11 +483,13 @@ export const Controls: FC<Props> = ({
         />
       ) : (
         <>
-          <VideoTouchOverlay
+          <GestureOverlay
             screenWidth={screenWidth}
             screenHeight={screenHeight}
             showControls={showControls}
             onToggleControls={toggleControls}
+            onSkipForward={handleSkipForward}
+            onSkipBackward={handleSkipBackward}
           />
           <Animated.View
             style={headerAnimatedStyle}
