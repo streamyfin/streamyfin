@@ -112,6 +112,10 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                   placeholderTextColor='#9CA3AF'
                   value={quickConnectCode}
                   onChangeText={setQuickConnectCode}
+                  keyboardType='number-pad'
+                  textContentType='none'
+                  autoComplete='off'
+                  inputMode='numeric'
                 />
               </View>
             </View>
