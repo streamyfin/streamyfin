@@ -1,28 +1,17 @@
-export const CONTROLS_TIMEOUT = 4000;
-
-export const TRICKPLAY_TILE_WIDTH = 150;
-export const TRICKPLAY_TILE_SCALE = 1.4;
-
-export const SLIDER_SCALE_UP = 1.4;
-export const SLIDER_SCALE_NORMAL = 1.0;
-
-export const ANIMATION_DURATION = {
-  CONTROLS_FADE: 300,
-  SLIDER_SCALE: 300,
-  SLIDER_SCALE_COMPLETE: 200,
+export const CONTROLS_CONSTANTS = {
+  TIMEOUT: 4000,
+  SCRUB_INTERVAL_MS: 10 * 1000, // 10 seconds in ms
+  SCRUB_INTERVAL_TICKS: 10 * 10000000, // 10 seconds in ticks
+  TILE_WIDTH: 150,
+  PROGRESS_UNIT_MS: 1000, // 1 second in ms
+  PROGRESS_UNIT_TICKS: 10000000, // 1 second in ticks
+  LONG_PRESS_INITIAL_SEEK: 10,
+  LONG_PRESS_ACCELERATION: 1.1,
+  LONG_PRESS_INTERVAL: 300,
+  SLIDER_DEBOUNCE_MS: 3,
 } as const;
 
-export const SLIDER_CONFIG = {
-  HEIGHT: 10,
-  THUMB_WIDTH: 0,
-  BORDER_RADIUS: 100,
-} as const;
-
-export const SLIDER_THEME = {
-  maximumTrackTintColor: "rgba(255,255,255,0.2)",
-  minimumTrackTintColor: "#fff",
-  cacheTrackTintColor: "rgba(255,255,255,0.3)",
-  bubbleBackgroundColor: "#fff",
-  bubbleTextColor: "#666",
-  heartbeatColor: "#999",
+export const ICON_SIZES = {
+  HEADER: 24,
+  CENTER: 50,
 } as const;

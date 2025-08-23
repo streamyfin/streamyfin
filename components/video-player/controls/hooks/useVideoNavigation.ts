@@ -5,24 +5,60 @@ import { useSettings } from "@/utils/atoms/settings";
 import { writeToLog } from "@/utils/log";
 import { secondsToMs, ticksToSeconds } from "@/utils/time";
 
-interface UseSkipControlsProps {
+interface UseVideoNavigationProps {
   progress: SharedValue<number>;
   isPlaying: boolean;
   isVlc: boolean;
-  seek: (ticks: number) => void;
+  seek: (value: number) => void;
   play: () => void;
 }
 
-export const useSkipControls = ({
+export function useVideoNavigation({
   progress,
   isPlaying,
   isVlc,
   seek,
   play,
-}: UseSkipControlsProps) => {
+}: UseVideoNavigationProps) {
   const [settings] = useSettings();
   const lightHapticFeedback = useHaptic("light");
   const wasPlayingRef = useRef(false);
+
+  const handleSeekBackward = useCallback(
+    async (seconds: number) => {
+      wasPlayingRef.current = isPlaying;
+      try {
+        const curr = progress.value;
+        if (curr !== undefined) {
+          const newTime = isVlc
+            ? Math.max(0, curr - secondsToMs(seconds))
+            : Math.max(0, ticksToSeconds(curr) - seconds);
+          seek(newTime);
+        }
+      } catch (error) {
+        writeToLog("ERROR", "Error seeking video backwards", error);
+      }
+    },
+    [isPlaying, isVlc, seek, progress],
+  );
+
+  const handleSeekForward = useCallback(
+    async (seconds: number) => {
+      wasPlayingRef.current = isPlaying;
+      try {
+        const curr = progress.value;
+        if (curr !== undefined) {
+          const newTime = isVlc
+            ? curr + secondsToMs(seconds)
+            : ticksToSeconds(curr) + seconds;
+          seek(Math.max(0, newTime));
+        }
+      } catch (error) {
+        writeToLog("ERROR", "Error seeking video forwards", error);
+      }
+    },
+    [isPlaying, isVlc, seek, progress],
+  );
 
   const handleSkipBackward = useCallback(async () => {
     if (!settings?.rewindSkipTime) {
@@ -44,7 +80,7 @@ export const useSkipControls = ({
     } catch (error) {
       writeToLog("ERROR", "Error seeking video backwards", error);
     }
-  }, [settings, isPlaying, isVlc, play, seek, lightHapticFeedback]);
+  }, [settings, isPlaying, isVlc, play, seek, progress, lightHapticFeedback]);
 
   const handleSkipForward = useCallback(async () => {
     if (!settings?.forwardSkipTime) {
@@ -66,10 +102,13 @@ export const useSkipControls = ({
     } catch (error) {
       writeToLog("ERROR", "Error seeking video forwards", error);
     }
-  }, [settings, isPlaying, isVlc, play, seek, lightHapticFeedback]);
+  }, [settings, isPlaying, isVlc, play, seek, progress, lightHapticFeedback]);
 
   return {
+    handleSeekBackward,
+    handleSeekForward,
     handleSkipBackward,
     handleSkipForward,
+    wasPlayingRef,
   };
-};
+}

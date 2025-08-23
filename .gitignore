@@ -46,3 +46,4 @@ streamyfin-4fec1-firebase-adminsdk.json
 .env.local
 *.aab
 /version-backup-*
+bun.lockb
