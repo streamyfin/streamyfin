@@ -34,6 +34,7 @@ import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import type { DownloadHook } from "@/providers/DownloadProvider";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -80,10 +81,10 @@ export const HomeIndex = () => {
   const insets = useSafeAreaInsets();
 
   const scrollViewRef = useRef<ScrollView>(null);
-
   const downloadHook = useDownload() as DownloadHook;
   const downloadedFiles =
-    "downloadedFiles" in downloadHook && Array.isArray(downloadHook.downloadedFiles)
+    "downloadedFiles" in downloadHook &&
+    Array.isArray(downloadHook.downloadedFiles)
       ? downloadHook.downloadedFiles
       : [];
   const cleanCacheDirectory: () => Promise<void> =

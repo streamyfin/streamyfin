@@ -745,6 +745,8 @@ export function useDownload() {
   return context;
 }
 
+export type DownloadHook = ReturnType<typeof useDownload>;
+
 export function DownloadProvider({ children }: { children: React.ReactNode }) {
   const downloadUtils = useDownloadProvider();
   return (

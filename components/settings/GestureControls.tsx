@@ -1,8 +1,7 @@
-import type React from "react";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
-import { Switch } from "react-native";
+import { Switch, Text } from "react-native";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
@@ -31,14 +30,14 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         title={t("home.settings.gesture_controls.gesture_controls_title")}
       >
         <ListItem
-          {...({
-            title: t("home.settings.gesture_controls.horizontal_swipe_skip"),
-            subtitle: t(
-              "home.settings.gesture_controls.horizontal_swipe_skip_description",
-            ),
-          } as any)}
           disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
+          title={t("home.settings.gesture_controls.horizontal_swipe_skip")}
         >
+          <Text style={{ color: "gray", marginBottom: 4 }}>
+            {t(
+              "home.settings.gesture_controls.horizontal_swipe_skip_description",
+            )}
+          </Text>
           <Switch
             value={settings.enableHorizontalSwipeSkip}
             disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
@@ -49,14 +48,14 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          {...({
-            title: t("home.settings.gesture_controls.left_side_brightness"),
-            subtitle: t(
-              "home.settings.gesture_controls.left_side_brightness_description",
-            ),
-          } as any)}
           disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
+          title={t("home.settings.gesture_controls.left_side_brightness")}
         >
+          <Text style={{ color: "gray", marginBottom: 4 }}>
+            {t(
+              "home.settings.gesture_controls.left_side_brightness_description",
+            )}
+          </Text>
           <Switch
             value={settings.enableLeftSideBrightnessSwipe}
             disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
@@ -67,14 +66,12 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          {...({
-            title: t("home.settings.gesture_controls.right_side_volume"),
-            subtitle: t(
-              "home.settings.gesture_controls.right_side_volume_description",
-            ),
-          } as any)}
           disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
+          title={t("home.settings.gesture_controls.right_side_volume")}
         >
+          <Text style={{ color: "gray", marginBottom: 4 }}>
+            {t("home.settings.gesture_controls.right_side_volume_description")}
+          </Text>
           <Switch
             value={settings.enableRightSideVolumeSwipe}
             disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}

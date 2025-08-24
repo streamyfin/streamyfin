@@ -69,10 +69,10 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
               router.push({
                 pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
                 params: {
-                  ...result,
+                  id: result.id,
                   mediaTitle,
                   releaseYear,
-                  canRequest,
+                  canRequest: canRequest ? "true" : "false",
                   posterSrc,
                   mediaType,
                 },
@@ -83,6 +83,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
             {children}
           </TouchableOpacity>
         </ContextMenu.Trigger>
+
         <ContextMenu.Content
           avoidCollisions
           alignOffset={0}
