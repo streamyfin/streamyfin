@@ -98,14 +98,16 @@ function useDownloadProvider() {
     }
     // check if processes are missing
     setProcesses((processes) => {
-      const missingProcesses = tasks
-        .filter(
-          (t: { metadata?: JobStatus; id: string }) =>
-            t.metadata && !processes.some((p) => p.id === t.id),
-        )
-        .map((t: { metadata: JobStatus }) => {
-          return t.metadata;
-        });
+      interface DownloadTask {
+        id: string;
+        bytesDownloaded?: number;
+        bytesTotal?: number;
+        metadata?: JobStatus;
+      }
+
+      const missingProcesses = (tasks as DownloadTask[])
+        .filter((t) => !!t.metadata && !processes.some((p) => p.id === t.id))
+        .map((t) => t.metadata as JobStatus);
 
       const currentProcesses = [...processes, ...missingProcesses];
       const updatedProcesses = currentProcesses.map((p) => {

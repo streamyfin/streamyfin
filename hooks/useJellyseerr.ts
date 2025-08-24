@@ -505,9 +505,16 @@ export const useJellyseerr = () => {
   const getMediaType = (
     item?: TvResult | TvDetails | MovieResult | MovieDetails,
   ): MediaType => {
-    return isJellyseerrResult(item)
-      ? (item.mediaType as unknown as MediaType)
-      : item?.mediaInfo?.mediaType!;
+    const value = isJellyseerrResult(item)
+      ? item.mediaType
+      : item?.mediaInfo?.mediaType;
+
+    const mediaTypeValues = Object.values(MediaType) as unknown as string[];
+    if (typeof value === "string" && mediaTypeValues.includes(value)) {
+      return value as MediaType;
+    }
+
+    return MediaType.MOVIE;
   };
 
   const jellyseerrRegion = useMemo(
