@@ -31,7 +31,10 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
           return (
             <TouchableOpacity
               key={it.Id}
-              onPress={() => router.push(`/series/${it.SeriesId}`)}
+              onPress={() => {
+                const seriesId = it.SeriesId ?? it.Id;
+                if (seriesId) router.push(`/series/${seriesId}`);
+              }}
               className='flex flex-col space-y-2 w-28'
             >
               <Poster

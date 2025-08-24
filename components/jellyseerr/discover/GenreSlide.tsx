@@ -13,7 +13,9 @@ import { genreColorMap } from "@/utils/jellyseerr/src/components/Discover/consta
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
-  const from = (segments as string[])[2];
+  const from =
+    (segments as string[])[2] ??
+    (slide.type === DiscoverSliderType.MOVIE_GENRES ? "movies" : "tv");
 
   const navigate = useCallback(
     (genre: GenreSliderItem) =>
