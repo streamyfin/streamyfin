@@ -69,14 +69,12 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
               router.push({
                 pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
                 params: {
-                  payload: JSON.stringify({
-                    ...result,
-                    mediaTitle,
-                    releaseYear,
-                    canRequest,
-                    posterSrc,
-                    mediaType,
-                  }),
+                  ...result,
+                  mediaTitle,
+                  releaseYear,
+                  canRequest,
+                  posterSrc,
+                  mediaType,
                 },
               });
             }}
