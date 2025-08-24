@@ -99,7 +99,6 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
       <BlurView
         intensity={90}
         className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${fillColorClass}`}
-        {...props}
       >
         {icon ? (
           <Ionicons

@@ -94,7 +94,6 @@ export const FilterButton = <T,>({
         set={set}
         renderItemLabel={renderItemLabel}
         searchFilter={searchFilter}
-        showSearch={showSearch}
         multiple={multiple}
       />
     </>

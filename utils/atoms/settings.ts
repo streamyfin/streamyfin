@@ -88,6 +88,7 @@ export type Home = {
 };
 
 export type HomeSection = {
+  title: string;
   orientation?: "horizontal" | "vertical";
   items?: HomeSectionItemResolver;
   nextUp?: HomeSectionNextUpResolver;
@@ -132,6 +133,7 @@ export enum VideoPlayer {
 }
 
 export type Settings = {
+  usePopularPlugin: boolean;
   home?: Home | null;
   followDeviceOrientation?: boolean;
   forceLandscapeInVideoPlayer?: boolean;
@@ -231,6 +233,7 @@ const defaultValues: Settings = {
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
+  usePopularPlugin: false,
 };
 
 const loadSettings = (): Partial<Settings> => {

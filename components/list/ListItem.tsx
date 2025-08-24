@@ -8,16 +8,17 @@ import {
 } from "react-native";
 import { Text } from "../common/Text";
 
-interface Props extends TouchableOpacityProps, ViewProps {
-  title?: string | null | undefined;
-  value?: string | null | undefined;
-  children?: ReactNode;
-  iconAfter?: ReactNode;
-  icon?: keyof typeof Ionicons.glyphMap;
-  showArrow?: boolean;
-  textColor?: "default" | "blue" | "red";
-  onPress?: () => void;
-}
+type Props = TouchableOpacityProps &
+  Omit<ViewProps, keyof TouchableOpacityProps> & {
+    title?: string | null | undefined;
+    value?: string | null | undefined;
+    children?: ReactNode;
+    iconAfter?: ReactNode;
+    icon?: keyof typeof Ionicons.glyphMap;
+    showArrow?: boolean;
+    textColor?: "default" | "blue" | "red";
+    onPress?: () => void;
+  };
 
 export const ListItem: React.FC<PropsWithChildren<Props>> = ({
   title,
@@ -39,7 +40,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
         className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
           disabled ? "opacity-50" : ""
         }`}
-        {...props}
+        {...(props as TouchableOpacityProps)}
       >
         <ListItemContent
           title={title}
@@ -58,7 +59,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
       className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
         disabled ? "opacity-50" : ""
       }`}
-      {...props}
+      {...(props as ViewProps)}
     >
       <ListItemContent
         title={title}

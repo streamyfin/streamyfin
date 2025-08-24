@@ -81,7 +81,13 @@ export const HomeIndex = () => {
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { downloadedFiles, cleanCacheDirectory } = useDownload();
+  const downloadHook = useDownload();
+  const downloadedFiles: any[] =
+    "downloadedFiles" in downloadHook
+      ? (downloadHook as any).downloadedFiles
+      : [];
+  const cleanCacheDirectory: () => Promise<void> =
+    (downloadHook as any).cleanCacheDirectory ?? (async () => {});
   const prevIsConnected = useRef<boolean | null>(false);
   const invalidateCache = useInvalidatePlaybackProgressCache();
   useEffect(() => {
@@ -125,10 +131,10 @@ export const HomeIndex = () => {
     );
   }, []);
 
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
-      if (segments[2] === "(home)")
+      if (segments.length > 2 && segments[2] === "(home)")
         scrollViewRef.current?.scrollTo({ y: -152, animated: true });
     });
 
@@ -339,8 +345,7 @@ export const HomeIndex = () => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
     for (const key in settings.home?.sections) {
-      // @ts-expect-error
-      const section = settings.home?.sections[key];
+      const section = (settings.home?.sections as Record<string, any>)[key];
       const id = section.title || key;
       ss.push({
         title: id,

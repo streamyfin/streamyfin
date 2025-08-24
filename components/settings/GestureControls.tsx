@@ -31,10 +31,12 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         title={t("home.settings.gesture_controls.gesture_controls_title")}
       >
         <ListItem
-          title={t("home.settings.gesture_controls.horizontal_swipe_skip")}
-          subtitle={t(
-            "home.settings.gesture_controls.horizontal_swipe_skip_description",
-          )}
+          {...({
+            title: t("home.settings.gesture_controls.horizontal_swipe_skip"),
+            subtitle: t(
+              "home.settings.gesture_controls.horizontal_swipe_skip_description",
+            ),
+          } as any)}
           disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
         >
           <Switch
@@ -47,10 +49,12 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          title={t("home.settings.gesture_controls.left_side_brightness")}
-          subtitle={t(
-            "home.settings.gesture_controls.left_side_brightness_description",
-          )}
+          {...({
+            title: t("home.settings.gesture_controls.left_side_brightness"),
+            subtitle: t(
+              "home.settings.gesture_controls.left_side_brightness_description",
+            ),
+          } as any)}
           disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
         >
           <Switch
@@ -63,10 +67,12 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
-          title={t("home.settings.gesture_controls.right_side_volume")}
-          subtitle={t(
-            "home.settings.gesture_controls.right_side_volume_description",
-          )}
+          {...({
+            title: t("home.settings.gesture_controls.right_side_volume"),
+            subtitle: t(
+              "home.settings.gesture_controls.right_side_volume_description",
+            ),
+          } as any)}
           disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
         >
           <Switch

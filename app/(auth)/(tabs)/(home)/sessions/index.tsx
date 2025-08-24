@@ -101,8 +101,11 @@ const SessionCard = ({ session }: SessionCardProps) => {
 
   const { data: ipInfo } = useQuery({
     queryKey: ["ipinfo", session.RemoteEndPoint],
-    cacheTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
     queryFn: async () => {
+      if (!api) {
+        throw new Error("API instance is not available");
+      }
       const resp = await api.axiosInstance.get(
         `https://freeipapi.com/api/json/${session.RemoteEndPoint}`,
       );

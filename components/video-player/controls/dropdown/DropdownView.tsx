@@ -51,7 +51,6 @@ const DropdownView = () => {
         bitrateValue: bitrate.toString(),
         playbackPosition: playbackPosition,
       }).toString();
-      // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
     },
     [item, mediaSource, subtitleIndex, audioIndex, playbackPosition],

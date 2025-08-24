@@ -281,7 +281,6 @@ const Page: React.FC = () => {
                           mediaType === MediaType.MOVIE
                             ? `/(auth)/(tabs)/(search)/items/page?id=${details?.mediaInfo.jellyfinMediaId}`
                             : `/(auth)/(tabs)/(search)/series/${details?.mediaInfo.jellyfinMediaId}`;
-                        // @ts-expect-error
                         router.push(url);
                       }}
                       iconLeft={

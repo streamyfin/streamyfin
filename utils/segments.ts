@@ -30,8 +30,9 @@ interface CreditTimestamps {
 
 export const useSegments = (itemId: string, isOffline: boolean) => {
   const [api] = useAtom(apiAtom);
-  const { downloadedFiles } = useDownload();
-  const downloadedItem = downloadedFiles?.find(
+  const { getDownloadedItems } = useDownload();
+  const downloads = getDownloadedItems();
+  const downloadedItem = downloads?.find(
     (d: DownloadedItem) => d.item.Id === itemId,
   );
 

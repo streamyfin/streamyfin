@@ -24,7 +24,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
   const segments = useSegments();
   const { t } = useTranslation();
-  const from = segments[2];
+  const from = (segments as string[])[2];
 
   const destinctPeople = useMemo(() => {
     const people: BaseItemPerson[] = [];
@@ -48,19 +48,18 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
       </Text>
       <HorizontalScroll
         loading={loading}
-        keyExtractor={(i, _idx) => i.Id.toString()}
+        keyExtractor={(i, _idx) => `${i.Id ?? _idx}`}
         height={247}
         data={destinctPeople}
         renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
               const url = itemRouter(i, from);
-              // @ts-expect-error
               router.push(url);
             }}
             className='flex flex-col w-28'
           >
-            <Poster id={i.id} url={getPrimaryImageUrl({ api, item: i })} />
+            <Poster id={i.Id} url={getPrimaryImageUrl({ api, item: i })} />
             <Text className='mt-2'>{i.Name}</Text>
             <Text className='text-xs opacity-50'>{i.Role}</Text>
           </TouchableOpacity>

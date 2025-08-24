@@ -61,7 +61,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
 
-  const from = segments[2];
+  const from = (segments as string[])[2];
 
   const showActionSheet = useCallback(() => {
     if (
@@ -111,7 +111,6 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
           if (isOffline) {
             url += `&offline=true`;
           }
-          // @ts-expect-error
           router.push(url);
         }}
         {...props}

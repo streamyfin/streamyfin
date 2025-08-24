@@ -22,7 +22,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   const max = useSharedValue<number>(100); // Explicitly type as number
   const isUserInteracting = useRef(false);
 
-  const timeoutRef = useRef<number | null>(null); // Use a ref to store the timeout ID
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Use a ref to store the timeout ID
 
   useEffect(() => {
     if (isTv) return;

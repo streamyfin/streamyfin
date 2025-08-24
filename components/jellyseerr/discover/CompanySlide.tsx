@@ -16,7 +16,7 @@ const CompanySlide: React.FC<
 > = ({ slide, data, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
-  const from = segments[2];
+  const from = (segments as string[])[2];
 
   const navigate = useCallback(
     ({ id, image, name }: Network | Studio) =>

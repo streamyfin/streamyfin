@@ -1,7 +1,12 @@
 import { Image, type ImageContentFit } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import type React from "react";
-import { StyleSheet, View, type ViewProps } from "react-native";
+import {
+  type ColorValue,
+  StyleSheet,
+  View,
+  type ViewProps,
+} from "react-native";
 import { Text } from "@/components/common/Text";
 
 export const textShadowStyle = StyleSheet.create({
@@ -23,14 +28,14 @@ const GenericSlideCard: React.FC<
     id: string;
     url?: string;
     title?: string;
-    colors?: string[];
+    colors?: readonly [ColorValue, ColorValue, ...ColorValue[]];
     contentFit?: ImageContentFit;
   } & ViewProps
 > = ({
   id,
   url,
   title,
-  colors = ["#9333ea", "transparent"],
+  colors = ["#9333ea", "transparent"] as const,
   contentFit = "contain",
   ...props
 }) => (

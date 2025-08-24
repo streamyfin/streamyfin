@@ -99,16 +99,19 @@ function useDownloadProvider() {
     // check if processes are missing
     setProcesses((processes) => {
       const missingProcesses = tasks
-        .filter((t) => t.metadata && !processes.some((p) => p.id === t.id))
-        .map((t) => {
-          return t.metadata as JobStatus;
+        .filter(
+          (t: { metadata?: JobStatus; id: string }) =>
+            t.metadata && !processes.some((p) => p.id === t.id),
+        )
+        .map((t: { metadata: JobStatus }) => {
+          return t.metadata;
         });
 
       const currentProcesses = [...processes, ...missingProcesses];
       const updatedProcesses = currentProcesses.map((p) => {
         // fallback. Doesn't really work for transcodes as they may be a lot smaller.
         // We make an wild guess by comparing bitrates
-        const task = tasks.find((s) => s.id === p.id);
+        const task = tasks.find((s: { id: string }) => s.id === p.id);
         if (task && p.status === "downloading") {
           const estimatedSize = calculateEstimatedSize(p);
           let progress = p.progress;
@@ -425,7 +428,7 @@ function useDownloadProvider() {
           );
           removeProcess(process.id);
         })
-        .error((error) => {
+        .error((error: unknown) => {
           console.error("Download error:", error);
           toast.error(
             t("home.downloads.toasts.download_failed_for_item", {
@@ -454,7 +457,7 @@ function useDownloadProvider() {
   const removeProcess = useCallback(
     async (id: string) => {
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
-      const task = tasks?.find((t) => t.id === id);
+      const task = tasks?.find((t: { id: string }) => t.id === id);
       task?.stop();
       BackGroundDownloader.completeHandler(id);
       setProcesses((prev) => prev.filter((process) => process.id !== id));

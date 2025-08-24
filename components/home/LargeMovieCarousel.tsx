@@ -146,7 +146,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   }, [item]);
 
   const segments = useSegments();
-  const from = segments[2];
+  const from = (segments as string[])[2];
 
   const opacity = useSharedValue(1);
 
@@ -154,7 +154,6 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
     if (!from) return;
     const url = itemRouter(item, from);
     lightHapticFeedback();
-    // @ts-expect-error
     if (url) router.push(url);
   }, [item, from]);
 

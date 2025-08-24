@@ -369,7 +369,6 @@ export const Controls: FC<Props> = ({
 
       console.log("queryParams", queryParams);
 
-      // @ts-expect-error
       router.replace(`player/direct-player?${queryParams}`);
     },
     [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router],

@@ -238,8 +238,8 @@ function Layout() {
   useNotificationObserver();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
-  const notificationListener = useRef<EventSubscription>();
-  const responseListener = useRef<EventSubscription>();
+  const notificationListener = useRef<EventSubscription | null>(null);
+  const responseListener = useRef<EventSubscription | null>(null);
 
   useEffect(() => {
     if (!Platform.isTV && expoPushToken && api && user) {
@@ -302,7 +302,7 @@ function Layout() {
               response.notification.request.content,
             );
             if (data && Object.keys(data).length > 0) {
-              const type = data?.type?.toLower?.();
+              const type = (data as any)?.type?.toLowerCase?.();
               const itemId = data?.id;
 
               switch (type) {

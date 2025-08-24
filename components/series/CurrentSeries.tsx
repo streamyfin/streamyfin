@@ -24,21 +24,24 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
         {t("item_card.series")}
       </Text>
       <HorizontalScroll
-        data={[item]}
+        data={item ? [item] : []}
         height={247}
-        renderItem={(item, _index) => (
-          <TouchableOpacity
-            key={item.Id}
-            onPress={() => router.push(`/series/${item.SeriesId}`)}
-            className='flex flex-col space-y-2 w-28'
-          >
-            <Poster
-              id={item.id}
-              url={getPrimaryImageUrlById({ api, id: item.ParentId })}
-            />
-            <Text>{item.SeriesName}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={(it, _index) => {
+          if (!it) return null;
+          return (
+            <TouchableOpacity
+              key={it.Id}
+              onPress={() => router.push(`/series/${it.SeriesId}`)}
+              className='flex flex-col space-y-2 w-28'
+            >
+              <Poster
+                id={it.Id}
+                url={getPrimaryImageUrlById({ api, id: it.ParentId })}
+              />
+              <Text>{it.SeriesName}</Text>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );

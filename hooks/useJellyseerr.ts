@@ -506,8 +506,8 @@ export const useJellyseerr = () => {
     item?: TvResult | TvDetails | MovieResult | MovieDetails,
   ): MediaType => {
     return isJellyseerrResult(item)
-      ? item.mediaType
-      : item?.mediaInfo?.mediaType;
+      ? (item.mediaType as unknown as MediaType)
+      : item?.mediaInfo?.mediaType!;
   };
 
   const jellyseerrRegion = useMemo(
