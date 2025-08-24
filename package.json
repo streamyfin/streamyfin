@@ -32,7 +32,7 @@
     "@react-navigation/native": "^7.1.17",
     "@shopify/flash-list": "^1.8.3",
     "@tanstack/react-query": "^5.85.5",
-    "axios": "^1.11.0",
+    "axios": "^1.7.9",
     "expo": "^53.0.22",
     "expo-application": "~6.1.5",
     "expo-asset": "~11.1.7",
