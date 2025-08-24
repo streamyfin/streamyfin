@@ -81,14 +81,28 @@ export const HomeIndex = () => {
   const insets = useSafeAreaInsets();
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const downloadHook = useDownload() as DownloadHook;
-  const downloadedFiles =
-    "downloadedFiles" in downloadHook &&
-    Array.isArray(downloadHook.downloadedFiles)
-      ? downloadHook.downloadedFiles
-      : [];
+
+  const downloadHookRaw = useDownload();
+
+  function isDownloadHook(obj: unknown): obj is DownloadHook {
+    return (
+      typeof obj === "object" &&
+      obj !== null &&
+      "downloadedFiles" in obj &&
+      Array.isArray((obj as any).downloadedFiles)
+    );
+  }
+
+  const downloadedFiles = isDownloadHook(downloadHookRaw)
+    ? (downloadHookRaw as any).downloadedFiles
+    : [];
+
   const cleanCacheDirectory: () => Promise<void> =
-    downloadHook.cleanCacheDirectory ?? (async () => {});
+    isDownloadHook(downloadHookRaw) &&
+    typeof (downloadHookRaw as any).cleanCacheDirectory === "function"
+      ? (downloadHookRaw as any).cleanCacheDirectory.bind(downloadHookRaw)
+      : async () => {};
+
   const prevIsConnected = useRef<boolean | null>(false);
   const invalidateCache = useInvalidatePlaybackProgressCache();
   useEffect(() => {
