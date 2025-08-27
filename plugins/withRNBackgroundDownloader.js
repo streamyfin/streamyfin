@@ -1,8 +1,8 @@
-const { withAppDelegate, withXcodeProject } = require("@expo/config-plugins");
+const { withAppDelegate, withXcodeProject } = require("expo/config-plugins");
 const fs = require("node:fs");
 const path = require("node:path");
 
-/** @param {import("@expo/config-plugins").ExpoConfig} config */
+/** @param {import("expo/config-plugins").ExpoConfig} config */
 function withRNBackgroundDownloader(config) {
   /* 1️⃣  Add handleEventsForBackgroundURLSession to AppDelegate.swift */
   config = withAppDelegate(config, (mod) => {

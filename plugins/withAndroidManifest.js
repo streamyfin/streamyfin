@@ -1,6 +1,6 @@
 const {
   withAndroidManifest: NativeAndroidManifest,
-} = require("@expo/config-plugins");
+} = require("expo/config-plugins");
 
 const withAndroidManifest = (config) =>
   NativeAndroidManifest(config, async (config) => {
