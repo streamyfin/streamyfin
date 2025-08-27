@@ -20,6 +20,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   const volume = useSharedValue<number>(50); // Explicitly type as number
   const min = useSharedValue<number>(0); // Explicitly type as number
   const max = useSharedValue<number>(100); // Explicitly type as number
+  const isUserInteracting = useRef(false);
 
   const timeoutRef = useRef<number | null>(null); // Use a ref to store the timeout ID
 
@@ -45,18 +46,33 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
   }, [isTv, volume]);
 
   const handleValueChange = async (value: number) => {
+    isUserInteracting.current = true;
     volume.value = value;
-    // await VolumeManager.setVolume(value / 100);
+
+    try {
+      await VolumeManager.setVolume(value / 100);
+    } catch (error) {
+      console.error("Error setting volume:", error);
+    }
 
     // Re-call showNativeVolumeUI to ensure the setting is applied on iOS
     VolumeManager.showNativeVolumeUI({ enabled: false });
+
+    // Reset interaction flag after a delay
+    setTimeout(() => {
+      isUserInteracting.current = false;
+    }, 100);
   };
 
   useEffect(() => {
     if (isTv) return;
     const _volumeListener = VolumeManager.addVolumeListener(
       (result: VolumeResult) => {
-        volume.value = result.volume * 100;
+        // Only update if user is not currently interacting with the slider
+        if (!isUserInteracting.current) {
+          volume.value = result.volume * 100;
+        }
+
         setVisibility(true);
 
         // Clear any existing timeout
@@ -79,7 +95,7 @@ const AudioSlider: React.FC<AudioSliderProps> = ({ setVisibility }) => {
     };
   }, [isTv, volume, setVisibility]);
 
-  if (isTv) return;
+  if (isTv) return null;
 
   return (
     <View style={styles.sliderContainer}>

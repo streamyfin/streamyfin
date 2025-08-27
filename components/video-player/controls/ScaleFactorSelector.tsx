@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import { Platform, TouchableOpacity } from "react-native";
+import { Text } from "@/components/common/Text";
+import { FilterSheet } from "@/components/filters/FilterSheet";
 import { useHaptic } from "@/hooks/useHaptic";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 
 export type ScaleFactor =
   | 1.0
@@ -94,42 +94,56 @@ export const ScaleFactorSelector: React.FC<ScaleFactorSelectorProps> = ({
   disabled = false,
 }) => {
   const lightHapticFeedback = useHaptic("light");
+  const [open, setOpen] = useState(false);
 
-  // Hide on TV platforms since zeego doesn't support TV
-  if (Platform.isTV || !DropdownMenu) return null;
+  // Hide on TV platforms
+  if (Platform.isTV) return null;
 
   const handleScaleSelect = (scale: ScaleFactor) => {
     onScaleChange(scale);
     lightHapticFeedback();
   };
 
+  const currentOption = SCALE_FACTOR_OPTIONS.find(
+    (option) => option.id === currentScale,
+  );
+
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <TouchableOpacity
-          disabled={disabled}
-          className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-          style={{ opacity: disabled ? 0.5 : 1 }}
-        >
-          <Ionicons name='search-outline' size={24} color='white' />
-        </TouchableOpacity>
-      </DropdownMenu.Trigger>
+    <>
+      <TouchableOpacity
+        disabled={disabled}
+        className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+        style={{ opacity: disabled ? 0.5 : 1 }}
+        onPress={() => setOpen(true)}
+      >
+        <Ionicons name='search-outline' size={24} color='white' />
+      </TouchableOpacity>
 
-      <DropdownMenu.Content>
-        <DropdownMenu.Label>Scale Factor</DropdownMenu.Label>
-        <DropdownMenu.Separator />
-
-        {SCALE_FACTOR_OPTIONS.map((option) => (
-          <DropdownMenu.CheckboxItem
-            key={option.id}
-            value={currentScale === option.id ? "on" : "off"}
-            onValueChange={() => handleScaleSelect(option.id)}
-          >
-            <DropdownMenu.ItemTitle>{option.label}</DropdownMenu.ItemTitle>
-            <DropdownMenu.ItemIndicator />
-          </DropdownMenu.CheckboxItem>
-        ))}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+      <FilterSheet
+        open={open}
+        setOpen={setOpen}
+        title='Scale Factor'
+        data={SCALE_FACTOR_OPTIONS}
+        values={currentOption ? [currentOption] : []}
+        multiple={false}
+        searchFilter={(item, query) => {
+          const option = item as ScaleFactorOption;
+          return (
+            option.label.toLowerCase().includes(query.toLowerCase()) ||
+            option.description.toLowerCase().includes(query.toLowerCase())
+          );
+        }}
+        renderItemLabel={(item) => {
+          const option = item as ScaleFactorOption;
+          return <Text>{option.label}</Text>;
+        }}
+        set={(vals) => {
+          const chosen = vals[0] as ScaleFactorOption | undefined;
+          if (chosen) {
+            handleScaleSelect(chosen.id);
+          }
+        }}
+      />
+    </>
   );
 };

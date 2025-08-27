@@ -85,6 +85,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
     chosenAudioIndex?: string;
     chosenSubtitleIndex?: string;
   }) => {
+    console.log("chosenSubtitleIndex", chosenSubtitleIndex);
     const queryParams = new URLSearchParams({
       itemId: itemId ?? "",
       audioIndex: chosenAudioIndex,
@@ -114,6 +115,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       mediaSource?.TranscodingUrl &&
       !onTextBasedSubtitle;
 
+    console.log("Set player params", index, serverIndex);
     if (shouldChangePlayerParams) {
       setPlayerParams({
         chosenSubtitleIndex: serverIndex.toString(),

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   runOnJS,
   type SharedValue,
@@ -6,21 +6,24 @@ import {
 } from "react-native-reanimated";
 import { ticksToSeconds } from "@/utils/time";
 
-interface UseTimeManagementProps {
+interface UseVideoTimeProps {
   progress: SharedValue<number>;
   max: SharedValue<number>;
   isSeeking: SharedValue<boolean>;
   isVlc: boolean;
 }
 
-export const useTimeManagement = ({
+export function useVideoTime({
   progress,
   max,
   isSeeking,
   isVlc,
-}: UseTimeManagementProps) => {
+}: UseVideoTimeProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(Number.POSITIVE_INFINITY);
+
+  const lastCurrentTimeRef = useRef(0);
+  const lastRemainingTimeRef = useRef(0);
 
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
@@ -29,8 +32,25 @@ export const useTimeManagement = ({
         ? maxValue - currentProgress
         : ticksToSeconds(maxValue - currentProgress);
 
-      setCurrentTime(current);
-      setRemainingTime(remaining);
+      // Only update state if the displayed time actually changed (avoid sub-second updates)
+      const currentSeconds = Math.floor(current / (isVlc ? 1000 : 1));
+      const remainingSeconds = Math.floor(remaining / (isVlc ? 1000 : 1));
+      const lastCurrentSeconds = Math.floor(
+        lastCurrentTimeRef.current / (isVlc ? 1000 : 1),
+      );
+      const lastRemainingSeconds = Math.floor(
+        lastRemainingTimeRef.current / (isVlc ? 1000 : 1),
+      );
+
+      if (
+        currentSeconds !== lastCurrentSeconds ||
+        remainingSeconds !== lastRemainingSeconds
+      ) {
+        setCurrentTime(current);
+        setRemainingTime(remaining);
+        lastCurrentTimeRef.current = current;
+        lastRemainingTimeRef.current = remaining;
+      }
     },
     [isVlc],
   );
@@ -49,21 +69,8 @@ export const useTimeManagement = ({
     [updateTimes],
   );
 
-  const getEndTime = () => {
-    const now = new Date();
-    const remainingMs = isVlc ? remainingTime : remainingTime * 1000;
-    const finishTime = new Date(now.getTime() + remainingMs);
-    return finishTime.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  };
-
   return {
     currentTime,
     remainingTime,
-    updateTimes,
-    getEndTime,
   };
-};
+}

@@ -220,6 +220,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         <HorizontalScroll
           ref={scrollViewRef}
           data={episodes}
+          height={800}
           extraData={item}
           // Note otherItem is the item that is being rendered, not the item that is currently selected
           renderItem={(otherItem, _idx) => (
@@ -227,7 +228,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
               key={otherItem.Id}
               style={{}}
               className={`flex flex-col w-44 ${
-                item.Id !== otherItem.Id ? "opacity-75" : ""
+                item.Id !== otherItem.Id ? "opacity-50" : ""
               }`}
             >
               <TouchableOpacity
