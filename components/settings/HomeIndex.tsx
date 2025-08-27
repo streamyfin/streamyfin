@@ -72,9 +72,6 @@ export const HomeIndex = () => {
     refreshStreamyfinPluginSettings,
   ] = useSettings();
 
-  // const [isConnected, setIsConnected] = useState<boolean | null>(null);
-  // const [loadingRetry, setLoadingRetry] = useState(false);
-
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
@@ -137,29 +134,6 @@ export const HomeIndex = () => {
       unsubscribe();
     };
   }, [segments]);
-
-  // const checkConnection = useCallback(async () => {
-  //   setLoadingRetry(true);
-  //   const state = await retryCheck();
-  //   setIsConnected(state.isConnected);
-  //   setLoadingRetry(false);
-  // }, []);
-
-  // useEffect(() => {
-  //   const unsubscribe = NetInfo.addEventListener((state) => {
-  //     if (state.isConnected === false || state.isInternetReachable === false)
-  //       setIsConnected(false);
-  //     else setIsConnected(true);
-  //   });
-
-  //   NetInfo.fetch().then((state) => {
-  //     setIsConnected(state.isConnected);
-  //   });
-
-  //   return () => {
-  //     unsubscribe();
-  //   };
-  // }, []);
 
   const {
     data,
