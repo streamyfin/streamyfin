@@ -98,7 +98,7 @@
     "tailwindcss": "3.3.2",
     "use-debounce": "^10.0.4",
     "zeego": "^3.0.6",
-    "zod": "^3.24.1"
+    "zod": "^4.1.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
