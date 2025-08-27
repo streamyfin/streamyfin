@@ -29,7 +29,6 @@
         "expo-constants": "~17.1.5",
         "expo-dev-client": "^5.2.0",
         "expo-device": "~7.1.4",
-        "expo-doctor": "^1.13.5",
         "expo-font": "~13.3.1",
         "expo-haptics": "~14.1.4",
         "expo-image": "~2.4.0",
@@ -94,6 +93,7 @@
         "@types/react": "~19.0.10",
         "@types/react-test-renderer": "^19.0.0",
         "cross-env": "^10.0.0",
+        "expo-doctor": "^1.17.0",
         "husky": "^9.1.7",
         "lint-staged": "^16.1.5",
         "postinstall-postinstall": "^2.1.0",
@@ -1014,7 +1014,7 @@
 
     "expo-device": ["expo-device@7.1.4", "", { "dependencies": { "ua-parser-js": "^0.7.33" }, "peerDependencies": { "expo": "*" } }, "sha512-HS04IiE1Fy0FRjBLurr9e5A6yj3kbmQB+2jCZvbSGpsjBnCLdSk/LCii4f5VFhPIBWJLyYuN5QqJyEAw6BcS4Q=="],
 
-    "expo-doctor": ["expo-doctor@1.13.5", "", { "bin": { "expo-doctor": "build/index.js" } }, "sha512-Kp9c0+qiQ636ZuKyU+TwSe0oO9kdK1Q+xCD6VBM1zPSv8Grqa5yg1F2EkGvqQeDJYUXUZvPUqVhRBz9sLyvQOg=="],
+    "expo-doctor": ["expo-doctor@1.17.0", "", { "bin": { "expo-doctor": "build/index.js" } }, "sha512-t+cweyCKbDE+ORgNh8CCybRXFwae/uJKfPetirDUF+PjaZvc6PPVF8gwBD+nFQ1dLURjxD4IaVNwC94Iyg6q0A=="],
 
     "expo-file-system": ["expo-file-system@18.1.11", "", { "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-HJw/m0nVOKeqeRjPjGdvm+zBi5/NxcdPf8M8P3G2JFvH5Z8vBWqVDic2O58jnT1OFEy0XXzoH9UqFu7cHg9DTQ=="],
 
