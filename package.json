@@ -29,8 +29,8 @@
     "@kesha-antonov/react-native-background-downloader": "^3.2.6",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-menu/menu": "^1.2.4",
-    "@react-navigation/material-top-tabs": "^7.3.6",
-    "@react-navigation/native": "^7.1.17",
+    "@react-navigation/material-top-tabs": "^7.2.14",
+    "@react-navigation/native": "^7.0.14",
     "@shopify/flash-list": "^1.8.3",
     "@tanstack/react-query": "^5.85.5",
     "axios": "^1.11.0",
@@ -81,7 +81,7 @@
     "react-native-ios-utilities": "5.1.8",
     "react-native-mmkv": "2.12.2",
     "react-native-pager-view": "^6.9.1",
-    "react-native-reanimated": "~3.17.5",
+    "react-native-reanimated": "~3.16.7",
     "react-native-reanimated-carousel": "4.0.2",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
@@ -99,7 +99,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.3",
+    "@babel/core": "^7.20.0",
     "@biomejs/biome": "^2.2.2",
     "@react-native-community/cli": "^20.0.1",
     "@react-native-tvos/config-tv": "^0.1.3",
