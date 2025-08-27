@@ -22,7 +22,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [phone, tv]
+        target: [phone]
+#        target: [phone, tv]
 
     steps:
       - name: 📥 Checkout code
