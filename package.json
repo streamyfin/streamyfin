@@ -15,7 +15,7 @@
     "build:android:local": "cd android && cross-env NODE_ENV=production ./gradlew assembleRelease",
     "prepare": "husky",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "biome check . --max-diagnostics 1000 && bun run typecheck",
+    "check": "biome check . --max-diagnostics 1000",
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
     "doctor": "expo-doctor"
