@@ -20,12 +20,12 @@ jobs:
           # Global settings
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           operations-per-run: 500  # Increase if you have >1000 issues
-          log-level: debug
+          enable-statistics: true
 
           # Issue configuration
           days-before-issue-stale: 90
           days-before-issue-close: 7
-          stale-issue-label: "stale"
+          stale-issue-label: "🕰️ stale"
           exempt-issue-labels: "Roadmap v1,help needed,enhancement"
 
           # Notifications messages
