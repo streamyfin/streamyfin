@@ -280,7 +280,7 @@ function Layout() {
 
   useEffect(() => {
     if (!Platform.isTV) {
-      registerNotifications();
+      void registerNotifications();
 
       notificationListener.current =
         Notifications?.addNotificationReceivedListener(

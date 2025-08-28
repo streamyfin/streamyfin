@@ -1,9 +1,7 @@
-const {
-  withAndroidManifest: NativeAndroidManifest,
-} = require("expo/config-plugins");
+const { withAndroidManifest } = require("expo/config-plugins");
 
-const withAndroidManifest = (config) =>
-  NativeAndroidManifest(config, async (config) => {
+const _withGoogleCastAndroidManifest = (config) =>
+  withAndroidManifest(config, async (config) => {
     const mainApplication = config.modResults.manifest.application[0];
 
     // Initialize activity array if it doesn't exist
@@ -25,6 +23,7 @@ const withAndroidManifest = (config) =>
             "com.reactnative.googlecast.RNGCExpandedControllerActivity",
           "android:theme": "@style/Theme.MaterialComponents.NoActionBar",
           "android:launchMode": "singleTask",
+          "android:exported": "false",
         },
       });
     }
@@ -33,7 +32,7 @@ const withAndroidManifest = (config) =>
       (activity) => activity.$?.["android:name"] === ".MainActivity",
     );
 
-    if (mainActivity) {
+    if (mainActivity?.$) {
       mainActivity.$["android:supportsPictureInPicture"] = "true";
     }
 
