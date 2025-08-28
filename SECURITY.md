@@ -22,7 +22,7 @@ Before reporting an issue, please consider:
 
 ## Reporting a Vulnerability
 
-After confirming your issue is new and relevant, send an email to **fredrik.burmester@gmail.com** with the following:
+After confirming your issue is new and relevant, send an email to **developer@streamyfin.app** with the following:
 
 1. Subject line: `[Streamyfin Security] <short summary>`
 2. Overview (public-safe): Describe what component is affected (mobile app, backend API, plugin) and the high-level impact. We may reuse this text for a GitHub Security Advisory.
