@@ -39,4 +39,4 @@ const _withGoogleCastAndroidManifest = (config) =>
     return config;
   });
 
-module.exports = withAndroidManifest;
+module.exports = _withGoogleCastAndroidManifest;
