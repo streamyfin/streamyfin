@@ -42,7 +42,7 @@ body:
         3. Keep everything readable and structured. Nobody enjoys reading poorly written reports that are difficult to understand.
         4. Keep an eye on your report as long as it is open, your involvement might be requested at a later moment.
         5. Keep the title short and descriptive. The title is not the place to write down a full description of the issue.
-        6. When deciding to leave out information in a field, leave it blank and empty. Avoid writing things such as `n/a` for empty fields.
+        6. When choosing to omit information in a field, write 'n/a' to explicitly indicate the deliberate absence of data. Avoid leaving the field blank or empty.
   - type: textarea
     id: feature-description
     attributes:

@@ -35,7 +35,7 @@ If you're unsure about how to report an issue or need help, reach out to the com
 
 Please submit feature and enhancement requests as GitHub issues labeled `enhancement`.
 
-Before creating a new feature request:
+When creating a new feature request:
 
 - Check if the idea or similar request exists.
 - Use reactions like 👍 to support existing requests.
@@ -51,7 +51,7 @@ StreamyFin is built primarily using Expo and React Native to support both iOS an
 
 ### Setting Up Your Development Environment
 
-1. Fork the StreamyFin repository on GitHub.
+1. Fork the StreamyFin repository on GitHub and unselect the option 'Copy the "DEFAULT" branch only'.
 2. Clone your fork:
 
 ```
@@ -65,7 +65,7 @@ cd streamyfin
 
 ```
 
-bun install
+bun install && bun run submodule-reload
 
 ```
 
@@ -73,7 +73,7 @@ bun install
 
 ```
 
-bun start
+bun ios / bun android
 
 ```
 
@@ -85,8 +85,8 @@ bun start
 
 ```
 
-git fetch upstream
-git rebase upstream/master
+git remote add upstream https://github.com/streamyfin/streamyfin.git
+git rebase upstream/develop
 
 ```
 
