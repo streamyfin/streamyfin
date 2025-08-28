@@ -1,5 +1,5 @@
 <!--
-  Pull Request Template for StreamyFin
+  Pull Request Template for Streamyfin
   ====================================
   Use this template to help reviewers understand the purpose of your PR
   and to ensure all necessary checks are completed before merging.
@@ -21,23 +21,19 @@ You can also indicate if this PR supersedes a previous one.
 Example:
 - Closes #123
 - Fixes STREAMYFIN-456
+- Resolves #789
 - Supersedes #120
+- Related: #130
 -->
 
 ## 🛠️ What’s Changed
-<!--
-List here the Conventional Commits type(s) used in this PR, each with a brief description of what that type means and when to use it.
-- feat: A new feature for the user, e.g., “feat: add email notification on signup”
-- fix: A bug fix, e.g., “fix: correct rounding error in interest calculation”
-- docs: Documentation only changes, e.g., “docs: update API usage examples”
-- style: Changes that do not affect the meaning of the code (formatting, missing semicolons), e.g., “style: reindent code in userService.js”
-- refactor: Code change that neither fixes a bug nor adds a feature, e.g., “refactor: extract validation logic into helper”
-- perf: A code change that improves performance, e.g., “perf: cache exchange rates in memory”
-- test: Adding missing tests or correcting existing tests, e.g., “test: add unit tests for authController”
-- chore: Changes to the build process or auxiliary tools and libraries, e.g., “chore: bump dependency versions”
-- revert: Reverts a previous commit, e.g., “revert: feat(schema): remove deprecated field”
-- build: Changes that affect the build system or external dependencies, e.g., “build: update webpack config”
-- ci: Changes to CI configuration files and scripts, e.g., “ci: add GitHub Actions workflow for linting”
+<!-- Use a Conventional Commit in the PR title, e.g., `feat(auth): add MFA`. 
+If this PR introduces a breaking change, include a `BREAKING CHANGE:` block in the description.
+Spec: https://www.conventionalcommits.org/ -->
+
+- Type: feat | fix | docs | style | refactor | perf | test | chore | build | ci | revert
+- Scope (optional): e.g., auth, billing, mobile
+- Short summary: what changed and why (1–2 lines)
 -->
 
 ## 📋 Details
@@ -46,27 +42,44 @@ Provide more context or background. Explain any non-obvious decisions.
 Include screenshots or GIFs for UI changes if applicable.
 -->
 
+### ⚠️ Breaking Changes
+<!-- List any breaking API/contract changes and migration guidance. If none, write “None”. -->
+
+### 🔐 Security & Privacy Impact
+<!-- Data touched, new permissions/scopes, PII, secrets, threat considerations. If none, write “None”. -->
+
+### ⚡ Performance Impact
+<!-- Hot paths, memory/CPU/latency implications, benchmarks if available. -->
+
+### 🖼️ Screenshots / GIFs (if UI)
+<!-- Before/After, dark mode, responsive states. -->
+
 ## ✅ Checklist
 <!--
 Review and check off items as you complete them.
 -->
 - [ ] I’ve read the [contribution guidelines](CONTRIBUTING.md)
-- [ ] My code follows the project's coding conventions and style
-- [ ] I have updated documentation where necessary
-- [ ] I have run `bun check` and fixed all issues
-- [ ] I have run `bun lint` and fixed all lint warnings/errors
-- [ ] I have run the app locally and verified changes behave as expected
-- [ ] I confirm no sensitive data (secrets, credentials) is included in this PR
+- [ ] Code follows project style and passes lint/format (`npm|pnpm|yarn|bun` scripts)
+- [ ] Type checks pass (tsc/biome/etc.)
+- [ ] Tests added/updated and pass locally/CI
+- [ ] Docs updated (README/ADR/usage/API)
+- [ ] No secrets/credentials included; env vars documented
+- [ ] Telemetry/analytics updated (events, dashboards)
+- [ ] Release notes/CHANGELOG entry added (if applicable)
+- [ ] Verified locally that changes behave as expected
 
 ## 🔍 Testing Instructions
 <!--
 Describe how reviewers can test your changes.
 Example:
-1. `git fetch origin pull/<PR_ID>/head:branchname`
-2. `bun install`
-3. `bun run start`
-4. Open the app in Expo Go on your device or simulator
-5. Verify the changes work as described in your PR
+1. `git fetch origin pull/<PR_ID>/head:branchname && git checkout branchname`
+2. Install deps: `npm|pnpm|yarn|bun install`
+3. Start service/app: `npm|pnpm|yarn|bun run start[:target]`
+4. Run tests: `npm|pnpm|yarn|bun test`
+5. Verification steps:
+   - [ ] Expected UI/endpoint behavior
+   - [ ] Logs show no errors
+   - [ ] Edge cases covered (list)
 -->
 
 ## ⚙️ Deployment Notes

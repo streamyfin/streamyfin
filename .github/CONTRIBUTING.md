@@ -1,12 +1,13 @@
-# Contributing to StreamyFin
+# Contributing to Streamyfin
 
-Thank you for your interest in contributing to the StreamyFin mobile app project! This document provides guidelines to smoothly collaborate on the StreamyFin codebase and help improve the app for all users.
+Thank you for your interest in contributing to the Streamyfin mobile app project! This document provides guidelines to smoothly collaborate on the Streamyfin codebase and help improve the app for all users.
 
 ---
 
 ## Table of Contents
 
 - [Reporting Issues](#reporting-issues)
+- [Reporting Security Vulnerabilities](#reporting-security-vulnerabilities)
 - [Requesting Features & Enhancements](#requesting-features--enhancements)
 - [Developing the Mobile App](#developing-the-mobile-app)
   - [Codebase Overview](#codebase-overview)
@@ -20,16 +21,22 @@ Thank you for your interest in contributing to the StreamyFin mobile app project
 
 ## Reporting Issues
 
-StreamyFin uses GitHub issues to track bugs and improvements. Before opening a new issue:
+Streamyfin uses GitHub issues to track bugs and improvements. Before opening a new issue:
 
 - Search existing issues for duplicates.
 - Provide clear, reproducible steps to demonstrate bugs.
-- Include device info, OS version, StreamyFin version, and any relevant logs.
-- Tag bug reports with `[bug]` at the start of the issue title for easier triage.
+- Include device info, OS version, Streamyfin version, and any relevant logs.
+- Apply the `bug` label to the issue for easier triage; no title prefix needed.
 
 If you're unsure about how to report an issue or need help, reach out to the community via our chat links.
 
----
+### Reporting Security Vulnerabilities
+
+Please do not file public GitHub issues for security vulnerabilities.
+
+Report security concerns via GitHub Security Advisories (Repository → Security → Report a vulnerability). Provide steps to reproduce, affected versions, and mitigation ideas if available. We’ll acknowledge receipt and coordinate a fix before public disclosure.
+
+If Security Advisories are unavailable for you, contact the maintainers via the email listed in SECURITY.md.---
 
 ## Requesting Features & Enhancements
 
@@ -47,47 +54,57 @@ When creating a new feature request:
 
 ### Codebase Overview
 
-StreamyFin is built primarily using Expo and React Native to support both iOS and Android platforms within a single repository. The app communicates directly with Jellyfin backend servers for media streaming.
+Streamyfin is built primarily using Expo and React Native to support both iOS and Android platforms within a single repository. The app communicates directly with Jellyfin backend servers for media streaming.
 
 ### Setting Up Your Development Environment
 
-1. Fork the StreamyFin repository on GitHub and unselect the option 'Copy the "DEFAULT" branch only'.
+1. Fork the Streamyfin repository on GitHub. If prompted with “Copy the main branch only,” uncheck it so all branches are copied.
 2. Clone your fork:
 
 ```
 
 git clone git@github.com:yourusername/streamyfin.git
+# or
+git clone https://github.com/yourusername/streamyfin.git
 cd streamyfin
 
 ```
 
-3. Install dependencies:
+3. Initialize submodules and install dependencies:
 
 ```
-
-bun install && bun run submodule-reload
-
+git submodule update --init --recursive
+bun install
 ```
 
 4. Start the development server locally (with Expo):
 
 ```
-
 bun ios / bun android
-
 ```
 
-5. Use the Expo app on your mobile device or emulator to run and debug StreamyFin.
+> Optionally, to run directly on a device or emulator:
+> 
+> ```
+> # For iOS (requires macOS and Xcode):
+> bun expo run:ios -d
+> # For Android (requires Android Studio or emulator):
+> bun expo run:android -d
+> ```
+
+5. Use the Expo app on your mobile device or emulator to run and debug Streamyfin.
 
 ### Making Changes
 
 1. Stay up to date by syncing with upstream:
 
-```
-
+```bash
+# Add the upstream remote only once (skip if already added)
 git remote add upstream https://github.com/streamyfin/streamyfin.git
+# Fetch latest changes from upstream
+git fetch upstream
+# Rebase your current branch onto the upstream default branch (replace 'main' if your repo uses a different default branch)
 git rebase upstream/develop
-
 ```
 
 2. Create a descriptive feature or bugfix branch:
@@ -118,17 +135,18 @@ When opening a PR:
 - Follow our [Conventional Commits](https://www.conventionalcommits.org/) style, e.g., `feat: add new playback controls`.
 - Provide a detailed description in the PR body, explaining what, why, and any impacts.
 - Include screenshots or recordings if UI changes are involved.
-- Ensure all tests pass and add new tests as needed.
+- Ensure CI checks are green (lint, type-check, build).
+- Do not include secrets, tokens, or production credentials. Redact sensitive data in logs and screenshots.
 - Keep PRs focused; avoid bundling unrelated changes together.
 
-PRs require review and approval by maintainers before merging.
-
----
+PRs require review and approval by maintainers before merging.---
 
 ## Release Process
 
-- StreamyFin follows semantic versioning (`MAJOR.MINOR.PATCH`).
+- Streamyfin follows semantic versioning (`MAJOR.MINOR.PATCH`).
 - Releases are made periodically after testing and QA cycles.
+- Tag each release and publish a GitHub Release with a changelog.
+- Consider automating versioning and changelogs (e.g., Changesets or semantic-release).
 - Release announcements are posted on our repository and community channels.
 - Contributions accepted through PRs will be included in upcoming releases according to readiness.
 
@@ -141,4 +159,4 @@ PRs require review and approval by maintainers before merging.
 
 ---
 
-Thank you for helping make StreamyFin a better app for everyone !
+Thank you for helping make Streamyfin a better app for everyone!

@@ -11,6 +11,7 @@
     "group:testNonMajor",
     "group:monorepos",
     "helpers:pinGitHubActionDigests",
+    ":pinDigests",
     "customManagers:biomeVersions"
   ],
   "addLabels": ["dependencies"],
@@ -19,7 +20,8 @@
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
-    "schedule": ["every month"]
+    "schedule": ["on the first day of the month"],
+    "automerge": false
   },
   "packageRules": [
     {
@@ -32,12 +34,11 @@
       "matchManagers": ["github-actions"],
       "groupName": "CI dependencies",
       "groupSlug": "ci-deps",
-      "matchUpdateTypes": ["minor", "patch"]
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"]
     },
     {
       "description": "Group lock file maintenance updates",
       "matchUpdateTypes": ["lockFileMaintenance"],
-      "groupName": "lockfiles",
       "dependencyDashboardApproval": true
     },
     {

@@ -2,7 +2,7 @@ name: "🐛 Bug Report"
 description: Create a report to help us improve
 title: "[Bug]: "
 labels:
-  - "❌ bug"
+  - "🐛 bug"
 projects:
   - "streamyfin/3"
 
@@ -12,7 +12,7 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
-        Please keep in mind that StreamyFin is a [free and open-source](https://github.com/streamyfin/streamyfin) project, made up entirely and exclusively of **volunteers** who donate their free time to the project.
+        Please keep in mind that Streamyfin is a [free and open-source](https://github.com/streamyfin/streamyfin) project maintained entirely by **volunteers** who donate their free time.
 
   - type: checkboxes
     id: before-posting
@@ -20,15 +20,15 @@ body:
       label: "This issue respects the following points:"
       description: All conditions are **required**. Failure to comply with any of these conditions may cause your issue to be closed without comment.
       options:
-        - label: This is a **bug**, not a question or a configuration issue; Please visit our community channels first to troubleshoot with volunteers, before creating a report. The links can be found in our [Discord](https://discord.streamyfin.app).
+        - label: This is a **bug**, not a question or configuration issue; please consult our community channels before filing a report. [Discord](https://discord.streamyfin.app).
           required: true
         - label: This issue is **not** already reported on [GitHub](https://github.com/streamyfin/streamyfin/issues?q=is%3Aissue+is%3Aopen+label%3A"🐛%20bug") *(I've searched it)*.
           required: true
-        - label: I'm using an up to date version of StreamyFin. We generally do not support previous older versions. If possible, please update to the latest version before opening an issue.
+        - label: I'm using an up-to-date version of Streamyfin. We generally do not support older versions. If possible, please update to the latest version before opening an issue.
           required: true
-        - label:  I agree to follow StreamyFin's [Contribution rules](https://github.com/streamyfin/streamyfin/blob/develop/.github/CONTRIBUTING.md).
+        - label:  I agree to follow Streamyfin's [Contribution rules](https://github.com/streamyfin/streamyfin/blob/develop/.github/CONTRIBUTING.md).
           required: true
-        - label: This report addresses only a single issue; If you encounter multiple issues, kindly create separate reports for each one.
+        - label: This report addresses only a single issue; If you encounter multiple issues, please create separate reports for each one.
           required: true
 
   - type: textarea
@@ -55,7 +55,7 @@ body:
       label: Reproduction steps
       description: "How do you trigger this bug? Please walk us through it step by step."
       placeholder: |
-        1. Open StreamyFin app
+        1. Open Streamyfin app
         2. Navigate to [specific section]
         3. Tap on [specific item]
         4. See error
@@ -74,8 +74,8 @@ body:
   - type: dropdown
     id: version
     attributes:
-      label: StreamyFin Version
-      description: What version of StreamyFin are you running?
+      label: Streamyfin Version
+      description: What version of Streamyfin are you running?
       options:
         - 0.30.2
         - 0.29.0
@@ -98,7 +98,6 @@ body:
         - Jellyfin Server Version: e.g. 10.10.7
         - Server OS: e.g. Ubuntu 22.04, Windows 11, Docker
         - Connection: e.g. Local network, Remote via domain, VPN
-      render: markdown
 
   - type: textarea
     id: screenshots
