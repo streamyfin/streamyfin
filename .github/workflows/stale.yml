@@ -25,7 +25,7 @@ jobs:
           # Issue configuration
           days-before-issue-stale: 90
           days-before-issue-close: 7
-          stale-issue-label: "stale"
+          stale-issue-label: "🕰️ stale"
           exempt-issue-labels: "Roadmap v1,help needed,enhancement"
 
           # Notifications messages
