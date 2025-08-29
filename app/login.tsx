@@ -207,7 +207,143 @@ const Login: React.FC = () => {
     }
   };
 
-  return (
+  return Platform.isTV ? (
+    // TV layout
+    <SafeAreaView className='flex-1 bg-black'>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        {api?.basePath ? (
+          // ------------ Username/Password view ------------
+          <View className='flex-1 items-center justify-center'>
+            {/* Safe centered column with max width so TV doesn’t stretch too far */}
+            <View className='w-[92%] max-w-[900px] px-2 -mt-12'>
+              <Text className='text-3xl font-bold text-white mb-1'>
+                {serverName ? (
+                  <>
+                    {`${t("login.login_to_title")} `}
+                    <Text className='text-purple-500'>{serverName}</Text>
+                  </>
+                ) : (
+                  t("login.login_title")
+                )}
+              </Text>
+              <Text className='text-xs text-neutral-400 mb-6'>
+                {api.basePath}
+              </Text>
+
+              {/* Username */}
+              <Input
+                placeholder={t("login.username_placeholder")}
+                onChangeText={(text: string) =>
+                  setCredentials({ ...credentials, username: text })
+                }
+                value={credentials.username}
+                keyboardType='default'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='oneTimeCode'
+                clearButtonMode='while-editing'
+                maxLength={500}
+                extraClassName='mb-4'
+              />
+
+              {/* Password */}
+              <Input
+                placeholder={t("login.password_placeholder")}
+                onChangeText={(text: string) =>
+                  setCredentials({ ...credentials, password: text })
+                }
+                value={credentials.password}
+                secureTextEntry
+                keyboardType='default'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='password'
+                clearButtonMode='while-editing'
+                maxLength={500}
+                extraClassName='mb-4'
+              />
+
+              <View className='mt-4'>
+                <Button onPress={handleLogin}>{t("login.login_button")}</Button>
+              </View>
+              <View className='mt-3'>
+                <Button
+                  onPress={handleQuickConnect}
+                  className='bg-neutral-800 border border-neutral-700'
+                >
+                  {t("login.quick_connect")}
+                </Button>
+              </View>
+            </View>
+          </View>
+        ) : (
+          // ------------ Server connect view ------------
+          <View className='flex-1 items-center justify-center'>
+            <View className='w-[92%] max-w-[900px] -mt-2'>
+              <View className='items-center mb-1'>
+                <Image
+                  source={require("@/assets/images/icon-ios-plain.png")}
+                  style={{ width: 110, height: 110 }}
+                  contentFit='contain'
+                />
+              </View>
+
+              <Text className='text-white text-4xl font-bold text-center'>
+                Streamyfin
+              </Text>
+              <Text className='text-neutral-400 text-base text-left mt-2 mb-1'>
+                {t("server.enter_url_to_jellyfin_server")}
+              </Text>
+
+              {/* Full-width Input with clear focus ring */}
+              <Input
+                aria-label='Server URL'
+                placeholder={t("server.server_url_placeholder")}
+                onChangeText={setServerURL}
+                value={serverURL}
+                keyboardType='url'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='URL'
+                maxLength={500}
+              />
+
+              {/* Full-width primary button */}
+              <View className='mt-4'>
+                <Button
+                  onPress={async () => {
+                    await handleConnect(serverURL);
+                  }}
+                >
+                  {t("server.connect_button")}
+                </Button>
+              </View>
+
+              {/* Lists stay full width but inside max width container */}
+              <View className='mt-2'>
+                <JellyfinServerDiscovery
+                  onServerSelect={async (server: any) => {
+                    setServerURL(server.address);
+                    if (server.serverName) setServerName(server.serverName);
+                    await handleConnect(server.address);
+                  }}
+                />
+                <PreviousServersList
+                  onServerSelect={async (s: any) => {
+                    await handleConnect(s.address);
+                  }}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  ) : (
+    // Mobile layout
     <SafeAreaView style={{ flex: 1, paddingBottom: 16 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
