@@ -85,8 +85,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     _pluginSettings,
     setPluginSettings,
     refreshStreamyfinPluginSettings,
-  ] = useSettings();
-  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
+  ] = useSettings(api);
+  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr(
+    _settings || {},
+    _updateSettings,
+  );
 
   const headers = useMemo(() => {
     if (!deviceId) return {};

@@ -1,3 +1,4 @@
+import type { Api } from "@jellyfin/sdk";
 import {
   type BaseItemKind,
   type CultureDto,
@@ -6,12 +7,11 @@ import {
   type SortOrder,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
-import { atom, useAtom, useAtomValue } from "jotai";
+import { atom, useAtom } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
 
@@ -276,8 +276,7 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
-export const useSettings = () => {
-  const api = useAtomValue(apiAtom);
+export const useSettings = (api: Api | null) => {
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
 
@@ -301,11 +300,11 @@ export const useSettings = () => {
       return;
     }
     const settings = await api.getStreamyfinPluginConfig().then(
-      ({ data }) => {
+      ({ data }: any) => {
         writeInfoLog("Got plugin settings", data?.settings);
         return data?.settings;
       },
-      (_err) => undefined,
+      (_err: any) => undefined,
     );
     setPluginSettings(settings);
     return settings;

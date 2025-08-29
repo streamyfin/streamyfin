@@ -125,6 +125,34 @@ export const PlayButton: React.FC<Props> = ({
                 // Check if user wants H265 for Chromecast
                 const enableH265 = settings.enableH265ForChromecast;
 
+                // Validate required parameters before calling getStreamUrl
+                if (!api) {
+                  console.warn("API not available for Chromecast streaming");
+                  Alert.alert(
+                    t("player.client_error"),
+                    t("player.missing_parameters"),
+                  );
+                  return;
+                }
+                if (!user?.Id) {
+                  console.warn(
+                    "User not authenticated for Chromecast streaming",
+                  );
+                  Alert.alert(
+                    t("player.client_error"),
+                    t("player.missing_parameters"),
+                  );
+                  return;
+                }
+                if (!item?.Id) {
+                  console.warn("Item not available for Chromecast streaming");
+                  Alert.alert(
+                    t("player.client_error"),
+                    t("player.missing_parameters"),
+                  );
+                  return;
+                }
+
                 // Get a new URL with the Chromecast device profile
                 try {
                   const data = await getStreamUrl({
@@ -132,7 +160,7 @@ export const PlayButton: React.FC<Props> = ({
                     item,
                     deviceProfile: enableH265 ? chromecasth265 : chromecast,
                     startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-                    userId: user?.Id,
+                    userId: user.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
                     maxStreamingBitrate: selectedOptions.bitrate?.value,
                     mediaSourceId: selectedOptions.mediaSource?.Id,
