@@ -1,23 +1,40 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Platform,
   TextInput,
   type TextInputProps,
   TouchableOpacity,
 } from "react-native";
-export function Input(props: TextInputProps) {
-  const { style, ...otherProps } = props;
+
+interface InputProps extends TextInputProps {
+  extraClassName?: string; // new prop for additional classes
+}
+
+export function Input(props: InputProps) {
+  const { style, extraClassName = "", ...otherProps } = props;
   const inputRef = React.useRef<TextInput>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   return Platform.isTV ? (
     <TouchableOpacity onFocus={() => inputRef?.current?.focus?.()}>
       <TextInput
         ref={inputRef}
-        className='p-4  rounded-xl bg-neutral-900'
+        className={`
+          w-full text-lg px-5 py-4 rounded-2xl
+          ${isFocused ? "bg-neutral-700 border-2 border-white" : "bg-neutral-900 border-2 border-transparent"}
+          text-white ${extraClassName}
+        `}
         allowFontScaling={false}
-        style={[{ color: "white" }, style]}
-        placeholderTextColor={"#9CA3AF"}
+        style={[
+          style,
+          {
+            backgroundColor: isFocused ? "#ffffff88" : "#8f8d8d88",
+          },
+        ]}
+        placeholderTextColor={"#ffffffff"}
         clearButtonMode='while-editing'
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         {...otherProps}
       />
     </TouchableOpacity>
