@@ -1,6 +1,20 @@
 import type React from "react";
-import { type PropsWithChildren, type ReactNode, useMemo } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import {
+  type PropsWithChildren,
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import { Loader } from "./Loader";
 
@@ -31,10 +45,23 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
   justify = "center",
   ...props
 }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 130,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
   const colorClasses = useMemo(() => {
     switch (color) {
       case "purple":
-        return "bg-purple-600 active:bg-purple-700";
+        return focused
+          ? "bg-purple-500 border-2 border-white"
+          : "bg-purple-600 border border-purple-700";
       case "red":
         return "bg-red-600";
       case "black":
@@ -42,11 +69,43 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       case "transparent":
         return "bg-transparent";
     }
-  }, [color]);
+  }, [color, focused]);
 
   const lightHapticFeedback = useHaptic("light");
 
-  return (
+  return Platform.isTV ? (
+    <Pressable
+      className='w-full'
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.08);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          shadowColor: "#a855f7",
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: focused ? 0.9 : 0,
+          shadowRadius: focused ? 18 : 0,
+          elevation: focused ? 12 : 0, // Android glow
+        }}
+      >
+        <View
+          className={`rounded-2xl py-5 items-center justify-center 
+            ${focused ? "bg-purple-500 border-2 border-white" : "bg-purple-600 border border-purple-700"}
+            ${className}`}
+        >
+          <Text className='text-white text-xl font-bold'>{children}</Text>
+        </View>
+      </Animated.View>
+    </Pressable>
+  ) : (
     <TouchableOpacity
       className={`
         p-3 rounded-xl items-center justify-center
