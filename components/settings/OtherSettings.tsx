@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as BackgroundTask from "expo-background-task";
 import { useRouter } from "expo-router";
+import * as TaskManager from "expo-task-manager";
 import { TFunction } from "i18next";
 import type React from "react";
 import { useEffect, useMemo } from "react";
@@ -20,11 +22,6 @@ import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
-
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
   const [settings, updateSettings, pluginSettings] = useSettings();
@@ -37,7 +34,7 @@ export const OtherSettings: React.FC = () => {
   const checkStatusAsync = async () => {
     if (Platform.isTV) return;
 
-    await BackgroundFetch.getStatusAsync();
+    await BackgroundTask.getStatusAsync();
     return await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   };
 

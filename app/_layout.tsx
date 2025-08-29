@@ -33,28 +33,25 @@ const BackGroundDownloader = !Platform.isTV
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
+import * as BackgroundTask from "expo-background-task";
 
 import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
+import { getLocales } from "expo-localization";
 import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
-
-import { getLocales } from "expo-localization";
+import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import "react-native-reanimated";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import type { EventSubscription } from "expo-modules-core";
@@ -136,7 +133,7 @@ if (!Platform.isTV) {
     const result = response.data.filter((s) => s.NowPlayingItem);
     Notifications.setBadgeCountAsync(result.length);
 
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    return BackgroundTask.BackgroundTaskResult.Success;
   });
 
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
@@ -144,22 +141,22 @@ if (!Platform.isTV) {
 
     const settingsData = storage.getString("settings");
 
-    if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
+    if (!settingsData) return BackgroundTask.BackgroundTaskResult.Failed;
 
     const settings: Partial<Settings> = JSON.parse(settingsData);
 
     if (!settings?.autoDownload)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Failed;
 
     const token = getTokenFromStorage();
     const deviceId = getOrSetDeviceId();
     const baseDirectory = FileSystem.documentDirectory;
 
     if (!token || !deviceId || !baseDirectory)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Failed;
 
     // Be sure to return the successful result type!
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    return BackgroundTask.BackgroundTaskResult.Success;
   });
 }
 
