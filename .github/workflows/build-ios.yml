@@ -69,6 +69,7 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+          eas-cache: true
 
       - name: ⚙️ Ensure iOS/tvOS SDKs installed
         run: |
