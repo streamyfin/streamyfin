@@ -343,7 +343,7 @@ export const HomeIndex = () => {
       const section = settings.home?.sections[key];
       const id = section.title || key;
       ss.push({
-        title: id,
+        title: t(`${id}`),
         queryKey: ["home", id],
         queryFn: async () => {
           if (section.items) {
