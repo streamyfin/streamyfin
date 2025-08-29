@@ -61,10 +61,8 @@ Review and check off items as you complete them.
 - [ ] I’ve read the [contribution guidelines](CONTRIBUTING.md)
 - [ ] Code follows project style and passes lint/format (`npm|pnpm|yarn|bun` scripts)
 - [ ] Type checks pass (tsc/biome/etc.)
-- [ ] Tests added/updated and pass locally/CI
 - [ ] Docs updated (README/ADR/usage/API)
 - [ ] No secrets/credentials included; env vars documented
-- [ ] Telemetry/analytics updated (events, dashboards)
 - [ ] Release notes/CHANGELOG entry added (if applicable)
 - [ ] Verified locally that changes behave as expected
 
@@ -74,7 +72,7 @@ Describe how reviewers can test your changes.
 Example:
 1. `git fetch origin pull/<PR_ID>/head:branchname && git checkout branchname`
 2. Install deps: `npm|pnpm|yarn|bun install`
-3. Start service/app: `npm|pnpm|yarn|bun run start[:target]`
+3. Start service/app: `npm|pnpm|yarn|bun run [target]` (e.g., `npm run ios` or `bun run android:tv`)
 4. Run tests: `npm|pnpm|yarn|bun test`
 5. Verification steps:
    - [ ] Expected UI/endpoint behavior

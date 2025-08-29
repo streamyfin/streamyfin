@@ -73,7 +73,7 @@ cd streamyfin
 3. Initialize submodules and install dependencies:
 
 ```
-git submodule update --init --recursive
+bun run submodule-reload
 bun install
 ```
 
@@ -87,9 +87,9 @@ bun ios / bun android
 > 
 > ```
 > # For iOS (requires macOS and Xcode):
-> bun expo run:ios -d
-> # For Android (requires Android Studio or emulator):
-> bun expo run:android -d
+> bun run ios
+> # For Android (requires Android Studio or Android Debug Bridge (ADB) tool, plus an emulator or physical device):
+> bun run android 
 > ```
 
 5. Use the Expo app on your mobile device or emulator to run and debug Streamyfin.
@@ -103,7 +103,7 @@ bun ios / bun android
 git remote add upstream https://github.com/streamyfin/streamyfin.git
 # Fetch latest changes from upstream
 git fetch upstream
-# Rebase your current branch onto the upstream default branch (replace 'main' if your repo uses a different default branch)
+# Rebase your current branch onto the upstream default branch (replace 'develop' if you are working from another upstream branch)
 git rebase upstream/develop
 ```
 
