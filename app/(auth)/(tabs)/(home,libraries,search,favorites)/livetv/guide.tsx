@@ -116,8 +116,8 @@ export default function page() {
                 style={{
                   width: "100%",
                   height: "100%",
-                  resizeMode: "contain",
                 }}
+                contentFit='contain'
                 item={c}
               />
             </View>

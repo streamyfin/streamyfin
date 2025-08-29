@@ -121,8 +121,8 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                 style={{
                   width: "100%",
                   height: "100%",
-                  resizeMode: "cover",
                 }}
+                contentFit='cover'
               />
             </View>
           )}

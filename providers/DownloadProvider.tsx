@@ -20,7 +20,6 @@ import { toast } from "sonner-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import useImageStorage from "@/hooks/useImageStorage";
 import { useInterval } from "@/hooks/useInterval";
-import { generateTrickplayUrl, getTrickplayInfo } from "@/hooks/useTrickplay";
 import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
@@ -28,6 +27,7 @@ import { getItemImage } from "@/utils/getItemImage";
 import { writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { fetchAndParseSegments } from "@/utils/segments";
+import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import { Bitrate } from "../components/BitrateSelector";
 import {
   DownloadedItem,

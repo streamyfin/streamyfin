@@ -176,8 +176,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 style={{
                   height: 130,
                   width: "100%",
-                  resizeMode: "contain",
                 }}
+                contentFit='contain'
                 onLoad={() => setLoadingLogo(false)}
                 onError={() => setLoadingLogo(false)}
               />

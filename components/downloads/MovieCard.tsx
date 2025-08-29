@@ -77,8 +77,8 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
             style={{
               width: "100%",
               height: "100%",
-              resizeMode: "cover",
             }}
+            contentFit='cover'
           />
           <ProgressBar item={item} />
         </View>
