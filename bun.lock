@@ -4,7 +4,7 @@
     "": {
       "name": "streamyfin",
       "dependencies": {
-        "@bottom-tabs/react-navigation": "^0.9.2",
+        "@bottom-tabs/react-navigation": "^0.11.0",
         "@expo/config-plugins": "~10.1.1",
         "@expo/metro-runtime": "~5.0.4",
         "@expo/react-native-action-sheet": "^4.1.1",
@@ -316,7 +316,7 @@
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.2.2", "", { "os": "win32", "cpu": "x64" }, "sha512-DAuHhHekGfiGb6lCcsT4UyxQmVwQiBCBUMwVra/dcOSs9q8OhfaZgey51MlekT3p8UwRqtXQfFuEJBhJNdLZwg=="],
 
-    "@bottom-tabs/react-navigation": ["@bottom-tabs/react-navigation@0.9.2", "", { "dependencies": { "color": "^4.2.3" }, "peerDependencies": { "@react-navigation/native": ">=7", "react": "*", "react-native": "*", "react-native-bottom-tabs": "*" } }, "sha512-IZZKllcaqCGsKIgeXmYFGU95IXxbBpXtwKws4Lg2GJw/qqAYYsPFEl0JBvnymSD7G1zkHYEilg5UHuTd0NmX7A=="],
+    "@bottom-tabs/react-navigation": ["@bottom-tabs/react-navigation@0.11.1", "", { "dependencies": { "color": "^4.2.3" }, "peerDependencies": { "@react-navigation/native": ">=7", "react": "*", "react-native": "*", "react-native-bottom-tabs": "*" } }, "sha512-B+twjAzkWZa6RnvDBqPddmp9X/svHgknuFwspEBNqpeVN6oD5HIY0L9IJ/CxZ3Mccha3dtxM8J8SCHNKRPXFQQ=="],
 
     "@dominicstop/ts-event-emitter": ["@dominicstop/ts-event-emitter@1.1.0", "", {}, "sha512-CcxmJIvUb1vsFheuGGVSQf4KdPZC44XolpUT34+vlal+LyQoBUOn31pjFET5M9ctOxEpt8xa0M3/2M7uUiAoJw=="],
 

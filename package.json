@@ -21,7 +21,7 @@
     "doctor": "expo-doctor"
   },
   "dependencies": {
-    "@bottom-tabs/react-navigation": "^0.9.2",
+    "@bottom-tabs/react-navigation": "^0.11.0",
     "@expo/config-plugins": "~10.1.1",
     "@expo/metro-runtime": "~5.0.4",
     "@expo/react-native-action-sheet": "^4.1.1",
