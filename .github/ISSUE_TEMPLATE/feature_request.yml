@@ -1,0 +1,87 @@
+name: "🚀 Feature Request"
+description: Suggest an idea for this project
+title: "[REQUEST]: "
+labels: ["✨ enhancement"]
+projects:
+ - "streamyfin/3"
+body:
+  - type: markdown
+    id: introduction
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this feature request!
+        Please keep in mind that Streamyfin is a [free and open-source](https://github.com/streamyfin/streamyfin) project, made up entirely and exclusively of **volunteers** who donate their free time to the project.
+  - type: checkboxes
+    id: before-posting
+    attributes:
+      label: "This feature request respects the following points:"
+      description: All conditions are **required**. Failure to comply with any of these conditions may cause your feature request to be closed without comment.
+      options:
+        - label: This is a **feature request**, not a question or a configuration issue; Please visit our community channels first to troubleshoot with volunteers, before creating a report. The links can be found in our [Discord](https://discord.streamyfin.app).
+          required: true
+        - label: This issue is **not** already reported on [GitHub](https://github.com/streamyfin/streamyfin/issues?q=is%3Aissue+is%3Aopen+label%3A"✨%20enhancement") _(I've searched it)_.
+          required: true
+        - label: I'm using an up-to-date version of Streamyfin. We generally do not support older versions. If possible, please update to the latest version before opening an issue.
+          required: true
+        - label: I agree to follow Streamyfin's [Contribution Guidelines](https://github.com/streamyfin/streamyfin/blob/develop/.github/CONTRIBUTING.md).
+          required: true
+        - label: This report addresses only a single feature request; If you have multiple feature requests, kindly create separate reports for each one.
+          required: true
+  - type: markdown
+    id: preliminary-information
+    attributes:
+      value: |
+        ### General preliminary information
+
+
+        Please keep the following in mind when creating this issue:
+
+
+        1. Fill in as much of the template as possible.
+        2. Provide as much detail as possible. Do not assume other people to know what is going on.
+        3. Keep everything readable and structured. Nobody enjoys reading poorly written reports that are difficult to understand.
+        4. Keep an eye on your report as long as it is open, your involvement might be requested at a later moment.
+        5. Keep the title short and descriptive. The title is not the place to write down a full description of the issue.
+        6. When choosing to omit information in a field, write 'n/a' to explicitly indicate the deliberate absence of data. Avoid leaving the field blank or empty.
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Description of the feature request
+      description: Please provide a detailed description of the feature request, in a readable and comprehensible way.
+      placeholder: |
+        I would like to see a new feature that allows users to [...] 
+    validations:
+      required: true
+  - type: textarea
+    id: related-problems
+    attributes:
+        label: Is your feature request related to a problem?
+        description: A clear and concise description of what the problem is.     
+        placeholder: |
+            I'm always frustrated when [...]
+  - type: textarea
+    id: solution-description
+    attributes:
+        label: Describe the solution you'd like
+        description: A clear and concise description of what you want to happen.     
+        placeholder: |
+            I would like to see [...]
+    validations:
+      required: true
+  - type: textarea
+    id: alternative-description
+    attributes:
+        label: Describe alternatives you've considered
+        description: A clear and concise description of any alternative solutions or features you've considered.   
+        placeholder: |
+            I've considered [...]
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Relevant screenshots or videos
+      description: Attach relevant screenshots or videos related to this report (drag-and-drop or paste into the editor).
+  - type: textarea
+    id: additional-information
+    attributes:
+      label: Additional information
+      description: Any additional information that might be useful to this feature request.

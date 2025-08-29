@@ -1,0 +1,67 @@
+name: 🐛 Update Bug Report Template
+
+on:
+  release:
+    types: [published]  # Run on every published release on any branch
+
+concurrency:
+   group: update-issue-form-${{ github.event.release.tag_name || github.run_id }}
+   cancel-in-progress: true
+
+jobs:
+  update-bug-report:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: "🟢 Setup Node.js"
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+
+      - name: 🔍 Extract minor version from app.json
+        id: minor
+        uses: actions/github-script@main
+        with:
+          result-encoding: string
+          script: |
+            const fs = require('fs-extra');
+            const semver = require('semver');
+            const content = fs.readJsonSync('./app.json');
+            const version = content.expo.version;
+            const minorVersion = semver.minor(version);
+            return minorVersion.toString();
+
+      - name: 📝 Update bug report version
+        uses: ShaMan123/gha-populate-form-version@be012141ca560dbb92156e3fe098c46035f6260d #v2.0.5
+        with:
+          semver: '^0.${{ steps.minor.outputs.result }}.0'
+          dry_run: no-push
+
+      - name: ⚙️ Update bug report node version dropdown
+        uses: ShaMan123/gha-populate-form-version@be012141ca560dbb92156e3fe098c46035f6260d #v2.0.5
+        with:
+          dropdown: _node_version
+          package: node
+          semver: '>=24.0.0'
+          dry_run: no-push
+
+      - name: 📬 Commit and create pull request
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e #v7.0.8
+        with:
+          add-paths: .github/ISSUE_TEMPLATE/bug_report.yml
+          branch: ci-update-bug-report
+          base: develop
+          delete-branch: true
+          labels: ⚙️ ci, 🤖 github-actions
+          title: 'chore(): Update bug report template to match release version'
+          body: |
+            Automated update to `.github/ISSUE_TEMPLATE/bug_report.yml`
+            Triggered by workflow run [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
