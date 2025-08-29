@@ -728,8 +728,6 @@ function useDownloadProvider() {
         task.resume();
         updateProcess(id, { status: "downloading" });
       } catch (error: any) {
-        console.error("Error resuming download:", error);
-
         // Handle specific ERROR_CANNOT_RESUME error
         if (
           error?.error === "ERROR_CANNOT_RESUME" ||
@@ -739,6 +737,8 @@ function useDownloadProvider() {
           await startDownload(process);
           return; // Return early to prevent error from bubbling up
         } else {
+          // Only log error for non-handled cases
+          console.error("Error resuming download:", error);
           throw error; // Re-throw other errors
         }
       }
