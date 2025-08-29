@@ -2,7 +2,6 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 import { ticksToMs } from "@/utils/time";
@@ -14,9 +13,11 @@ interface TrickplayUrl {
 }
 
 /** Hook to handle trickplay logic for a given item. */
-export const useTrickplay = (item: BaseItemDto) => {
+export const useTrickplay = (
+  item: BaseItemDto,
+  getDownloadedItemById: (id: string) => any,
+) => {
   const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
-  const { getDownloadedItemById } = useDownload();
   const lastCalculationTime = useRef(0);
   const throttleDelay = 200;
   const isOffline = useGlobalSearchParams().offline === "true";
@@ -33,7 +34,7 @@ export const useTrickplay = (item: BaseItemDto) => {
       }
       return generateTrickplayUrl(item, sheetIndex);
     },
-    [trickplayInfo],
+    [trickplayInfo, getDownloadedItemById], // Added getDownloadedItemById to deps
   );
 
   /** Calculates the trickplay URL for the current progress. */
