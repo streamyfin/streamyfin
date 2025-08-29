@@ -1,8 +1,8 @@
 const { withAndroidManifest } = require("expo/config-plugins");
 
 const _withGoogleCastAndroidManifest = (config) =>
-  withAndroidManifest(config, async (config) => {
-    const mainApplication = config.modResults.manifest.application[0];
+  withAndroidManifest(config, async (mod) => {
+    const mainApplication = mod.modResults.manifest.application[0];
 
     // Initialize activity array if it doesn't exist
     if (!mainApplication.activity) {
@@ -36,7 +36,7 @@ const _withGoogleCastAndroidManifest = (config) =>
       mainActivity.$["android:supportsPictureInPicture"] = "true";
     }
 
-    return config;
+    return mod;
   });
 
 module.exports = _withGoogleCastAndroidManifest;

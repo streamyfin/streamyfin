@@ -165,22 +165,31 @@ const checkAndRequestPermissions = async () => {
     const hasAskedBefore = storage.getString(
       "hasAskedForNotificationPermission",
     );
-
+    let granted = false;
     if (hasAskedBefore !== "true") {
       const { status } = await Notifications.requestPermissionsAsync();
-
-      if (status === "granted") {
+      granted = status === "granted";
+      if (granted) {
         writeToLog("INFO", "Notification permissions granted.");
         console.log("Notification permissions granted.");
       } else {
         writeToLog("ERROR", "Notification permissions denied.");
         console.log("Notification permissions denied.");
       }
-
       storage.set("hasAskedForNotificationPermission", "true");
     } else {
-      console.log("Already asked for notification permissions before.");
+      // Already asked before, check current status
+      const { status } = await Notifications.getPermissionsAsync();
+      granted = status === "granted";
+      if (!granted) {
+        writeToLog(
+          "ERROR",
+          "Notification permissions denied (already asked before).",
+        );
+        console.log("Notification permissions denied (already asked before).");
+      }
     }
+    return granted;
   } catch (error) {
     writeToLog(
       "ERROR",
@@ -188,6 +197,7 @@ const checkAndRequestPermissions = async () => {
       error,
     );
     console.error("Error checking/requesting notification permissions:", error);
+    return false;
   }
 };
 
@@ -261,7 +271,13 @@ function Layout() {
       });
     }
 
-    await checkAndRequestPermissions();
+    const granted = await checkAndRequestPermissions();
+    if (!granted) {
+      console.log(
+        "Notification permissions not granted, skipping background fetch and push token registration.",
+      );
+      return;
+    }
 
     if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
       await registerBackgroundFetchAsyncSessions();

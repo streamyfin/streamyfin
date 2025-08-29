@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 import { ticksToMs } from "@/utils/time";
@@ -15,7 +16,7 @@ interface TrickplayUrl {
 /** Hook to handle trickplay logic for a given item. */
 export const useTrickplay = (
   item: BaseItemDto,
-  getDownloadedItemById: (id: string) => any,
+  getDownloadedItemById: (id: string) => DownloadedItem | undefined,
 ) => {
   const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
   const lastCalculationTime = useRef(0);
@@ -58,12 +59,25 @@ export const useTrickplay = (
     [trickplayInfo, item, throttleDelay, getTrickplayUrl],
   );
 
-  /** Prefetches all the trickplay images for the item. */
-  const prefetchAllTrickplayImages = useCallback(() => {
+  /** Prefetches all the trickplay images for the item, limiting concurrency to avoid I/O spikes. */
+  const prefetchAllTrickplayImages = useCallback(async () => {
     if (!trickplayInfo || !item.Id) return;
-    for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
+    const maxConcurrent = 4;
+    const total = trickplayInfo.totalImageSheets;
+    const urls: string[] = [];
+    for (let index = 0; index < total; index++) {
       const url = getTrickplayUrl(item, index);
-      if (url) Image.prefetch(url);
+      if (url) urls.push(url);
+    }
+    for (let i = 0; i < urls.length; i += maxConcurrent) {
+      const batch = urls.slice(i, i + maxConcurrent);
+      await Promise.all(
+        batch.map(
+          (url) => Image.prefetch(url).catch(() => {}), // Ignore errors
+        ),
+      );
+      // Yield to the event loop between batches to avoid blocking
+      await Promise.resolve();
     }
   }, [trickplayInfo, item, getTrickplayUrl]);
 

@@ -1,5 +1,6 @@
 import { Api } from "@jellyfin/sdk";
 import { useQuery } from "@tanstack/react-query";
+import React from "react";
 import { DownloadedItem, MediaTimeSegment } from "@/providers/Downloads/types";
 import { getAuthHeaders } from "./jellyfin/jellyfin";
 
@@ -31,7 +32,11 @@ export const useSegments = (
   downloadedFiles: DownloadedItem[] | undefined,
   api: Api | null,
 ) => {
-  const downloadedItem = downloadedFiles?.find((d) => d.item.Id === itemId);
+  // Memoize the lookup so the array is only traversed when dependencies change
+  const downloadedItem = React.useMemo(
+    () => downloadedFiles?.find((d) => d.item.Id === itemId),
+    [downloadedFiles, itemId],
+  );
 
   return useQuery({
     queryKey: ["segments", itemId, isOffline],

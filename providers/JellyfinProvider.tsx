@@ -87,7 +87,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     refreshStreamyfinPluginSettings,
   ] = useSettings(api);
   const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr(
-    _settings!,
+    _settings || {},
     _updateSettings,
   );
 

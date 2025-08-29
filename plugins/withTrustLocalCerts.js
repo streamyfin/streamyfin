@@ -32,7 +32,7 @@ async function setCustomConfigAsync(config, androidManifest) {
     await fsPromises.copyFile(src_file_path, res_file_path);
   } catch (e) {
     throw new Error(
-      `Failed to copy network security config file from ${src_file_path} to ${res_file_path}`,
+      `Failed to copy network security config file from ${src_file_path} to ${res_file_path}. [Hint: Check Android write permissions and file paths]`,
       { cause: e },
     );
   }

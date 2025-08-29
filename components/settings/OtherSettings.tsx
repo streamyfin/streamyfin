@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as BackgroundTask from "expo-background-task";
 import { useRouter } from "expo-router";
 import * as TaskManager from "expo-task-manager";
 import { TFunction } from "i18next";
@@ -32,10 +31,8 @@ export const OtherSettings: React.FC = () => {
    * Background task
    *******************/
   const checkStatusAsync = async () => {
-    if (Platform.isTV) return;
-
-    await BackgroundTask.getStatusAsync();
-    return await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
+    if (Platform.isTV) return false;
+    return TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   };
 
   useEffect(() => {
