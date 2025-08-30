@@ -15,7 +15,7 @@ export const useControlsTimeout = ({
   onHideControls,
   timeout = 4000,
 }: UseControlsTimeoutProps) => {
-  const controlsTimeoutRef = useRef<number | null>(null);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const resetControlsTimeout = () => {
@@ -26,7 +26,7 @@ export const useControlsTimeout = ({
       if (showControls && !isSliding && !episodeView) {
         controlsTimeoutRef.current = setTimeout(() => {
           onHideControls();
-        }, timeout) as any;
+        }, timeout);
       }
     };
 
@@ -46,7 +46,7 @@ export const useControlsTimeout = ({
       }
       controlsTimeoutRef.current = setTimeout(() => {
         onHideControls();
-      }, timeout) as any;
+      }, timeout);
     }
   };
 

@@ -315,7 +315,7 @@ function Layout() {
               response.notification.request.content,
             );
             if (data && Object.keys(data).length > 0) {
-              const type = data?.type?.toString().toLowerCase();
+              const type = (data?.type ?? "").toString().toLowerCase();
               const itemId = data?.id;
 
               switch (type) {
