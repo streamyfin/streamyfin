@@ -3,7 +3,9 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Application from "expo-application";
+import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system";
+import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
 import { throttle } from "lodash";
@@ -40,6 +42,18 @@ import { apiAtom } from "./JellyfinProvider";
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
+
+// Set up notification handler for downloads
+if (!Platform.isTV) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 const calculateEstimatedSize = (p: JobStatus): number => {
   let size = p.mediaSource.Size;
@@ -87,8 +101,67 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-  const [settings] = useSettings();
+  const [settings] = useSettings(api);
   const successHapticFeedback = useHaptic("success");
+
+  // Request notification permissions for downloads
+  const requestNotificationPermissions = useCallback(async () => {
+    if (Platform.isTV || !Device.isDevice) return;
+
+    try {
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      // Set up Android notification channel
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("downloads", {
+          name: "Downloads",
+          importance: Notifications.AndroidImportance.DEFAULT,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#FF231F7C",
+        });
+      }
+
+      return finalStatus === "granted";
+    } catch (error) {
+      console.error("Failed to get notification permissions:", error);
+      return false;
+    }
+  }, []);
+
+  // Send local notification for download events
+  const sendDownloadNotification = useCallback(
+    async (title: string, body: string, data?: Record<string, any>) => {
+      if (Platform.isTV) return;
+
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body,
+            data,
+          },
+          trigger: null, // Show immediately
+        });
+      } catch (error) {
+        console.error("Failed to send notification:", error);
+      }
+    },
+    [],
+  );
+
+  // Initialize notification permissions on mount
+  useEffect(() => {
+    if (!Platform.isTV) {
+      requestNotificationPermissions();
+    }
+  }, [requestNotificationPermissions]);
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
@@ -418,6 +491,19 @@ function useDownloadProvider() {
           }
           await saveDownloadsDatabase(db);
 
+          // Send native notification for successful download
+          await sendDownloadNotification(
+            t("home.downloads.toasts.download_completed_for_item", {
+              item: process.item.Name,
+            }),
+            `${process.item.Name} has been downloaded successfully! 📱`,
+            {
+              itemId: process.item.Id,
+              itemName: process.item.Name,
+              type: "download_completed",
+            },
+          );
+
           toast.success(
             t("home.downloads.toasts.download_completed_for_item", {
               item: process.item.Name,
@@ -425,8 +511,23 @@ function useDownloadProvider() {
           );
           removeProcess(process.id);
         })
-        .error((error: any) => {
+        .error(async (error: any) => {
           console.error("Download error:", error);
+
+          // Send native notification for failed download
+          await sendDownloadNotification(
+            t("home.downloads.toasts.download_failed_for_item", {
+              item: process.item.Name,
+            }),
+            `Failed to download ${process.item.Name}. Please try again. ❌`,
+            {
+              itemId: process.item.Id,
+              itemName: process.item.Name,
+              type: "download_failed",
+              error: error?.message || "Unknown error",
+            },
+          );
+
           toast.error(
             t("home.downloads.toasts.download_failed_for_item", {
               item: process.item.Name,
@@ -435,7 +536,7 @@ function useDownloadProvider() {
           removeProcess(process.id);
         });
     },
-    [authHeader],
+    [authHeader, sendDownloadNotification, t],
   );
 
   const manageDownloadQueue = useCallback(() => {
