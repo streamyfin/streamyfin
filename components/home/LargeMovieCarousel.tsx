@@ -199,8 +199,8 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
               style={{
                 width: "100%",
                 height: "100%",
-                resizeMode: "contain",
               }}
+              contentFit='contain'
             />
           </View>
         </View>

@@ -14,7 +14,7 @@ import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
+import ActiveDownloads from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";

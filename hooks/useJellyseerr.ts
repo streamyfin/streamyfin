@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
-import { useSettings } from "@/utils/atoms/settings";
+import type { Settings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
   IssueStatus,
@@ -416,9 +416,11 @@ export class JellyseerrApi {
 
 const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 
-export const useJellyseerr = () => {
+export const useJellyseerr = (
+  settings: Settings,
+  updateSettings: (update: Partial<Settings>) => void,
+) => {
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
-  const [settings, updateSettings] = useSettings();
   const queryClient = useQueryClient();
 
   const jellyseerrApi = useMemo(() => {
@@ -472,7 +474,7 @@ export const useJellyseerr = () => {
     return (
       items &&
       Object.hasOwn(items, "mediaType") &&
-      Object.values(MediaType).includes(items.mediaType)
+      Object.values(MediaType).includes(items.mediaType as MediaType)
     );
   };
 

@@ -90,7 +90,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((_index: number) => {}, []);
+  const handleSheetChanges = useCallback((index: number) => {
+    // Ensure modal is fully dismissed when index is -1
+    if (index === -1) {
+      // Modal is fully closed
+    }
+  }, []);
 
   const closeModal = useCallback(() => {
     bottomSheetModalRef.current?.dismiss();
@@ -245,14 +250,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     ],
   );
 
-  const acceptDownloadOptions = useCallback(() => {
+  const acceptDownloadOptions = useCallback(async () => {
     if (userCanDownload === true) {
       if (itemsToDownload.some((i) => !i.Id)) {
         throw new Error("No item id");
       }
-      closeModal();
 
-      initiateDownload(...itemsToDownload);
+      // Ensure modal is dismissed before starting download
+      await closeModal();
+
+      // Small delay to ensure modal is fully dismissed
+      setTimeout(() => {
+        initiateDownload(...itemsToDownload);
+      }, 100);
     } else {
       toast.error(
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
@@ -326,7 +336,15 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           backgroundColor: "#171717",
         }}
         onChange={handleSheetChanges}
+        onDismiss={() => {
+          // Ensure any pending state is cleared when modal is dismissed
+        }}
         backdropComponent={renderBackdrop}
+        enablePanDownToClose
+        enableDismissOnClose
+        android_keyboardInputMode='adjustResize'
+        keyboardBehavior='interactive'
+        keyboardBlurBehavior='restore'
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>

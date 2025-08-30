@@ -1,3 +1,4 @@
+import { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -28,6 +29,7 @@ import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { ticksToMs } from "@/utils/time";
@@ -78,6 +80,8 @@ interface Props {
   setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
   setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
   isVlc?: boolean;
+  api?: Api | null;
+  downloadedFiles?: DownloadedItem[];
 }
 
 export const Controls: FC<Props> = ({
@@ -109,8 +113,10 @@ export const Controls: FC<Props> = ({
   setScaleFactor,
   offline = false,
   isVlc = false,
+  api = null,
+  downloadedFiles = undefined,
 }) => {
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings] = useSettings(api);
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
 
@@ -321,6 +327,8 @@ export const Controls: FC<Props> = ({
     play,
     isVlc,
     offline,
+    api,
+    downloadedFiles,
   );
 
   const { showSkipCreditButton, skipCredit } = useCreditSkipper(
@@ -330,6 +338,8 @@ export const Controls: FC<Props> = ({
     play,
     isVlc,
     offline,
+    api,
+    downloadedFiles,
   );
 
   const goToItemCommon = useCallback(
