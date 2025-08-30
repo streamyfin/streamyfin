@@ -133,20 +133,11 @@ const Login: React.FC = () => {
    */
   const checkUrl = useCallback(async (url: string) => {
     setLoadingServerCheck(true);
-
+    const baseUrl = url.replace(/^https?:\/\//i, "");
+    const protocols = ["https", "http"];
     try {
-      const response = await fetch(`${url}/System/Info/Public`, {
-        mode: "cors",
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as PublicSystemInfo;
-
-        setServerName(data.ServerName || "");
-        return url;
-      }
-
-      return undefined;
+      const verifiedServerUrl = checkHttp(baseUrl, protocols);
+      return verifiedServerUrl;
     } catch {
       return undefined;
     } finally {
@@ -154,6 +145,30 @@ const Login: React.FC = () => {
     }
   }, []);
 
+  async function checkHttp(baseUrl: string, protocols: string[]) {
+    for (const protocol of protocols) {
+      try {
+        console.log("tmp");
+        const response = await fetch(
+          `${protocol}://${baseUrl}/System/Info/Public`,
+          {
+            mode: "cors",
+          },
+        );
+        if (response.ok) {
+          const data = (await response.json()) as PublicSystemInfo;
+          console.log(protocol);
+          console.log(`${protocol}://${baseUrl}`);
+          console.log(data);
+          setServerName(data.ServerName || "");
+          return `${protocol}://${baseUrl}`;
+        }
+      } catch {
+        console.log("failed");
+      }
+    }
+    return undefined;
+  }
   /**
    * Handles the connection attempt to a Jellyfin server.
    *
@@ -181,8 +196,9 @@ const Login: React.FC = () => {
       );
       return;
     }
-
-    await setServer({ address: url });
+    console.log("result");
+    console.log(result);
+    await setServer({ address: result });
   }, []);
 
   const handleQuickConnect = async () => {
