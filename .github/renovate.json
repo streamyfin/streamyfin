@@ -57,23 +57,6 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "Add specific labels for Expo and React Native dependencies",
-      "matchPackagePatterns": ["expo", "react-native"],
-      "addLabels": ["expo", "react-native"]
-    },
-    {
-      "description": "Group React and React-related packages",
-      "matchPackagePatterns": ["react", "react-native", "@types/react"],
-      "groupName": "React ecosystem",
-      "groupSlug": "react-ecosystem"
-    },
-    {
-      "description": "Group build and development tools",
-      "matchPackagePatterns": ["@babel/*", "husky", "lint-staged", "cross-env"],
-      "groupName": "Build tools",
-      "groupSlug": "build-tools"
-    },
-    {
       "description": "Handle major updates more carefully",
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true,
