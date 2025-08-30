@@ -137,7 +137,10 @@ const Login: React.FC = () => {
     const protocols = ["https", "http"];
     try {
       return checkHttp(baseUrl, protocols);
-    } catch {
+    } catch (e) {
+      if (e instanceof Error && e.message === "Server too old") {
+        throw e;
+      }
       return undefined;
     } finally {
       setLoadingServerCheck(false);
@@ -147,7 +150,6 @@ const Login: React.FC = () => {
   async function checkHttp(baseUrl: string, protocols: string[]) {
     for (const protocol of protocols) {
       try {
-        console.log("tmp");
         const response = await fetch(
           `${protocol}://${baseUrl}/System/Info/Public`,
           {
@@ -156,11 +158,23 @@ const Login: React.FC = () => {
         );
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
+          const serverVersion = data.Version?.split(".");
+          if (serverVersion && +serverVersion[0] <= 10) {
+            if (+serverVersion[1] < 10) {
+              Alert.alert(
+                t("login.too_old_server_text"),
+                t("login.too_old_server_description"),
+              );
+              throw new Error("Server too old");
+            }
+          }
           setServerName(data.ServerName || "");
           return `${protocol}://${baseUrl}`;
         }
-      } catch {
-        console.log("failed");
+      } catch (e) {
+        if (e instanceof Error && e.message === "Server too old") {
+          throw e;
+        }
       }
     }
     return undefined;
@@ -183,18 +197,17 @@ const Login: React.FC = () => {
    */
   const handleConnect = useCallback(async (url: string) => {
     url = url.trim().replace(/\/$/, "");
-    const result = await checkUrl(url);
-
-    if (result === undefined) {
-      Alert.alert(
-        t("login.connection_failed"),
-        t("login.could_not_connect_to_server"),
-      );
-      return;
-    }
-    console.log("result");
-    console.log(result);
-    await setServer({ address: result });
+    try {
+      const result = await checkUrl(url);
+      if (result === undefined) {
+        Alert.alert(
+          t("login.connection_failed"),
+          t("login.could_not_connect_to_server"),
+        );
+        return;
+      }
+      await setServer({ address: result });
+    } catch {}
   }, []);
 
   const handleQuickConnect = async () => {
