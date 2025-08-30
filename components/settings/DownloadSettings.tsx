@@ -7,7 +7,7 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export default function DownloadSettings({ ...props }) {
-  const [settings, updateSettings, pluginSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings(null);
   const { t } = useTranslation();
 
   const allDisabled = useMemo(

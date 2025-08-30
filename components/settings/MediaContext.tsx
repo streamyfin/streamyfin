@@ -28,7 +28,7 @@ export const useMedia = () => {
 };
 
 export const MediaProvider = ({ children }: { children: ReactNode }) => {
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings] = useSettings(null);
   const api = useAtomValue(apiAtom);
   const queryClient = useQueryClient();
 

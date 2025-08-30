@@ -66,14 +66,14 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
             onPress={() => {
               if (!result) return;
 
-              // @ts-expect-error
               router.push({
                 pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
+                // @ts-expect-error
                 params: {
                   ...result,
                   mediaTitle,
                   releaseYear,
-                  canRequest,
+                  canRequest: canRequest.toString(),
                   posterSrc,
                   mediaType,
                 },

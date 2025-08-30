@@ -18,6 +18,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const navigate = useCallback(
     (genre: GenreSliderItem) =>
       router.push({
+        // @ts-expect-error - Dynamic pathname for jellyseerr routing
         pathname: `/(auth)/(tabs)/${from}/jellyseerr/genre/${genre.id}`,
         params: { type: slide.type, name: genre.name },
       }),

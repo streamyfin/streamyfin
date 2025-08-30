@@ -87,7 +87,7 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
   const successHapticFeedback = useHaptic("success");
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.

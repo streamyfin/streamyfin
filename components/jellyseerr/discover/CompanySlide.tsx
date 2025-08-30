@@ -21,6 +21,7 @@ const CompanySlide: React.FC<
   const navigate = useCallback(
     ({ id, image, name }: Network | Studio) =>
       router.push({
+        // @ts-expect-error - Dynamic pathname for jellyseerr routing
         pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}`,
         params: { id, image, name, type: slide.type },
       }),
