@@ -3,7 +3,6 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Application from "expo-application";
-import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
@@ -42,18 +41,6 @@ import { apiAtom } from "./JellyfinProvider";
 const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
-
-// Set up notification handler for downloads
-if (!Platform.isTV) {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
-}
 
 const calculateEstimatedSize = (p: JobStatus): number => {
   let size = p.mediaSource.Size;
@@ -104,36 +91,46 @@ function useDownloadProvider() {
   const [settings] = useSettings(api);
   const successHapticFeedback = useHaptic("success");
 
-  // Request notification permissions for downloads
-  const requestNotificationPermissions = useCallback(async () => {
-    if (Platform.isTV || !Device.isDevice) return;
+  // Generate notification content based on item type
+  const getNotificationContent = useCallback(
+    (item: BaseItemDto, isSuccess: boolean) => {
+      if (item.Type === "Episode") {
+        const season = item.ParentIndexNumber
+          ? String(item.ParentIndexNumber).padStart(2, "0")
+          : "??";
+        const episode = item.IndexNumber
+          ? String(item.IndexNumber).padStart(2, "0")
+          : "??";
+        const subtitle = `${item.Name} - [S${season}E${episode}] (${item.SeriesName})`;
 
-    try {
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
+        return {
+          title: isSuccess ? "Download complete" : "Download failed",
+          body: subtitle,
+        };
+      } else if (item.Type === "Movie") {
+        const year = item.ProductionYear ? ` (${item.ProductionYear})` : "";
+        const subtitle = `${item.Name}${year}`;
 
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+        return {
+          title: isSuccess ? "Download complete" : "Download failed",
+          body: subtitle,
+        };
+      } else {
+        // Fallback for other types
+        return {
+          title: isSuccess
+            ? t("home.downloads.toasts.download_completed_for_item", {
+                item: item.Name,
+              })
+            : t("home.downloads.toasts.download_failed_for_item", {
+                item: item.Name,
+              }),
+          body: item.Name || "Unknown item",
+        };
       }
-
-      // Set up Android notification channel
-      if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync("downloads", {
-          name: "Downloads",
-          importance: Notifications.AndroidImportance.DEFAULT,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: "#FF231F7C",
-        });
-      }
-
-      return finalStatus === "granted";
-    } catch (error) {
-      console.error("Failed to get notification permissions:", error);
-      return false;
-    }
-  }, []);
+    },
+    [t],
+  );
 
   // Send local notification for download events
   const sendDownloadNotification = useCallback(
@@ -146,6 +143,7 @@ function useDownloadProvider() {
             title,
             body,
             data,
+            ...(Platform.OS === "android" && { channelId: "downloads" }),
           },
           trigger: null, // Show immediately
         });
@@ -155,13 +153,6 @@ function useDownloadProvider() {
     },
     [],
   );
-
-  // Initialize notification permissions on mount
-  useEffect(() => {
-    if (!Platform.isTV) {
-      requestNotificationPermissions();
-    }
-  }, [requestNotificationPermissions]);
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
@@ -492,11 +483,13 @@ function useDownloadProvider() {
           await saveDownloadsDatabase(db);
 
           // Send native notification for successful download
+          const successNotification = getNotificationContent(
+            process.item,
+            true,
+          );
           await sendDownloadNotification(
-            t("home.downloads.toasts.download_completed_for_item", {
-              item: process.item.Name,
-            }),
-            `${process.item.Name} has been downloaded successfully! 📱`,
+            successNotification.title,
+            successNotification.body,
             {
               itemId: process.item.Id,
               itemName: process.item.Name,
@@ -515,11 +508,13 @@ function useDownloadProvider() {
           console.error("Download error:", error);
 
           // Send native notification for failed download
+          const failureNotification = getNotificationContent(
+            process.item,
+            false,
+          );
           await sendDownloadNotification(
-            t("home.downloads.toasts.download_failed_for_item", {
-              item: process.item.Name,
-            }),
-            `Failed to download ${process.item.Name}. Please try again. ❌`,
+            failureNotification.title,
+            failureNotification.body,
             {
               itemId: process.item.Id,
               itemName: process.item.Name,
@@ -536,7 +531,7 @@ function useDownloadProvider() {
           removeProcess(process.id);
         });
     },
-    [authHeader, sendDownloadNotification, t],
+    [authHeader, sendDownloadNotification, getNotificationContent],
   );
 
   const manageDownloadQueue = useCallback(() => {

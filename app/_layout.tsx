@@ -269,6 +269,15 @@ function Layout() {
       await Notifications?.setNotificationChannelAsync("default", {
         name: "default",
       });
+
+      // Create dedicated channel for download notifications
+      console.log("Setting android notification channel 'downloads'");
+      await Notifications?.setNotificationChannelAsync("downloads", {
+        name: "Downloads",
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FF231F7C",
+      });
     }
 
     const granted = await checkAndRequestPermissions();
