@@ -136,8 +136,7 @@ const Login: React.FC = () => {
     const baseUrl = url.replace(/^https?:\/\//i, "");
     const protocols = ["https", "http"];
     try {
-      const verifiedServerUrl = checkHttp(baseUrl, protocols);
-      return verifiedServerUrl;
+      return checkHttp(baseUrl, protocols);
     } catch {
       return undefined;
     } finally {
@@ -157,9 +156,6 @@ const Login: React.FC = () => {
         );
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
-          console.log(protocol);
-          console.log(`${protocol}://${baseUrl}`);
-          console.log(data);
           setServerName(data.ServerName || "");
           return `${protocol}://${baseUrl}`;
         }
