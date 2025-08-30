@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Default Renovate preset for Streamyfin repositories",
+  "description": "Renovate configuration for Streamyfin dependency management",
   "extends": [
     "config:base",
     ":dependencyDashboard",
@@ -11,17 +11,31 @@
     "group:testNonMajor",
     "group:monorepos",
     "helpers:pinGitHubActionDigests",
-    ":pinDigests",
-    "customManagers:biomeVersions"
+    "customManagers:biomeVersions",
+    ":automergeBranch",
+    ":automergeRequireAllStatusChecks",
+    ":automergeDigest",
+    ":automergePatch",
+    ":automergeMinor"
   ],
   "addLabels": ["dependencies"],
   "rebaseWhen": "conflicted",
-  "ignorePaths": ["**/bower_components/**"],
+  "ignorePaths": ["**/bower_components/**", "**/node_modules/**"],
+  "ignoreUnstable": true,
+  "minimumReleaseAge": "3 days",
+  "schedule": ["before 6am on Monday"],
+  "branchPrefix": "renovate/",
+  "commitMessagePrefix": "⬆️ ",
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
     "schedule": ["on the first day of the month"],
     "automerge": false
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "dependencyDashboardApproval": false
   },
   "packageRules": [
     {
@@ -34,7 +48,8 @@
       "matchManagers": ["github-actions"],
       "groupName": "CI dependencies",
       "groupSlug": "ci-deps",
-      "matchUpdateTypes": ["minor", "patch", "digest", "pin"]
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "automerge": true
     },
     {
       "description": "Group lock file maintenance updates",
@@ -45,6 +60,44 @@
       "description": "Add specific labels for Expo and React Native dependencies",
       "matchPackagePatterns": ["expo", "react-native"],
       "addLabels": ["expo", "react-native"]
+    },
+    {
+      "description": "Group React and React-related packages",
+      "matchPackagePatterns": ["react", "react-native", "@types/react"],
+      "groupName": "React ecosystem",
+      "groupSlug": "react-ecosystem"
+    },
+    {
+      "description": "Group build and development tools",
+      "matchPackagePatterns": ["@babel/*", "husky", "lint-staged", "cross-env"],
+      "groupName": "Build tools",
+      "groupSlug": "build-tools"
+    },
+    {
+      "description": "Handle major updates more carefully",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "schedule": ["on the first day of the month"]
+    },
+    {
+      "description": "Security updates should be prioritized",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["patch"],
+      "matchPackagePatterns": ["*"],
+      "schedule": ["at any time"],
+      "automerge": true
+    },
+    {
+      "description": "Group patch updates for stability",
+      "matchUpdateTypes": ["patch"],
+      "groupName": "Patch updates",
+      "groupSlug": "patch-updates",
+      "automerge": true
+    },
+    {
+      "description": "Separate dev dependencies from production",
+      "matchDepTypes": ["devDependencies"],
+      "addLabels": ["dev-dependencies"]
     }
   ]
 }
