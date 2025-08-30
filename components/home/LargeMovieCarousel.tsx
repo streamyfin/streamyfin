@@ -146,7 +146,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   }, [item]);
 
   const segments = useSegments();
-  const from = segments[2];
+  const from = segments[2] || "(home)";
 
   const opacity = useSharedValue(1);
 

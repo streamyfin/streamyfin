@@ -13,7 +13,7 @@ import { genreColorMap } from "@/utils/jellyseerr/src/components/Discover/consta
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
-  const from = segments[2];
+  const from = segments[2] || "(home)";
 
   const navigate = useCallback(
     (genre: GenreSliderItem) =>
