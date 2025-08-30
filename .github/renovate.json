@@ -25,7 +25,7 @@
   "minimumReleaseAge": "3 days",
   "schedule": ["before 6am on Monday"],
   "branchPrefix": "renovate/",
-  "commitMessagePrefix": "⬆️ ",
+  "commitMessage": "chore(deps): update {{depName}} to v{{newVersion}}",
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
