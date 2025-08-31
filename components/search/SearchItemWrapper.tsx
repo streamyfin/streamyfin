@@ -7,7 +7,7 @@ import { Text } from "../common/Text";
 
 type SearchItemWrapperProps<T> = {
   items?: T[];
-  renderItem: (item: any) => React.ReactNode;
+  renderItem: (item: any) => React.ReactElement | null;
   header?: string;
   onEndReached?: (() => void) | null | undefined;
 };
@@ -35,11 +35,9 @@ export const SearchItemWrapper = <T,>({
         showsHorizontalScrollIndicator={false}
         keyExtractor={(_, index) => index.toString()}
         estimatedItemSize={250}
-        /*@ts-expect-error */
         data={items}
         onEndReachedThreshold={1}
         onEndReached={onEndReached}
-        //@ts-expect-error
         renderItem={({ item }) => (item ? renderItem(item) : null)}
       />
     </>

@@ -99,15 +99,19 @@ const SessionCard = ({ session }: SessionCardProps) => {
     }
   }, [session]);
 
-  const { data: ipInfo } = useQuery({
+  const { data: ipInfo } = useQuery<{
+    cityName?: string;
+    countryCode?: string;
+  }>({
     queryKey: ["ipinfo", session.RemoteEndPoint],
-    cacheTime: Number.POSITIVE_INFINITY,
+    staleTime: Number.POSITIVE_INFINITY,
     queryFn: async () => {
-      const resp = await api.axiosInstance.get(
+      const resp = await api!.axiosInstance.get(
         `https://freeipapi.com/api/json/${session.RemoteEndPoint}`,
       );
       return resp.data;
     },
+    enabled: !!api,
   });
 
   // Handle session controls

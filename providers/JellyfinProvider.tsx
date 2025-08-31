@@ -64,7 +64,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.34.0" },
+            clientInfo: { name: "Streamyfin", version: "0.35.0" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -85,15 +85,18 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     _pluginSettings,
     setPluginSettings,
     refreshStreamyfinPluginSettings,
-  ] = useSettings();
-  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
+  ] = useSettings(api);
+  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr(
+    _settings || {},
+    _updateSettings,
+  );
 
   const headers = useMemo(() => {
     if (!deviceId) return {};
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.34.0"`,
+      }, DeviceId="${deviceId}", Version="0.35.0"`,
     };
   }, [deviceId]);
 

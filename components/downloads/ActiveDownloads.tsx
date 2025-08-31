@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { t } from "i18next";
@@ -19,13 +19,13 @@ import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
 import { Button } from "../Button";
 
-interface Props extends ViewProps {}
-
 const bytesToMB = (bytes: number) => {
   return bytes / 1024 / 1024;
 };
 
-export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
+interface ActiveDownloadsProps extends ViewProps {}
+
+export default function ActiveDownloads({ ...props }: ActiveDownloadsProps) {
   const { processes } = useDownload();
   if (processes?.length === 0)
     return (
@@ -51,31 +51,48 @@ export const ActiveDownloads: React.FC<Props> = ({ ...props }) => {
       </View>
     </View>
   );
-};
+}
 
 interface DownloadCardProps extends TouchableOpacityProps {
   process: JobStatus;
 }
 
 const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
-  const { startDownload, removeProcess } = useDownload();
+  const { startDownload, pauseDownload, resumeDownload, removeProcess } =
+    useDownload();
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const cancelJobMutation = useMutation({
-    mutationFn: async (id: string) => {
-      if (!process) throw new Error("No active download");
-      removeProcess(id);
-    },
-    onSuccess: () => {
-      toast.success(t("home.downloads.toasts.download_cancelled"));
+  const handlePause = async (id: string) => {
+    try {
+      await pauseDownload(id);
+      toast.success(t("home.downloads.toasts.download_paused"));
+    } catch (error) {
+      console.error("Error pausing download:", error);
+      toast.error(t("home.downloads.toasts.could_not_pause_download"));
+    }
+  };
+
+  const handleResume = async (id: string) => {
+    try {
+      await resumeDownload(id);
+      toast.success(t("home.downloads.toasts.download_resumed"));
+    } catch (error) {
+      console.error("Error resuming download:", error);
+      toast.error(t("home.downloads.toasts.could_not_resume_download"));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await removeProcess(id);
+      toast.success(t("home.downloads.toasts.download_deleted"));
       queryClient.invalidateQueries({ queryKey: ["downloads"] });
-    },
-    onError: (e) => {
-      console.error(e);
-      toast.error(t("home.downloads.toasts.could_not_cancel_download"));
-    },
-  });
+    } catch (error) {
+      console.error("Error deleting download:", error);
+      toast.error(t("home.downloads.toasts.could_not_delete_download"));
+    }
+  };
 
   const eta = (p: JobStatus) => {
     if (!p.speed || p.speed <= 0 || !p.estimatedTotalSizeBytes) return null;
@@ -121,8 +138,8 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                 style={{
                   width: "100%",
                   height: "100%",
-                  resizeMode: "cover",
                 }}
+                contentFit='cover'
               />
             </View>
           )}
@@ -154,17 +171,30 @@ const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               <Text className='text-xs capitalize'>{process.status}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            disabled={cancelJobMutation.isPending}
-            onPress={() => cancelJobMutation.mutate(process.id)}
-            className='ml-auto p-2 rounded-full'
-          >
-            {cancelJobMutation.isPending ? (
-              <ActivityIndicator size='small' color='white' />
-            ) : (
-              <Ionicons name='close' size={24} color='red' />
+          <View className='ml-auto flex flex-row items-center space-x-2'>
+            {process.status === "downloading" && (
+              <TouchableOpacity
+                onPress={() => handlePause(process.id)}
+                className='p-2 rounded-full bg-yellow-600'
+              >
+                <Ionicons name='pause' size={20} color='white' />
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+            {process.status === "paused" && (
+              <TouchableOpacity
+                onPress={() => handleResume(process.id)}
+                className='p-2 rounded-full bg-green-600'
+              >
+                <Ionicons name='play' size={20} color='white' />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => handleDelete(process.id)}
+              className='p-2 rounded-full bg-red-600'
+            >
+              <Ionicons name='close' size={20} color='white' />
+            </TouchableOpacity>
+          </View>
         </View>
         {process.status === "completed" && (
           <View className='flex flex-row mt-4 space-x-4'>
