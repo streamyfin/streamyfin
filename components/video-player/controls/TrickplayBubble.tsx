@@ -1,25 +1,22 @@
 import { Image } from "expo-image";
-import React from "react";
+import type { FC } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
-import {
-  calculateTrickplayDimensions,
-  formatTimeForBubble,
-} from "../utils/trickplayUtils";
+import { CONTROLS_CONSTANTS } from "./constants";
 
 interface TrickplayBubbleProps {
-  trickPlayUrl?: {
+  trickPlayUrl: {
     x: number;
     y: number;
     url: string;
-  };
-  trickplayInfo?: {
-    aspectRatio: number;
+  } | null;
+  trickplayInfo: {
+    aspectRatio?: number;
     data: {
       TileWidth?: number;
       TileHeight?: number;
     };
-  };
+  } | null;
   time: {
     hours: number;
     minutes: number;
@@ -27,7 +24,7 @@ interface TrickplayBubbleProps {
   };
 }
 
-export const TrickplayBubble: React.FC<TrickplayBubbleProps> = ({
+export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
   trickPlayUrl,
   trickplayInfo,
   time,
@@ -37,9 +34,8 @@ export const TrickplayBubble: React.FC<TrickplayBubbleProps> = ({
   }
 
   const { x, y, url } = trickPlayUrl;
-  const { tileWidth, tileHeight, scaledWidth } = calculateTrickplayDimensions(
-    trickplayInfo.aspectRatio,
-  );
+  const tileWidth = CONTROLS_CONSTANTS.TILE_WIDTH;
+  const tileHeight = tileWidth / trickplayInfo.aspectRatio!;
 
   return (
     <View
@@ -49,7 +45,7 @@ export const TrickplayBubble: React.FC<TrickplayBubbleProps> = ({
         bottom: 0,
         paddingTop: 30,
         paddingBottom: 5,
-        width: scaledWidth,
+        width: tileWidth * 1.5,
         justifyContent: "center",
         alignItems: "center",
       }}
@@ -67,15 +63,14 @@ export const TrickplayBubble: React.FC<TrickplayBubbleProps> = ({
         <Image
           cachePolicy={"memory-disk"}
           style={{
-            width: 150 * (trickplayInfo.data.TileWidth || 1),
+            width: tileWidth * trickplayInfo?.data.TileWidth!,
             height:
-              (150 / trickplayInfo.aspectRatio) *
-              (trickplayInfo.data.TileHeight || 1),
+              (tileWidth / trickplayInfo.aspectRatio!) *
+              trickplayInfo?.data.TileHeight!,
             transform: [
               { translateX: -x * tileWidth },
               { translateY: -y * tileHeight },
             ],
-            resizeMode: "cover",
           }}
           source={{ uri: url }}
           contentFit='cover'
@@ -87,7 +82,9 @@ export const TrickplayBubble: React.FC<TrickplayBubbleProps> = ({
           fontSize: 16,
         }}
       >
-        {formatTimeForBubble(time)}
+        {`${time.hours > 0 ? `${time.hours}:` : ""}${
+          time.minutes < 10 ? `0${time.minutes}` : time.minutes
+        }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`}
       </Text>
     </View>
   );

@@ -1,15 +1,14 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import React from "react";
+import type { FC } from "react";
 import { View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
-import Animated, { type SharedValue } from "react-native-reanimated";
+import { type SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useSettings } from "@/utils/atoms/settings";
-import { formatTimeString } from "@/utils/time";
-import { SLIDER_CONFIG, SLIDER_THEME } from "../constants";
-import NextEpisodeCountDownButton from "../NextEpisodeCountDownButton";
-import SkipButton from "../SkipButton";
+import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
+import SkipButton from "./SkipButton";
+import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
 
 interface BottomControlsProps {
@@ -20,46 +19,47 @@ interface BottomControlsProps {
   currentTime: number;
   remainingTime: number;
   isVlc: boolean;
-  nextItem?: BaseItemDto;
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
-  cacheProgress: SharedValue<number>;
+  skipIntro: () => void;
+  skipCredit: () => void;
+  nextItem?: BaseItemDto | null;
+  handleNextEpisodeAutoPlay: () => void;
+  handleNextEpisodeManual: () => void;
+  handleControlsInteraction: () => void;
+
+  // Slider props
   min: SharedValue<number>;
   max: SharedValue<number>;
   effectiveProgress: SharedValue<number>;
-  animatedControlsStyle: any;
-  animatedSliderStyle: any;
-  trickPlayUrl?: {
+  cacheProgress: SharedValue<number>;
+  handleSliderStart: () => void;
+  handleSliderComplete: (value: number) => void;
+  handleSliderChange: (value: number) => void;
+  handleTouchStart: () => void;
+  handleTouchEnd: () => void;
+
+  // Trickplay props
+  trickPlayUrl: {
     x: number;
     y: number;
     url: string;
-  };
-  trickplayInfo?: {
-    aspectRatio: number;
+  } | null;
+  trickplayInfo: {
+    aspectRatio?: number;
     data: {
       TileWidth?: number;
       TileHeight?: number;
     };
-  };
+  } | null;
   time: {
     hours: number;
     minutes: number;
     seconds: number;
   };
-  getEndTime: () => string;
-  onControlsInteraction: () => void;
-  onTouchStart: () => void;
-  onTouchEnd: () => void;
-  onSliderStart: () => void;
-  onSliderComplete: (value: number) => void;
-  onSliderChange: (value: number) => void;
-  onSkipIntro: () => void;
-  onSkipCredit: () => void;
-  onNextEpisodeAutoPlay: () => void;
-  onNextEpisodeManual: () => void;
 }
 
-export const BottomControls: React.FC<BottomControlsProps> = ({
+export const BottomControls: FC<BottomControlsProps> = ({
   item,
   showControls,
   isSliding,
@@ -67,43 +67,32 @@ export const BottomControls: React.FC<BottomControlsProps> = ({
   currentTime,
   remainingTime,
   isVlc,
-  nextItem,
   showSkipButton,
   showSkipCreditButton,
-  cacheProgress,
+  skipIntro,
+  skipCredit,
+  nextItem,
+  handleNextEpisodeAutoPlay,
+  handleNextEpisodeManual,
+  handleControlsInteraction,
   min,
   max,
   effectiveProgress,
-  animatedControlsStyle,
-  animatedSliderStyle,
+  cacheProgress,
+  handleSliderStart,
+  handleSliderComplete,
+  handleSliderChange,
+  handleTouchStart,
+  handleTouchEnd,
   trickPlayUrl,
   trickplayInfo,
   time,
-  getEndTime,
-  onControlsInteraction,
-  onTouchStart,
-  onTouchEnd,
-  onSliderStart,
-  onSliderComplete,
-  onSliderChange,
-  onSkipIntro,
-  onSkipCredit,
-  onNextEpisodeAutoPlay,
-  onNextEpisodeManual,
 }) => {
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
   const insets = useSafeAreaInsets();
 
-  const renderTrickplayBubble = () => (
-    <TrickplayBubble
-      trickPlayUrl={trickPlayUrl}
-      trickplayInfo={trickplayInfo}
-      time={time}
-    />
-  );
-
   return (
-    <Animated.View
+    <View
       style={[
         {
           position: "absolute",
@@ -113,10 +102,9 @@ export const BottomControls: React.FC<BottomControlsProps> = ({
             ? Math.max(insets.bottom - 17, 0)
             : 0,
         },
-        animatedControlsStyle,
       ]}
       className={"flex flex-col px-2"}
-      onTouchStart={onControlsInteraction}
+      onTouchStart={handleControlsInteraction}
     >
       <View
         className='shrink flex flex-col justify-center h-full'
@@ -128,7 +116,7 @@ export const BottomControls: React.FC<BottomControlsProps> = ({
         <View
           style={{
             flexDirection: "column",
-            alignSelf: "flex-end", // Shrink height based on content
+            alignSelf: "flex-end",
           }}
           pointerEvents={showControls ? "box-none" : "none"}
         >
@@ -148,12 +136,12 @@ export const BottomControls: React.FC<BottomControlsProps> = ({
         <View className='flex flex-row space-x-2'>
           <SkipButton
             showButton={showSkipButton}
-            onPress={onSkipIntro}
+            onPress={skipIntro}
             buttonText='Skip Intro'
           />
           <SkipButton
             showButton={showSkipCreditButton}
-            onPress={onSkipCredit}
+            onPress={skipCredit}
             buttonText='Skip Credits'
           />
           {(settings.maxAutoPlayEpisodeCount.value === -1 ||
@@ -167,8 +155,8 @@ export const BottomControls: React.FC<BottomControlsProps> = ({
                     ? remainingTime < 10000
                     : remainingTime < 10
               }
-              onFinish={onNextEpisodeAutoPlay}
-              onPress={onNextEpisodeManual}
+              onFinish={handleNextEpisodeAutoPlay}
+              onPress={handleNextEpisodeManual}
             />
           )}
         </View>
@@ -180,50 +168,53 @@ export const BottomControls: React.FC<BottomControlsProps> = ({
         <View className={"flex flex-col w-full shrink"}>
           <View
             style={{
-              height: SLIDER_CONFIG.HEIGHT,
+              height: 10,
               justifyContent: "center",
               alignItems: "stretch",
             }}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
-            <Animated.View style={animatedSliderStyle}>
-              <Slider
-                theme={SLIDER_THEME}
-                renderThumb={() => null}
-                cache={cacheProgress}
-                onSlidingStart={onSliderStart}
-                onSlidingComplete={onSliderComplete}
-                onValueChange={onSliderChange}
-                containerStyle={{
-                  borderRadius: SLIDER_CONFIG.BORDER_RADIUS,
-                }}
-                renderBubble={() =>
-                  (isSliding || showRemoteBubble) && renderTrickplayBubble()
-                }
-                sliderHeight={SLIDER_CONFIG.HEIGHT}
-                thumbWidth={SLIDER_CONFIG.THUMB_WIDTH}
-                progress={effectiveProgress}
-                minimumValue={min}
-                maximumValue={max}
-              />
-            </Animated.View>
+            <Slider
+              theme={{
+                maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                minimumTrackTintColor: "#fff",
+                cacheTrackTintColor: "rgba(255,255,255,0.3)",
+                bubbleBackgroundColor: "#fff",
+                bubbleTextColor: "#666",
+                heartbeatColor: "#999",
+              }}
+              renderThumb={() => null}
+              cache={cacheProgress}
+              onSlidingStart={handleSliderStart}
+              onSlidingComplete={handleSliderComplete}
+              onValueChange={handleSliderChange}
+              containerStyle={{
+                borderRadius: 100,
+              }}
+              renderBubble={() =>
+                (isSliding || showRemoteBubble) && (
+                  <TrickplayBubble
+                    trickPlayUrl={trickPlayUrl}
+                    trickplayInfo={trickplayInfo}
+                    time={time}
+                  />
+                )
+              }
+              sliderHeight={10}
+              thumbWidth={0}
+              progress={effectiveProgress}
+              minimumValue={min}
+              maximumValue={max}
+            />
           </View>
-          <View className='flex flex-row items-center justify-between mt-2'>
-            <Text className='text-[12px] text-neutral-400'>
-              {formatTimeString(currentTime, isVlc ? "ms" : "s")}
-            </Text>
-            <View className='flex flex-col items-end'>
-              <Text className='text-[12px] text-neutral-400'>
-                -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
-              </Text>
-              <Text className='text-[10px] text-neutral-500 opacity-70'>
-                ends at {getEndTime()}
-              </Text>
-            </View>
-          </View>
+          <TimeDisplay
+            currentTime={currentTime}
+            remainingTime={remainingTime}
+            isVlc={isVlc}
+          />
         </View>
       </View>
-    </Animated.View>
+    </View>
   );
 };

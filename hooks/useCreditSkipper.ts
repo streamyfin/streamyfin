@@ -1,4 +1,6 @@
+import { Api } from "@jellyfin/sdk";
 import { useCallback, useEffect, useState } from "react";
+import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSegments } from "@/utils/segments";
 import { msToSeconds, secondsToMs } from "@/utils/time";
 import { useHaptic } from "./useHaptic";
@@ -10,6 +12,8 @@ export const useCreditSkipper = (
   play: () => void,
   isVlc = false,
   isOffline = false,
+  api: Api | null = null,
+  downloadedFiles: DownloadedItem[] | undefined = undefined,
 ) => {
   const [showSkipCreditButton, setShowSkipCreditButton] = useState(false);
   const lightHapticFeedback = useHaptic("light");
@@ -26,7 +30,12 @@ export const useCreditSkipper = (
     seek(seconds);
   };
 
-  const { data: segments } = useSegments(itemId, isOffline);
+  const { data: segments } = useSegments(
+    itemId,
+    isOffline,
+    downloadedFiles,
+    api,
+  );
   const creditTimestamps = segments?.creditSegments?.[0];
 
   useEffect(() => {

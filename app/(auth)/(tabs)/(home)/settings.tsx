@@ -11,6 +11,7 @@ import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { AudioToggles } from "@/components/settings/AudioToggles";
 import { ChromecastSettings } from "@/components/settings/ChromecastSettings";
 import DownloadSettings from "@/components/settings/DownloadSettings";
+import { GestureControls } from "@/components/settings/GestureControls";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
 import { OtherSettings } from "@/components/settings/OtherSettings";
@@ -67,6 +68,7 @@ export default function settings() {
 
         <MediaProvider>
           <MediaToggles className='mb-4' />
+          <GestureControls className='mb-4' />
           <AudioToggles className='mb-4' />
           <SubtitleToggles className='mb-4' />
         </MediaProvider>

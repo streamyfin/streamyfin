@@ -1,78 +1,67 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import type { FC } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
-import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { useSettings } from "@/utils/atoms/settings";
-import AudioSlider from "../AudioSlider";
-import BrightnessSlider from "../BrightnessSlider";
+import AudioSlider from "./AudioSlider";
+import BrightnessSlider from "./BrightnessSlider";
+import { ICON_SIZES } from "./constants";
 
 interface CenterControlsProps {
   showControls: boolean;
-  showAudioSlider: boolean;
   isPlaying: boolean;
   isBuffering: boolean;
-  rewindSkipTime?: number;
-  forwardSkipTime?: number;
-  animatedControlsStyle: any;
+  showAudioSlider: boolean;
   setShowAudioSlider: (show: boolean) => void;
-  onTogglePlay: () => void;
-  onSkipBackward: () => void;
-  onSkipForward: () => void;
+  togglePlay: () => void;
+  handleSkipBackward: () => void;
+  handleSkipForward: () => void;
 }
 
-export const CenterControls: React.FC<CenterControlsProps> = ({
+export const CenterControls: FC<CenterControlsProps> = ({
   showControls,
-  showAudioSlider,
   isPlaying,
   isBuffering,
-  rewindSkipTime,
-  forwardSkipTime,
-  animatedControlsStyle,
+  showAudioSlider,
   setShowAudioSlider,
-  onTogglePlay,
-  onSkipBackward,
-  onSkipForward,
+  togglePlay,
+  handleSkipBackward,
+  handleSkipForward,
 }) => {
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
   const insets = useSafeAreaInsets();
 
   return (
-    <Animated.View
-      style={[
-        {
-          position: "absolute",
-          top: "50%", // Center vertically
-          left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-          right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          transform: [{ translateY: -22.5 }], // Adjust for the button's height (half of 45)
-          paddingHorizontal: 17,
-        },
-        animatedControlsStyle,
-      ]}
+    <View
+      style={{
+        position: "absolute",
+        top: "50%",
+        left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
+        right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        transform: [{ translateY: -22.5 }],
+        paddingHorizontal: "28%",
+      }}
       pointerEvents={showControls ? "box-none" : "none"}
     >
-      {/* Brightness Control */}
       <View
         style={{
-          width: 50,
-          height: 50,
+          position: "absolute",
           alignItems: "center",
-          justifyContent: "center",
           transform: [{ rotate: "270deg" }],
+          left: 0,
+          bottom: 30,
         }}
       >
         <BrightnessSlider />
       </View>
 
-      {/* Skip Backward */}
       {!Platform.isTV && (
-        <TouchableOpacity onPress={onSkipBackward}>
+        <TouchableOpacity onPress={handleSkipBackward}>
           <View
             style={{
               position: "relative",
@@ -82,7 +71,7 @@ export const CenterControls: React.FC<CenterControlsProps> = ({
           >
             <Ionicons
               name='refresh-outline'
-              size={50}
+              size={ICON_SIZES.CENTER}
               color='white'
               style={{
                 transform: [{ scaleY: -1 }, { rotate: "180deg" }],
@@ -97,19 +86,18 @@ export const CenterControls: React.FC<CenterControlsProps> = ({
                 bottom: 10,
               }}
             >
-              {rewindSkipTime}
+              {settings?.rewindSkipTime}
             </Text>
           </View>
         </TouchableOpacity>
       )}
 
-      {/* Play/Pause Button */}
-      <View style={{ alignItems: "center" }}>
-        <TouchableOpacity onPress={onTogglePlay}>
+      <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
+        <TouchableOpacity onPress={togglePlay}>
           {!isBuffering ? (
             <Ionicons
               name={isPlaying ? "pause" : "play"}
-              size={50}
+              size={ICON_SIZES.CENTER}
               color='white'
             />
           ) : (
@@ -118,9 +106,8 @@ export const CenterControls: React.FC<CenterControlsProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Skip Forward */}
       {!Platform.isTV && (
-        <TouchableOpacity onPress={onSkipForward}>
+        <TouchableOpacity onPress={handleSkipForward}>
           <View
             style={{
               position: "relative",
@@ -128,7 +115,11 @@ export const CenterControls: React.FC<CenterControlsProps> = ({
               alignItems: "center",
             }}
           >
-            <Ionicons name='refresh-outline' size={50} color='white' />
+            <Ionicons
+              name='refresh-outline'
+              size={ICON_SIZES.CENTER}
+              color='white'
+            />
             <Text
               style={{
                 position: "absolute",
@@ -138,25 +129,24 @@ export const CenterControls: React.FC<CenterControlsProps> = ({
                 bottom: 10,
               }}
             >
-              {forwardSkipTime}
+              {settings?.forwardSkipTime}
             </Text>
           </View>
         </TouchableOpacity>
       )}
 
-      {/* Volume/Audio Control */}
       <View
         style={{
-          width: 50,
-          height: 50,
+          position: "absolute",
           alignItems: "center",
-          justifyContent: "center",
           transform: [{ rotate: "270deg" }],
+          bottom: 30,
+          right: 0,
           opacity: showAudioSlider || showControls ? 1 : 0,
         }}
       >
         <AudioSlider setVisibility={setShowAudioSlider} />
       </View>
-    </Animated.View>
+    </View>
   );
 };

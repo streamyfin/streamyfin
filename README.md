@@ -125,7 +125,7 @@ Join our Discord: [![](https://dcbadge.limes.pink/api/server/https://discord.gg/
 Need support or have questions:
 
 - GitHub Issues: Report bugs or request features here.
-- Email: [fredrik.burmester@gmail.com](mailto:fredrik.burmester@gmail.com)
+- Email: [developer@streamyfin.app](mailto:developer@streamyfin.app)
 
 ## ❓ FAQ
 

@@ -49,7 +49,7 @@ const JellyseerrSeasonEpisodes: React.FC<{
       showsHorizontalScrollIndicator={false}
       estimatedItemSize={50}
       data={seasonWithEpisodes?.episodes}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => item.id.toString()}
       renderItem={(item, index) => (
         <RenderItem key={index} item={item} index={index} />
       )}

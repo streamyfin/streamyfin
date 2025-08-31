@@ -1,4 +1,6 @@
+import { Api } from "@jellyfin/sdk";
 import { useCallback, useEffect, useState } from "react";
+import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSegments } from "@/utils/segments";
 import { msToSeconds, secondsToMs } from "@/utils/time";
 import { useHaptic } from "./useHaptic";
@@ -15,6 +17,8 @@ export const useIntroSkipper = (
   play: () => void,
   isVlc = false,
   isOffline = false,
+  api: Api | null = null,
+  downloadedFiles: DownloadedItem[] | undefined = undefined,
 ) => {
   const [showSkipButton, setShowSkipButton] = useState(false);
   if (isVlc) {
@@ -30,7 +34,12 @@ export const useIntroSkipper = (
     seek(seconds);
   };
 
-  const { data: segments } = useSegments(itemId, isOffline);
+  const { data: segments } = useSegments(
+    itemId,
+    isOffline,
+    downloadedFiles,
+    api,
+  );
   const introTimestamps = segments?.introSegments?.[0];
 
   useEffect(() => {

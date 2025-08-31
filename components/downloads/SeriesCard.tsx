@@ -52,8 +52,8 @@ export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
             style={{
               width: "100%",
               height: "100%",
-              resizeMode: "cover",
             }}
+            contentFit='cover'
           />
           <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center absolute bottom-1 right-1'>
             <Text className='text-xs font-bold'>{items.length}</Text>
