@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for Streamyfin dependency management",
   "extends": [
-    "config:base",
+    "config:recommended",
     ":dependencyDashboard",
     ":enableVulnerabilityAlertsWithLabel(security)",
     ":semanticCommits",
@@ -25,7 +25,8 @@
   "minimumReleaseAge": "3 days",
   "schedule": ["before 6am on Monday"],
   "branchPrefix": "renovate/",
-  "commitMessage": "chore(deps): update {{depName}} to v{{newVersion}}",
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageSuffix": "update {{depName}} to v{{newVersion}}",
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
@@ -66,7 +67,7 @@
       "description": "Security updates should be prioritized",
       "matchDatasources": ["npm"],
       "matchUpdateTypes": ["patch"],
-      "matchPackagePatterns": ["*"],
+      "matchPackageNames": ["*"],
       "schedule": ["at any time"],
       "automerge": true
     },
