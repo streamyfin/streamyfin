@@ -12,7 +12,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
-  const [settings, updateSettings, pluginSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
 

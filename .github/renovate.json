@@ -1,0 +1,87 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate configuration for Streamyfin dependency management",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":enableVulnerabilityAlertsWithLabel(security)",
+    ":semanticCommits",
+    ":timezone(Etc/UTC)",
+    "docker:enableMajor",
+    "group:testNonMajor",
+    "group:monorepos",
+    "helpers:pinGitHubActionDigests",
+    "customManagers:biomeVersions",
+    ":automergeBranch",
+    ":automergeRequireAllStatusChecks",
+    ":automergeDigest",
+    ":automergePatch",
+    ":automergeMinor"
+  ],
+  "addLabels": ["dependencies"],
+  "rebaseWhen": "conflicted",
+  "ignorePaths": ["**/bower_components/**", "**/node_modules/**"],
+  "ignoreUnstable": true,
+  "minimumReleaseAge": "3 days",
+  "schedule": ["before 6am on Monday"],
+  "branchPrefix": "renovate/",
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageSuffix": "update {{depName}} to v{{newVersion}}",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "groupName": "lockfiles",
+    "schedule": ["on the first day of the month"],
+    "automerge": false
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "dependencyDashboardApproval": false
+  },
+  "packageRules": [
+    {
+      "description": "Add 'ci' and 'github-actions' labels to GitHub Action update PRs",
+      "matchManagers": ["github-actions"],
+      "addLabels": ["ci", "github-actions"]
+    },
+    {
+      "description": "Group minor and patch GitHub Action updates into a single PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "CI dependencies",
+      "groupSlug": "ci-deps",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "automerge": true
+    },
+    {
+      "description": "Group lock file maintenance updates",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Handle major updates more carefully",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "schedule": ["on the first day of the month"]
+    },
+    {
+      "description": "Security updates should be prioritized",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["patch"],
+      "matchPackageNames": ["*"],
+      "schedule": ["at any time"],
+      "automerge": true
+    },
+    {
+      "description": "Group patch updates for stability",
+      "matchUpdateTypes": ["patch"],
+      "groupName": "Patch updates",
+      "groupSlug": "patch-updates",
+      "automerge": true
+    },
+    {
+      "description": "Separate dev dependencies from production",
+      "matchDepTypes": ["devDependencies"],
+      "addLabels": ["dev-dependencies"]
+    }
+  ]
+}

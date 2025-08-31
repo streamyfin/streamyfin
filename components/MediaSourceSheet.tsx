@@ -26,8 +26,8 @@ export const MediaSourceSheet: React.FC<Props> = ({
 
   const getDisplayName = useCallback((source: MediaSourceInfo) => {
     const videoStream = source.MediaStreams?.find((x) => x.Type === "Video");
-    if (videoStream?.DisplayTitle) return videoStream.DisplayTitle;
     if (source.Name) return source.Name;
+    if (videoStream?.DisplayTitle) return videoStream.DisplayTitle;
     return `Source ${source.Id}`;
   }, []);
 

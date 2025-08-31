@@ -21,7 +21,7 @@ export default function page() {
 
   const { t } = useTranslation();
 
-  const [settings, updateSettings, pluginSettings] = useSettings();
+  const [settings, updateSettings, pluginSettings] = useSettings(null);
   const queryClient = useQueryClient();
 
   const [value, setValue] = useState<string>(settings?.marlinServerUrl || "");

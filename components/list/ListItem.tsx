@@ -1,15 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { PropsWithChildren, ReactNode } from "react";
-import {
-  TouchableOpacity,
-  type TouchableOpacityProps,
-  View,
-  type ViewProps,
-} from "react-native";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "../common/Text";
 
-interface Props extends TouchableOpacityProps, ViewProps {
+interface Props extends ViewProps {
   title?: string | null | undefined;
+  subtitle?: string | null | undefined;
   value?: string | null | undefined;
   children?: ReactNode;
   iconAfter?: ReactNode;
@@ -17,10 +13,12 @@ interface Props extends TouchableOpacityProps, ViewProps {
   showArrow?: boolean;
   textColor?: "default" | "blue" | "red";
   onPress?: () => void;
+  disabled?: boolean;
 }
 
 export const ListItem: React.FC<PropsWithChildren<Props>> = ({
   title,
+  subtitle,
   value,
   iconAfter,
   children,
@@ -29,7 +27,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
   textColor = "default",
   onPress,
   disabled = false,
-  ...props
+  ...viewProps
 }) => {
   if (onPress)
     return (
@@ -39,10 +37,11 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
         className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
           disabled ? "opacity-50" : ""
         }`}
-        {...props}
+        {...(viewProps as any)}
       >
         <ListItemContent
           title={title}
+          subtitle={subtitle}
           value={value}
           icon={icon}
           textColor={textColor}
@@ -58,10 +57,11 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
       className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
         disabled ? "opacity-50" : ""
       }`}
-      {...props}
+      {...viewProps}
     >
       <ListItemContent
         title={title}
+        subtitle={subtitle}
         value={value}
         icon={icon}
         textColor={textColor}
@@ -76,6 +76,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
 
 const ListItemContent = ({
   title,
+  subtitle,
   textColor,
   icon,
   value,
@@ -91,18 +92,25 @@ const ListItemContent = ({
             <Ionicons name='person-circle-outline' size={18} color='white' />
           </View>
         )}
-        <Text
-          className={
-            textColor === "blue"
-              ? "text-[#0584FE]"
-              : textColor === "red"
-                ? "text-red-600"
-                : "text-white"
-          }
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
+        <View className='flex-1'>
+          <Text
+            className={
+              textColor === "blue"
+                ? "text-[#0584FE]"
+                : textColor === "red"
+                  ? "text-red-600"
+                  : "text-white"
+            }
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          {subtitle && (
+            <Text className='text-[#9899A1] text-sm mt-0.5' numberOfLines={2}>
+              {subtitle}
+            </Text>
+          )}
+        </View>
         {value && (
           <View className='ml-auto items-end'>
             <Text selectable className=' text-[#9899A1]' numberOfLines={1}>

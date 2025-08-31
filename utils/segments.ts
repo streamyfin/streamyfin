@@ -1,9 +1,7 @@
 import { Api } from "@jellyfin/sdk";
 import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
-import { useDownload } from "@/providers/DownloadProvider";
+import React from "react";
 import { DownloadedItem, MediaTimeSegment } from "@/providers/Downloads/types";
-import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "./jellyfin/jellyfin";
 
 interface IntroTimestamps {
@@ -28,11 +26,16 @@ interface CreditTimestamps {
   };
 }
 
-export const useSegments = (itemId: string, isOffline: boolean) => {
-  const [api] = useAtom(apiAtom);
-  const { downloadedFiles } = useDownload();
-  const downloadedItem = downloadedFiles?.find(
-    (d: DownloadedItem) => d.item.Id === itemId,
+export const useSegments = (
+  itemId: string,
+  isOffline: boolean,
+  downloadedFiles: DownloadedItem[] | undefined,
+  api: Api | null,
+) => {
+  // Memoize the lookup so the array is only traversed when dependencies change
+  const downloadedItem = React.useMemo(
+    () => downloadedFiles?.find((d) => d.item.Id === itemId),
+    [downloadedFiles, itemId],
   );
 
   return useQuery({
@@ -46,7 +49,7 @@ export const useSegments = (itemId: string, isOffline: boolean) => {
       }
       return fetchAndParseSegments(itemId, api);
     },
-    enabled: !!api,
+    enabled: isOffline ? !!downloadedItem : !!api,
   });
 };
 
@@ -76,15 +79,11 @@ export const fetchAndParseSegments = async (
     const [introRes, creditRes] = await Promise.allSettled([
       api.axiosInstance.get<IntroTimestamps>(
         `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
-        {
-          headers: getAuthHeaders(api),
-        },
+        { headers: getAuthHeaders(api) },
       ),
       api.axiosInstance.get<CreditTimestamps>(
         `${api.basePath}/Episode/${itemId}/Timestamps`,
-        {
-          headers: getAuthHeaders(api),
-        },
+        { headers: getAuthHeaders(api) },
       ),
     ]);
 

@@ -71,7 +71,7 @@ export default function search() {
 
   const [api] = useAtom(apiAtom);
 
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
   const { jellyseerrApi } = useJellyseerr();
   const [jellyseerrOrderBy, setJellyseerrOrderBy] =
     useState<JellyseerrSearchSort>(
@@ -330,7 +330,7 @@ export default function search() {
                     renderItemLabel={(item) =>
                       t(`home.settings.plugins.jellyseerr.order_by.${item}`)
                     }
-                    showSearch={false}
+                    disableSearch={true}
                   />
                   <FilterButton
                     id={orderFilterId}
@@ -340,7 +340,7 @@ export default function search() {
                     values={[jellyseerrSortOrder]}
                     title={t("library.filters.sort_order")}
                     renderItemLabel={(item) => t(`library.filters.${item}`)}
-                    showSearch={false}
+                    disableSearch={true}
                   />
                 </View>
               )}

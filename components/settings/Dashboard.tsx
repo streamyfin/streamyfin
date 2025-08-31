@@ -7,7 +7,7 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const Dashboard = () => {
-  const [settings, _updateSettings] = useSettings();
+  const [settings, _updateSettings] = useSettings(null);
   const { sessions = [] } = useSessions({} as useSessionsProps);
   const router = useRouter();
 

@@ -70,7 +70,7 @@ export const HomeIndex = () => {
     _pluginSettings,
     _setPluginSettings,
     refreshStreamyfinPluginSettings,
-  ] = useSettings();
+  ] = useSettings(null);
 
   const navigation = useNavigation();
 
@@ -78,7 +78,7 @@ export const HomeIndex = () => {
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { downloadedFiles, cleanCacheDirectory } = useDownload();
+  const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
   const { isConnected, loading: retryLoading, retryCheck } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
@@ -98,7 +98,7 @@ export const HomeIndex = () => {
       });
       return;
     }
-    const hasDownloads = downloadedFiles && downloadedFiles.length > 0;
+    const hasDownloads = getDownloadedItems().length > 0;
     navigation.setOptions({
       headerLeft: () => (
         <TouchableOpacity
@@ -115,7 +115,7 @@ export const HomeIndex = () => {
         </TouchableOpacity>
       ),
     });
-  }, [downloadedFiles, navigation, router]);
+  }, [navigation, router]);
 
   useEffect(() => {
     cleanCacheDirectory().catch((_e) =>
@@ -313,10 +313,8 @@ export const HomeIndex = () => {
   const customSections = useMemo(() => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
-    for (const key in settings.home?.sections) {
-      // @ts-expect-error
-      const section = settings.home?.sections[key];
-      const id = section.title || key;
+    for (const [index, section] of settings.home.sections.entries()) {
+      const id = section.items?.title || `section-${index}`;
       ss.push({
         title: id,
         queryKey: ["home", id],
@@ -338,10 +336,10 @@ export const HomeIndex = () => {
             const response = await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
               fields: ["MediaSourceCount"],
-              limit: section.items?.limit || 25,
+              limit: section.nextUp?.limit || 25,
               enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              enableResumable: section.items?.enableResumable,
-              enableRewatching: section.items?.enableRewatching,
+              enableResumable: section.nextUp?.enableResumable,
+              enableRewatching: section.nextUp?.enableRewatching,
             });
             return response.data.Items || [];
           }
