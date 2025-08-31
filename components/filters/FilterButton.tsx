@@ -7,7 +7,7 @@ import { FilterSheet } from "./FilterSheet";
 
 interface FilterButtonProps<T> extends ViewProps {
   id: string;
-  showSearch?: boolean;
+  disableSearch?: boolean;
   queryKey: string;
   values: T[];
   title: string;
@@ -28,7 +28,7 @@ export const FilterButton = <T,>({
   title,
   renderItemLabel,
   searchFilter,
-  showSearch = true,
+  disableSearch = false,
   multiple = false,
   icon = "filter",
   ...props
@@ -94,7 +94,7 @@ export const FilterButton = <T,>({
         set={set}
         renderItemLabel={renderItemLabel}
         searchFilter={searchFilter}
-        showSearch={showSearch}
+        disableSearch={disableSearch}
         multiple={multiple}
       />
     </>

@@ -61,7 +61,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
 
-  const from = segments[2];
+  const from = segments[2] || "(home)";
 
   const showActionSheet = useCallback(() => {
     if (

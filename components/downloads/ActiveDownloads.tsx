@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   type TouchableOpacityProps,
   View,
+  type ViewProps,
 } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
@@ -22,7 +23,7 @@ const bytesToMB = (bytes: number) => {
   return bytes / 1024 / 1024;
 };
 
-interface ActiveDownloadsProps extends TouchableOpacityProps {}
+interface ActiveDownloadsProps extends ViewProps {}
 
 export default function ActiveDownloads({ ...props }: ActiveDownloadsProps) {
   const { processes } = useDownload();

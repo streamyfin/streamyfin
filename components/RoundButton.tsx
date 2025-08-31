@@ -1,14 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import type { PropsWithChildren } from "react";
-import {
-  Platform,
-  TouchableOpacity,
-  type TouchableOpacityProps,
-} from "react-native";
+import { Platform, TouchableOpacity, type ViewProps } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 
-interface Props extends TouchableOpacityProps {
+interface Props extends ViewProps {
   onPress?: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
   background?: boolean;
@@ -25,7 +21,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   size = "default",
   fillColor,
   hapticFeedback = true,
-  ...props
+  ...viewProps
 }) => {
   const buttonSize = size === "large" ? "h-10 w-10" : "h-9 w-9";
   const fillColorClass = fillColor === "primary" ? "bg-purple-600" : "";
@@ -43,7 +39,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         onPress={handlePress}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
-        {...props}
+        {...(viewProps as any)}
       >
         {icon ? (
           <Ionicons
@@ -61,7 +57,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         onPress={handlePress}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
-        {...props}
+        {...(viewProps as any)}
       >
         {icon ? (
           <Ionicons
@@ -81,7 +77,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
         className={`rounded-full ${buttonSize} flex items-center justify-center ${
           fillColor ? fillColorClass : "bg-neutral-800/80"
         }`}
-        {...props}
+        {...(viewProps as any)}
       >
         {icon ? (
           <Ionicons
@@ -95,11 +91,11 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     );
 
   return (
-    <TouchableOpacity onPress={handlePress} {...props}>
+    <TouchableOpacity onPress={handlePress} {...(viewProps as any)}>
       <BlurView
         intensity={90}
         className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${fillColorClass}`}
-        {...props}
+        {...(viewProps as any)}
       >
         {icon ? (
           <Ionicons

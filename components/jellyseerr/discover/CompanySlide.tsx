@@ -16,11 +16,12 @@ const CompanySlide: React.FC<
 > = ({ slide, data, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
-  const from = segments[2];
+  const from = segments[2] || "(home)";
 
   const navigate = useCallback(
     ({ id, image, name }: Network | Studio) =>
       router.push({
+        // @ts-expect-error - Dynamic pathname for jellyseerr routing
         pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}`,
         params: { id, image, name, type: slide.type },
       }),

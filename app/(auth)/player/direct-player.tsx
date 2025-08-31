@@ -97,7 +97,7 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  const [_settings] = useSettings();
+  const [_settings] = useSettings(null);
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();

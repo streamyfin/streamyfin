@@ -230,7 +230,7 @@ const queryClient = new QueryClient({
 });
 
 function Layout() {
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const appState = useRef(AppState.currentState);
@@ -245,8 +245,8 @@ function Layout() {
   useNotificationObserver();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
-  const notificationListener = useRef<EventSubscription>();
-  const responseListener = useRef<EventSubscription>();
+  const notificationListener = useRef<EventSubscription>(null);
+  const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
     if (!Platform.isTV && expoPushToken && api && user) {
@@ -315,7 +315,7 @@ function Layout() {
               response.notification.request.content,
             );
             if (data && Object.keys(data).length > 0) {
-              const type = data?.type?.toLower?.();
+              const type = (data?.type ?? "").toString().toLowerCase();
               const itemId = data?.id;
 
               switch (type) {
