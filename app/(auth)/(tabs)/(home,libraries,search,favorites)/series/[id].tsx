@@ -141,8 +141,8 @@ const page: React.FC = () => {
             style={{
               height: 130,
               width: "100%",
-              resizeMode: "contain",
             }}
+            contentFit='contain'
           />
         ) : undefined
       }

@@ -28,15 +28,17 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
         height={247}
         renderItem={(item, _index) => (
           <TouchableOpacity
-            key={item.Id}
-            onPress={() => router.push(`/series/${item.SeriesId}`)}
+            key={item?.Id}
+            onPress={() =>
+              item?.SeriesId && router.push(`/series/${item.SeriesId}`)
+            }
             className='flex flex-col space-y-2 w-28'
           >
             <Poster
-              id={item.id}
-              url={getPrimaryImageUrlById({ api, id: item.ParentId })}
+              id={item?.Id}
+              url={getPrimaryImageUrlById({ api, id: item?.ParentId })}
             />
-            <Text>{item.SeriesName}</Text>
+            <Text>{item?.SeriesName}</Text>
           </TouchableOpacity>
         )}
       />

@@ -71,7 +71,6 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
               { translateX: -x * tileWidth },
               { translateY: -y * tileHeight },
             ],
-            resizeMode: "cover",
           }}
           source={{ uri: url }}
           contentFit='cover'
