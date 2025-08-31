@@ -26,7 +26,6 @@
   "schedule": ["before 6am on Monday"],
   "branchPrefix": "renovate/",
   "commitMessagePrefix": "chore(deps):",
-  "commitMessageSuffix": "update {{depName}} to v{{newVersion}}",
   "lockFileMaintenance": {
     "enabled": true,
     "groupName": "lockfiles",
