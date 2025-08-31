@@ -19,7 +19,7 @@ export default function index() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const queryClient = useQueryClient();
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
 
   const { t } = useTranslation();
 

@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",
     "server_received_too_many_requests_try_again_later": "Server received too many requests, try again later.",
     "there_is_a_server_error": "There is a server error",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?",
+    "too_old_server_text": "Unsupported jellyfin server discovered",
+    "too_old_server_description": "Please update jellyfin to the latest version"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
@@ -270,8 +272,12 @@
         "failed_to_delete_all_movies": "Failed to delete all movies",
         "deleted_all_tvseries_successfully": "Deleted all TV-Series successfully!",
         "failed_to_delete_all_tvseries": "Failed to delete all TV-Series",
-        "download_cancelled": "Download cancelled",
-        "could_not_cancel_download": "Could not cancel download",
+        "download_deleted": "Download deleted",
+        "could_not_delete_download": "Could not delete download",
+        "download_paused": "Download paused",
+        "could_not_pause_download": "Could not pause download",
+        "download_resumed": "Download resumed",
+        "could_not_resume_download": "Could not resume download",
         "download_completed": "Download completed",
         "download_started_for": "Download started for {{item}}",
         "item_is_ready_to_be_downloaded": "{{item}} is ready to be downloaded",

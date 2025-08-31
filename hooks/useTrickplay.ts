@@ -3,9 +3,12 @@ import { Image } from "expo-image";
 import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { store } from "@/utils/store";
 import { ticksToMs } from "@/utils/time";
+import {
+  generateTrickplayUrl,
+  getTrickplayInfo,
+  type TrickplayInfo,
+} from "@/utils/trickplay";
 
 interface TrickplayUrl {
   x: number;
@@ -15,8 +18,8 @@ interface TrickplayUrl {
 
 /** Hook to handle trickplay logic for a given item. */
 export const useTrickplay = (item: BaseItemDto) => {
-  const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
   const { getDownloadedItemById } = useDownload();
+  const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
   const lastCalculationTime = useRef(0);
   const throttleDelay = 200;
   const isOffline = useGlobalSearchParams().offline === "true";
@@ -33,7 +36,7 @@ export const useTrickplay = (item: BaseItemDto) => {
       }
       return generateTrickplayUrl(item, sheetIndex);
     },
-    [trickplayInfo],
+    [trickplayInfo, isOffline, getDownloadedItemById],
   );
 
   /** Calculates the trickplay URL for the current progress. */
@@ -57,12 +60,25 @@ export const useTrickplay = (item: BaseItemDto) => {
     [trickplayInfo, item, throttleDelay, getTrickplayUrl],
   );
 
-  /** Prefetches all the trickplay images for the item. */
-  const prefetchAllTrickplayImages = useCallback(() => {
+  /** Prefetches all the trickplay images for the item, limiting concurrency to avoid I/O spikes. */
+  const prefetchAllTrickplayImages = useCallback(async () => {
     if (!trickplayInfo || !item.Id) return;
-    for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
+    const maxConcurrent = 4;
+    const total = trickplayInfo.totalImageSheets;
+    const urls: string[] = [];
+    for (let index = 0; index < total; index++) {
       const url = getTrickplayUrl(item, index);
-      if (url) Image.prefetch(url);
+      if (url) urls.push(url);
+    }
+    for (let i = 0; i < urls.length; i += maxConcurrent) {
+      const batch = urls.slice(i, i + maxConcurrent);
+      await Promise.all(
+        batch.map(
+          (url) => Image.prefetch(url).catch(() => {}), // Ignore errors
+        ),
+      );
+      // Yield to the event loop between batches to avoid blocking
+      await Promise.resolve();
     }
   }, [trickplayInfo, item, getTrickplayUrl]);
 
@@ -82,67 +98,6 @@ export interface TrickplayData {
   Width?: number;
   ThumbnailCount?: number;
 }
-
-export interface TrickplayInfo {
-  resolution: string;
-  aspectRatio: number;
-  data: TrickplayData;
-  totalImageSheets: number;
-}
-
-/** Generates a trickplay URL based on the item, resolution, and sheet index. */
-export const generateTrickplayUrl = (item: BaseItemDto, sheetIndex: number) => {
-  const api = store.get(apiAtom);
-  const resolution = getTrickplayInfo(item)?.resolution;
-  if (!resolution || !api) return null;
-  return `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${sheetIndex}.jpg?api_key=${api.accessToken}`;
-};
-
-/**
- * Parses the trickplay metadata from a BaseItemDto.
- * @param item The Jellyfin media item.
- * @returns Parsed trickplay information or null if not available.
- */
-export const getTrickplayInfo = (item: BaseItemDto): TrickplayInfo | null => {
-  if (!item.Id || !item.Trickplay) return null;
-
-  const mediaSourceId = item.Id;
-  const trickplayDataForSource = item.Trickplay[mediaSourceId];
-
-  if (!trickplayDataForSource) {
-    return null;
-  }
-
-  const firstResolution = Object.keys(trickplayDataForSource)[0];
-  if (!firstResolution) {
-    return null;
-  }
-
-  const data = trickplayDataForSource[firstResolution];
-  const { Interval, TileWidth, TileHeight, Width, Height } = data;
-
-  if (
-    !Interval ||
-    !TileWidth ||
-    !TileHeight ||
-    !Width ||
-    !Height ||
-    !item.RunTimeTicks
-  ) {
-    return null;
-  }
-
-  const tilesPerSheet = TileWidth * TileHeight;
-  const totalTiles = Math.ceil(ticksToMs(item.RunTimeTicks) / Interval);
-  const totalImageSheets = Math.ceil(totalTiles / tilesPerSheet);
-
-  return {
-    resolution: firstResolution,
-    aspectRatio: Width / Height,
-    data,
-    totalImageSheets,
-  };
-};
 
 /**
  * Calculates the specific image sheet and tile offset for a given time.

@@ -56,7 +56,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     }&deviceId=${deviceId}`;
 
     const newWebSocket = new WebSocket(url);
-    let keepAliveInterval: number | null = null;
+    let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
     newWebSocket.onopen = () => {
       console.log("WebSocket connection opened");

@@ -54,7 +54,7 @@ interface ItemContentProps {
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
   ({ item, isOffline }) => {
     const [api] = useAtom(apiAtom);
-    const [settings] = useSettings();
+    const [settings] = useSettings(null);
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
@@ -176,8 +176,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 style={{
                   height: 130,
                   width: "100%",
-                  resizeMode: "contain",
                 }}
+                contentFit='contain'
                 onLoad={() => setLoadingLogo(false)}
                 onError={() => setLoadingLogo(false)}
               />

@@ -20,7 +20,6 @@ import { toast } from "sonner-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import useImageStorage from "@/hooks/useImageStorage";
 import { useInterval } from "@/hooks/useInterval";
-import { generateTrickplayUrl, getTrickplayInfo } from "@/hooks/useTrickplay";
 import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
@@ -28,6 +27,7 @@ import { getItemImage } from "@/utils/getItemImage";
 import { writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { fetchAndParseSegments } from "@/utils/segments";
+import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import { Bitrate } from "../components/BitrateSelector";
 import {
   DownloadedItem,
@@ -87,7 +87,7 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
   const successHapticFeedback = useHaptic("success");
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
@@ -99,8 +99,8 @@ function useDownloadProvider() {
     // check if processes are missing
     setProcesses((processes) => {
       const missingProcesses = tasks
-        .filter((t) => t.metadata && !processes.some((p) => p.id === t.id))
-        .map((t) => {
+        .filter((t: any) => t.metadata && !processes.some((p) => p.id === t.id))
+        .map((t: any) => {
           return t.metadata as JobStatus;
         });
 
@@ -108,7 +108,7 @@ function useDownloadProvider() {
       const updatedProcesses = currentProcesses.map((p) => {
         // fallback. Doesn't really work for transcodes as they may be a lot smaller.
         // We make an wild guess by comparing bitrates
-        const task = tasks.find((s) => s.id === p.id);
+        const task = tasks.find((s: any) => s.id === p.id);
         if (task && p.status === "downloading") {
           const estimatedSize = calculateEstimatedSize(p);
           let progress = p.progress;
@@ -425,7 +425,7 @@ function useDownloadProvider() {
           );
           removeProcess(process.id);
         })
-        .error((error) => {
+        .error((error: any) => {
           console.error("Download error:", error);
           toast.error(
             t("home.downloads.toasts.download_failed_for_item", {
@@ -454,7 +454,7 @@ function useDownloadProvider() {
   const removeProcess = useCallback(
     async (id: string) => {
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
-      const task = tasks?.find((t) => t.id === id);
+      const task = tasks?.find((t: any) => t.id === id);
       task?.stop();
       BackGroundDownloader.completeHandler(id);
       setProcesses((prev) => prev.filter((process) => process.id !== id));
@@ -690,6 +690,62 @@ function useDownloadProvider() {
     return { total, remaining, appSize: appSize };
   };
 
+  const pauseDownload = useCallback(
+    async (id: string) => {
+      const process = processes.find((p) => p.id === id);
+      if (!process) throw new Error("No active download");
+
+      const tasks = await BackGroundDownloader.checkForExistingDownloads();
+      const task = tasks?.find((t: any) => t.id === id);
+      if (!task) throw new Error("No task found");
+
+      task.pause();
+      updateProcess(id, { status: "paused" });
+    },
+    [processes, updateProcess],
+  );
+
+  const resumeDownload = useCallback(
+    async (id: string) => {
+      const process = processes.find((p) => p.id === id);
+      if (!process) throw new Error("No active download");
+
+      const tasks = await BackGroundDownloader.checkForExistingDownloads();
+      const task = tasks?.find((t: any) => t.id === id);
+      if (!task) throw new Error("No task found");
+
+      // Check if task state allows resuming
+      if (task.state === "FAILED") {
+        console.warn(
+          "Download task failed, cannot resume. Restarting download.",
+        );
+        // For failed tasks, we need to restart rather than resume
+        await startDownload(process);
+        return;
+      }
+
+      try {
+        task.resume();
+        updateProcess(id, { status: "downloading" });
+      } catch (error: any) {
+        // Handle specific ERROR_CANNOT_RESUME error
+        if (
+          error?.error === "ERROR_CANNOT_RESUME" ||
+          error?.errorCode === 1008
+        ) {
+          console.warn("Cannot resume download, attempting to restart instead");
+          await startDownload(process);
+          return; // Return early to prevent error from bubbling up
+        } else {
+          // Only log error for non-handled cases
+          console.error("Error resuming download:", error);
+          throw error; // Re-throw other errors
+        }
+      }
+    },
+    [processes, updateProcess, startDownload],
+  );
+
   return {
     processes,
     startBackgroundDownload,
@@ -700,6 +756,8 @@ function useDownloadProvider() {
     deleteItems,
     removeProcess,
     startDownload,
+    pauseDownload,
+    resumeDownload,
     deleteFileByType,
     getDownloadedItemSize,
     getDownloadedItemById,
@@ -725,6 +783,8 @@ export function useDownload() {
       deleteItems: async () => {},
       removeProcess: () => {},
       startDownload: async () => {},
+      pauseDownload: async () => {},
+      resumeDownload: async () => {},
       deleteFileByType: async () => {},
       getDownloadedItemSize: () => 0,
       getDownloadedItemById: () => undefined,

@@ -4,7 +4,7 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const ChromecastSettings: React.FC = ({ ...props }) => {
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings] = useSettings(null);
   return (
     <View {...props}>
       <ListGroup title={"Chromecast"}>

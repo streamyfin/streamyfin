@@ -68,6 +68,7 @@ export default function page() {
     : require("react-native-volume-manager");
 
   const downloadUtils = useDownload();
+  const downloadedFiles = downloadUtils.getDownloadedItems();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -96,7 +97,7 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  const [_settings] = useSettings();
+  const [_settings] = useSettings(null);
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -175,6 +176,13 @@ export default function page() {
     const fetchStreamData = async () => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
+        // Don't attempt to fetch stream data if item is not available
+        if (!item?.Id) {
+          console.log("Item not loaded yet, skipping stream data fetch");
+          setStreamStatus({ isLoading: false, isError: false });
+          return;
+        }
+
         let result: Stream | null = null;
         if (offline && downloadedItem && downloadedItem.mediaSource) {
           const url = downloadedItem.videoFilePath;
@@ -186,13 +194,25 @@ export default function page() {
             };
           }
         } else {
+          // Validate required parameters before calling getStreamUrl
+          if (!api) {
+            console.warn("API not available for streaming");
+            setStreamStatus({ isLoading: false, isError: true });
+            return;
+          }
+          if (!user?.Id) {
+            console.warn("User not authenticated for streaming");
+            setStreamStatus({ isLoading: false, isError: true });
+            return;
+          }
+
           const native = generateDeviceProfile();
           const transcoding = generateDeviceProfile({ transcode: true });
           const res = await getStreamUrl({
             api,
             item,
             startTimeTicks: getInitialPlaybackTicks(),
-            userId: user?.Id,
+            userId: user.Id,
             audioStreamIndex: audioIndex,
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
@@ -728,6 +748,8 @@ export default function page() {
           setAspectRatio={setAspectRatio}
           setScaleFactor={setScaleFactor}
           isVlc
+          api={api}
+          downloadedFiles={downloadedFiles}
         />
       )}
     </View>

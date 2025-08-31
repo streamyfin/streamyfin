@@ -16,7 +16,7 @@ export interface ContinueWatchingOverlayProps {
 const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
   goToNextItem,
 }) => {
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
   const router = useRouter();
 
   return settings.autoPlayEpisodeCount >=
