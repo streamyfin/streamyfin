@@ -94,7 +94,7 @@
     "react-native-video": "6.14.1",
     "react-native-volume-manager": "^2.0.8",
     "react-native-web": "^0.20.0",
-    "sonner-native": "^0.21.0",
+    "sonner-native": "^0.21.1",
     "tailwindcss": "3.3.2",
     "use-debounce": "^10.0.4",
     "zeego": "^3.0.6",
