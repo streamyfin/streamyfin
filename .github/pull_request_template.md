@@ -5,8 +5,6 @@
   and to ensure all necessary checks are completed before merging.
 -->
 
-# 📦 Pull Request
-
 ## 🔖 Summary
 <!--
 A concise description of the changes introduced by this PR.
@@ -36,12 +34,6 @@ Spec: https://www.conventionalcommits.org/ -->
 - Short summary: what changed and why (1–2 lines)
 -->
 
-## 📋 Details
-<!--
-Provide more context or background. Explain any non-obvious decisions.
-Include screenshots or GIFs for UI changes if applicable.
--->
-
 ### ⚠️ Breaking Changes
 <!-- List any breaking API/contract changes and migration guidance. If none, write “None”. -->
 
@@ -52,7 +44,10 @@ Include screenshots or GIFs for UI changes if applicable.
 <!-- Hot paths, memory/CPU/latency implications, benchmarks if available. -->
 
 ### 🖼️ Screenshots / GIFs (if UI)
-<!-- Before/After, dark mode, responsive states. -->
+<!-- 
+Provide more context or background. Explain any non-obvious decisions.
+Before/After, dark mode, responsive states. 
+-->
 
 ## ✅ Checklist
 <!--
