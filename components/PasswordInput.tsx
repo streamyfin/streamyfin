@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
+import { useState } from "react";
 import { TouchableOpacity } from "react-native";
 import { Input } from "./common/Input";
 
@@ -10,7 +11,7 @@ type PasswordVisibilityControlled = {
   placeholder: string;
   showPassword: boolean;
   onShowPasswordChange: (show: boolean) => void;
-  topPosition?: string;
+  topOffset?: number;
   layout?: "tv" | "mobile";
 };
 
@@ -20,8 +21,9 @@ type PasswordVisibilityUncontrolled = {
   placeholder: string;
   showPassword?: never;
   onShowPasswordChange?: never;
-  topPosition?: string;
+  topOffset?: number;
   layout?: "tv" | "mobile";
+  defaultShowPassword?: boolean;
 };
 
 type PasswordInputProps =
@@ -33,7 +35,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = (props) => {
     value = "",
     onChangeText,
     placeholder,
-    topPosition = "3.5",
+    topOffset = 14, // Default 14px for mobile
     layout = "mobile",
   } = props;
 
@@ -41,26 +43,36 @@ export const PasswordInput: React.FC<PasswordInputProps> = (props) => {
   const isControlled =
     "showPassword" in props && "onShowPasswordChange" in props;
 
-  // For controlled mode, use the provided props
-  // For uncontrolled mode, use internal state (but we need to handle this differently)
+  // Internal state for uncontrolled mode
+  const [internalShowPassword, setInternalShowPassword] = useState(() =>
+    !isControlled && "defaultShowPassword" in props
+      ? ((props as PasswordVisibilityUncontrolled).defaultShowPassword ?? false)
+      : false,
+  );
+
+  // Use controlled value if available, otherwise use internal state
   const showPassword = isControlled
     ? (props as PasswordVisibilityControlled).showPassword
-    : false;
+    : internalShowPassword;
 
   const handleTogglePassword = () => {
     if (isControlled) {
       (props as PasswordVisibilityControlled).onShowPasswordChange(
         !showPassword,
       );
+    } else {
+      // For uncontrolled mode, toggle internal state
+      setInternalShowPassword(!showPassword);
     }
-    // For uncontrolled mode, we could add internal state handling here if needed
   };
 
-  // Generate top position with pixel precision
+  // Generate top position style with validation
   const getTopStyle = () => {
-    // Use pixel values directly
-    const positionInPx = parseFloat(topPosition);
-    return { top: positionInPx };
+    if (typeof topOffset !== "number" || Number.isNaN(topOffset)) {
+      console.warn(`Invalid topOffset value: ${topOffset}`);
+      return { top: 14 }; // Default fallback (14px for mobile)
+    }
+    return { top: topOffset };
   };
 
   return (
@@ -70,7 +82,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = (props) => {
         onChangeText={onChangeText}
         value={value}
         secureTextEntry={!showPassword}
-        className='pr-4'
+        extraClassName='pr-4'
       />
       <TouchableOpacity
         onPress={handleTogglePassword}

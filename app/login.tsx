@@ -273,7 +273,7 @@ const Login: React.FC = () => {
                 textContentType='oneTimeCode'
                 clearButtonMode='while-editing'
                 maxLength={500}
-                extraClassName='mb-4'
+                extraClassName=''
               />
 
               {/* Password */}
@@ -286,15 +286,15 @@ const Login: React.FC = () => {
                   placeholder={t("login.password_placeholder")}
                   showPassword={showPassword}
                   onShowPasswordChange={setShowPassword}
-                  topPosition='15'
+                  topOffset={15}
                   layout='tv'
                 />
               </View>
 
-              <View className='mt-4'>
+              <View className=''>
                 <Button onPress={handleLogin}>{t("login.login_button")}</Button>
               </View>
-              <View className='mt-3'>
+              <View className=''>
                 <Button
                   onPress={handleQuickConnect}
                   className='bg-neutral-800 border border-neutral-700'
@@ -348,7 +348,7 @@ const Login: React.FC = () => {
               </View>
 
               {/* Lists stay full width but inside max width container */}
-              <View className='mt-2'>
+              <View className='mt-4'>
                 <JellyfinServerDiscovery
                   onServerSelect={async (server: any) => {
                     setServerURL(server.address);
@@ -402,10 +402,10 @@ const Login: React.FC = () => {
                   textContentType='oneTimeCode'
                   clearButtonMode='while-editing'
                   maxLength={500}
-                  extraClassName='mb-4'
+                  extraClassName=''
                 />
 
-                <View className='relative mb-0.5'>
+                <View className='relative'>
                   <PasswordInput
                     value={credentials.password}
                     onChangeText={(text) =>
@@ -414,7 +414,7 @@ const Login: React.FC = () => {
                     placeholder={t("login.password_placeholder")}
                     showPassword={showPassword}
                     onShowPasswordChange={setShowPassword}
-                    topPosition='10'
+                    topOffset={12}
                     layout='mobile'
                   />
                 </View>

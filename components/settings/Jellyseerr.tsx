@@ -131,7 +131,7 @@ export const JellyseerrSettings = () => {
               </Text>
             </View>
             <Input
-              className='border border-neutral-800 mb-2'
+              extraClassName='border border-neutral-800 mb-2'
               placeholder={t(
                 "home.settings.plugins.jellyseerr.server_url_placeholder",
               )}
@@ -161,7 +161,7 @@ export const JellyseerrSettings = () => {
                   showPassword={showJellyseerrPassword}
                   onShowPasswordChange={setShowJellyseerrPassword}
                   layout='mobile'
-                  topPosition='11'
+                  topOffset={11}
                 />
               </View>
               <Button
