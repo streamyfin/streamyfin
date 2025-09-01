@@ -177,7 +177,7 @@ export const FilterSheet = <T,>({
           {showSearch && (
             <Input
               placeholder={t("search.search")}
-              className='my-2 border-neutral-800 border'
+              extraClassName='my-2 border-neutral-800 border'
               value={search}
               onChangeText={(text) => {
                 setSearch(text);

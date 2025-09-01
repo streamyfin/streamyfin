@@ -20,8 +20,8 @@ export function Input(props: InputProps) {
       <TextInput
         ref={inputRef}
         className={`
-          w-full text-lg px-5 py-4 rounded-2xl
-          ${isFocused ? "bg-neutral-700 border-2 border-white" : "bg-neutral-900 border-2 border-transparent"}
+          w-full text-lg px-5 py-5 rounded-2xl
+          ${isFocused ? "bg-neutral-700 border-2 border-white" : "bg-neutral-900 border-2 border-neutral-800"}
           text-white ${extraClassName}
         `}
         allowFontScaling={false}
@@ -41,11 +41,15 @@ export function Input(props: InputProps) {
   ) : (
     <TextInput
       ref={inputRef}
-      className='p-4  rounded-xl bg-neutral-900'
+      className={`p-3 rounded-xl bg-neutral-900 ${
+        isFocused ? "border-2 border-white" : "border-2 border-neutral-800"
+      } ${extraClassName}`}
       allowFontScaling={false}
       style={[{ color: "white" }, style]}
       placeholderTextColor={"#9CA3AF"}
       clearButtonMode='while-editing'
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
       {...otherProps}
     />
   );

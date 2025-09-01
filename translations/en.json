@@ -22,7 +22,10 @@
     "there_is_a_server_error": "There is a server error",
     "an_unexpected_error_occured_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?",
     "too_old_server_text": "Unsupported jellyfin server discovered",
-    "too_old_server_description": "Please update jellyfin to the latest version"
+    "too_old_server_description": "Please update jellyfin to the latest version",
+    "show_password": "Show password",
+    "hide_password": "Hide password",
+    "toggle_password_visibility": "Toggle password visibility"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
