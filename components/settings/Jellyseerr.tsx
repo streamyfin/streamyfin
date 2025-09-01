@@ -1,10 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { View } from "react-native";
 import { toast } from "sonner-native";
+import { PasswordInput } from "@/components/PasswordInput";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -150,37 +150,24 @@ export const JellyseerrSettings = () => {
               <Text className='font-bold mb-2'>
                 {t("home.settings.plugins.jellyseerr.password")}
               </Text>
-              <View className='relative'>
-                <Input
-                  className='border border-neutral-800 pr-12'
-                  autoFocus={true}
-                  focusable={true}
-                  placeholder={t(
-                    "home.settings.plugins.jellyseerr.password_placeholder",
-                    { username: user?.Name },
-                  )}
-                  value={jellyseerrPassword}
-                  keyboardType='default'
-                  secureTextEntry={!showJellyseerrPassword}
-                  returnKeyType='done'
-                  autoCapitalize='none'
-                  textContentType='password'
-                  onChangeText={setJellyseerrPassword}
-                  editable={!loginToJellyseerrMutation.isPending}
-                />
-                <TouchableOpacity
-                  onPress={() =>
-                    setShowJellyseerrPassword(!showJellyseerrPassword)
-                  }
-                  className='absolute right-3 top-3.5 p-1'
-                >
-                  <Ionicons
-                    name={showJellyseerrPassword ? "eye-off" : "eye"}
-                    size={24}
-                    color='white'
-                  />
-                </TouchableOpacity>
-              </View>
+              <PasswordInput
+                value={jellyseerrPassword}
+                onChangeText={setJellyseerrPassword}
+                placeholder={t(
+                  "home.settings.plugins.jellyseerr.password_placeholder",
+                  { username: user?.Name },
+                )}
+                className='border border-neutral-800'
+                showPassword={showJellyseerrPassword}
+                onShowPasswordChange={setShowJellyseerrPassword}
+                editable={!loginToJellyseerrMutation.isPending}
+                autoComplete='password'
+                autoCorrect={false}
+                testID='jellyseerr-password-input'
+                accessibilityLabel={t(
+                  "home.settings.plugins.jellyseerr.password",
+                )}
+              />
               <Button
                 loading={loginToJellyseerrMutation.isPending}
                 disabled={loginToJellyseerrMutation.isPending}

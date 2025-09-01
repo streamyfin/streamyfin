@@ -20,6 +20,7 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
+import { PasswordInput } from "@/components/PasswordInput";
 import { PreviousServersList } from "@/components/PreviousServersList";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
@@ -276,33 +277,20 @@ const Login: React.FC = () => {
               />
 
               {/* Password */}
-              <View className='relative mb-4'>
-                <Input
-                  placeholder={t("login.password_placeholder")}
-                  onChangeText={(text: string) =>
-                    setCredentials({ ...credentials, password: text })
-                  }
-                  value={credentials.password}
-                  secureTextEntry={!showPassword}
-                  keyboardType='default'
-                  returnKeyType='done'
-                  autoCapitalize='none'
-                  textContentType='password'
-                  clearButtonMode='while-editing'
-                  maxLength={500}
-                  className='pr-12'
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  className='absolute right-3 top-4 p-1'
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-off" : "eye"}
-                    size={24}
-                    color='white'
-                  />
-                </TouchableOpacity>
-              </View>
+              <PasswordInput
+                value={credentials.password}
+                onChangeText={(text: string) =>
+                  setCredentials({ ...credentials, password: text })
+                }
+                onSubmitEditing={handleLogin}
+                placeholder={t("login.password_placeholder")}
+                className='mb-4'
+                showPassword={showPassword}
+                onShowPasswordChange={setShowPassword}
+                topPosition='4'
+                testID='tv-password-input'
+                accessibilityLabel={t("login.password_placeholder")}
+              />
 
               <View className='mt-4'>
                 <Button onPress={handleLogin}>{t("login.login_button")}</Button>
@@ -417,33 +405,18 @@ const Login: React.FC = () => {
                   maxLength={500}
                 />
 
-                <View className='relative'>
-                  <Input
-                    placeholder={t("login.password_placeholder")}
-                    onChangeText={(text) =>
-                      setCredentials({ ...credentials, password: text })
-                    }
-                    value={credentials.password}
-                    secureTextEntry={!showPassword}
-                    keyboardType='default'
-                    returnKeyType='done'
-                    autoCapitalize='none'
-                    textContentType='password'
-                    clearButtonMode='while-editing'
-                    maxLength={500}
-                    className='pr-12'
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                    className='absolute right-3 top-3.5 p-1'
-                  >
-                    <Ionicons
-                      name={showPassword ? "eye-off" : "eye"}
-                      size={24}
-                      color='white'
-                    />
-                  </TouchableOpacity>
-                </View>
+                <PasswordInput
+                  value={credentials.password}
+                  onChangeText={(text) =>
+                    setCredentials({ ...credentials, password: text })
+                  }
+                  placeholder={t("login.password_placeholder")}
+                  showPassword={showPassword}
+                  onShowPasswordChange={setShowPassword}
+                  topPosition='3.5'
+                  testID='mobile-password-input'
+                  accessibilityLabel={t("login.password_placeholder")}
+                />
                 <View className='flex flex-row items-center justify-between'>
                   <Button
                     onPress={handleLogin}
