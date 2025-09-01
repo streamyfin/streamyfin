@@ -273,11 +273,11 @@ const Login: React.FC = () => {
                 textContentType='oneTimeCode'
                 clearButtonMode='while-editing'
                 maxLength={500}
-                extraClassName=''
+                extraClassName='mb-2'
               />
 
               {/* Password */}
-              <View className='relative'>
+              <View className='relative mb-2'>
                 <PasswordInput
                   value={credentials.password}
                   onChangeText={(text: string) =>
@@ -286,15 +286,14 @@ const Login: React.FC = () => {
                   placeholder={t("login.password_placeholder")}
                   showPassword={showPassword}
                   onShowPasswordChange={setShowPassword}
-                  topOffset={15}
+                  topOffset={16}
                   layout='tv'
                 />
               </View>
-
-              <View className=''>
+              <View className='mt-3'>
                 <Button onPress={handleLogin}>{t("login.login_button")}</Button>
               </View>
-              <View className=''>
+              <View className='mt-2'>
                 <Button
                   onPress={handleQuickConnect}
                   className='bg-neutral-800 border border-neutral-700'
