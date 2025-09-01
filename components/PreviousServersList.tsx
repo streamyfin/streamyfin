@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
+import { storage } from "@/utils/mmkv";
 import { ListGroup } from "./list/ListGroup";
 import { ListItem } from "./list/ListItem";
 
@@ -17,8 +18,7 @@ interface PreviousServersListProps {
 export const PreviousServersList: React.FC<PreviousServersListProps> = ({
   onServerSelect,
 }) => {
-  const [_previousServers, setPreviousServers] =
-    useMMKVString("previousServers");
+  const [_previousServers] = useMMKVString("previousServers");
 
   const previousServers = useMemo(() => {
     return JSON.parse(_previousServers || "[]") as Server[];
@@ -37,14 +37,16 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
             onPress={() => onServerSelect(s)}
             title={s.address}
             showArrow
+            className='min-h-[48px] py-2'
           />
         ))}
         <ListItem
           onPress={() => {
-            setPreviousServers("[]");
+            storage.delete("previousServers");
           }}
           title={t("server.clear_button")}
           textColor='red'
+          className='min-h-[48px] py-2'
         />
       </ListGroup>
     </View>
