@@ -1,8 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
@@ -29,6 +30,9 @@ export const JellyseerrSettings = () => {
   const [jellyseerrServerUrl, setjellyseerrServerUrl] = useState<
     string | undefined
   >(settings?.jellyseerrServerUrl || undefined);
+
+  const [showJellyseerrPassword, setShowJellyseerrPassword] =
+    useState<boolean>(false);
 
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
@@ -146,23 +150,37 @@ export const JellyseerrSettings = () => {
               <Text className='font-bold mb-2'>
                 {t("home.settings.plugins.jellyseerr.password")}
               </Text>
-              <Input
-                className='border border-neutral-800'
-                autoFocus={true}
-                focusable={true}
-                placeholder={t(
-                  "home.settings.plugins.jellyseerr.password_placeholder",
-                  { username: user?.Name },
-                )}
-                value={jellyseerrPassword}
-                keyboardType='default'
-                secureTextEntry={true}
-                returnKeyType='done'
-                autoCapitalize='none'
-                textContentType='password'
-                onChangeText={setJellyseerrPassword}
-                editable={!loginToJellyseerrMutation.isPending}
-              />
+              <View className='relative'>
+                <Input
+                  className='border border-neutral-800 pr-12'
+                  autoFocus={true}
+                  focusable={true}
+                  placeholder={t(
+                    "home.settings.plugins.jellyseerr.password_placeholder",
+                    { username: user?.Name },
+                  )}
+                  value={jellyseerrPassword}
+                  keyboardType='default'
+                  secureTextEntry={!showJellyseerrPassword}
+                  returnKeyType='done'
+                  autoCapitalize='none'
+                  textContentType='password'
+                  onChangeText={setJellyseerrPassword}
+                  editable={!loginToJellyseerrMutation.isPending}
+                />
+                <TouchableOpacity
+                  onPress={() =>
+                    setShowJellyseerrPassword(!showJellyseerrPassword)
+                  }
+                  className='absolute right-3 top-3.5 p-1'
+                >
+                  <Ionicons
+                    name={showJellyseerrPassword ? "eye-off" : "eye"}
+                    size={24}
+                    color='white'
+                  />
+                </TouchableOpacity>
+              </View>
               <Button
                 loading={loginToJellyseerrMutation.isPending}
                 disabled={loginToJellyseerrMutation.isPending}
