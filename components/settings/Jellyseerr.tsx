@@ -161,7 +161,7 @@ export const JellyseerrSettings = () => {
                   showPassword={showJellyseerrPassword}
                   onShowPasswordChange={setShowJellyseerrPassword}
                   layout='mobile'
-                  topPosition='22'
+                  topPosition='11'
                 />
               </View>
               <Button
