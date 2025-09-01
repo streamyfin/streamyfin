@@ -36,7 +36,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             "home.settings.gesture_controls.horizontal_swipe_skip_description",
           )}
           disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
-          className='min-h-[72px] py-3'
+          style={{ minHeight: 72, paddingTop: 12, paddingBottom: 12 }}
         >
           <Switch
             value={settings.enableHorizontalSwipeSkip}
@@ -53,7 +53,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             "home.settings.gesture_controls.left_side_brightness_description",
           )}
           disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
-          className='min-h-[72px] py-3'
+          style={{ minHeight: 72, paddingTop: 12, paddingBottom: 12 }}
         >
           <Switch
             value={settings.enableLeftSideBrightnessSwipe}
@@ -70,7 +70,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             "home.settings.gesture_controls.right_side_volume_description",
           )}
           disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
-          className='min-h-[72px] py-3'
+          style={{ minHeight: 72, paddingTop: 12, paddingBottom: 12 }}
         >
           <Switch
             value={settings.enableRightSideVolumeSwipe}

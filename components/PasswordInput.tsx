@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { TouchableOpacity } from "react-native";
 import { Input } from "./common/Input";
 
@@ -31,6 +32,7 @@ type PasswordInputProps =
   | PasswordVisibilityUncontrolled;
 
 export const PasswordInput: React.FC<PasswordInputProps> = (props) => {
+  const { t } = useTranslation();
   const {
     value = "",
     onChangeText,
@@ -90,6 +92,13 @@ export const PasswordInput: React.FC<PasswordInputProps> = (props) => {
           layout === "tv" ? "h-10 justify-center" : ""
         }`}
         style={getTopStyle()}
+        accessible={true}
+        accessibilityRole='button'
+        accessibilityLabel={
+          showPassword ? t("login.hide_password") : t("login.show_password")
+        }
+        accessibilityHint={t("login.toggle_password_visibility")}
+        accessibilityState={{ checked: showPassword }}
       >
         <Ionicons
           name={showPassword ? "eye-off" : "eye"}
