@@ -25,7 +25,7 @@
     "too_old_server_description": "Please update jellyfin to the latest version",
     "show_password": "Show password",
     "hide_password": "Hide password",
-    "toggle_password_visibility": "Toggles password visibility"
+    "toggle_password_visibility": "Toggle password visibility"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
