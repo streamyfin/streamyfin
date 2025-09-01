@@ -286,7 +286,7 @@ const Login: React.FC = () => {
                   placeholder={t("login.password_placeholder")}
                   showPassword={showPassword}
                   onShowPasswordChange={setShowPassword}
-                  topPosition='4'
+                  topPosition='15'
                   layout='tv'
                 />
               </View>
