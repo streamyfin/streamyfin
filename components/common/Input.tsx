@@ -20,7 +20,7 @@ export function Input(props: InputProps) {
       <TextInput
         ref={inputRef}
         className={`
-          w-full text-lg px-5 py-4 rounded-2xl
+          w-full text-lg px-5 py-5 rounded-2xl
           ${isFocused ? "bg-neutral-700 border-2 border-white" : "bg-neutral-900 border-2 border-transparent"}
           text-white ${extraClassName}
         `}
@@ -41,7 +41,7 @@ export function Input(props: InputProps) {
   ) : (
     <TextInput
       ref={inputRef}
-      className='p-4  rounded-xl bg-neutral-900'
+      className='p-3 rounded-xl bg-neutral-900'
       allowFontScaling={false}
       style={[{ color: "white" }, style]}
       placeholderTextColor={"#9CA3AF"}

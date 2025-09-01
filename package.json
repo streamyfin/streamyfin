@@ -25,7 +25,7 @@
     "@bottom-tabs/react-navigation": "^0.9.2",
     "@expo/metro-runtime": "~5.0.4",
     "@expo/react-native-action-sheet": "^4.1.1",
-    "@expo/vector-icons": "15.0.2",
+    "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.1.0",
     "@jellyfin/sdk": "^0.11.0",
     "@kesha-antonov/react-native-background-downloader": "^3.2.6",

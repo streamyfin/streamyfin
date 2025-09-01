@@ -150,24 +150,20 @@ export const JellyseerrSettings = () => {
               <Text className='font-bold mb-2'>
                 {t("home.settings.plugins.jellyseerr.password")}
               </Text>
-              <PasswordInput
-                value={jellyseerrPassword}
-                onChangeText={setJellyseerrPassword}
-                placeholder={t(
-                  "home.settings.plugins.jellyseerr.password_placeholder",
-                  { username: user?.Name },
-                )}
-                className='border border-neutral-800'
-                showPassword={showJellyseerrPassword}
-                onShowPasswordChange={setShowJellyseerrPassword}
-                editable={!loginToJellyseerrMutation.isPending}
-                autoComplete='password'
-                autoCorrect={false}
-                testID='jellyseerr-password-input'
-                accessibilityLabel={t(
-                  "home.settings.plugins.jellyseerr.password",
-                )}
-              />
+              <View className='relative'>
+                <PasswordInput
+                  value={jellyseerrPassword}
+                  onChangeText={setJellyseerrPassword}
+                  placeholder={t(
+                    "home.settings.plugins.jellyseerr.password_placeholder",
+                    { username: user?.Name },
+                  )}
+                  showPassword={showJellyseerrPassword}
+                  onShowPasswordChange={setShowJellyseerrPassword}
+                  layout='mobile'
+                  topPosition='22'
+                />
+              </View>
               <Button
                 loading={loginToJellyseerrMutation.isPending}
                 disabled={loginToJellyseerrMutation.isPending}

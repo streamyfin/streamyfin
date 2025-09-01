@@ -277,20 +277,19 @@ const Login: React.FC = () => {
               />
 
               {/* Password */}
-              <PasswordInput
-                value={credentials.password}
-                onChangeText={(text: string) =>
-                  setCredentials({ ...credentials, password: text })
-                }
-                onSubmitEditing={handleLogin}
-                placeholder={t("login.password_placeholder")}
-                className='mb-4'
-                showPassword={showPassword}
-                onShowPasswordChange={setShowPassword}
-                topPosition='4'
-                testID='tv-password-input'
-                accessibilityLabel={t("login.password_placeholder")}
-              />
+              <View className='relative'>
+                <PasswordInput
+                  value={credentials.password}
+                  onChangeText={(text: string) =>
+                    setCredentials({ ...credentials, password: text })
+                  }
+                  placeholder={t("login.password_placeholder")}
+                  showPassword={showPassword}
+                  onShowPasswordChange={setShowPassword}
+                  topPosition='4'
+                  layout='tv'
+                />
+              </View>
 
               <View className='mt-4'>
                 <Button onPress={handleLogin}>{t("login.login_button")}</Button>
@@ -403,20 +402,22 @@ const Login: React.FC = () => {
                   textContentType='oneTimeCode'
                   clearButtonMode='while-editing'
                   maxLength={500}
+                  extraClassName='mb-4'
                 />
 
-                <PasswordInput
-                  value={credentials.password}
-                  onChangeText={(text) =>
-                    setCredentials({ ...credentials, password: text })
-                  }
-                  placeholder={t("login.password_placeholder")}
-                  showPassword={showPassword}
-                  onShowPasswordChange={setShowPassword}
-                  topPosition='3.5'
-                  testID='mobile-password-input'
-                  accessibilityLabel={t("login.password_placeholder")}
-                />
+                <View className='relative mb-0.5'>
+                  <PasswordInput
+                    value={credentials.password}
+                    onChangeText={(text) =>
+                      setCredentials({ ...credentials, password: text })
+                    }
+                    placeholder={t("login.password_placeholder")}
+                    showPassword={showPassword}
+                    onShowPasswordChange={setShowPassword}
+                    topPosition='10'
+                    layout='mobile'
+                  />
+                </View>
                 <View className='flex flex-row items-center justify-between'>
                   <Button
                     onPress={handleLogin}
@@ -427,7 +428,7 @@ const Login: React.FC = () => {
                   </Button>
                   <TouchableOpacity
                     onPress={handleQuickConnect}
-                    className='p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center'
+                    className='p-3 bg-neutral-900 rounded-xl h-13 w-13 flex items-center justify-center'
                   >
                     <MaterialCommunityIcons
                       name='cellphone-lock'
