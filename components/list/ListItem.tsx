@@ -34,7 +34,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         disabled={disabled}
         onPress={onPress}
-        className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
+        className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[44px] pr-4 pl-4 ${
           disabled ? "opacity-50" : ""
         }`}
         {...(viewProps as any)}
@@ -54,7 +54,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
     );
   return (
     <View
-      className={`flex flex-row items-center justify-between bg-neutral-900 h-11 pr-4 pl-4 ${
+      className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[44px] pr-4 pl-4 ${
         disabled ? "opacity-50" : ""
       }`}
       {...viewProps}
