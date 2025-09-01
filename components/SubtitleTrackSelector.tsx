@@ -1,7 +1,6 @@
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
-import { tc } from "@/utils/textTools";
 
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 
@@ -37,7 +36,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
       className='flex col shrink justify-start place-self-start items-start'
       style={{
         minWidth: 60,
-        maxWidth: 200,
+        maxWidth: 220,
       }}
     >
       <DropdownMenu.Root>
@@ -47,10 +46,8 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
               {t("item_card.subtitles")}
             </Text>
             <TouchableOpacity className='bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-              <Text className=' '>
-                {selectedSubtitleSteam
-                  ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
-                  : t("item_card.none")}
+              <Text className=' ' numberOfLines={1}>
+                {selectedSubtitleSteam?.DisplayTitle || t("item_card.none")}
               </Text>
             </TouchableOpacity>
           </View>
