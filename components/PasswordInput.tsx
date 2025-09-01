@@ -27,6 +27,7 @@ interface PasswordInputProps {
     | "url"
     | "off";
   autoCorrect?: boolean;
+  iconColor?: string;
 }
 
 export const PasswordInput: React.FC<PasswordInputProps> = ({
@@ -44,6 +45,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
   editable = true,
   autoComplete,
   autoCorrect,
+  iconColor = "white",
 }) => {
   const { t } = useTranslation();
   const [internalShowPassword, setInternalShowPassword] = useState(false);
@@ -52,7 +54,8 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
   const showPassword = controlledShowPassword ?? internalShowPassword;
   const setShowPassword = onShowPasswordChange ?? setInternalShowPassword;
 
-  const topClass = topPosition === "4" ? "top-4" : "top-3.5";
+  // Construct Tailwind class from validated topPosition
+  const topClass = `top-${topPosition}`;
 
   return (
     <View className={`relative ${className}`}>
@@ -93,7 +96,7 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
         <Ionicons
           name={showPassword ? "eye-off" : "eye"}
           size={24}
-          color='white'
+          color={iconColor}
         />
       </TouchableOpacity>
     </View>
