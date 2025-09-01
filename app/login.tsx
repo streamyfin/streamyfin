@@ -294,7 +294,7 @@ const Login: React.FC = () => {
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
-                  className='absolute right-3 top-3.5 p-1'
+                  className='absolute right-3 top-4 p-1'
                 >
                   <Ionicons
                     name={showPassword ? "eye-off" : "eye"}
