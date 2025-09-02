@@ -20,7 +20,6 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
-import { PasswordInput } from "@/components/PasswordInput";
 import { PreviousServersList } from "@/components/PreviousServersList";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
@@ -53,7 +52,6 @@ const Login: React.FC = () => {
     username: _username,
     password: _password,
   });
-  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   /**
    * A way to auto login based on a link
@@ -273,27 +271,30 @@ const Login: React.FC = () => {
                 textContentType='oneTimeCode'
                 clearButtonMode='while-editing'
                 maxLength={500}
-                extraClassName='mb-2'
+                extraClassName='mb-4'
               />
 
               {/* Password */}
-              <View className='relative mb-2'>
-                <PasswordInput
-                  value={credentials.password}
-                  onChangeText={(text: string) =>
-                    setCredentials({ ...credentials, password: text })
-                  }
-                  placeholder={t("login.password_placeholder")}
-                  showPassword={showPassword}
-                  onShowPasswordChange={setShowPassword}
-                  topOffset={16}
-                  layout='tv'
-                />
-              </View>
-              <View className='mt-3'>
+              <Input
+                placeholder={t("login.password_placeholder")}
+                onChangeText={(text: string) =>
+                  setCredentials({ ...credentials, password: text })
+                }
+                value={credentials.password}
+                secureTextEntry
+                keyboardType='default'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='password'
+                clearButtonMode='while-editing'
+                maxLength={500}
+                extraClassName='mb-4'
+              />
+
+              <View className='mt-4'>
                 <Button onPress={handleLogin}>{t("login.login_button")}</Button>
               </View>
-              <View className='mt-2'>
+              <View className='mt-3'>
                 <Button
                   onPress={handleQuickConnect}
                   className='bg-neutral-800 border border-neutral-700'
@@ -347,7 +348,7 @@ const Login: React.FC = () => {
               </View>
 
               {/* Lists stay full width but inside max width container */}
-              <View className='mt-4'>
+              <View className='mt-2'>
                 <JellyfinServerDiscovery
                   onServerSelect={async (server: any) => {
                     setServerURL(server.address);
@@ -401,22 +402,22 @@ const Login: React.FC = () => {
                   textContentType='oneTimeCode'
                   clearButtonMode='while-editing'
                   maxLength={500}
-                  extraClassName=''
                 />
 
-                <View className='relative'>
-                  <PasswordInput
-                    value={credentials.password}
-                    onChangeText={(text) =>
-                      setCredentials({ ...credentials, password: text })
-                    }
-                    placeholder={t("login.password_placeholder")}
-                    showPassword={showPassword}
-                    onShowPasswordChange={setShowPassword}
-                    topOffset={12}
-                    layout='mobile'
-                  />
-                </View>
+                <Input
+                  placeholder={t("login.password_placeholder")}
+                  onChangeText={(text) =>
+                    setCredentials({ ...credentials, password: text })
+                  }
+                  value={credentials.password}
+                  secureTextEntry
+                  keyboardType='default'
+                  returnKeyType='done'
+                  autoCapitalize='none'
+                  textContentType='password'
+                  clearButtonMode='while-editing'
+                  maxLength={500}
+                />
                 <View className='flex flex-row items-center justify-between'>
                   <Button
                     onPress={handleLogin}
@@ -427,7 +428,7 @@ const Login: React.FC = () => {
                   </Button>
                   <TouchableOpacity
                     onPress={handleQuickConnect}
-                    className='p-3 bg-neutral-900 rounded-xl h-13 w-13 flex items-center justify-center'
+                    className='p-2 bg-neutral-900 rounded-xl h-12 w-12 flex items-center justify-center'
                   >
                     <MaterialCommunityIcons
                       name='cellphone-lock'

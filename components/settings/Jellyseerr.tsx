@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
-import { PasswordInput } from "@/components/PasswordInput";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -30,9 +29,6 @@ export const JellyseerrSettings = () => {
   const [jellyseerrServerUrl, setjellyseerrServerUrl] = useState<
     string | undefined
   >(settings?.jellyseerrServerUrl || undefined);
-
-  const [showJellyseerrPassword, setShowJellyseerrPassword] =
-    useState<boolean>(false);
 
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
@@ -131,7 +127,7 @@ export const JellyseerrSettings = () => {
               </Text>
             </View>
             <Input
-              extraClassName='border border-neutral-800 mb-2'
+              className='border border-neutral-800 mb-2'
               placeholder={t(
                 "home.settings.plugins.jellyseerr.server_url_placeholder",
               )}
@@ -150,20 +146,23 @@ export const JellyseerrSettings = () => {
               <Text className='font-bold mb-2'>
                 {t("home.settings.plugins.jellyseerr.password")}
               </Text>
-              <View className='relative'>
-                <PasswordInput
-                  value={jellyseerrPassword}
-                  onChangeText={setJellyseerrPassword}
-                  placeholder={t(
-                    "home.settings.plugins.jellyseerr.password_placeholder",
-                    { username: user?.Name },
-                  )}
-                  showPassword={showJellyseerrPassword}
-                  onShowPasswordChange={setShowJellyseerrPassword}
-                  layout='mobile'
-                  topOffset={11}
-                />
-              </View>
+              <Input
+                className='border border-neutral-800'
+                autoFocus={true}
+                focusable={true}
+                placeholder={t(
+                  "home.settings.plugins.jellyseerr.password_placeholder",
+                  { username: user?.Name },
+                )}
+                value={jellyseerrPassword}
+                keyboardType='default'
+                secureTextEntry={true}
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='password'
+                onChangeText={setJellyseerrPassword}
+                editable={!loginToJellyseerrMutation.isPending}
+              />
               <Button
                 loading={loginToJellyseerrMutation.isPending}
                 disabled={loginToJellyseerrMutation.isPending}
