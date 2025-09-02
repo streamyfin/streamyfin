@@ -212,7 +212,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeServerMutation = useMutation({
     mutationFn: async () => {
-      storage.delete("serverUrl");
+      storage.remove("serverUrl");
       setApi(null);
     },
     onError: (error) => {
@@ -295,7 +295,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           writeErrorLog("Failed to delete expo push token for device"),
         );
 
-      storage.delete("token");
+      storage.remove("token");
       setUser(null);
       setApi(null);
       setPluginSettings(undefined);

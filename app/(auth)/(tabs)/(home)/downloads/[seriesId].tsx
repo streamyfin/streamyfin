@@ -91,7 +91,7 @@ export default function page() {
         title: series[0].item.SeriesName,
       });
     } else {
-      storage.delete(seriesId);
+      storage.remove(seriesId);
       router.back();
     }
   }, [series]);

@@ -91,7 +91,7 @@ export const sortByPreferenceAtom = atomWithStorage<SortPreference>(
       storage.set(key, JSON.stringify(value));
     },
     removeItem: (key) => {
-      storage.delete(key);
+      storage.remove(key);
     },
   },
 );
@@ -108,7 +108,7 @@ export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
       storage.set(key, JSON.stringify(value));
     },
     removeItem: (key) => {
-      storage.delete(key);
+      storage.remove(key);
     },
   },
 );
