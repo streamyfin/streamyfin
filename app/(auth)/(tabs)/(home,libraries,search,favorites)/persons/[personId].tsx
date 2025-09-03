@@ -22,21 +22,21 @@ import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const page: React.FC = () => {
   const local = useLocalSearchParams();
-  const { actorId } = local as { actorId: string };
+  const { personId } = local as { personId: string };
   const { t } = useTranslation();
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
   const { data: item, isLoading: l1 } = useQuery({
-    queryKey: ["item", actorId],
+    queryKey: ["item", personId],
     queryFn: async () =>
       await getUserItemData({
         api,
         userId: user?.Id,
-        itemId: actorId,
+        itemId: personId,
       }),
-    enabled: !!actorId && !!api,
+    enabled: !!personId && !!api,
     staleTime: 60,
   });
 
@@ -50,7 +50,7 @@ const page: React.FC = () => {
 
       const response = await getItemsApi(api).getItems({
         userId: user.Id,
-        personIds: [actorId],
+        personIds: [personId],
         startIndex: pageParam,
         limit: 16,
         sortOrder: ["Descending", "Descending", "Ascending"],
@@ -68,7 +68,7 @@ const page: React.FC = () => {
 
       return response.data;
     },
-    [api, user?.Id, actorId],
+    [api, user?.Id, personId],
   );
 
   const backdropUrl = useMemo(
@@ -131,7 +131,7 @@ const page: React.FC = () => {
             </TouchableItemRouter>
           )}
           queryFn={fetchItems}
-          queryKey={["actor", "movies", actorId]}
+          queryKey={["actor", "movies", personId]}
         />
         <View className='h-12' />
       </View>

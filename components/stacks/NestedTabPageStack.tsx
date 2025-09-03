@@ -17,7 +17,7 @@ export const commonScreenOptions: ICommonScreenOptions = {
   headerLeft: () => <HeaderBackButton />,
 };
 
-const routes = ["actors/[actorId]", "items/page", "series/[id]"];
+const routes = ["persons/[personId]", "items/page", "series/[id]"];
 
 export const nestedTabPageScreenOptions: Record<string, ICommonScreenOptions> =
   Object.fromEntries(routes.map((route) => [route, commonScreenOptions]));

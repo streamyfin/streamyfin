@@ -27,16 +27,18 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const from = segments[2];
 
   const destinctPeople = useMemo(() => {
-    const people: BaseItemPerson[] = [];
+    const people: Record<string, BaseItemPerson> = {};
     item?.People?.forEach((person) => {
-      const existingPerson = people.find((p) => p.Id === person.Id);
+      if (!person.Id) return;
+
+      const existingPerson = people[person.Id];
       if (existingPerson) {
         existingPerson.Role = `${existingPerson.Role}, ${person.Role}`;
       } else {
-        people.push(person);
+        people[person.Id] = person;
       }
     });
-    return people;
+    return Object.values(people);
   }, [item?.People]);
 
   if (!from) return null;
@@ -54,7 +56,13 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
-              const url = itemRouter(i, from);
+              const url = itemRouter(
+                {
+                  Id: i.Id,
+                  Type: "Person",
+                },
+                from,
+              );
               // @ts-expect-error
               router.push(url);
             }}
