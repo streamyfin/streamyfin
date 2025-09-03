@@ -7,7 +7,7 @@ import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { InfiniteHorizontalScroll } from "@/components/common/InfiniteHorrizontalScroll";
+import { InfiniteHorizontalScroll } from "@/components/common/InfiniteHorizontalScroll";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
