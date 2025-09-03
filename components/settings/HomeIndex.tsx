@@ -11,7 +11,6 @@ import {
   getUserLibraryApi,
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import NetInfo from "@react-native-community/netinfo";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -33,6 +32,7 @@ import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionLi
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -72,9 +72,6 @@ export const HomeIndex = () => {
     refreshStreamyfinPluginSettings,
   ] = useSettings(null);
 
-  const [isConnected, setIsConnected] = useState<boolean | null>(null);
-  const [loadingRetry, setLoadingRetry] = useState(false);
-
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
@@ -83,6 +80,7 @@ export const HomeIndex = () => {
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
+  const { isConnected, loading: retryLoading, retryCheck } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   useEffect(() => {
     // Only invalidate cache when transitioning from offline to online
@@ -136,29 +134,6 @@ export const HomeIndex = () => {
       unsubscribe();
     };
   }, [segments]);
-
-  const checkConnection = useCallback(async () => {
-    setLoadingRetry(true);
-    const state = await NetInfo.fetch();
-    setIsConnected(state.isConnected);
-    setLoadingRetry(false);
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected === false || state.isInternetReachable === false)
-        setIsConnected(false);
-      else setIsConnected(true);
-    });
-
-    NetInfo.fetch().then((state) => {
-      setIsConnected(state.isConnected);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   const {
     data,
@@ -397,30 +372,30 @@ export const HomeIndex = () => {
           {t("home.no_internet_message")}
         </Text>
         <View className='mt-4'>
-          <Button
-            color='purple'
-            onPress={() => router.push("/(auth)/downloads")}
-            justify='center'
-            iconRight={
-              <Ionicons name='arrow-forward' size={20} color='white' />
-            }
-          >
-            {t("home.go_to_downloads")}
-          </Button>
+          {!Platform.isTV && (
+            <Button
+              color='purple'
+              onPress={() => router.push("/(auth)/downloads")}
+              justify='center'
+              iconRight={
+                <Ionicons name='arrow-forward' size={20} color='white' />
+              }
+            >
+              {t("home.go_to_downloads")}
+            </Button>
+          )}
           <Button
             color='black'
-            onPress={() => {
-              checkConnection();
-            }}
+            onPress={retryCheck}
             justify='center'
             className='mt-2'
             iconRight={
-              loadingRetry ? null : (
+              retryLoading ? null : (
                 <Ionicons name='refresh' size={20} color='white' />
               )
             }
           >
-            {loadingRetry ? (
+            {retryLoading ? (
               <ActivityIndicator size={"small"} color={"white"} />
             ) : (
               "Retry"
