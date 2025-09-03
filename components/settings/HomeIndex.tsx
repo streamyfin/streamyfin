@@ -316,7 +316,7 @@ export const HomeIndex = () => {
     for (const [index, section] of settings.home.sections.entries()) {
       const id = section.items?.title || `section-${index}`;
       ss.push({
-        title: id,
+        title: t(`${id}`),
         queryKey: ["home", id],
         queryFn: async () => {
           if (section.items) {
