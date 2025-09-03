@@ -8,5 +8,27 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": [
+    "app/**/*",
+    "assets/**/*",
+    "components/**/*",
+    "constants/**/*",
+    "hooks/**/*",
+    "modules/**/*",
+    "packages/**/*",
+    "plugins/**/*",
+    "providers/**/*",
+    "scripts/**/*",
+    "translations/**/*",
+    "*.ts",
+    "*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "utils/jellyseerr/**/*"
+  ]
 }

@@ -26,7 +26,7 @@ import { itemRouter } from "../common/TouchableItemRouter";
 interface Props extends ViewProps {}
 
 export const LargeMovieCarousel: React.FC<Props> = ({ ...props }) => {
-  const [settings] = useSettings();
+  const [settings] = useSettings(null);
 
   const ref = React.useRef<ICarouselInstance>(null);
   const progress = useSharedValue<number>(0);
@@ -146,7 +146,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   }, [item]);
 
   const segments = useSegments();
-  const from = segments[2];
+  const from = segments[2] || "(home)";
 
   const opacity = useSharedValue(1);
 

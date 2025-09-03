@@ -23,7 +23,7 @@ const GenericSlideCard: React.FC<
     id: string;
     url?: string;
     title?: string;
-    colors?: string[];
+    colors?: readonly [string, string, ...string[]];
     contentFit?: ImageContentFit;
   } & ViewProps
 > = ({

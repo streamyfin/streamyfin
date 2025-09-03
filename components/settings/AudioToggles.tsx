@@ -17,7 +17,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   const isTv = Platform.isTV;
 
   const media = useMedia();
-  const [_, __, pluginSettings] = useSettings();
+  const [_, __, pluginSettings] = useSettings(null);
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();

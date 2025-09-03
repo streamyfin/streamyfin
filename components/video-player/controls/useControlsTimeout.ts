@@ -15,7 +15,7 @@ export const useControlsTimeout = ({
   onHideControls,
   timeout = 4000,
 }: UseControlsTimeoutProps) => {
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const resetControlsTimeout = () => {

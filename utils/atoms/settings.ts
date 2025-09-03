@@ -171,6 +171,7 @@ export type Settings = {
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
+  usePopularPlugin: boolean;
 };
 
 export interface Lockable<T> {
@@ -185,7 +186,7 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
-const defaultValues: Settings = {
+export const defaultValues: Settings = {
   home: null,
   followDeviceOrientation: true,
   forceLandscapeInVideoPlayer: false,
@@ -231,6 +232,7 @@ const defaultValues: Settings = {
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
+  usePopularPlugin: true,
 };
 
 const loadSettings = (): Partial<Settings> => {

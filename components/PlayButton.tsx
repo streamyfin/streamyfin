@@ -67,7 +67,7 @@ export const PlayButton: React.FC<Props> = ({
   const startColor = useSharedValue(colorAtom);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
-  const [settings, updateSettings] = useSettings();
+  const [settings, updateSettings] = useSettings(null);
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(

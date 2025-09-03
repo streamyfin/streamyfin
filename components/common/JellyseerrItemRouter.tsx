@@ -39,7 +39,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
   const segments = useSegments();
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
 
-  const from = segments[2];
+  const from = segments[2] || "(home)";
 
   const autoApprove = useMemo(() => {
     return (
@@ -66,14 +66,14 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
             onPress={() => {
               if (!result) return;
 
-              // @ts-expect-error
               router.push({
                 pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
+                // @ts-expect-error
                 params: {
                   ...result,
                   mediaTitle,
                   releaseYear,
-                  canRequest,
+                  canRequest: canRequest.toString(),
                   posterSrc,
                   mediaType,
                 },
