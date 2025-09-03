@@ -19,7 +19,6 @@ export default function page() {
     jellyseerrApi,
     jellyseerrRegion: region,
     jellyseerrLocale: locale,
-    isJellyseerrMovieOrTvResult,
   } = useJellyseerr();
 
   const { personId } = local as { personId: string };

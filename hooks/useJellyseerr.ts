@@ -40,6 +40,7 @@ import type { UserResultsResponse } from "@/utils/jellyseerr/server/interfaces/a
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
   CombinedCredit,
+  PersonCreditCast,
   PersonDetails,
 } from "@/utils/jellyseerr/server/models/Person";
 import type {
@@ -479,19 +480,19 @@ export const useJellyseerr = (
   };
 
   const getTitle = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
     return isJellyseerrMovieOrTvResult(item)
       ? item.mediaType === MediaType.MOVIE
         ? item?.title
         : item?.name
-      : item?.mediaInfo.mediaType === MediaType.MOVIE
+      : item?.mediaInfo?.mediaType === MediaType.MOVIE
         ? (item as MovieDetails)?.title
         : (item as TvDetails)?.name;
   };
 
   const getYear = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
     return new Date(
       (isJellyseerrMovieOrTvResult(item)
@@ -505,7 +506,7 @@ export const useJellyseerr = (
   };
 
   const getMediaType = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ): MediaType => {
     return isJellyseerrMovieOrTvResult(item)
       ? (item.mediaType as MediaType)
