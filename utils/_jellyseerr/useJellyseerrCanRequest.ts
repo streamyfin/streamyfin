@@ -9,6 +9,7 @@ import {
   hasPermission,
   Permission,
 } from "@/utils/jellyseerr/server/lib/permissions";
+import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 import type {
   MovieResult,
   TvResult,
@@ -18,7 +19,7 @@ import type { MovieDetails } from "../jellyseerr/server/models/Movie";
 import type { TvDetails } from "../jellyseerr/server/models/Tv";
 
 export const useJellyseerrCanRequest = (
-  item?: MovieResult | TvResult | MovieDetails | TvDetails,
+  item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast,
 ) => {
   const { jellyseerrUser } = useJellyseerr();
 
