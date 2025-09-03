@@ -6,7 +6,7 @@ import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const PluginSettings = () => {
-  const [settings, _updateSettings] = useSettings(null);
+  const { settings } = useSettings();
 
   const router = useRouter();
 

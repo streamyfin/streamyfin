@@ -26,7 +26,7 @@ import { itemRouter } from "../common/TouchableItemRouter";
 interface Props extends ViewProps {}
 
 export const LargeMovieCarousel: React.FC<Props> = ({ ...props }) => {
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
 
   const ref = React.useRef<ICarouselInstance>(null);
   const progress = useSharedValue<number>(0);

@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
-import { defaultValues, Settings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
   IssueStatus,
@@ -40,6 +40,7 @@ import type { UserResultsResponse } from "@/utils/jellyseerr/server/interfaces/a
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
   CombinedCredit,
+  PersonCreditCast,
   PersonDetails,
 } from "@/utils/jellyseerr/server/models/Person";
 import type {
@@ -416,10 +417,8 @@ export class JellyseerrApi {
 
 const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 
-export const useJellyseerr = (
-  settings: Settings = defaultValues,
-  updateSettings: (update: Partial<Settings>) => void = () => {},
-) => {
+export const useJellyseerr = () => {
+  const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
   const queryClient = useQueryClient();
 
@@ -468,49 +467,47 @@ export const useJellyseerr = (
     [jellyseerrApi],
   );
 
-  const isJellyseerrResult = (
+  const isJellyseerrMovieOrTvResult = (
     items: any | null | undefined,
-  ): items is Results => {
+  ): items is MovieResult | TvResult => {
     return (
       items &&
       Object.hasOwn(items, "mediaType") &&
-      Object.values(MediaType).includes(items.mediaType as MediaType)
+      (items.mediaType === MediaType.MOVIE || items.mediaType === MediaType.TV)
     );
   };
 
   const getTitle = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
-    return isJellyseerrResult(item)
+    return isJellyseerrMovieOrTvResult(item)
       ? item.mediaType === MediaType.MOVIE
         ? item?.title
         : item?.name
-      : item?.mediaInfo.mediaType === MediaType.MOVIE
+      : item?.mediaInfo?.mediaType === MediaType.MOVIE
         ? (item as MovieDetails)?.title
         : (item as TvDetails)?.name;
   };
 
   const getYear = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
     return new Date(
-      (isJellyseerrResult(item)
+      (isJellyseerrMovieOrTvResult(item)
         ? item.mediaType === MediaType.MOVIE
           ? item?.releaseDate
           : item?.firstAirDate
-        : item?.mediaInfo.mediaType === MediaType.MOVIE
+        : item?.mediaInfo?.mediaType === MediaType.MOVIE
           ? (item as MovieDetails)?.releaseDate
           : (item as TvDetails)?.firstAirDate) || "",
     )?.getFullYear?.();
   };
 
   const getMediaType = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ): MediaType => {
-    return isJellyseerrResult(item)
-      ? item.mediaType === "movie"
-        ? MediaType.MOVIE
-        : MediaType.TV
+    return isJellyseerrMovieOrTvResult(item)
+      ? (item.mediaType as MediaType)
       : item?.mediaInfo?.mediaType;
   };
 
@@ -528,7 +525,7 @@ export const useJellyseerr = (
     jellyseerrUser,
     setJellyseerrUser,
     clearAllJellyseerData,
-    isJellyseerrResult,
+    isJellyseerrMovieOrTvResult,
     getTitle,
     getYear,
     getMediaType,

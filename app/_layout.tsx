@@ -230,7 +230,7 @@ const queryClient = new QueryClient({
 });
 
 function Layout() {
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const appState = useRef(AppState.currentState);
