@@ -3,6 +3,7 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 import {
   MediaRequestStatus,
   MediaStatus,
+  MediaType,
 } from "@/utils/jellyseerr/server/constants/media";
 import {
   hasPermission,
@@ -40,7 +41,7 @@ export const useJellyseerrCanRequest = (
     const userHasPermission = hasPermission(
       [
         Permission.REQUEST,
-        item?.mediaInfo?.mediaType
+        item?.mediaInfo?.mediaType === MediaType.MOVIE
           ? Permission.REQUEST_MOVIE
           : Permission.REQUEST_TV,
       ],
