@@ -34,9 +34,9 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         disabled={disabled}
         onPress={onPress}
-        className={`flex flex-row items-center justify-between bg-neutral-900 ${
-          Platform.OS === "android" ? "min-h-12" : "min-h-[44px]"
-        } pr-4 pl-4 ${disabled ? "opacity-50" : ""}`}
+        className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${
+          disabled ? "opacity-50" : ""
+        }`}
         {...(viewProps as any)}
       >
         <ListItemContent
@@ -54,9 +54,9 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
     );
   return (
     <View
-      className={`flex flex-row items-center justify-between bg-neutral-900 ${
-        Platform.OS === "android" ? "min-h-12" : "min-h-[44px]"
-      } pr-4 pl-4 ${disabled ? "opacity-50" : ""}`}
+      className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${
+        disabled ? "opacity-50" : ""
+      }`}
       {...viewProps}
     >
       <ListItemContent
@@ -106,7 +106,10 @@ const ListItemContent = ({
             {title}
           </Text>
           {subtitle && (
-            <Text className='text-[#9899A1] text-sm mt-0.5' numberOfLines={2}>
+            <Text
+              className='text-[#9899A1] text-[12px] mt-0.5'
+              numberOfLines={2}
+            >
               {subtitle}
             </Text>
           )}
