@@ -26,13 +26,6 @@
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
-    "preview": {
-      "environment": "development",
-      "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_WRITE_DEBUG": "1"
-      }
-    },
     "development-simulator": {
       "environment": "development",
       "developmentClient": true,
@@ -44,16 +37,22 @@
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_WRITE_DEBUG": "1"
+      }
+    },
     "production": {
       "environment": "production",
-      "channel": "0.35.0",
+      "channel": "0.35.1",
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
       "environment": "production",
-      "channel": "0.35.0",
+      "channel": "0.35.1",
       "android": {
         "buildType": "apk",
         "image": "latest"
@@ -61,7 +60,7 @@
     },
     "production-apk-tv": {
       "environment": "production",
-      "channel": "0.35.0",
+      "channel": "0.35.1",
       "android": {
         "buildType": "apk",
         "image": "latest"
