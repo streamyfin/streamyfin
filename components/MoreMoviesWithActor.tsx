@@ -6,8 +6,8 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
+import { SimpleTouchableItemRouter } from "@/components/common/SimpleTouchableItemRouter";
 import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -83,8 +83,9 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
         data={items}
         loading={isLoading}
         height={247}
+        estimatedItemSize={112}
         renderItem={(item: BaseItemDto, idx: number) => (
-          <TouchableItemRouter
+          <SimpleTouchableItemRouter
             key={idx}
             item={item}
             className='flex flex-col w-28'
@@ -93,7 +94,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
               <MoviePoster item={item} />
               <ItemCardText item={item} />
             </View>
-          </TouchableItemRouter>
+          </SimpleTouchableItemRouter>
         )}
       />
     </View>
