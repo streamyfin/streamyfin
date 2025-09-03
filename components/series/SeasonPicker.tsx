@@ -74,7 +74,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     return season.Id!;
   }, [seasons, seasonIndex]);
 
-  const { data: episodes, isFetching } = useQuery({
+  const { data: episodes, isPending } = useQuery({
     queryKey: ["episodes", item.Id, selectedSeasonId],
     queryFn: async () => {
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) {
@@ -165,7 +165,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
         ) : null}
       </View>
       <View className='px-4 flex flex-col mt-4'>
-        {isFetching ? (
+        {isPending ? (
           <View
             style={{
               minHeight: 144 * nrOfEpisodes,

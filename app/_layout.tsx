@@ -230,7 +230,7 @@ const queryClient = new QueryClient({
 });
 
 function Layout() {
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const appState = useRef(AppState.currentState);
@@ -268,6 +268,15 @@ function Layout() {
       console.log("Setting android notification channel 'default'");
       await Notifications?.setNotificationChannelAsync("default", {
         name: "default",
+      });
+
+      // Create dedicated channel for download notifications
+      console.log("Setting android notification channel 'downloads'");
+      await Notifications?.setNotificationChannelAsync("downloads", {
+        name: "Downloads",
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FF231F7C",
       });
     }
 

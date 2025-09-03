@@ -21,7 +21,7 @@ export const JellyseerrSettings = () => {
   const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
-  const [settings, updateSettings, _pluginSettings] = useSettings(null);
+  const { settings, updateSettings } = useSettings();
 
   const [jellyseerrPassword, setJellyseerrPassword] = useState<
     string | undefined

@@ -15,7 +15,7 @@ import { COMPANY_LOGO_IMAGE_FILTER } from "@/utils/jellyseerr/src/components/Dis
 
 export default function page() {
   const local = useLocalSearchParams();
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 
   const { companyId, image, type } = local as unknown as {
     companyId: string;
@@ -53,7 +53,10 @@ export default function page() {
       uniqBy(
         data?.pages
           ?.filter((p) => p?.results.length)
-          .flatMap((p) => p?.results ?? []),
+          .flatMap(
+            (p) =>
+              p?.results.filter((r) => isJellyseerrMovieOrTvResult(r)) ?? [],
+          ),
         "id",
       ) ?? [],
     [data],
@@ -98,9 +101,7 @@ export default function page() {
           }}
         />
       }
-      renderItem={(item, _index) => (
-        <JellyseerrPoster item={item as MovieResult | TvResult} />
-      )}
+      renderItem={(item, _index) => <JellyseerrPoster item={item} />}
     />
   );
 }
