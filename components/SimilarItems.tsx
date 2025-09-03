@@ -8,8 +8,8 @@ import { View, type ViewProps } from "react-native";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { HorizontalScroll } from "./common/HorrizontalScroll";
+import { SimpleTouchableItemRouter } from "./common/SimpleTouchableItemRouter";
 import { Text } from "./common/Text";
-import { TouchableItemRouter } from "./common/TouchableItemRouter";
 import { ItemCardText } from "./ItemCardText";
 
 interface SimilarItemsProps extends ViewProps {
@@ -54,9 +54,10 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
         data={movies}
         loading={isLoading}
         height={247}
+        estimatedItemSize={112}
         noItemsText={t("item_card.no_similar_items_found")}
         renderItem={(item: BaseItemDto, idx: number) => (
-          <TouchableItemRouter
+          <SimpleTouchableItemRouter
             key={idx}
             item={item}
             className='flex flex-col w-28'
@@ -65,7 +66,7 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
               <MoviePoster item={item} />
               <ItemCardText item={item} />
             </View>
-          </TouchableItemRouter>
+          </SimpleTouchableItemRouter>
         )}
       />
     </View>
