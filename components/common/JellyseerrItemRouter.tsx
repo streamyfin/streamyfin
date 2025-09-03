@@ -10,6 +10,7 @@ import {
   Permission,
 } from "@/utils/jellyseerr/server/lib/permissions";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 import type {
   MovieResult,
   TvResult,
@@ -17,7 +18,7 @@ import type {
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
 interface Props extends TouchableOpacityProps {
-  result?: MovieResult | TvResult | MovieDetails | TvDetails;
+  result?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast;
   mediaTitle: string;
   releaseYear: number;
   canRequest: boolean;

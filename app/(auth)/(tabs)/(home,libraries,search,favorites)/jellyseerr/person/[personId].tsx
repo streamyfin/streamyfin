@@ -10,10 +10,6 @@ import { OverviewText } from "@/components/OverviewText";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import type { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
 
 export default function page() {
   const local = useLocalSearchParams();
@@ -106,9 +102,7 @@ export default function page() {
       MainContent={() => (
         <OverviewText text={data?.details?.biography} className='mt-4' />
       )}
-      renderItem={(item, _index) => (
-        <JellyseerrPoster item={item as MovieResult | TvResult} />
-      )}
+      renderItem={(item, _index) => <JellyseerrPoster item={item} />}
     />
   );
 }

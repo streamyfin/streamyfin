@@ -31,7 +31,7 @@ export const GestureOverlay = ({
   onSkipForward,
   onSkipBackward,
 }: Props) => {
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const lightHaptic = useHaptic("light");
 
   const [feedback, setFeedback] = useState<FeedbackState>({

@@ -61,7 +61,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [queue, _setQueue] = useAtom(queueAtom);
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
   const { processes, startBackgroundDownload, getDownloadedItems } =

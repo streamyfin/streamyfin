@@ -9,7 +9,7 @@ const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import { useTranslation } from "react-i18next";
 
 export default function IndexLayout() {
-  const [settings, updateSettings, pluginSettings] = useSettings(null);
+  const { settings, updateSettings, pluginSettings } = useSettings();
 
   const { t } = useTranslation();
 
