@@ -116,7 +116,7 @@ export const Controls: FC<Props> = ({
   api = null,
   downloadedFiles = undefined,
 }) => {
-  const [settings, updateSettings] = useSettings(api);
+  const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
 

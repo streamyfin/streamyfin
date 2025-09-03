@@ -8,14 +8,10 @@ import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import {
-  type MovieResult,
-  type TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
 
 export default function page() {
   const local = useLocalSearchParams();
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 
   const { genreId, name, type } = local as unknown as {
     genreId: string;
@@ -51,7 +47,10 @@ export default function page() {
       uniqBy(
         data?.pages
           ?.filter((p) => p?.results.length)
-          .flatMap((p) => p?.results ?? []),
+          .flatMap(
+            (p) =>
+              p?.results.filter((r) => isJellyseerrMovieOrTvResult(r)) ?? [],
+          ),
         "id",
       ) ?? [],
     [data],
@@ -62,7 +61,7 @@ export default function page() {
       jellyseerrApi
         ? flatData.map((r) =>
             jellyseerrApi.imageProxy(
-              (r as TvResult | MovieResult).backdropPath,
+              r.backdropPath,
               "w1920_and_h800_multi_faces",
             ),
           )
@@ -92,9 +91,7 @@ export default function page() {
           {name}
         </Text>
       }
-      renderItem={(item, _index) => (
-        <JellyseerrPoster item={item as MovieResult | TvResult} />
-      )}
+      renderItem={(item, _index) => <JellyseerrPoster item={item} />}
     />
   );
 }

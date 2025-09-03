@@ -20,6 +20,7 @@ import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
 import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import type { DownloadingItem } from "@/utils/jellyseerr/server/lib/downloadtracker";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 import type {
   MovieResult,
   TvResult,
@@ -27,7 +28,7 @@ import type {
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
 interface Props extends ViewProps {
-  item?: MovieResult | TvResult | MovieDetails | TvDetails;
+  item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast;
   horizontal?: boolean;
   showDownloadInfo?: boolean;
   mediaRequest?: MediaRequest;

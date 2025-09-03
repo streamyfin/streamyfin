@@ -88,7 +88,7 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-  const [settings] = useSettings(api);
+  const { settings } = useSettings();
   const successHapticFeedback = useHaptic("success");
 
   // Generate notification content based on item type

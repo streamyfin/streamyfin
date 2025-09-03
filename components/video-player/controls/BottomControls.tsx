@@ -88,7 +88,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickplayInfo,
   time,
 }) => {
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const insets = useSafeAreaInsets();
 
   return (

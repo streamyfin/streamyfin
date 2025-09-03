@@ -70,7 +70,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   setVideoAspectRatio,
   setVideoScaleFactor,
 }) => {
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
