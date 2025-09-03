@@ -13,7 +13,7 @@ interface Props extends ViewProps {}
 export const MediaToggles: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
-  const [settings, updateSettings, pluginSettings] = useSettings(null);
+  const { settings, updateSettings, pluginSettings } = useSettings();
 
   const disabled = useMemo(
     () =>

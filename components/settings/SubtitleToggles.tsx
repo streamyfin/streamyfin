@@ -20,7 +20,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const isTv = Platform.isTV;
 
   const media = useMedia();
-  const [_, __, pluginSettings] = useSettings(null);
+  const { pluginSettings } = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();

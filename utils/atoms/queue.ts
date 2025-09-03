@@ -56,7 +56,7 @@ export const useJobProcessor = () => {
   const [queue, setQueue] = useAtom(queueAtom);
   const [running, setRunning] = useAtom(runningAtom);
   const [processes] = useAtom<JobStatus[]>(processesAtom);
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
 
   useEffect(() => {
     if (

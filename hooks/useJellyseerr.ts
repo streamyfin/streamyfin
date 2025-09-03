@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
-import { defaultValues, Settings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
   IssueStatus,
@@ -417,10 +417,8 @@ export class JellyseerrApi {
 
 const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 
-export const useJellyseerr = (
-  settings: Settings = defaultValues,
-  updateSettings: (update: Partial<Settings>) => void = () => {},
-) => {
+export const useJellyseerr = () => {
+  const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
   const queryClient = useQueryClient();
 

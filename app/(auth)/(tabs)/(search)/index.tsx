@@ -71,7 +71,7 @@ export default function search() {
 
   const [api] = useAtom(apiAtom);
 
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const { jellyseerrApi } = useJellyseerr();
   const [jellyseerrOrderBy, setJellyseerrOrderBy] =
     useState<JellyseerrSearchSort>(

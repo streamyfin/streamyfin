@@ -64,13 +64,7 @@ export const HomeIndex = () => {
   const user = useAtomValue(userAtom);
 
   const [loading, setLoading] = useState(false);
-  const [
-    settings,
-    _updateSettings,
-    _pluginSettings,
-    _setPluginSettings,
-    refreshStreamyfinPluginSettings,
-  ] = useSettings(null);
+  const { settings, refreshStreamyfinPluginSettings } = useSettings();
 
   const navigation = useNavigation();
 
