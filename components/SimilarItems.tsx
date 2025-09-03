@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { HorizontalScroll } from "./common/HorrizontalScroll";
+import { HorizontalScroll } from "./common/HorizontalScroll";
 import { Text } from "./common/Text";
 import { TouchableItemRouter } from "./common/TouchableItemRouter";
 import { ItemCardText } from "./ItemCardText";

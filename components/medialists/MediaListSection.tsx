@@ -12,7 +12,7 @@ import { useAtom } from "jotai";
 import { useCallback } from "react";
 import { View, type ViewProps } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { InfiniteHorizontalScroll } from "../common/InfiniteHorrizontalScroll";
+import { InfiniteHorizontalScroll } from "../common/InfiniteHorizontalScroll";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
