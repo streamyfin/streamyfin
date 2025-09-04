@@ -44,26 +44,10 @@ It supports mobile (iOS/Android) and TV platforms, and integrates with Jellyfin 
 - Use the `apiAtom` and `userAtom` from `JellyfinProvider` for authenticated API calls.
 - For navigation, use `expo-router`.
 
-## Testing
-
-- Prefer component-level tests.
-- Use mocks for API calls where possible.
-
-## Automation
-
-- Use `update-version.sh` to bump versions across all relevant files.
-- Use `scripts/symlink-native-dirs.js` for native directory management.
-- Use `automerge.sh` for branch merging.
-
 ## Commit Messages
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) (e.g., `feat:`, `fix:`, `chore:`).
 - Example: `feat(player): add Chromecast support`
-
-## Documentation
-
-- Update `README.md` for any user-facing changes.
-- Document new scripts and utilities in comments and/or a dedicated section in the README.
 
 ## Special Instructions
 
