@@ -308,7 +308,7 @@ export const HomeIndex = () => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
     for (const [index, section] of settings.home.sections.entries()) {
-      const id = section.items?.title || `section-${index}`;
+      const id = section.title || `section-${index}`;
       ss.push({
         title: t(`${id}`),
         queryKey: ["home", id],
