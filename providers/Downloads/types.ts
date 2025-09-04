@@ -129,4 +129,10 @@ export type JobStatus = {
   /** Estimated total size of the download in bytes (optional) this is used when we
    * download transcoded content because we don't know the size of the file until it's downloaded */
   estimatedTotalSizeBytes?: number;
+  /** Timestamp when the download was paused (optional) */
+  pausedAt?: Date;
+  /** Progress percentage when download was paused (optional) */
+  pausedProgress?: number;
+  /** Bytes downloaded when download was paused (optional) */
+  pausedBytes?: number;
 };

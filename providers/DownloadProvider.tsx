@@ -176,21 +176,46 @@ function useDownloadProvider() {
         if (task && p.status === "downloading") {
           const estimatedSize = calculateEstimatedSize(p);
           let progress = p.progress;
-          if (estimatedSize > 0) {
-            progress = (100 / estimatedSize) * task.bytesDownloaded;
+
+          if (p.pausedProgress !== undefined && p.pausedProgress > 0) {
+            const currentSessionProgress =
+              estimatedSize > 0
+                ? (task.bytesDownloaded / estimatedSize) * 100
+                : 0;
+            const remainingPercentage = (100 - p.pausedProgress) / 100;
+            progress =
+              p.pausedProgress + currentSessionProgress * remainingPercentage;
+
+            const totalBytesDownloaded = p.pausedBytes
+              ? p.pausedBytes + task.bytesDownloaded
+              : task.bytesDownloaded;
+            const speed = calculateSpeed(p, task.bytesDownloaded);
+
+            return {
+              ...p,
+              progress: Math.min(progress, 99),
+              speed,
+              bytesDownloaded: totalBytesDownloaded,
+              lastProgressUpdateTime: new Date(),
+              estimatedTotalSizeBytes: estimatedSize,
+            };
+          } else {
+            if (estimatedSize > 0) {
+              progress = (100 / estimatedSize) * task.bytesDownloaded;
+            }
+            if (progress >= 100) {
+              progress = 99;
+            }
+            const speed = calculateSpeed(p, task.bytesDownloaded);
+            return {
+              ...p,
+              progress,
+              speed,
+              bytesDownloaded: task.bytesDownloaded,
+              lastProgressUpdateTime: new Date(),
+              estimatedTotalSizeBytes: estimatedSize,
+            };
           }
-          if (progress >= 100) {
-            progress = 99;
-          }
-          const speed = calculateSpeed(p, task.bytesDownloaded);
-          return {
-            ...p,
-            progress,
-            speed,
-            bytesDownloaded: task.bytesDownloaded,
-            lastProgressUpdateTime: new Date(),
-            estimatedTotalSizeBytes: estimatedSize,
-          };
         }
         return p;
       });
@@ -611,7 +636,13 @@ function useDownloadProvider() {
           status: "queued",
           timestamp: new Date(),
         };
-        setProcesses((prev) => [...prev, job]);
+        setProcesses((prev) => {
+          // Check if there's already a process for this item
+          if (prev.some((p) => p.id === item.Id)) {
+            return prev;
+          }
+          return [...prev, job];
+        });
         toast.success(
           t("home.downloads.toasts.download_stated_for_item", {
             item: item.Name,
@@ -795,8 +826,51 @@ function useDownloadProvider() {
       const task = tasks?.find((t: any) => t.id === id);
       if (!task) throw new Error("No task found");
 
-      task.pause();
-      updateProcess(id, { status: "paused" });
+      const currentProgress = process.progress;
+      const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
+
+      try {
+        await task.pause();
+
+        const verifyTasks =
+          await BackGroundDownloader.checkForExistingDownloads();
+        const verifyTask = verifyTasks?.find((t: any) => t.id === id);
+
+        if (
+          verifyTask &&
+          verifyTask.state !== "PAUSED" &&
+          verifyTask.state !== "paused"
+        ) {
+          verifyTask.stop();
+          BackGroundDownloader.completeHandler(id);
+        }
+
+        updateProcess(id, {
+          status: "paused",
+          progress: currentProgress,
+          bytesDownloaded: currentBytes,
+          pausedAt: new Date(),
+          pausedProgress: currentProgress,
+          pausedBytes: currentBytes,
+        });
+      } catch (error) {
+        console.error("Error pausing task:", error);
+        try {
+          task.stop();
+          BackGroundDownloader.completeHandler(id);
+          updateProcess(id, {
+            status: "paused",
+            progress: currentProgress,
+            bytesDownloaded: currentBytes,
+            pausedAt: new Date(),
+            pausedProgress: currentProgress,
+            pausedBytes: currentBytes,
+          });
+        } catch (stopError) {
+          console.error("Error stopping task after pause failure:", stopError);
+          throw stopError;
+        }
+      }
     },
     [processes, updateProcess],
   );
@@ -808,20 +882,46 @@ function useDownloadProvider() {
 
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
       const task = tasks?.find((t: any) => t.id === id);
-      if (!task) throw new Error("No task found");
 
-      // Check if task state allows resuming
+      if (!task) {
+        if (
+          process.pausedProgress !== undefined &&
+          process.pausedBytes !== undefined
+        ) {
+          updateProcess(id, {
+            progress: process.pausedProgress,
+            bytesDownloaded: process.pausedBytes,
+            status: "downloading",
+          });
+
+          const updatedProcess = processes.find((p) => p.id === id);
+          await startDownload(updatedProcess || process);
+        } else {
+          await startDownload(process);
+        }
+        return;
+      }
+
       if (task.state === "FAILED") {
-        console.warn(
-          "Download task failed, cannot resume. Restarting download.",
-        );
-        // For failed tasks, we need to restart rather than resume
-        await startDownload(process);
+        if (
+          process.pausedProgress !== undefined &&
+          process.pausedBytes !== undefined
+        ) {
+          updateProcess(id, {
+            progress: process.pausedProgress,
+            bytesDownloaded: process.pausedBytes,
+            status: "downloading",
+          });
+          const updatedProcess = processes.find((p) => p.id === id);
+          await startDownload(updatedProcess || process);
+        } else {
+          await startDownload(process);
+        }
         return;
       }
 
       try {
-        task.resume();
+        await task.resume();
         updateProcess(id, { status: "downloading" });
       } catch (error: any) {
         // Handle specific ERROR_CANNOT_RESUME error
@@ -829,13 +929,24 @@ function useDownloadProvider() {
           error?.error === "ERROR_CANNOT_RESUME" ||
           error?.errorCode === 1008
         ) {
-          console.warn("Cannot resume download, attempting to restart instead");
-          await startDownload(process);
-          return; // Return early to prevent error from bubbling up
+          if (
+            process.pausedProgress !== undefined &&
+            process.pausedBytes !== undefined
+          ) {
+            updateProcess(id, {
+              progress: process.pausedProgress,
+              bytesDownloaded: process.pausedBytes,
+              status: "downloading",
+            });
+            const updatedProcess = processes.find((p) => p.id === id);
+            await startDownload(updatedProcess || process);
+          } else {
+            await startDownload(process);
+          }
+          return;
         } else {
-          // Only log error for non-handled cases
           console.error("Error resuming download:", error);
-          throw error; // Re-throw other errors
+          throw error;
         }
       }
     },
