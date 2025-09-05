@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { AddNewServer } from "@/components/settings/AddNewServer";
 import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { AudioToggles } from "@/components/settings/AudioToggles";
 import { ChromecastSettings } from "@/components/settings/ChromecastSettings";
@@ -66,6 +67,8 @@ export default function settings() {
         <UserInfo />
 
         <ServerSwitcher className='mb-4' />
+
+        <AddNewServer className='mb-4' />
 
         <QuickConnect className='mb-4' />
 
