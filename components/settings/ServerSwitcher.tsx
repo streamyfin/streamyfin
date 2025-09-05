@@ -13,10 +13,7 @@ interface Server {
   serverName?: string;
   serverId?: string;
   lastUsername?: string;
-  savedCredentials?: {
-    username: string;
-    password: string;
-  };
+  savedToken?: string;
 }
 
 interface Props extends ViewProps {}
@@ -54,8 +51,8 @@ export const ServerSwitcher: React.FC<Props> = ({ ...props }) => {
 
   const getServerSubtitle = (server: Server) => {
     if (server.lastUsername) {
-      const hasCredentials = !!server.savedCredentials;
-      return hasCredentials 
+      const hasToken = !!server.savedToken;
+      return hasToken 
         ? `${server.lastUsername} • Auto-login available`
         : `Last user: ${server.lastUsername}`;
     }
@@ -81,7 +78,7 @@ export const ServerSwitcher: React.FC<Props> = ({ ...props }) => {
             onPress={() => handleServerSwitch(server)}
             title={getServerDisplayName(server)}
             subtitle={getServerSubtitle(server)}
-            icon={server.savedCredentials ? "key" : "server"}
+            icon={server.savedToken ? "key" : "server"}
             showArrow
             disabled={switchingServer === server.address}
           />

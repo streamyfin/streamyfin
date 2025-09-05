@@ -33,10 +33,7 @@ interface Server {
   serverName?: string;
   serverId?: string;
   lastUsername?: string;
-  savedCredentials?: {
-    username: string;
-    password: string;
-  };
+  savedToken?: string;
 }
 
 export const apiAtom = atom<Api | null>(null);
@@ -256,7 +253,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           setApi(jellyfin.createApi(api?.basePath, auth.data?.AccessToken));
           storage.set("token", auth.data?.AccessToken);
 
-          // Save credentials to the current server if requested
+          // Save token to the current server if requested
           if (saveCredentials && api.basePath) {
             const previousServers = JSON.parse(
               storage.getString("previousServers") || "[]",
@@ -267,7 +264,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
                 return {
                   ...server,
                   lastUsername: username,
-                  savedCredentials: { username, password }
+                  savedToken: auth.data.AccessToken
                 };
               }
               return server;
@@ -348,20 +345,42 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       // Get current server info for comparison
       const currentServerId = await getCurrentServerId();
       
-      // If switching to same server (different URL), try auto-login with saved credentials
-      if (server.serverId && server.serverId === currentServerId && server.savedCredentials) {
+      // If switching to same server (different URL), try auto-login with saved token
+      if (server.serverId && server.serverId === currentServerId && server.savedToken) {
         try {
-          // Just set the new server without logging out
-          await setServerMutation.mutateAsync(server);
-          // Auto-login with saved credentials
-          await loginMutation.mutateAsync({
-            username: server.savedCredentials.username,
-            password: server.savedCredentials.password,
-            saveCredentials: false, // Don't save again
-          });
-          return;
+          // Create API instance with saved token
+          const apiInstance = jellyfin?.createApi(server.address, server.savedToken);
+          if (!apiInstance) throw new Error("Failed to create API instance");
+          
+          // Validate the token by making an authenticated request
+          const userApi = getUserApi(apiInstance);
+          const userResponse = await userApi.getCurrentUser();
+          
+          if (userResponse.data) {
+            // Token is valid, update the API and user
+            setApi(apiInstance);
+            setUser(userResponse.data);
+            storage.set("serverUrl", server.address);
+            storage.set("token", server.savedToken);
+            storage.set("user", JSON.stringify(userResponse.data));
+            return;
+          }
         } catch (error) {
-          console.warn("Auto-login failed, falling back to manual login:", error);
+          console.warn("Saved token is invalid, falling back to manual login:", error);
+          // Remove invalid token from server
+          const previousServers = JSON.parse(
+            storage.getString("previousServers") || "[]",
+          ) as Server[];
+          
+          const updatedServers = previousServers.map((s) => {
+            if (s.address === server.address) {
+              const { savedToken, ...serverWithoutToken } = s;
+              return serverWithoutToken;
+            }
+            return s;
+          });
+          
+          storage.set("previousServers", JSON.stringify(updatedServers));
         }
       }
       
@@ -441,6 +460,23 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!jellyfin) return;
 
       try {
+        // Migrate any existing savedCredentials to remove them
+        const previousServers = JSON.parse(
+          storage.getString("previousServers") || "[]",
+        ) as any[];
+        
+        if (previousServers.length > 0) {
+          const migratedServers = previousServers.map((server) => {
+            if (server.savedCredentials) {
+              // Remove savedCredentials field for security
+              const { savedCredentials, ...serverWithoutCredentials } = server;
+              return serverWithoutCredentials;
+            }
+            return server;
+          });
+          storage.set("previousServers", JSON.stringify(migratedServers));
+        }
+
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
         const storedUser = getUserFromStorage();

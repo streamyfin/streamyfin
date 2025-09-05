@@ -11,10 +11,7 @@ interface Server {
   serverName?: string;
   serverId?: string;
   lastUsername?: string;
-  savedCredentials?: {
-    username: string;
-    password: string;
-  };
+  savedToken?: string;
 }
 
 interface PreviousServersListProps {
@@ -58,7 +55,7 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
             onPress={() => onServerSelect(s)}
             title={getServerDisplayName(s)}
             subtitle={getServerSubtitle(s)}
-            icon={s.savedCredentials ? "key" : "server"}
+            icon={s.savedToken ? "key" : "server"}
             showArrow
           />
         ))}
