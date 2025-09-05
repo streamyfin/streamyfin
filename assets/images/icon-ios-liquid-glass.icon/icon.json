@@ -1,0 +1,180 @@
+{
+  "fill": {
+    "solid": "display-p3:0.18039,0.18039,0.18039,1.00000"
+  },
+  "groups": [
+    {
+      "blur-material": 0.2,
+      "layers": [
+        {
+          "fill-specializations": [
+            {
+              "value": "none"
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "automatic-gradient": "gray:0.80310,1.00000"
+              }
+            }
+          ],
+          "hidden": false,
+          "image-name": "Streamyfin logosw1 3.svg",
+          "name": "Streamyfin logosw1 3"
+        }
+      ],
+      "opacity": 1,
+      "position": {
+        "scale": 1.7,
+        "translation-in-points": [30, 0]
+      },
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 1
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.4
+      }
+    },
+    {
+      "blend-mode": "normal",
+      "blur-material": 0.8,
+      "hidden": false,
+      "layers": [
+        {
+          "fill-specializations": [
+            {
+              "value": "none"
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "automatic-gradient": "gray:0.75000,1.00000"
+              }
+            }
+          ],
+          "hidden": false,
+          "image-name": "Streamyfin logosw5.svg",
+          "name": "Streamyfin logosw5",
+          "opacity": 0.8,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [0, 0]
+          }
+        }
+      ],
+      "lighting": "individual",
+      "name": "Group",
+      "opacity": 1,
+      "position": {
+        "scale": 1.7,
+        "translation-in-points": [30, -0.01613253252572302]
+      },
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.4
+      },
+      "specular": true,
+      "translucency-specializations": [
+        {
+          "value": {
+            "enabled": true,
+            "value": 0.2
+          }
+        },
+        {
+          "appearance": "tinted",
+          "value": {
+            "enabled": true,
+            "value": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "blend-mode": "normal",
+      "blur-material": 0.5,
+      "layers": [
+        {
+          "fill-specializations": [
+            {
+              "appearance": "tinted",
+              "value": {
+                "automatic-gradient": "gray:0.29000,1.00000"
+              }
+            }
+          ],
+          "glass": true,
+          "image-name": "Streamyfin logosw6 4.svg",
+          "name": "Streamyfin logosw6 4",
+          "opacity": 0.9
+        }
+      ],
+      "name": "Group",
+      "opacity": 0.8,
+      "position": {
+        "scale": 1.7,
+        "translation-in-points": [30, 0]
+      },
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.7
+      }
+    },
+    {
+      "blur-material": 0.5,
+      "hidden": false,
+      "layers": [
+        {
+          "glass": true,
+          "hidden-specializations": [
+            {
+              "value": false
+            },
+            {
+              "appearance": "tinted",
+              "value": true
+            }
+          ],
+          "image-name": "Streamyfin logosw4 4.svg",
+          "name": "Streamyfin logosw4 4",
+          "opacity-specializations": [
+            {
+              "value": 1
+            },
+            {
+              "appearance": "tinted",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "lighting": "combined",
+      "name": "Group",
+      "opacity": 0.9,
+      "position": {
+        "scale": 1.7,
+        "translation-in-points": [30, 0]
+      },
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": ["watchOS"],
+    "squares": "shared"
+  }
+}
