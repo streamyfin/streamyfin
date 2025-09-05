@@ -52,7 +52,12 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
+      [
       "@react-native-tvos/config-tv",
+      {
+        "androidTVBanner": "./assets/images/icon-android-tv-banner.png"
+        }
+      ],
       "expo-router",
       "expo-font",
       [
