@@ -97,7 +97,7 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  const [_settings] = useSettings(null);
+  useSettings();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -748,7 +748,6 @@ export default function page() {
           setAspectRatio={setAspectRatio}
           setScaleFactor={setScaleFactor}
           isVlc
-          api={api}
           downloadedFiles={downloadedFiles}
         />
       )}

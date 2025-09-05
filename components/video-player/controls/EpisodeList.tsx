@@ -11,7 +11,7 @@ import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import {
   HorizontalScroll,
   type HorizontalScrollRef,
-} from "@/components/common/HorrizontalScroll";
+} from "@/components/common/HorizontalScroll";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import {
