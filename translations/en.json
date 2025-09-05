@@ -35,7 +35,9 @@
     "servers": "Servers",
     "quick_switch": "Quick Switch Servers",
     "switch_server": "Switch Server",
-    "no_previous_servers": "No previous servers available"
+    "no_previous_servers": "No previous servers available",
+    "add_new_server": "Add New Server",
+    "auto_login_available": "Auto-login available"
   },
   "home": {
     "no_internet": "No Internet",

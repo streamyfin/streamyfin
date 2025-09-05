@@ -10,6 +10,13 @@ import { ListItem } from "../list/ListItem";
 
 interface Server {
   address: string;
+  serverName?: string;
+  serverId?: string;
+  lastUsername?: string;
+  savedCredentials?: {
+    username: string;
+    password: string;
+  };
 }
 
 interface Props extends ViewProps {}
@@ -38,6 +45,23 @@ export const ServerSwitcher: React.FC<Props> = ({ ...props }) => {
     }
   };
 
+  const getServerDisplayName = (server: Server) => {
+    if (server.serverName) {
+      return `${server.serverName} (${server.address})`;
+    }
+    return server.address;
+  };
+
+  const getServerSubtitle = (server: Server) => {
+    if (server.lastUsername) {
+      const hasCredentials = !!server.savedCredentials;
+      return hasCredentials 
+        ? `${server.lastUsername} • Auto-login available`
+        : `Last user: ${server.lastUsername}`;
+    }
+    return undefined;
+  };
+
   if (!previousServers.length) {
     return (
       <View {...props}>
@@ -55,7 +79,9 @@ export const ServerSwitcher: React.FC<Props> = ({ ...props }) => {
           <ListItem
             key={server.address}
             onPress={() => handleServerSwitch(server)}
-            title={server.address}
+            title={getServerDisplayName(server)}
+            subtitle={getServerSubtitle(server)}
+            icon={server.savedCredentials ? "key" : "server"}
             showArrow
             disabled={switchingServer === server.address}
           />
