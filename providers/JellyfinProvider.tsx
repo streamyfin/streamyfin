@@ -40,6 +40,7 @@ interface JellyfinContextValue {
   discoverServers: (url: string) => Promise<Server[]>;
   setServer: (server: Server) => Promise<void>;
   removeServer: () => void;
+  switchServer: (server: Server) => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
@@ -297,6 +298,18 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  const switchServerMutation = useMutation({
+    mutationFn: async (server: Server) => {
+      // First logout the current user
+      await logoutMutation.mutateAsync();
+      // Then set the new server
+      await setServerMutation.mutateAsync(server);
+    },
+    onError: (error) => {
+      console.error("Failed to switch server:", error);
+    },
+  });
+
   const [loaded, setLoaded] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
@@ -340,6 +353,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     discoverServers,
     setServer: (server) => setServerMutation.mutateAsync(server),
     removeServer: () => removeServerMutation.mutateAsync(),
+    switchServer: (server) => switchServerMutation.mutateAsync(server),
     login: (username, password) =>
       loginMutation.mutateAsync({ username, password }),
     logout: () => logoutMutation.mutateAsync(),

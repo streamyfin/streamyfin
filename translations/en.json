@@ -32,7 +32,10 @@
     "clear_button": "Clear",
     "search_for_local_servers": "Search for local servers",
     "searching": "Searching...",
-    "servers": "Servers"
+    "servers": "Servers",
+    "quick_switch": "Quick Switch Servers",
+    "switch_server": "Switch Server",
+    "no_previous_servers": "No previous servers available"
   },
   "home": {
     "no_internet": "No Internet",
