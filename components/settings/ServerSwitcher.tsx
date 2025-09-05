@@ -1,9 +1,10 @@
+import { useAtom } from "jotai";
 import type React from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
-import { useJellyfin } from "@/providers/JellyfinProvider";
+import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -15,18 +16,25 @@ interface Props extends ViewProps {}
 
 export const ServerSwitcher: React.FC<Props> = ({ ...props }) => {
   const [_previousServers] = useMMKVString("previousServers");
+  const [api] = useAtom(apiAtom);
+  const [switchingServer, setSwitchingServer] = useState<string | null>(null);
   const { switchServer } = useJellyfin();
   const { t } = useTranslation();
 
   const previousServers = useMemo(() => {
-    return JSON.parse(_previousServers || "[]") as Server[];
-  }, [_previousServers]);
+    const servers = JSON.parse(_previousServers || "[]") as Server[];
+    // Filter out the current server since we don't need to "switch" to it
+    const currentServer = api?.basePath;
+    return servers.filter((server) => server.address !== currentServer);
+  }, [_previousServers, api?.basePath]);
 
   const handleServerSwitch = async (server: Server) => {
     try {
+      setSwitchingServer(server.address);
       await switchServer(server);
     } catch (error) {
       console.error("Failed to switch server:", error);
+      setSwitchingServer(null);
     }
   };
 
@@ -49,6 +57,7 @@ export const ServerSwitcher: React.FC<Props> = ({ ...props }) => {
             onPress={() => handleServerSwitch(server)}
             title={server.address}
             showArrow
+            disabled={switchingServer === server.address}
           />
         ))}
       </ListGroup>
