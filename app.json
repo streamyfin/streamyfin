@@ -49,6 +49,7 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WRITE_SETTINGS"
       ],
+      "blockedPermissions": ["android.permission.ACTIVITY_RECOGNITION"],
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
