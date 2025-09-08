@@ -9,7 +9,7 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, View, type ViewProps } from "react-native";
+import { Alert, Platform, View, type ViewProps } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Button } from "../Button";
@@ -21,6 +21,7 @@ import { ListItem } from "../list/ListItem";
 interface Props extends ViewProps {}
 
 export const QuickConnect: React.FC<Props> = ({ ...props }) => {
+  const isTv = Platform.isTV;
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [quickConnectCode, setQuickConnectCode] = useState<string>();
@@ -72,6 +73,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
       }
     }
   }, [api, user, quickConnectCode]);
+
+  if (isTv) return null;
 
   return (
     <View {...props}>
