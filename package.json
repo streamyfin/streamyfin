@@ -102,7 +102,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@biomejs/biome": "^2.2.2",
+    "@biomejs/biome": "^2.2.3",
     "@react-native-community/cli": "^20.0.0",
     "@react-native-tvos/config-tv": "^0.1.1",
     "@types/jest": "^29.5.12",
