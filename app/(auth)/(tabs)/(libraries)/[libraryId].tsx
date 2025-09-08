@@ -77,7 +77,13 @@ const Page = () => {
     } else {
       _setSortBy([SortByOption.SortName]);
     }
-  }, []);
+  }, [
+    libraryId,
+    sortOrderPreference,
+    sortByPreference,
+    _setSortOrder,
+    _setSortBy,
+  ]);
 
   const setSortBy = useCallback(
     (sortBy: SortByOption[]) => {
@@ -87,7 +93,7 @@ const Page = () => {
       }
       _setSortBy(sortBy);
     },
-    [libraryId, sortByPreference],
+    [libraryId, sortByPreference, setSortByPreference, _setSortBy],
   );
 
   const setSortOrder = useCallback(
@@ -101,7 +107,7 @@ const Page = () => {
       }
       _setSortOrder(sortOrder);
     },
-    [libraryId, sortOrderPreference],
+    [libraryId, sortOrderPreference, setOderByPreference, _setSortOrder],
   );
 
   const nrOfCols = useMemo(() => {

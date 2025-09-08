@@ -36,7 +36,7 @@ export const MediaSourceSheet: React.FC<Props> = ({
     return getDisplayName(selected);
   }, [selected, getDisplayName]);
 
-  if (isTv || (item.MediaStreams && item.MediaStreams.length <= 1)) return null;
+  if (isTv || (item.MediaSources && item.MediaSources.length <= 1)) return null;
 
   return (
     <View className='flex shrink' style={{ minWidth: 75 }}>
