@@ -1,12 +1,12 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi, getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useNetInfo } from "@react-native-community/netinfo";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useNetworkStatus } from "./useNetworkStatus";
 
 interface PlaybackManagerProps {
   item?: BaseItemDto | null;
@@ -65,12 +65,12 @@ export const usePlaybackManager = ({
 }: PlaybackManagerProps = {}) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const netInfo = useNetInfo();
+  const { isConnected } = useNetworkStatus();
   const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
     useDownload();
 
   /** Whether the device is online. actually it's connected to the internet. */
-  const isOnline = useMemo(() => netInfo.isConnected, [netInfo.isConnected]);
+  const isOnline = isConnected;
 
   // Adjacent episodes logic
   const { data: adjacentItems } = useQuery({
