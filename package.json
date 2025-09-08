@@ -30,7 +30,7 @@
     "@jellyfin/sdk": "^0.11.0",
     "@kesha-antonov/react-native-background-downloader": "^3.2.6",
     "@react-native-community/netinfo": "^11.4.1",
-    "@react-native-menu/menu": "^1.2.3",
+    "@react-native-menu/menu": "1.2.3",
     "@react-navigation/material-top-tabs": "^7.2.14",
     "@react-navigation/native": "^7.0.14",
     "@shopify/flash-list": "^1.8.3",
