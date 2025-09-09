@@ -74,7 +74,12 @@ export const HomeIndex = () => {
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
-  const { isConnected, loading: retryLoading, retryCheck } = useNetworkStatus();
+  const {
+    isConnected,
+    serverConnected,
+    loading: retryLoading,
+    retryCheck,
+  } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   useEffect(() => {
     // Only invalidate cache when transitioning from offline to online
@@ -358,13 +363,28 @@ export const HomeIndex = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
-  if (isConnected === false) {
+  if (!isConnected || serverConnected !== true) {
+    let title: string;
+    let subtitle: string;
+
+    if (!isConnected) {
+      // No network connection
+      title = t("home.no_internet");
+      subtitle = t("home.no_internet_message");
+    } else if (serverConnected === null) {
+      // Network is up, but server is being checked
+      title = t("home.checking_server_connection");
+      subtitle = t("home.checking_server_connection_message");
+    } else if (!serverConnected) {
+      // Network is up, but server is unreachable
+      title = t("home.server_unreachable");
+      subtitle = t("home.server_unreachable_message");
+    }
     return (
       <View className='flex flex-col items-center justify-center h-full -mt-6 px-8'>
-        <Text className='text-3xl font-bold mb-2'>{t("home.no_internet")}</Text>
-        <Text className='text-center opacity-70'>
-          {t("home.no_internet_message")}
-        </Text>
+        <Text className='text-3xl font-bold mb-2'>{title}</Text>
+        <Text className='text-center opacity-70'>{subtitle}</Text>
+
         <View className='mt-4'>
           {!Platform.isTV && (
             <Button
@@ -378,6 +398,7 @@ export const HomeIndex = () => {
               {t("home.go_to_downloads")}
             </Button>
           )}
+
           <Button
             color='black'
             onPress={retryCheck}
@@ -390,9 +411,9 @@ export const HomeIndex = () => {
             }
           >
             {retryLoading ? (
-              <ActivityIndicator size={"small"} color={"white"} />
+              <ActivityIndicator size='small' color='white' />
             ) : (
-              "Retry"
+              t("home.retry")
             )}
           </Button>
         </View>
