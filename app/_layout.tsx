@@ -20,8 +20,8 @@ import {
 } from "@/utils/background-tasks";
 import {
   LogProvider,
-  writeDebugLog,
   writeErrorLog,
+  writeInfoLog,
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
@@ -84,18 +84,18 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+function redirect(notification: typeof Notifications.Notification) {
+  const url = notification.request.content.data?.url;
+  if (url) {
+    router.push(url);
+  }
+}
+
 function useNotificationObserver() {
   useEffect(() => {
     if (Platform.isTV) return;
 
     let isMounted = true;
-
-    function redirect(notification: typeof Notifications.Notification) {
-      const url = notification.request.content.data?.url;
-      if (url) {
-        router.push(url);
-      }
-    }
 
     Notifications.getLastNotificationResponseAsync().then(
       (response: { notification: any }) => {
@@ -106,15 +106,8 @@ function useNotificationObserver() {
       },
     );
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: any }) => {
-        redirect(response.notification);
-      },
-    );
-
     return () => {
       isMounted = false;
-      subscription.remove();
     };
   }, []);
 }
@@ -317,9 +310,12 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
+            // redirect if internal notification
+            redirect(response?.notification);
+
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
-            writeDebugLog(
+            writeInfoLog(
               `Notification ${title} opened`,
               response.notification.request.content,
             );
