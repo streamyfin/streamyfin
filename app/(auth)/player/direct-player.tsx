@@ -97,7 +97,7 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  useSettings();
+  const { settings } = useSettings();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -565,7 +565,11 @@ export default function page() {
   /** Whether the stream we're playing is not transcoding*/
   const notTranscoding = !stream?.mediaSource.TranscodingUrl;
   /** The initial options to pass to the VLC Player */
-  const initOptions = [``];
+  const initOptions = [
+    `--sub-text-scale=${settings.subtitleSize}`,
+    "--sub-margin=40",
+  ];
+
   if (
     chosenSubtitleTrack &&
     (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
