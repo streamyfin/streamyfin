@@ -395,15 +395,11 @@ function Layout() {
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
-        BackGroundDownloader.checkForExistingDownloads().then(
-          (_tasks: any[]) => {},
-        );
+        BackGroundDownloader.checkForExistingDownloads().catch(() => {});
       }
     });
 
-    BackGroundDownloader.checkForExistingDownloads().then(
-      (_tasks: any[]) => {},
-    );
+    BackGroundDownloader.checkForExistingDownloads().catch(() => {});
 
     return () => {
       subscription.remove();

@@ -42,37 +42,45 @@ const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
 
+// Estimate the total download size in bytes for a job. If the media source
+// provides a Size, use that. Otherwise, if we have a bitrate and run time
+// (RunTimeTicks), approximate size = (bitrate bits/sec * seconds) / 8.
+const PRE_COMPLETE_PROGRESS = 99;
+
 const calculateEstimatedSize = (p: JobStatus): number => {
-  let size = p.mediaSource.Size;
-  const maxBitrate = p.maxBitrate.value;
-  if (
-    maxBitrate &&
-    size &&
-    p.mediaSource.Bitrate &&
-    maxBitrate < p.mediaSource.Bitrate
-  ) {
-    size = (size / p.mediaSource.Bitrate) * maxBitrate;
-  }
-  // This function is for estimated size, so just return the adjusted size
-  return size ?? 0;
-};
+  const size = p.mediaSource?.Size || 0;
+  const maxBitrate = p.maxBitrate?.value;
+  const runTimeTicks = (p.item?.RunTimeTicks || 0) as number;
 
-// Helper to calculate download speed
-const calculateSpeed = (
-  process: JobStatus,
-  newBytesDownloaded: number,
-): number | undefined => {
-  const { bytesDownloaded: oldBytes = 0, lastProgressUpdateTime } = process;
-  const deltaBytes = newBytesDownloaded - oldBytes;
-
-  if (lastProgressUpdateTime && deltaBytes > 0) {
-    const deltaTimeInSeconds =
-      (Date.now() - new Date(lastProgressUpdateTime).getTime()) / 1000;
-    if (deltaTimeInSeconds > 0) {
-      return deltaBytes / deltaTimeInSeconds;
+  if (!size && maxBitrate && runTimeTicks > 0) {
+    // Jellyfin RunTimeTicks are in 10,000,000 ticks per second
+    const seconds = runTimeTicks / 10000000;
+    if (seconds > 0) {
+      // maxBitrate is in bits per second; convert to bytes
+      return Math.round((maxBitrate / 8) * seconds);
     }
   }
-  return undefined;
+
+  return size || 0;
+};
+
+// Calculate download speed in bytes/sec based on a job's last update time
+// and previously recorded bytesDownloaded.
+const calculateSpeed = (
+  p: JobStatus,
+  currentBytesDownloaded?: number,
+): number | undefined => {
+  if (!p.lastProgressUpdateTime || p.bytesDownloaded === undefined)
+    return undefined;
+  const last = new Date(p.lastProgressUpdateTime).getTime();
+  const now = Date.now();
+  const deltaTime = (now - last) / 1000;
+  if (deltaTime <= 0) return undefined;
+  const prev = p.bytesDownloaded || 0;
+  const current = currentBytesDownloaded ?? prev;
+  const deltaBytes = current - prev;
+  if (deltaBytes <= 0) return undefined;
+  return deltaBytes / deltaTime;
 };
 
 export const processesAtom = atom<JobStatus[]>([]);
@@ -177,7 +185,10 @@ function useDownloadProvider() {
           const estimatedSize = calculateEstimatedSize(p);
           let progress = p.progress;
 
-          if (p.pausedProgress !== undefined && p.pausedProgress > 0) {
+          // If we have a pausedProgress snapshot then merge current session
+          // progress into it. We accept pausedProgress === 0 as valid because
+          // users can pause immediately after starting.
+          if (p.pausedProgress !== undefined) {
             const currentSessionProgress =
               estimatedSize > 0
                 ? (task.bytesDownloaded / estimatedSize) * 100
@@ -189,11 +200,13 @@ function useDownloadProvider() {
             const totalBytesDownloaded = p.pausedBytes
               ? p.pausedBytes + task.bytesDownloaded
               : task.bytesDownloaded;
-            const speed = calculateSpeed(p, task.bytesDownloaded);
+            // Use the total accounted bytes when computing speed so the
+            // displayed speed and progress remain consistent after resume.
+            const speed = calculateSpeed(p, totalBytesDownloaded);
 
             return {
               ...p,
-              progress: Math.min(progress, 99),
+              progress: Math.min(progress, PRE_COMPLETE_PROGRESS),
               speed,
               bytesDownloaded: totalBytesDownloaded,
               lastProgressUpdateTime: new Date(),
@@ -204,7 +217,7 @@ function useDownloadProvider() {
               progress = (100 / estimatedSize) * task.bytesDownloaded;
             }
             if (progress >= 100) {
-              progress = 99;
+              progress = PRE_COMPLETE_PROGRESS;
             }
             const speed = calculateSpeed(p, task.bytesDownloaded);
             return {
@@ -567,6 +580,10 @@ function useDownloadProvider() {
     if (activeDownloads < concurrentLimit) {
       const queuedDownload = processes.find((p) => p.status === "queued");
       if (queuedDownload) {
+        // Reserve the slot immediately to avoid race where startDownload's
+        // asynchronous begin callback hasn't executed yet and multiple
+        // downloads are started, bypassing the concurrent limit.
+        updateProcess(queuedDownload.id, { status: "downloading" });
         startDownload(queuedDownload);
       }
     }
@@ -639,6 +656,12 @@ function useDownloadProvider() {
         setProcesses((prev) => {
           // Check if there's already a process for this item
           if (prev.some((p) => p.id === item.Id)) {
+            // Notify user that the download already exists instead of silently ignoring
+            toast.warning(
+              t("home.downloads.toasts.download_already_in_progress", {
+                item: item.Name,
+              }),
+            );
             return prev;
           }
           return [...prev, job];
@@ -830,19 +853,33 @@ function useDownloadProvider() {
       const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
 
       try {
-        await task.pause();
+        // Try a normal pause first. Some native implementations support
+        // pause() and will keep the background session resumable. If it
+        // fails or the task isn't put into a paused state we fall back to
+        // stop() so we can persist partial bytes and restart later.
+        let pausedSuccessfully = false;
+        try {
+          await task.pause();
+          const verifyTasks =
+            await BackGroundDownloader.checkForExistingDownloads();
+          const verifyTask = verifyTasks?.find((t: any) => t.id === id);
+          const state = verifyTask?.state || task.state?.();
+          pausedSuccessfully = state === "PAUSED" || state === "paused";
+        } catch (_e) {
+          pausedSuccessfully = false;
+        }
 
-        const verifyTasks =
-          await BackGroundDownloader.checkForExistingDownloads();
-        const verifyTask = verifyTasks?.find((t: any) => t.id === id);
-
-        if (
-          verifyTask &&
-          verifyTask.state !== "PAUSED" &&
-          verifyTask.state !== "paused"
-        ) {
-          verifyTask.stop();
-          BackGroundDownloader.completeHandler(id);
+        if (!pausedSuccessfully) {
+          try {
+            task.stop();
+          } catch (_err) {
+            // ignore stop errors
+          }
+          try {
+            BackGroundDownloader.completeHandler(id);
+          } catch (_err) {
+            // ignore
+          }
         }
 
         updateProcess(id, {
@@ -856,6 +893,7 @@ function useDownloadProvider() {
       } catch (error) {
         console.error("Error pausing task:", error);
         try {
+          // Ensure task is stopped to avoid lingering native state
           task.stop();
           BackGroundDownloader.completeHandler(id);
           updateProcess(id, {
@@ -884,13 +922,32 @@ function useDownloadProvider() {
       const task = tasks?.find((t: any) => t.id === id);
 
       if (!task) {
+        // If the background task is missing (commonly after an iOS stop),
+        // attempt to detect any existing partial file to estimate resumed bytes
+        // so the UI doesn't jump back to 0%. If we can't detect a partial file
+        // fall back to restarting the download from scratch.
+        let pausedBytes = process.pausedBytes;
+        if (!pausedBytes) {
+          try {
+            const filename = generateFilename(process.item);
+            const videoFilePath = `${FileSystem.documentDirectory}${filename}.mp4`;
+            const info = await FileSystem.getInfoAsync(videoFilePath);
+            if (info.exists && info.size && info.size > 0) {
+              pausedBytes = info.size;
+            }
+          } catch (_e) {
+            // ignore file errors and continue to restart
+          }
+        }
+
         if (
-          process.pausedProgress !== undefined &&
-          process.pausedBytes !== undefined
+          (process.pausedProgress !== undefined &&
+            process.pausedBytes !== undefined) ||
+          pausedBytes
         ) {
           updateProcess(id, {
-            progress: process.pausedProgress,
-            bytesDownloaded: process.pausedBytes,
+            progress: process.pausedProgress ?? process.progress,
+            bytesDownloaded: pausedBytes ?? process.pausedBytes ?? 0,
             status: "downloading",
           });
 
