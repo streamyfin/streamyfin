@@ -315,36 +315,37 @@ function Layout() {
 
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
-            writeInfoLog(
-              `Notification ${title} opened`,
-              response.notification.request.content,
-            );
-            if (data && Object.keys(data).length > 0) {
-              const type = (data?.type ?? "").toString().toLowerCase();
-              const itemId = data?.id;
+            writeInfoLog(`Notification ${title} opened`, data);
 
-              switch (type) {
-                case "movie":
-                  router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                  break;
-                case "episode":
-                  // We just clicked a notification for an individual episode.
-                  if (itemId) {
-                    router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                    // summarized season notification for multiple episodes. Bring them to series season
+            let url: any;
+            const type = (data?.type ?? "").toString().toLowerCase();
+            const itemId = data?.id;
+
+            switch (type) {
+              case "movie":
+                url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+                break;
+              case "episode":
+                // `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
+                // We just clicked a notification for an individual episode.
+                if (itemId) {
+                  url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+                  // summarized season notification for multiple episodes. Bring them to series season
+                } else {
+                  const seriesId = data.seriesId;
+                  const seasonIndex = data.seasonIndex;
+                  if (seasonIndex) {
+                    url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
                   } else {
-                    const seriesId = data.seriesId;
-                    const seasonIndex = data.seasonIndex;
-                    if (seasonIndex) {
-                      router.push(
-                        `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`,
-                      );
-                    } else {
-                      router.push(`/(auth)/(tabs)/home/series/${seriesId}`);
-                    }
+                    url = `/(auth)/(tabs)/home/series/${seriesId}`;
                   }
-                  break;
-              }
+                }
+                break;
+            }
+
+            writeInfoLog(`Notification attempting to redirect to ${url}`);
+            if (url) {
+              router.push(url);
             }
           },
         );
