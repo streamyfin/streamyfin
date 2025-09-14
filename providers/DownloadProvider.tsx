@@ -25,7 +25,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
 import { getItemImage } from "@/utils/getItemImage";
-import { writeToLog } from "@/utils/log";
+import { dumpDownloadDiagnostics, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { fetchAndParseSegments } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
@@ -1068,6 +1068,21 @@ function useDownloadProvider() {
     cleanCacheDirectory,
     updateDownloadedItem,
     appSizeUsage,
+    dumpDownloadDiagnostics: async (id?: string) => {
+      // Collect JS-side processes and native task info (best-effort)
+      const tasks = BackGroundDownloader
+        ? await BackGroundDownloader.checkForExistingDownloads()
+        : [];
+      const extra: any = {
+        processes,
+        nativeTasks: tasks || [],
+      };
+      if (id) {
+        const p = processes.find((x) => x.id === id);
+        extra.focusedProcess = p || null;
+      }
+      return dumpDownloadDiagnostics(extra);
+    },
   };
 }
 

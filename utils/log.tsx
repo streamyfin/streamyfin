@@ -77,6 +77,35 @@ export const clearLogs = () => {
   storage.delete("logs");
 };
 
+// Write current logs and optional diagnostic data to a file in documentDirectory
+import * as FileSystem from "expo-file-system";
+
+export const dumpDownloadDiagnostics = async (
+  extraData?: Record<string, any>,
+): Promise<string> => {
+  try {
+    const logs = readFromLog();
+    const payload = {
+      timestamp: new Date().toISOString(),
+      logs,
+      extraData: extraData || {},
+    };
+    const filename = `streamyfin_diagnostics_${Date.now()}.json`;
+    const path = `${FileSystem.documentDirectory}${filename}`;
+    await FileSystem.writeAsStringAsync(
+      path,
+      JSON.stringify(payload, null, 2),
+      {
+        encoding: FileSystem.EncodingType.UTF8,
+      },
+    );
+    return path;
+  } catch (error) {
+    console.error("Failed to dump diagnostics:", error);
+    throw error;
+  }
+};
+
 export function useLog() {
   const context = useContext(LogContext);
   if (context === null) {
