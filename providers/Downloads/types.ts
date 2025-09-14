@@ -135,4 +135,8 @@ export type JobStatus = {
   pausedProgress?: number;
   /** Bytes downloaded when download was paused (optional) */
   pausedBytes?: number;
+  /** Bytes downloaded in the current session (since last resume). Used for session-only speed calculation. */
+  lastSessionBytes?: number;
+  /** Timestamp when the session-only bytes were last updated. */
+  lastSessionUpdateTime?: Date;
 };

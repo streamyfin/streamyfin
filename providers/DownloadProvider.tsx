@@ -70,10 +70,24 @@ const calculateSpeed = (
   p: JobStatus,
   currentBytesDownloaded?: number,
 ): number | undefined => {
+  // Prefer session-only deltas when available: lastSessionBytes + lastSessionUpdateTime
+  const now = Date.now();
+
+  if (p.lastSessionUpdateTime && p.lastSessionBytes !== undefined) {
+    const last = new Date(p.lastSessionUpdateTime).getTime();
+    const deltaTime = (now - last) / 1000;
+    if (deltaTime > 0) {
+      const current =
+        currentBytesDownloaded ?? p.bytesDownloaded ?? p.lastSessionBytes;
+      const deltaBytes = current - p.lastSessionBytes;
+      if (deltaBytes > 0) return deltaBytes / deltaTime;
+    }
+  }
+
+  // Fallback to total-based deltas for compatibility
   if (!p.lastProgressUpdateTime || p.bytesDownloaded === undefined)
     return undefined;
   const last = new Date(p.lastProgressUpdateTime).getTime();
-  const now = Date.now();
   const deltaTime = (now - last) / 1000;
   if (deltaTime <= 0) return undefined;
   const prev = p.bytesDownloaded || 0;
@@ -211,6 +225,12 @@ function useDownloadProvider() {
               bytesDownloaded: totalBytesDownloaded,
               lastProgressUpdateTime: new Date(),
               estimatedTotalSizeBytes: estimatedSize,
+              // Keep session bookkeeping: if we have an existing session
+              // counter, prefer adding the current session bytes to it.
+              lastSessionBytes: p.lastSessionBytes
+                ? p.lastSessionBytes + task.bytesDownloaded
+                : task.bytesDownloaded,
+              lastSessionUpdateTime: new Date(),
             };
           } else {
             if (estimatedSize > 0) {
@@ -227,6 +247,8 @@ function useDownloadProvider() {
               bytesDownloaded: task.bytesDownloaded,
               lastProgressUpdateTime: new Date(),
               estimatedTotalSizeBytes: estimatedSize,
+              lastSessionBytes: task.bytesDownloaded,
+              lastSessionUpdateTime: new Date(),
             };
           }
         }
@@ -437,6 +459,8 @@ function useDownloadProvider() {
             progress: 0,
             bytesDownloaded: 0,
             lastProgressUpdateTime: new Date(),
+            lastSessionBytes: 0,
+            lastSessionUpdateTime: new Date(),
           });
         })
         .progress(
@@ -449,6 +473,12 @@ function useDownloadProvider() {
                 progress: percent,
                 bytesDownloaded: data.bytesDownloaded,
                 lastProgressUpdateTime: new Date(),
+                // update session-only counters
+                lastSessionBytes:
+                  (currentProcess.lastSessionBytes || 0) < data.bytesDownloaded
+                    ? data.bytesDownloaded
+                    : currentProcess.lastSessionBytes || data.bytesDownloaded,
+                lastSessionUpdateTime: new Date(),
               };
             });
           }, 500),
@@ -889,6 +919,9 @@ function useDownloadProvider() {
           pausedAt: new Date(),
           pausedProgress: currentProgress,
           pausedBytes: currentBytes,
+          // Preserve session bookkeeping so resume can display session speed
+          lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+          lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
         });
       } catch (error) {
         console.error("Error pausing task:", error);
@@ -903,6 +936,8 @@ function useDownloadProvider() {
             pausedAt: new Date(),
             pausedProgress: currentProgress,
             pausedBytes: currentBytes,
+            lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+            lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
           });
         } catch (stopError) {
           console.error("Error stopping task after pause failure:", stopError);
@@ -949,6 +984,10 @@ function useDownloadProvider() {
             progress: process.pausedProgress ?? process.progress,
             bytesDownloaded: pausedBytes ?? process.pausedBytes ?? 0,
             status: "downloading",
+            // Seed session-only counters so speed is calculated from the
+            // resumed session instead of a full total delta.
+            lastSessionBytes: pausedBytes ?? process.pausedBytes ?? 0,
+            lastSessionUpdateTime: new Date(),
           });
 
           const updatedProcess = processes.find((p) => p.id === id);
