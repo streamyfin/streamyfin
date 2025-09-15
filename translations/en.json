@@ -85,7 +85,7 @@
         "media_controls_title": "Media Controls",
         "forward_skip_length": "Forward Skip Length",
         "rewind_length": "Rewind Length",
-        "seconds_unit": "S"
+        "seconds_unit": "s"
       },
       "gesture_controls": {
         "gesture_controls_title": "Gesture Controls",
