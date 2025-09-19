@@ -214,7 +214,7 @@
       "storage": {
         "storage_title": "Storage",
         "app_usage": "App {{usedspace}}%",
-        "device_usage": "Device {{availablespace}}%",
+        "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} Used",
         "delete_all_downloaded_files": "Delete All Downloaded Files"
       },
