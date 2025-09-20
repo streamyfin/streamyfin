@@ -122,7 +122,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#2e2e2e",
+          "backgroundColor": "#010101",
           "image": "./assets/images/icon-ios-plain.png",
           "imageWidth": 100
         }
