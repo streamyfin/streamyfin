@@ -21,6 +21,12 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
+import {
+  OUTLINE_THICKNESS,
+  OutlineThickness,
+  VLC_COLORS,
+  VLCColor,
+} from "@/constants/SubtitleConstants";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
@@ -40,25 +46,6 @@ import { writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
-
-type VLCColor =
-  | "Black"
-  | "Gray"
-  | "Silver"
-  | "White"
-  | "Maroon"
-  | "Red"
-  | "Fuchsia"
-  | "Yellow"
-  | "Olive"
-  | "Green"
-  | "Teal"
-  | "Lime"
-  | "Purple"
-  | "Navy"
-  | "Blue"
-  | "Aqua";
-type OutlineThickness = "None" | "Thin" | "Normal" | "Thick";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -609,33 +596,6 @@ export default function page() {
     const backgroundOpacity = storage.getNumber("vlc.backgroundOpacity") || 128;
     const outlineOpacity = storage.getNumber("vlc.outlineOpacity") || 255;
     const isBold = storage.getBoolean("vlc.isBold") || false;
-
-    // VLC color values mapping
-    const VLC_COLORS: Record<VLCColor, number> = {
-      Black: 0,
-      Gray: 8421504,
-      Silver: 12632256,
-      White: 16777215,
-      Maroon: 8388608,
-      Red: 16711680,
-      Fuchsia: 16711935,
-      Yellow: 16776960,
-      Olive: 8421376,
-      Green: 32768,
-      Teal: 32896,
-      Lime: 65280,
-      Purple: 8388736,
-      Navy: 128,
-      Blue: 255,
-      Aqua: 65535,
-    };
-
-    const OUTLINE_THICKNESS: Record<OutlineThickness, number> = {
-      None: 0,
-      Thin: 2,
-      Normal: 4,
-      Thick: 6,
-    };
 
     // Add subtitle styling options
     initOptions.push(`--freetype-color=${VLC_COLORS[textColor]}`);

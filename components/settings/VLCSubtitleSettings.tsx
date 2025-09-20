@@ -3,33 +3,8 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { OUTLINE_THICKNESS, VLC_COLORS } from "@/constants/SubtitleConstants";
 import { storage } from "@/utils/mmkv";
-
-const VLC_COLORS = {
-  Black: 0,
-  Gray: 8421504,
-  Silver: 12632256,
-  White: 16777215,
-  Maroon: 8388608,
-  Red: 16711680,
-  Fuchsia: 16711935,
-  Yellow: 16776960,
-  Olive: 8421376,
-  Green: 32768,
-  Teal: 32896,
-  Lime: 65280,
-  Purple: 8388736,
-  Navy: 128,
-  Blue: 255,
-  Aqua: 65535,
-};
-
-const OUTLINE_THICKNESS = {
-  None: 0,
-  Thin: 2,
-  Normal: 4,
-  Thick: 6,
-};
 
 export function VLCSubtitleSettings({
   className = "",
