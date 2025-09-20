@@ -37,8 +37,28 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
+import { storage } from "@/utils/mmkv";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
+
+type VLCColor =
+  | "Black"
+  | "Gray"
+  | "Silver"
+  | "White"
+  | "Maroon"
+  | "Red"
+  | "Fuchsia"
+  | "Yellow"
+  | "Olive"
+  | "Green"
+  | "Teal"
+  | "Lime"
+  | "Purple"
+  | "Navy"
+  | "Blue"
+  | "Aqua";
+type OutlineThickness = "None" | "Thin" | "Normal" | "Thick";
 
 export default function page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
@@ -576,8 +596,62 @@ export default function page() {
       ? allSubs.indexOf(chosenSubtitleTrack)
       : [...textSubs].reverse().indexOf(chosenSubtitleTrack);
     initOptions.push(`--sub-track=${finalIndex}`);
-  }
 
+    // Add VLC subtitle styling options from settings
+    const textColor = (storage.getString("vlc.textColor") ||
+      "White") as VLCColor;
+    const backgroundColor = (storage.getString("vlc.backgroundColor") ||
+      "Black") as VLCColor;
+    const outlineColor = (storage.getString("vlc.outlineColor") ||
+      "Black") as VLCColor;
+    const outlineThickness = (storage.getString("vlc.outlineThickness") ||
+      "Normal") as OutlineThickness;
+    const backgroundOpacity = storage.getNumber("vlc.backgroundOpacity") || 128;
+    const outlineOpacity = storage.getNumber("vlc.outlineOpacity") || 255;
+    const isBold = storage.getBoolean("vlc.isBold") || false;
+
+    // VLC color values mapping
+    const VLC_COLORS: Record<VLCColor, number> = {
+      Black: 0,
+      Gray: 8421504,
+      Silver: 12632256,
+      White: 16777215,
+      Maroon: 8388608,
+      Red: 16711680,
+      Fuchsia: 16711935,
+      Yellow: 16776960,
+      Olive: 8421376,
+      Green: 32768,
+      Teal: 32896,
+      Lime: 65280,
+      Purple: 8388736,
+      Navy: 128,
+      Blue: 255,
+      Aqua: 65535,
+    };
+
+    const OUTLINE_THICKNESS: Record<OutlineThickness, number> = {
+      None: 0,
+      Thin: 2,
+      Normal: 4,
+      Thick: 6,
+    };
+
+    // Add subtitle styling options
+    initOptions.push(`--freetype-color=${VLC_COLORS[textColor]}`);
+    initOptions.push(`--freetype-background-opacity=${backgroundOpacity}`);
+    initOptions.push(
+      `--freetype-background-color=${VLC_COLORS[backgroundColor]}`,
+    );
+    initOptions.push(`--freetype-outline-opacity=${outlineOpacity}`);
+    initOptions.push(`--freetype-outline-color=${VLC_COLORS[outlineColor]}`);
+    initOptions.push(
+      `--freetype-outline-thickness=${OUTLINE_THICKNESS[outlineThickness]}`,
+    );
+    if (isBold) {
+      initOptions.push("--freetype-bold");
+    }
+  }
   if (notTranscoding && chosenAudioTrack) {
     initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   }

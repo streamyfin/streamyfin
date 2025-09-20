@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 
 const _DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
@@ -9,12 +10,39 @@ import { Switch } from "react-native-gesture-handler";
 import Dropdown from "@/components/common/Dropdown";
 import { Stepper } from "@/components/inputs/Stepper";
 import { useSettings } from "@/utils/atoms/settings";
+import { storage } from "@/utils/mmkv";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
+
+const VLC_COLORS = {
+  Black: 0,
+  Gray: 8421504,
+  Silver: 12632256,
+  White: 16777215,
+  Maroon: 8388608,
+  Red: 16711680,
+  Fuchsia: 16711935,
+  Yellow: 16776960,
+  Olive: 8421376,
+  Green: 32768,
+  Teal: 32896,
+  Lime: 65280,
+  Purple: 8388736,
+  Navy: 128,
+  Blue: 255,
+  Aqua: 65535,
+};
+
+const OUTLINE_THICKNESS = {
+  None: 0,
+  Thin: 2,
+  Normal: 4,
+  Thick: 6,
+};
 
 export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const isTv = Platform.isTV;
@@ -24,6 +52,52 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
+
+  // VLC subtitle styling states
+  const [textColor, setTextColor] = useState(
+    storage.getString("vlc.textColor") || "White",
+  );
+  const [backgroundColor, setBackgroundColor] = useState(
+    storage.getString("vlc.backgroundColor") || "Black",
+  );
+  const [outlineColor, setOutlineColor] = useState(
+    storage.getString("vlc.outlineColor") || "Black",
+  );
+  const [outlineThickness, setOutlineThickness] = useState(
+    storage.getString("vlc.outlineThickness") || "Normal",
+  );
+  const [backgroundOpacity, setBackgroundOpacity] = useState(
+    storage.getNumber("vlc.backgroundOpacity") || 128,
+  );
+  const [outlineOpacity, setOutlineOpacity] = useState(
+    storage.getNumber("vlc.outlineOpacity") || 255,
+  );
+  const [isBold, setIsBold] = useState(
+    storage.getBoolean("vlc.isBold") || false,
+  );
+
+  // VLC settings effects
+  useEffect(() => {
+    storage.set("vlc.textColor", textColor);
+  }, [textColor]);
+  useEffect(() => {
+    storage.set("vlc.backgroundColor", backgroundColor);
+  }, [backgroundColor]);
+  useEffect(() => {
+    storage.set("vlc.outlineColor", outlineColor);
+  }, [outlineColor]);
+  useEffect(() => {
+    storage.set("vlc.outlineThickness", outlineThickness);
+  }, [outlineThickness]);
+  useEffect(() => {
+    storage.set("vlc.backgroundOpacity", backgroundOpacity);
+  }, [backgroundOpacity]);
+  useEffect(() => {
+    storage.set("vlc.outlineOpacity", outlineOpacity);
+  }, [outlineOpacity]);
+  useEffect(() => {
+    storage.set("vlc.isBold", isBold);
+  }, [isBold]);
 
   if (isTv) return null;
   if (!settings) return null;
@@ -146,6 +220,139 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             max={120}
             onUpdate={(subtitleSize) => updateSettings({ subtitleSize })}
           />
+        </ListItem>
+        <ListItem title={t("home.settings.subtitles.text_color")}>
+          <Dropdown
+            data={Object.keys(VLC_COLORS)}
+            keyExtractor={(item) => item}
+            titleExtractor={(item) =>
+              t(`home.settings.subtitles.colors.${item}`)
+            }
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {t(`home.settings.subtitles.colors.${textColor}`)}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.subtitles.text_color")}
+            onSelected={setTextColor}
+          />
+        </ListItem>
+        <ListItem title={t("home.settings.subtitles.background_color")}>
+          <Dropdown
+            data={Object.keys(VLC_COLORS)}
+            keyExtractor={(item) => item}
+            titleExtractor={(item) =>
+              t(`home.settings.subtitles.colors.${item}`)
+            }
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {t(`home.settings.subtitles.colors.${backgroundColor}`)}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.subtitles.background_color")}
+            onSelected={setBackgroundColor}
+          />
+        </ListItem>
+        <ListItem title={t("home.settings.subtitles.outline_color")}>
+          <Dropdown
+            data={Object.keys(VLC_COLORS)}
+            keyExtractor={(item) => item}
+            titleExtractor={(item) =>
+              t(`home.settings.subtitles.colors.${item}`)
+            }
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {t(`home.settings.subtitles.colors.${outlineColor}`)}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.subtitles.outline_color")}
+            onSelected={setOutlineColor}
+          />
+        </ListItem>
+        <ListItem title={t("home.settings.subtitles.outline_thickness")}>
+          <Dropdown
+            data={Object.keys(OUTLINE_THICKNESS)}
+            keyExtractor={(item) => item}
+            titleExtractor={(item) =>
+              t(`home.settings.subtitles.thickness.${item}`)
+            }
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {t(`home.settings.subtitles.thickness.${outlineThickness}`)}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.subtitles.outline_thickness")}
+            onSelected={setOutlineThickness}
+          />
+        </ListItem>
+        <ListItem title={t("home.settings.subtitles.background_opacity")}>
+          <Dropdown
+            data={[0, 32, 64, 96, 128, 160, 192, 224, 255]}
+            keyExtractor={String}
+            titleExtractor={(item) => `${Math.round((item / 255) * 100)}%`}
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>{`${Math.round((backgroundOpacity / 255) * 100)}%`}</Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.subtitles.background_opacity")}
+            onSelected={setBackgroundOpacity}
+          />
+        </ListItem>
+        <ListItem title={t("home.settings.subtitles.outline_opacity")}>
+          <Dropdown
+            data={[0, 32, 64, 96, 128, 160, 192, 224, 255]}
+            keyExtractor={String}
+            titleExtractor={(item) => `${Math.round((item / 255) * 100)}%`}
+            title={
+              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>{`${Math.round((outlineOpacity / 255) * 100)}%`}</Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </TouchableOpacity>
+            }
+            label={t("home.settings.subtitles.outline_opacity")}
+            onSelected={setOutlineOpacity}
+          />
+        </ListItem>
+        <ListItem title={t("home.settings.subtitles.bold_text")}>
+          <Switch value={isBold} onValueChange={setIsBold} />
         </ListItem>
       </ListGroup>
     </View>
