@@ -57,6 +57,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
         userId: user.Id,
         seasonId: seasonId || undefined,
         seriesId: item.SeriesId,
+        enableUserData: true,
         fields: [
           "ItemCounts",
           "PrimaryImageAspectRatio",
@@ -69,48 +70,6 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     },
     enabled: !!api && !!user?.Id && !!seasonId,
   });
-
-  /**
-   * Prefetch previous and next episode
-   */
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    if (!item?.Id || !item.IndexNumber || !episodes || episodes.length === 0) {
-      return;
-    }
-
-    const previousId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! - 1,
-    )?.Id;
-    if (previousId) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", previousId],
-        queryFn: async () =>
-          await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: previousId,
-          }),
-        staleTime: 60 * 1000 * 5,
-      });
-    }
-
-    const nextId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! + 1,
-    )?.Id;
-    if (nextId) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", nextId],
-        queryFn: async () =>
-          await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: nextId,
-          }),
-        staleTime: 60 * 1000 * 5,
-      });
-    }
-  }, [episodes, api, user?.Id, item]);
 
   useEffect(() => {
     if (item?.Type === "Episode" && item.Id) {
