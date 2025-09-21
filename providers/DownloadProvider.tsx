@@ -690,17 +690,9 @@ function useDownloadProvider() {
           timestamp: new Date(),
         };
         setProcesses((prev) => {
-          // Check if there's already a process for this item
-          if (prev.some((p) => p.id === item.Id)) {
-            // Notify user that the download already exists instead of silently ignoring
-            toast.warning(
-              t("home.downloads.toasts.download_already_in_progress", {
-                item: item.Name,
-              }),
-            );
-            return prev;
-          }
-          return [...prev, job];
+          // Remove any existing processes for this item to prevent duplicates
+          const filtered = prev.filter((p) => p.id !== item.Id);
+          return [...filtered, job];
         });
         toast.success(
           t("home.downloads.toasts.download_stated_for_item", {
@@ -889,23 +881,9 @@ function useDownloadProvider() {
       const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
 
       try {
-        // Try a normal pause first. Some native implementations support
-        // pause() and will keep the background session resumable. If it
-        // fails or the task isn't put into a paused state we fall back to
-        // stop() so we can persist partial bytes and restart later.
-        let pausedSuccessfully = false;
-        try {
-          await task.pause();
-          const verifyTasks =
-            await BackGroundDownloader.checkForExistingDownloads();
-          const verifyTask = verifyTasks?.find((t: any) => t.id === id);
-          const state = verifyTask?.state || task.state?.();
-          pausedSuccessfully = state === "PAUSED" || state === "paused";
-        } catch (_e) {
-          pausedSuccessfully = false;
-        }
-
-        if (!pausedSuccessfully) {
+        // On iOS, pause() may not work reliably, so we always stop the task
+        // to ensure it doesn't continue running in the background
+        if (Platform.OS === "ios") {
           try {
             task.stop();
           } catch (_err) {
@@ -915,6 +893,32 @@ function useDownloadProvider() {
             BackGroundDownloader.completeHandler(id);
           } catch (_err) {
             // ignore
+          }
+        } else {
+          // Try a normal pause first on Android and other platforms
+          let pausedSuccessfully = false;
+          try {
+            await task.pause();
+            const verifyTasks =
+              await BackGroundDownloader.checkForExistingDownloads();
+            const verifyTask = verifyTasks?.find((t: any) => t.id === id);
+            const state = verifyTask?.state || task.state?.();
+            pausedSuccessfully = state === "PAUSED" || state === "paused";
+          } catch (_e) {
+            pausedSuccessfully = false;
+          }
+
+          if (!pausedSuccessfully) {
+            try {
+              task.stop();
+            } catch (_err) {
+              // ignore stop errors
+            }
+            try {
+              BackGroundDownloader.completeHandler(id);
+            } catch (_err) {
+              // ignore
+            }
           }
         }
 
