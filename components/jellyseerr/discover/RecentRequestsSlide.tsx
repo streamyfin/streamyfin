@@ -8,6 +8,11 @@ import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import type { NonFunctionProperties } from "@/utils/jellyseerr/server/interfaces/api/common";
 
+type ExtendedMediaRequest = NonFunctionProperties<MediaRequest> & {
+  profileName: string;
+  canRemove: boolean;
+};
+
 const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
   const { jellyseerrApi } = useJellyseerr();
 
@@ -67,9 +72,15 @@ const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({
       <Slide
         {...props}
         slide={slide}
-        data={requests.results}
+        data={
+          requests.results.map((item) => ({
+            ...item,
+            profileName: item.profileName ?? "Unknown",
+            canRemove: Boolean(item.canRemove),
+          })) as ExtendedMediaRequest[]
+        }
         keyExtractor={(item) => item.id.toString()}
-        renderItem={(item: NonFunctionProperties<MediaRequest>) => (
+        renderItem={(item: ExtendedMediaRequest) => (
           <RequestCard request={item} />
         )}
       />

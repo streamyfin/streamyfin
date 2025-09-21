@@ -364,8 +364,8 @@ export const HomeIndex = () => {
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
   if (!isConnected || serverConnected !== true) {
-    let title: string;
-    let subtitle: string;
+    let title = "";
+    let subtitle = "";
 
     if (!isConnected) {
       // No network connection

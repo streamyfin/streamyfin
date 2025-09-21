@@ -1,12 +1,20 @@
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import React, { useCallback, useImperativeHandle, useRef } from "react";
-import { StyleSheet, Text, type TextInputProps, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  type TextInputProps,
+  View,
+  type ViewStyle,
+} from "react-native";
 
-interface PinInputProps extends Omit<TextInputProps, "value" | "onChangeText"> {
+interface PinInputProps
+  extends Omit<TextInputProps, "value" | "onChangeText" | "style"> {
   value: string;
   onChangeText: (text: string) => void;
   length?: number;
   autoFocus?: boolean;
+  style?: ViewStyle;
 }
 
 export interface PinInputRef {
@@ -118,6 +126,5 @@ const styles = StyleSheet.create({
     width: 2,
     height: 24,
     backgroundColor: "#6366F1",
-    animation: "blink 1s infinite",
   },
 });
