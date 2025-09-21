@@ -614,7 +614,13 @@ function useDownloadProvider() {
         // asynchronous begin callback hasn't executed yet and multiple
         // downloads are started, bypassing the concurrent limit.
         updateProcess(queuedDownload.id, { status: "downloading" });
-        startDownload(queuedDownload);
+        startDownload(queuedDownload).catch((error) => {
+          console.error("Failed to start download:", error);
+          updateProcess(queuedDownload.id, { status: "error" });
+          toast.error("Failed to start download", {
+            description: error.message || "Unknown error",
+          });
+        });
       }
     }
   }, [processes, settings?.remuxConcurrentLimit, startDownload]);
