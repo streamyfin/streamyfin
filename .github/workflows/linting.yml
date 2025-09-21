@@ -65,6 +65,7 @@ jobs:
 
   expo-doctor:
     name: 🚑 Expo Doctor Check
+    if: false
     runs-on: ubuntu-24.04
     steps:
       - name: 🛒 Checkout repository

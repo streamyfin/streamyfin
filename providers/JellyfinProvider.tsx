@@ -374,7 +374,7 @@ function useProtectedRoute(user: UserDto | null, loaded = false) {
   useEffect(() => {
     if (loaded === false) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inAuthGroup = segments.length > 1 && segments[0] === "(auth)";
 
     if (!user?.Id && inAuthGroup) {
       console.log("Redirected to login");
