@@ -104,7 +104,7 @@ function parseErrorsAndCreateSummary(errorOutput) {
       // This is a continuation of the current error
       currentError.push(`  ${colors.gray}${line}${colors.reset}`);
     } else if (line.match(/Found \d+ errors? in \d+ files?/)) {
-      // Skip the summary line - no continue needed since we're at the end of the loop
+      // Skip the summary line; no action needed for this line
     } else {
       // Standalone line
       formattedErrors.push(formatError(line));
@@ -176,7 +176,8 @@ function runTypeCheck() {
   } catch (error) {
     const errorOutput = (error && (error.stderr || error.stdout)) || "";
 
-    // Filter out jellyseerr utils errors
+    // Filter out jellyseerr utils errors - this is a third-party git submodule
+    // that generates a large volume of known type errors
     const filteredLines = errorOutput.split("\n").filter((line) => {
       const trimmedLine = line.trim();
       return trimmedLine && !trimmedLine.includes("utils/jellyseerr");
