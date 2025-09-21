@@ -13,7 +13,9 @@ type ExtendedMediaRequest = NonFunctionProperties<MediaRequest> & {
   canRemove: boolean;
 };
 
-const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
+const RequestCard: React.FC<{ request: ExtendedMediaRequest }> = ({
+  request,
+}) => {
   const { jellyseerrApi } = useJellyseerr();
 
   const { data: details } = useQuery({
