@@ -23,6 +23,13 @@ const colors = {
   },
 };
 
+const border = "━".repeat(80);
+
+// Center the title within the border
+const title = "🔥 STREAMYFIN TYPESCRIPT CHECK";
+const titlePadding = Math.floor((80 - title.length) / 2);
+const centeredTitle = " ".repeat(titlePadding) + title;
+
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 
 function log(message, color = "") {
@@ -152,10 +159,12 @@ function runTypeCheck() {
       colors.blue,
     );
 
+    const MAX_BUFFER_SIZE = 64 * 1024 * 1024; // 64MB
+
     execFileSync(execArgs.cmd, execArgs.args, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      maxBuffer: 64 * 1024 * 1024, // 64MB
+      maxBuffer: MAX_BUFFER_SIZE,
       env: { ...process.env, FORCE_COLOR: "0" },
     });
 
@@ -225,15 +234,9 @@ function runTypeCheck() {
 }
 
 // Enhanced header
-console.log(
-  `${colors.blue}${colors.bold}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`,
-);
-console.log(
-  `${colors.blue}${colors.bold}  🔥 STREAMYFIN TYPESCRIPT CHECK${colors.reset}`,
-);
-console.log(
-  `${colors.blue}${colors.bold}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`,
-);
+console.log(`${colors.blue}${colors.bold}${border}${colors.reset}`);
+console.log(`${colors.blue}${colors.bold}${centeredTitle}${colors.reset}`);
+console.log(`${colors.blue}${colors.bold}${border}${colors.reset}`);
 console.log();
 
 // Main execution
