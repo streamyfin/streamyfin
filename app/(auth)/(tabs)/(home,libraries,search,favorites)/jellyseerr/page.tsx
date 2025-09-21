@@ -281,8 +281,7 @@ const Page: React.FC = () => {
                           mediaType === MediaType.MOVIE
                             ? `/(auth)/(tabs)/(search)/items/page?id=${details?.mediaInfo.jellyfinMediaId}`
                             : `/(auth)/(tabs)/(search)/series/${details?.mediaInfo.jellyfinMediaId}`;
-                        // @ts-expect-error
-                        router.push(url);
+                        router.push(url as any);
                       }}
                       iconLeft={
                         <Ionicons name='play-outline' size={20} color='white' />

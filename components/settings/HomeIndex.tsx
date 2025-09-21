@@ -125,7 +125,7 @@ export const HomeIndex = () => {
   const segments = useSegments();
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
-      if (segments[2] === "(home)")
+      if ((segments as string[])[2] === "(home)")
         scrollViewRef.current?.scrollTo({ y: -152, animated: true });
     });
 

@@ -24,7 +24,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
   const segments = useSegments();
   const { t } = useTranslation();
-  const from = segments[2];
+  const from = (segments as string[])[2];
 
   const destinctPeople = useMemo(() => {
     const people: Record<string, BaseItemPerson> = {};
@@ -63,8 +63,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
                 },
                 from,
               );
-              // @ts-expect-error
-              router.push(url);
+              router.push(url as any);
             }}
             className='flex flex-col w-28'
           >
