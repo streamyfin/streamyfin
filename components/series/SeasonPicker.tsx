@@ -11,7 +11,6 @@ import {
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { Text } from "../common/Text";
@@ -101,7 +100,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
 
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);
