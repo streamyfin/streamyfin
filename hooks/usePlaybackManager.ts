@@ -146,10 +146,6 @@ export const usePlaybackManager = ({
   const reportPlaybackProgress = async (
     playbackProgressInfo: PlaybackProgressInfo,
   ) => {
-    const _metadata = {
-      AudioStreamIndex: playbackProgressInfo.AudioStreamIndex ?? -1,
-      SubtitleStreamIndex: playbackProgressInfo.SubtitleStreamIndex ?? -1,
-    };
     const positionTicks = playbackProgressInfo.PositionTicks || 0;
     const itemId = playbackProgressInfo.ItemId!;
     const localItem = getDownloadedItemById(itemId);
