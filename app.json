@@ -115,6 +115,7 @@
           }
         }
       ],
+      ["./plugins/withRNBackgroundDownloader.js"],
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
