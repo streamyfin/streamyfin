@@ -109,8 +109,8 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
         />
       )}
 
-      {/* Action buttons in top right corner */}
-      <View className='absolute top-2 right-2 flex flex-row items-center space-x-2 z-10'>
+      {/* Action buttons in bottom right corner */}
+      <View className='absolute bottom-2 right-2 flex flex-row items-center space-x-2 z-10'>
         {process.status === "downloading" && (
           <TouchableOpacity
             onPress={() => handlePause(process.id)}
