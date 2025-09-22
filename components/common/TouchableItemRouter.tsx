@@ -46,45 +46,41 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
 export const getItemNavigation = (item: BaseItemDto, _from: string) => {
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return {
-      pathname: "/(auth)/(tabs)/(home)/livetv" as const,
+      pathname: "/livetv" as const,
     };
   }
 
   if (item.Type === "Series") {
     return {
-      pathname:
-        "/(auth)/(tabs)/(home,libraries,search,favorites)/series/[id]" as const,
+      pathname: "/series/[id]" as const,
       params: { id: item.Id! },
     };
   }
 
   if (item.Type === "Person") {
     return {
-      pathname:
-        "/(auth)/(tabs)/(home,libraries,search,favorites)/persons/[personId]" as const,
+      pathname: "/persons/[personId]" as const,
       params: { personId: item.Id! },
     };
   }
 
   if (item.Type === "BoxSet" || item.Type === "UserView") {
     return {
-      pathname:
-        "/(auth)/(tabs)/(home,libraries,search,favorites)/collections/[collectionId]" as const,
+      pathname: "/collections/[collectionId]" as const,
       params: { collectionId: item.Id! },
     };
   }
 
   if (item.Type === "CollectionFolder" || item.Type === "Playlist") {
     return {
-      pathname: "/(auth)/(tabs)/(libraries)/[libraryId]" as const,
+      pathname: "/[libraryId]" as const,
       params: { libraryId: item.Id! },
     };
   }
 
   // Default case - items page
   return {
-    pathname:
-      "/(auth)/(tabs)/(home,libraries,search,favorites)/items/page" as const,
+    pathname: "/items/page" as const,
     params: { id: item.Id! },
   };
 };

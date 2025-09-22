@@ -57,7 +57,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
             onPress={() => {
               if (i.Id) {
                 router.push({
-                  pathname: "/(auth)/(tabs)/(home)/persons/[personId]",
+                  pathname: "/persons/[personId]",
                   params: { personId: i.Id },
                 });
               }
