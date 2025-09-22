@@ -79,7 +79,7 @@ and provides seamless media streaming with offline capabilities and Chromecast s
 ## Commit Messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/):
-Exemple:
+Exemples:
 - `feat(player): add Chromecast support`
 - `fix(auth): handle expired JWT tokens`
 - `chore(deps): update Jellyfin SDK`
