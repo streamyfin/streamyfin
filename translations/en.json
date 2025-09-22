@@ -35,10 +35,15 @@
     "servers": "Servers"
   },
   "home": {
+    "checking_server_connection": "Checking server connection...",
     "no_internet": "No Internet",
     "no_items": "No items",
     "no_internet_message": "No worries, you can still watch\ndownloaded content.",
+    "checking_server_connection_message": "Checking connection to server",
     "go_to_downloads": "Go to downloads",
+    "retry": "Retry",
+    "server_unreachable": "Server Unreachable",
+    "server_unreachable_message": "Could not reach the server.\nPlease check your network connection.",
     "oops": "Oops!",
     "error_message": "Something went wrong.\nPlease log out and in again.",
     "continue_watching": "Continue Watching",

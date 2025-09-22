@@ -2,6 +2,7 @@ import {
   type BaseItemDto,
   type MediaSourceInfo,
   PlaybackOrder,
+  PlaybackProgressInfo,
   PlaybackStartInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
@@ -271,12 +272,7 @@ export default function page() {
     if (isPlaying) {
       await videoRef.current?.pause();
       playbackManager.reportPlaybackProgress(
-        item?.Id!,
-        msToTicks(progress.get()),
-        {
-          AudioStreamIndex: audioIndex ?? -1,
-          SubtitleStreamIndex: subtitleIndex ?? -1,
-        },
+        currentPlayStateInfo() as PlaybackProgressInfo,
       );
     } else {
       videoRef.current?.play();
@@ -394,12 +390,7 @@ export default function page() {
       if (!item?.Id) return;
 
       playbackManager.reportPlaybackProgress(
-        item.Id,
-        msToTicks(progress.get()),
-        {
-          AudioStreamIndex: audioIndex ?? -1,
-          SubtitleStreamIndex: subtitleIndex ?? -1,
-        },
+        currentPlayStateInfo() as PlaybackProgressInfo,
       );
     },
     [
@@ -506,12 +497,7 @@ export default function page() {
         setIsPlaying(true);
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
-            item.Id,
-            msToTicks(progress.get()),
-            {
-              AudioStreamIndex: audioIndex ?? -1,
-              SubtitleStreamIndex: subtitleIndex ?? -1,
-            },
+            currentPlayStateInfo() as PlaybackProgressInfo,
           );
         }
         if (!Platform.isTV) await activateKeepAwakeAsync();
@@ -522,12 +508,7 @@ export default function page() {
         setIsPlaying(false);
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
-            item.Id,
-            msToTicks(progress.get()),
-            {
-              AudioStreamIndex: audioIndex ?? -1,
-              SubtitleStreamIndex: subtitleIndex ?? -1,
-            },
+            currentPlayStateInfo() as PlaybackProgressInfo,
           );
         }
         if (!Platform.isTV) await deactivateKeepAwake();
