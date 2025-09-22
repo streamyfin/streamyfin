@@ -130,7 +130,7 @@ if (process.env.NODE_ENV === "production") {
           .createHash("sha1")
           .update(path)
           .digest("hex")
-          .substr(0, 8);
+          .substring(0, 8);
       };
     },
 
