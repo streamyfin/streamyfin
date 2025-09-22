@@ -42,11 +42,12 @@ const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
 
+// Cap progress at 99% to avoid showing 100% before the download is actually complete
+const MAX_PROGRESS_BEFORE_COMPLETION = 99;
+
 // Estimate the total download size in bytes for a job. If the media source
 // provides a Size, use that. Otherwise, if we have a bitrate and run time
 // (RunTimeTicks), approximate size = (bitrate bits/sec * seconds) / 8.
-const PRE_COMPLETE_PROGRESS = 99;
-
 const calculateEstimatedSize = (p: JobStatus): number => {
   const size = p.mediaSource?.Size || 0;
   const maxBitrate = p.maxBitrate?.value;
@@ -220,7 +221,7 @@ function useDownloadProvider() {
 
             return {
               ...p,
-              progress: Math.min(progress, PRE_COMPLETE_PROGRESS),
+              progress: Math.min(progress, MAX_PROGRESS_BEFORE_COMPLETION),
               speed,
               bytesDownloaded: totalBytesDownloaded,
               lastProgressUpdateTime: new Date(),
@@ -237,7 +238,7 @@ function useDownloadProvider() {
               progress = (100 / estimatedSize) * task.bytesDownloaded;
             }
             if (progress >= 100) {
-              progress = PRE_COMPLETE_PROGRESS;
+              progress = MAX_PROGRESS_BEFORE_COMPLETION;
             }
             const speed = calculateSpeed(p, task.bytesDownloaded);
             return {
@@ -456,10 +457,10 @@ function useDownloadProvider() {
         .begin(() => {
           updateProcess(process.id, {
             status: "downloading",
-            progress: 0,
-            bytesDownloaded: 0,
+            progress: process.progress || 0,
+            bytesDownloaded: process.bytesDownloaded || 0,
             lastProgressUpdateTime: new Date(),
-            lastSessionBytes: 0,
+            lastSessionBytes: process.lastSessionBytes || 0,
             lastSessionUpdateTime: new Date(),
           });
         })
@@ -474,10 +475,7 @@ function useDownloadProvider() {
                 bytesDownloaded: data.bytesDownloaded,
                 lastProgressUpdateTime: new Date(),
                 // update session-only counters
-                lastSessionBytes:
-                  (currentProcess.lastSessionBytes || 0) < data.bytesDownloaded
-                    ? data.bytesDownloaded
-                    : currentProcess.lastSessionBytes || data.bytesDownloaded,
+                lastSessionBytes: data.bytesDownloaded,
                 lastSessionUpdateTime: new Date(),
               };
             });
