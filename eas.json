@@ -72,7 +72,7 @@
       "environment": "production",
       "channel": "0.36.0",
       "android": {
-        "buildType": "aab",
+        "buildType": "app-bundle",
         "image": "latest"
       },
       "ios": {
