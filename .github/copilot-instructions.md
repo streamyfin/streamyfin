@@ -22,7 +22,7 @@ and provides seamless media streaming with offline capabilities and Chromecast s
 
 **CRITICAL: ALWAYS use `bun` for all package management operations**
 
-- **NEVER use `npm`, `yarn`, `bunx` or `npx` commands**
+- **NEVER use `npm`, `yarn` or `npx` commands**
 - Use `bun install` instead of `npm install` or `yarn install`
 - Use `bun add <package>` instead of `npm install <package>`
 - Use `bun remove <package>` instead of `npm uninstall <package>`

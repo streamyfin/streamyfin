@@ -117,10 +117,14 @@
   // TERMINAL & DEVELOPMENT
   // ==========================================
 
-  // Terminal settings for Bun
-  "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe",
-  "terminal.integrated.env.windows": {
-    "PATH": "${env:PATH};./node_modules/.bin"
+  // Terminal settings for Bun (Windows-specific)
+  "terminal.integrated.profiles.windows": {
+    "Command Prompt": {
+      "path": "C:\\Windows\\System32\\cmd.exe",
+      "env": {
+        "PATH": "${env:PATH};./node_modules/.bin"
+      }
+    }
   },
 
   // ==========================================
