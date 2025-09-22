@@ -1,6 +1,7 @@
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import React, { useCallback, useImperativeHandle, useRef } from "react";
 import {
+  type StyleProp,
   StyleSheet,
   Text,
   type TextInputProps,
@@ -14,7 +15,7 @@ interface PinInputProps
   onChangeText: (text: string) => void;
   length?: number;
   autoFocus?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export interface PinInputRef {

@@ -12,7 +12,6 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { HorizontalScroll } from "../common/HorizontalScroll";
 import { Text } from "../common/Text";
-import { itemRouter } from "../common/TouchableItemRouter";
 import Poster from "../posters/Poster";
 
 interface Props extends ViewProps {
@@ -56,14 +55,12 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
-              const url = itemRouter(
-                {
-                  Id: i.Id,
-                  Type: "Person",
-                },
-                from,
-              );
-              router.push(url as any);
+              if (i.Id) {
+                router.push({
+                  pathname: "/(auth)/(tabs)/(home)/persons/[personId]",
+                  params: { personId: i.Id },
+                });
+              }
             }}
             className='flex flex-col w-28'
           >

@@ -316,7 +316,7 @@ export const HomeIndex = () => {
       const id = section.title || `section-${index}`;
       ss.push({
         title: t(`${id}`),
-        queryKey: ["home", id],
+        queryKey: ["home", "custom", String(index), section.title ?? null],
         queryFn: async () => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
