@@ -4,6 +4,11 @@
   },
   "build": {
     "development": {
+      "resourceClass": "medium",
+      "cache": {
+        "key": "development-{{ checksum \"bun.lock\" }}-{{ checksum \"package.json\" }}",
+        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+      },
       "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
@@ -15,6 +20,11 @@
       }
     },
     "development_tv": {
+      "resourceClass": "medium",
+      "cache": {
+        "key": "development-tv-{{ checksum \"bun.lock\" }}-{{ checksum \"package.json\" }}",
+        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+      },
       "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
@@ -27,6 +37,11 @@
       }
     },
     "development-simulator": {
+      "resourceClass": "medium",
+      "cache": {
+        "key": "development-simulator-{{ checksum \"bun.lock\" }}-{{ checksum \"package.json\" }}",
+        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+      },
       "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
@@ -38,19 +53,38 @@
       }
     },
     "preview": {
+      "resourceClass": "large",
+      "cache": {
+        "key": "preview-{{ checksum \"bun.lock\" }}-{{ checksum \"package.json\" }}",
+        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+      },
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
     "production": {
+      "resourceClass": "large",
+      "cache": {
+        "key": "production-{{ checksum \"bun.lock\" }}-{{ checksum \"package.json\" }}",
+        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+      },
       "environment": "production",
       "channel": "0.36.0",
       "android": {
+        "buildType": "aab",
+        "image": "latest"
+      },
+      "ios": {
         "image": "latest"
       }
     },
     "production-apk": {
+      "resourceClass": "large",
+      "cache": {
+        "key": "production-apk-{{ checksum \"bun.lock\" }}-{{ checksum \"package.json\" }}",
+        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+      },
       "environment": "production",
       "channel": "0.36.0",
       "android": {
@@ -59,6 +93,11 @@
       }
     },
     "production-apk-tv": {
+      "resourceClass": "large",
+      "cache": {
+        "key": "production-apk-tv-{{ checksum \"bun.lock\" }}-{{ checksum \"package.json\" }}",
+        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+      },
       "environment": "production",
       "channel": "0.36.0",
       "android": {

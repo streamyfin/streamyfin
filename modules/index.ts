@@ -12,8 +12,9 @@ import {
 } from "./VlcPlayer.types";
 import VlcPlayerView from "./VlcPlayerView";
 
-export {
-  VlcPlayerView,
+export { VlcPlayerView };
+
+export type {
   VlcPlayerViewProps,
   VlcPlayerViewRef,
   PlaybackStatePayload,
