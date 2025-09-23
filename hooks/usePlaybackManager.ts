@@ -1,4 +1,7 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  PlaybackProgressInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi, getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
@@ -141,13 +144,10 @@ export const usePlaybackManager = ({
    * @param positionTicks The current playback position in ticks.
    */
   const reportPlaybackProgress = async (
-    itemId: string,
-    positionTicks: number,
-    metadata?: {
-      AudioStreamIndex: number;
-      SubtitleStreamIndex: number;
-    },
+    playbackProgressInfo: PlaybackProgressInfo,
   ) => {
+    const positionTicks = playbackProgressInfo.PositionTicks || 0;
+    const itemId = playbackProgressInfo.ItemId!;
     const localItem = getDownloadedItemById(itemId);
 
     // Handle local state update for downloaded items
@@ -192,14 +192,7 @@ export const usePlaybackManager = ({
     if (isOnline && api) {
       try {
         await getPlaystateApi(api).reportPlaybackProgress({
-          playbackProgressInfo: {
-            ItemId: itemId,
-            PositionTicks: Math.floor(positionTicks),
-            ...(metadata && { AudioStreamIndex: metadata.AudioStreamIndex }),
-            ...(metadata && {
-              SubtitleStreamIndex: metadata.SubtitleStreamIndex,
-            }),
-          },
+          playbackProgressInfo,
         });
       } catch (error) {
         console.error("Failed to report playback progress", error);
