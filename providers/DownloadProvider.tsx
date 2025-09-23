@@ -462,6 +462,8 @@ function useDownloadProvider() {
             lastProgressUpdateTime: new Date(),
             lastSessionBytes: process.lastSessionBytes || 0,
             lastSessionUpdateTime: new Date(),
+            // Clear resumeOffset for fresh downloads (only used for resume)
+            resumeOffset: process.resumeOffset,
           });
         })
         .progress(
@@ -469,8 +471,8 @@ function useDownloadProvider() {
             updateProcess(process.id, (currentProcess) => {
               // For resume on iOS, add previously downloaded bytes since the downloader starts from 0
               const totalBytesDownloaded =
-                Platform.OS === "ios" && currentProcess.pausedBytes
-                  ? data.bytesDownloaded + currentProcess.pausedBytes
+                Platform.OS === "ios" && currentProcess.resumeOffset
+                  ? data.bytesDownloaded + currentProcess.resumeOffset
                   : data.bytesDownloaded;
               const percent = (totalBytesDownloaded / data.bytesTotal) * 100;
               return {
@@ -1001,9 +1003,11 @@ function useDownloadProvider() {
             pausedProgress: undefined,
             pausedBytes: undefined,
             pausedAt: undefined,
+            // Store resume offset for iOS progress calculation
+            resumeOffset: pausedBytes ?? process.pausedBytes ?? 0,
             // Seed session-only counters so speed is calculated from the
             // resumed session instead of a full total delta.
-            lastSessionBytes: pausedBytes ?? process.pausedBytes ?? 0,
+            lastSessionBytes: 0, // Reset session bytes for new download
             lastSessionUpdateTime: new Date(),
           });
 
@@ -1028,6 +1032,8 @@ function useDownloadProvider() {
             pausedProgress: undefined,
             pausedBytes: undefined,
             pausedAt: undefined,
+            // Store resume offset for iOS progress calculation
+            resumeOffset: process.pausedBytes,
           });
           const updatedProcess = processes.find((p) => p.id === id);
           await startDownload(updatedProcess || process);
@@ -1058,6 +1064,8 @@ function useDownloadProvider() {
               pausedProgress: undefined,
               pausedBytes: undefined,
               pausedAt: undefined,
+              // Store resume offset for iOS progress calculation
+              resumeOffset: process.pausedBytes,
             });
             const updatedProcess = processes.find((p) => p.id === id);
             await startDownload(updatedProcess || process);

@@ -139,4 +139,6 @@ export type JobStatus = {
   lastSessionBytes?: number;
   /** Timestamp when the session-only bytes were last updated. */
   lastSessionUpdateTime?: Date;
+  /** Offset for resume calculations on iOS (bytes already downloaded before current session) */
+  resumeOffset?: number;
 };
