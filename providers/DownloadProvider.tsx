@@ -628,6 +628,26 @@ function useDownloadProvider() {
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
       const task = tasks?.find((t: any) => t.id === id);
       if (task) {
+        // On iOS, suspended tasks need to be cancelled properly
+        if (Platform.OS === "ios") {
+          const state = task.state || task.state?.();
+          if (
+            state === "PAUSED" ||
+            state === "paused" ||
+            state === "SUSPENDED" ||
+            state === "suspended"
+          ) {
+            // For suspended tasks, we need to resume first, then stop
+            try {
+              await task.resume();
+              // Small delay to allow resume to take effect
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            } catch (_resumeError) {
+              // Resume might fail, continue with stop
+            }
+          }
+        }
+
         try {
           task.stop();
         } catch (_err) {
@@ -889,18 +909,80 @@ function useDownloadProvider() {
       const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
 
       try {
-        // On iOS, pause() may not work reliably, so we always stop the task
-        // to ensure it doesn't continue running in the background
+        // On iOS, we need to suspend the task to allow resuming
         if (Platform.OS === "ios") {
           try {
-            task.stop();
-          } catch (_err) {
-            // ignore stop errors
-          }
-          try {
-            BackGroundDownloader.completeHandler(id);
-          } catch (_err) {
-            // ignore
+            await task.pause();
+            // Verify the task was properly suspended
+            const verifyTasks =
+              await BackGroundDownloader.checkForExistingDownloads();
+            const verifyTask = verifyTasks?.find((t: any) => t.id === id);
+            const state = verifyTask?.state || task.state?.();
+            if (
+              state === "PAUSED" ||
+              state === "paused" ||
+              state === "SUSPENDED" ||
+              state === "suspended"
+            ) {
+              // Task is properly suspended - update status
+              updateProcess(id, {
+                status: "paused",
+                progress: currentProgress,
+                bytesDownloaded: currentBytes,
+                pausedAt: new Date(),
+                pausedProgress: currentProgress,
+                pausedBytes: currentBytes,
+                lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+                lastSessionUpdateTime:
+                  process.lastSessionUpdateTime ?? new Date(),
+              });
+            } else {
+              // If pause didn't work, fall back to stop
+              try {
+                task.stop();
+              } catch (_err) {
+                // ignore stop errors
+              }
+              try {
+                BackGroundDownloader.completeHandler(id);
+              } catch (_err) {
+                // ignore
+              }
+              updateProcess(id, {
+                status: "paused",
+                progress: currentProgress,
+                bytesDownloaded: currentBytes,
+                pausedAt: new Date(),
+                pausedProgress: currentProgress,
+                pausedBytes: currentBytes,
+                lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+                lastSessionUpdateTime:
+                  process.lastSessionUpdateTime ?? new Date(),
+              });
+            }
+          } catch (_pauseError) {
+            // If pause fails, fall back to stop
+            try {
+              task.stop();
+            } catch (_err) {
+              // ignore stop errors
+            }
+            try {
+              BackGroundDownloader.completeHandler(id);
+            } catch (_err) {
+              // ignore
+            }
+            updateProcess(id, {
+              status: "paused",
+              progress: currentProgress,
+              bytesDownloaded: currentBytes,
+              pausedAt: new Date(),
+              pausedProgress: currentProgress,
+              pausedBytes: currentBytes,
+              lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+              lastSessionUpdateTime:
+                process.lastSessionUpdateTime ?? new Date(),
+            });
           }
         } else {
           // Try a normal pause first on Android and other platforms
@@ -928,19 +1010,18 @@ function useDownloadProvider() {
               // ignore
             }
           }
-        }
 
-        updateProcess(id, {
-          status: "paused",
-          progress: currentProgress,
-          bytesDownloaded: currentBytes,
-          pausedAt: new Date(),
-          pausedProgress: currentProgress,
-          pausedBytes: currentBytes,
-          // Preserve session bookkeeping so resume can display session speed
-          lastSessionBytes: process.lastSessionBytes ?? currentBytes,
-          lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
-        });
+          updateProcess(id, {
+            status: "paused",
+            progress: currentProgress,
+            bytesDownloaded: currentBytes,
+            pausedAt: new Date(),
+            pausedProgress: currentProgress,
+            pausedBytes: currentBytes,
+            lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+            lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
+          });
+        }
       } catch (error) {
         console.error("Error pausing task:", error);
         try {
