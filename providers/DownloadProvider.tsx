@@ -25,7 +25,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
 import { getItemImage } from "@/utils/getItemImage";
-import { writeToLog } from "@/utils/log";
+import { dumpDownloadDiagnostics, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { fetchAndParseSegments } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
@@ -436,7 +436,7 @@ function useDownloadProvider() {
       updateProcess(process.id, {
         speed: undefined,
         status: "downloading",
-        progress: process.progress || 0, // Preserve existing progress for resume
+        progress: 0,
       });
 
       BackGroundDownloader?.setConfig({
@@ -467,17 +467,12 @@ function useDownloadProvider() {
         .progress(
           throttle((data) => {
             updateProcess(process.id, (currentProcess) => {
-              // For resume on iOS, add previously downloaded bytes since the downloader starts from 0
-              const totalBytesDownloaded =
-                Platform.OS === "ios" && currentProcess.pausedBytes
-                  ? data.bytesDownloaded + currentProcess.pausedBytes
-                  : data.bytesDownloaded;
-              const percent = (totalBytesDownloaded / data.bytesTotal) * 100;
+              const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
               return {
                 speed: calculateSpeed(currentProcess, data.bytesDownloaded),
                 status: "downloading",
                 progress: percent,
-                bytesDownloaded: totalBytesDownloaded,
+                bytesDownloaded: data.bytesDownloaded,
                 lastProgressUpdateTime: new Date(),
                 // update session-only counters
                 lastSessionBytes: data.bytesDownloaded,
@@ -997,10 +992,6 @@ function useDownloadProvider() {
             progress: process.pausedProgress ?? process.progress,
             bytesDownloaded: pausedBytes ?? process.pausedBytes ?? 0,
             status: "downloading",
-            // Clear paused state since we're resuming
-            pausedProgress: undefined,
-            pausedBytes: undefined,
-            pausedAt: undefined,
             // Seed session-only counters so speed is calculated from the
             // resumed session instead of a full total delta.
             lastSessionBytes: pausedBytes ?? process.pausedBytes ?? 0,
@@ -1024,10 +1015,6 @@ function useDownloadProvider() {
             progress: process.pausedProgress,
             bytesDownloaded: process.pausedBytes,
             status: "downloading",
-            // Clear paused state since we're resuming
-            pausedProgress: undefined,
-            pausedBytes: undefined,
-            pausedAt: undefined,
           });
           const updatedProcess = processes.find((p) => p.id === id);
           await startDownload(updatedProcess || process);
@@ -1054,10 +1041,6 @@ function useDownloadProvider() {
               progress: process.pausedProgress,
               bytesDownloaded: process.pausedBytes,
               status: "downloading",
-              // Clear paused state since we're resuming
-              pausedProgress: undefined,
-              pausedBytes: undefined,
-              pausedAt: undefined,
             });
             const updatedProcess = processes.find((p) => p.id === id);
             await startDownload(updatedProcess || process);
@@ -1106,9 +1089,7 @@ function useDownloadProvider() {
         const p = processes.find((x) => x.id === id);
         extra.focusedProcess = p || null;
       }
-      // Log diagnostics for debugging
-      writeToLog("INFO", "Download diagnostics", extra);
-      return extra;
+      return dumpDownloadDiagnostics(extra);
     },
   };
 }
