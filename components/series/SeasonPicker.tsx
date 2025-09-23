@@ -87,7 +87,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
         seasonId: selectedSeasonId,
         enableUserData: true,
         // Note: Including trick play is necessary to enable trick play downloads
-        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
+        fields: ["Overview", "Trickplay"],
       });
 
       if (res.data.TotalRecordCount === 0)
@@ -102,23 +102,6 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
   });
 
   const queryClient = useQueryClient();
-  useEffect(() => {
-    for (const e of episodes || []) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", e.Id],
-        queryFn: async () => {
-          if (!e.Id) return;
-          const res = await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: e.Id,
-          });
-          return res;
-        },
-        staleTime: 60 * 5 * 1000,
-      });
-    }
-  }, [episodes]);
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);

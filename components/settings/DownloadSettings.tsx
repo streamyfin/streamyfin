@@ -13,7 +13,7 @@ export default function DownloadSettings({ ...props }) {
   const allDisabled = useMemo(
     () =>
       pluginSettings?.remuxConcurrentLimit?.locked === true &&
-      pluginSettings?.autoDownload.locked === true,
+      pluginSettings?.autoDownload?.locked === true,
     [pluginSettings],
   );
 

@@ -14,7 +14,7 @@
     "android:tv": "cross-env EXPO_TV=1 expo run:android",
     "build:android:local": "cd android && cross-env NODE_ENV=production ./gradlew assembleRelease",
     "prepare": "husky",
-    "typecheck": "tsc -p tsconfig.json --noEmit | grep -v \"utils/jellyseerr\"",
+    "typecheck": "node scripts/typecheck.js",
     "check": "biome check . --max-diagnostics 1000",
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
