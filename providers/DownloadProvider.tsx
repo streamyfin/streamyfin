@@ -879,18 +879,46 @@ function useDownloadProvider() {
       const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
 
       try {
-        // On iOS, pause() may not work reliably, so we always stop the task
-        // to ensure it doesn't continue running in the background
+        // On iOS, we need to suspend the task to allow resuming
         if (Platform.OS === "ios") {
           try {
-            task.stop();
-          } catch (_err) {
-            // ignore stop errors
-          }
-          try {
-            BackGroundDownloader.completeHandler(id);
-          } catch (_err) {
-            // ignore
+            await task.pause();
+            const verifyTasks =
+              await BackGroundDownloader.checkForExistingDownloads();
+            const verifyTask = verifyTasks?.find((t: any) => t.id === id);
+            const state = verifyTask?.state || task.state?.();
+            if (
+              state === "PAUSED" ||
+              state === "paused" ||
+              state === "SUSPENDED" ||
+              state === "suspended"
+            ) {
+              // Task is properly paused
+            } else {
+              // If pause didn't work, try stop as fallback
+              try {
+                task.stop();
+              } catch (_err) {
+                // ignore stop errors
+              }
+              try {
+                BackGroundDownloader.completeHandler(id);
+              } catch (_err) {
+                // ignore
+              }
+            }
+          } catch (_pauseError) {
+            // If pause fails, fall back to stop
+            try {
+              task.stop();
+            } catch (_err) {
+              // ignore stop errors
+            }
+            try {
+              BackGroundDownloader.completeHandler(id);
+            } catch (_err) {
+              // ignore
+            }
           }
         } else {
           // Try a normal pause first on Android and other platforms
