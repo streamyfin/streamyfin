@@ -12,7 +12,6 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { HorizontalScroll } from "../common/HorizontalScroll";
 import { Text } from "../common/Text";
-import { itemRouter } from "../common/TouchableItemRouter";
 import Poster from "../posters/Poster";
 
 interface Props extends ViewProps {
@@ -24,7 +23,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
   const segments = useSegments();
   const { t } = useTranslation();
-  const from = segments[2];
+  const from = (segments as string[])[2];
 
   const destinctPeople = useMemo(() => {
     const people: Record<string, BaseItemPerson> = {};
@@ -56,15 +55,12 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
-              const url = itemRouter(
-                {
-                  Id: i.Id,
-                  Type: "Person",
-                },
-                from,
-              );
-              // @ts-expect-error
-              router.push(url);
+              if (i.Id) {
+                router.push({
+                  pathname: "/persons/[personId]",
+                  params: { personId: i.Id },
+                });
+              }
             }}
             className='flex flex-col w-28'
           >

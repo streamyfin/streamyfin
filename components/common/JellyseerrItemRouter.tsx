@@ -40,7 +40,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
   const segments = useSegments();
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
 
-  const from = segments[2] || "(home)";
+  const from = (segments as string[])[2] || "(home)";
 
   const autoApprove = useMemo(() => {
     return (

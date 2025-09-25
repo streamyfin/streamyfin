@@ -21,7 +21,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { itemRouter } from "../common/TouchableItemRouter";
+import { getItemNavigation } from "../common/TouchableItemRouter";
 
 interface Props extends ViewProps {}
 
@@ -146,16 +146,15 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   }, [item]);
 
   const segments = useSegments();
-  const from = segments[2] || "(home)";
+  const from = (segments as string[])[2] || "(home)";
 
   const opacity = useSharedValue(1);
 
   const handleRoute = useCallback(() => {
     if (!from) return;
-    const url = itemRouter(item, from);
     lightHapticFeedback();
-    // @ts-expect-error
-    if (url) router.push(url);
+    const navigation = getItemNavigation(item, from);
+    router.push(navigation as any);
   }, [item, from]);
 
   const tap = Gesture.Tap()

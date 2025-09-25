@@ -88,6 +88,7 @@ export type Home = {
 };
 
 export type HomeSection = {
+  title?: string;
   orientation?: "horizontal" | "vertical";
   items?: HomeSectionItemResolver;
   nextUp?: HomeSectionNextUpResolver;
