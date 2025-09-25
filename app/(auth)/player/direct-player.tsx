@@ -105,7 +105,7 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  useSettings();
+  const { settings } = useSettings();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -589,6 +589,8 @@ export default function page() {
     initOptions.push(
       `--freetype-outline-thickness=${OUTLINE_THICKNESS[outlineThickness]}`,
     );
+    initOptions.push(`--sub-text-scale=${settings.subtitleSize}`),
+    initOptions.push("--sub-margin=40"),
     if (isBold) {
       initOptions.push("--freetype-bold");
     }
