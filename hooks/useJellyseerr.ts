@@ -385,7 +385,7 @@ export class JellyseerrApi {
       },
       (error: AxiosError) => {
         writeErrorLog(
-          `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
+          `Jellyseerr response error\nerror: ${String(error)}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
         if (error.status === 403) {

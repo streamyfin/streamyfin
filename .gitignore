@@ -14,6 +14,9 @@ modules/vlc-player/android/build
 # macOS
 .DS_Store
 
+# VSCode settings
+.vscode/settings.json
+
 expo-env.d.ts
 
 Streamyfin.app

@@ -316,7 +316,7 @@ function Layout() {
             writeInfoLog(`Notification ${title} opened`, data);
 
             let url: any;
-            const type = (data?.type ?? "").toString().toLowerCase();
+            const type = String(data?.type ?? "").toLowerCase();
             const itemId = data?.id;
 
             switch (type) {
@@ -327,13 +327,13 @@ function Layout() {
                 // `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
                 // We just clicked a notification for an individual episode.
                 if (itemId) {
-                  url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+                  url = `/(auth)/(tabs)/home/items/page?id=${String(itemId)}`;
                   // summarized season notification for multiple episodes. Bring them to series season
                 } else {
                   const seriesId = data.seriesId;
                   const seasonIndex = data.seasonIndex;
                   if (seasonIndex) {
-                    url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
+                    url = `/(auth)/(tabs)/home/series/${String(seriesId)}?seasonIndex=${String(seasonIndex)}`;
                   } else {
                     url = `/(auth)/(tabs)/home/series/${seriesId}`;
                   }
