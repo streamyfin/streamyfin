@@ -125,7 +125,7 @@ export const HomeIndex = () => {
   const segments = useSegments();
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
-      if (segments[2] === "(home)")
+      if ((segments as string[])[2] === "(home)")
         scrollViewRef.current?.scrollTo({ y: -152, animated: true });
     });
 
@@ -316,7 +316,7 @@ export const HomeIndex = () => {
       const id = section.title || `section-${index}`;
       ss.push({
         title: t(`${id}`),
-        queryKey: ["home", id],
+        queryKey: ["home", "custom", String(index), section.title ?? null],
         queryFn: async () => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
@@ -364,8 +364,8 @@ export const HomeIndex = () => {
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
   if (!isConnected || serverConnected !== true) {
-    let title: string;
-    let subtitle: string;
+    let title = "";
+    let subtitle = "";
 
     if (!isConnected) {
       // No network connection
