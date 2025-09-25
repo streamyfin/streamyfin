@@ -56,7 +56,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       useNativeDriver: true,
     }).start();
 
-  const colorClasses = useMemo(() => {
+  const getColorClasses = (color: string, focused: boolean) => {
     switch (color) {
       case "purple":
         return focused
@@ -68,12 +68,38 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         return "bg-neutral-900";
       case "transparent":
         return "bg-transparent";
+      default:
+        return "bg-purple-600 border border-purple-700";
     }
-  }, [color, focused]);
+  };
+
+  const colorClasses = useMemo(
+    () => getColorClasses(color, focused),
+    [color, focused],
+  );
 
   const lightHapticFeedback = useHaptic("light");
 
-  return Platform.isTV ? (
+  const handlePress = () => {
+    if (!loading && !disabled && onPress) {
+      onPress();
+      lightHapticFeedback();
+    }
+  };
+
+  const getTextClasses = () => {
+    const baseClasses = "text-white font-bold text-base";
+    const disabledClass = disabled ? " text-gray-300" : "";
+    const rightMargin = iconRight ? " mr-2" : "";
+    const leftMargin = iconLeft ? " ml-2" : "";
+    return `${baseClasses}${disabledClass} ${textClassName}${rightMargin}${leftMargin}`;
+  };
+
+  const getJustifyClass = () => {
+    return justify === "between" ? "justify-between" : "justify-center";
+  };
+
+  const renderTVButton = () => (
     <Pressable
       className='w-full'
       onPress={onPress}
@@ -93,7 +119,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: focused ? 0.9 : 0,
           shadowRadius: focused ? 18 : 0,
-          elevation: focused ? 12 : 0, // Android glow
+          elevation: focused ? 12 : 0,
         }}
       >
         <View
@@ -105,7 +131,9 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         </View>
       </Animated.View>
     </Pressable>
-  ) : (
+  );
+
+  const renderTouchButton = () => (
     <TouchableOpacity
       className={`
         p-3 rounded-xl items-center justify-center
@@ -113,12 +141,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         ${colorClasses}
         ${className}
       `}
-      onPress={() => {
-        if (!loading && !disabled && onPress) {
-          onPress();
-          lightHapticFeedback();
-        }
-      }}
+      onPress={handlePress}
       disabled={disabled || loading}
       {...props}
     >
@@ -128,25 +151,15 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         </View>
       ) : (
         <View
-          className={`
-            flex flex-row items-center justify-between w-full
-            ${justify === "between" ? "justify-between" : "justify-center"}`}
+          className={`flex flex-row items-center justify-between w-full ${getJustifyClass()}`}
         >
-          {iconLeft ? iconLeft : <View className='w-4' />}
-          <Text
-            className={`
-          text-white font-bold text-base
-          ${disabled ? "text-gray-300" : ""}
-          ${textClassName}
-          ${iconRight ? "mr-2" : ""}
-          ${iconLeft ? "ml-2" : ""}
-        `}
-          >
-            {children}
-          </Text>
-          {iconRight ? iconRight : <View className='w-4' />}
+          {iconLeft || <View className='w-4' />}
+          <Text className={getTextClasses()}>{children}</Text>
+          {iconRight || <View className='w-4' />}
         </View>
       )}
     </TouchableOpacity>
   );
+
+  return Platform.isTV ? renderTVButton() : renderTouchButton();
 };

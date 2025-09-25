@@ -5,6 +5,7 @@ import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
+import { getCurrentTab } from "@/utils/navigation";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -43,48 +44,6 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
   return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
 };
 
-export const getItemNavigation = (item: BaseItemDto, _from: string) => {
-  if ("CollectionType" in item && item.CollectionType === "livetv") {
-    return {
-      pathname: "/livetv" as const,
-    };
-  }
-
-  if (item.Type === "Series") {
-    return {
-      pathname: "/series/[id]" as const,
-      params: { id: item.Id! },
-    };
-  }
-
-  if (item.Type === "Person") {
-    return {
-      pathname: "/persons/[personId]" as const,
-      params: { personId: item.Id! },
-    };
-  }
-
-  if (item.Type === "BoxSet" || item.Type === "UserView") {
-    return {
-      pathname: "/collections/[collectionId]" as const,
-      params: { collectionId: item.Id! },
-    };
-  }
-
-  if (item.Type === "CollectionFolder" || item.Type === "Playlist") {
-    return {
-      pathname: "/[libraryId]" as const,
-      params: { libraryId: item.Id! },
-    };
-  }
-
-  // Default case - items page
-  return {
-    pathname: "/items/page" as const,
-    params: { id: item.Id! },
-  };
-};
-
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
   isOffline = false,
@@ -97,7 +56,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
 
-  const from = (segments as string[])[2] || "(home)";
+  const from = getCurrentTab(segments as string[]);
 
   const showActionSheet = useCallback(() => {
     if (
@@ -143,15 +102,11 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         onLongPress={showActionSheet}
         onPress={() => {
+          let url = itemRouter(item, from);
           if (isOffline) {
-            // For offline mode, we still need to use query params
-            const url = `${itemRouter(item, from)}&offline=true`;
-            router.push(url as any);
-            return;
+            url += `&offline=true`;
           }
-
-          const navigation = getItemNavigation(item, from);
-          router.push(navigation as any);
+          router.push(url);
         }}
         {...props}
       >

@@ -6,16 +6,8 @@ import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type { NonFunctionProperties } from "@/utils/jellyseerr/server/interfaces/api/common";
 
-type ExtendedMediaRequest = NonFunctionProperties<MediaRequest> & {
-  profileName: string;
-  canRemove: boolean;
-};
-
-const RequestCard: React.FC<{ request: ExtendedMediaRequest }> = ({
-  request,
-}) => {
+const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
   const { jellyseerrApi } = useJellyseerr();
 
   const { data: details } = useQuery({
@@ -74,17 +66,9 @@ const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({
       <Slide
         {...props}
         slide={slide}
-        data={
-          requests.results.map((item) => ({
-            ...item,
-            profileName: item.profileName ?? "Unknown",
-            canRemove: Boolean(item.canRemove),
-          })) as ExtendedMediaRequest[]
-        }
+        data={requests.results as MediaRequest[]}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={(item: ExtendedMediaRequest) => (
-          <RequestCard request={item} />
-        )}
+        renderItem={(item: MediaRequest) => <RequestCard request={item} />}
       />
     )
   );

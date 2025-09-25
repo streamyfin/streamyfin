@@ -16,6 +16,7 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { getCurrentTab } from "@/utils/navigation";
 
 interface Props extends TouchableOpacityProps {
   result?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast;
@@ -40,7 +41,8 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
   const segments = useSegments();
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
 
-  const from = (segments as string[])[2] || "(home)";
+  // Some segment arrays may have fewer than 3 elements; fall back to home tab.
+  const from = getCurrentTab(segments as string[]);
 
   const autoApprove = useMemo(() => {
     return (
@@ -69,14 +71,13 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
 
               router.push({
                 pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
-                // @ts-expect-error
                 params: {
-                  ...result,
                   mediaTitle,
-                  releaseYear,
-                  canRequest: canRequest.toString(),
+                  releaseYear: releaseYear.toString(),
+                  canRequest: canRequest ? "true" : "false",
                   posterSrc,
-                  mediaType,
+                  mediaType: mediaType.toString(),
+                  id: result.id?.toString?.() ?? undefined,
                 },
               });
             }}

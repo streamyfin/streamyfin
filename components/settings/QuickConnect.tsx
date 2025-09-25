@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, View, type ViewProps } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { writeErrorLog } from "@/utils/log";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { PinInput } from "../inputs/PinInput";
@@ -64,7 +65,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
             t("home.settings.quick_connect.invalid_code"),
           );
         }
-      } catch (_e) {
+      } catch (error) {
+        writeErrorLog("quickConnect.authenticationError", error);
         errorHapticFeedback();
         Alert.alert(
           t("home.settings.quick_connect.error"),
@@ -119,6 +121,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                   )}
                 </Text>
                 <PinInput
+                  // Quick connect codes are typically 6 digits; ensure length prop provided
+                  length={6}
                   value={quickConnectCode || ""}
                   onChangeText={setQuickConnectCode}
                   style={{ paddingHorizontal: 16 }}

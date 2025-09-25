@@ -4,18 +4,16 @@ import {
   type StyleProp,
   StyleSheet,
   Text,
-  type TextInputProps,
   View,
   type ViewStyle,
 } from "react-native";
 
-interface PinInputProps
-  extends Omit<TextInputProps, "value" | "onChangeText" | "style"> {
-  value: string;
-  onChangeText: (text: string) => void;
-  length?: number;
-  autoFocus?: boolean;
-  style?: StyleProp<ViewStyle>;
+interface PinInputProps {
+  readonly length: number;
+  readonly value: string;
+  readonly onChangeText: (text: string) => void;
+  readonly style?: StyleProp<ViewStyle>;
+  readonly autoFocus?: boolean;
 }
 
 export interface PinInputRef {
@@ -65,7 +63,7 @@ const PinInputComponent = React.forwardRef<PinInputRef, PinInputProps>(
             .fill(0)
             .map((_, i) => (
               <View
-                key={i}
+                key={`pin-input-cell-${i}-${length}`}
                 style={[
                   styles.cell,
                   i === activeIndex && styles.activeCell,

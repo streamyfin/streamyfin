@@ -4,6 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Bitrate } from "@/components/BitrateSelector";
+import { writeDebugLog } from "@/utils/log";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
 
@@ -43,7 +44,7 @@ export const getDownloadUrl = async ({
   });
 
   if (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl) {
-    console.log("Downloading item directly");
+    writeDebugLog("download.directDownload", { itemId: item.Id });
     return {
       url: `${api.basePath}/Items/${item.Id}/Download?api_key=${api.accessToken}`,
       mediaSource: streamDetails?.mediaSource ?? null,

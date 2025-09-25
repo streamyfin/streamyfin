@@ -5,6 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
+import { writeDebugLog } from "@/utils/log";
 import download from "@/utils/profiles/download";
 
 interface StreamResult {
@@ -45,7 +46,7 @@ const getPlaybackUrl = (
       );
     }
 
-    console.log("Video is being transcoded:", transcodeUrl);
+    writeDebugLog("media.stream.transcoded", { transcodeUrl });
     return `${api.basePath}${transcodeUrl}`;
   }
 
@@ -70,7 +71,7 @@ const getPlaybackUrl = (
 
   const directPlayUrl = `${api.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
 
-  console.log("Video is being direct played:", directPlayUrl);
+  writeDebugLog("media.stream.directPlay", { directPlayUrl });
   return directPlayUrl;
 };
 
@@ -164,7 +165,11 @@ export const getStreamUrl = async ({
   mediaSource: MediaSourceInfo | undefined;
 } | null> => {
   if (!api || !userId || !item?.Id) {
-    console.warn("Missing required parameters for getStreamUrl");
+    writeDebugLog("media.stream.missingParams", {
+      hasApi: !!api,
+      hasUserId: !!userId,
+      hasItemId: !!item?.Id,
+    });
     return null;
   }
 
@@ -173,7 +178,7 @@ export const getStreamUrl = async ({
 
   // Please do not remove this we need this for live TV to be working correctly.
   if (item.Type === BaseItemKind.Program) {
-    console.log("Item is of type program...");
+    writeDebugLog("media.stream.programDetected", { itemId: item.Id });
     const res = await getMediaInfoApi(api).getPlaybackInfo(
       {
         userId,
@@ -233,7 +238,10 @@ export const getStreamUrl = async ({
   );
 
   if (res.status !== 200) {
-    console.error("Error getting playback info:", res.status, res.statusText);
+    writeDebugLog("media.stream.playbackInfoError", {
+      status: res.status,
+      statusText: res.statusText,
+    });
   }
 
   sessionId = res.data.PlaySessionId || null;
@@ -280,7 +288,11 @@ export const getDownloadStreamUrl = async ({
   mediaSource: MediaSourceInfo | undefined;
 } | null> => {
   if (!api || !userId || !item?.Id) {
-    console.warn("Missing required parameters for getStreamUrl");
+    writeDebugLog("media.downloadStream.missingParams", {
+      hasApi: !!api,
+      hasUserId: !!userId,
+      hasItemId: !!item?.Id,
+    });
     return null;
   }
 
@@ -305,7 +317,10 @@ export const getDownloadStreamUrl = async ({
   );
 
   if (res.status !== 200) {
-    console.error("Error getting playback info:", res.status, res.statusText);
+    writeDebugLog("media.downloadStream.playbackInfoError", {
+      status: res.status,
+      statusText: res.statusText,
+    });
   }
 
   const sessionId = res.data.PlaySessionId || null;

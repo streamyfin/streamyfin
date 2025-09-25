@@ -7,7 +7,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { useNavigation, useRouter } from "expo-router";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
@@ -23,7 +23,26 @@ import { type DownloadedItem } from "@/providers/Downloads/types";
 import { queueAtom } from "@/utils/atoms/queue";
 import { writeToLog } from "@/utils/log";
 
-export default function page() {
+interface HeaderRightProps {
+  readonly downloadedFiles: DownloadedItem[] | null;
+  readonly onPress: () => void;
+}
+
+function HeaderRight({ downloadedFiles, onPress }: HeaderRightProps) {
+  return (
+    <TouchableOpacity onPress={onPress}>
+      <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
+    </TouchableOpacity>
+  );
+}
+
+function CustomBottomSheetBackdrop(props: Readonly<BottomSheetBackdropProps>) {
+  return (
+    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+  );
+}
+
+const DownloadsPage = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
@@ -35,6 +54,17 @@ export default function page() {
   } = useDownload();
   const router = useRouter();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  const handleRemoveQueueItem = useCallback(
+    (queueItemId: string) => {
+      removeProcess(queueItemId);
+      setQueue((prev) => {
+        if (!prev) return [];
+        return prev.filter((i) => i.id !== queueItemId);
+      });
+    },
+    [removeProcess, setQueue],
+  );
 
   const [showMigration, setShowMigration] = useState(false);
 
@@ -53,9 +83,13 @@ export default function page() {
         {
           text: t("home.downloads.delete"),
           style: "destructive",
-          onPress: async () => {
-            await deleteAllFiles();
-            setShowMigration(false);
+          onPress: () => {
+            deleteAllFiles()
+              .then(() => setShowMigration(false))
+              .catch((error) => {
+                console.error("Failed to delete all files:", error);
+                setShowMigration(false);
+              });
           },
         },
       ],
@@ -90,15 +124,21 @@ export default function page() {
     }
   }, [downloadedFiles]);
 
+  const headerRightComponent = useMemo(
+    () => (
+      <HeaderRight
+        downloadedFiles={downloadedFiles}
+        onPress={() => bottomSheetModalRef.current?.present()}
+      />
+    ),
+    [downloadedFiles],
+  );
+
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity onPress={bottomSheetModalRef.current?.present}>
-          <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
-        </TouchableOpacity>
-      ),
+      headerRight: () => headerRightComponent,
     });
-  }, [downloadedFiles]);
+  }, [headerRightComponent, navigation]);
 
   useEffect(() => {
     if (showMigration) {
@@ -145,13 +185,13 @@ export default function page() {
                   {t("home.downloads.queue_hint")}
                 </Text>
                 <View className='flex flex-col space-y-2 mt-2'>
-                  {queue.map((q, index) => (
+                  {queue.map((q) => (
                     <TouchableOpacity
                       onPress={() =>
                         router.push(`/(auth)/items/page?id=${q.item.Id}`)
                       }
                       className='relative bg-neutral-900 border border-neutral-800 p-4 rounded-2xl overflow-hidden flex flex-row items-center justify-between'
-                      key={index}
+                      key={q.id}
                     >
                       <View>
                         <Text className='font-semibold'>{q.item.Name}</Text>
@@ -160,13 +200,7 @@ export default function page() {
                         </Text>
                       </View>
                       <TouchableOpacity
-                        onPress={() => {
-                          removeProcess(q.id);
-                          setQueue((prev) => {
-                            if (!prev) return [];
-                            return [...prev.filter((i) => i.id !== q.id)];
-                          });
-                        }}
+                        onPress={() => handleRemoveQueueItem(q.id)}
                       >
                         <Ionicons name='close' size={24} color='red' />
                       </TouchableOpacity>
@@ -257,13 +291,7 @@ export default function page() {
         backgroundStyle={{
           backgroundColor: "#171717",
         }}
-        backdropComponent={(props: BottomSheetBackdropProps) => (
-          <BottomSheetBackdrop
-            {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-          />
-        )}
+        backdropComponent={CustomBottomSheetBackdrop}
       >
         <BottomSheetView>
           <View className='p-4 space-y-4 mb-4'>
@@ -281,4 +309,6 @@ export default function page() {
       </BottomSheetModal>
     </>
   );
-}
+};
+
+export default DownloadsPage;

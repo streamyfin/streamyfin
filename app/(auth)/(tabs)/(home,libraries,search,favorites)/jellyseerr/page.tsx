@@ -1,3 +1,18 @@
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+
+interface HeaderRightProps {
+  readonly details: MovieDetails | TvDetails | null | undefined;
+}
+
+function HeaderRight({ details }: HeaderRightProps) {
+  if (!details) return null;
+  return (
+    <TouchableOpacity className='rounded-full p-2 bg-neutral-800/80'>
+      <ItemActions item={details} />
+    </TouchableOpacity>
+  );
+}
+
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
@@ -42,7 +57,6 @@ const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
 import RequestModal from "@/components/jellyseerr/RequestModal";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -64,7 +78,7 @@ const Page: React.FC = () => {
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
-  const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
+  const [requestBody, setRequestBody] = useState<MediaRequestBody>();
   const advancedReqModalRef = useRef<BottomSheetModal>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -115,18 +129,18 @@ const Page: React.FC = () => {
     }
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
-  const setRequestBody = useCallback(
+  const handleSetRequestBody = useCallback(
     (body: MediaRequestBody) => {
-      _setRequestBody(body);
+      setRequestBody(body);
       advancedReqModalRef?.current?.present?.();
     },
-    [requestBody, _setRequestBody, advancedReqModalRef],
+    [requestBody, setRequestBody, advancedReqModalRef],
   );
 
   const request = useCallback(async () => {
     const body: MediaRequestBody = {
       mediaId: Number(result.id!),
-      mediaType: mediaType!,
+      mediaType: mediaType,
       tvdbId: details?.externalIds?.tvdbId,
       seasons: (details as TvDetails)?.seasons
         ?.filter?.((s) => s.seasonNumber !== 0)
@@ -134,20 +148,12 @@ const Page: React.FC = () => {
     };
 
     if (hasAdvancedRequestPermission) {
-      setRequestBody(body);
+      handleSetRequestBody(body);
       return;
     }
 
     requestMedia(mediaTitle, body, refetch);
-  }, [
-    details,
-    result,
-    requestMedia,
-    hasAdvancedRequestPermission,
-    mediaTitle,
-    refetch,
-    mediaType,
-  ]);
+  }, [details, result, requestMedia, hasAdvancedRequestPermission]);
 
   const isAnime = useMemo(
     () =>
@@ -156,17 +162,81 @@ const Page: React.FC = () => {
     [details],
   );
 
+  const headerRightComponent = useMemo(
+    () => <HeaderRight details={details as MovieDetails | TvDetails | null} />,
+    [details],
+  );
+
   useEffect(() => {
-    if (details) {
-      navigation.setOptions({
-        headerRight: () => (
-          <TouchableOpacity className='rounded-full p-2 bg-neutral-800/80'>
-            <ItemActions item={details} />
-          </TouchableOpacity>
-        ),
-      });
+    navigation.setOptions({
+      headerRight: () => headerRightComponent,
+    });
+  }, [headerRightComponent, navigation]);
+
+  const renderActionButton = () => {
+    if (isLoading || isFetching) {
+      return (
+        <Button
+          loading={true}
+          disabled={true}
+          color='purple'
+          className='mt-4'
+        />
+      );
     }
-  }, [details]);
+
+    if (canRequest) {
+      return (
+        <Button color='purple' onPress={request} className='mt-4'>
+          {t("jellyseerr.request_button")}
+        </Button>
+      );
+    }
+
+    if (details?.mediaInfo?.jellyfinMediaId) {
+      return (
+        <View className='flex flex-row space-x-2 mt-4'>
+          {!Platform.isTV && (
+            <Button
+              className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
+              color='transparent'
+              onPress={() => bottomSheetModalRef?.current?.present()}
+              iconLeft={
+                <Ionicons name='warning-outline' size={20} color='white' />
+              }
+              style={{
+                borderWidth: 1,
+                borderStyle: "solid",
+              }}
+            >
+              <Text className='text-sm'>
+                {t("jellyseerr.report_issue_button")}
+              </Text>
+            </Button>
+          )}
+          <Button
+            className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
+            onPress={() => {
+              const url =
+                mediaType === MediaType.MOVIE
+                  ? `/(auth)/(tabs)/(search)/items/page?id=${details?.mediaInfo.jellyfinMediaId}`
+                  : `/(auth)/(tabs)/(search)/series/${details?.mediaInfo.jellyfinMediaId}`;
+              router.push(url as any);
+            }}
+            iconLeft={<Ionicons name='play-outline' size={20} color='white' />}
+            style={{
+              borderWidth: 1,
+              borderStyle: "solid",
+            }}
+          >
+            <Text className='text-sm'>Play</Text>
+          </Button>
+        </View>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <View
@@ -246,69 +316,7 @@ const Page: React.FC = () => {
               <View>
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
-              {isLoading || isFetching ? (
-                <Button
-                  loading={true}
-                  disabled={true}
-                  color='purple'
-                  className='mt-4'
-                />
-              ) : canRequest ? (
-                <Button color='purple' onPress={request} className='mt-4'>
-                  {t("jellyseerr.request_button")}
-                </Button>
-              ) : (
-                details?.mediaInfo?.jellyfinMediaId && (
-                  <View className='flex flex-row space-x-2 mt-4'>
-                    {!Platform.isTV && (
-                      <Button
-                        className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
-                        color='transparent'
-                        onPress={() => bottomSheetModalRef?.current?.present()}
-                        iconLeft={
-                          <Ionicons
-                            name='warning-outline'
-                            size={20}
-                            color='white'
-                          />
-                        }
-                        style={{
-                          borderWidth: 1,
-                          borderStyle: "solid",
-                        }}
-                      >
-                        <Text className='text-sm'>
-                          {t("jellyseerr.report_issue_button")}
-                        </Text>
-                      </Button>
-                    )}
-                    <Button
-                      className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
-                      onPress={() => {
-                        router.push({
-                          pathname:
-                            mediaType === MediaType.MOVIE
-                              ? "/(auth)/(tabs)/(search)/items/page"
-                              : "/(auth)/(tabs)/(search)/series/[id]",
-                          params:
-                            mediaType === MediaType.MOVIE
-                              ? { id: details?.mediaInfo.jellyfinMediaId }
-                              : { id: details?.mediaInfo.jellyfinMediaId },
-                        });
-                      }}
-                      iconLeft={
-                        <Ionicons name='play-outline' size={20} color='white' />
-                      }
-                      style={{
-                        borderWidth: 1,
-                        borderStyle: "solid",
-                      }}
-                    >
-                      <Text className='text-sm'>Play</Text>
-                    </Button>
-                  </View>
-                )
-              )}
+              {renderActionButton()}
               <OverviewText text={result.overview} className='mt-4' />
             </View>
 
@@ -318,7 +326,7 @@ const Page: React.FC = () => {
                 details={details as TvDetails}
                 refetch={refetch}
                 hasAdvancedRequest={hasAdvancedRequestPermission}
-                onAdvancedRequest={(data) => setRequestBody(data)}
+                onAdvancedRequest={(data) => handleSetRequestBody(data)}
               />
             )}
             <DetailFacts
@@ -337,11 +345,11 @@ const Page: React.FC = () => {
         type={mediaType}
         isAnime={isAnime}
         onRequested={() => {
-          _setRequestBody(undefined);
+          setRequestBody(undefined);
           advancedReqModalRef?.current?.close();
           refetch();
         }}
-        onDismiss={() => _setRequestBody(undefined)}
+        onDismiss={() => setRequestBody(undefined)}
       />
       {!Platform.isTV && (
         // This is till it's fixed because the menu isn't selectable on TV

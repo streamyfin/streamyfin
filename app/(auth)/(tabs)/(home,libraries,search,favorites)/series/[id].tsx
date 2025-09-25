@@ -19,9 +19,49 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
-const page: React.FC = () => {
-  const navigation = useNavigation();
+function MissingDownloadIcon() {
+  return <Ionicons name='download' size={22} color='white' />;
+}
+
+function DownloadedIcon() {
+  return <Ionicons name='checkmark-done-outline' size={24} color='#9333ea' />;
+}
+
+interface SeriesHeaderRightProps {
+  readonly isLoading: boolean;
+  readonly item: any;
+  readonly allEpisodes: any[];
+}
+
+function SeriesHeaderRight({
+  isLoading,
+  item,
+  allEpisodes,
+}: SeriesHeaderRightProps) {
   const { t } = useTranslation();
+
+  if (isLoading || !item || !allEpisodes || allEpisodes.length === 0) {
+    return null;
+  }
+
+  return (
+    <View className='flex flex-row items-center space-x-2'>
+      <AddToFavorites item={item} />
+      {!Platform.isTV && (
+        <DownloadItems
+          size='large'
+          title={t("item_card.download.download_series")}
+          items={allEpisodes}
+          MissingDownloadIconComponent={MissingDownloadIcon}
+          DownloadedIconComponent={DownloadedIcon}
+        />
+      )}
+    </View>
+  );
+}
+
+const SeriesPage: React.FC = () => {
+  const navigation = useNavigation();
   const params = useLocalSearchParams();
   const { id: seriesId, seasonIndex } = params as {
     id: string;
@@ -85,36 +125,22 @@ const page: React.FC = () => {
     enabled: !!api && !!user?.Id && !!item?.Id,
   });
 
+  const headerRightComponent = useMemo(
+    () => (
+      <SeriesHeaderRight
+        isLoading={isLoading}
+        item={item}
+        allEpisodes={allEpisodes || []}
+      />
+    ),
+    [isLoading, item, allEpisodes],
+  );
+
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () =>
-        !isLoading &&
-        item &&
-        allEpisodes &&
-        allEpisodes.length > 0 && (
-          <View className='flex flex-row items-center space-x-2'>
-            <AddToFavorites item={item} />
-            {!Platform.isTV && (
-              <DownloadItems
-                size='large'
-                title={t("item_card.download.download_series")}
-                items={allEpisodes || []}
-                MissingDownloadIconComponent={() => (
-                  <Ionicons name='download' size={22} color='white' />
-                )}
-                DownloadedIconComponent={() => (
-                  <Ionicons
-                    name='checkmark-done-outline'
-                    size={24}
-                    color='#9333ea'
-                  />
-                )}
-              />
-            )}
-          </View>
-        ),
+      headerRight: () => headerRightComponent,
     });
-  }, [allEpisodes, isLoading, item]);
+  }, [headerRightComponent, navigation]);
 
   if (!item || !backdropUrl) return null;
 
@@ -158,4 +184,4 @@ const page: React.FC = () => {
   );
 };
 
-export default page;
+export default SeriesPage;

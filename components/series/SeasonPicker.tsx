@@ -1,7 +1,14 @@
+const MissingDownloadIconComponent = () => (
+  <Ionicons name='download' size={20} color='white' />
+);
+const DownloadedIconComponent = () => (
+  <Ionicons name='download' size={20} color='#9333ea' />
+);
+
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -70,7 +77,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
 
     if (!season?.Id) return null;
 
-    return season.Id!;
+    return season.Id;
   }, [seasons, seasonIndex]);
 
   const { data: episodes, isPending } = useQuery({
@@ -99,6 +106,8 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     },
     enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
+
+  const _queryClient = useQueryClient();
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);
@@ -133,12 +142,8 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
               title={t("item_card.download.download_season")}
               className='ml-2'
               items={episodes || []}
-              MissingDownloadIconComponent={() => (
-                <Ionicons name='download' size={20} color='white' />
-              )}
-              DownloadedIconComponent={() => (
-                <Ionicons name='download' size={20} color='#9333ea' />
-              )}
+              MissingDownloadIconComponent={MissingDownloadIconComponent}
+              DownloadedIconComponent={DownloadedIconComponent}
             />
             <PlayedStatus items={episodes || []} />
           </View>

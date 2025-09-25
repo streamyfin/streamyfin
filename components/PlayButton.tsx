@@ -6,8 +6,9 @@ import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, TouchableOpacity, View } from "react-native";
-import CastContext, {
+import {
   CastButton,
+  CastContext,
   PlayServicesState,
   useMediaStatus,
   useRemoteMediaClient,
@@ -43,6 +44,63 @@ interface Props extends React.ComponentProps<typeof Button> {
 
 const ANIMATION_DURATION = 500;
 const MIN_PLAYBACK_WIDTH = 15;
+
+// Helper function to create media metadata for Chromecast
+const createMediaMetadata = (item: BaseItemDto, api: any) => {
+  if (item.Type === "Episode") {
+    return {
+      type: "tvShow" as const,
+      title: item.Name || "",
+      episodeNumber: item.IndexNumber || 0,
+      seasonNumber: item.ParentIndexNumber || 0,
+      seriesTitle: item.SeriesName || "",
+      images: [
+        {
+          url: getParentBackdropImageUrl({
+            api,
+            item,
+            quality: 90,
+            width: 2000,
+          })!,
+        },
+      ],
+    };
+  }
+
+  if (item.Type === "Movie") {
+    return {
+      type: "movie" as const,
+      title: item.Name || "",
+      subtitle: item.Overview || "",
+      images: [
+        {
+          url: getPrimaryImageUrl({
+            api,
+            item,
+            quality: 90,
+            width: 2000,
+          })!,
+        },
+      ],
+    };
+  }
+
+  return {
+    type: "generic" as const,
+    title: item.Name || "",
+    subtitle: item.Overview || "",
+    images: [
+      {
+        url: getPrimaryImageUrl({
+          api,
+          item,
+          quality: 90,
+          width: 2000,
+        })!,
+      },
+    ],
+  };
+};
 
 export const PlayButton: React.FC<Props> = ({
   item,
@@ -80,12 +138,86 @@ export const PlayButton: React.FC<Props> = ({
     [router, isOffline],
   );
 
+  const handleChromecast = useCallback(
+    async (params: {
+      item: BaseItemDto;
+      api: any;
+      user: any;
+      selectedOptions: SelectedOptions;
+      client: any;
+      t: any;
+      settings: any;
+      isOpeningCurrentlyPlayingMedia: boolean;
+    }) => {
+      const {
+        item,
+        api,
+        user,
+        selectedOptions,
+        client,
+        t,
+        settings,
+        isOpeningCurrentlyPlayingMedia,
+      } = params;
+      const enableH265 = settings.enableH265ForChromecast;
+      if (!api) {
+        console.warn("API not available for Chromecast streaming");
+        Alert.alert(t("player.client_error"), t("player.missing_parameters"));
+        return;
+      }
+      if (!user?.Id) {
+        console.warn("User not authenticated for Chromecast streaming");
+        Alert.alert(t("player.client_error"), t("player.missing_parameters"));
+        return;
+      }
+      if (!item?.Id) {
+        console.warn("Item not available for Chromecast streaming");
+        Alert.alert(t("player.client_error"), t("player.missing_parameters"));
+        return;
+      }
+      try {
+        const data = await getStreamUrl({
+          api,
+          item,
+          deviceProfile: enableH265 ? chromecasth265 : chromecast,
+          startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+          userId: user.Id,
+          audioStreamIndex: selectedOptions.audioIndex,
+          maxStreamingBitrate: selectedOptions.bitrate?.value,
+          mediaSourceId: selectedOptions.mediaSource?.Id,
+          subtitleStreamIndex: selectedOptions.subtitleIndex,
+        });
+        if (!data?.url) {
+          console.warn("No URL returned from getStreamUrl", data);
+          Alert.alert(
+            t("player.client_error"),
+            t("player.could_not_create_stream_for_chromecast"),
+          );
+          return;
+        }
+        client
+          .loadMedia({
+            mediaInfo: {
+              contentUrl: data?.url,
+              contentType: "video/mp4",
+              metadata: createMediaMetadata(item, api),
+            },
+            startTime: 0,
+          })
+          .then(() => {
+            if (isOpeningCurrentlyPlayingMedia) return;
+            CastContext.showExpandedControls();
+          });
+      } catch (e) {
+        console.log(e);
+      }
+    },
+    [],
+  );
+
   const onPress = useCallback(async () => {
-    console.log("onPress");
     if (!item) return;
-
     lightHapticFeedback();
-
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
       audioIndex: selectedOptions.audioIndex?.toString() ?? "",
@@ -95,14 +227,11 @@ export const PlayButton: React.FC<Props> = ({
       playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
       offline: isOffline ? "true" : "false",
     });
-
     const queryString = queryParams.toString();
-
     if (!client) {
       goToPlayer(queryString);
       return;
     }
-
     const options = ["Chromecast", "Device", "Cancel"];
     const cancelButtonIndex = 2;
     showActionSheetWithOptions(
@@ -115,137 +244,23 @@ export const PlayButton: React.FC<Props> = ({
         const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
         const isOpeningCurrentlyPlayingMedia =
           currentTitle && currentTitle === item?.Name;
-
         switch (selectedIndex) {
           case 0:
             await CastContext.getPlayServicesState().then(async (state) => {
               if (state && state !== PlayServicesState.SUCCESS) {
                 CastContext.showPlayServicesErrorDialog(state);
               } else {
-                // Check if user wants H265 for Chromecast
-                const enableH265 = settings.enableH265ForChromecast;
-
-                // Validate required parameters before calling getStreamUrl
-                if (!api) {
-                  console.warn("API not available for Chromecast streaming");
-                  Alert.alert(
-                    t("player.client_error"),
-                    t("player.missing_parameters"),
-                  );
-                  return;
-                }
-                if (!user?.Id) {
-                  console.warn(
-                    "User not authenticated for Chromecast streaming",
-                  );
-                  Alert.alert(
-                    t("player.client_error"),
-                    t("player.missing_parameters"),
-                  );
-                  return;
-                }
-                if (!item?.Id) {
-                  console.warn("Item not available for Chromecast streaming");
-                  Alert.alert(
-                    t("player.client_error"),
-                    t("player.missing_parameters"),
-                  );
-                  return;
-                }
-
-                // Get a new URL with the Chromecast device profile
-                try {
-                  const data = await getStreamUrl({
-                    api,
-                    item,
-                    deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-                    userId: user.Id,
-                    audioStreamIndex: selectedOptions.audioIndex,
-                    maxStreamingBitrate: selectedOptions.bitrate?.value,
-                    mediaSourceId: selectedOptions.mediaSource?.Id,
-                    subtitleStreamIndex: selectedOptions.subtitleIndex,
-                  });
-
-                  console.log("URL: ", data?.url, enableH265);
-
-                  if (!data?.url) {
-                    console.warn("No URL returned from getStreamUrl", data);
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.could_not_create_stream_for_chromecast"),
-                    );
-                    return;
-                  }
-
-                  client
-                    .loadMedia({
-                      mediaInfo: {
-                        contentUrl: data?.url,
-                        contentType: "video/mp4",
-                        metadata:
-                          item.Type === "Episode"
-                            ? {
-                                type: "tvShow",
-                                title: item.Name || "",
-                                episodeNumber: item.IndexNumber || 0,
-                                seasonNumber: item.ParentIndexNumber || 0,
-                                seriesTitle: item.SeriesName || "",
-                                images: [
-                                  {
-                                    url: getParentBackdropImageUrl({
-                                      api,
-                                      item,
-                                      quality: 90,
-                                      width: 2000,
-                                    })!,
-                                  },
-                                ],
-                              }
-                            : item.Type === "Movie"
-                              ? {
-                                  type: "movie",
-                                  title: item.Name || "",
-                                  subtitle: item.Overview || "",
-                                  images: [
-                                    {
-                                      url: getPrimaryImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                }
-                              : {
-                                  type: "generic",
-                                  title: item.Name || "",
-                                  subtitle: item.Overview || "",
-                                  images: [
-                                    {
-                                      url: getPrimaryImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                },
-                      },
-                      startTime: 0,
-                    })
-                    .then(() => {
-                      // state is already set when reopening current media, so skip it here.
-                      if (isOpeningCurrentlyPlayingMedia) {
-                        return;
-                      }
-                      CastContext.showExpandedControls();
-                    });
-                } catch (e) {
-                  console.log(e);
-                }
+                await handleChromecast({
+                  item,
+                  api,
+                  user,
+                  selectedOptions,
+                  client,
+                  t,
+                  settings,
+                  isOpeningCurrentlyPlayingMedia:
+                    !!isOpeningCurrentlyPlayingMedia,
+                });
               }
             });
             break;
@@ -267,10 +282,14 @@ export const PlayButton: React.FC<Props> = ({
     showActionSheetWithOptions,
     mediaStatus,
     selectedOptions,
+    lightHapticFeedback,
+    goToPlayer,
+    isOffline,
+    handleChromecast,
   ]);
 
   const derivedTargetWidth = useDerivedValue(() => {
-    if (!item || !item.RunTimeTicks) return 0;
+    if (!item?.RunTimeTicks) return 0;
     const userData = item.UserData;
     if (userData?.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0

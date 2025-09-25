@@ -1,3 +1,23 @@
+function renderHeaderLeft(hasDownloads: boolean, onPress: () => void) {
+  return (
+    <DownloadsHeaderButton hasDownloads={hasDownloads} onPress={onPress} />
+  );
+}
+// ...imports...
+
+const DownloadsHeaderButton: React.FC<{
+  hasDownloads: boolean;
+  onPress: () => void;
+}> = ({ hasDownloads, onPress }) => (
+  <TouchableOpacity onPress={onPress} className='p-2'>
+    <Feather
+      name='download'
+      color={hasDownloads ? Colors.primary : "white"}
+      size={22}
+    />
+  </TouchableOpacity>
+);
+
 import { Feather, Ionicons } from "@expo/vector-icons";
 import type { Api } from "@jellyfin/sdk";
 import type {
@@ -99,20 +119,8 @@ export const HomeIndex = () => {
     }
     const hasDownloads = getDownloadedItems().length > 0;
     navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => {
-            router.push("/(auth)/downloads");
-          }}
-          className='p-2'
-        >
-          <Feather
-            name='download'
-            color={hasDownloads ? Colors.primary : "white"}
-            size={22}
-          />
-        </TouchableOpacity>
-      ),
+      headerLeft: () =>
+        renderHeaderLeft(hasDownloads, () => router.push("/(auth)/downloads")),
     });
   }, [navigation, router]);
 
@@ -122,10 +130,10 @@ export const HomeIndex = () => {
     );
   }, []);
 
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
-      if ((segments as string[])[2] === "(home)")
+      if (segments[2] === "(home)")
         scrollViewRef.current?.scrollTo({ y: -152, animated: true });
     });
 
@@ -313,10 +321,10 @@ export const HomeIndex = () => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
     for (const [index, section] of settings.home.sections.entries()) {
-      const id = section.title || `section-${index}`;
+      const id = `section-${index}`;
       ss.push({
         title: t(`${id}`),
-        queryKey: ["home", "custom", String(index), section.title ?? null],
+        queryKey: ["home", id],
         queryFn: async () => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
@@ -364,8 +372,8 @@ export const HomeIndex = () => {
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
   if (!isConnected || serverConnected !== true) {
-    let title = "";
-    let subtitle = "";
+    let title: string = "";
+    let subtitle: string = "";
 
     if (!isConnected) {
       // No network connection
@@ -460,7 +468,7 @@ export const HomeIndex = () => {
           if (section.type === "ScrollingCollectionList") {
             return (
               <ScrollingCollectionList
-                key={index}
+                key={`${section.type}-${section.title || "untitled"}-${index}`}
                 title={section.title}
                 queryKey={section.queryKey}
                 queryFn={section.queryFn}
@@ -472,7 +480,7 @@ export const HomeIndex = () => {
           if (section.type === "MediaListSection") {
             return (
               <MediaListSection
-                key={index}
+                key={`${section.type}-${index}`}
                 queryKey={section.queryKey}
                 queryFn={section.queryFn}
               />

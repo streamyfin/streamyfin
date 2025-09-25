@@ -10,13 +10,14 @@ import {
   type Network,
 } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 import type { Studio } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
+import { getCurrentTab } from "@/utils/navigation";
 
 const CompanySlide: React.FC<
   { data: Network[] | Studio[] } & SlideProps & ViewProps
 > = ({ slide, data, ...props }) => {
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   const { jellyseerrApi } = useJellyseerr();
-  const from = (segments as string[])[2] || "(home)";
+  const from = getCurrentTab(segments);
 
   const navigate = useCallback(
     ({ id, image, name }: Network | Studio) =>

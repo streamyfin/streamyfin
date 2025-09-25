@@ -140,8 +140,8 @@ const DropdownView = () => {
                   }}
                   className='flex flex-col rounded-xl overflow-hidden'
                 >
-                  {BITRATES?.map((bitrate, idx: number) => (
-                    <View key={`quality-item-${idx}`}>
+                  {BITRATES?.map((bitrate) => (
+                    <View key={`quality-item-${bitrate.value}`}>
                       <TouchableOpacity
                         onPress={() => {
                           changeBitrate(bitrate.value?.toString() ?? "");
@@ -164,7 +164,8 @@ const DropdownView = () => {
                           />
                         )}
                       </TouchableOpacity>
-                      {idx < BITRATES.length - 1 && (
+                      {BITRATES.findIndex((b) => b.value === bitrate.value) <
+                        BITRATES.length - 1 && (
                         <View
                           style={{
                             height: StyleSheet.hairlineWidth,
@@ -190,17 +191,17 @@ const DropdownView = () => {
                 }}
                 className='flex flex-col rounded-xl overflow-hidden'
               >
-                {subtitleTracks?.map((sub, idx: number) => (
-                  <View key={`subtitle-item-${idx}`}>
+                {subtitleTracks?.map((subtitle) => (
+                  <View key={`subtitle-item-${subtitle.index}`}>
                     <TouchableOpacity
                       onPress={() => {
-                        sub.setTrack();
+                        subtitle.setTrack();
                         setTimeout(() => handleClose(), 250);
                       }}
                       className='bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
                     >
-                      <Text className='flex shrink'>{sub.name}</Text>
-                      {subtitleIndex === sub.index.toString() ? (
+                      <Text className='flex shrink'>{subtitle.name}</Text>
+                      {subtitleIndex === subtitle.index.toString() ? (
                         <Ionicons
                           name='radio-button-on'
                           size={24}
@@ -214,7 +215,10 @@ const DropdownView = () => {
                         />
                       )}
                     </TouchableOpacity>
-                    {idx < (subtitleTracks?.length ?? 0) - 1 && (
+                    {(subtitleTracks?.findIndex(
+                      (s) => s.index === subtitle.index,
+                    ) ?? 0) <
+                      (subtitleTracks?.length ?? 0) - 1 && (
                       <View
                         style={{
                           height: StyleSheet.hairlineWidth,
@@ -240,17 +244,17 @@ const DropdownView = () => {
                   }}
                   className='flex flex-col rounded-xl overflow-hidden'
                 >
-                  {audioTracks?.map((track, idx: number) => (
-                    <View key={`audio-item-${idx}`}>
+                  {audioTracks?.map((audio) => (
+                    <View key={`audio-item-${audio.index}`}>
                       <TouchableOpacity
                         onPress={() => {
-                          track.setTrack();
+                          audio.setTrack();
                           setTimeout(() => handleClose(), 250);
                         }}
                         className='bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
                       >
-                        <Text className='flex shrink'>{track.name}</Text>
-                        {audioIndex === track.index.toString() ? (
+                        <Text className='flex shrink'>{audio.name}</Text>
+                        {audioIndex === audio.index.toString() ? (
                           <Ionicons
                             name='radio-button-on'
                             size={24}
@@ -264,7 +268,10 @@ const DropdownView = () => {
                           />
                         )}
                       </TouchableOpacity>
-                      {idx < (audioTracks?.length ?? 0) - 1 && (
+                      {(audioTracks?.findIndex(
+                        (a) => a.index === audio.index,
+                      ) ?? 0) <
+                        (audioTracks?.length ?? 0) - 1 && (
                         <View
                           style={{
                             height: StyleSheet.hairlineWidth,

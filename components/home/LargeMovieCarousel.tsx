@@ -21,7 +21,8 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { getItemNavigation } from "../common/TouchableItemRouter";
+import { getCurrentTab } from "@/utils/navigation";
+import { itemRouter } from "../common/TouchableItemRouter";
 
 interface Props extends ViewProps {}
 
@@ -145,16 +146,16 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
     return getLogoImageUrlById({ api, item, height: 100 });
   }, [item]);
 
-  const segments = useSegments();
-  const from = (segments as string[])[2] || "(home)";
+  const segments = useSegments() as string[];
+  const from = getCurrentTab(segments);
 
   const opacity = useSharedValue(1);
 
   const handleRoute = useCallback(() => {
     if (!from) return;
+    const url = itemRouter(item, from);
     lightHapticFeedback();
-    const navigation = getItemNavigation(item, from);
-    router.push(navigation as any);
+    if (url) router.push(url as any);
   }, [item, from]);
 
   const tap = Gesture.Tap()

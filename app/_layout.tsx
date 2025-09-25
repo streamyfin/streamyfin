@@ -1,7 +1,7 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { Platform } from "react-native";
+import { Appearance, AppState, Platform } from "react-native";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import {
@@ -9,6 +9,7 @@ import {
   getOrSetDeviceId,
   getTokenFromStorage,
   JellyfinProvider,
+  userAtom,
 } from "@/providers/JellyfinProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
@@ -45,10 +46,9 @@ import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 
 import * as TaskManager from "expo-task-manager";
-import { Provider as JotaiProvider } from "jotai";
+import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { Appearance, AppState } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
@@ -60,9 +60,7 @@ import type {
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
 import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { useAtom } from "jotai";
 import { Toaster } from "sonner-native";
-import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 
 if (!Platform.isTV) {
@@ -281,7 +279,7 @@ function Layout() {
       return;
     }
 
-    if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
+    if (!Platform.isTV && user?.Policy?.IsAdministrator) {
       await registerBackgroundFetchAsyncSessions();
     }
 

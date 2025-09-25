@@ -20,7 +20,7 @@ interface Props<T> extends SlideProps {
     index: number,
   ) => React.ComponentType<any> | React.ReactElement | null | undefined;
   keyExtractor: (item: T) => string;
-  onEndReached?: (() => void) | null | undefined;
+  onEndReached?: (() => void) | null;
 }
 
 const Slide = <T,>({
@@ -41,7 +41,7 @@ const Slide = <T,>({
         horizontal
         contentContainerStyle={{
           paddingHorizontal: 16,
-          ...(contentContainerStyle ? contentContainerStyle : {}),
+          ...(contentContainerStyle ?? {}),
         }}
         showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
@@ -49,10 +49,16 @@ const Slide = <T,>({
         data={data}
         onEndReachedThreshold={1}
         onEndReached={onEndReached}
-        //@ts-expect-error
-        renderItem={({ item, index }) =>
-          item ? renderItem(item, index) : null
-        }
+        renderItem={({ item, index }) => {
+          if (!item) return null;
+          const rendered = renderItem(item, index);
+          if (!rendered) return null;
+          if (typeof rendered === "function") {
+            const Comp: any = rendered;
+            return <Comp />;
+          }
+          return rendered;
+        }}
       />
     </View>
   );

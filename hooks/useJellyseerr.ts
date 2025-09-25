@@ -1,10 +1,11 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
-import { atom } from "jotai";
-import { useAtom } from "jotai/index";
+import { atom, useAtom } from "jotai";
 import { inRange } from "lodash";
 import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
 import type {
+  CollectionResult,
   MovieResult,
+  PersonResult,
   Results,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
@@ -88,11 +89,11 @@ export enum Endpoints {
   STUDIO = "/studio",
   GENRE_SLIDER = "/genreslider",
   DISCOVER = "/discover",
-  DISCOVER_TRENDING = `${DISCOVER}/trending`,
-  DISCOVER_MOVIES = `${DISCOVER}/movies`,
-  DISCOVER_TV = DISCOVER + TV,
-  DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
-  DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
+  DISCOVER_TRENDING = "/discover/trending",
+  DISCOVER_MOVIES = "/discover/movies",
+  DISCOVER_TV = "/discover/tv",
+  DISCOVER_TV_NETWORK = "/discover/tv/network",
+  DISCOVER_MOVIES_STUDIO = "/discover/movies/studio",
   AUTH_JELLYFIN = "/auth/jellyfin",
 }
 
@@ -387,7 +388,7 @@ export class JellyseerrApi {
           `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
-        if (error.response?.status === 403) {
+        if (error.status === 403) {
           clearJellyseerrStorageData();
         }
         return Promise.reject(error);
@@ -468,49 +469,77 @@ export const useJellyseerr = () => {
   );
 
   const isJellyseerrMovieOrTvResult = (
-    items: any | null | undefined,
+    items: MediaItem | null | undefined,
   ): items is MovieResult | TvResult => {
-    return (
+    return Boolean(
       items &&
-      Object.hasOwn(items, "mediaType") &&
-      (items.mediaType === MediaType.MOVIE || items.mediaType === MediaType.TV)
+        Object.hasOwn(items, "mediaType") &&
+        ((items as MovieResult | TvResult).mediaType === MediaType.MOVIE ||
+          (items as MovieResult | TvResult).mediaType === MediaType.TV),
     );
   };
 
-  const getTitle = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ) => {
-    return isJellyseerrMovieOrTvResult(item)
-      ? item.mediaType === MediaType.MOVIE
-        ? item?.title
-        : item?.name
-      : item?.mediaInfo?.mediaType === MediaType.MOVIE
-        ? (item as MovieDetails)?.title
-        : (item as TvDetails)?.name;
+  type MediaItem =
+    | TvResult
+    | TvDetails
+    | MovieResult
+    | MovieDetails
+    | PersonCreditCast
+    | CollectionResult
+    | PersonResult;
+
+  const getTitle = (item?: MediaItem) => {
+    if (isJellyseerrMovieOrTvResult(item)) {
+      return item.mediaType === MediaType.MOVIE ? item?.title : item?.name;
+    }
+
+    // Handle CollectionResult
+    if (item && "title" in item) {
+      return item.title;
+    }
+
+    if (item && "mediaInfo" in item) {
+      if (item.mediaInfo?.mediaType === MediaType.MOVIE) {
+        return (item as unknown as MovieDetails)?.title;
+      }
+      return (item as unknown as TvDetails)?.name;
+    }
+
+    return undefined;
   };
 
-  const getYear = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ) => {
-    return new Date(
-      (isJellyseerrMovieOrTvResult(item)
-        ? item.mediaType === MediaType.MOVIE
+  const getYear = (item?: MediaItem) => {
+    let dateString = "";
+
+    if (isJellyseerrMovieOrTvResult(item)) {
+      dateString =
+        (item.mediaType === MediaType.MOVIE
           ? item?.releaseDate
-          : item?.firstAirDate
-        : item?.mediaInfo?.mediaType === MediaType.MOVIE
-          ? (item as MovieDetails)?.releaseDate
-          : (item as TvDetails)?.firstAirDate) || "",
-    )?.getFullYear?.();
+          : item?.firstAirDate) || "";
+    } else if (item && "mediaInfo" in item) {
+      if (item.mediaInfo?.mediaType === MediaType.MOVIE) {
+        dateString = (item as unknown as MovieDetails)?.releaseDate || "";
+      } else {
+        dateString = (item as unknown as TvDetails)?.firstAirDate || "";
+      }
+    }
+
+    return new Date(dateString)?.getFullYear?.();
   };
 
-  const getMediaType = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ): MediaType => {
-    return isJellyseerrMovieOrTvResult(item)
-      ? (item.mediaType as MediaType)
-      : item?.mediaInfo?.mediaType;
+  const getMediaType = (item?: MediaItem): MediaType | undefined => {
+    if (isJellyseerrMovieOrTvResult(item)) {
+      return item.mediaType as MediaType;
+    }
+
+    if (item && "mediaInfo" in item) {
+      return item.mediaInfo?.mediaType;
+    }
+
+    return undefined;
   };
 
+  // Adjusted to match current UserSettings field name (discoverRegion)
   const jellyseerrRegion = useMemo(
     () => jellyseerrUser?.settings?.discoverRegion || "US",
     [jellyseerrUser],

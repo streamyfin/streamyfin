@@ -32,6 +32,7 @@ import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import { Bitrate } from "../components/BitrateSelector";
 import {
   DownloadedItem,
+  DownloadedSeries,
   DownloadsDatabase,
   JobStatus,
   TrickPlayData,
@@ -161,30 +162,38 @@ function useDownloadProvider() {
       return;
     }
     // check if processes are missing
+    const hasMetadataAndNotInProcesses = (task: any) => {
+      return task.metadata && !processes.some((p) => p.id === task.id);
+    };
+
+    const findTaskById = (taskId: string) => {
+      return tasks.find((taskItem: any) => taskItem.id === taskId);
+    };
+
     setProcesses((processes) => {
       const missingProcesses = tasks
-        .filter((t: any) => t.metadata && !processes.some((p) => p.id === t.id))
-        .map((t: any) => {
-          return t.metadata as JobStatus;
+        .filter(hasMetadataAndNotInProcesses)
+        .map((task: any) => {
+          return task.metadata as JobStatus;
         });
 
       const currentProcesses = [...processes, ...missingProcesses];
-      const updatedProcesses = currentProcesses.map((p) => {
+      const updatedProcesses = currentProcesses.map((process) => {
         // fallback. Doesn't really work for transcodes as they may be a lot smaller.
         // We make an wild guess by comparing bitrates
-        const task = tasks.find((s: any) => s.id === p.id);
-        if (task && p.status === "downloading") {
-          const estimatedSize = calculateEstimatedSize(p);
-          let progress = p.progress;
+        const task = findTaskById(process.id);
+        if (task && process.status === "downloading") {
+          const estimatedSize = calculateEstimatedSize(process);
+          let progress = process.progress;
           if (estimatedSize > 0) {
             progress = (100 / estimatedSize) * task.bytesDownloaded;
           }
           if (progress >= 100) {
             progress = 99;
           }
-          const speed = calculateSpeed(p, task.bytesDownloaded);
+          const speed = calculateSpeed(process, task.bytesDownloaded);
           return {
-            ...p,
+            ...process,
             progress,
             speed,
             bytesDownloaded: task.bytesDownloaded,
@@ -192,7 +201,7 @@ function useDownloadProvider() {
             estimatedTotalSizeBytes: estimatedSize,
           };
         }
-        return p;
+        return process;
       });
 
       return updatedProcesses;
@@ -480,7 +489,7 @@ function useDownloadProvider() {
               episodeNumber
             ] = downloadedItem;
           }
-          await saveDownloadsDatabase(db);
+          saveDownloadsDatabase(db);
 
           // Send native notification for successful download
           const successNotification = getNotificationContent(
@@ -574,7 +583,8 @@ function useDownloadProvider() {
       await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {
         intermediates: true,
       });
-    } catch (_error) {
+    } catch (error) {
+      console.error("Failed to clean cache directory:", error);
       toast.error(t("Failed to clean cache directory."));
     }
   };
@@ -600,12 +610,12 @@ function useDownloadProvider() {
         });
         await saveImage(item.Id, itemImage?.uri);
         const job: JobStatus = {
-          id: item.Id!,
+          id: item.Id,
           deviceId: deviceId,
           maxBitrate,
           inputUrl: url,
           item: item,
-          itemId: item.Id!,
+          itemId: item.Id,
           mediaSource,
           progress: 0,
           status: "queued",
@@ -633,54 +643,60 @@ function useDownloadProvider() {
     [authHeader, startDownload],
   );
 
-  const deleteFile = async (id: string, type: "Movie" | "Episode") => {
-    const db = getDownloadsDatabase();
-    let downloadedItem: DownloadedItem | undefined;
+  const findAndDeleteMovie = (
+    db: DownloadsDatabase,
+    id: string,
+  ): DownloadedItem | undefined => {
+    const downloadedItem = db.movies[id];
+    if (downloadedItem) {
+      delete db.movies[id];
+    }
+    return downloadedItem;
+  };
 
-    if (type === "Movie") {
-      downloadedItem = db.movies[id];
-      if (downloadedItem) {
-        delete db.movies[id];
-      }
-    } else if (type === "Episode") {
-      const cleanUpEmptyParents = (
-        series: any,
-        seasonNumber: string,
-        seriesId: string,
-      ) => {
-        if (!Object.keys(series.seasons[seasonNumber].episodes).length) {
-          delete series.seasons[seasonNumber];
-        }
-        if (!Object.keys(series.seasons).length) {
-          delete db.series[seriesId];
-        }
-      };
+  const cleanUpEmptyParents = (
+    series: DownloadedSeries,
+    seasonNumber: string,
+    seriesId: string,
+    db: DownloadsDatabase,
+  ) => {
+    if (!Object.keys(series.seasons[Number(seasonNumber)].episodes).length) {
+      delete series.seasons[Number(seasonNumber)];
+    }
+    if (!Object.keys(series.seasons).length) {
+      delete db.series[seriesId];
+    }
+  };
 
-      for (const [seriesId, series] of Object.entries(db.series)) {
-        for (const [seasonNumber, season] of Object.entries(series.seasons)) {
-          for (const [episodeNumber, episode] of Object.entries(
-            season.episodes,
-          )) {
-            if (episode.item.Id === id) {
-              downloadedItem = episode;
-              delete season.episodes[Number(episodeNumber)];
-              cleanUpEmptyParents(series, seasonNumber, seriesId);
-              break;
-            }
+  const findAndDeleteEpisode = (
+    db: DownloadsDatabase,
+    id: string,
+  ): DownloadedItem | undefined => {
+    for (const [seriesId, series] of Object.entries(db.series)) {
+      for (const [seasonNumber, season] of Object.entries(series.seasons)) {
+        for (const [episodeNumber, episode] of Object.entries(
+          season.episodes,
+        )) {
+          if (episode.item.Id === id) {
+            const downloadedItem = episode;
+            delete season.episodes[Number(episodeNumber)];
+            cleanUpEmptyParents(series, seasonNumber, seriesId, db);
+            return downloadedItem;
           }
-          if (downloadedItem) break;
         }
-        if (downloadedItem) break;
       }
     }
+    return undefined;
+  };
 
-    if (downloadedItem?.videoFilePath) {
+  const deleteMediaFiles = async (downloadedItem: DownloadedItem) => {
+    if (downloadedItem.videoFilePath) {
       await FileSystem.deleteAsync(downloadedItem.videoFilePath, {
         idempotent: true,
       });
     }
 
-    if (downloadedItem?.mediaSource?.MediaStreams) {
+    if (downloadedItem.mediaSource?.MediaStreams) {
       for (const stream of downloadedItem.mediaSource.MediaStreams) {
         if (
           stream.Type === "Subtitle" &&
@@ -693,13 +709,28 @@ function useDownloadProvider() {
       }
     }
 
-    if (downloadedItem?.trickPlayData?.path) {
+    if (downloadedItem.trickPlayData?.path) {
       await FileSystem.deleteAsync(downloadedItem.trickPlayData.path, {
         idempotent: true,
       });
     }
+  };
 
-    await saveDownloadsDatabase(db);
+  const deleteFile = async (id: string, type: "Movie" | "Episode") => {
+    const db = getDownloadsDatabase();
+    let downloadedItem: DownloadedItem | undefined;
+
+    if (type === "Movie") {
+      downloadedItem = findAndDeleteMovie(db, id);
+    } else if (type === "Episode") {
+      downloadedItem = findAndDeleteEpisode(db, id);
+    }
+
+    if (downloadedItem) {
+      await deleteMediaFiles(downloadedItem);
+    }
+
+    saveDownloadsDatabase(db);
     successHapticFeedback();
   };
 
@@ -739,6 +770,25 @@ function useDownloadProvider() {
     return downloadedItem.videoFileSize + trickplaySize;
   };
 
+  /** Helper function to update episode in series database */
+  const updateEpisodeInSeries = (
+    db: DownloadsDatabase,
+    itemId: string,
+    updatedItem: DownloadedItem,
+  ) => {
+    for (const series of Object.values(db.series)) {
+      for (const season of Object.values(series.seasons)) {
+        for (const episode of Object.values(season.episodes)) {
+          if (episode.item.Id === itemId) {
+            season.episodes[episode.item.IndexNumber as number] = updatedItem;
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
   /** Updates a downloaded item. */
   const updateDownloadedItem = (
     itemId: string,
@@ -748,15 +798,7 @@ function useDownloadProvider() {
     if (db.movies[itemId]) {
       db.movies[itemId] = updatedItem;
     } else {
-      for (const series of Object.values(db.series)) {
-        for (const season of Object.values(series.seasons)) {
-          for (const episode of Object.values(season.episodes)) {
-            if (episode.item.Id === itemId) {
-              season.episodes[episode.item.IndexNumber as number] = updatedItem;
-            }
-          }
-        }
-      }
+      updateEpisodeInSeries(db, itemId, updatedItem);
     }
     saveDownloadsDatabase(db);
   };
@@ -898,7 +940,9 @@ export function useDownload() {
   return context;
 }
 
-export function DownloadProvider({ children }: { children: React.ReactNode }) {
+export function DownloadProvider({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const downloadUtils = useDownloadProvider();
   return (
     <DownloadContext.Provider value={downloadUtils}>

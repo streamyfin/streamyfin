@@ -16,7 +16,10 @@ import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
 import { Colors } from "@/constants/Colors";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
-import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
+import {
+  MediaStatus,
+  MediaType,
+} from "@/utils/jellyseerr/server/constants/media";
 import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import type { DownloadingItem } from "@/utils/jellyseerr/server/lib/downloadtracker";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
@@ -123,11 +126,11 @@ const JellyseerrPoster: React.FC<Props> = ({
   return (
     <TouchableJellyseerrRouter
       result={item}
-      mediaTitle={title}
+      mediaTitle={title || ""}
       releaseYear={releaseYear}
       canRequest={canRequest}
-      posterSrc={posterSrc!}
-      mediaType={mediaType}
+      posterSrc={posterSrc || ""}
+      mediaType={mediaType || MediaType.MOVIE}
     >
       <View className={"flex flex-col mr-2 h-auto"}>
         <View
@@ -191,7 +194,7 @@ const JellyseerrPoster: React.FC<Props> = ({
           />
           <JellyseerrMediaIcon
             className='absolute top-1 left-1'
-            mediaType={mediaType}
+            mediaType={mediaType as "movie" | "tv"}
           />
         </View>
       </View>

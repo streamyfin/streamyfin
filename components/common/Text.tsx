@@ -1,5 +1,5 @@
 import { Platform, Text as RNText, type TextProps } from "react-native";
-export function Text(props: TextProps) {
+export function Text(props: Readonly<TextProps>) {
   const { style, ...otherProps } = props;
   if (Platform.isTV)
     return (

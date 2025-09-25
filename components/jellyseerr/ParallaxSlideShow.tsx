@@ -18,7 +18,9 @@ const BACKDROP_DURATION = 5000;
 
 type Render = React.ComponentType<any> | React.ReactElement | null | undefined;
 
-interface Props<T> {
+const ItemSeparator = () => <View className='h-2 w-2' />;
+
+interface ParallaxSlideShowProps<T> {
   data: T[];
   images: string[];
   logo?: React.ReactElement;
@@ -27,7 +29,7 @@ interface Props<T> {
   listHeader: string;
   renderItem: (item: T, index: number) => Render;
   keyExtractor: (item: T) => string;
-  onEndReached?: (() => void) | null | undefined;
+  onEndReached?: (() => void) | null;
 }
 
 const ParallaxSlideShow = <T,>({
@@ -40,7 +42,7 @@ const ParallaxSlideShow = <T,>({
   renderItem,
   keyExtractor,
   onEndReached,
-}: PropsWithChildren<Props<T> & ViewProps>) => {
+}: PropsWithChildren<ParallaxSlideShowProps<T> & ViewProps>) => {
   const insets = useSafeAreaInsets();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -66,15 +68,21 @@ const ParallaxSlideShow = <T,>({
     [fadeAnim],
   );
 
+  const handleAnimationComplete = useCallback(() => {
+    fadeAnim.setValue(0);
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % images?.length);
+  }, [fadeAnim, images?.length, setCurrentIndex]);
+
+  const createSlideSequence = useCallback(() => {
+    return Animated.sequence([enterAnimation(), exitAnimation()]);
+  }, [enterAnimation, exitAnimation]);
+
   useEffect(() => {
     if (images?.length) {
       enterAnimation().start();
 
       const intervalId = setInterval(() => {
-        Animated.sequence([enterAnimation(), exitAnimation()]).start(() => {
-          fadeAnim.setValue(0);
-          setCurrentIndex((prevIndex) => (prevIndex + 1) % images?.length);
-        });
+        createSlideSequence().start(handleAnimationComplete);
       }, BACKDROP_DURATION);
 
       return () => {
@@ -88,6 +96,8 @@ const ParallaxSlideShow = <T,>({
     exitAnimation,
     setCurrentIndex,
     currentIndex,
+    createSlideSequence,
+    handleAnimationComplete,
   ]);
 
   return (
@@ -139,12 +149,20 @@ const ParallaxSlideShow = <T,>({
               }
               nestedScrollEnabled
               showsVerticalScrollIndicator={false}
-              //@ts-expect-error
-              renderItem={({ item, index }) => renderItem(item, index)}
+              renderItem={({ item, index }) => {
+                const rendered = renderItem(item as any, index);
+                if (!rendered) return null;
+                // If the result is a component type, instantiate it
+                if (typeof rendered === "function") {
+                  const Comp: any = rendered;
+                  return <Comp />;
+                }
+                return rendered as React.ReactElement;
+              }}
               keyExtractor={keyExtractor}
               numColumns={3}
               estimatedItemSize={214}
-              ItemSeparatorComponent={() => <View className='h-2 w-2' />}
+              ItemSeparatorComponent={ItemSeparator}
             />
           </View>
         </View>

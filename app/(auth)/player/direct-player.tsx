@@ -41,7 +41,7 @@ import { writeToLog } from "@/utils/log";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
-export default function page() {
+export default function Page() {
   const videoRef = useRef<VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -49,7 +49,7 @@ export default function page() {
   const navigation = useNavigation();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
-  const [showControls, _setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(true);
   const [aspectRatio, setAspectRatio] = useState<
     "default" | "16:9" | "4:3" | "1:1" | "21:9"
   >("default");
@@ -75,10 +75,13 @@ export default function page() {
 
   const lightHapticFeedback = useHaptic("light");
 
-  const setShowControls = useCallback((show: boolean) => {
-    _setShowControls(show);
-    lightHapticFeedback();
-  }, []);
+  const setShowControlsWithHaptic = useCallback(
+    (show: boolean) => {
+      setShowControls(show);
+      lightHapticFeedback();
+    },
+    [lightHapticFeedback, setShowControls],
+  );
 
   const {
     itemId,
@@ -138,7 +141,7 @@ export default function page() {
         if (offline && !Platform.isTV) {
           const data = downloadUtils.getDownloadedItemById(itemId);
           if (data) {
-            fetchedItem = data.item as BaseItemDto;
+            fetchedItem = data.item;
             setDownloadedItem(data);
           }
         } else {
@@ -173,64 +176,82 @@ export default function page() {
     isError: false,
   });
 
+  const createOfflineStream = useCallback(() => {
+    if (!downloadedItem?.mediaSource || !item) return null;
+
+    return {
+      mediaSource: downloadedItem.mediaSource,
+      sessionId: "",
+      url: downloadedItem.videoFilePath,
+    };
+  }, [downloadedItem, item]);
+
+  const validateStreamingRequirements = useCallback(() => {
+    if (!api) {
+      console.warn("API not available for streaming");
+      return false;
+    }
+    if (!user?.Id) {
+      console.warn("User not authenticated for streaming");
+      return false;
+    }
+    return true;
+  }, [api, user?.Id]);
+
+  const fetchOnlineStream = useCallback(async () => {
+    if (!validateStreamingRequirements() || !user?.Id) return null;
+
+    const native = generateDeviceProfile();
+    const transcoding = generateDeviceProfile({ transcode: true });
+
+    const res = await getStreamUrl({
+      api,
+      item,
+      startTimeTicks: getInitialPlaybackTicks(),
+      userId: user.Id,
+      audioStreamIndex: audioIndex,
+      maxStreamingBitrate: bitrateValue,
+      mediaSourceId: mediaSourceId,
+      subtitleStreamIndex: subtitleIndex,
+      deviceProfile: bitrateValue ? transcoding : native,
+    });
+
+    if (!res) return null;
+
+    const { mediaSource, sessionId, url } = res;
+    if (!sessionId || !mediaSource || !url) {
+      Alert.alert(t("player.error"), t("player.failed_to_get_stream_url"));
+      return null;
+    }
+
+    return { mediaSource, sessionId, url };
+  }, [
+    validateStreamingRequirements,
+    api,
+    item,
+    getInitialPlaybackTicks,
+    user?.Id,
+    audioIndex,
+    bitrateValue,
+    mediaSourceId,
+    subtitleIndex,
+    t,
+  ]);
+
   useEffect(() => {
     const fetchStreamData = async () => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
-        // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
           console.log("Item not loaded yet, skipping stream data fetch");
           setStreamStatus({ isLoading: false, isError: false });
           return;
         }
 
-        let result: Stream | null = null;
-        if (offline && downloadedItem && downloadedItem.mediaSource) {
-          const url = downloadedItem.videoFilePath;
-          if (item) {
-            result = {
-              mediaSource: downloadedItem.mediaSource,
-              sessionId: "",
-              url: url,
-            };
-          }
-        } else {
-          // Validate required parameters before calling getStreamUrl
-          if (!api) {
-            console.warn("API not available for streaming");
-            setStreamStatus({ isLoading: false, isError: true });
-            return;
-          }
-          if (!user?.Id) {
-            console.warn("User not authenticated for streaming");
-            setStreamStatus({ isLoading: false, isError: true });
-            return;
-          }
+        const result = offline
+          ? createOfflineStream()
+          : await fetchOnlineStream();
 
-          const native = generateDeviceProfile();
-          const transcoding = generateDeviceProfile({ transcode: true });
-          const res = await getStreamUrl({
-            api,
-            item,
-            startTimeTicks: getInitialPlaybackTicks(),
-            userId: user.Id,
-            audioStreamIndex: audioIndex,
-            maxStreamingBitrate: bitrateValue,
-            mediaSourceId: mediaSourceId,
-            subtitleStreamIndex: subtitleIndex,
-            deviceProfile: bitrateValue ? transcoding : native,
-          });
-          if (!res) return;
-          const { mediaSource, sessionId, url } = res;
-          if (!sessionId || !mediaSource || !url) {
-            Alert.alert(
-              t("player.error"),
-              t("player.failed_to_get_stream_url"),
-            );
-            return;
-          }
-          result = { mediaSource, sessionId, url };
-        }
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
       } catch (error) {
@@ -247,6 +268,9 @@ export default function page() {
     item,
     user?.Id,
     downloadedItem,
+    offline,
+    createOfflineStream,
+    fetchOnlineStream,
   ]);
 
   useEffect(() => {
@@ -315,8 +339,8 @@ export default function page() {
     if (!stream) return;
     return {
       itemId: item?.Id!,
-      audioStreamIndex: audioIndex ? audioIndex : undefined,
-      subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      audioStreamIndex: audioIndex || undefined,
+      subtitleStreamIndex: subtitleIndex || undefined,
       mediaSourceId: mediaSourceId,
       positionTicks: msToTicks(progress.get()),
       isPaused: !isPlaying,
@@ -472,15 +496,46 @@ export default function page() {
     }
   }, []);
 
+  const handleTogglePlay = useCallback(() => {
+    togglePlay().catch((error) => console.error("Error toggling play:", error));
+  }, [togglePlay]);
+
+  const handleToggleMute = useCallback(() => {
+    toggleMuteCb().catch((error) =>
+      console.error("Error toggling mute:", error),
+    );
+  }, [toggleMuteCb]);
+
+  const handleVolumeUp = useCallback(() => {
+    volumeUpCb().catch((error) =>
+      console.error("Error increasing volume:", error),
+    );
+  }, [volumeUpCb]);
+
+  const handleVolumeDown = useCallback(() => {
+    volumeDownCb().catch((error) =>
+      console.error("Error decreasing volume:", error),
+    );
+  }, [volumeDownCb]);
+
+  const handleSetVolume = useCallback(
+    (volume: number) => {
+      setVolumeCb(volume).catch((error) =>
+        console.error("Error setting volume:", error),
+      );
+    },
+    [setVolumeCb],
+  );
+
   useWebSocket({
     isPlaying: isPlaying,
-    togglePlay: togglePlay,
+    togglePlay: handleTogglePlay,
     stopPlayback: stop,
     offline,
-    toggleMute: toggleMuteCb,
-    volumeUp: volumeUpCb,
-    volumeDown: volumeDownCb,
-    setVolume: setVolumeCb,
+    toggleMute: handleToggleMute,
+    volumeUp: handleVolumeUp,
+    volumeDown: handleVolumeDown,
+    setVolume: handleSetVolume,
   });
 
   const onPlaybackStateChanged = useCallback(
@@ -701,7 +756,6 @@ export default function page() {
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
-          videoRef={videoRef}
           togglePlay={togglePlay}
           isPlaying={isPlaying}
           isSeeking={isSeeking}
@@ -709,13 +763,12 @@ export default function page() {
           cacheProgress={cacheProgress}
           isBuffering={isBuffering}
           showControls={showControls}
-          setShowControls={setShowControls}
+          setShowControls={setShowControlsWithHaptic}
           isVideoLoaded={isVideoLoaded}
           startPictureInPicture={startPictureInPicture}
           play={play}
           pause={pause}
           seek={seek}
-          enableTrickplay={true}
           getAudioTracks={getAudioTracks}
           getSubtitleTracks={getSubtitleTracks}
           offline={offline}

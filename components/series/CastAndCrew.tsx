@@ -10,8 +10,10 @@ import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getCurrentTab } from "@/utils/navigation";
 import { HorizontalScroll } from "../common/HorizontalScroll";
 import { Text } from "../common/Text";
+import { itemRouter } from "../common/TouchableItemRouter";
 import Poster from "../posters/Poster";
 
 interface Props extends ViewProps {
@@ -21,9 +23,9 @@ interface Props extends ViewProps {
 
 export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   const { t } = useTranslation();
-  const from = (segments as string[])[2];
+  const from = getCurrentTab(segments);
 
   const destinctPeople = useMemo(() => {
     const people: Record<string, BaseItemPerson> = {};
@@ -55,12 +57,14 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
-              if (i.Id) {
-                router.push({
-                  pathname: "/persons/[personId]",
-                  params: { personId: i.Id },
-                });
-              }
+              const url = itemRouter(
+                {
+                  Id: i.Id,
+                  Type: "Person",
+                },
+                from,
+              );
+              router.push(url as any);
             }}
             className='flex flex-col w-28'
           >

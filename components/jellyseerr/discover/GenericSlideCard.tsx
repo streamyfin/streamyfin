@@ -34,37 +34,34 @@ const GenericSlideCard: React.FC<
   contentFit = "contain",
   ...props
 }) => (
-  <>
-    <LinearGradient
-      colors={colors}
-      start={{ x: 0.5, y: 1.75 }}
-      end={{ x: 0.5, y: 0 }}
-      className='rounded-xl'
-    >
-      <View className='rounded-xl' {...props}>
-        <Image
-          key={id}
-          id={id}
-          source={url ? { uri: url } : null}
-          cachePolicy={"memory-disk"}
-          contentFit={contentFit}
-          style={{
-            aspectRatio: "4/3",
-          }}
-        />
-        {title && (
-          <View className='absolute justify-center top-0 left-0 right-0 bottom-0 items-center'>
-            <Text
-              className='text-center font-bold'
-              style={textShadowStyle.shadow}
-            >
-              {title}
-            </Text>
-          </View>
-        )}
-      </View>
-    </LinearGradient>
-  </>
+  <LinearGradient
+    colors={colors}
+    start={{ x: 0.5, y: 1.75 }}
+    end={{ x: 0.5, y: 0 }}
+    className='rounded-xl'
+  >
+    <View className='rounded-xl' {...props}>
+      <Image
+        key={id}
+        id={id}
+        source={url ? { uri: url } : null}
+        cachePolicy={"memory-disk"}
+        contentFit={contentFit}
+        style={{
+          aspectRatio: "4/3",
+        }}
+      />
+      {title && (
+        <View className='absolute justify-center top-0 left-0 right-0 bottom-0 items-center'>
+          <Text
+            className='text-center font-bold'
+            style={textShadowStyle.shadow}
+          >
+            {title}
+          </Text>
+        </View>
+      )}
+    </View>
+  </LinearGradient>
 );
-
 export default GenericSlideCard;

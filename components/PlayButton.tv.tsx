@@ -70,11 +70,10 @@ export const PlayButton: React.FC<Props> = ({
 
     const queryString = queryParams.toString();
     goToPlayer(queryString);
-    return;
   };
 
   const derivedTargetWidth = useDerivedValue(() => {
-    if (!item || !item.RunTimeTicks) return 0;
+    if (!item?.RunTimeTicks) return 0;
     const userData = item.UserData;
     if (userData?.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0

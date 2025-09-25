@@ -7,7 +7,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   type Dispatch,
   type FC,
-  type MutableRefObject,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -28,10 +27,11 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import type { TrackInfo } from "@/modules/VlcPlayer.types";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { writeDebugLog } from "@/utils/log";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
@@ -50,7 +50,6 @@ import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
@@ -58,7 +57,6 @@ interface Props {
   isBuffering: boolean;
   showControls: boolean;
 
-  enableTrickplay?: boolean;
   togglePlay: () => void;
   setShowControls: (shown: boolean) => void;
   offline?: boolean;
@@ -208,8 +206,8 @@ export const Controls: FC<Props> = ({
 
   // Navigation hooks
   const {
-    handleSeekBackward,
-    handleSeekForward,
+    handleSeekBackward: asyncHandleSeekBackward,
+    handleSeekForward: asyncHandleSeekForward,
     handleSkipBackward,
     handleSkipForward,
   } = useVideoNavigation({
@@ -219,6 +217,21 @@ export const Controls: FC<Props> = ({
     seek,
     play,
   });
+
+  // Create sync wrappers for remote control
+  const handleSeekBackward = useCallback(
+    (seconds: number) => {
+      asyncHandleSeekBackward(seconds);
+    },
+    [asyncHandleSeekBackward],
+  );
+
+  const handleSeekForward = useCallback(
+    (seconds: number) => {
+      asyncHandleSeekForward(seconds);
+    },
+    [asyncHandleSeekForward],
+  );
 
   // Time management hook
   const { currentTime, remainingTime } = useVideoTime({
@@ -377,7 +390,7 @@ export const Controls: FC<Props> = ({
           item.UserData?.PlaybackPositionTicks?.toString() ?? "",
       }).toString();
 
-      console.log("queryParams", queryParams);
+      writeDebugLog("controls.navigate.queryParams", { queryParams });
 
       router.replace(`player/direct-player?${queryParams}` as any);
     },

@@ -9,11 +9,12 @@ import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import type { GenreSliderItem } from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
 import { genreColorMap } from "@/utils/jellyseerr/src/components/Discover/constants";
+import { getCurrentTab } from "@/utils/navigation";
 
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   const { jellyseerrApi } = useJellyseerr();
-  const from = (segments as string[])[2] || "(home)";
+  const from = getCurrentTab(segments);
 
   const navigate = useCallback(
     (genre: GenreSliderItem) =>

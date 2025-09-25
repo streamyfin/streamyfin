@@ -1,7 +1,7 @@
 import { useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -25,7 +25,19 @@ import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
-export default function settings() {
+interface LogoutButtonProps {
+  readonly onPress: () => void;
+}
+
+function LogoutButton({ onPress }: LogoutButtonProps) {
+  return (
+    <TouchableOpacity onPress={onPress}>
+      <Text className='text-red-600'>{t("home.settings.log_out_button")}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const SettingsPage = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [_user] = useAtom(userAtom);
@@ -37,22 +49,17 @@ export default function settings() {
     successHapticFeedback();
   };
 
+  const headerRightComponent = useMemo(
+    () => <LogoutButton onPress={() => logout()} />,
+    [logout],
+  );
+
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => {
-            logout();
-          }}
-        >
-          <Text className='text-red-600'>
-            {t("home.settings.log_out_button")}
-          </Text>
-        </TouchableOpacity>
-      ),
+      headerRight: () => headerRightComponent,
     });
-  }, []);
+  }, [headerRightComponent, navigation]);
 
   return (
     <ScrollView
@@ -118,4 +125,6 @@ export default function settings() {
       </View>
     </ScrollView>
   );
-}
+};
+
+export default SettingsPage;

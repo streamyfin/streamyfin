@@ -45,7 +45,7 @@ export function InfiniteHorizontalScroll({
   loading = false,
   height = 164,
   ...props
-}: HorizontalScrollProps): React.ReactElement {
+}: Readonly<HorizontalScrollProps>): React.ReactElement {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
