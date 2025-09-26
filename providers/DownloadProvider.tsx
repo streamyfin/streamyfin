@@ -193,9 +193,42 @@ function useDownloadProvider() {
 
       const currentProcesses = [...processes, ...missingProcesses];
       const updatedProcesses = currentProcesses.map((p) => {
-        // fallback. Doesn't really work for transcodes as they may be a lot smaller.
-        // We make an wild guess by comparing bitrates
+        // Enhanced filtering to prevent iOS zombie task interference
+        // Only update progress for downloads that are actively downloading
+        if (p.status !== "downloading") {
+          return p;
+        }
+
+        // Find task for this process
         const task = tasks.find((s: any) => s.id === p.id);
+        if (!task) {
+          return p; // No task found, keep current state
+        }
+
+        // iOS: Extra validation to prevent zombie task interference
+        if (Platform.OS === "ios") {
+          // Check if we have multiple tasks for same ID (zombie detection)
+          const tasksForId = tasks.filter((t: any) => t.id === p.id);
+          if (tasksForId.length > 1) {
+            console.warn(
+              `[UPDATE] Detected ${tasksForId.length} zombie tasks for ${p.id}, ignoring progress update`,
+            );
+            return p; // Don't update progress from potentially conflicting tasks
+          }
+
+          // If task state looks suspicious (e.g., iOS task stuck in background), be conservative
+          if (
+            task.state &&
+            ["SUSPENDED", "PAUSED"].includes(task.state) &&
+            p.status === "downloading"
+          ) {
+            console.warn(
+              `[UPDATE] Task ${p.id} has suspicious state ${task.state}, ignoring progress update`,
+            );
+            return p;
+          }
+        }
+
         if (task && p.status === "downloading") {
           const estimatedSize = calculateEstimatedSize(p);
           let progress = p.progress;
@@ -433,31 +466,63 @@ function useDownloadProvider() {
     async (process: JobStatus) => {
       if (!process?.item.Id || !authHeader) throw new Error("No item id");
 
-      // Clean up any existing tasks for this ID first to prevent duplicates
+      // Enhanced cleanup for iOS to prevent zombie tasks (based on GitHub issue #26)
       try {
-        const existingTasks =
-          await BackGroundDownloader.checkForExistingDownloads();
-        const existingTask = existingTasks?.find(
-          (t: any) => t.id === process.id,
-        );
-        if (existingTask) {
+        const allTasks = await BackGroundDownloader.checkForExistingDownloads();
+        const existingTasks = allTasks?.filter((t: any) => t.id === process.id);
+
+        if (existingTasks && existingTasks.length > 0) {
           console.log(
-            `Cleaning up existing task for ${process.id} before starting new download`,
+            `[START] Found ${existingTasks.length} existing task(s) for ${process.id}, cleaning up...`,
           );
-          try {
-            await existingTask.stop();
-          } catch (_err) {
-            // ignore stop errors
+
+          for (let i = 0; i < existingTasks.length; i++) {
+            const existingTask = existingTasks[i];
+            console.log(
+              `[START] Cleaning up task ${i + 1}/${existingTasks.length} for ${process.id}`,
+            );
+
+            try {
+              // iOS: More aggressive cleanup sequence
+              if (Platform.OS === "ios") {
+                try {
+                  await existingTask.pause();
+                  await new Promise((resolve) => setTimeout(resolve, 50));
+                } catch (_pauseErr) {
+                  // Ignore pause errors
+                }
+
+                await existingTask.stop();
+                await new Promise((resolve) => setTimeout(resolve, 50));
+
+                // Multiple complete handler calls to ensure cleanup
+                BackGroundDownloader.completeHandler(process.id);
+                await new Promise((resolve) => setTimeout(resolve, 25));
+              } else {
+                // Android: simpler cleanup
+                await existingTask.stop();
+                BackGroundDownloader.completeHandler(process.id);
+              }
+
+              console.log(
+                `[START] Successfully cleaned up task ${i + 1} for ${process.id}`,
+              );
+            } catch (taskError) {
+              console.warn(
+                `[START] Failed to cleanup task ${i + 1} for ${process.id}:`,
+                taskError,
+              );
+            }
           }
-          try {
-            BackGroundDownloader.completeHandler(process.id);
-          } catch (_err) {
-            // ignore cleanup errors
-          }
+
+          // Platform-specific cleanup delay
+          const cleanupDelay = Platform.OS === "ios" ? 500 : 200;
+          await new Promise((resolve) => setTimeout(resolve, cleanupDelay));
+          console.log(`[START] Cleanup completed for ${process.id}`);
         }
       } catch (error) {
         console.warn(
-          `Failed to check/cleanup existing tasks for ${process.id}:`,
+          `[START] Failed to check/cleanup existing tasks for ${process.id}:`,
           error,
         );
       }
@@ -954,15 +1019,58 @@ function useDownloadProvider() {
       const currentProgress = process.progress;
       const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
 
+      console.log(
+        `[PAUSE] Starting pause for ${id}. Current bytes: ${currentBytes}, Progress: ${currentProgress}%`,
+      );
+
       try {
-        // Simple approach: stop the task cleanly on both platforms
-        await task.stop();
+        // iOS-specific aggressive cleanup approach based on GitHub issue #26
+        if (Platform.OS === "ios") {
+          // Get ALL tasks for this ID - there might be multiple zombie tasks
+          const allTasks =
+            await BackGroundDownloader.checkForExistingDownloads();
+          const tasksForId = allTasks?.filter((t: any) => t.id === id) || [];
+
+          console.log(`[PAUSE] Found ${tasksForId.length} task(s) for ${id}`);
+
+          // Stop ALL tasks for this ID to prevent zombie processes
+          for (let i = 0; i < tasksForId.length; i++) {
+            const taskToStop = tasksForId[i];
+            console.log(
+              `[PAUSE] Stopping task ${i + 1}/${tasksForId.length} for ${id}`,
+            );
+
+            try {
+              // iOS: pause → stop sequence with delays (based on issue research)
+              await taskToStop.pause();
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
+              await taskToStop.stop();
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
+              console.log(
+                `[PAUSE] Successfully stopped task ${i + 1} for ${id}`,
+              );
+            } catch (taskError) {
+              console.warn(
+                `[PAUSE] Failed to stop task ${i + 1} for ${id}:`,
+                taskError,
+              );
+            }
+          }
+
+          // Extra cleanup delay for iOS NSURLSession to fully stop
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } else {
+          // Android: simpler approach
+          await task.stop();
+        }
 
         // Clean up the native task handler
         try {
           BackGroundDownloader.completeHandler(id);
         } catch (_err) {
-          // ignore cleanup errors
+          console.warn(`[PAUSE] Handler cleanup warning for ${id}:`, _err);
         }
 
         // Update process state to paused
@@ -992,8 +1100,38 @@ function useDownloadProvider() {
       if (!process) throw new Error("No active download");
 
       console.log(
-        `Attempting to resume download ${id}. Paused bytes: ${process.pausedBytes}, Progress: ${process.pausedProgress}`,
+        `[RESUME] Attempting to resume ${id}. Paused bytes: ${process.pausedBytes}, Progress: ${process.pausedProgress}%`,
       );
+
+      // Enhanced cleanup for iOS based on GitHub issue research
+      if (Platform.OS === "ios") {
+        try {
+          // Clean up any lingering zombie tasks first (critical for iOS)
+          const allTasks =
+            await BackGroundDownloader.checkForExistingDownloads();
+          const existingTasks = allTasks?.filter((t: any) => t.id === id) || [];
+
+          if (existingTasks.length > 0) {
+            console.log(
+              `[RESUME] Found ${existingTasks.length} lingering task(s), cleaning up...`,
+            );
+
+            for (const task of existingTasks) {
+              try {
+                await task.stop();
+                BackGroundDownloader.completeHandler(id);
+              } catch (cleanupError) {
+                console.warn(`[RESUME] Cleanup error:`, cleanupError);
+              }
+            }
+
+            // Wait for iOS cleanup to complete
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          console.warn(`[RESUME] Pre-resume cleanup failed:`, error);
+        }
+      }
 
       // Simple approach: always restart the download from where we left off
       // This works consistently across all platforms
