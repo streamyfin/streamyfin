@@ -29,22 +29,28 @@ config.transformer = {
   // NEW: Inline requires for 15-30% startup improvement
   inlineRequires: true,
 
-  // NEW: Minification optimized for streaming apps
+  // ADVANCED: Hermes-optimized minification for streaming apps
   minifierConfig: {
-    // Keep function names in dev for better debugging
-    keep_fnames: process.env.NODE_ENV === "development",
     mangle: {
       keep_fnames: process.env.NODE_ENV === "development",
-      // Optimize for Hermes bytecode
-      properties: false, // Safer for dynamic property access in streaming
     },
-    // Compress optimized for media apps
+    output: {
+      ascii_only: true,
+      beautify: false,
+      semicolons: false,
+    },
     compress: {
-      // Remove console logs in production
+      // Production-only optimizations
       drop_console: process.env.NODE_ENV === "production",
+      dead_code: true,
+      drop_debugger: true,
+      conditionals: true,
+      evaluate: true,
+      unused: true,
+      reduce_vars: true,
       // Keep class names for error reporting
       keep_classnames: true,
-      // Preserve function names for performance profiling
+      // Preserve function names for performance profiling in dev
       keep_fnames: process.env.NODE_ENV === "development",
     },
   },

@@ -6,8 +6,14 @@
     "development": {
       "resourceClass": "medium",
       "cache": {
-        "key": "development-{{ checksum \"bun.lock\" \"package.json\" }}",
-        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+        "key": "dev-{{ checksum \"bun.lock\" \"app.config.js\" }}",
+        "paths": [
+          "~/.bun/install/cache",
+          "node_modules",
+          ".expo",
+          "android/.gradle",
+          "ios/Pods"
+        ]
       },
       "environment": "development",
       "developmentClient": true,
@@ -55,19 +61,34 @@
     "preview": {
       "resourceClass": "large",
       "cache": {
-        "key": "preview-{{ checksum \"bun.lock\" \"package.json\" }}",
-        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+        "key": "preview-{{ checksum \"bun.lock\" \"app.config.js\" }}",
+        "paths": [
+          "~/.bun/install/cache",
+          "node_modules",
+          ".expo",
+          "android/.gradle",
+          "ios/Pods",
+          ".next"
+        ]
       },
       "distribution": "internal",
       "env": {
+        "EXPO_OPTIMIZE_BUNDLE_SIZE": "1",
+        "NODE_ENV": "production",
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
     "production": {
       "resourceClass": "large",
       "cache": {
-        "key": "production-{{ checksum \"bun.lock\" \"package.json\" }}",
-        "paths": ["~/.bun/install/cache", "node_modules", ".expo"]
+        "key": "production-{{ checksum \"bun.lock\" \"app.config.js\" }}",
+        "paths": [
+          "~/.bun/install/cache",
+          "node_modules",
+          ".expo",
+          "android/.gradle",
+          "ios/Pods"
+        ]
       },
       "environment": "production",
       "channel": "0.36.0",
@@ -77,6 +98,10 @@
       },
       "ios": {
         "image": "latest"
+      },
+      "env": {
+        "EXPO_OPTIMIZE_BUNDLE_SIZE": "1",
+        "NODE_ENV": "production"
       }
     },
     "production-apk": {
