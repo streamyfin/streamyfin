@@ -53,7 +53,6 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
-      "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
       [

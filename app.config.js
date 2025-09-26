@@ -1,5 +1,9 @@
 module.exports = ({ config }) => {
-  if (process.env.EXPO_TV !== "1") {
+  if (process.env.EXPO_TV === "1") {
+    // Add TV-specific plugin for TV builds
+    config.plugins.push("@react-native-tvos/config-tv");
+  } else {
+    // Add non-TV specific plugins for phone builds
     config.plugins.push("expo-background-task");
 
     config.plugins.push([
