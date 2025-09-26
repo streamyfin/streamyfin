@@ -905,143 +905,37 @@ function useDownloadProvider() {
       const task = tasks?.find((t: any) => t.id === id);
       if (!task) throw new Error("No task found");
 
+      // Get current progress before stopping
       const currentProgress = process.progress;
       const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
 
       try {
-        // On iOS, we need to suspend the task to allow resuming
-        if (Platform.OS === "ios") {
-          try {
-            await task.pause();
-            // Verify the task was properly suspended
-            const verifyTasks =
-              await BackGroundDownloader.checkForExistingDownloads();
-            const verifyTask = verifyTasks?.find((t: any) => t.id === id);
-            const state = verifyTask?.state || task.state?.();
-            if (
-              state === "PAUSED" ||
-              state === "paused" ||
-              state === "SUSPENDED" ||
-              state === "suspended"
-            ) {
-              // Task is properly suspended - update status
-              updateProcess(id, {
-                status: "paused",
-                progress: currentProgress,
-                bytesDownloaded: currentBytes,
-                pausedAt: new Date(),
-                pausedProgress: currentProgress,
-                pausedBytes: currentBytes,
-                lastSessionBytes: process.lastSessionBytes ?? currentBytes,
-                lastSessionUpdateTime:
-                  process.lastSessionUpdateTime ?? new Date(),
-              });
-            } else {
-              // If pause didn't work, fall back to stop
-              try {
-                task.stop();
-              } catch (_err) {
-                // ignore stop errors
-              }
-              try {
-                BackGroundDownloader.completeHandler(id);
-              } catch (_err) {
-                // ignore
-              }
-              updateProcess(id, {
-                status: "paused",
-                progress: currentProgress,
-                bytesDownloaded: currentBytes,
-                pausedAt: new Date(),
-                pausedProgress: currentProgress,
-                pausedBytes: currentBytes,
-                lastSessionBytes: process.lastSessionBytes ?? currentBytes,
-                lastSessionUpdateTime:
-                  process.lastSessionUpdateTime ?? new Date(),
-              });
-            }
-          } catch (_pauseError) {
-            // If pause fails, fall back to stop
-            try {
-              task.stop();
-            } catch (_err) {
-              // ignore stop errors
-            }
-            try {
-              BackGroundDownloader.completeHandler(id);
-            } catch (_err) {
-              // ignore
-            }
-            updateProcess(id, {
-              status: "paused",
-              progress: currentProgress,
-              bytesDownloaded: currentBytes,
-              pausedAt: new Date(),
-              pausedProgress: currentProgress,
-              pausedBytes: currentBytes,
-              lastSessionBytes: process.lastSessionBytes ?? currentBytes,
-              lastSessionUpdateTime:
-                process.lastSessionUpdateTime ?? new Date(),
-            });
-          }
-        } else {
-          // Try a normal pause first on Android and other platforms
-          let pausedSuccessfully = false;
-          try {
-            await task.pause();
-            const verifyTasks =
-              await BackGroundDownloader.checkForExistingDownloads();
-            const verifyTask = verifyTasks?.find((t: any) => t.id === id);
-            const state = verifyTask?.state || task.state?.();
-            pausedSuccessfully = state === "PAUSED" || state === "paused";
-          } catch (_e) {
-            pausedSuccessfully = false;
-          }
+        // Simple approach: stop the task cleanly on both platforms
+        await task.stop();
 
-          if (!pausedSuccessfully) {
-            try {
-              task.stop();
-            } catch (_err) {
-              // ignore stop errors
-            }
-            try {
-              BackGroundDownloader.completeHandler(id);
-            } catch (_err) {
-              // ignore
-            }
-          }
-
-          updateProcess(id, {
-            status: "paused",
-            progress: currentProgress,
-            bytesDownloaded: currentBytes,
-            pausedAt: new Date(),
-            pausedProgress: currentProgress,
-            pausedBytes: currentBytes,
-            lastSessionBytes: process.lastSessionBytes ?? currentBytes,
-            lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
-          });
+        // Clean up the native task handler
+        try {
+          BackGroundDownloader.completeHandler(id);
+        } catch (_err) {
+          // ignore cleanup errors
         }
+
+        // Update process state to paused
+        updateProcess(id, {
+          status: "paused",
+          progress: currentProgress,
+          bytesDownloaded: currentBytes,
+          pausedAt: new Date(),
+          pausedProgress: currentProgress,
+          pausedBytes: currentBytes,
+          lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+          lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
+        });
+
+        console.log(`Download paused successfully: ${id}`);
       } catch (error) {
         console.error("Error pausing task:", error);
-        try {
-          // Ensure task is stopped to avoid lingering native state
-          task.stop();
-          BackGroundDownloader.completeHandler(id);
-          updateProcess(id, {
-            status: "paused",
-            progress: currentProgress,
-            bytesDownloaded: currentBytes,
-            pausedAt: new Date(),
-            pausedProgress: currentProgress,
-            pausedBytes: currentBytes,
-            lastSessionBytes: process.lastSessionBytes ?? currentBytes,
-            lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
-          });
-        } catch (stopError) {
-          console.error("Error stopping task after pause failure:", stopError);
-          throw stopError;
-        }
+        throw error;
       }
     },
     [processes, updateProcess],
@@ -1052,97 +946,27 @@ function useDownloadProvider() {
       const process = processes.find((p) => p.id === id);
       if (!process) throw new Error("No active download");
 
-      const tasks = await BackGroundDownloader.checkForExistingDownloads();
-      const task = tasks?.find((t: any) => t.id === id);
+      // Simple approach: always restart the download from where we left off
+      // This works consistently across all platforms
+      if (
+        process.pausedProgress !== undefined &&
+        process.pausedBytes !== undefined
+      ) {
+        // We have saved pause state - restore it and restart
+        updateProcess(id, {
+          progress: process.pausedProgress,
+          bytesDownloaded: process.pausedBytes,
+          status: "downloading",
+          // Reset session counters for proper speed calculation
+          lastSessionBytes: process.pausedBytes,
+          lastSessionUpdateTime: new Date(),
+        });
 
-      if (!task) {
-        // If the background task is missing (commonly after an iOS stop),
-        // attempt to detect any existing partial file to estimate resumed bytes
-        // so the UI doesn't jump back to 0%. If we can't detect a partial file
-        // fall back to restarting the download from scratch.
-        let pausedBytes = process.pausedBytes;
-        if (!pausedBytes) {
-          try {
-            const filename = generateFilename(process.item);
-            const videoFilePath = `${FileSystem.documentDirectory}${filename}.mp4`;
-            const info = await FileSystem.getInfoAsync(videoFilePath);
-            if (info.exists && info.size && info.size > 0) {
-              pausedBytes = info.size;
-            }
-          } catch (_e) {
-            // ignore file errors and continue to restart
-          }
-        }
-
-        if (
-          (process.pausedProgress !== undefined &&
-            process.pausedBytes !== undefined) ||
-          pausedBytes
-        ) {
-          updateProcess(id, {
-            progress: process.pausedProgress ?? process.progress,
-            bytesDownloaded: pausedBytes ?? process.pausedBytes ?? 0,
-            status: "downloading",
-            // Seed session-only counters so speed is calculated from the
-            // resumed session instead of a full total delta.
-            lastSessionBytes: pausedBytes ?? process.pausedBytes ?? 0,
-            lastSessionUpdateTime: new Date(),
-          });
-
-          const updatedProcess = processes.find((p) => p.id === id);
-          await startDownload(updatedProcess || process);
-        } else {
-          await startDownload(process);
-        }
-        return;
-      }
-
-      if (task.state === "FAILED") {
-        if (
-          process.pausedProgress !== undefined &&
-          process.pausedBytes !== undefined
-        ) {
-          updateProcess(id, {
-            progress: process.pausedProgress,
-            bytesDownloaded: process.pausedBytes,
-            status: "downloading",
-          });
-          const updatedProcess = processes.find((p) => p.id === id);
-          await startDownload(updatedProcess || process);
-        } else {
-          await startDownload(process);
-        }
-        return;
-      }
-
-      try {
-        await task.resume();
-        updateProcess(id, { status: "downloading" });
-      } catch (error: any) {
-        // Handle specific ERROR_CANNOT_RESUME error
-        if (
-          error?.error === "ERROR_CANNOT_RESUME" ||
-          error?.errorCode === 1008
-        ) {
-          if (
-            process.pausedProgress !== undefined &&
-            process.pausedBytes !== undefined
-          ) {
-            updateProcess(id, {
-              progress: process.pausedProgress,
-              bytesDownloaded: process.pausedBytes,
-              status: "downloading",
-            });
-            const updatedProcess = processes.find((p) => p.id === id);
-            await startDownload(updatedProcess || process);
-          } else {
-            await startDownload(process);
-          }
-          return;
-        } else {
-          console.error("Error resuming download:", error);
-          throw error;
-        }
+        const updatedProcess = processes.find((p) => p.id === id);
+        await startDownload(updatedProcess || process);
+      } else {
+        // No pause state - start from beginning
+        await startDownload(process);
       }
     },
     [processes, updateProcess, startDownload],
