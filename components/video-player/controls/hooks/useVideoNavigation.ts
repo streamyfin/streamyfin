@@ -20,7 +20,7 @@ export function useVideoNavigation({
   seek,
   play,
 }: UseVideoNavigationProps) {
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const lightHapticFeedback = useHaptic("light");
   const wasPlayingRef = useRef(false);
 

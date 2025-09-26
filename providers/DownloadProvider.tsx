@@ -4,6 +4,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Application from "expo-application";
 import * as FileSystem from "expo-file-system";
+import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
 import { throttle } from "lodash";
@@ -87,8 +88,71 @@ function useDownloadProvider() {
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-  const [settings] = useSettings(null);
+  const { settings } = useSettings();
   const successHapticFeedback = useHaptic("success");
+
+  // Generate notification content based on item type
+  const getNotificationContent = useCallback(
+    (item: BaseItemDto, isSuccess: boolean) => {
+      if (item.Type === "Episode") {
+        const season = item.ParentIndexNumber
+          ? String(item.ParentIndexNumber).padStart(2, "0")
+          : "??";
+        const episode = item.IndexNumber
+          ? String(item.IndexNumber).padStart(2, "0")
+          : "??";
+        const subtitle = `${item.Name} - [S${season}E${episode}] (${item.SeriesName})`;
+
+        return {
+          title: isSuccess ? "Download complete" : "Download failed",
+          body: subtitle,
+        };
+      } else if (item.Type === "Movie") {
+        const year = item.ProductionYear ? ` (${item.ProductionYear})` : "";
+        const subtitle = `${item.Name}${year}`;
+
+        return {
+          title: isSuccess ? "Download complete" : "Download failed",
+          body: subtitle,
+        };
+      } else {
+        // Fallback for other types
+        return {
+          title: isSuccess
+            ? t("home.downloads.toasts.download_completed_for_item", {
+                item: item.Name,
+              })
+            : t("home.downloads.toasts.download_failed_for_item", {
+                item: item.Name,
+              }),
+          body: item.Name || "Unknown item",
+        };
+      }
+    },
+    [t],
+  );
+
+  // Send local notification for download events
+  const sendDownloadNotification = useCallback(
+    async (title: string, body: string, data?: Record<string, any>) => {
+      if (Platform.isTV) return;
+
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body,
+            data,
+            ...(Platform.OS === "android" && { channelId: "downloads" }),
+          },
+          trigger: null, // Show immediately
+        });
+      } catch (error) {
+        console.error("Failed to send notification:", error);
+      }
+    },
+    [],
+  );
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
@@ -418,6 +482,21 @@ function useDownloadProvider() {
           }
           await saveDownloadsDatabase(db);
 
+          // Send native notification for successful download
+          const successNotification = getNotificationContent(
+            process.item,
+            true,
+          );
+          await sendDownloadNotification(
+            successNotification.title,
+            successNotification.body,
+            {
+              itemId: process.item.Id,
+              itemName: process.item.Name,
+              type: "download_completed",
+            },
+          );
+
           toast.success(
             t("home.downloads.toasts.download_completed_for_item", {
               item: process.item.Name,
@@ -425,8 +504,25 @@ function useDownloadProvider() {
           );
           removeProcess(process.id);
         })
-        .error((error: any) => {
+        .error(async (error: any) => {
           console.error("Download error:", error);
+
+          // Send native notification for failed download
+          const failureNotification = getNotificationContent(
+            process.item,
+            false,
+          );
+          await sendDownloadNotification(
+            failureNotification.title,
+            failureNotification.body,
+            {
+              itemId: process.item.Id,
+              itemName: process.item.Name,
+              type: "download_failed",
+              error: error?.message || "Unknown error",
+            },
+          );
+
           toast.error(
             t("home.downloads.toasts.download_failed_for_item", {
               item: process.item.Name,
@@ -435,7 +531,7 @@ function useDownloadProvider() {
           removeProcess(process.id);
         });
     },
-    [authHeader],
+    [authHeader, sendDownloadNotification, getNotificationContent],
   );
 
   const manageDownloadQueue = useCallback(() => {

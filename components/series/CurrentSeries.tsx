@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
-import { HorizontalScroll } from "../common/HorrizontalScroll";
+import { HorizontalScroll } from "../common/HorizontalScroll";
 import { Text } from "../common/Text";
 import Poster from "../posters/Poster";
 

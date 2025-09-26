@@ -10,9 +10,8 @@ import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { HorizontalScroll } from "../common/HorrizontalScroll";
+import { HorizontalScroll } from "../common/HorizontalScroll";
 import { Text } from "../common/Text";
-import { itemRouter } from "../common/TouchableItemRouter";
 import Poster from "../posters/Poster";
 
 interface Props extends ViewProps {
@@ -24,19 +23,21 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
   const segments = useSegments();
   const { t } = useTranslation();
-  const from = segments[2];
+  const from = (segments as string[])[2];
 
   const destinctPeople = useMemo(() => {
-    const people: BaseItemPerson[] = [];
+    const people: Record<string, BaseItemPerson> = {};
     item?.People?.forEach((person) => {
-      const existingPerson = people.find((p) => p.Id === person.Id);
+      if (!person.Id) return;
+
+      const existingPerson = people[person.Id];
       if (existingPerson) {
         existingPerson.Role = `${existingPerson.Role}, ${person.Role}`;
       } else {
-        people.push(person);
+        people[person.Id] = person;
       }
     });
-    return people;
+    return Object.values(people);
   }, [item?.People]);
 
   if (!from) return null;
@@ -54,9 +55,12 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
         renderItem={(i) => (
           <TouchableOpacity
             onPress={() => {
-              const url = itemRouter(i, from);
-              // @ts-expect-error
-              router.push(url);
+              if (i.Id) {
+                router.push({
+                  pathname: "/persons/[personId]",
+                  params: { personId: i.Id },
+                });
+              }
             }}
             className='flex flex-col w-28'
           >

@@ -64,13 +64,7 @@ export const HomeIndex = () => {
   const user = useAtomValue(userAtom);
 
   const [loading, setLoading] = useState(false);
-  const [
-    settings,
-    _updateSettings,
-    _pluginSettings,
-    _setPluginSettings,
-    refreshStreamyfinPluginSettings,
-  ] = useSettings(null);
+  const { settings, refreshStreamyfinPluginSettings } = useSettings();
 
   const navigation = useNavigation();
 
@@ -80,7 +74,12 @@ export const HomeIndex = () => {
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
-  const { isConnected, loading: retryLoading, retryCheck } = useNetworkStatus();
+  const {
+    isConnected,
+    serverConnected,
+    loading: retryLoading,
+    retryCheck,
+  } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   useEffect(() => {
     // Only invalidate cache when transitioning from offline to online
@@ -126,7 +125,7 @@ export const HomeIndex = () => {
   const segments = useSegments();
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
-      if (segments[2] === "(home)")
+      if ((segments as string[])[2] === "(home)")
         scrollViewRef.current?.scrollTo({ y: -152, animated: true });
     });
 
@@ -314,10 +313,10 @@ export const HomeIndex = () => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
     for (const [index, section] of settings.home.sections.entries()) {
-      const id = section.items?.title || `section-${index}`;
+      const id = section.title || `section-${index}`;
       ss.push({
         title: t(`${id}`),
-        queryKey: ["home", id],
+        queryKey: ["home", "custom", String(index), section.title ?? null],
         queryFn: async () => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
@@ -364,13 +363,28 @@ export const HomeIndex = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
-  if (isConnected === false) {
+  if (!isConnected || serverConnected !== true) {
+    let title = "";
+    let subtitle = "";
+
+    if (!isConnected) {
+      // No network connection
+      title = t("home.no_internet");
+      subtitle = t("home.no_internet_message");
+    } else if (serverConnected === null) {
+      // Network is up, but server is being checked
+      title = t("home.checking_server_connection");
+      subtitle = t("home.checking_server_connection_message");
+    } else if (!serverConnected) {
+      // Network is up, but server is unreachable
+      title = t("home.server_unreachable");
+      subtitle = t("home.server_unreachable_message");
+    }
     return (
       <View className='flex flex-col items-center justify-center h-full -mt-6 px-8'>
-        <Text className='text-3xl font-bold mb-2'>{t("home.no_internet")}</Text>
-        <Text className='text-center opacity-70'>
-          {t("home.no_internet_message")}
-        </Text>
+        <Text className='text-3xl font-bold mb-2'>{title}</Text>
+        <Text className='text-center opacity-70'>{subtitle}</Text>
+
         <View className='mt-4'>
           {!Platform.isTV && (
             <Button
@@ -384,6 +398,7 @@ export const HomeIndex = () => {
               {t("home.go_to_downloads")}
             </Button>
           )}
+
           <Button
             color='black'
             onPress={retryCheck}
@@ -396,9 +411,9 @@ export const HomeIndex = () => {
             }
           >
             {retryLoading ? (
-              <ActivityIndicator size={"small"} color={"white"} />
+              <ActivityIndicator size='small' color='white' />
             ) : (
-              "Retry"
+              t("home.retry")
             )}
           </Button>
         </View>
