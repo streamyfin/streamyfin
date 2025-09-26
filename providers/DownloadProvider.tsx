@@ -433,6 +433,35 @@ function useDownloadProvider() {
     async (process: JobStatus) => {
       if (!process?.item.Id || !authHeader) throw new Error("No item id");
 
+      // Clean up any existing tasks for this ID first to prevent duplicates
+      try {
+        const existingTasks =
+          await BackGroundDownloader.checkForExistingDownloads();
+        const existingTask = existingTasks?.find(
+          (t: any) => t.id === process.id,
+        );
+        if (existingTask) {
+          console.log(
+            `Cleaning up existing task for ${process.id} before starting new download`,
+          );
+          try {
+            await existingTask.stop();
+          } catch (_err) {
+            // ignore stop errors
+          }
+          try {
+            BackGroundDownloader.completeHandler(process.id);
+          } catch (_err) {
+            // ignore cleanup errors
+          }
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to check/cleanup existing tasks for ${process.id}:`,
+          error,
+        );
+      }
+
       updateProcess(process.id, {
         speed: undefined,
         status: "downloading",
@@ -467,14 +496,30 @@ function useDownloadProvider() {
         .progress(
           throttle((data) => {
             updateProcess(process.id, (currentProcess) => {
-              const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
+              // If this is a resumed download, add the paused bytes to current session bytes
+              const resumedBytes = currentProcess.pausedBytes || 0;
+              const totalBytes = data.bytesDownloaded + resumedBytes;
+
+              // Calculate progress based on total bytes if we have resumed bytes
+              let percent: number;
+              if (resumedBytes > 0 && data.bytesTotal > 0) {
+                // For resumed downloads, calculate based on estimated total size
+                const estimatedTotal =
+                  currentProcess.estimatedTotalSizeBytes ||
+                  data.bytesTotal + resumedBytes;
+                percent = (totalBytes / estimatedTotal) * 100;
+              } else {
+                // For fresh downloads, use normal calculation
+                percent = (data.bytesDownloaded / data.bytesTotal) * 100;
+              }
+
               return {
-                speed: calculateSpeed(currentProcess, data.bytesDownloaded),
+                speed: calculateSpeed(currentProcess, totalBytes),
                 status: "downloading",
-                progress: percent,
-                bytesDownloaded: data.bytesDownloaded,
+                progress: Math.min(percent, MAX_PROGRESS_BEFORE_COMPLETION),
+                bytesDownloaded: totalBytes,
                 lastProgressUpdateTime: new Date(),
-                // update session-only counters
+                // update session-only counters - use current session bytes only for speed calc
                 lastSessionBytes: data.bytesDownloaded,
                 lastSessionUpdateTime: new Date(),
               };
@@ -946,6 +991,10 @@ function useDownloadProvider() {
       const process = processes.find((p) => p.id === id);
       if (!process) throw new Error("No active download");
 
+      console.log(
+        `Attempting to resume download ${id}. Paused bytes: ${process.pausedBytes}, Progress: ${process.pausedProgress}`,
+      );
+
       // Simple approach: always restart the download from where we left off
       // This works consistently across all platforms
       if (
@@ -962,8 +1011,13 @@ function useDownloadProvider() {
           lastSessionUpdateTime: new Date(),
         });
 
+        // Small delay to ensure any cleanup in startDownload completes
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         const updatedProcess = processes.find((p) => p.id === id);
         await startDownload(updatedProcess || process);
+
+        console.log(`Download resumed successfully: ${id}`);
       } else {
         // No pause state - start from beginning
         await startDownload(process);
