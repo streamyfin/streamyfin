@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import { Dimensions, Pressable, View } from "react-native";
@@ -19,7 +20,6 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { ItemImage } from "./common/ItemImage";
 import type { SelectedOptions } from "./ItemContent";
-import { ParallaxScrollView } from "./ParallaxPage";
 import { PlayButton } from "./PlayButton";
 import { PlayedStatus } from "./PlayedStatus";
 
@@ -138,8 +138,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   );
 
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15]) // Only activate for horizontal gestures with higher threshold
-    .failOffsetY([-20, 20]) // Fail for vertical gestures to allow parallax scrolling
+    .activeOffsetX([-10, 10]) // More responsive horizontal gestures
     .onUpdate((event) => {
       translateX.value = -currentIndex * screenWidth + event.translationX;
     })
@@ -177,7 +176,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       <View
         style={{
           position: "absolute",
-          bottom: 20,
+          bottom: 60,
           left: 0,
           right: 0,
           flexDirection: "row",
@@ -211,8 +210,33 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             width: "100%",
-            height: 500,
+            height: "100%",
             backgroundColor: "#1a1a1a",
+            position: "absolute",
+          }}
+        />
+
+        {/* Dark Overlay Skeleton */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+          }}
+        />
+
+        {/* Gradient Fade to Black Skeleton */}
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.8)", "rgba(0,0,0,1)"]}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 200,
           }}
         />
 
@@ -220,7 +244,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            top: 380,
+            bottom: 180,
             left: 0,
             right: 0,
             paddingHorizontal: 20,
@@ -230,9 +254,30 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           <View
             style={{
               height: 80,
-              width: "60%",
+              width: "80%",
               backgroundColor: "#333",
               borderRadius: 8,
+            }}
+          />
+        </View>
+
+        {/* Genres Skeleton */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 140,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              height: 20,
+              width: 200,
+              backgroundColor: "#333",
+              borderRadius: 4,
             }}
           />
         </View>
@@ -241,7 +286,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: 100,
             left: 0,
             right: 0,
             paddingHorizontal: 20,
@@ -299,7 +344,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 20,
+            bottom: 60,
             left: 0,
             right: 0,
             flexDirection: "row",
@@ -336,56 +381,123 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           position: "relative",
         }}
       >
-        <ParallaxScrollView
-          headerHeight={500}
-          headerImage={
-            <ItemImage
-              item={item}
-              variant='Backdrop'
-              style={{
-                width: "100%",
-                height: "100%",
+        {/* Background Backdrop */}
+        <ItemImage
+          item={item}
+          variant='Backdrop'
+          style={{
+            width: "100%",
+            height: "100%",
+            position: "absolute",
+          }}
+        />
+
+        {/* Dark Overlay */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+          }}
+        />
+
+        {/* Gradient Fade to Black at Bottom */}
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.8)", "rgba(0,0,0,1)"]}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 200,
+          }}
+        />
+
+        {/* Logo Section */}
+        {itemLogoUrl && (
+          <View
+            style={{
+              position: "absolute",
+              bottom: 180,
+              left: 0,
+              right: 0,
+              paddingHorizontal: 20,
+              alignItems: "center",
+            }}
+          >
+            <Image
+              source={{
+                uri: itemLogoUrl,
               }}
-            />
-          }
-          logo={
-            itemLogoUrl ? (
-              <Image
-                source={{
-                  uri: itemLogoUrl,
-                }}
-                style={{
-                  height: 130,
-                  width: "100%",
-                }}
-                contentFit='contain'
-              />
-            ) : undefined
-          }
-        >
-          <View className='flex flex-col bg-transparent shrink px-4'>
-            {/* Controls Section */}
-            <View
               style={{
-                flexDirection: "row",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 20,
-                marginTop: 20,
+                height: 80,
+                width: "80%",
+              }}
+              contentFit='contain'
+            />
+          </View>
+        )}
+
+        {/* Genres Section */}
+        {item.Genres && item.Genres.length > 0 && (
+          <View
+            style={{
+              position: "absolute",
+              bottom: 140,
+              left: 0,
+              right: 0,
+              paddingHorizontal: 20,
+              alignItems: "center",
+            }}
+          >
+            <Animated.Text
+              style={{
+                color: "rgba(255, 255, 255, 0.9)",
+                fontSize: 16,
+                fontWeight: "500",
+                textAlign: "center",
+                textShadowColor: "rgba(0, 0, 0, 0.8)",
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 2,
               }}
             >
-              {/* Play Button */}
-              <View style={{ flex: 1, maxWidth: 300 }}>
-                {selectedOptions && (
-                  <PlayButton item={item} selectedOptions={selectedOptions} />
-                )}
-              </View>
-
-              {/* Mark as Played */}
-              <PlayedStatus items={[item]} size='large' />
-            </View>
+              {item.Genres.slice(0, 2).join(" • ")}
+            </Animated.Text>
           </View>
-        </ParallaxScrollView>
+        )}
+
+        {/* Controls Section */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 100,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 20,
+            }}
+          >
+            {/* Play Button */}
+            <View style={{ flex: 1, maxWidth: 300 }}>
+              {selectedOptions && (
+                <PlayButton item={item} selectedOptions={selectedOptions} />
+              )}
+            </View>
+
+            {/* Mark as Played */}
+            <PlayedStatus items={[item]} size='large' />
+          </View>
+        </View>
 
         {/* Navigation Indicators */}
         <View

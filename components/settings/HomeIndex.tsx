@@ -195,7 +195,7 @@ export const HomeIndex = () => {
             await getUserLibraryApi(api).getLatestMedia({
               userId: user?.Id,
               limit: 20,
-              fields: ["PrimaryImageAspectRatio", "Path"],
+              fields: ["PrimaryImageAspectRatio", "Path", "Genres"],
               imageTypeLimit: 1,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes,
@@ -241,6 +241,7 @@ export const HomeIndex = () => {
               userId: user.Id,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes: ["Movie", "Series", "Episode"],
+              fields: ["Genres"],
             })
           ).data.Items || [],
         type: "ScrollingCollectionList",
@@ -253,7 +254,7 @@ export const HomeIndex = () => {
           (
             await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
-              fields: ["MediaSourceCount"],
+              fields: ["MediaSourceCount", "Genres"],
               limit: 20,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: false,
@@ -321,6 +322,7 @@ export const HomeIndex = () => {
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
           includeItemTypes: ["Movie", "Series", "Episode"],
+          fields: ["Genres"],
           limit: 10, // Limit to reasonable number for carousel
         });
         return response.data.Items || [];
@@ -354,7 +356,7 @@ export const HomeIndex = () => {
           if (section.nextUp) {
             const response = await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
-              fields: ["MediaSourceCount"],
+              fields: ["MediaSourceCount", "Genres"],
               limit: section.nextUp?.limit || 25,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: section.nextUp?.enableResumable,
