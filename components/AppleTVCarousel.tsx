@@ -167,7 +167,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
               style={{
                 height: 100,
                 width: "80%",
-                marginBottom: 20,
               }}
             >
               <Image
@@ -181,41 +180,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
                 contentFit='contain'
               />
             </View>
-          )}
-
-          {/* Title Text */}
-          <Animated.Text
-            style={{
-              color: "white",
-              fontSize: 28,
-              fontWeight: "bold",
-              textAlign: "center",
-              textShadowColor: "rgba(0, 0, 0, 0.8)",
-              textShadowOffset: { width: 0, height: 2 },
-              textShadowRadius: 4,
-              marginBottom: 10,
-            }}
-          >
-            {item.Name}
-          </Animated.Text>
-
-          {/* Year and Runtime */}
-          {(item.ProductionYear || item.RunTimeTicks) && (
-            <Animated.Text
-              style={{
-                color: "rgba(255, 255, 255, 0.8)",
-                fontSize: 16,
-                textAlign: "center",
-                textShadowColor: "rgba(0, 0, 0, 0.8)",
-                textShadowOffset: { width: 0, height: 1 },
-                textShadowRadius: 2,
-              }}
-            >
-              {item.ProductionYear}
-              {item.ProductionYear && item.RunTimeTicks && " • "}
-              {item.RunTimeTicks &&
-                `${Math.round(item.RunTimeTicks / 10000000 / 60)} min`}
-            </Animated.Text>
           )}
         </View>
 

@@ -197,7 +197,7 @@ export const HomeIndex = () => {
               limit: 20,
               fields: ["PrimaryImageAspectRatio", "Path"],
               imageTypeLimit: 1,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes,
               parentId,
             })
@@ -239,7 +239,7 @@ export const HomeIndex = () => {
           (
             await getItemsApi(api).getResumeItems({
               userId: user.Id,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes: ["Movie", "Series", "Episode"],
             })
           ).data.Items || [],
@@ -255,7 +255,7 @@ export const HomeIndex = () => {
               userId: user?.Id,
               fields: ["MediaSourceCount"],
               limit: 20,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: false,
             })
           ).data.Items || [],
@@ -318,7 +318,7 @@ export const HomeIndex = () => {
       if (!api || !user?.Id) return [];
       const response = await getItemsApi(api).getResumeItems({
         userId: user.Id,
-        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
         includeItemTypes: ["Movie", "Series", "Episode"],
         limit: 10, // Limit to reasonable number for carousel
       });
@@ -355,7 +355,7 @@ export const HomeIndex = () => {
               userId: user?.Id,
               fields: ["MediaSourceCount"],
               limit: section.nextUp?.limit || 25,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: section.nextUp?.enableResumable,
               enableRewatching: section.nextUp?.enableRewatching,
             });
