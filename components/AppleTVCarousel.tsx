@@ -182,7 +182,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           flexDirection: "row",
           justifyContent: "center",
           alignItems: "center",
-          gap: 8,
+          gap: 4,
         }}
       >
         {items.map((_, index) => (
@@ -244,7 +244,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 180,
+            bottom: 220,
             left: 0,
             right: 0,
             paddingHorizontal: 20,
@@ -261,11 +261,11 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           />
         </View>
 
-        {/* Genres Skeleton */}
+        {/* Type and Genres Skeleton */}
         <View
           style={{
             position: "absolute",
-            bottom: 140,
+            bottom: 170,
             left: 0,
             right: 0,
             paddingHorizontal: 20,
@@ -275,7 +275,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           <View
             style={{
               height: 20,
-              width: 200,
+              width: 250,
               backgroundColor: "#333",
               borderRadius: 4,
             }}
@@ -350,7 +350,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
-            gap: 8,
+            gap: 4,
           }}
         >
           {[1, 2, 3].map((_, index) => (
@@ -421,7 +421,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           <View
             style={{
               position: "absolute",
-              bottom: 180,
+              bottom: 220,
               left: 0,
               right: 0,
               paddingHorizontal: 20,
@@ -441,33 +441,53 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           </View>
         )}
 
-        {/* Genres Section */}
-        {item.Genres && item.Genres.length > 0 && (
-          <View
+        {/* Type and Genres Section */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 170,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
+            alignItems: "center",
+          }}
+        >
+          <Animated.Text
             style={{
-              position: "absolute",
-              bottom: 140,
-              left: 0,
-              right: 0,
-              paddingHorizontal: 20,
-              alignItems: "center",
+              color: "rgba(255, 255, 255, 0.9)",
+              fontSize: 16,
+              fontWeight: "500",
+              textAlign: "center",
+              textShadowColor: "rgba(0, 0, 0, 0.8)",
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: 2,
             }}
           >
-            <Animated.Text
-              style={{
-                color: "rgba(255, 255, 255, 0.9)",
-                fontSize: 16,
-                fontWeight: "500",
-                textAlign: "center",
-                textShadowColor: "rgba(0, 0, 0, 0.8)",
-                textShadowOffset: { width: 0, height: 1 },
-                textShadowRadius: 2,
-              }}
-            >
-              {item.Genres.slice(0, 2).join(" • ")}
-            </Animated.Text>
-          </View>
-        )}
+            {(() => {
+              const typeLabel =
+                item.Type === "Series"
+                  ? "TV Show"
+                  : item.Type === "Movie"
+                    ? "Movie"
+                    : item.Type || "";
+
+              const genres =
+                item.Genres && item.Genres.length > 0
+                  ? item.Genres.slice(0, 2).join(" • ")
+                  : "";
+
+              if (typeLabel && genres) {
+                return `${typeLabel} • ${genres}`;
+              } else if (typeLabel) {
+                return typeLabel;
+              } else if (genres) {
+                return genres;
+              } else {
+                return "";
+              }
+            })()}
+          </Animated.Text>
+        </View>
 
         {/* Controls Section */}
         <View
@@ -588,57 +608,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           {items.map((item, index) => renderItem(item, index))}
         </Animated.View>
       </GestureDetector>
-
-      {/* Side Navigation Hints */}
-      {currentIndex > 0 && (
-        <Pressable
-          onPress={() => goToIndex(currentIndex - 1)}
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 60,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              borderRadius: 20,
-              padding: 8,
-            }}
-          >
-            <Ionicons name='chevron-back' size={24} color='white' />
-          </View>
-        </Pressable>
-      )}
-
-      {currentIndex < items.length - 1 && (
-        <Pressable
-          onPress={() => goToIndex(currentIndex + 1)}
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: 60,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              borderRadius: 20,
-              padding: 8,
-            }}
-          >
-            <Ionicons name='chevron-forward' size={24} color='white' />
-          </View>
-        </Pressable>
-      )}
 
       {/* Animated Dots Indicator */}
       {renderDots()}
