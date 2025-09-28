@@ -27,7 +27,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
-import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
@@ -38,6 +37,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { AppleTVCarousel } from "../AppleTVCarousel";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -309,6 +309,26 @@ export const HomeIndex = () => {
     return ss;
   }, [api, user?.Id, collections, t, createCollectionConfig]);
 
+  const {
+    data: continueWatchingItems,
+    isLoading: continueWatchingLoading,
+    isError: continueWatchingError,
+  } = useQuery({
+    queryKey: ["home", "continueWatching", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+      const response = await getItemsApi(api).getResumeItems({
+        userId: user.Id,
+        enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+        includeItemTypes: ["Movie", "Series", "Episode"],
+        limit: 10, // Limit to reasonable number for carousel
+      });
+      return response.data.Items || [];
+    },
+    enabled: !!api && !!user?.Id && isConnected && serverConnected === true,
+    staleTime: 60 * 1000,
+  });
+
   const customSections = useMemo(() => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
@@ -447,39 +467,49 @@ export const HomeIndex = () => {
       refreshControl={
         <RefreshControl refreshing={loading} onRefresh={refetch} />
       }
-      contentContainerStyle={{
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
-        paddingBottom: 16,
-      }}
     >
-      <View className='flex flex-col space-y-4'>
-        <LargeMovieCarousel />
-
-        {sections.map((section, index) => {
-          if (section.type === "ScrollingCollectionList") {
-            return (
-              <ScrollingCollectionList
-                key={index}
-                title={section.title}
-                queryKey={section.queryKey}
-                queryFn={section.queryFn}
-                orientation={section.orientation}
-                hideIfEmpty
-              />
-            );
-          }
-          if (section.type === "MediaListSection") {
-            return (
-              <MediaListSection
-                key={index}
-                queryKey={section.queryKey}
-                queryFn={section.queryFn}
-              />
-            );
-          }
-          return null;
-        })}
+      {continueWatchingItems && continueWatchingItems.length > 0 && (
+        <AppleTVCarousel
+          items={continueWatchingItems}
+          initialIndex={0}
+          onItemChange={(index) => {
+            console.log(`Now viewing continue watching item ${index}`);
+          }}
+        />
+      )}
+      <View
+        style={{
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+          paddingBottom: 16,
+        }}
+      >
+        <View className='flex flex-col space-y-4'>
+          {sections.map((section, index) => {
+            if (section.type === "ScrollingCollectionList") {
+              return (
+                <ScrollingCollectionList
+                  key={index}
+                  title={section.title}
+                  queryKey={section.queryKey}
+                  queryFn={section.queryFn}
+                  orientation={section.orientation}
+                  hideIfEmpty
+                />
+              );
+            }
+            if (section.type === "MediaListSection") {
+              return (
+                <MediaListSection
+                  key={index}
+                  queryKey={section.queryKey}
+                  queryFn={section.queryFn}
+                />
+              );
+            }
+            return null;
+          })}
+        </View>
       </View>
     </ScrollView>
   );
