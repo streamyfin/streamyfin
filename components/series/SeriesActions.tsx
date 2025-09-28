@@ -41,7 +41,7 @@ export const ItemActions = ({ item, ...props }: Props) => {
     } catch (err) {
       console.error("Failed to open trailer link:", err);
     }
-  }, [trailerLink]);
+  }, [trailerLink, t]);
 
   return (
     <View className='' {...props}>

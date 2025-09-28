@@ -240,17 +240,15 @@ function useDownloadProvider() {
           // progress into it. We accept pausedProgress === 0 as valid because
           // users can pause immediately after starting.
           if (p.pausedProgress !== undefined) {
-            const currentSessionProgress =
-              estimatedSize > 0
-                ? (task.bytesDownloaded / estimatedSize) * 100
-                : 0;
-            const remainingPercentage = (100 - p.pausedProgress) / 100;
-            progress =
-              p.pausedProgress + currentSessionProgress * remainingPercentage;
+            const totalBytesDownloaded =
+              (p.pausedBytes ?? 0) + task.bytesDownloaded;
 
-            const totalBytesDownloaded = p.pausedBytes
-              ? p.pausedBytes + task.bytesDownloaded
-              : task.bytesDownloaded;
+            // Calculate progress based on total bytes downloaded vs estimated size
+            progress =
+              estimatedSize > 0
+                ? (totalBytesDownloaded / estimatedSize) * 100
+                : 0;
+
             // Use the total accounted bytes when computing speed so the
             // displayed speed and progress remain consistent after resume.
             const speed = calculateSpeed(p, totalBytesDownloaded);
@@ -262,11 +260,8 @@ function useDownloadProvider() {
               bytesDownloaded: totalBytesDownloaded,
               lastProgressUpdateTime: new Date(),
               estimatedTotalSizeBytes: estimatedSize,
-              // Keep session bookkeeping: if we have an existing session
-              // counter, prefer adding the current session bytes to it.
-              lastSessionBytes: p.lastSessionBytes
-                ? p.lastSessionBytes + task.bytesDownloaded
-                : task.bytesDownloaded,
+              // Set session bytes to total bytes downloaded
+              lastSessionBytes: totalBytesDownloaded,
               lastSessionUpdateTime: new Date(),
             };
           } else {

@@ -77,14 +77,14 @@ export const clearLogs = () => {
   storage.delete("logs");
 };
 
-export const dumpDownloadDiagnostics = (extra: any) => {
+export const dumpDownloadDiagnostics = (extra: any = {}) => {
   const diagnostics = {
     timestamp: new Date().toISOString(),
-    processes: extra.processes || [],
-    nativeTasks: extra.nativeTasks || [],
-    focusedProcess: extra.focusedProcess || null,
+    processes: extra?.processes || [],
+    nativeTasks: extra?.nativeTasks || [],
+    focusedProcess: extra?.focusedProcess || null,
   };
-  writeToLog("DEBUG", "Download diagnostics", diagnostics);
+  writeDebugLog("Download diagnostics", diagnostics);
   return diagnostics;
 };
 

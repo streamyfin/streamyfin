@@ -395,12 +395,17 @@ function Layout() {
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
-        BackGroundDownloader.checkForExistingDownloads().catch(() => {});
+        BackGroundDownloader.checkForExistingDownloads().catch(
+          (error: unknown) => {
+            writeErrorLog("Failed to resume background downloads", error);
+          },
+        );
       }
     });
 
-    BackGroundDownloader.checkForExistingDownloads().catch(() => {});
-
+    BackGroundDownloader.checkForExistingDownloads().catch((error: unknown) => {
+      writeErrorLog("Failed to resume background downloads", error);
+    });
     return () => {
       subscription.remove();
     };
