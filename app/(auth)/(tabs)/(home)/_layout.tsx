@@ -21,12 +21,9 @@ export default function IndexLayout() {
         name='index'
         options={{
           headerShown: !Platform.isTV,
-          headerLargeTitle: true,
-          headerTitle: t("tabs.home"),
+          headerLargeTitle: false,
+          headerTitle: "",
           headerBlurEffect: "prominent",
-          headerLargeStyle: {
-            backgroundColor: "black",
-          },
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () => (
