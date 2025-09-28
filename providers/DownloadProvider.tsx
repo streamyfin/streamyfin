@@ -205,6 +205,8 @@ function useDownloadProvider() {
           return p; // No task found, keep current state
         }
 
+        /* 
+        // TODO: Uncomment this block to re-enable iOS zombie task detection
         // iOS: Extra validation to prevent zombie task interference
         if (Platform.OS === "ios") {
           // Check if we have multiple tasks for same ID (zombie detection)
@@ -228,6 +230,7 @@ function useDownloadProvider() {
             return p;
           }
         }
+        */
 
         if (task && p.status === "downloading") {
           const estimatedSize = calculateEstimatedSize(p);
@@ -466,7 +469,7 @@ function useDownloadProvider() {
     async (process: JobStatus) => {
       if (!process?.item.Id || !authHeader) throw new Error("No item id");
 
-      // Enhanced cleanup for iOS to prevent zombie tasks (based on GitHub issue #26)
+      // Enhanced cleanup for existing tasks to prevent duplicates
       try {
         const allTasks = await BackGroundDownloader.checkForExistingDownloads();
         const existingTasks = allTasks?.filter((t: any) => t.id === process.id);
@@ -483,6 +486,8 @@ function useDownloadProvider() {
             );
 
             try {
+              /* 
+              // TODO: Uncomment this block to re-enable iOS-specific cleanup
               // iOS: More aggressive cleanup sequence
               if (Platform.OS === "ios") {
                 try {
@@ -499,10 +504,13 @@ function useDownloadProvider() {
                 BackGroundDownloader.completeHandler(process.id);
                 await new Promise((resolve) => setTimeout(resolve, 25));
               } else {
-                // Android: simpler cleanup
-                await existingTask.stop();
-                BackGroundDownloader.completeHandler(process.id);
-              }
+              */
+
+              // Simple cleanup for all platforms (currently Android only)
+              await existingTask.stop();
+              BackGroundDownloader.completeHandler(process.id);
+
+              /* } // End of iOS block - uncomment when re-enabling iOS functionality */
 
               console.log(
                 `[START] Successfully cleaned up task ${i + 1} for ${process.id}`,
@@ -515,8 +523,8 @@ function useDownloadProvider() {
             }
           }
 
-          // Platform-specific cleanup delay
-          const cleanupDelay = Platform.OS === "ios" ? 500 : 200;
+          // Cleanup delay (simplified for Android)
+          const cleanupDelay = 200; // Platform.OS === "ios" ? 500 : 200;
           await new Promise((resolve) => setTimeout(resolve, cleanupDelay));
           console.log(`[START] Cleanup completed for ${process.id}`);
         }
@@ -1011,6 +1019,15 @@ function useDownloadProvider() {
       const process = processes.find((p) => p.id === id);
       if (!process) throw new Error("No active download");
 
+      // TODO: iOS pause functionality temporarily disabled due to background task issues
+      // Remove this check to re-enable iOS pause functionality in the future
+      if (Platform.OS === "ios") {
+        console.warn(
+          `[PAUSE] Pause functionality temporarily disabled on iOS for ${id}`,
+        );
+        throw new Error("Pause functionality is currently disabled on iOS");
+      }
+
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
       const task = tasks?.find((t: any) => t.id === id);
       if (!task) throw new Error("No task found");
@@ -1024,6 +1041,8 @@ function useDownloadProvider() {
       );
 
       try {
+        /* 
+        // TODO: Uncomment this block to re-enable iOS pause functionality
         // iOS-specific aggressive cleanup approach based on GitHub issue #26
         if (Platform.OS === "ios") {
           // Get ALL tasks for this ID - there might be multiple zombie tasks
@@ -1062,9 +1081,12 @@ function useDownloadProvider() {
           // Extra cleanup delay for iOS NSURLSession to fully stop
           await new Promise((resolve) => setTimeout(resolve, 500));
         } else {
-          // Android: simpler approach
-          await task.stop();
-        }
+        */
+
+        // Android: simpler approach (currently the only active platform)
+        await task.stop();
+
+        /* } // End of iOS block - uncomment when re-enabling iOS functionality */
 
         // Clean up the native task handler
         try {
@@ -1099,10 +1121,21 @@ function useDownloadProvider() {
       const process = processes.find((p) => p.id === id);
       if (!process) throw new Error("No active download");
 
+      // TODO: iOS resume functionality temporarily disabled due to background task issues
+      // Remove this check to re-enable iOS resume functionality in the future
+      if (Platform.OS === "ios") {
+        console.warn(
+          `[RESUME] Resume functionality temporarily disabled on iOS for ${id}`,
+        );
+        throw new Error("Resume functionality is currently disabled on iOS");
+      }
+
       console.log(
         `[RESUME] Attempting to resume ${id}. Paused bytes: ${process.pausedBytes}, Progress: ${process.pausedProgress}%`,
       );
 
+      /* 
+      // TODO: Uncomment this block to re-enable iOS resume functionality
       // Enhanced cleanup for iOS based on GitHub issue research
       if (Platform.OS === "ios") {
         try {
@@ -1132,9 +1165,10 @@ function useDownloadProvider() {
           console.warn(`[RESUME] Pre-resume cleanup failed:`, error);
         }
       }
+      */
 
       // Simple approach: always restart the download from where we left off
-      // This works consistently across all platforms
+      // This works consistently across all platforms (currently Android only)
       if (
         process.pausedProgress !== undefined &&
         process.pausedBytes !== undefined
