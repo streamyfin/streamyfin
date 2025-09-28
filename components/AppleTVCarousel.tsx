@@ -13,7 +13,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -82,7 +81,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   loading = false,
 }) => {
   const { settings } = useSettings();
-  const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const translateX = useSharedValue(-currentIndex * screenWidth);
@@ -318,28 +316,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           />
         </View>
 
-        {/* Navigation Counter Skeleton */}
-        <View
-          style={{
-            position: "absolute",
-            top: 60 + insets.top,
-            right: 20,
-            backgroundColor: "#333",
-            borderRadius: 20,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-          }}
-        >
-          <View
-            style={{
-              width: 40,
-              height: 16,
-              backgroundColor: "#666",
-              borderRadius: 4,
-            }}
-          />
-        </View>
-
         {/* Dots Skeleton */}
         <View
           style={{
@@ -369,7 +345,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     );
   };
 
-  const renderItem = (item: BaseItemDto, index: number) => {
+  const renderItem = (item: BaseItemDto, _index: number) => {
     const itemLogoUrl = api ? getLogoImageUrlById({ api, item }) : null;
 
     return (
@@ -517,30 +493,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             {/* Mark as Played */}
             <PlayedStatus items={[item]} size='large' />
           </View>
-        </View>
-
-        {/* Navigation Indicators */}
-        <View
-          style={{
-            position: "absolute",
-            top: 60 + insets.top,
-            right: 20,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            borderRadius: 20,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            zIndex: 50,
-          }}
-        >
-          <Animated.Text
-            style={{
-              color: "white",
-              fontSize: 14,
-              fontWeight: "600",
-            }}
-          >
-            {index + 1} / {items.length}
-          </Animated.Text>
         </View>
       </View>
     );
