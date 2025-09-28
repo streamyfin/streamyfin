@@ -304,7 +304,7 @@ const Page: React.FC = () => {
                         borderStyle: "solid",
                       }}
                     >
-                      <Text className='text-sm'>Play</Text>
+                      <Text className='text-sm'>{t("common.play")}</Text>
                     </Button>
                   </View>
                 )

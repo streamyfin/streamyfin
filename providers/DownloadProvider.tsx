@@ -733,7 +733,7 @@ function useDownloadProvider() {
         startDownload(queuedDownload).catch((error) => {
           console.error("Failed to start download:", error);
           updateProcess(queuedDownload.id, { status: "error" });
-          toast.error("Failed to start download", {
+          toast.error(t("home.downloads.toasts.failed_to_start_download"), {
             description: error.message || "Unknown error",
           });
         });
@@ -799,7 +799,7 @@ function useDownloadProvider() {
         intermediates: true,
       });
     } catch (_error) {
-      toast.error(t("Failed to clean cache directory."));
+      toast.error(t("home.downloads.toasts.failed_to_clean_cache_directory"));
     }
   };
 
@@ -841,7 +841,7 @@ function useDownloadProvider() {
           return [...filtered, job];
         });
         toast.success(
-          t("home.downloads.toasts.download_stated_for_item", {
+          t("home.downloads.toasts.download_started_for_item", {
             item: item.Name,
           }),
           {
