@@ -312,21 +312,22 @@ export const HomeIndex = () => {
     return ss;
   }, [api, user?.Id, collections, t, createCollectionConfig]);
 
-  const { data: continueWatchingItems } = useQuery({
-    queryKey: ["home", "continueWatching", user?.Id],
-    queryFn: async () => {
-      if (!api || !user?.Id) return [];
-      const response = await getItemsApi(api).getResumeItems({
-        userId: user.Id,
-        enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
-        includeItemTypes: ["Movie", "Series", "Episode"],
-        limit: 10, // Limit to reasonable number for carousel
-      });
-      return response.data.Items || [];
-    },
-    enabled: !!api && !!user?.Id && isConnected && serverConnected === true,
-    staleTime: 60 * 1000,
-  });
+  const { data: continueWatchingItems, isLoading: continueWatchingLoading } =
+    useQuery({
+      queryKey: ["home", "continueWatching", user?.Id],
+      queryFn: async () => {
+        if (!api || !user?.Id) return [];
+        const response = await getItemsApi(api).getResumeItems({
+          userId: user.Id,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+          includeItemTypes: ["Movie", "Series", "Episode"],
+          limit: 10, // Limit to reasonable number for carousel
+        });
+        return response.data.Items || [];
+      },
+      enabled: !!api && !!user?.Id && isConnected && serverConnected === true,
+      staleTime: 60 * 1000,
+    });
 
   const customSections = useMemo(() => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
@@ -469,10 +470,12 @@ export const HomeIndex = () => {
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      {continueWatchingItems && continueWatchingItems.length > 0 && (
+      {(continueWatchingLoading ||
+        (continueWatchingItems && continueWatchingItems.length > 0)) && (
         <AppleTVCarousel
-          items={continueWatchingItems}
+          items={continueWatchingItems || []}
           initialIndex={0}
+          loading={continueWatchingLoading}
           onItemChange={(index) => {
             console.log(`Now viewing continue watching item ${index}`);
           }}
