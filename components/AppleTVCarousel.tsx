@@ -227,7 +227,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     return (
       <View
         style={{
-          flex: 1,
+          height: 500,
           justifyContent: "center",
           alignItems: "center",
           backgroundColor: "#000",
