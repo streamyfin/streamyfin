@@ -126,7 +126,10 @@ export const HomeIndex = () => {
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
       if ((segments as string[])[2] === "(home)")
-        scrollViewRef.current?.scrollTo({ y: -152, animated: true });
+        scrollViewRef.current?.scrollTo({
+          y: Platform.isTV ? -152 : -100,
+          animated: true,
+        });
     });
 
     return () => {
@@ -309,11 +312,7 @@ export const HomeIndex = () => {
     return ss;
   }, [api, user?.Id, collections, t, createCollectionConfig]);
 
-  const {
-    data: continueWatchingItems,
-    isLoading: continueWatchingLoading,
-    isError: continueWatchingError,
-  } = useQuery({
+  const { data: continueWatchingItems } = useQuery({
     queryKey: ["home", "continueWatching", user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
@@ -463,10 +462,12 @@ export const HomeIndex = () => {
       scrollToOverflowEnabled={true}
       ref={scrollViewRef}
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior='automatic'
+      contentInsetAdjustmentBehavior='never'
       refreshControl={
         <RefreshControl refreshing={loading} onRefresh={refetch} />
       }
+      style={{ marginTop: Platform.isTV ? 0 : -100 }}
+      contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
       {continueWatchingItems && continueWatchingItems.length > 0 && (
         <AppleTVCarousel

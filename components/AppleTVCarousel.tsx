@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useCallback, useEffect, useState } from "react";
+import { Image } from "expo-image";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions, Pressable, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -9,8 +11,11 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { ItemImage } from "./common/ItemImage";
 import type { SelectedOptions } from "./ItemContent";
 import { PlayButton } from "./PlayButton";
@@ -32,6 +37,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const translateX = useSharedValue(-currentIndex * screenWidth);
   const { settings } = useSettings();
+  const insets = useSafeAreaInsets();
+  const [api] = useAtom(apiAtom);
   const {
     defaultAudioIndex,
     defaultBitrate,
@@ -42,6 +49,14 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
   >(undefined);
+
+  const logoUrl = useMemo(
+    () =>
+      items[currentIndex] && api
+        ? getLogoImageUrlById({ api, item: items[currentIndex] })
+        : null,
+    [api, items, currentIndex],
+  );
 
   useEffect(() => {
     setSelectedOptions({
@@ -135,7 +150,76 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           }}
         />
 
-        {/* Content Overlay */}
+        {/* Title/Logo Overlay - Top */}
+        <View
+          style={{
+            position: "absolute",
+            top: 100 + insets.top,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
+            alignItems: "center",
+          }}
+        >
+          {/* Logo */}
+          {logoUrl && (
+            <View
+              style={{
+                height: 100,
+                width: "80%",
+                marginBottom: 20,
+              }}
+            >
+              <Image
+                source={{
+                  uri: logoUrl,
+                }}
+                style={{
+                  height: 100,
+                  width: "100%",
+                }}
+                contentFit='contain'
+              />
+            </View>
+          )}
+
+          {/* Title Text */}
+          <Animated.Text
+            style={{
+              color: "white",
+              fontSize: 28,
+              fontWeight: "bold",
+              textAlign: "center",
+              textShadowColor: "rgba(0, 0, 0, 0.8)",
+              textShadowOffset: { width: 0, height: 2 },
+              textShadowRadius: 4,
+              marginBottom: 10,
+            }}
+          >
+            {item.Name}
+          </Animated.Text>
+
+          {/* Year and Runtime */}
+          {(item.ProductionYear || item.RunTimeTicks) && (
+            <Animated.Text
+              style={{
+                color: "rgba(255, 255, 255, 0.8)",
+                fontSize: 16,
+                textAlign: "center",
+                textShadowColor: "rgba(0, 0, 0, 0.8)",
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 2,
+              }}
+            >
+              {item.ProductionYear}
+              {item.ProductionYear && item.RunTimeTicks && " • "}
+              {item.RunTimeTicks &&
+                `${Math.round(item.RunTimeTicks / 10000000 / 60)} min`}
+            </Animated.Text>
+          )}
+        </View>
+
+        {/* Controls Overlay - Bottom */}
         <View
           style={{
             position: "absolute",
@@ -143,40 +227,9 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             left: 0,
             right: 0,
             paddingHorizontal: 20,
-            paddingBottom: 20,
-            paddingTop: 60,
+            paddingBottom: 40,
           }}
         >
-          {/* Movie Poster */}
-          <View
-            style={{
-              alignItems: "center",
-              marginBottom: 30,
-            }}
-          >
-            <View
-              style={{
-                width: 200,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.5,
-                shadowRadius: 20,
-                elevation: 10,
-              }}
-            >
-              <ItemImage
-                item={item}
-                variant='Primary'
-                style={{
-                  width: 200,
-                  aspectRatio: 2 / 3,
-                  borderRadius: 12,
-                }}
-              />
-            </View>
-          </View>
-
-          {/* Controls */}
           <View
             style={{
               flexDirection: "row",
@@ -201,7 +254,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            top: 20,
+            top: 60 + insets.top,
             right: 20,
             backgroundColor: "rgba(0, 0, 0, 0.5)",
             borderRadius: 20,

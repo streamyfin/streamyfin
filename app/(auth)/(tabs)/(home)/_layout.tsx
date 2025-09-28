@@ -23,7 +23,7 @@ export default function IndexLayout() {
           headerShown: !Platform.isTV,
           headerLargeTitle: false,
           headerTitle: "",
-          headerBlurEffect: "prominent",
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () => (
