@@ -105,7 +105,6 @@ export default function index() {
           <View className='h-4' />
         )
       }
-      estimatedItemSize={200}
     />
   );
 }
