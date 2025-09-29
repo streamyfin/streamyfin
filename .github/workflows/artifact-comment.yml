@@ -16,7 +16,7 @@ on:
 
 jobs:
   comment-artifacts:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,11 +63,11 @@ jobs:
             console.log(`Processing PR #${pr.number} for commit ${pr.head.sha.substring(0, 7)}`);
 
             // Get all recent workflow runs for this PR to collect artifacts from multiple builds
-            const { data: workflowRuns } = await github.rest.actions.listWorkflowRuns({
+            const { data: workflowRuns } = await github.rest.actions.listWorkflowRunsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               head_sha: pr.head.sha,
-              per_page: 10
+              per_page: 20
             });
 
             // Filter for build workflows only
@@ -105,13 +105,6 @@ jobs:
             }
 
             console.log(`Collected ${allArtifacts.length} total artifacts from all builds`);
-
-            // Get artifacts from current run if needed
-            const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: runId
-            });
 
             // Sort and categorize all collected artifacts
             const androidArtifacts = allArtifacts
