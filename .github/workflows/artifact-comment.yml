@@ -8,10 +8,9 @@ on:
   workflow_dispatch:
   workflow_run:
     workflows:
-      - "🏗️ Build iOS IPA (phone)"
-      - "🏗️ Build iOS IPA (tv)"
-      - "🏗️ Build Android APK (phone)"
-      - "🏗️ Build Android APK (tv)"
+#      - "🤖 Android APK Build (Phone + TV)"
+#      - "🤖 iOS IPA Build (Phone + TV)"
+      - "🧪 Test Artifact Generator" # For testing purposes
     types:
       - completed
 
