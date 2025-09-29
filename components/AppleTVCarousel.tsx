@@ -29,7 +29,69 @@ interface AppleTVCarouselProps {
   loading?: boolean;
 }
 
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+
+// Layout Constants
+const CAROUSEL_HEIGHT = screenHeight / 1.5;
+const GRADIENT_HEIGHT = 250;
+const LOGO_HEIGHT = 80;
+
+// Position Constants
+const LOGO_BOTTOM_POSITION = 210;
+const GENRES_BOTTOM_POSITION = 170;
+const CONTROLS_BOTTOM_POSITION = 100;
+const DOTS_BOTTOM_POSITION = 60;
+
+// Size Constants
+const DOT_HEIGHT = 6;
+const DOT_ACTIVE_WIDTH = 20;
+const DOT_INACTIVE_WIDTH = 12;
+const PLAY_BUTTON_SKELETON_HEIGHT = 50;
+const PLAYED_STATUS_SKELETON_SIZE = 40;
+const TEXT_SKELETON_HEIGHT = 20;
+const TEXT_SKELETON_WIDTH = 250;
+const EMPTY_STATE_ICON_SIZE = 64;
+
+// Spacing Constants
+const HORIZONTAL_PADDING = 40;
+const DOT_PADDING = 2;
+const DOT_GAP = 4;
+const CONTROLS_GAP = 20;
+const TEXT_MARGIN_TOP = 16;
+
+// Border Radius Constants
+const DOT_BORDER_RADIUS = 3;
+const LOGO_SKELETON_BORDER_RADIUS = 8;
+const TEXT_SKELETON_BORDER_RADIUS = 4;
+const PLAY_BUTTON_BORDER_RADIUS = 25;
+const PLAYED_STATUS_BORDER_RADIUS = 20;
+
+// Animation Constants
+const DOT_ANIMATION_DURATION = 300;
+const CAROUSEL_TRANSITION_DURATION = 250;
+const PAN_ACTIVE_OFFSET = 10;
+const TRANSLATION_THRESHOLD = 0.2;
+const VELOCITY_THRESHOLD = 400;
+
+// Text Constants
+const GENRES_FONT_SIZE = 16;
+const EMPTY_STATE_FONT_SIZE = 18;
+const TEXT_SHADOW_RADIUS = 2;
+const MAX_GENRES_COUNT = 2;
+const MAX_BUTTON_WIDTH = 300;
+
+// Opacity Constants
+const OVERLAY_OPACITY = 0.4;
+const DOT_INACTIVE_OPACITY = 0.6;
+const TEXT_OPACITY = 0.9;
+
+// Color Constants
+const SKELETON_BACKGROUND_COLOR = "#1a1a1a";
+const SKELETON_ELEMENT_COLOR = "#333";
+const SKELETON_ACTIVE_DOT_COLOR = "#666";
+const EMPTY_STATE_COLOR = "#666";
+const TEXT_SHADOW_COLOR = "rgba(0, 0, 0, 0.8)";
+const LOGO_WIDTH_PERCENTAGE = "80%";
 
 const DotIndicator = ({
   index,
@@ -43,12 +105,12 @@ const DotIndicator = ({
   const isActive = index === currentIndex;
 
   const animatedStyle = useAnimatedStyle(() => ({
-    width: withTiming(isActive ? 24 : 12, {
-      duration: 300,
+    width: withTiming(isActive ? DOT_ACTIVE_WIDTH : DOT_INACTIVE_WIDTH, {
+      duration: DOT_ANIMATION_DURATION,
       easing: Easing.out(Easing.quad),
     }),
-    opacity: withTiming(isActive ? 1 : 0.6, {
-      duration: 300,
+    opacity: withTiming(isActive ? 1 : DOT_INACTIVE_OPACITY, {
+      duration: DOT_ANIMATION_DURATION,
       easing: Easing.out(Easing.quad),
     }),
   }));
@@ -57,15 +119,15 @@ const DotIndicator = ({
     <Pressable
       onPress={() => onPress(index)}
       style={{
-        padding: 4, // Increase touch area
+        padding: DOT_PADDING, // Increase touch area
       }}
     >
       <Animated.View
         style={[
           {
-            height: 6,
+            height: DOT_HEIGHT,
             backgroundColor: isActive ? "white" : "rgba(255, 255, 255, 0.4)",
-            borderRadius: 3,
+            borderRadius: DOT_BORDER_RADIUS,
           },
           animatedStyle,
         ]}
@@ -125,7 +187,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       if (!items || index < 0 || index >= items.length) return;
 
       translateX.value = withTiming(-index * screenWidth, {
-        duration: 250, // Slightly longer for smoother feel
+        duration: CAROUSEL_TRANSITION_DURATION, // Slightly longer for smoother feel
         easing: Easing.bezier(0.25, 0.46, 0.45, 0.94), // iOS-like smooth deceleration curve
       });
 
@@ -136,7 +198,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   );
 
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10])
+    .activeOffsetX([-PAN_ACTIVE_OFFSET, PAN_ACTIVE_OFFSET])
     .onUpdate((event) => {
       translateX.value = -currentIndex * screenWidth + event.translationX;
     })
@@ -148,8 +210,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
 
       // Improved thresholds for more responsive navigation
       if (
-        Math.abs(translation) > screenWidth * 0.2 ||
-        Math.abs(velocity) > 400
+        Math.abs(translation) > screenWidth * TRANSLATION_THRESHOLD ||
+        Math.abs(velocity) > VELOCITY_THRESHOLD
       ) {
         if (translation > 0 && currentIndex > 0) {
           newIndex = currentIndex - 1;
@@ -178,13 +240,13 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       <View
         style={{
           position: "absolute",
-          bottom: 60,
+          bottom: DOTS_BOTTOM_POSITION,
           left: 0,
           right: 0,
           flexDirection: "row",
           justifyContent: "center",
           alignItems: "center",
-          gap: 4,
+          gap: DOT_GAP,
         }}
       >
         {items.map((_, index) => (
@@ -204,7 +266,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       <View
         style={{
           width: screenWidth,
-          height: 600,
+          height: CAROUSEL_HEIGHT,
           backgroundColor: "#000",
         }}
       >
@@ -213,7 +275,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           style={{
             width: "100%",
             height: "100%",
-            backgroundColor: "#1a1a1a",
+            backgroundColor: SKELETON_BACKGROUND_COLOR,
             position: "absolute",
           }}
         />
@@ -226,7 +288,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.4)",
+            backgroundColor: `rgba(0, 0, 0, ${OVERLAY_OPACITY})`,
           }}
         />
 
@@ -238,7 +300,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            height: 200,
+            height: GRADIENT_HEIGHT,
           }}
         />
 
@@ -246,19 +308,19 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 220,
+            bottom: LOGO_BOTTOM_POSITION,
             left: 0,
             right: 0,
-            paddingHorizontal: 20,
+            paddingHorizontal: HORIZONTAL_PADDING,
             alignItems: "center",
           }}
         >
           <View
             style={{
-              height: 80,
-              width: "80%",
-              backgroundColor: "#333",
-              borderRadius: 8,
+              height: LOGO_HEIGHT,
+              width: LOGO_WIDTH_PERCENTAGE,
+              backgroundColor: SKELETON_ELEMENT_COLOR,
+              borderRadius: LOGO_SKELETON_BORDER_RADIUS,
             }}
           />
         </View>
@@ -267,19 +329,19 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 170,
+            bottom: GENRES_BOTTOM_POSITION,
             left: 0,
             right: 0,
-            paddingHorizontal: 20,
+            paddingHorizontal: HORIZONTAL_PADDING,
             alignItems: "center",
           }}
         >
           <View
             style={{
-              height: 20,
-              width: 250,
-              backgroundColor: "#333",
-              borderRadius: 4,
+              height: TEXT_SKELETON_HEIGHT,
+              width: TEXT_SKELETON_WIDTH,
+              backgroundColor: SKELETON_ELEMENT_COLOR,
+              borderRadius: TEXT_SKELETON_BORDER_RADIUS,
             }}
           />
         </View>
@@ -288,34 +350,34 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 100,
+            bottom: CONTROLS_BOTTOM_POSITION,
             left: 0,
             right: 0,
-            paddingHorizontal: 20,
+            paddingHorizontal: HORIZONTAL_PADDING,
             flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
-            gap: 20,
+            gap: CONTROLS_GAP,
           }}
         >
           {/* Play Button Skeleton */}
           <View
             style={{
-              height: 50,
+              height: PLAY_BUTTON_SKELETON_HEIGHT,
               flex: 1,
-              maxWidth: 300,
-              backgroundColor: "#333",
-              borderRadius: 25,
+              maxWidth: MAX_BUTTON_WIDTH,
+              backgroundColor: SKELETON_ELEMENT_COLOR,
+              borderRadius: PLAY_BUTTON_BORDER_RADIUS,
             }}
           />
 
           {/* Played Status Skeleton */}
           <View
             style={{
-              width: 40,
-              height: 40,
-              backgroundColor: "#333",
-              borderRadius: 20,
+              width: PLAYED_STATUS_SKELETON_SIZE,
+              height: PLAYED_STATUS_SKELETON_SIZE,
+              backgroundColor: SKELETON_ELEMENT_COLOR,
+              borderRadius: PLAYED_STATUS_BORDER_RADIUS,
             }}
           />
         </View>
@@ -324,23 +386,26 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 60,
+            bottom: DOTS_BOTTOM_POSITION,
             left: 0,
             right: 0,
             flexDirection: "row",
             justifyContent: "center",
             alignItems: "center",
-            gap: 4,
+            gap: DOT_GAP,
           }}
         >
           {[1, 2, 3].map((_, index) => (
             <View
               key={index}
               style={{
-                width: index === 0 ? 24 : 12,
-                height: 6,
-                backgroundColor: index === 0 ? "#666" : "#333",
-                borderRadius: 3,
+                width: index === 0 ? DOT_ACTIVE_WIDTH : DOT_INACTIVE_WIDTH,
+                height: DOT_HEIGHT,
+                backgroundColor:
+                  index === 0
+                    ? SKELETON_ACTIVE_DOT_COLOR
+                    : SKELETON_ELEMENT_COLOR,
+                borderRadius: DOT_BORDER_RADIUS,
               }}
             />
           ))}
@@ -357,7 +422,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         key={item.Id}
         style={{
           width: screenWidth,
-          height: 600,
+          height: CAROUSEL_HEIGHT,
           position: "relative",
         }}
       >
@@ -380,7 +445,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.4)",
+            backgroundColor: `rgba(0, 0, 0, ${OVERLAY_OPACITY})`,
           }}
         />
 
@@ -392,7 +457,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            height: 200,
+            height: GRADIENT_HEIGHT,
           }}
         />
 
@@ -401,10 +466,10 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           <View
             style={{
               position: "absolute",
-              bottom: 220,
+              bottom: LOGO_BOTTOM_POSITION,
               left: 0,
               right: 0,
-              paddingHorizontal: 20,
+              paddingHorizontal: HORIZONTAL_PADDING,
               alignItems: "center",
             }}
           >
@@ -413,8 +478,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
                 uri: itemLogoUrl,
               }}
               style={{
-                height: 80,
-                width: "80%",
+                height: LOGO_HEIGHT,
+                width: LOGO_WIDTH_PERCENTAGE,
               }}
               contentFit='contain'
             />
@@ -425,22 +490,22 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 170,
+            bottom: GENRES_BOTTOM_POSITION,
             left: 0,
             right: 0,
-            paddingHorizontal: 20,
+            paddingHorizontal: HORIZONTAL_PADDING,
             alignItems: "center",
           }}
         >
           <Animated.Text
             style={{
-              color: "rgba(255, 255, 255, 0.9)",
-              fontSize: 16,
+              color: `rgba(255, 255, 255, ${TEXT_OPACITY})`,
+              fontSize: GENRES_FONT_SIZE,
               fontWeight: "500",
               textAlign: "center",
-              textShadowColor: "rgba(0, 0, 0, 0.8)",
+              textShadowColor: TEXT_SHADOW_COLOR,
               textShadowOffset: { width: 0, height: 1 },
-              textShadowRadius: 2,
+              textShadowRadius: TEXT_SHADOW_RADIUS,
             }}
           >
             {(() => {
@@ -453,7 +518,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
 
               const genres =
                 item.Genres && item.Genres.length > 0
-                  ? item.Genres.slice(0, 2).join(" • ")
+                  ? item.Genres.slice(0, MAX_GENRES_COUNT).join(" • ")
                   : "";
 
               if (typeLabel && genres) {
@@ -473,10 +538,10 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <View
           style={{
             position: "absolute",
-            bottom: 100,
+            bottom: CONTROLS_BOTTOM_POSITION,
             left: 0,
             right: 0,
-            paddingHorizontal: 20,
+            paddingHorizontal: HORIZONTAL_PADDING,
           }}
         >
           <View
@@ -484,11 +549,11 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
               flexDirection: "row",
               justifyContent: "center",
               alignItems: "center",
-              gap: 20,
+              gap: CONTROLS_GAP,
             }}
           >
             {/* Play Button */}
-            <View style={{ flex: 1, maxWidth: 300 }}>
+            <View style={{ flex: 1, maxWidth: MAX_BUTTON_WIDTH }}>
               {selectedOptions && (
                 <PlayButton item={item} selectedOptions={selectedOptions} />
               )}
@@ -507,7 +572,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     return (
       <View
         style={{
-          height: 600,
+          height: CAROUSEL_HEIGHT,
           backgroundColor: "#000",
           overflow: "hidden",
         }}
@@ -522,18 +587,22 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     return (
       <View
         style={{
-          height: 600,
+          height: CAROUSEL_HEIGHT,
           justifyContent: "center",
           alignItems: "center",
           backgroundColor: "#000",
         }}
       >
-        <Ionicons name='film-outline' size={64} color='#666' />
+        <Ionicons
+          name='film-outline'
+          size={EMPTY_STATE_ICON_SIZE}
+          color={EMPTY_STATE_COLOR}
+        />
         <Animated.Text
           style={{
-            color: "#666",
-            fontSize: 18,
-            marginTop: 16,
+            color: EMPTY_STATE_COLOR,
+            fontSize: EMPTY_STATE_FONT_SIZE,
+            marginTop: TEXT_MARGIN_TOP,
           }}
         >
           No items available
@@ -545,7 +614,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   return (
     <View
       style={{
-        height: 600, // Fixed height instead of flex: 1
+        height: CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
         backgroundColor: "#000",
         overflow: "hidden",
       }}
@@ -554,7 +623,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <Animated.View
           style={[
             {
-              height: 600, // Fixed height instead of flex: 1
+              height: CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
               flexDirection: "row",
               width: screenWidth * items.length,
             },

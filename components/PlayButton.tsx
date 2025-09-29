@@ -367,7 +367,7 @@ export const PlayButton: React.FC<Props> = ({
       className={"relative"}
       {...props}
     >
-      <View className='absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden'>
+      <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
         <Animated.View
           style={[
             animatedPrimaryStyle,
@@ -381,7 +381,7 @@ export const PlayButton: React.FC<Props> = ({
 
       <Animated.View
         style={[animatedAverageStyle, { opacity: 0.5 }]}
-        className='absolute w-full h-full top-0 left-0 rounded-xl'
+        className='absolute w-full h-full top-0 left-0 rounded-full'
       />
       <View
         style={{
@@ -389,7 +389,7 @@ export const PlayButton: React.FC<Props> = ({
           borderColor: colorAtom.primary,
           borderStyle: "solid",
         }}
-        className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
+        className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
       >
         <View className='flex flex-row items-center space-x-2'>
           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
