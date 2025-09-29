@@ -1,56 +1,61 @@
 name: 📝 Artifact Comment on PR
 
 concurrency:
-  group: artifact-comment-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: artifact-comment-${{ github.sha }}
   cancel-in-progress: true
 
 on:
   workflow_dispatch: # Allow manual testing
   pull_request: # Show in PR checks and provide status updates
     types: [opened, synchronize, reopened]
-  workflow_run:
-    workflows:
-      - "🤖 Android APK Build (Phone + TV)"
-      - "🤖 iOS IPA Build (Phone + TV)"
+  repository_dispatch: # Triggered by build workflows when they start/complete
     types:
-      - completed
-      - requested # Trigger when build starts
+      - build-started
+      - build-completed
+      - build-failed
 
 jobs:
   comment-artifacts:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || github.event_name == 'repository_dispatch'
     name: 📦 Post Build Artifacts
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
       actions: read
+      repository-projects: read
 
     steps:
       - name: 🔍 Get PR and Artifacts
         uses: actions/github-script@v8
         with:
           script: |
-            // Handle workflow_run, pull_request, and manual dispatch events
+            // Handle repository_dispatch, pull_request, and manual dispatch events
             let pr;
+            let targetCommitSha;
 
-            if (context.eventName === 'workflow_run') {
-              // Find PR associated with this commit
-              const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                commit_sha: github.event.workflow_run.head_sha
-              });
+            if (context.eventName === 'repository_dispatch') {
+              // Triggered by build workflows - get PR info from payload
+              const payload = context.payload.client_payload;
+              console.log('Repository dispatch payload:', JSON.stringify(payload, null, 2));
               
-              if (pullRequests.length === 0) {
-                console.log('No pull request found for commit:', github.event.workflow_run.head_sha);
+              if (!payload || !payload.pr_number) {
+                console.log('No PR information in repository_dispatch payload');
                 return;
               }
-              pr = pullRequests[0];
+              
+              const { data: prData } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: payload.pr_number
+              });
+              pr = prData;
+              targetCommitSha = payload.commit_sha || pr.head.sha;
               
             } else if (context.eventName === 'pull_request') {
               // Direct PR event
               pr = context.payload.pull_request;
+              targetCommitSha = pr.head.sha;
               
             } else if (context.eventName === 'workflow_dispatch') {
               // Get current PR for manual testing
@@ -61,19 +66,20 @@ jobs:
                 pull_number: prNumber
               });
               pr = prData;
+              targetCommitSha = pr.head.sha;
               
             } else {
               console.log('Unsupported event type:', context.eventName);
               return;
             }
 
-            console.log(`Processing PR #${pr.number} for commit ${pr.head.sha.substring(0, 7)}`);
+            console.log(`Processing PR #${pr.number} for commit ${targetCommitSha.substring(0, 7)}`);
 
             // Get all recent workflow runs for this PR to collect artifacts from multiple builds
             const { data: workflowRuns } = await github.rest.actions.listWorkflowRunsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              head_sha: pr.head.sha,
+              head_sha: targetCommitSha,
               per_page: 30
             });
 
@@ -151,11 +157,50 @@ jobs:
               }
             }
 
+            // Override with real-time data from repository_dispatch if available
+            if (context.eventName === 'repository_dispatch') {
+              const payload = context.payload.client_payload;
+              const workflowType = payload.workflow_name.includes('Android') ? 'Android' : 'iOS';
+              
+              if (buildStatuses[workflowType]) {
+                // Update the existing status with real-time data
+                buildStatuses[workflowType].status = payload.status === 'in_progress' ? 'in_progress' : 
+                                                    payload.status === 'success' ? 'completed' : 
+                                                    payload.status === 'failure' ? 'completed' : 
+                                                    buildStatuses[workflowType].status;
+                buildStatuses[workflowType].conclusion = payload.status === 'success' ? 'success' : 
+                                                        payload.status === 'failure' ? 'failure' : 
+                                                        buildStatuses[workflowType].conclusion;
+                buildStatuses[workflowType].url = payload.run_url;
+                buildStatuses[workflowType].target = payload.target;
+              } else {
+                // Create new status entry for real-time updates
+                buildStatuses[workflowType] = {
+                  name: payload.workflow_name,
+                  status: payload.status === 'in_progress' ? 'in_progress' : 
+                         payload.status === 'success' ? 'completed' : 
+                         payload.status === 'failure' ? 'completed' : 'queued',
+                  conclusion: payload.status === 'success' ? 'success' : 
+                             payload.status === 'failure' ? 'failure' : null,
+                  url: payload.run_url,
+                  runId: payload.run_id,
+                  target: payload.target,
+                  created_at: new Date().toISOString()
+                };
+              }
+            }
+
             console.log(`Collected ${allArtifacts.length} total artifacts from all builds`);
 
             // Build comment body with progressive status for individual builds
             let commentBody = `## 🔧 Build Status for PR #${pr.number}\n\n`;
-            commentBody += `🔗 **Commit**: [\`${pr.head.sha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${pr.head.sha})\n\n`;
+            commentBody += `🔗 **Commit**: [\`${targetCommitSha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${targetCommitSha})\n\n`;
+
+            // Show event context for debugging (only for repository_dispatch)
+            if (context.eventName === 'repository_dispatch') {
+              const payload = context.payload.client_payload;
+              commentBody += `🔔 **Real-time Update**: ${payload.workflow_name} (${payload.target}) - ${payload.status}\n\n`;
+            }
 
             // Progressive build status and downloads table
             commentBody += `### 📦 Build Artifacts\n\n`;
@@ -164,15 +209,24 @@ jobs:
 
             // Process each expected build target individually
             const buildTargets = [
-              { name: 'Android Phone', platform: '🤖', device: '📱', pattern: /android.*phone/i },
-              { name: 'Android TV', platform: '🤖', device: '📺', pattern: /android.*tv/i },
-              { name: 'iOS Phone', platform: '🍎', device: '📱', pattern: /ios.*phone/i },
-              { name: 'iOS TV', platform: '🍎', device: '📺', pattern: /ios.*tv/i }
+              { name: 'Android Phone', platform: '🤖', device: '📱', workflowType: 'Android', target: 'phone' },
+              { name: 'Android TV', platform: '🤖', device: '📺', workflowType: 'Android', target: 'tv' },
+              { name: 'iOS Phone', platform: '🍎', device: '📱', workflowType: 'iOS', target: 'phone' },
+              { name: 'iOS TV', platform: '🍎', device: '📺', workflowType: 'iOS', target: 'tv' }
             ];
 
             for (const target of buildTargets) {
-              // Find matching workflow status (using our simplified structure)
-              const matchingStatus = target.name.includes('Android') ? buildStatuses['Android'] : buildStatuses['iOS'];
+              // Find matching workflow status
+              let matchingStatus = buildStatuses[target.workflowType];
+              
+              // For repository_dispatch events, check if this specific target matches
+              if (context.eventName === 'repository_dispatch' && matchingStatus) {
+                const payload = context.payload.client_payload;
+                if (payload.target !== target.target) {
+                  // This update is for a different target, show default status
+                  matchingStatus = null;
+                }
+              }
 
               // Find matching artifact
               const matchingArtifact = allArtifacts.find(artifact => 

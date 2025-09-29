@@ -9,11 +9,11 @@ on:
   pull_request:
     branches: [develop, master]
     paths-ignore:
-      - '*.md'
+      - "*.md"
   push:
     branches: [develop, master]
     paths-ignore:
-      - '*.md'
+      - "*.md"
 
 jobs:
   build-ios:
@@ -22,14 +22,35 @@ jobs:
     name: 🏗️ Build iOS IPA
     permissions:
       contents: read
+      repository-projects: write
 
     strategy:
       fail-fast: false
       matrix:
         target: [phone]
-#        target: [phone, tv]
+    #        target: [phone, tv]
 
     steps:
+      - name: 📢 Notify artifact comment workflow (started)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'build-started',
+              client_payload: {
+                workflow_name: 'iOS IPA Build',
+                target: '${{ matrix.target }}',
+                status: 'in_progress',
+                pr_number: ${{ github.event.pull_request.number }},
+                commit_sha: '${{ github.event.pull_request.head.sha }}',
+                run_id: ${{ github.run_id }},
+                run_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+              }
+            });
+
       - name: 📥 Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -93,3 +114,43 @@ jobs:
           name: streamyfin-ios-${{ matrix.target }}-ipa-${{ env.DATE_TAG }}
           path: build-*.ipa
           retention-days: 7
+
+      - name: 🔔 Notify artifact comment workflow (success)
+        if: success() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'build-completed',
+              client_payload: {
+                workflow_name: 'iOS IPA Build',
+                target: '${{ matrix.target }}',
+                status: 'success',
+                pr_number: ${{ github.event.pull_request.number }},
+                commit_sha: '${{ github.event.pull_request.head.sha }}',
+                run_id: ${{ github.run_id }},
+                run_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+              }
+            });
+
+      - name: 🔔 Notify artifact comment workflow (failure)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'build-failed',
+              client_payload: {
+                workflow_name: 'iOS IPA Build',
+                target: '${{ matrix.target }}',
+                status: 'failure',
+                pr_number: ${{ github.event.pull_request.number }},
+                commit_sha: '${{ github.event.pull_request.head.sha }}',
+                run_id: ${{ github.run_id }},
+                run_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+              }
+            });
