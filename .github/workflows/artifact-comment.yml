@@ -112,54 +112,113 @@ jobs:
               per_page: 30
             });
 
-            // Filter for build workflows only and sort by creation time (most recent first)
+            // Filter for build workflows only, exclude cancelled runs, and sort by creation time (most recent first)
             const buildRuns = workflowRuns.workflow_runs
               .filter(run => 
-                run.name.includes('Build Apps') ||
+                (run.name.includes('Build Apps') ||
                 run.name.includes('Android APK Build') || 
-                run.name.includes('iOS IPA Build')
+                run.name.includes('iOS IPA Build')) &&
+                run.conclusion !== 'cancelled'  // Ignore cancelled runs
               )
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-            console.log(`Found ${buildRuns.length} build workflow runs for this commit`);
+            console.log(`Found ${buildRuns.length} non-cancelled build workflow runs for this commit`);
 
             // Log current status of each build for debugging
             buildRuns.forEach(run => {
               console.log(`- ${run.name}: ${run.status} (${run.conclusion || 'no conclusion yet'}) - Created: ${run.created_at}`);
             });
 
-            // Collect artifacts and statuses from builds - get most recent run for each workflow type
+            // Collect artifacts and statuses from builds - prioritize active runs over completed ones
             let allArtifacts = [];
             let buildStatuses = {};
 
-            // Get the most recent run for the unified apps workflow
-            const latestAppsRun = buildRuns.find(run => run.name.includes('Build Apps'));
-            const latestAndroidRun = buildRuns.find(run => run.name.includes('Android APK Build'));
-            const latestIOSRun = buildRuns.find(run => run.name.includes('iOS IPA Build'));
+            // Get the most relevant run for each workflow type (prioritize in_progress over completed)
+            const findBestRun = (nameFilter) => {
+              const matchingRuns = buildRuns.filter(run => run.name.includes(nameFilter));
+              // First try to find an in-progress run
+              const inProgressRun = matchingRuns.find(run => run.status === 'in_progress');
+              if (inProgressRun) return inProgressRun;
+              // Then try to find a queued run
+              const queuedRun = matchingRuns.find(run => run.status === 'queued');
+              if (queuedRun) return queuedRun;
+              // Finally fall back to most recent completed run
+              return matchingRuns[0]; // Already sorted by most recent first
+            };
 
-            // For the consolidated workflow, both Android and iOS share the same run
+            const latestAppsRun = findBestRun('Build Apps');
+            const latestAndroidRun = findBestRun('Android APK Build');
+            const latestIOSRun = findBestRun('iOS IPA Build');
+
+            // For the consolidated workflow, get individual job statuses
             if (latestAppsRun) {
-              // Both platforms use same workflow run status
-              buildStatuses['Android'] = {
-                name: latestAppsRun.name,
-                status: latestAppsRun.status,
-                conclusion: latestAppsRun.conclusion,
-                url: latestAppsRun.html_url,
-                runId: latestAppsRun.id,
-                created_at: latestAppsRun.created_at
-              };
+              console.log(`Getting individual job statuses for run ${latestAppsRun.id}`);
               
-              buildStatuses['iOS'] = {
-                name: latestAppsRun.name,
-                status: latestAppsRun.status,
-                conclusion: latestAppsRun.conclusion,
-                url: latestAppsRun.html_url,
-                runId: latestAppsRun.id,
-                created_at: latestAppsRun.created_at
-              };
+              try {
+                // Get all jobs for this workflow run
+                const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: latestAppsRun.id
+                });
+                
+                console.log(`Found ${jobs.jobs.length} jobs in workflow run`);
+                jobs.jobs.forEach(job => {
+                  console.log(`- Job: ${job.name} | Status: ${job.status} | Conclusion: ${job.conclusion || 'none'}`);
+                });
+                
+                // Map job names to our build targets
+                const jobMappings = {
+                  'Android Phone': ['🤖 Build Android APK (Phone)', 'build-android-phone'],
+                  'Android TV': ['🤖 Build Android APK (TV)', 'build-android-tv'],  
+                  'iOS Phone': ['🍎 Build iOS IPA (Phone)', 'build-ios-phone']
+                };
+                
+                // Create individual status for each job
+                for (const [platform, jobNames] of Object.entries(jobMappings)) {
+                  const job = jobs.jobs.find(j => 
+                    jobNames.some(name => j.name.includes(name) || j.name === name)
+                  );
+                  
+                  if (job) {
+                    buildStatuses[platform] = {
+                      name: job.name,
+                      status: job.status,
+                      conclusion: job.conclusion,
+                      url: job.html_url,
+                      runId: latestAppsRun.id,
+                      created_at: job.started_at || latestAppsRun.created_at
+                    };
+                    console.log(`Mapped ${platform} to job: ${job.name} (${job.status}/${job.conclusion || 'none'})`);
+                  } else {
+                    console.log(`No job found for ${platform}, using workflow status as fallback`);
+                    buildStatuses[platform] = {
+                      name: latestAppsRun.name,
+                      status: latestAppsRun.status,
+                      conclusion: latestAppsRun.conclusion,
+                      url: latestAppsRun.html_url,
+                      runId: latestAppsRun.id,
+                      created_at: latestAppsRun.created_at
+                    };
+                  }
+                }
+                
+              } catch (error) {
+                console.log(`Failed to get jobs for run ${latestAppsRun.id}:`, error.message);
+                // Fallback to workflow-level status
+                buildStatuses['Android Phone'] = buildStatuses['Android TV'] = buildStatuses['iOS Phone'] = {
+                  name: latestAppsRun.name,
+                  status: latestAppsRun.status,
+                  conclusion: latestAppsRun.conclusion,
+                  url: latestAppsRun.html_url,
+                  runId: latestAppsRun.id,
+                  created_at: latestAppsRun.created_at
+                };
+              }
               
-              // Collect artifacts if workflow has completed (regardless of success/failure)
-              if (latestAppsRun.status === 'completed') {
+              // Collect artifacts if any job has completed successfully
+              if (latestAppsRun.status === 'completed' || 
+                  Object.values(buildStatuses).some(status => status.conclusion === 'success')) {
                 try {
                   const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
                     owner: context.repo.owner,
@@ -245,15 +304,15 @@ jobs:
 
             // Process each expected build target individually
             const buildTargets = [
-              { name: 'Android Phone', platform: '🤖', device: '📱', workflowType: 'Android', target: 'phone', artifactPattern: /android.*phone/i },
-              { name: 'Android TV', platform: '🤖', device: '📺', workflowType: 'Android', target: 'tv', artifactPattern: /android.*tv/i },
-              { name: 'iOS Phone', platform: '🍎', device: '📱', workflowType: 'iOS', target: 'phone', artifactPattern: /ios.*phone/i },
-              { name: 'iOS TV', platform: '🍎', device: '📺', workflowType: 'iOS', target: 'tv', artifactPattern: /ios.*tv/i }
+              { name: 'Android Phone', platform: '🤖', device: '📱', statusKey: 'Android Phone', artifactPattern: /android.*phone/i },
+              { name: 'Android TV', platform: '🤖', device: '📺', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
+              { name: 'iOS Phone', platform: '🍎', device: '📱', statusKey: 'iOS Phone', artifactPattern: /ios.*phone/i },
+              { name: 'iOS TV', platform: '🍎', device: '📺', statusKey: 'iOS TV', artifactPattern: /ios.*tv/i }
             ];
 
             for (const target of buildTargets) {
-              // Find matching workflow status
-              const matchingStatus = buildStatuses[target.workflowType];
+              // Find matching job status directly
+              const matchingStatus = buildStatuses[target.statusKey];
 
               // Find matching artifact
               const matchingArtifact = allArtifacts.find(artifact => 
