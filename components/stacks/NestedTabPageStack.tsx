@@ -14,6 +14,7 @@ export const commonScreenOptions: ICommonScreenOptions = {
   headerShown: true,
   headerTransparent: true,
   headerShadowVisible: false,
+  headerBlurEffect: "none",
   headerLeft: () => <HeaderBackButton />,
 };
 
