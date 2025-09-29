@@ -7,9 +7,10 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Dimensions, Pressable, View } from "react-native";
+import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -25,6 +26,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { ItemImage } from "./common/ItemImage";
+import { getItemNavigation } from "./common/TouchableItemRouter";
 import type { SelectedOptions } from "./ItemContent";
 import { PlayButton } from "./PlayButton";
 import { PlayedStatus } from "./PlayedStatus";
@@ -150,6 +152,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { isConnected, serverConnected } = useNetworkStatus();
+  const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const translateX = useSharedValue(-currentIndex * screenWidth);
 
@@ -299,6 +302,14 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       onItemChange?.(index);
     },
     [hasItems, items, onItemChange, translateX],
+  );
+
+  const navigateToItem = useCallback(
+    (item: BaseItemDto) => {
+      const navigation = getItemNavigation(item, "(home)");
+      router.push(navigation as any);
+    },
+    [router],
   );
 
   const panGesture = Gesture.Pan()
@@ -591,7 +602,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
 
         {/* Logo Section */}
         {itemLogoUrl && (
-          <View
+          <TouchableOpacity
+            onPress={() => navigateToItem(item)}
             style={{
               position: "absolute",
               bottom: LOGO_BOTTOM_POSITION,
@@ -611,7 +623,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
               }}
               contentFit='contain'
             />
-          </View>
+          </TouchableOpacity>
         )}
 
         {/* Type and Genres Section */}
@@ -625,41 +637,56 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             alignItems: "center",
           }}
         >
-          <Animated.Text
-            style={{
-              color: `rgba(255, 255, 255, ${TEXT_OPACITY})`,
-              fontSize: GENRES_FONT_SIZE,
-              fontWeight: "500",
-              textAlign: "center",
-              textShadowColor: TEXT_SHADOW_COLOR,
-              textShadowOffset: { width: 0, height: 1 },
-              textShadowRadius: TEXT_SHADOW_RADIUS,
-            }}
-          >
-            {(() => {
-              const typeLabel =
-                item.Type === "Series"
-                  ? "TV Show"
-                  : item.Type === "Movie"
-                    ? "Movie"
-                    : item.Type || "";
+          <TouchableOpacity onPress={() => navigateToItem(item)}>
+            <Animated.Text
+              style={{
+                color: `rgba(255, 255, 255, ${TEXT_OPACITY})`,
+                fontSize: GENRES_FONT_SIZE,
+                fontWeight: "500",
+                textAlign: "center",
+                textShadowColor: TEXT_SHADOW_COLOR,
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: TEXT_SHADOW_RADIUS,
+              }}
+            >
+              {(() => {
+                let typeLabel = "";
 
-              const genres =
-                item.Genres && item.Genres.length > 0
-                  ? item.Genres.slice(0, MAX_GENRES_COUNT).join(" • ")
-                  : "";
+                if (item.Type === "Episode") {
+                  // For episodes, show season and episode number
+                  const season = item.ParentIndexNumber;
+                  const episode = item.IndexNumber;
+                  if (season && episode) {
+                    typeLabel = `S${season} • E${episode}`;
+                  } else {
+                    typeLabel = "Episode";
+                  }
+                } else {
+                  typeLabel =
+                    item.Type === "Series"
+                      ? "TV Show"
+                      : item.Type === "Movie"
+                        ? "Movie"
+                        : item.Type || "";
+                }
 
-              if (typeLabel && genres) {
-                return `${typeLabel} • ${genres}`;
-              } else if (typeLabel) {
-                return typeLabel;
-              } else if (genres) {
-                return genres;
-              } else {
-                return "";
-              }
-            })()}
-          </Animated.Text>
+                const genres =
+                  item.Genres && item.Genres.length > 0
+                    ? item.Genres.slice(0, MAX_GENRES_COUNT).join(" • ")
+                    : "";
+
+                if (typeLabel && genres) {
+                  return `${typeLabel} • ${genres}`;
+                } else if (typeLabel) {
+                  return typeLabel;
+                } else if (genres) {
+                  return genres;
+                } else {
+                  return "";
+                }
+              })()}
+            </Animated.Text>
+          </TouchableOpacity>
         </View>
 
         {/* Controls Section */}
