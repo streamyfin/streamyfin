@@ -62,7 +62,7 @@ jobs:
             // Build comment body with table format
             let commentBody = `## 📱 Build Artifacts Ready!\n\n`;
             commentBody += `✅ **Workflow completed successfully** for PR #${pr.number}\n`;
-            commentBody += `📦 **${artifacts.artifacts.length} artifacts** generated from commit [\`${pr.head.sha.substring(0, 7)}\`](${context.payload.workflow_run.html_url})\n\n`;
+            commentBody += `📦 **${artifacts.artifacts.length} artifacts** generated from commit [\`${pr.head.sha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${pr.head.sha})\n\n`;
             
             // Create table for better organization
             commentBody += `| Platform | Device Type | Download Link |\n`;
