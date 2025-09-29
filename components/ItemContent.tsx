@@ -22,7 +22,7 @@ import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useImageColors } from "@/hooks/useImageColors";
+import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -61,7 +61,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     const [user] = useAtom(userAtom);
     const { t } = useTranslation();
 
-    useImageColors({ item });
+    const itemColors = useImageColorsReturn({ item });
 
     const [loadingLogo, setLoadingLogo] = useState(true);
     const [headerHeight, setHeaderHeight] = useState(350);
@@ -267,6 +267,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 selectedOptions={selectedOptions}
                 item={item}
                 isOffline={isOffline}
+                colors={itemColors}
               />
             </View>
 

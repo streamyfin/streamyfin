@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -149,6 +150,9 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
 
   // Only get play settings if we have valid items
   const currentItem = items && items.length > 0 ? items[currentIndex] : null;
+
+  // Extract colors for the current item only (for performance)
+  const currentItemColors = useImageColorsReturn({ item: currentItem });
 
   // Create a fallback empty item for useDefaultPlaySettings when no item is available
   const itemForPlaySettings = currentItem || { MediaSources: [] };
@@ -555,7 +559,11 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             {/* Play Button */}
             <View style={{ flex: 1, maxWidth: MAX_BUTTON_WIDTH }}>
               {selectedOptions && (
-                <PlayButton item={item} selectedOptions={selectedOptions} />
+                <PlayButton
+                  item={item}
+                  selectedOptions={selectedOptions}
+                  colors={currentItemColors}
+                />
               )}
             </View>
 
