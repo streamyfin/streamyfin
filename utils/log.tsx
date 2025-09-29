@@ -77,6 +77,17 @@ export const clearLogs = () => {
   storage.delete("logs");
 };
 
+export const dumpDownloadDiagnostics = (extra: any = {}) => {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    processes: extra?.processes || [],
+    nativeTasks: extra?.nativeTasks || [],
+    focusedProcess: extra?.focusedProcess || null,
+  };
+  writeDebugLog("Download diagnostics", diagnostics);
+  return diagnostics;
+};
+
 export function useLog() {
   const context = useContext(LogContext);
   if (context === null) {

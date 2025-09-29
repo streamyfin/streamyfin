@@ -225,7 +225,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         if (!mediaSource) {
           console.error(`Could not get download URL for ${item.Name}`);
           toast.error(
-            t("Could not get download URL for {{itemName}}", {
+            t("home.downloads.toasts.could_not_get_download_url_for_item", {
               itemName: item.Name,
             }),
           );
