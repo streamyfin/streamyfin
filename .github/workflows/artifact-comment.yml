@@ -6,6 +6,8 @@ concurrency:
 
 on:
   workflow_dispatch: # Allow manual testing
+  pull_request: # Show in PR checks and provide status updates
+    types: [opened, synchronize, reopened]
   workflow_run:
     workflows:
       - "🤖 Android APK Build (Phone + TV)"
@@ -16,7 +18,7 @@ on:
 
 jobs:
   comment-artifacts:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,7 +30,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            // Handle both workflow_run and manual dispatch events
+            // Handle workflow_run, pull_request, and manual dispatch events
             let pr;
 
             if (context.eventName === 'workflow_run') {
@@ -44,6 +46,10 @@ jobs:
                 return;
               }
               pr = pullRequests[0];
+              
+            } else if (context.eventName === 'pull_request') {
+              // Direct PR event
+              pr = context.payload.pull_request;
               
             } else if (context.eventName === 'workflow_dispatch') {
               // Get current PR for manual testing
