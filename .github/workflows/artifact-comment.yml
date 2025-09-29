@@ -270,22 +270,33 @@ jobs:
               } else if (matchingStatus) {
                 if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
-                  const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/${matchingArtifact.name}.zip`;
+                  const directLink = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/artifacts/${matchingArtifact.id}`;
                   const fileType = target.name.includes('Android') ? 'APK' : 'IPA';
-                  downloadLink = `[📥 Download ${fileType}](${nightlyLink})`;
+                  downloadLink = `[📥 Download ${fileType}](${directLink})`;
                 } else if (matchingStatus.conclusion === 'failure') {
                   status = `❌ [Failed](${matchingStatus.url})`;
                   downloadLink = '*Build failed*';
+                } else if (matchingStatus.conclusion === 'cancelled') {
+                  status = `⚪ [Cancelled](${matchingStatus.url})`;
+                  downloadLink = '*Build cancelled*';
                 } else if (matchingStatus.status === 'in_progress') {
                   status = `🔄 [Building...](${matchingStatus.url})`;
                   downloadLink = '*Build in progress...*';
                 } else if (matchingStatus.status === 'queued') {
                   status = `⏳ [Queued](${matchingStatus.url})`;
                   downloadLink = '*Waiting to start...*';
+                } else if (matchingStatus.status === 'completed' && !matchingStatus.conclusion) {
+                  // Workflow completed but conclusion not yet available (rare edge case)
+                  status = `🔄 [Finishing...](${matchingStatus.url})`;
+                  downloadLink = '*Finalizing build...*';
+                } else if (matchingStatus.status === 'completed' && matchingStatus.conclusion === 'success' && !matchingArtifact) {
+                  // Build succeeded but artifacts not yet available
+                  status = `⏳ [Processing artifacts...](${matchingStatus.url})`;
+                  downloadLink = '*Preparing download...*';
                 } else {
-                  // Show any other status with timestamp for debugging
-                  status = `🔄 [${matchingStatus.status}](${matchingStatus.url})`;
-                  downloadLink = `*Status: ${matchingStatus.status}*`;
+                  // Fallback for any unexpected states
+                  status = `❓ [${matchingStatus.status}/${matchingStatus.conclusion || 'pending'}](${matchingStatus.url})`;
+                  downloadLink = `*Status: ${matchingStatus.status}, Conclusion: ${matchingStatus.conclusion || 'pending'}*`;
                 }
               }
 
