@@ -1,23 +1,21 @@
 name: 📝 Artifact Comment on PR
 
 concurrency:
-  group: artifact-comment-${{ github.event.workflow_run.id }}
+  group: artifact-comment-${{ github.event.workflow_run.id || github.run_id }}
   cancel-in-progress: false
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allow manual testing
   workflow_run:
     workflows:
-      - "🏗️ Build iOS IPA (phone)"
-      - "🏗️ Build iOS IPA (tv)"
-      - "🏗️ Build Android APK (phone)"
-      - "🏗️ Build Android APK (tv)"
+      - "🤖 Android APK Build (Phone + TV)"
+      - "🤖 iOS IPA Build (Phone + TV)"
     types:
       - completed
 
 jobs:
   comment-artifacts:
-    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,22 +27,55 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            console.log('Workflow run event:', JSON.stringify(github.event.workflow_run, null, 2));
+            // Handle both workflow_run and manual dispatch events
+            let runId, pr;
 
-            // Find PR associated with this commit
-            const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: "${{ github.event.workflow_run.head_sha }}"
-            });
-
-            if (pullRequests.length === 0) {
-              console.log('No pull request found for commit: ${{ github.event.workflow_run.head_sha }}');
+            if (context.eventName === 'workflow_run') {
+              runId = github.event.workflow_run.id;
+              
+              // Find PR associated with this commit
+              const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: github.event.workflow_run.head_sha
+              });
+              
+              if (pullRequests.length === 0) {
+                console.log('No pull request found for commit:', github.event.workflow_run.head_sha);
+                return;
+              }
+              pr = pullRequests[0];
+              
+            } else if (context.eventName === 'workflow_dispatch') {
+              // For manual testing, use most recent test workflow run
+              const { data: workflows } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'test-artifact.yml',
+                per_page: 1
+              });
+              
+              if (workflows.workflow_runs.length === 0) {
+                console.log('No test workflow runs found');
+                return;
+              }
+              
+              const testRun = workflows.workflow_runs[0];
+              runId = testRun.id;
+              
+              // Get current PR for manual testing
+              const prNumber = context.payload.pull_request?.number || 1101;
+              const { data: prData } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+              pr = prData;
+              
+            } else {
+              console.log('Unsupported event type:', context.eventName);
               return;
             }
-
-            const pr = pullRequests[0];
-            const runId = "${{ github.event.workflow_run.id }}";
 
             console.log(`Found PR #${pr.number} for commit ${pr.head.sha.substring(0, 7)}`);
 
@@ -54,8 +85,6 @@ jobs:
               repo: context.repo.repo,
               run_id: runId
             });
-
-            console.log(`Found ${artifacts?.artifacts?.length || 0} artifacts`);
 
             if (!artifacts || artifacts.artifacts.length === 0) {
               console.log('No artifacts found for this run');
@@ -69,8 +98,6 @@ jobs:
             const iosArtifacts = artifacts.artifacts
               .filter(a => a.name.includes('ios'))
               .sort((a, b) => a.name.localeCompare(b.name));
-
-            console.log(`Android artifacts: ${androidArtifacts.length}, iOS artifacts: ${iosArtifacts.length}`);
 
             // Build comment body with table format
             let commentBody = `## 📱 Build Artifacts Ready!\n\n`;
