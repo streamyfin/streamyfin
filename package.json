@@ -70,7 +70,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-i18next": "^15.4.0",
-    "react-native": "npm:react-native-tvos@0.81.1-1",
+    "react-native": "npm:react-native-tvos@0.81.4-0",
     "react-native-awesome-slider": "^2.9.0",
     "react-native-bottom-tabs": "^0.11.2",
     "react-native-circular-progress": "^1.4.1",
