@@ -1,8 +1,8 @@
 name: 📝 Artifact Comment on PR
 
 concurrency:
-  group: artifact-comment-${{ github.event.workflow_run.id || github.run_id }}
-  cancel-in-progress: false
+  group: artifact-comment-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
 
 on:
   workflow_dispatch: # Allow manual testing
@@ -12,10 +12,11 @@ on:
       - "🤖 iOS IPA Build (Phone + TV)"
     types:
       - completed
+      - requested # Trigger when build starts
 
 jobs:
   comment-artifacts:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,11 +29,9 @@ jobs:
         with:
           script: |
             // Handle both workflow_run and manual dispatch events
-            let runId, pr;
+            let pr;
 
             if (context.eventName === 'workflow_run') {
-              runId = github.event.workflow_run.id;
-              
               // Find PR associated with this commit
               const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
                 owner: context.repo.owner,
@@ -47,22 +46,6 @@ jobs:
               pr = pullRequests[0];
               
             } else if (context.eventName === 'workflow_dispatch') {
-              // For manual testing, use most recent test workflow run
-              const { data: workflows } = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'test-artifact.yml',
-                per_page: 1
-              });
-              
-              if (workflows.workflow_runs.length === 0) {
-                console.log('No test workflow runs found');
-                return;
-              }
-              
-              const testRun = workflows.workflow_runs[0];
-              runId = testRun.id;
-              
               // Get current PR for manual testing
               const prNumber = context.payload.pull_request?.number || 1101;
               const { data: prData } = await github.rest.pulls.get({
@@ -77,36 +60,97 @@ jobs:
               return;
             }
 
-            console.log(`Found PR #${pr.number} for commit ${pr.head.sha.substring(0, 7)}`);
+            console.log(`Processing PR #${pr.number} for commit ${pr.head.sha.substring(0, 7)}`);
 
-            // Get artifacts from the workflow run
+            // Get all recent workflow runs for this PR to collect artifacts from multiple builds
+            const { data: workflowRuns } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head_sha: pr.head.sha,
+              per_page: 10
+            });
+
+            // Filter for build workflows only
+            const buildRuns = workflowRuns.workflow_runs.filter(run => 
+              run.name.includes('Android APK Build') || 
+              run.name.includes('iOS IPA Build')
+            );
+
+            console.log(`Found ${buildRuns.length} build workflow runs for this commit`);
+
+            // Collect artifacts from all completed successful builds
+            let allArtifacts = [];
+            let buildStatuses = {};
+
+            for (const run of buildRuns) {
+              buildStatuses[run.name] = {
+                status: run.status,
+                conclusion: run.conclusion,
+                url: run.html_url,
+                runId: run.id
+              };
+              
+              if (run.conclusion === 'success') {
+                try {
+                  const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: run.id
+                  });
+                  allArtifacts.push(...artifacts.artifacts);
+                } catch (error) {
+                  console.log(`Failed to get artifacts for run ${run.id}:`, error.message);
+                }
+              }
+            }
+
+            console.log(`Collected ${allArtifacts.length} total artifacts from all builds`);
+
+            // Get artifacts from current run if needed
             const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
               owner: context.repo.owner,
               repo: context.repo.repo,
               run_id: runId
             });
 
-            if (!artifacts || artifacts.artifacts.length === 0) {
-              console.log('No artifacts found for this run');
-              return;
-            }
-
-            // Sort and categorize artifacts
-            const androidArtifacts = artifacts.artifacts
+            // Sort and categorize all collected artifacts
+            const androidArtifacts = allArtifacts
               .filter(a => a.name.includes('android'))
               .sort((a, b) => a.name.localeCompare(b.name));
-            const iosArtifacts = artifacts.artifacts
+            const iosArtifacts = allArtifacts
               .filter(a => a.name.includes('ios'))
               .sort((a, b) => a.name.localeCompare(b.name));
 
-            // Build comment body with table format
-            let commentBody = `## 📱 Build Artifacts Ready!\n\n`;
-            commentBody += `✅ **Workflow completed successfully** for PR #${pr.number}\n`;
-            commentBody += `📦 **${artifacts.artifacts.length} artifacts** generated from commit [\`${pr.head.sha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${pr.head.sha})\n\n`;
+            // Build comment body with progressive status
+            let commentBody = `## 📱 Build Status for PR #${pr.number}\n\n`;
+            commentBody += `🔗 **Commit**: [\`${pr.head.sha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${pr.head.sha})\n\n`;
 
-            if (androidArtifacts.length === 0 && iosArtifacts.length === 0) {
-              commentBody += `⚠️ No mobile app artifacts found in this build.\n\n`;
-            } else {
+            // Add build status table
+            commentBody += `### 🔧 Build Status\n\n`;
+            commentBody += `| Workflow | Status | Artifacts |\n`;
+            commentBody += `|----------|--------|-----------|\n`;
+
+            for (const [name, status] of Object.entries(buildStatuses)) {
+              const emoji = status.conclusion === 'success' ? '✅' : 
+                           status.conclusion === 'failure' ? '❌' : 
+                           status.status === 'in_progress' ? '🔄' : '⏳';
+              const statusText = status.conclusion || status.status || 'pending';
+              const artifactCount = allArtifacts.filter(a => {
+                // Match artifacts to workflows based on naming patterns
+                if (name.includes('Android')) return a.name.includes('android');
+                if (name.includes('iOS')) return a.name.includes('ios');
+                return false;
+              }).length;
+              
+              commentBody += `| [${name}](${status.url}) | ${emoji} ${statusText} | ${artifactCount} |\n`;
+            }
+
+            commentBody += `\n`;
+
+            // Only show download table if there are artifacts
+            if (allArtifacts.length > 0) {
+              commentBody += `### 📦 Available Downloads (${allArtifacts.length} artifacts)\n\n`;
+
               // Create table for better organization
               commentBody += `| Platform | Device Type | Download Link |\n`;
               commentBody += `|----------|-------------|---------------|\n`;
@@ -115,7 +159,7 @@ jobs:
               androidArtifacts.forEach(artifact => {
                 const isTV = artifact.name.includes('tv');
                 const deviceType = isTV ? '📺 Android TV' : '📱 Android Phone';
-                const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}/${artifact.name}.zip`;
+                const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${artifact.workflow_run.id}/${artifact.name}.zip`;
                 commentBody += `| 🤖 Android | ${deviceType} | [📥 Download APK](${nightlyLink}) |\n`;
               });
               
@@ -123,7 +167,7 @@ jobs:
               iosArtifacts.forEach(artifact => {
                 const isTV = artifact.name.includes('tv');
                 const deviceType = isTV ? '📺 Apple TV' : '📱 iPhone/iPad';
-                const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}/${artifact.name}.zip`;
+                const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${artifact.workflow_run.id}/${artifact.name}.zip`;
                 commentBody += `| 🍎 iOS | ${deviceType} | [📥 Download IPA](${nightlyLink}) |\n`;
               });
               
@@ -132,6 +176,8 @@ jobs:
               commentBody += `- **Android APK**: Download and install directly on your device (enable "Install from unknown sources")\n`;
               commentBody += `- **iOS IPA**: Install using [AltStore](https://altstore.io/), [Sideloadly](https://sideloadly.io/), or Xcode\n\n`;
               commentBody += `> ⚠️ **Note**: Artifacts expire in 7 days from build date\n\n`;
+            } else {
+              commentBody += `⏳ **No artifacts available yet** - builds are still in progress or haven't completed successfully.\n\n`;
             }
 
             commentBody += `<sub>*Auto-generated by [GitHub Actions](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId})*</sub>`;
