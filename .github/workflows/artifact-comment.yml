@@ -1,7 +1,7 @@
 name: 📝 Artifact Comment on PR
 
 concurrency:
-  group: artifact-comment-${{ github.event.pull_request.number || github.ref }}
+  group: artifact-comment-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 on:
