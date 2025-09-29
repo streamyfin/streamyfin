@@ -7,7 +7,11 @@ concurrency:
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["🤖 iOS IPA Build (Phone + TV)", "🤖 Android APK Build (Phone + TV)"]
+    workflows: 
+      - "🏗️ Build iOS IPA (phone)"
+      - "🏗️ Build iOS IPA (tv)"
+      - "🏗️ Build Android APK (phone)"
+      - "🏗️ Build Android APK (tv)"
     types:
       - completed
 
