@@ -88,22 +88,24 @@ export const LargeMovieCarousel: React.FC<Props> = ({ ...props }) => {
   if (!popularItems) return null;
 
   return (
-    <View className='flex flex-col items-center mt-2' {...props}>
+    <View className='flex flex-col items-center' {...props}>
       <Carousel
         ref={ref}
         autoPlay={false}
         loop={true}
         snapEnabled={true}
+        vertical={false}
         mode='parallax'
         modeConfig={{
-          parallaxScrollingScale: 0.86,
-          parallaxScrollingOffset: 100,
+          parallaxScrollingScale: 1,
+          parallaxScrollingOffset: 0,
         }}
         width={width}
-        height={204}
+        height={500}
         data={popularItems}
         onProgressChange={progress}
         renderItem={({ item, index }) => <RenderItem key={index} item={item} />}
+        scrollAnimationDuration={1000}
       />
       <Pagination.Basic
         progress={progress}
@@ -159,6 +161,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
 
   const tap = Gesture.Tap()
     .maxDuration(2000)
+    .shouldCancelWhenOutside(true)
     .onBegin(() => {
       opacity.value = withTiming(0.8, { duration: 100 });
     })
@@ -173,25 +176,19 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
 
   return (
     <GestureDetector gesture={tap}>
-      <Animated.View
-        style={{
-          opacity: opacity,
-        }}
-        className='px-4'
-      >
-        <View className='relative flex justify-center rounded-2xl overflow-hidden border border-neutral-800'>
+      <Animated.View style={{ opacity }}>
+        <View className='relative flex justify-center overflow-hidden border border-neutral-800'>
           <Image
             source={{
               uri,
             }}
             style={{
               width: "100%",
-              height: 200,
-              borderRadius: 16,
+              height: 500,
               overflow: "hidden",
             }}
           />
-          <View className='absolute bottom-0 left-0 w-full h-24 p-4 flex items-center'>
+          <View className='absolute bottom-0 left-0 w-full flex items-center'>
             <Image
               source={{
                 uri: logoUri,

@@ -21,19 +21,16 @@ export default function IndexLayout() {
         name='index'
         options={{
           headerShown: !Platform.isTV,
-          headerLargeTitle: true,
           headerTitle: t("tabs.home"),
-          headerBlurEffect: "prominent",
-          headerLargeStyle: {
-            backgroundColor: "black",
-          },
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () => (
-            <View className='flex flex-row items-center space-x-2'>
+            <View className='flex flex-row items-center px-2'>
               {!Platform.isTV && (
                 <>
-                  <Chromecast.Chromecast />
+                  <Chromecast.Chromecast background='transparent' />
+
                   {user?.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
@@ -138,14 +135,13 @@ const SessionsButton = () => {
       onPress={() => {
         router.push("/(auth)/sessions");
       }}
+      className='mr-4'
     >
-      <View className='mr-4'>
-        <Ionicons
-          name='play-circle'
-          color={sessions.length === 0 ? "white" : "#9333ea"}
-          size={25}
-        />
-      </View>
+      <Ionicons
+        name='play-circle'
+        color={sessions.length === 0 ? "white" : "#9333ea"}
+        size={28}
+      />
     </TouchableOpacity>
   );
 };
