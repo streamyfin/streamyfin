@@ -33,8 +33,9 @@ interface AppleTVCarouselProps {
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 // Layout Constants
-const CAROUSEL_HEIGHT = screenHeight / 1.5;
-const GRADIENT_HEIGHT = 250;
+const CAROUSEL_HEIGHT = screenHeight / 1.45;
+const GRADIENT_HEIGHT_TOP = 150;
+const GRADIENT_HEIGHT_BOTTOM = 150;
 const LOGO_HEIGHT = 80;
 
 // Position Constants
@@ -296,7 +297,19 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           }}
         />
 
-        {/* Gradient Fade to Black Skeleton */}
+        {/* Gradient Fade to Black Top Skeleton */}
+        <LinearGradient
+          colors={["rgba(0,0,0,1)", "rgba(0,0,0,0.8)", "transparent"]}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            height: GRADIENT_HEIGHT_TOP,
+          }}
+        />
+
+        {/* Gradient Fade to Black Bottom Skeleton */}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.8)", "rgba(0,0,0,1)"]}
           style={{
@@ -304,7 +317,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            height: GRADIENT_HEIGHT,
+            height: GRADIENT_HEIGHT_BOTTOM,
           }}
         />
 
@@ -453,6 +466,18 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           }}
         />
 
+        {/* Gradient Fade to Black at Top */}
+        <LinearGradient
+          colors={["rgba(0,0,0,1)", "rgba(0,0,0,0.2)", "transparent"]}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            height: GRADIENT_HEIGHT_TOP,
+          }}
+        />
+
         {/* Gradient Fade to Black at Bottom */}
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.8)", "rgba(0,0,0,1)"]}
@@ -461,7 +486,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            height: GRADIENT_HEIGHT,
+            height: GRADIENT_HEIGHT_BOTTOM,
           }}
         />
 

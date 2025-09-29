@@ -472,7 +472,7 @@ export const HomeIndex = () => {
           onRefresh={refetch}
           tintColor='white' // For iOS
           colors={["white"]} // For Android
-          progressViewOffset={250} // This offsets the refresh indicator to appear over the carousel
+          progressViewOffset={200} // This offsets the refresh indicator to appear over the carousel
         />
       }
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
