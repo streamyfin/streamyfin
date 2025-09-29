@@ -1,9 +1,14 @@
-import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import {
+  getItemsApi,
+  getTvShowsApi,
+  getUserLibraryApi,
+} from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions, Pressable, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -15,7 +20,8 @@ import Animated, {
 } from "react-native-reanimated";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { ItemImage } from "./common/ItemImage";
@@ -24,10 +30,8 @@ import { PlayButton } from "./PlayButton";
 import { PlayedStatus } from "./PlayedStatus";
 
 interface AppleTVCarouselProps {
-  items: BaseItemDto[];
   initialIndex?: number;
   onItemChange?: (index: number) => void;
-  loading?: boolean;
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -52,14 +56,14 @@ const PLAY_BUTTON_SKELETON_HEIGHT = 50;
 const PLAYED_STATUS_SKELETON_SIZE = 40;
 const TEXT_SKELETON_HEIGHT = 20;
 const TEXT_SKELETON_WIDTH = 250;
-const EMPTY_STATE_ICON_SIZE = 64;
+const _EMPTY_STATE_ICON_SIZE = 64;
 
 // Spacing Constants
 const HORIZONTAL_PADDING = 40;
 const DOT_PADDING = 2;
 const DOT_GAP = 4;
 const CONTROLS_GAP = 20;
-const TEXT_MARGIN_TOP = 16;
+const _TEXT_MARGIN_TOP = 16;
 
 // Border Radius Constants
 const DOT_BORDER_RADIUS = 3;
@@ -77,7 +81,7 @@ const VELOCITY_THRESHOLD = 400;
 
 // Text Constants
 const GENRES_FONT_SIZE = 16;
-const EMPTY_STATE_FONT_SIZE = 18;
+const _EMPTY_STATE_FONT_SIZE = 18;
 const TEXT_SHADOW_RADIUS = 2;
 const MAX_GENRES_COUNT = 2;
 const MAX_BUTTON_WIDTH = 300;
@@ -91,7 +95,7 @@ const TEXT_OPACITY = 0.9;
 const SKELETON_BACKGROUND_COLOR = "#1a1a1a";
 const SKELETON_ELEMENT_COLOR = "#333";
 const SKELETON_ACTIVE_DOT_COLOR = "#666";
-const EMPTY_STATE_COLOR = "#666";
+const _EMPTY_STATE_COLOR = "#666";
 const TEXT_SHADOW_COLOR = "rgba(0, 0, 0, 0.8)";
 const LOGO_WIDTH_PERCENTAGE = "80%";
 
@@ -139,18 +143,91 @@ const DotIndicator = ({
 };
 
 export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
-  items,
   initialIndex = 0,
   onItemChange,
-  loading = false,
 }) => {
   const { settings } = useSettings();
-  const [api] = useAtom(apiAtom);
+  const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
+  const { isConnected, serverConnected } = useNetworkStatus();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const translateX = useSharedValue(-currentIndex * screenWidth);
 
+  const isQueryEnabled =
+    !!api && !!user?.Id && isConnected && serverConnected === true;
+
+  const { data: continueWatchingData, isLoading: continueWatchingLoading } =
+    useQuery({
+      queryKey: ["appleTVCarousel", "continueWatching", user?.Id],
+      queryFn: async () => {
+        if (!api || !user?.Id) return [];
+        const response = await getItemsApi(api).getResumeItems({
+          userId: user.Id,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+          includeItemTypes: ["Movie", "Series", "Episode"],
+          fields: ["Genres"],
+          limit: 2,
+        });
+        return response.data.Items || [];
+      },
+      enabled: isQueryEnabled,
+      staleTime: 60 * 1000,
+    });
+
+  const { data: nextUpData, isLoading: nextUpLoading } = useQuery({
+    queryKey: ["appleTVCarousel", "nextUp", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+      const response = await getTvShowsApi(api).getNextUp({
+        userId: user.Id,
+        fields: ["MediaSourceCount", "Genres"],
+        limit: 2,
+        enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+        enableResumable: false,
+      });
+      return response.data.Items || [];
+    },
+    enabled: isQueryEnabled,
+    staleTime: 60 * 1000,
+  });
+
+  const { data: recentlyAddedData, isLoading: recentlyAddedLoading } = useQuery(
+    {
+      queryKey: ["appleTVCarousel", "recentlyAdded", user?.Id],
+      queryFn: async () => {
+        if (!api || !user?.Id) return [];
+        const response = await getUserLibraryApi(api).getLatestMedia({
+          userId: user.Id,
+          limit: 2,
+          fields: ["PrimaryImageAspectRatio", "Path", "Genres"],
+          imageTypeLimit: 1,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+        });
+        return response.data || [];
+      },
+      enabled: isQueryEnabled,
+      staleTime: 60 * 1000,
+    },
+  );
+
+  const items = useMemo(() => {
+    const continueItems = continueWatchingData ?? [];
+    const nextItems = nextUpData ?? [];
+    const recentItems = recentlyAddedData ?? [];
+
+    return [
+      ...continueItems.slice(0, 2),
+      ...nextItems.slice(0, 2),
+      ...recentItems.slice(0, 2),
+    ];
+  }, [continueWatchingData, nextUpData, recentlyAddedData]);
+
+  const isLoading =
+    continueWatchingLoading || nextUpLoading || recentlyAddedLoading;
+  const hasItems = items.length > 0;
+
   // Only get play settings if we have valid items
-  const currentItem = items && items.length > 0 ? items[currentIndex] : null;
+  const currentItem = hasItems ? items[currentIndex] : null;
 
   // Extract colors for the current item only (for performance)
   const currentItemColors = useImageColorsReturn({ item: currentItem });
@@ -177,6 +254,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
       });
+    } else {
+      setSelectedOptions(undefined);
     }
   }, [
     defaultAudioIndex,
@@ -187,9 +266,29 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     currentItem,
   ]);
 
+  useEffect(() => {
+    if (!hasItems) {
+      setCurrentIndex(initialIndex);
+      translateX.value = -initialIndex * screenWidth;
+      return;
+    }
+
+    setCurrentIndex((prev) => {
+      const newIndex = Math.min(prev, items.length - 1);
+      translateX.value = -newIndex * screenWidth;
+      return newIndex;
+    });
+  }, [hasItems, items, initialIndex, translateX]);
+
+  useEffect(() => {
+    if (hasItems) {
+      onItemChange?.(currentIndex);
+    }
+  }, [hasItems, currentIndex, onItemChange]);
+
   const goToIndex = useCallback(
     (index: number) => {
-      if (!items || index < 0 || index >= items.length) return;
+      if (!hasItems || index < 0 || index >= items.length) return;
 
       translateX.value = withTiming(-index * screenWidth, {
         duration: CAROUSEL_TRANSITION_DURATION, // Slightly longer for smoother feel
@@ -199,7 +298,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       setCurrentIndex(index);
       onItemChange?.(index);
     },
-    [items, onItemChange, translateX],
+    [hasItems, items, onItemChange, translateX],
   );
 
   const panGesture = Gesture.Pan()
@@ -239,7 +338,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   });
 
   const renderDots = () => {
-    if (!items || items.length <= 1) return null;
+    if (!hasItems || items.length <= 1) return null;
 
     return (
       <View
@@ -601,7 +700,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   };
 
   // Handle loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <View
         style={{
@@ -616,32 +715,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   }
 
   // Handle empty items
-  if (!items || items.length === 0) {
-    return (
-      <View
-        style={{
-          height: CAROUSEL_HEIGHT,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#000",
-        }}
-      >
-        <Ionicons
-          name='film-outline'
-          size={EMPTY_STATE_ICON_SIZE}
-          color={EMPTY_STATE_COLOR}
-        />
-        <Animated.Text
-          style={{
-            color: EMPTY_STATE_COLOR,
-            fontSize: EMPTY_STATE_FONT_SIZE,
-            marginTop: TEXT_MARGIN_TOP,
-          }}
-        >
-          No items available
-        </Animated.Text>
-      </View>
-    );
+  if (!hasItems) {
+    return null;
   }
 
   return (

@@ -313,24 +313,6 @@ export const HomeIndex = () => {
     return ss;
   }, [api, user?.Id, collections, t, createCollectionConfig]);
 
-  const { data: continueWatchingItems, isLoading: continueWatchingLoading } =
-    useQuery({
-      queryKey: ["home", "continueWatching", user?.Id],
-      queryFn: async () => {
-        if (!api || !user?.Id) return [];
-        const response = await getItemsApi(api).getResumeItems({
-          userId: user.Id,
-          enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
-          includeItemTypes: ["Movie", "Series", "Episode"],
-          fields: ["Genres"],
-          limit: 10, // Limit to reasonable number for carousel
-        });
-        return response.data.Items || [];
-      },
-      enabled: !!api && !!user?.Id && isConnected && serverConnected === true,
-      staleTime: 60 * 1000,
-    });
-
   const customSections = useMemo(() => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
@@ -478,17 +460,12 @@ export const HomeIndex = () => {
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      {(continueWatchingLoading ||
-        (continueWatchingItems && continueWatchingItems.length > 0)) && (
-        <AppleTVCarousel
-          items={continueWatchingItems || []}
-          initialIndex={0}
-          loading={continueWatchingLoading}
-          onItemChange={(index) => {
-            console.log(`Now viewing continue watching item ${index}`);
-          }}
-        />
-      )}
+      <AppleTVCarousel
+        initialIndex={0}
+        onItemChange={(index) => {
+          console.log(`Now viewing carousel item ${index}`);
+        }}
+      />
       <View
         style={{
           paddingLeft: insets.left,
@@ -523,6 +500,7 @@ export const HomeIndex = () => {
           })}
         </View>
       </View>
+      <View className='h-24' />
     </ScrollView>
   );
 };
