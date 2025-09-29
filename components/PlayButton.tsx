@@ -24,6 +24,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useHaptic } from "@/hooks/useHaptic";
+import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
@@ -40,6 +41,7 @@ interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
   isOffline?: boolean;
+  colors?: ThemeColors;
 }
 
 const ANIMATION_DURATION = 500;
@@ -106,6 +108,7 @@ export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
   isOffline,
+  colors,
   ...props
 }: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
@@ -113,16 +116,19 @@ export const PlayButton: React.FC<Props> = ({
   const mediaStatus = useMediaStatus();
   const { t } = useTranslation();
 
-  const [colorAtom] = useAtom(itemThemeColorAtom);
+  const [globalColorAtom] = useAtom(itemThemeColorAtom);
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+
+  // Use colors prop if provided, otherwise fallback to global atom
+  const effectiveColors = colors || globalColorAtom;
 
   const router = useRouter();
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
-  const endColor = useSharedValue(colorAtom);
-  const startColor = useSharedValue(colorAtom);
+  const endColor = useSharedValue(effectiveColors);
+  const startColor = useSharedValue(effectiveColors);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
   const { settings, updateSettings } = useSettings();
@@ -316,7 +322,7 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   useAnimatedReaction(
-    () => colorAtom,
+    () => effectiveColors,
     (newColor) => {
       endColor.value = newColor;
       colorChangeProgress.value = 0;
@@ -325,19 +331,19 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.9, 0, 0.31, 0.99),
       });
     },
-    [colorAtom],
+    [effectiveColors],
   );
 
   useEffect(() => {
     const timeout_2 = setTimeout(() => {
-      startColor.value = colorAtom;
+      startColor.value = effectiveColors;
       startWidth.value = targetWidth.value;
     }, ANIMATION_DURATION);
 
     return () => {
       clearTimeout(timeout_2);
     };
-  }, [colorAtom, item]);
+  }, [effectiveColors, item]);
 
   /**
    * ANIMATED STYLES
@@ -386,7 +392,7 @@ export const PlayButton: React.FC<Props> = ({
       className={"relative"}
       {...props}
     >
-      <View className='absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden'>
+      <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
         <Animated.View
           style={[
             animatedPrimaryStyle,
@@ -400,15 +406,15 @@ export const PlayButton: React.FC<Props> = ({
 
       <Animated.View
         style={[animatedAverageStyle, { opacity: 0.5 }]}
-        className='absolute w-full h-full top-0 left-0 rounded-xl'
+        className='absolute w-full h-full top-0 left-0 rounded-full'
       />
       <View
         style={{
           borderWidth: 1,
-          borderColor: colorAtom.primary,
+          borderColor: effectiveColors.primary,
           borderStyle: "solid",
         }}
-        className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
+        className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
       >
         <View className='flex flex-row items-center space-x-2'>
           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
