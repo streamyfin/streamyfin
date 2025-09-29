@@ -25,7 +25,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
 import { getItemImage } from "@/utils/getItemImage";
-import { writeToLog } from "@/utils/log";
+import { dumpDownloadDiagnostics, writeToLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import { fetchAndParseSegments } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
@@ -42,37 +42,60 @@ const BackGroundDownloader = !Platform.isTV
   ? require("@kesha-antonov/react-native-background-downloader")
   : null;
 
+// Cap progress at 99% to avoid showing 100% before the download is actually complete
+const MAX_PROGRESS_BEFORE_COMPLETION = 99;
+
+// Estimate the total download size in bytes for a job. If the media source
+// provides a Size, use that. Otherwise, if we have a bitrate and run time
+// (RunTimeTicks), approximate size = (bitrate bits/sec * seconds) / 8.
 const calculateEstimatedSize = (p: JobStatus): number => {
-  let size = p.mediaSource.Size;
-  const maxBitrate = p.maxBitrate.value;
-  if (
-    maxBitrate &&
-    size &&
-    p.mediaSource.Bitrate &&
-    maxBitrate < p.mediaSource.Bitrate
-  ) {
-    size = (size / p.mediaSource.Bitrate) * maxBitrate;
-  }
-  // This function is for estimated size, so just return the adjusted size
-  return size ?? 0;
-};
+  const size = p.mediaSource?.Size || 0;
+  const maxBitrate = p.maxBitrate?.value;
+  const runTimeTicks = (p.item?.RunTimeTicks || 0) as number;
 
-// Helper to calculate download speed
-const calculateSpeed = (
-  process: JobStatus,
-  newBytesDownloaded: number,
-): number | undefined => {
-  const { bytesDownloaded: oldBytes = 0, lastProgressUpdateTime } = process;
-  const deltaBytes = newBytesDownloaded - oldBytes;
-
-  if (lastProgressUpdateTime && deltaBytes > 0) {
-    const deltaTimeInSeconds =
-      (Date.now() - new Date(lastProgressUpdateTime).getTime()) / 1000;
-    if (deltaTimeInSeconds > 0) {
-      return deltaBytes / deltaTimeInSeconds;
+  if (!size && maxBitrate && runTimeTicks > 0) {
+    // Jellyfin RunTimeTicks are in 10,000,000 ticks per second
+    const seconds = runTimeTicks / 10000000;
+    if (seconds > 0) {
+      // maxBitrate is in bits per second; convert to bytes
+      return Math.round((maxBitrate / 8) * seconds);
     }
   }
-  return undefined;
+
+  return size || 0;
+};
+
+// Calculate download speed in bytes/sec based on a job's last update time
+// and previously recorded bytesDownloaded.
+const calculateSpeed = (
+  p: JobStatus,
+  currentBytesDownloaded?: number,
+): number | undefined => {
+  // Prefer session-only deltas when available: lastSessionBytes + lastSessionUpdateTime
+  const now = Date.now();
+
+  if (p.lastSessionUpdateTime && p.lastSessionBytes !== undefined) {
+    const last = new Date(p.lastSessionUpdateTime).getTime();
+    const deltaTime = (now - last) / 1000;
+    if (deltaTime > 0) {
+      const current =
+        currentBytesDownloaded ?? p.bytesDownloaded ?? p.lastSessionBytes;
+      const deltaBytes = current - p.lastSessionBytes;
+      if (deltaBytes > 0) return deltaBytes / deltaTime;
+    }
+  }
+
+  // Fallback to total-based deltas for compatibility
+  if (!p.lastProgressUpdateTime || p.bytesDownloaded === undefined)
+    return undefined;
+  const last = new Date(p.lastProgressUpdateTime).getTime();
+  const deltaTime = (now - last) / 1000;
+  if (deltaTime <= 0) return undefined;
+  const prev = p.bytesDownloaded || 0;
+  const current = currentBytesDownloaded ?? prev;
+  const deltaBytes = current - prev;
+  if (deltaBytes <= 0) return undefined;
+  return deltaBytes / deltaTime;
 };
 
 export const processesAtom = atom<JobStatus[]>([]);
@@ -170,27 +193,96 @@ function useDownloadProvider() {
 
       const currentProcesses = [...processes, ...missingProcesses];
       const updatedProcesses = currentProcesses.map((p) => {
-        // fallback. Doesn't really work for transcodes as they may be a lot smaller.
-        // We make an wild guess by comparing bitrates
+        // Enhanced filtering to prevent iOS zombie task interference
+        // Only update progress for downloads that are actively downloading
+        if (p.status !== "downloading") {
+          return p;
+        }
+
+        // Find task for this process
         const task = tasks.find((s: any) => s.id === p.id);
+        if (!task) {
+          return p; // No task found, keep current state
+        }
+
+        /* 
+        // TODO: Uncomment this block to re-enable iOS zombie task detection
+        // iOS: Extra validation to prevent zombie task interference
+        if (Platform.OS === "ios") {
+          // Check if we have multiple tasks for same ID (zombie detection)
+          const tasksForId = tasks.filter((t: any) => t.id === p.id);
+          if (tasksForId.length > 1) {
+            console.warn(
+              `[UPDATE] Detected ${tasksForId.length} zombie tasks for ${p.id}, ignoring progress update`,
+            );
+            return p; // Don't update progress from potentially conflicting tasks
+          }
+
+          // If task state looks suspicious (e.g., iOS task stuck in background), be conservative
+          if (
+            task.state &&
+            ["SUSPENDED", "PAUSED"].includes(task.state) &&
+            p.status === "downloading"
+          ) {
+            console.warn(
+              `[UPDATE] Task ${p.id} has suspicious state ${task.state}, ignoring progress update`,
+            );
+            return p;
+          }
+        }
+        */
+
         if (task && p.status === "downloading") {
           const estimatedSize = calculateEstimatedSize(p);
           let progress = p.progress;
-          if (estimatedSize > 0) {
-            progress = (100 / estimatedSize) * task.bytesDownloaded;
+
+          // If we have a pausedProgress snapshot then merge current session
+          // progress into it. We accept pausedProgress === 0 as valid because
+          // users can pause immediately after starting.
+          if (p.pausedProgress !== undefined) {
+            const totalBytesDownloaded =
+              (p.pausedBytes ?? 0) + task.bytesDownloaded;
+
+            // Calculate progress based on total bytes downloaded vs estimated size
+            progress =
+              estimatedSize > 0
+                ? (totalBytesDownloaded / estimatedSize) * 100
+                : 0;
+
+            // Use the total accounted bytes when computing speed so the
+            // displayed speed and progress remain consistent after resume.
+            const speed = calculateSpeed(p, totalBytesDownloaded);
+
+            return {
+              ...p,
+              progress: Math.min(progress, MAX_PROGRESS_BEFORE_COMPLETION),
+              speed,
+              bytesDownloaded: totalBytesDownloaded,
+              lastProgressUpdateTime: new Date(),
+              estimatedTotalSizeBytes: estimatedSize,
+              // Set session bytes to total bytes downloaded
+              lastSessionBytes: totalBytesDownloaded,
+              lastSessionUpdateTime: new Date(),
+            };
+          } else {
+            if (estimatedSize > 0) {
+              progress = (100 / estimatedSize) * task.bytesDownloaded;
+            }
+            if (progress >= 100) {
+              progress = MAX_PROGRESS_BEFORE_COMPLETION;
+            }
+            const speed = calculateSpeed(p, task.bytesDownloaded);
+            return {
+              ...p,
+              progress,
+              speed,
+              bytesDownloaded: task.bytesDownloaded,
+              lastProgressUpdateTime: new Date(),
+              estimatedTotalSizeBytes: estimatedSize,
+              lastSessionBytes: task.bytesDownloaded,
+              lastSessionUpdateTime: new Date(),
+            };
           }
-          if (progress >= 100) {
-            progress = 99;
-          }
-          const speed = calculateSpeed(p, task.bytesDownloaded);
-          return {
-            ...p,
-            progress,
-            speed,
-            bytesDownloaded: task.bytesDownloaded,
-            lastProgressUpdateTime: new Date(),
-            estimatedTotalSizeBytes: estimatedSize,
-          };
         }
         return p;
       });
@@ -372,10 +464,76 @@ function useDownloadProvider() {
     async (process: JobStatus) => {
       if (!process?.item.Id || !authHeader) throw new Error("No item id");
 
+      // Enhanced cleanup for existing tasks to prevent duplicates
+      try {
+        const allTasks = await BackGroundDownloader.checkForExistingDownloads();
+        const existingTasks = allTasks?.filter((t: any) => t.id === process.id);
+
+        if (existingTasks && existingTasks.length > 0) {
+          console.log(
+            `[START] Found ${existingTasks.length} existing task(s) for ${process.id}, cleaning up...`,
+          );
+
+          for (let i = 0; i < existingTasks.length; i++) {
+            const existingTask = existingTasks[i];
+            console.log(
+              `[START] Cleaning up task ${i + 1}/${existingTasks.length} for ${process.id}`,
+            );
+
+            try {
+              /* 
+              // TODO: Uncomment this block to re-enable iOS-specific cleanup
+              // iOS: More aggressive cleanup sequence
+              if (Platform.OS === "ios") {
+                try {
+                  await existingTask.pause();
+                  await new Promise((resolve) => setTimeout(resolve, 50));
+                } catch (_pauseErr) {
+                  // Ignore pause errors
+                }
+
+                await existingTask.stop();
+                await new Promise((resolve) => setTimeout(resolve, 50));
+
+                // Multiple complete handler calls to ensure cleanup
+                BackGroundDownloader.completeHandler(process.id);
+                await new Promise((resolve) => setTimeout(resolve, 25));
+              } else {
+              */
+
+              // Simple cleanup for all platforms (currently Android only)
+              await existingTask.stop();
+              BackGroundDownloader.completeHandler(process.id);
+
+              /* } // End of iOS block - uncomment when re-enabling iOS functionality */
+
+              console.log(
+                `[START] Successfully cleaned up task ${i + 1} for ${process.id}`,
+              );
+            } catch (taskError) {
+              console.warn(
+                `[START] Failed to cleanup task ${i + 1} for ${process.id}:`,
+                taskError,
+              );
+            }
+          }
+
+          // Cleanup delay (simplified for Android)
+          const cleanupDelay = 200; // Platform.OS === "ios" ? 500 : 200;
+          await new Promise((resolve) => setTimeout(resolve, cleanupDelay));
+          console.log(`[START] Cleanup completed for ${process.id}`);
+        }
+      } catch (error) {
+        console.warn(
+          `[START] Failed to check/cleanup existing tasks for ${process.id}:`,
+          error,
+        );
+      }
+
       updateProcess(process.id, {
         speed: undefined,
         status: "downloading",
-        progress: 0,
+        progress: process.progress || 0, // Preserve existing progress for resume
       });
 
       BackGroundDownloader?.setConfig({
@@ -396,21 +554,42 @@ function useDownloadProvider() {
         .begin(() => {
           updateProcess(process.id, {
             status: "downloading",
-            progress: 0,
-            bytesDownloaded: 0,
+            progress: process.progress || 0,
+            bytesDownloaded: process.bytesDownloaded || 0,
             lastProgressUpdateTime: new Date(),
+            lastSessionBytes: process.lastSessionBytes || 0,
+            lastSessionUpdateTime: new Date(),
           });
         })
         .progress(
           throttle((data) => {
             updateProcess(process.id, (currentProcess) => {
-              const percent = (data.bytesDownloaded / data.bytesTotal) * 100;
+              // If this is a resumed download, add the paused bytes to current session bytes
+              const resumedBytes = currentProcess.pausedBytes || 0;
+              const totalBytes = data.bytesDownloaded + resumedBytes;
+
+              // Calculate progress based on total bytes if we have resumed bytes
+              let percent: number;
+              if (resumedBytes > 0 && data.bytesTotal > 0) {
+                // For resumed downloads, calculate based on estimated total size
+                const estimatedTotal =
+                  currentProcess.estimatedTotalSizeBytes ||
+                  data.bytesTotal + resumedBytes;
+                percent = (totalBytes / estimatedTotal) * 100;
+              } else {
+                // For fresh downloads, use normal calculation
+                percent = (data.bytesDownloaded / data.bytesTotal) * 100;
+              }
+
               return {
-                speed: calculateSpeed(currentProcess, data.bytesDownloaded),
+                speed: calculateSpeed(currentProcess, totalBytes),
                 status: "downloading",
-                progress: percent,
-                bytesDownloaded: data.bytesDownloaded,
+                progress: Math.min(percent, MAX_PROGRESS_BEFORE_COMPLETION),
+                bytesDownloaded: totalBytes,
                 lastProgressUpdateTime: new Date(),
+                // update session-only counters - use current session bytes only for speed calc
+                lastSessionBytes: data.bytesDownloaded,
+                lastSessionUpdateTime: new Date(),
               };
             });
           }, 500),
@@ -542,7 +721,17 @@ function useDownloadProvider() {
     if (activeDownloads < concurrentLimit) {
       const queuedDownload = processes.find((p) => p.status === "queued");
       if (queuedDownload) {
-        startDownload(queuedDownload);
+        // Reserve the slot immediately to avoid race where startDownload's
+        // asynchronous begin callback hasn't executed yet and multiple
+        // downloads are started, bypassing the concurrent limit.
+        updateProcess(queuedDownload.id, { status: "downloading" });
+        startDownload(queuedDownload).catch((error) => {
+          console.error("Failed to start download:", error);
+          updateProcess(queuedDownload.id, { status: "error" });
+          toast.error(t("home.downloads.toasts.failed_to_start_download"), {
+            description: error.message || "Unknown error",
+          });
+        });
       }
     }
   }, [processes, settings?.remuxConcurrentLimit, startDownload]);
@@ -551,8 +740,38 @@ function useDownloadProvider() {
     async (id: string) => {
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
       const task = tasks?.find((t: any) => t.id === id);
-      task?.stop();
-      BackGroundDownloader.completeHandler(id);
+      if (task) {
+        // On iOS, suspended tasks need to be cancelled properly
+        if (Platform.OS === "ios") {
+          const state = task.state || task.state?.();
+          if (
+            state === "PAUSED" ||
+            state === "paused" ||
+            state === "SUSPENDED" ||
+            state === "suspended"
+          ) {
+            // For suspended tasks, we need to resume first, then stop
+            try {
+              await task.resume();
+              // Small delay to allow resume to take effect
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            } catch (_resumeError) {
+              // Resume might fail, continue with stop
+            }
+          }
+        }
+
+        try {
+          task.stop();
+        } catch (_err) {
+          // ignore stop errors
+        }
+        try {
+          BackGroundDownloader.completeHandler(id);
+        } catch (_err) {
+          // ignore
+        }
+      }
       setProcesses((prev) => prev.filter((process) => process.id !== id));
       manageDownloadQueue();
     },
@@ -575,7 +794,7 @@ function useDownloadProvider() {
         intermediates: true,
       });
     } catch (_error) {
-      toast.error(t("Failed to clean cache directory."));
+      toast.error(t("home.downloads.toasts.failed_to_clean_cache_directory"));
     }
   };
 
@@ -611,9 +830,13 @@ function useDownloadProvider() {
           status: "queued",
           timestamp: new Date(),
         };
-        setProcesses((prev) => [...prev, job]);
+        setProcesses((prev) => {
+          // Remove any existing processes for this item to prevent duplicates
+          const filtered = prev.filter((p) => p.id !== item.Id);
+          return [...filtered, job];
+        });
         toast.success(
-          t("home.downloads.toasts.download_stated_for_item", {
+          t("home.downloads.toasts.download_started_for_item", {
             item: item.Name,
           }),
           {
@@ -791,12 +1014,99 @@ function useDownloadProvider() {
       const process = processes.find((p) => p.id === id);
       if (!process) throw new Error("No active download");
 
+      // TODO: iOS pause functionality temporarily disabled due to background task issues
+      // Remove this check to re-enable iOS pause functionality in the future
+      if (Platform.OS === "ios") {
+        console.warn(
+          `[PAUSE] Pause functionality temporarily disabled on iOS for ${id}`,
+        );
+        throw new Error("Pause functionality is currently disabled on iOS");
+      }
+
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
       const task = tasks?.find((t: any) => t.id === id);
       if (!task) throw new Error("No task found");
 
-      task.pause();
-      updateProcess(id, { status: "paused" });
+      // Get current progress before stopping
+      const currentProgress = process.progress;
+      const currentBytes = process.bytesDownloaded || task.bytesDownloaded || 0;
+
+      console.log(
+        `[PAUSE] Starting pause for ${id}. Current bytes: ${currentBytes}, Progress: ${currentProgress}%`,
+      );
+
+      try {
+        /* 
+        // TODO: Uncomment this block to re-enable iOS pause functionality
+        // iOS-specific aggressive cleanup approach based on GitHub issue #26
+        if (Platform.OS === "ios") {
+          // Get ALL tasks for this ID - there might be multiple zombie tasks
+          const allTasks =
+            await BackGroundDownloader.checkForExistingDownloads();
+          const tasksForId = allTasks?.filter((t: any) => t.id === id) || [];
+
+          console.log(`[PAUSE] Found ${tasksForId.length} task(s) for ${id}`);
+
+          // Stop ALL tasks for this ID to prevent zombie processes
+          for (let i = 0; i < tasksForId.length; i++) {
+            const taskToStop = tasksForId[i];
+            console.log(
+              `[PAUSE] Stopping task ${i + 1}/${tasksForId.length} for ${id}`,
+            );
+
+            try {
+              // iOS: pause → stop sequence with delays (based on issue research)
+              await taskToStop.pause();
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
+              await taskToStop.stop();
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
+              console.log(
+                `[PAUSE] Successfully stopped task ${i + 1} for ${id}`,
+              );
+            } catch (taskError) {
+              console.warn(
+                `[PAUSE] Failed to stop task ${i + 1} for ${id}:`,
+                taskError,
+              );
+            }
+          }
+
+          // Extra cleanup delay for iOS NSURLSession to fully stop
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } else {
+        */
+
+        // Android: simpler approach (currently the only active platform)
+        await task.stop();
+
+        /* } // End of iOS block - uncomment when re-enabling iOS functionality */
+
+        // Clean up the native task handler
+        try {
+          BackGroundDownloader.completeHandler(id);
+        } catch (_err) {
+          console.warn(`[PAUSE] Handler cleanup warning for ${id}:`, _err);
+        }
+
+        // Update process state to paused
+        updateProcess(id, {
+          status: "paused",
+          progress: currentProgress,
+          bytesDownloaded: currentBytes,
+          pausedAt: new Date(),
+          pausedProgress: currentProgress,
+          pausedBytes: currentBytes,
+          lastSessionBytes: process.lastSessionBytes ?? currentBytes,
+          lastSessionUpdateTime: process.lastSessionUpdateTime ?? new Date(),
+        });
+
+        console.log(`Download paused successfully: ${id}`);
+      } catch (error) {
+        console.error("Error pausing task:", error);
+        throw error;
+      }
     },
     [processes, updateProcess],
   );
@@ -806,37 +1116,78 @@ function useDownloadProvider() {
       const process = processes.find((p) => p.id === id);
       if (!process) throw new Error("No active download");
 
-      const tasks = await BackGroundDownloader.checkForExistingDownloads();
-      const task = tasks?.find((t: any) => t.id === id);
-      if (!task) throw new Error("No task found");
-
-      // Check if task state allows resuming
-      if (task.state === "FAILED") {
+      // TODO: iOS resume functionality temporarily disabled due to background task issues
+      // Remove this check to re-enable iOS resume functionality in the future
+      if (Platform.OS === "ios") {
         console.warn(
-          "Download task failed, cannot resume. Restarting download.",
+          `[RESUME] Resume functionality temporarily disabled on iOS for ${id}`,
         );
-        // For failed tasks, we need to restart rather than resume
-        await startDownload(process);
-        return;
+        throw new Error("Resume functionality is currently disabled on iOS");
       }
 
-      try {
-        task.resume();
-        updateProcess(id, { status: "downloading" });
-      } catch (error: any) {
-        // Handle specific ERROR_CANNOT_RESUME error
-        if (
-          error?.error === "ERROR_CANNOT_RESUME" ||
-          error?.errorCode === 1008
-        ) {
-          console.warn("Cannot resume download, attempting to restart instead");
-          await startDownload(process);
-          return; // Return early to prevent error from bubbling up
-        } else {
-          // Only log error for non-handled cases
-          console.error("Error resuming download:", error);
-          throw error; // Re-throw other errors
+      console.log(
+        `[RESUME] Attempting to resume ${id}. Paused bytes: ${process.pausedBytes}, Progress: ${process.pausedProgress}%`,
+      );
+
+      /* 
+      // TODO: Uncomment this block to re-enable iOS resume functionality
+      // Enhanced cleanup for iOS based on GitHub issue research
+      if (Platform.OS === "ios") {
+        try {
+          // Clean up any lingering zombie tasks first (critical for iOS)
+          const allTasks =
+            await BackGroundDownloader.checkForExistingDownloads();
+          const existingTasks = allTasks?.filter((t: any) => t.id === id) || [];
+
+          if (existingTasks.length > 0) {
+            console.log(
+              `[RESUME] Found ${existingTasks.length} lingering task(s), cleaning up...`,
+            );
+
+            for (const task of existingTasks) {
+              try {
+                await task.stop();
+                BackGroundDownloader.completeHandler(id);
+              } catch (cleanupError) {
+                console.warn(`[RESUME] Cleanup error:`, cleanupError);
+              }
+            }
+
+            // Wait for iOS cleanup to complete
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          console.warn(`[RESUME] Pre-resume cleanup failed:`, error);
         }
+      }
+      */
+
+      // Simple approach: always restart the download from where we left off
+      // This works consistently across all platforms (currently Android only)
+      if (
+        process.pausedProgress !== undefined &&
+        process.pausedBytes !== undefined
+      ) {
+        // We have saved pause state - restore it and restart
+        updateProcess(id, {
+          progress: process.pausedProgress,
+          bytesDownloaded: process.pausedBytes,
+          status: "downloading",
+          // Reset session counters for proper speed calculation
+          lastSessionBytes: process.pausedBytes,
+          lastSessionUpdateTime: new Date(),
+        });
+
+        // Small delay to ensure any cleanup in startDownload completes
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        const updatedProcess = processes.find((p) => p.id === id);
+        await startDownload(updatedProcess || process);
+
+        console.log(`Download resumed successfully: ${id}`);
+      } else {
+        // No pause state - start from beginning
+        await startDownload(process);
       }
     },
     [processes, updateProcess, startDownload],
@@ -861,6 +1212,21 @@ function useDownloadProvider() {
     cleanCacheDirectory,
     updateDownloadedItem,
     appSizeUsage,
+    dumpDownloadDiagnostics: async (id?: string) => {
+      // Collect JS-side processes and native task info (best-effort)
+      const tasks = BackGroundDownloader
+        ? await BackGroundDownloader.checkForExistingDownloads()
+        : [];
+      const extra: any = {
+        processes,
+        nativeTasks: tasks || [],
+      };
+      if (id) {
+        const p = processes.find((x) => x.id === id);
+        extra.focusedProcess = p || null;
+      }
+      return dumpDownloadDiagnostics(extra);
+    },
   };
 }
 
