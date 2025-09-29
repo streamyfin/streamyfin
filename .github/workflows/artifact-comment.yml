@@ -8,15 +8,16 @@ on:
   workflow_dispatch:
   workflow_run:
     workflows:
-#      - "🤖 Android APK Build (Phone + TV)"
-#      - "🤖 iOS IPA Build (Phone + TV)"
+      #      - "🤖 Android APK Build (Phone + TV)"
+      #      - "🤖 iOS IPA Build (Phone + TV)"
       - "🧪 Test Artifact Generator" # For testing purposes
     types:
       - completed
 
 jobs:
   comment-artifacts:
-    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    # Remove the if condition temporarily to see what's happening
+    # if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,7 +29,24 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            console.log('=== DEBUGGING WORKFLOW_RUN EVENT ===');
+            console.log('Event name:', github.event_name);
             console.log('Workflow run event:', JSON.stringify(github.event.workflow_run, null, 2));
+            console.log('Context:', JSON.stringify(context, null, 2));
+
+            // Debug the trigger conditions
+            console.log('workflow_run.event:', github.event.workflow_run?.event);
+            console.log('workflow_run.conclusion:', github.event.workflow_run?.conclusion);
+            console.log('workflow_run.name:', github.event.workflow_run?.name);
+
+            // Check if this should have been filtered out
+            const shouldRun = github.event.workflow_run?.event === 'pull_request' && github.event.workflow_run?.conclusion === 'success';
+            console.log('Should run based on conditions:', shouldRun);
+
+            if (!shouldRun) {
+              console.log('⚠️ This run would normally be skipped due to filter conditions');
+              console.log('But we removed the filter to debug. In production, add the if condition back.');
+            }
 
             // Find PR associated with this commit
             const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
