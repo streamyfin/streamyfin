@@ -125,8 +125,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       if (!items || index < 0 || index >= items.length) return;
 
       translateX.value = withTiming(-index * screenWidth, {
-        duration: 300,
-        easing: Easing.out(Easing.quad),
+        duration: 250, // Slightly longer for smoother feel
+        easing: Easing.bezier(0.25, 0.46, 0.45, 0.94), // iOS-like smooth deceleration curve
       });
 
       setCurrentIndex(index);
@@ -136,7 +136,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   );
 
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10]) // More responsive horizontal gestures
+    .activeOffsetX([-10, 10])
     .onUpdate((event) => {
       translateX.value = -currentIndex * screenWidth + event.translationX;
     })
@@ -146,7 +146,11 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
 
       let newIndex = currentIndex;
 
-      if (Math.abs(translation) > screenWidth / 3 || Math.abs(velocity) > 500) {
+      // Improved thresholds for more responsive navigation
+      if (
+        Math.abs(translation) > screenWidth * 0.2 ||
+        Math.abs(velocity) > 400
+      ) {
         if (translation > 0 && currentIndex > 0) {
           newIndex = currentIndex - 1;
         } else if (
