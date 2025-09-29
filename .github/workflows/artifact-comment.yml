@@ -85,9 +85,17 @@ jobs:
 
             console.log(`Found ${buildRuns.length} build workflow runs for this commit`);
 
-            // Collect artifacts from all completed successful builds
+            // Collect artifacts and statuses from all builds (completed and in-progress)
             let allArtifacts = [];
             let buildStatuses = {};
+
+            // Define all expected build targets
+            const expectedBuilds = {
+              'Android Phone': { platform: 'Android', device: 'Phone', emoji: '📱', pattern: 'android.*phone' },
+              'Android TV': { platform: 'Android', device: 'TV', emoji: '📺', pattern: 'android.*tv' },
+              'iOS Phone': { platform: 'iOS', device: 'Phone', emoji: '📱', pattern: 'ios.*phone' },
+              'iOS TV': { platform: 'iOS', device: 'TV', emoji: '📺', pattern: 'ios.*tv' }
+            };
 
             for (const run of buildRuns) {
               buildStatuses[run.name] = {
@@ -97,6 +105,7 @@ jobs:
                 runId: run.id
               };
               
+              // Collect artifacts from any completed successful builds
               if (run.conclusion === 'success') {
                 try {
                   const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
@@ -113,71 +122,69 @@ jobs:
 
             console.log(`Collected ${allArtifacts.length} total artifacts from all builds`);
 
-            // Sort and categorize all collected artifacts
-            const androidArtifacts = allArtifacts
-              .filter(a => a.name.includes('android'))
-              .sort((a, b) => a.name.localeCompare(b.name));
-            const iosArtifacts = allArtifacts
-              .filter(a => a.name.includes('ios'))
-              .sort((a, b) => a.name.localeCompare(b.name));
-
-            // Build comment body with progressive status
+            // Build comment body with progressive status for individual builds
             let commentBody = `## 📱 Build Status for PR #${pr.number}\n\n`;
             commentBody += `🔗 **Commit**: [\`${pr.head.sha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${pr.head.sha})\n\n`;
 
-            // Add build status table
-            commentBody += `### 🔧 Build Status\n\n`;
-            commentBody += `| Workflow | Status | Artifacts |\n`;
-            commentBody += `|----------|--------|-----------|\n`;
+            // Progressive build status and downloads table
+            commentBody += `### � Build Artifacts\n\n`;
+            commentBody += `| Platform | Device | Status | Download |\n`;
+            commentBody += `|----------|--------|--------|---------|\n`;
 
-            for (const [name, status] of Object.entries(buildStatuses)) {
-              const emoji = status.conclusion === 'success' ? '✅' : 
-                           status.conclusion === 'failure' ? '❌' : 
-                           status.status === 'in_progress' ? '🔄' : '⏳';
-              const statusText = status.conclusion || status.status || 'pending';
-              const artifactCount = allArtifacts.filter(a => {
-                // Match artifacts to workflows based on naming patterns
-                if (name.includes('Android')) return a.name.includes('android');
-                if (name.includes('iOS')) return a.name.includes('ios');
-                return false;
-              }).length;
-              
-              commentBody += `| [${name}](${status.url}) | ${emoji} ${statusText} | ${artifactCount} |\n`;
+            // Process each expected build target individually
+            const buildTargets = [
+              { name: 'Android Phone', platform: '🤖', device: '📱', pattern: /android.*phone/i },
+              { name: 'Android TV', platform: '🤖', device: '📺', pattern: /android.*tv/i },
+              { name: 'iOS Phone', platform: '🍎', device: '�', pattern: /ios.*phone/i },
+              { name: 'iOS TV', platform: '🍎', device: '📺', pattern: /ios.*tv/i }
+            ];
+
+            for (const target of buildTargets) {
+              // Find matching workflow run
+              const matchingRun = buildRuns.find(run => {
+                return (run.name.includes('Android') && target.name.includes('Android')) ||
+                       (run.name.includes('iOS') && target.name.includes('iOS'));
+              });
+
+              // Find matching artifact
+              const matchingArtifact = allArtifacts.find(artifact => 
+                target.pattern.test(artifact.name)
+              );
+
+              let status = '⏳ Pending';
+              let downloadLink = '*Waiting for build...*';
+
+              if (matchingRun) {
+                if (matchingRun.conclusion === 'success' && matchingArtifact) {
+                  status = '✅ Complete';
+                  const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/${matchingArtifact.name}.zip`;
+                  const fileType = target.name.includes('Android') ? 'APK' : 'IPA';
+                  downloadLink = `[📥 Download ${fileType}](${nightlyLink})`;
+                } else if (matchingRun.conclusion === 'failure') {
+                  status = `❌ [Failed](${matchingRun.html_url})`;
+                  downloadLink = '*Build failed*';
+                } else if (matchingRun.status === 'in_progress') {
+                  status = `🔄 [Building...](${matchingRun.html_url})`;
+                  downloadLink = '*Build in progress...*';
+                } else if (matchingRun.status === 'queued') {
+                  status = `⏳ [Queued](${matchingRun.html_url})`;
+                  downloadLink = '*Waiting to start...*';
+                }
+              }
+
+              commentBody += `| ${target.platform} ${target.name.split(' ')[0]} | ${target.device} ${target.name.split(' ')[1]} | ${status} | ${downloadLink} |\n`;
             }
 
             commentBody += `\n`;
 
-            // Only show download table if there are artifacts
+            // Show installation instructions if we have any artifacts
             if (allArtifacts.length > 0) {
-              commentBody += `### 📦 Available Downloads (${allArtifacts.length} artifacts)\n\n`;
-
-              // Create table for better organization
-              commentBody += `| Platform | Device Type | Download Link |\n`;
-              commentBody += `|----------|-------------|---------------|\n`;
-              
-              // Add Android artifacts
-              androidArtifacts.forEach(artifact => {
-                const isTV = artifact.name.includes('tv');
-                const deviceType = isTV ? '📺 Android TV' : '📱 Android Phone';
-                const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${artifact.workflow_run.id}/${artifact.name}.zip`;
-                commentBody += `| 🤖 Android | ${deviceType} | [📥 Download APK](${nightlyLink}) |\n`;
-              });
-              
-              // Add iOS artifacts
-              iosArtifacts.forEach(artifact => {
-                const isTV = artifact.name.includes('tv');
-                const deviceType = isTV ? '📺 Apple TV' : '📱 iPhone/iPad';
-                const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${artifact.workflow_run.id}/${artifact.name}.zip`;
-                commentBody += `| 🍎 iOS | ${deviceType} | [📥 Download IPA](${nightlyLink}) |\n`;
-              });
-              
-              commentBody += `\n`;
               commentBody += `### 🔧 Installation Instructions\n\n`;
               commentBody += `- **Android APK**: Download and install directly on your device (enable "Install from unknown sources")\n`;
               commentBody += `- **iOS IPA**: Install using [AltStore](https://altstore.io/), [Sideloadly](https://sideloadly.io/), or Xcode\n\n`;
               commentBody += `> ⚠️ **Note**: Artifacts expire in 7 days from build date\n\n`;
             } else {
-              commentBody += `⏳ **No artifacts available yet** - builds are still in progress or haven't completed successfully.\n\n`;
+              commentBody += `⏳ **Builds are starting up...** This comment will update automatically as each build completes.\n\n`;
             }
 
             commentBody += `<sub>*Auto-generated by [GitHub Actions](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*</sub>`;
