@@ -467,7 +467,13 @@ export const HomeIndex = () => {
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='never'
       refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={refetch} />
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={refetch}
+          tintColor='white' // For iOS
+          colors={["white"]} // For Android
+          progressViewOffset={250} // This offsets the refresh indicator to appear over the carousel
+        />
       }
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
