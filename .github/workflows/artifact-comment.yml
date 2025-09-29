@@ -1,23 +1,21 @@
 name: 📝 Artifact Comment on PR
 
 concurrency:
-  group: artifact-comment-${{ github.event.workflow_run.id }}
+  group: artifact-comment-${{ github.event.workflow_run.id || github.run_id }}
   cancel-in-progress: false
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allow manual testing
   workflow_run:
     workflows:
-      #      - "🤖 Android APK Build (Phone + TV)"
-      #      - "🤖 iOS IPA Build (Phone + TV)"
-      - "🧪 Test Artifact Generator" # For testing purposes
+      - "🤖 Android APK Build (Phone + TV)"
+      - "🤖 iOS IPA Build (Phone + TV)"
     types:
       - completed
 
 jobs:
   comment-artifacts:
-    # Remove the if condition temporarily to see what's happening
-    # if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,22 +27,13 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            console.log('=== DEBUGGING WORKFLOW EVENT ===');
-            console.log('Event name:', context.eventName);
-            console.log('GitHub event:', JSON.stringify(github.event, null, 2));
-
             // Handle both workflow_run and manual dispatch events
             let runId, pr;
 
             if (context.eventName === 'workflow_run') {
-              console.log('=== WORKFLOW_RUN EVENT ===');
-              console.log('Triggered workflow:', github.event.workflow_run?.name);
-              console.log('Trigger event:', github.event.workflow_run?.event);
-              console.log('Conclusion:', github.event.workflow_run?.conclusion);
-              
               runId = github.event.workflow_run.id;
               
-              // Find PR for workflow_run event
+              // Find PR associated with this commit
               const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -58,9 +47,6 @@ jobs:
               pr = pullRequests[0];
               
             } else if (context.eventName === 'workflow_dispatch') {
-              console.log('=== MANUAL DISPATCH EVENT ===');
-              console.log('This is a manual test run. Using current PR context.');
-              
               // For manual testing, use most recent test workflow run
               const { data: workflows } = await github.rest.actions.listWorkflowRuns({
                 owner: context.repo.owner,
@@ -76,10 +62,9 @@ jobs:
               
               const testRun = workflows.workflow_runs[0];
               runId = testRun.id;
-              console.log('Using test workflow run:', runId);
               
-              // Get current PR (assuming this manual run is for testing)
-              const prNumber = context.payload.pull_request?.number || 1101; // fallback to current PR
+              // Get current PR for manual testing
+              const prNumber = context.payload.pull_request?.number || 1101;
               const { data: prData } = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -92,7 +77,7 @@ jobs:
               return;
             }
 
-            console.log(`Using PR #${pr.number} and workflow run ${runId}`);
+            console.log(`Found PR #${pr.number} for commit ${pr.head.sha.substring(0, 7)}`);
 
             // Get artifacts from the workflow run
             const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
@@ -100,8 +85,6 @@ jobs:
               repo: context.repo.repo,
               run_id: runId
             });
-
-            console.log(`Found ${artifacts?.artifacts?.length || 0} artifacts`);
 
             if (!artifacts || artifacts.artifacts.length === 0) {
               console.log('No artifacts found for this run');
@@ -115,8 +98,6 @@ jobs:
             const iosArtifacts = artifacts.artifacts
               .filter(a => a.name.includes('ios'))
               .sort((a, b) => a.name.localeCompare(b.name));
-
-            console.log(`Android artifacts: ${androidArtifacts.length}, iOS artifacts: ${iosArtifacts.length}`);
 
             // Build comment body with table format
             let commentBody = `## 📱 Build Artifacts Ready!\n\n`;
