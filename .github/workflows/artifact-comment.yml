@@ -74,48 +74,79 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               head_sha: pr.head.sha,
-              per_page: 20
+              per_page: 30
             });
 
-            // Filter for build workflows only
-            const buildRuns = workflowRuns.workflow_runs.filter(run => 
-              run.name.includes('Android APK Build') || 
-              run.name.includes('iOS IPA Build')
-            );
+            // Filter for build workflows only and sort by creation time (most recent first)
+            const buildRuns = workflowRuns.workflow_runs
+              .filter(run => 
+                run.name.includes('Android APK Build') || 
+                run.name.includes('iOS IPA Build')
+              )
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
             console.log(`Found ${buildRuns.length} build workflow runs for this commit`);
 
-            // Collect artifacts and statuses from all builds (completed and in-progress)
+            // Log current status of each build for debugging
+            buildRuns.forEach(run => {
+              console.log(`- ${run.name}: ${run.status} (${run.conclusion || 'no conclusion yet'}) - Created: ${run.created_at}`);
+            });
+
+            // Collect artifacts and statuses from builds - get most recent run for each workflow type
             let allArtifacts = [];
             let buildStatuses = {};
 
-            // Define all expected build targets
-            const expectedBuilds = {
-              'Android Phone': { platform: 'Android', device: 'Phone', emoji: '📱', pattern: 'android.*phone' },
-              'Android TV': { platform: 'Android', device: 'TV', emoji: '📺', pattern: 'android.*tv' },
-              'iOS Phone': { platform: 'iOS', device: 'Phone', emoji: '📱', pattern: 'ios.*phone' },
-              'iOS TV': { platform: 'iOS', device: 'TV', emoji: '📺', pattern: 'ios.*tv' }
-            };
+            // Get the most recent run for each workflow type
+            const latestAndroidRun = buildRuns.find(run => run.name.includes('Android APK Build'));
+            const latestIOSRun = buildRuns.find(run => run.name.includes('iOS IPA Build'));
 
-            for (const run of buildRuns) {
-              buildStatuses[run.name] = {
-                status: run.status,
-                conclusion: run.conclusion,
-                url: run.html_url,
-                runId: run.id
+            // Store status for each workflow type
+            if (latestAndroidRun) {
+              buildStatuses['Android'] = {
+                name: latestAndroidRun.name,
+                status: latestAndroidRun.status,
+                conclusion: latestAndroidRun.conclusion,
+                url: latestAndroidRun.html_url,
+                runId: latestAndroidRun.id,
+                created_at: latestAndroidRun.created_at
               };
               
-              // Collect artifacts from any completed successful builds
-              if (run.conclusion === 'success') {
+              // Collect artifacts if completed successfully
+              if (latestAndroidRun.conclusion === 'success') {
                 try {
                   const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    run_id: run.id
+                    run_id: latestAndroidRun.id
                   });
                   allArtifacts.push(...artifacts.artifacts);
                 } catch (error) {
-                  console.log(`Failed to get artifacts for run ${run.id}:`, error.message);
+                  console.log(`Failed to get Android artifacts for run ${latestAndroidRun.id}:`, error.message);
+                }
+              }
+            }
+
+            if (latestIOSRun) {
+              buildStatuses['iOS'] = {
+                name: latestIOSRun.name,
+                status: latestIOSRun.status,
+                conclusion: latestIOSRun.conclusion,
+                url: latestIOSRun.html_url,
+                runId: latestIOSRun.id,
+                created_at: latestIOSRun.created_at
+              };
+              
+              // Collect artifacts if completed successfully
+              if (latestIOSRun.conclusion === 'success') {
+                try {
+                  const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: latestIOSRun.id
+                  });
+                  allArtifacts.push(...artifacts.artifacts);
+                } catch (error) {
+                  console.log(`Failed to get iOS artifacts for run ${latestIOSRun.id}:`, error.message);
                 }
               }
             }
@@ -123,11 +154,11 @@ jobs:
             console.log(`Collected ${allArtifacts.length} total artifacts from all builds`);
 
             // Build comment body with progressive status for individual builds
-            let commentBody = `## 📱 Build Status for PR #${pr.number}\n\n`;
+            let commentBody = `## 🔧 Build Status for PR #${pr.number}\n\n`;
             commentBody += `🔗 **Commit**: [\`${pr.head.sha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${pr.head.sha})\n\n`;
 
             // Progressive build status and downloads table
-            commentBody += `### � Build Artifacts\n\n`;
+            commentBody += `### 📦 Build Artifacts\n\n`;
             commentBody += `| Platform | Device | Status | Download |\n`;
             commentBody += `|----------|--------|--------|---------|\n`;
 
@@ -135,16 +166,13 @@ jobs:
             const buildTargets = [
               { name: 'Android Phone', platform: '🤖', device: '📱', pattern: /android.*phone/i },
               { name: 'Android TV', platform: '🤖', device: '📺', pattern: /android.*tv/i },
-              { name: 'iOS Phone', platform: '🍎', device: '�', pattern: /ios.*phone/i },
+              { name: 'iOS Phone', platform: '🍎', device: '📱', pattern: /ios.*phone/i },
               { name: 'iOS TV', platform: '🍎', device: '📺', pattern: /ios.*tv/i }
             ];
 
             for (const target of buildTargets) {
-              // Find matching workflow run
-              const matchingRun = buildRuns.find(run => {
-                return (run.name.includes('Android') && target.name.includes('Android')) ||
-                       (run.name.includes('iOS') && target.name.includes('iOS'));
-              });
+              // Find matching workflow status (using our simplified structure)
+              const matchingStatus = target.name.includes('Android') ? buildStatuses['Android'] : buildStatuses['iOS'];
 
               // Find matching artifact
               const matchingArtifact = allArtifacts.find(artifact => 
@@ -154,21 +182,25 @@ jobs:
               let status = '⏳ Pending';
               let downloadLink = '*Waiting for build...*';
 
-              if (matchingRun) {
-                if (matchingRun.conclusion === 'success' && matchingArtifact) {
+              if (matchingStatus) {
+                if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
                   const nightlyLink = `https://nightly.link/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/${matchingArtifact.name}.zip`;
                   const fileType = target.name.includes('Android') ? 'APK' : 'IPA';
                   downloadLink = `[📥 Download ${fileType}](${nightlyLink})`;
-                } else if (matchingRun.conclusion === 'failure') {
-                  status = `❌ [Failed](${matchingRun.html_url})`;
+                } else if (matchingStatus.conclusion === 'failure') {
+                  status = `❌ [Failed](${matchingStatus.url})`;
                   downloadLink = '*Build failed*';
-                } else if (matchingRun.status === 'in_progress') {
-                  status = `🔄 [Building...](${matchingRun.html_url})`;
+                } else if (matchingStatus.status === 'in_progress') {
+                  status = `🔄 [Building...](${matchingStatus.url})`;
                   downloadLink = '*Build in progress...*';
-                } else if (matchingRun.status === 'queued') {
-                  status = `⏳ [Queued](${matchingRun.html_url})`;
+                } else if (matchingStatus.status === 'queued') {
+                  status = `⏳ [Queued](${matchingStatus.url})`;
                   downloadLink = '*Waiting to start...*';
+                } else {
+                  // Show any other status with timestamp for debugging
+                  status = `🔄 [${matchingStatus.status}](${matchingStatus.url})`;
+                  downloadLink = `*Status: ${matchingStatus.status}*`;
                 }
               }
 
