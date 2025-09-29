@@ -307,7 +307,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   const navigateToItem = useCallback(
     (item: BaseItemDto) => {
       const navigation = getItemNavigation(item, "(home)");
-      router.push(navigation as any);
+      router.push(navigation as `/(auth)/(tabs)/${string}`);
     },
     [router],
   );

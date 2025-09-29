@@ -44,6 +44,9 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
   return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
 };
 
+// Export alias for backward compatibility
+export const getItemNavigation = itemRouter;
+
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
   isOffline = false,
@@ -106,7 +109,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
           if (isOffline) {
             url += `&offline=true`;
           }
-          router.push(url);
+          router.push(url as `/(auth)/(tabs)/${string}`);
         }}
         {...props}
       >
