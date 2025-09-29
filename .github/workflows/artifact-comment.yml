@@ -10,8 +10,7 @@ on:
     types: [opened, synchronize, reopened]
   workflow_run: # Triggered when build workflows complete
     workflows:
-      - "🤖 Android APK Build (Phone + TV)"
-      - "🤖 iOS IPA Build (Phone + TV)"
+      - "🏗️ Build Apps"
     types:
       - completed
 
@@ -116,6 +115,7 @@ jobs:
             // Filter for build workflows only and sort by creation time (most recent first)
             const buildRuns = workflowRuns.workflow_runs
               .filter(run => 
+                run.name.includes('Build Apps') ||
                 run.name.includes('Android APK Build') || 
                 run.name.includes('iOS IPA Build')
               )
@@ -132,57 +132,61 @@ jobs:
             let allArtifacts = [];
             let buildStatuses = {};
 
-            // Get the most recent run for each workflow type
+            // Get the most recent run for the unified apps workflow
+            const latestAppsRun = buildRuns.find(run => run.name.includes('Build Apps'));
             const latestAndroidRun = buildRuns.find(run => run.name.includes('Android APK Build'));
             const latestIOSRun = buildRuns.find(run => run.name.includes('iOS IPA Build'));
 
-            // Store status for each workflow type
-            if (latestAndroidRun) {
+            // Store status for unified workflow (preferred) or fallback to separate workflows
+            const appsWorkflowRun = latestAppsRun || latestAndroidRun;
+            if (appsWorkflowRun) {
               buildStatuses['Android'] = {
-                name: latestAndroidRun.name,
-                status: latestAndroidRun.status,
-                conclusion: latestAndroidRun.conclusion,
-                url: latestAndroidRun.html_url,
-                runId: latestAndroidRun.id,
-                created_at: latestAndroidRun.created_at
+                name: appsWorkflowRun.name,
+                status: appsWorkflowRun.status,
+                conclusion: appsWorkflowRun.conclusion,
+                url: appsWorkflowRun.html_url,
+                runId: appsWorkflowRun.id,
+                created_at: appsWorkflowRun.created_at
               };
               
               // Collect artifacts if completed successfully
-              if (latestAndroidRun.conclusion === 'success') {
+              if (appsWorkflowRun.conclusion === 'success') {
                 try {
                   const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    run_id: latestAndroidRun.id
+                    run_id: appsWorkflowRun.id
                   });
                   allArtifacts.push(...artifacts.artifacts);
                 } catch (error) {
-                  console.log(`Failed to get Android artifacts for run ${latestAndroidRun.id}:`, error.message);
+                  console.log(`Failed to get apps artifacts for run ${appsWorkflowRun.id}:`, error.message);
                 }
               }
             }
 
-            if (latestIOSRun) {
+            // For iOS, use the same workflow run (since it's all in one now) or fallback to separate
+            const iosWorkflowRun = latestAppsRun || latestIOSRun;
+            if (iosWorkflowRun) {
               buildStatuses['iOS'] = {
-                name: latestIOSRun.name,
-                status: latestIOSRun.status,
-                conclusion: latestIOSRun.conclusion,
-                url: latestIOSRun.html_url,
-                runId: latestIOSRun.id,
-                created_at: latestIOSRun.created_at
+                name: iosWorkflowRun.name,
+                status: iosWorkflowRun.status,
+                conclusion: iosWorkflowRun.conclusion,
+                url: iosWorkflowRun.html_url,
+                runId: iosWorkflowRun.id,
+                created_at: iosWorkflowRun.created_at
               };
               
-              // Collect artifacts if completed successfully
-              if (latestIOSRun.conclusion === 'success') {
+              // Only collect artifacts if not already collected from apps workflow
+              if (!latestAppsRun && iosWorkflowRun.conclusion === 'success') {
                 try {
                   const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    run_id: latestIOSRun.id
+                    run_id: iosWorkflowRun.id
                   });
                   allArtifacts.push(...artifacts.artifacts);
                 } catch (error) {
-                  console.log(`Failed to get iOS artifacts for run ${latestIOSRun.id}:`, error.message);
+                  console.log(`Failed to get iOS artifacts for run ${iosWorkflowRun.id}:`, error.message);
                 }
               }
             }
