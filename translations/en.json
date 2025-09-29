@@ -223,7 +223,9 @@
         "system": "System"
       },
       "toasts": {
-        "error_deleting_files": "Error Deleting Files"
+        "error_deleting_files": "Error Deleting Files",
+        "background_downloads_enabled": "Background downloads enabled",
+        "background_downloads_disabled": "Background downloads disabled"
       }
     },
     "sessions": {
@@ -266,10 +268,22 @@
         "download_completed": "Download Completed",
         "download_failed_for_item": "Download failed for {{item}} - {{error}}",
         "download_completed_for_item": "Download Completed for {{item}}",
+        "download_started_for_item": "Download Started for {{item}}",
+        "failed_to_start_download": "Failed to start download",
         "all_files_folders_and_jobs_deleted_successfully": "All files, folders, and jobs deleted successfully",
+        "failed_to_clean_cache_directory": "Failed to clean cache directory",
+        "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
         "go_to_downloads": "Go to Downloads"
       }
     }
+  },
+  "common": {
+    "select": "Select",
+    "no_trailer_available": "No trailer available",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitle": "Subtitle",
+    "play": "Play"
   },
   "search": {
     "search": "Search...",

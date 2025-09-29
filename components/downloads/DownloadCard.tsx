@@ -6,6 +6,7 @@ import { t } from "i18next";
 import { useMemo } from "react";
 import {
   ActivityIndicator,
+  Platform,
   TouchableOpacity,
   type TouchableOpacityProps,
   View,
@@ -109,9 +110,9 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
         />
       )}
 
-      {/* Action buttons in top right corner */}
-      <View className='absolute top-2 right-2 flex flex-row items-center space-x-2 z-10'>
-        {process.status === "downloading" && (
+      {/* Action buttons in bottom right corner */}
+      <View className='absolute bottom-2 right-2 flex flex-row items-center space-x-2 z-10'>
+        {process.status === "downloading" && Platform.OS !== "ios" && (
           <TouchableOpacity
             onPress={() => handlePause(process.id)}
             className='p-1'
@@ -119,7 +120,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
             <Ionicons name='pause' size={20} color='white' />
           </TouchableOpacity>
         )}
-        {process.status === "paused" && (
+        {process.status === "paused" && Platform.OS !== "ios" && (
           <TouchableOpacity
             onPress={() => handleResume(process.id)}
             className='p-1'

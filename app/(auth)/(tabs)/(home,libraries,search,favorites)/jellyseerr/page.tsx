@@ -316,7 +316,69 @@ const Page: React.FC = () => {
               <View>
                 <GenreTags genres={details?.genres?.map((g) => g.name) || []} />
               </View>
-              {renderActionButton()}
+              {isLoading || isFetching ? (
+                <Button
+                  loading={true}
+                  disabled={true}
+                  color='purple'
+                  className='mt-4'
+                />
+              ) : canRequest ? (
+                <Button color='purple' onPress={request} className='mt-4'>
+                  {t("jellyseerr.request_button")}
+                </Button>
+              ) : (
+                details?.mediaInfo?.jellyfinMediaId && (
+                  <View className='flex flex-row space-x-2 mt-4'>
+                    {!Platform.isTV && (
+                      <Button
+                        className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
+                        color='transparent'
+                        onPress={() => bottomSheetModalRef?.current?.present()}
+                        iconLeft={
+                          <Ionicons
+                            name='warning-outline'
+                            size={20}
+                            color='white'
+                          />
+                        }
+                        style={{
+                          borderWidth: 1,
+                          borderStyle: "solid",
+                        }}
+                      >
+                        <Text className='text-sm'>
+                          {t("jellyseerr.report_issue_button")}
+                        </Text>
+                      </Button>
+                    )}
+                    <Button
+                      className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
+                      onPress={() => {
+                        router.push({
+                          pathname:
+                            mediaType === MediaType.MOVIE
+                              ? "/(auth)/(tabs)/(search)/items/page"
+                              : "/(auth)/(tabs)/(search)/series/[id]",
+                          params:
+                            mediaType === MediaType.MOVIE
+                              ? { id: details?.mediaInfo.jellyfinMediaId }
+                              : { id: details?.mediaInfo.jellyfinMediaId },
+                        });
+                      }}
+                      iconLeft={
+                        <Ionicons name='play-outline' size={20} color='white' />
+                      }
+                      style={{
+                        borderWidth: 1,
+                        borderStyle: "solid",
+                      }}
+                    >
+                      <Text className='text-sm'>{t("common.play")}</Text>
+                    </Button>
+                  </View>
+                )
+              )}
               <OverviewText text={result.overview} className='mt-4' />
             </View>
 
