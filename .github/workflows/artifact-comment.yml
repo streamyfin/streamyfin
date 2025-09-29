@@ -29,41 +29,70 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            console.log('=== DEBUGGING WORKFLOW_RUN EVENT ===');
-            console.log('Event name:', github.event_name);
-            console.log('Workflow run event:', JSON.stringify(github.event.workflow_run, null, 2));
-            console.log('Context:', JSON.stringify(context, null, 2));
+            console.log('=== DEBUGGING WORKFLOW EVENT ===');
+            console.log('Event name:', context.eventName);
+            console.log('GitHub event:', JSON.stringify(github.event, null, 2));
 
-            // Debug the trigger conditions
-            console.log('workflow_run.event:', github.event.workflow_run?.event);
-            console.log('workflow_run.conclusion:', github.event.workflow_run?.conclusion);
-            console.log('workflow_run.name:', github.event.workflow_run?.name);
+            // Handle both workflow_run and manual dispatch events
+            let runId, pr;
 
-            // Check if this should have been filtered out
-            const shouldRun = github.event.workflow_run?.event === 'pull_request' && github.event.workflow_run?.conclusion === 'success';
-            console.log('Should run based on conditions:', shouldRun);
-
-            if (!shouldRun) {
-              console.log('⚠️ This run would normally be skipped due to filter conditions');
-              console.log('But we removed the filter to debug. In production, add the if condition back.');
-            }
-
-            // Find PR associated with this commit
-            const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: "${{ github.event.workflow_run.head_sha }}"
-            });
-
-            if (pullRequests.length === 0) {
-              console.log('No pull request found for commit: ${{ github.event.workflow_run.head_sha }}');
+            if (context.eventName === 'workflow_run') {
+              console.log('=== WORKFLOW_RUN EVENT ===');
+              console.log('Triggered workflow:', github.event.workflow_run?.name);
+              console.log('Trigger event:', github.event.workflow_run?.event);
+              console.log('Conclusion:', github.event.workflow_run?.conclusion);
+              
+              runId = github.event.workflow_run.id;
+              
+              // Find PR for workflow_run event
+              const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: github.event.workflow_run.head_sha
+              });
+              
+              if (pullRequests.length === 0) {
+                console.log('No pull request found for commit:', github.event.workflow_run.head_sha);
+                return;
+              }
+              pr = pullRequests[0];
+              
+            } else if (context.eventName === 'workflow_dispatch') {
+              console.log('=== MANUAL DISPATCH EVENT ===');
+              console.log('This is a manual test run. Using current PR context.');
+              
+              // For manual testing, use most recent test workflow run
+              const { data: workflows } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'test-artifact.yml',
+                per_page: 1
+              });
+              
+              if (workflows.workflow_runs.length === 0) {
+                console.log('No test workflow runs found');
+                return;
+              }
+              
+              const testRun = workflows.workflow_runs[0];
+              runId = testRun.id;
+              console.log('Using test workflow run:', runId);
+              
+              // Get current PR (assuming this manual run is for testing)
+              const prNumber = context.payload.pull_request?.number || 1101; // fallback to current PR
+              const { data: prData } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+              pr = prData;
+              
+            } else {
+              console.log('Unsupported event type:', context.eventName);
               return;
             }
 
-            const pr = pullRequests[0];
-            const runId = "${{ github.event.workflow_run.id }}";
-
-            console.log(`Found PR #${pr.number} for commit ${pr.head.sha.substring(0, 7)}`);
+            console.log(`Using PR #${pr.number} and workflow run ${runId}`);
 
             // Get artifacts from the workflow run
             const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
