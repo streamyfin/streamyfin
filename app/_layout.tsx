@@ -2,8 +2,10 @@ import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Platform } from "react-native";
+import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
+import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
 import {
   apiAtom,
   getOrSetDeviceId,
@@ -26,9 +28,13 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
+// TEMPORARILY DISABLED
+// To re-enable: Move package from "disabledDependencies" to "dependencies" in package.json,
+// run "bun install", then uncomment the require below and remove the null assignment
+// const BackGroundDownloader = !Platform.isTV
+//   ? require("@kesha-antonov/react-native-background-downloader")
+//   : null;
+const BackGroundDownloader = null;
 
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -386,7 +392,7 @@ function Layout() {
   ]);
 
   useEffect(() => {
-    if (Platform.isTV) {
+    if (Platform.isTV || !BackGroundDownloader) {
       return;
     }
 
@@ -395,7 +401,7 @@ function Layout() {
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
-        BackGroundDownloader.checkForExistingDownloads().catch(
+        BackGroundDownloader?.checkForExistingDownloads().catch(
           (error: unknown) => {
             writeErrorLog("Failed to resume background downloads", error);
           },
@@ -403,9 +409,11 @@ function Layout() {
       }
     });
 
-    BackGroundDownloader.checkForExistingDownloads().catch((error: unknown) => {
-      writeErrorLog("Failed to resume background downloads", error);
-    });
+    BackGroundDownloader?.checkForExistingDownloads().catch(
+      (error: unknown) => {
+        writeErrorLog("Failed to resume background downloads", error);
+      },
+    );
     return () => {
       subscription.remove();
     };
@@ -419,50 +427,53 @@ function Layout() {
             <WebSocketProvider>
               <DownloadProvider>
                 <BottomSheetModalProvider>
-                  <SystemBars style='light' hidden={false} />
-                  <ThemeProvider value={DarkTheme}>
-                    <Stack initialRouteName='(auth)/(tabs)'>
-                      <Stack.Screen
-                        name='(auth)/(tabs)'
-                        options={{
-                          headerShown: false,
-                          title: "",
-                          header: () => null,
+                  <GlobalModalProvider>
+                    <SystemBars style='light' hidden={false} />
+                    <ThemeProvider value={DarkTheme}>
+                      <Stack initialRouteName='(auth)/(tabs)'>
+                        <Stack.Screen
+                          name='(auth)/(tabs)'
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name='(auth)/player'
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name='login'
+                          options={{
+                            headerShown: true,
+                            title: "",
+                            headerTransparent: true,
+                          }}
+                        />
+                        <Stack.Screen name='+not-found' />
+                      </Stack>
+                      <Toaster
+                        duration={4000}
+                        toastOptions={{
+                          style: {
+                            backgroundColor: "#262626",
+                            borderColor: "#363639",
+                            borderWidth: 1,
+                          },
+                          titleStyle: {
+                            color: "white",
+                          },
                         }}
+                        closeButton
                       />
-                      <Stack.Screen
-                        name='(auth)/player'
-                        options={{
-                          headerShown: false,
-                          title: "",
-                          header: () => null,
-                        }}
-                      />
-                      <Stack.Screen
-                        name='login'
-                        options={{
-                          headerShown: true,
-                          title: "",
-                          headerTransparent: true,
-                        }}
-                      />
-                      <Stack.Screen name='+not-found' />
-                    </Stack>
-                    <Toaster
-                      duration={4000}
-                      toastOptions={{
-                        style: {
-                          backgroundColor: "#262626",
-                          borderColor: "#363639",
-                          borderWidth: 1,
-                        },
-                        titleStyle: {
-                          color: "white",
-                        },
-                      }}
-                      closeButton
-                    />
-                  </ThemeProvider>
+                    </ThemeProvider>
+                    <GlobalModal />
+                  </GlobalModalProvider>
                 </BottomSheetModalProvider>
               </DownloadProvider>
             </WebSocketProvider>

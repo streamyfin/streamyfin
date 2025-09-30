@@ -29,9 +29,7 @@
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.1.0",
     "@jellyfin/sdk": "^0.11.0",
-    "@kesha-antonov/react-native-background-downloader": "github:fredrikburmester/react-native-background-downloader#f3bf69ad124b6ec6adbc30c7f688935d0376fc56",
     "@react-native-community/netinfo": "^11.4.1",
-    "@react-native-menu/menu": "^1.2.4",
     "@react-navigation/material-top-tabs": "^7.2.14",
     "@react-navigation/native": "^7.0.14",
     "@shopify/flash-list": "2.0.2",
@@ -141,6 +139,9 @@
     }
   },
   "private": true,
+  "disabledDependencies": {
+    "@kesha-antonov/react-native-background-downloader": "^3.2.6"
+  },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
       "biome check --write --unsafe --no-errors-on-unmatched"
