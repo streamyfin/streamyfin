@@ -5,10 +5,10 @@ import { TFunction } from "i18next";
 import type React from "react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, Platform, Switch, TouchableOpacity } from "react-native";
+import { Linking, Platform, Switch, View } from "react-native";
 import { toast } from "sonner-native";
 import { BITRATES } from "@/components/BitrateSelector";
-import Dropdown from "@/components/common/Dropdown";
+import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
@@ -89,6 +89,55 @@ export const OtherSettings: React.FC = () => {
     [],
   );
 
+  const orientationOptions = useMemo(
+    () => [
+      {
+        title: t("home.settings.other.orientation"),
+        options: orientations.map((orientation) => ({
+          type: "radio" as const,
+          label: t(ScreenOrientationEnum[orientation]),
+          value: String(orientation),
+          selected: orientation === settings?.defaultVideoOrientation,
+          onPress: () =>
+            updateSettings({ defaultVideoOrientation: orientation }),
+        })),
+      },
+    ],
+    [orientations, settings?.defaultVideoOrientation, t, updateSettings],
+  );
+
+  const bitrateOptions = useMemo(
+    () => [
+      {
+        title: t("home.settings.other.default_quality"),
+        options: BITRATES.map((bitrate) => ({
+          type: "radio" as const,
+          label: bitrate.key,
+          value: bitrate.key,
+          selected: bitrate.key === settings?.defaultBitrate?.key,
+          onPress: () => updateSettings({ defaultBitrate: bitrate }),
+        })),
+      },
+    ],
+    [settings?.defaultBitrate?.key, t, updateSettings],
+  );
+
+  const autoPlayEpisodeOptions = useMemo(
+    () => [
+      {
+        title: t("home.settings.other.max_auto_play_episode_count"),
+        options: AUTOPLAY_EPISODES_COUNT(t).map((item) => ({
+          type: "radio" as const,
+          label: item.key,
+          value: item.key,
+          selected: item.key === settings?.maxAutoPlayEpisodeCount?.key,
+          onPress: () => updateSettings({ maxAutoPlayEpisodeCount: item }),
+        })),
+      },
+    ],
+    [settings?.maxAutoPlayEpisodeCount?.key, t, updateSettings],
+  );
+
   if (!settings) return null;
 
   return (
@@ -114,16 +163,10 @@ export const OtherSettings: React.FC = () => {
             settings.followDeviceOrientation
           }
         >
-          <Dropdown
-            data={orientations}
-            disabled={
-              pluginSettings?.defaultVideoOrientation?.locked ||
-              settings.followDeviceOrientation
-            }
-            keyExtractor={String}
-            titleExtractor={(item) => t(ScreenOrientationEnum[item])}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={orientationOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(
                     orientationTranslations[
@@ -136,12 +179,9 @@ export const OtherSettings: React.FC = () => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.other.orientation")}
-            onSelected={(defaultVideoOrientation) =>
-              updateSettings({ defaultVideoOrientation })
-            }
+            title={t("home.settings.other.orientation")}
           />
         </ListItem>
 
@@ -214,13 +254,10 @@ export const OtherSettings: React.FC = () => {
           title={t("home.settings.other.default_quality")}
           disabled={pluginSettings?.defaultBitrate?.locked}
         >
-          <Dropdown
-            data={BITRATES}
-            disabled={pluginSettings?.defaultBitrate?.locked}
-            keyExtractor={(item) => item.key}
-            titleExtractor={(item) => item.key}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={bitrateOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings.defaultBitrate?.key}
                 </Text>
@@ -229,10 +266,9 @@ export const OtherSettings: React.FC = () => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.other.default_quality")}
-            onSelected={(defaultBitrate) => updateSettings({ defaultBitrate })}
+            title={t("home.settings.other.default_quality")}
           />
         </ListItem>
         <ListItem
@@ -248,12 +284,10 @@ export const OtherSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
-          <Dropdown
-            data={AUTOPLAY_EPISODES_COUNT(t)}
-            keyExtractor={(item) => item.key}
-            titleExtractor={(item) => item.key}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={autoPlayEpisodeOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(settings?.maxAutoPlayEpisodeCount.key)}
                 </Text>
@@ -262,12 +296,9 @@ export const OtherSettings: React.FC = () => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.other.max_auto_play_episode_count")}
-            onSelected={(maxAutoPlayEpisodeCount) =>
-              updateSettings({ maxAutoPlayEpisodeCount })
-            }
+            title={t("home.settings.other.max_auto_play_episode_count")}
           />
         </ListItem>
       </ListGroup>

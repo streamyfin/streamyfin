@@ -8,10 +8,10 @@ import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescrip
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View, type ViewProps } from "react-native";
+import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Button } from "@/components/Button";
-import Dropdown from "@/components/common/Dropdown";
 import { Text } from "@/components/common/Text";
+import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import type {
   QualityProfile,
@@ -138,6 +138,115 @@ const RequestModal = forwardRef<
       });
     }, [requestBody?.seasons]);
 
+    const pathTitleExtractor = (item: RootFolder) =>
+      `${item.path} (${item.freeSpace.bytesToReadable()})`;
+
+    const qualityProfileOptions = useMemo(
+      () => [
+        {
+          title: t("jellyseerr.quality_profile"),
+          options:
+            defaultServiceDetails?.profiles.map((profile) => ({
+              type: "radio" as const,
+              label: profile.name,
+              value: profile.id.toString(),
+              selected:
+                (requestOverrides.profileId || defaultProfile?.id) ===
+                profile.id,
+              onPress: () =>
+                setRequestOverrides((prev) => ({
+                  ...prev,
+                  profileId: profile.id,
+                })),
+            })) || [],
+        },
+      ],
+      [
+        defaultServiceDetails?.profiles,
+        defaultProfile,
+        requestOverrides.profileId,
+        t,
+      ],
+    );
+
+    const rootFolderOptions = useMemo(
+      () => [
+        {
+          title: t("jellyseerr.root_folder"),
+          options:
+            defaultServiceDetails?.rootFolders.map((folder) => ({
+              type: "radio" as const,
+              label: pathTitleExtractor(folder),
+              value: folder.id.toString(),
+              selected:
+                (requestOverrides.rootFolder || defaultFolder?.path) ===
+                folder.path,
+              onPress: () =>
+                setRequestOverrides((prev) => ({
+                  ...prev,
+                  rootFolder: folder.path,
+                })),
+            })) || [],
+        },
+      ],
+      [
+        defaultServiceDetails?.rootFolders,
+        defaultFolder,
+        requestOverrides.rootFolder,
+        t,
+      ],
+    );
+
+    const tagsOptions = useMemo(
+      () => [
+        {
+          title: t("jellyseerr.tags"),
+          options:
+            defaultServiceDetails?.tags.map((tag) => ({
+              type: "toggle" as const,
+              label: tag.label,
+              value:
+                requestOverrides.tags?.includes(tag.id) ||
+                defaultTags.some((dt) => dt.id === tag.id),
+              onToggle: () =>
+                setRequestOverrides((prev) => {
+                  const currentTags = prev.tags || defaultTags.map((t) => t.id);
+                  const hasTag = currentTags.includes(tag.id);
+                  return {
+                    ...prev,
+                    tags: hasTag
+                      ? currentTags.filter((id) => id !== tag.id)
+                      : [...currentTags, tag.id],
+                  };
+                }),
+            })) || [],
+        },
+      ],
+      [defaultServiceDetails?.tags, defaultTags, requestOverrides.tags, t],
+    );
+
+    const usersOptions = useMemo(
+      () => [
+        {
+          title: t("jellyseerr.request_as"),
+          options:
+            users?.map((user) => ({
+              type: "radio" as const,
+              label: user.displayName,
+              value: user.id.toString(),
+              selected:
+                (requestOverrides.userId || jellyseerrUser?.id) === user.id,
+              onPress: () =>
+                setRequestOverrides((prev) => ({
+                  ...prev,
+                  userId: user.id,
+                })),
+            })) || [],
+        },
+      ],
+      [users, jellyseerrUser, requestOverrides.userId, t],
+    );
+
     const request = useCallback(() => {
       const body = {
         is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
@@ -162,9 +271,6 @@ const RequestModal = forwardRef<
       defaultFolder,
       defaultTags,
     ]);
-
-    const pathTitleExtractor = (item: RootFolder) =>
-      `${item.path} (${item.freeSpace.bytesToReadable()})`;
 
     return (
       <BottomSheetModal
@@ -199,70 +305,104 @@ const RequestModal = forwardRef<
             <View className='flex flex-col space-y-2'>
               {defaultService && defaultServiceDetails && users && (
                 <>
-                  <Dropdown
-                    data={defaultServiceDetails.profiles}
-                    titleExtractor={(item) => item.name}
-                    placeholderText={
-                      requestOverrides.profileName || defaultProfile.name
-                    }
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.quality_profile")}
-                    onSelected={(item) =>
-                      item &&
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        profileId: item?.id,
-                      }))
-                    }
-                    title={t("jellyseerr.quality_profile")}
-                  />
-                  <Dropdown
-                    data={defaultServiceDetails.rootFolders}
-                    titleExtractor={pathTitleExtractor}
-                    placeholderText={
-                      defaultFolder ? pathTitleExtractor(defaultFolder) : ""
-                    }
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.root_folder")}
-                    onSelected={(item) =>
-                      item &&
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        rootFolder: item.path,
-                      }))
-                    }
-                    title={t("jellyseerr.root_folder")}
-                  />
-                  <Dropdown
-                    multiple
-                    data={defaultServiceDetails.tags}
-                    titleExtractor={(item) => item.label}
-                    placeholderText={defaultTags.map((t) => t.label).join(",")}
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.tags")}
-                    onSelected={(...selected) =>
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        tags: selected.map((i) => i.id),
-                      }))
-                    }
-                    title={t("jellyseerr.tags")}
-                  />
-                  <Dropdown
-                    data={users}
-                    titleExtractor={(item) => item.displayName}
-                    placeholderText={jellyseerrUser!.displayName}
-                    keyExtractor={(item) => item.id.toString() || ""}
-                    label={t("jellyseerr.request_as")}
-                    onSelected={(item) =>
-                      item &&
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        userId: item?.id,
-                      }))
-                    }
-                    title={t("jellyseerr.request_as")}
-                  />
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.quality_profile")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={qualityProfileOptions}
+                      trigger={
+                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {defaultServiceDetails.profiles.find(
+                              (p) =>
+                                p.id ===
+                                (requestOverrides.profileId ||
+                                  defaultProfile?.id),
+                            )?.name || defaultProfile?.name}
+                          </Text>
+                        </TouchableOpacity>
+                      }
+                      title={t("jellyseerr.quality_profile")}
+                    />
+                  </View>
+
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.root_folder")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={rootFolderOptions}
+                      trigger={
+                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {defaultServiceDetails.rootFolders.find(
+                              (f) =>
+                                f.path ===
+                                (requestOverrides.rootFolder ||
+                                  defaultFolder?.path),
+                            )
+                              ? pathTitleExtractor(
+                                  defaultServiceDetails.rootFolders.find(
+                                    (f) =>
+                                      f.path ===
+                                      (requestOverrides.rootFolder ||
+                                        defaultFolder?.path),
+                                  )!,
+                                )
+                              : pathTitleExtractor(defaultFolder!)}
+                          </Text>
+                        </TouchableOpacity>
+                      }
+                      title={t("jellyseerr.root_folder")}
+                    />
+                  </View>
+
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.tags")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={tagsOptions}
+                      trigger={
+                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {requestOverrides.tags
+                              ? defaultServiceDetails.tags
+                                  .filter((t) =>
+                                    requestOverrides.tags!.includes(t.id),
+                                  )
+                                  .map((t) => t.label)
+                                  .join(", ") ||
+                                defaultTags.map((t) => t.label).join(", ")
+                              : defaultTags.map((t) => t.label).join(", ")}
+                          </Text>
+                        </TouchableOpacity>
+                      }
+                      title={t("jellyseerr.tags")}
+                    />
+                  </View>
+
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.request_as")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={usersOptions}
+                      trigger={
+                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {users.find(
+                              (u) =>
+                                u.id ===
+                                (requestOverrides.userId || jellyseerrUser?.id),
+                            )?.displayName || jellyseerrUser!.displayName}
+                          </Text>
+                        </TouchableOpacity>
+                      }
+                      title={t("jellyseerr.request_as")}
+                    />
+                  </View>
                 </>
               )}
             </View>

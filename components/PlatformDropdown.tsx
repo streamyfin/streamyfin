@@ -193,7 +193,7 @@ export function PlatformDropdown({
           onOptionSelect={onOptionSelect}
         />,
         {
-          enableDynamicSizing: bottomSheetConfig?.enableDynamicSizing ?? true,
+          snapPoints: ["90%"],
           enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
         },
       );
@@ -214,7 +214,7 @@ export function PlatformDropdown({
       <Host style={expoUIConfig?.hostStyle}>
         <ContextMenu>
           <ContextMenu.Trigger>
-            <View className='w-9 h-9 flex items-center justify-center'>
+            <View className=''>
               {trigger || <Button variant='bordered'>Show Menu</Button>}
             </View>
           </ContextMenu.Trigger>

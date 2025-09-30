@@ -88,7 +88,6 @@ export const AudioTrackSelector: React.FC<Props> = ({
           hostStyle: { flex: 1 },
         }}
         bottomSheetConfig={{
-          enableDynamicSizing: true,
           enablePanDownToClose: true,
         }}
       />
