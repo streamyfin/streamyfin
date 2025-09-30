@@ -19,30 +19,31 @@ import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import Cast from "@/components/jellyseerr/Cast";
 import DetailFacts from "@/components/jellyseerr/DetailFacts";
+import RequestModal from "@/components/jellyseerr/RequestModal";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
+import {
+  type OptionGroup,
+  PlatformOptionsMenu,
+} from "@/components/PlatformOptionsMenu";
 import { JellyserrRatings } from "@/components/Ratings";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import {
   type IssueType,
   IssueTypeName,
 } from "@/utils/jellyseerr/server/constants/issue";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
   MovieResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
-import RequestModal from "@/components/jellyseerr/RequestModal";
-import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
-import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 
 const Page: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -65,6 +66,7 @@ const Page: React.FC = () => {
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
   const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
+  const [issueTypeMenuOpen, setIssueTypeMenuOpen] = useState(false);
   const advancedReqModalRef = useRef<BottomSheetModal>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -155,6 +157,30 @@ const Page: React.FC = () => {
       mediaType === MediaType.TV,
     [details],
   );
+
+  const issueTypeOptionGroups: OptionGroup[] = useMemo(
+    () => [
+      {
+        id: "issue-types",
+        title: t("jellyseerr.types"),
+        options: Object.entries(IssueTypeName)
+          .reverse()
+          .map(([key, value]) => ({
+            id: key,
+            type: "radio" as const,
+            groupId: "issue-types",
+            label: value,
+            selected: key === String(issueType),
+          })),
+      },
+    ],
+    [issueType, t],
+  );
+
+  const handleIssueTypeSelect = (optionId: string) => {
+    setIssueType(optionId as unknown as IssueType);
+    setIssueTypeMenuOpen(false);
+  };
 
   useEffect(() => {
     if (details) {
@@ -365,49 +391,37 @@ const Page: React.FC = () => {
               </View>
               <View className='flex flex-col space-y-2 items-start'>
                 <View className='flex flex-col'>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
+                  <PlatformOptionsMenu
+                    groups={issueTypeOptionGroups}
+                    trigger={
                       <View className='flex flex-col'>
                         <Text className='opacity-50 mb-1 text-xs'>
                           {t("jellyseerr.issue_type")}
                         </Text>
-                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                          <Text style={{}} className='' numberOfLines={1}>
+                        <TouchableOpacity
+                          className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'
+                          onPress={() => setIssueTypeMenuOpen(true)}
+                        >
+                          <Text numberOfLines={1}>
                             {issueType
                               ? IssueTypeName[issueType]
                               : t("jellyseerr.select_an_issue")}
                           </Text>
                         </TouchableOpacity>
                       </View>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content
-                      loop={false}
-                      side='bottom'
-                      align='center'
-                      alignOffset={0}
-                      avoidCollisions={true}
-                      collisionPadding={0}
-                      sideOffset={0}
-                    >
-                      <DropdownMenu.Label>
-                        {t("jellyseerr.types")}
-                      </DropdownMenu.Label>
-                      {Object.entries(IssueTypeName)
-                        .reverse()
-                        .map(([key, value], _idx) => (
-                          <DropdownMenu.Item
-                            key={value}
-                            onSelect={() =>
-                              setIssueType(key as unknown as IssueType)
-                            }
-                          >
-                            <DropdownMenu.ItemTitle>
-                              {value}
-                            </DropdownMenu.ItemTitle>
-                          </DropdownMenu.Item>
-                        ))}
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
+                    }
+                    title={t("jellyseerr.types")}
+                    open={issueTypeMenuOpen}
+                    onOpenChange={setIssueTypeMenuOpen}
+                    onOptionSelect={handleIssueTypeSelect}
+                    expoUIConfig={{
+                      hostStyle: { flex: 1 },
+                    }}
+                    bottomSheetConfig={{
+                      enableDynamicSizing: true,
+                      enablePanDownToClose: true,
+                    }}
+                  />
                 </View>
 
                 <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full'>

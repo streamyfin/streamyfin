@@ -1,10 +1,7 @@
-import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
-
-const _DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { useTranslation } from "react-i18next";
+import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";
 import Dropdown from "@/components/common/Dropdown";
 import { Stepper } from "@/components/inputs/Stepper";

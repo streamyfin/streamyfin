@@ -1,12 +1,10 @@
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { tc } from "@/utils/textTools";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
-import { useTranslation } from "react-i18next";
 import { Text } from "./common/Text";
+import { type OptionGroup, PlatformOptionsMenu } from "./PlatformOptionsMenu";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
@@ -21,6 +19,8 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   ...props
 }) => {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
   const subtitleStreams = useMemo(() => {
     return source?.MediaStreams?.filter((x) => x.Type === "Subtitle");
   }, [source]);
@@ -28,6 +28,69 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   const selectedSubtitleSteam = useMemo(
     () => subtitleStreams?.find((x) => x.Index === selected),
     [subtitleStreams, selected],
+  );
+
+  const optionGroups: OptionGroup[] = useMemo(() => {
+    const options = [
+      {
+        id: "none",
+        type: "radio" as const,
+        groupId: "subtitle-streams",
+        label: t("item_card.none"),
+        selected: selected === -1,
+      },
+      ...(subtitleStreams?.map((subtitle, idx) => ({
+        id: `${subtitle.Index || idx}`,
+        type: "radio" as const,
+        groupId: "subtitle-streams",
+        label: subtitle.DisplayTitle || `Subtitle Stream ${idx + 1}`,
+        selected: subtitle.Index === selected,
+      })) || []),
+    ];
+
+    return [
+      {
+        id: "subtitle-streams",
+        title: "Subtitle tracks",
+        options,
+      },
+    ];
+  }, [subtitleStreams, selected, t]);
+
+  const handleOptionSelect = (optionId: string) => {
+    if (optionId === "none") {
+      onChange(-1);
+    } else {
+      const selectedStream = subtitleStreams?.find(
+        (subtitle, idx) => `${subtitle.Index || idx}` === optionId,
+      );
+      if (
+        selectedStream &&
+        selectedStream.Index !== undefined &&
+        selectedStream.Index !== null
+      ) {
+        onChange(selectedStream.Index);
+      }
+    }
+    setOpen(false);
+  };
+
+  const trigger = (
+    <View className='flex flex-col' {...props}>
+      <Text numberOfLines={1} className='opacity-50 mb-1 text-xs'>
+        {t("item_card.subtitles")}
+      </Text>
+      <TouchableOpacity
+        className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'
+        onPress={() => setOpen(true)}
+      >
+        <Text>
+          {selectedSubtitleSteam
+            ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
+            : t("item_card.none")}
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 
   if (Platform.isTV || subtitleStreams?.length === 0) return null;
@@ -40,54 +103,21 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
         maxWidth: 200,
       }}
     >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <View className='flex flex-col ' {...props}>
-            <Text numberOfLines={1} className='opacity-50 mb-1 text-xs'>
-              {t("item_card.subtitles")}
-            </Text>
-            <TouchableOpacity className='bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-              <Text className=' '>
-                {selectedSubtitleSteam
-                  ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
-                  : t("item_card.none")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          loop={true}
-          side='bottom'
-          align='start'
-          alignOffset={0}
-          avoidCollisions={true}
-          collisionPadding={8}
-          sideOffset={8}
-        >
-          <DropdownMenu.Label>Subtitle tracks</DropdownMenu.Label>
-          <DropdownMenu.Item
-            key={"-1"}
-            onSelect={() => {
-              onChange(-1);
-            }}
-          >
-            <DropdownMenu.ItemTitle>None</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-          {subtitleStreams?.map((subtitle, idx: number) => (
-            <DropdownMenu.Item
-              key={idx.toString()}
-              onSelect={() => {
-                if (subtitle.Index !== undefined && subtitle.Index !== null)
-                  onChange(subtitle.Index);
-              }}
-            >
-              <DropdownMenu.ItemTitle>
-                {subtitle.DisplayTitle}
-              </DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
+      <PlatformOptionsMenu
+        groups={optionGroups}
+        trigger={trigger}
+        title={t("item_card.subtitles")}
+        open={open}
+        onOpenChange={setOpen}
+        onOptionSelect={handleOptionSelect}
+        expoUIConfig={{
+          hostStyle: { flex: 1 },
+        }}
+        bottomSheetConfig={{
+          enableDynamicSizing: true,
+          enablePanDownToClose: true,
+        }}
+      />
     </View>
   );
 };
