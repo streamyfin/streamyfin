@@ -8,7 +8,7 @@ import {
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import DisabledSetting from "@/components/settings/DisabledSetting";
-import { type OptionGroup, PlatformOptionsMenu } from "../PlatformOptionsMenu";
+import { type OptionGroup, PlatformDropdown } from "../PlatformDropdown";
 
 interface Props<T> {
   data: T[];
@@ -44,29 +44,6 @@ const Dropdown = <T,>({
     }
   }, [selected, onSelected]);
 
-  const optionGroups: OptionGroup[] = useMemo(
-    () => [
-      {
-        id: "dropdown-items",
-        title: label,
-        options: data.map((item) => {
-          const key = keyExtractor(item);
-          const isSelected =
-            selected?.some((s) => keyExtractor(s) === key) || false;
-
-          return {
-            id: key,
-            type: multiple ? "checkbox" : ("radio" as const),
-            groupId: "dropdown-items",
-            label: titleExtractor(item) || key,
-            ...(multiple ? { checked: isSelected } : { selected: isSelected }),
-          };
-        }),
-      },
-    ],
-    [data, selected, multiple, keyExtractor, titleExtractor, label],
-  );
-
   const handleOptionSelect = (optionId: string, value?: any) => {
     const selectedItem = data.find((item) => keyExtractor(item) === optionId);
     if (!selectedItem) return;
@@ -90,6 +67,45 @@ const Dropdown = <T,>({
       setOpen(false);
     }
   };
+
+  const optionGroups: OptionGroup[] = useMemo(
+    () => [
+      {
+        title: label,
+        options: data.map((item) => {
+          const key = keyExtractor(item);
+          const isSelected =
+            selected?.some((s) => keyExtractor(s) === key) || false;
+
+          if (multiple) {
+            return {
+              type: "toggle" as const,
+              label: titleExtractor(item) || key,
+              value: isSelected,
+              onToggle: () => handleOptionSelect(key, !isSelected),
+            };
+          }
+
+          return {
+            type: "radio" as const,
+            label: titleExtractor(item) || key,
+            value: key,
+            selected: isSelected,
+            onPress: () => handleOptionSelect(key),
+          };
+        }),
+      },
+    ],
+    [
+      data,
+      selected,
+      multiple,
+      keyExtractor,
+      titleExtractor,
+      label,
+      handleOptionSelect,
+    ],
+  );
 
   const getDisplayValue = () => {
     if (selected?.length !== undefined && selected.length > 0) {
@@ -120,7 +136,7 @@ const Dropdown = <T,>({
 
   return (
     <DisabledSetting disabled={disabled === true} showText={false} {...props}>
-      <PlatformOptionsMenu
+      <PlatformDropdown
         groups={optionGroups}
         trigger={trigger}
         title={label}

@@ -22,10 +22,7 @@ import DetailFacts from "@/components/jellyseerr/DetailFacts";
 import RequestModal from "@/components/jellyseerr/RequestModal";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
-import {
-  type OptionGroup,
-  PlatformOptionsMenu,
-} from "@/components/PlatformOptionsMenu";
+import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { JellyserrRatings } from "@/components/Ratings";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
@@ -66,7 +63,6 @@ const Page: React.FC = () => {
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
   const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
-  const [issueTypeMenuOpen, setIssueTypeMenuOpen] = useState(false);
   const advancedReqModalRef = useRef<BottomSheetModal>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -158,29 +154,23 @@ const Page: React.FC = () => {
     [details],
   );
 
-  const issueTypeOptionGroups: OptionGroup[] = useMemo(
+  const issueTypeOptionGroups = useMemo(
     () => [
       {
-        id: "issue-types",
         title: t("jellyseerr.types"),
         options: Object.entries(IssueTypeName)
           .reverse()
           .map(([key, value]) => ({
-            id: key,
             type: "radio" as const,
-            groupId: "issue-types",
             label: value,
+            value: key,
             selected: key === String(issueType),
+            onPress: () => setIssueType(key as unknown as IssueType),
           })),
       },
     ],
     [issueType, t],
   );
-
-  const handleIssueTypeSelect = (optionId: string) => {
-    setIssueType(optionId as unknown as IssueType);
-    setIssueTypeMenuOpen(false);
-  };
 
   useEffect(() => {
     if (details) {
@@ -390,37 +380,22 @@ const Page: React.FC = () => {
                 </Text>
               </View>
               <View className='flex flex-col space-y-2 items-start'>
-                <View className='flex flex-col'>
-                  <PlatformOptionsMenu
+                <View className='flex flex-col w-full'>
+                  <Text className='opacity-50 mb-1 text-xs'>
+                    {t("jellyseerr.issue_type")}
+                  </Text>
+                  <PlatformDropdown
                     groups={issueTypeOptionGroups}
                     trigger={
-                      <View className='flex flex-col'>
-                        <Text className='opacity-50 mb-1 text-xs'>
-                          {t("jellyseerr.issue_type")}
+                      <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                        <Text numberOfLines={1}>
+                          {issueType
+                            ? IssueTypeName[issueType]
+                            : t("jellyseerr.select_an_issue")}
                         </Text>
-                        <TouchableOpacity
-                          className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'
-                          onPress={() => setIssueTypeMenuOpen(true)}
-                        >
-                          <Text numberOfLines={1}>
-                            {issueType
-                              ? IssueTypeName[issueType]
-                              : t("jellyseerr.select_an_issue")}
-                          </Text>
-                        </TouchableOpacity>
                       </View>
                     }
                     title={t("jellyseerr.types")}
-                    open={issueTypeMenuOpen}
-                    onOpenChange={setIssueTypeMenuOpen}
-                    onOptionSelect={handleIssueTypeSelect}
-                    expoUIConfig={{
-                      hostStyle: { flex: 1 },
-                    }}
-                    bottomSheetConfig={{
-                      enableDynamicSizing: true,
-                      enablePanDownToClose: true,
-                    }}
                   />
                 </View>
 

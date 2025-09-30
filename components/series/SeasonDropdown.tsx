@@ -1,9 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { t } from "i18next";
-import { useEffect, useMemo, useState } from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
+import { useEffect, useMemo } from "react";
+import { Platform, View } from "react-native";
 import { Text } from "../common/Text";
-import { type OptionGroup, PlatformOptionsMenu } from "../PlatformOptionsMenu";
+import { PlatformDropdown } from "../PlatformDropdown";
 
 type Props = {
   item: BaseItemDto;
@@ -31,7 +31,6 @@ export const SeasonDropdown: React.FC<Props> = ({
   onSelect,
 }) => {
   const isTv = Platform.isTV;
-  const [open, setOpen] = useState(false);
 
   const keys = useMemo<SeasonKeys>(
     () =>
@@ -57,10 +56,9 @@ export const SeasonDropdown: React.FC<Props> = ({
   const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
     Number(a[keys.index]) - Number(b[keys.index]);
 
-  const optionGroups: OptionGroup[] = useMemo(
+  const optionGroups = useMemo(
     () => [
       {
-        id: "seasons",
         title: t("item_card.seasons"),
         options:
           seasons?.sort(sortByIndex).map((season: any) => {
@@ -69,27 +67,17 @@ export const SeasonDropdown: React.FC<Props> = ({
               season.Name ||
               `Season ${season.IndexNumber}`;
             return {
-              id: `${season.Id || season.IndexNumber}`,
               type: "radio" as const,
-              groupId: "seasons",
               label: title,
+              value: season.Id || season.IndexNumber,
               selected: Number(season[keys.index]) === Number(seasonIndex),
+              onPress: () => onSelect(season),
             };
           }) || [],
       },
     ],
-    [seasons, keys, seasonIndex],
+    [seasons, keys, seasonIndex, onSelect],
   );
-
-  const handleSeasonSelect = (optionId: string) => {
-    const selectedSeason = seasons?.find(
-      (season: any) => `${season.Id || season.IndexNumber}` === optionId,
-    );
-    if (selectedSeason) {
-      onSelect(selectedSeason);
-    }
-    setOpen(false);
-  };
 
   useEffect(() => {
     if (isTv) return;
@@ -132,36 +120,19 @@ export const SeasonDropdown: React.FC<Props> = ({
     keys,
   ]);
 
-  const trigger = (
-    <View className='flex flex-row'>
-      <TouchableOpacity
-        className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'
-        onPress={() => setOpen(true)}
-      >
-        <Text>
-          {t("item_card.season")} {seasonIndex}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   if (isTv) return null;
 
   return (
-    <PlatformOptionsMenu
+    <PlatformDropdown
       groups={optionGroups}
-      trigger={trigger}
+      trigger={
+        <View className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
+          <Text>
+            {t("item_card.season")} {seasonIndex}
+          </Text>
+        </View>
+      }
       title={t("item_card.seasons")}
-      open={open}
-      onOpenChange={setOpen}
-      onOptionSelect={handleSeasonSelect}
-      expoUIConfig={{
-        hostStyle: { flex: 1 },
-      }}
-      bottomSheetConfig={{
-        enableDynamicSizing: true,
-        enablePanDownToClose: true,
-      }}
     />
   );
 };

@@ -9,7 +9,7 @@ export default function CustomMenuLayout() {
       <Stack.Screen
         name='index'
         options={{
-          headerShown: true,
+          headerShown: Platform.OS !== "ios",
           headerLargeTitle: true,
           headerTitle: t("tabs.custom_links"),
           headerBlurEffect: "none",

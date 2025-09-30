@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "./common/Text";
-import { type OptionGroup, PlatformOptionsMenu } from "./PlatformOptionsMenu";
+import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
 export type Bitrate = {
   key: string;
@@ -125,7 +125,7 @@ export const BitrateSelector: React.FC<Props> = ({
         maxWidth: 200,
       }}
     >
-      <PlatformOptionsMenu
+      <PlatformDropdown
         groups={optionGroups}
         trigger={trigger}
         title={t("item_card.quality")}

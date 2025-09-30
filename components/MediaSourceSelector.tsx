@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "./common/Text";
-import { type OptionGroup, PlatformOptionsMenu } from "./PlatformOptionsMenu";
+import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
 interface Props extends React.ComponentProps<typeof View> {
   item: BaseItemDto;
@@ -93,7 +93,7 @@ export const MediaSourceSelector: React.FC<Props> = ({
         minWidth: 50,
       }}
     >
-      <PlatformOptionsMenu
+      <PlatformDropdown
         groups={optionGroups}
         trigger={trigger}
         title={t("item_card.video")}

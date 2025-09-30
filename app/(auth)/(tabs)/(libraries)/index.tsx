@@ -87,8 +87,8 @@ export default function index() {
         paddingTop: 17,
         paddingHorizontal: settings?.libraryOptions?.display === "row" ? 0 : 17,
         paddingBottom: 150,
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
+        paddingLeft: insets.left + 17,
+        paddingRight: insets.right + 17,
       }}
       data={libraries}
       renderItem={({ item }) => <LibraryItemCard library={item} />}

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "./common/Text";
-import { type OptionGroup, PlatformOptionsMenu } from "./PlatformOptionsMenu";
+import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
@@ -34,32 +34,25 @@ export const AudioTrackSelector: React.FC<Props> = ({
   const optionGroups: OptionGroup[] = useMemo(
     () => [
       {
-        id: "audio-streams",
         title: "Audio streams",
         options:
           audioStreams?.map((audio, idx) => ({
-            id: `${audio.Index || idx}`,
             type: "radio" as const,
-            groupId: "audio-streams",
             label: audio.DisplayTitle || `Audio Stream ${idx + 1}`,
+            value: audio.Index ?? idx,
             selected: audio.Index === selected,
+            onPress: () => {
+              if (audio.Index !== null && audio.Index !== undefined) {
+                onChange(audio.Index);
+              }
+            },
           })) || [],
       },
     ],
-    [audioStreams, selected],
+    [audioStreams, selected, onChange],
   );
 
-  const handleOptionSelect = (optionId: string) => {
-    const selectedStream = audioStreams?.find(
-      (audio, idx) => `${audio.Index || idx}` === optionId,
-    );
-    if (
-      selectedStream &&
-      selectedStream.Index !== null &&
-      selectedStream.Index !== undefined
-    ) {
-      onChange(selectedStream.Index);
-    }
+  const handleOptionSelect = () => {
     setOpen(false);
   };
 
@@ -84,7 +77,7 @@ export const AudioTrackSelector: React.FC<Props> = ({
         minWidth: 50,
       }}
     >
-      <PlatformOptionsMenu
+      <PlatformDropdown
         groups={optionGroups}
         trigger={trigger}
         title={t("item_card.audio")}

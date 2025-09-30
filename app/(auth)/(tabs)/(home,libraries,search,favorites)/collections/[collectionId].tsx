@@ -393,7 +393,6 @@ const page: React.FC = () => {
       data={flatData}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      estimatedItemSize={255}
       numColumns={
         orientation === ScreenOrientation.Orientation.PORTRAIT_UP ? 3 : 5
       }
