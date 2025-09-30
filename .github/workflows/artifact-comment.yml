@@ -112,13 +112,12 @@ jobs:
               per_page: 30
             });
 
-            // Filter for build workflows only, exclude cancelled runs, and sort by creation time (most recent first)
+            // Filter for build workflows only, include active runs even if marked as cancelled
             const buildRuns = workflowRuns.workflow_runs
               .filter(run => 
                 (run.name.includes('Build Apps') ||
                 run.name.includes('Android APK Build') || 
-                run.name.includes('iOS IPA Build')) &&
-                run.conclusion !== 'cancelled'  // Ignore cancelled runs
+                run.name.includes('iOS IPA Build'))
               )
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -133,16 +132,28 @@ jobs:
             let allArtifacts = [];
             let buildStatuses = {};
 
-            // Get the most relevant run for each workflow type (prioritize in_progress over completed)
+            // Get the most relevant run for each workflow type (prioritize active over cancelled)
             const findBestRun = (nameFilter) => {
               const matchingRuns = buildRuns.filter(run => run.name.includes(nameFilter));
+              
               // First try to find an in-progress run
               const inProgressRun = matchingRuns.find(run => run.status === 'in_progress');
               if (inProgressRun) return inProgressRun;
+              
               // Then try to find a queued run
               const queuedRun = matchingRuns.find(run => run.status === 'queued');
               if (queuedRun) return queuedRun;
-              // Finally fall back to most recent completed run
+              
+              // Check if the workflow is completed but has non-cancelled jobs
+              const completedRuns = matchingRuns.filter(run => run.status === 'completed');
+              for (const run of completedRuns) {
+                // We'll check individual jobs later to see if they're actually running
+                if (run.conclusion !== 'cancelled') {
+                  return run;
+                }
+              }
+              
+              // Finally fall back to most recent run (even if cancelled at workflow level)
               return matchingRuns[0]; // Already sorted by most recent first
             };
 
@@ -152,7 +163,7 @@ jobs:
 
             // For the consolidated workflow, get individual job statuses
             if (latestAppsRun) {
-              console.log(`Getting individual job statuses for run ${latestAppsRun.id}`);
+              console.log(`Getting individual job statuses for run ${latestAppsRun.id} (status: ${latestAppsRun.status}, conclusion: ${latestAppsRun.conclusion || 'none'})`);
               
               try {
                 // Get all jobs for this workflow run
@@ -166,6 +177,21 @@ jobs:
                 jobs.jobs.forEach(job => {
                   console.log(`- Job: ${job.name} | Status: ${job.status} | Conclusion: ${job.conclusion || 'none'}`);
                 });
+                
+                // Check if we have any actually running jobs (not cancelled)
+                const activeJobs = jobs.jobs.filter(job => 
+                  job.status === 'in_progress' || 
+                  job.status === 'queued' ||
+                  (job.status === 'completed' && job.conclusion !== 'cancelled')
+                );
+                
+                console.log(`Found ${activeJobs.length} active (non-cancelled) jobs out of ${jobs.jobs.length} total jobs`);
+                
+                // If no jobs are actually running, skip this workflow
+                if (activeJobs.length === 0 && latestAppsRun.conclusion === 'cancelled') {
+                  console.log('All jobs are cancelled, skipping this workflow run');
+                  return; // Exit early
+                }
                 
                 // Map job names to our build targets
                 const jobMappings = {
