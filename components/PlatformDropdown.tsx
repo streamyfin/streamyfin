@@ -1,6 +1,6 @@
 import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -171,7 +171,7 @@ const BottomSheetContent: React.FC<{
   );
 };
 
-export function PlatformDropdown({
+const PlatformDropdownComponent = ({
   trigger,
   title,
   groups,
@@ -180,7 +180,7 @@ export function PlatformDropdown({
   onOptionSelect,
   expoUIConfig,
   bottomSheetConfig,
-}: PlatformDropdownProps) {
+}: PlatformDropdownProps) => {
   const { showModal, hideModal } = useGlobalModal();
 
   const handlePress = () => {
@@ -208,8 +208,6 @@ export function PlatformDropdown({
   }, [open, hideModal]);
 
   if (Platform.OS === "ios") {
-    console.log("[PlatformDropdown iOS] Rendering with groups:", groups.length);
-
     return (
       <Host style={expoUIConfig?.hostStyle}>
         <ContextMenu>
@@ -228,10 +226,6 @@ export function PlatformDropdown({
                 (opt) => opt.type === "toggle",
               ) as ToggleOption[];
 
-              console.log(
-                `[PlatformDropdown iOS] Group ${groupIndex}: ${radioOptions.length} radio, ${toggleOptions.length} toggle`,
-              );
-
               const items = [];
 
               // Add Picker for radio options if present
@@ -246,10 +240,6 @@ export function PlatformDropdown({
                       (opt) => opt.selected,
                     )}
                     onOptionSelected={(event: any) => {
-                      console.log(
-                        "[PlatformDropdown iOS] Picker option selected:",
-                        event.nativeEvent.index,
-                      );
                       const index = event.nativeEvent.index;
                       const selectedOption = radioOptions[index];
                       selectedOption?.onPress();
@@ -268,10 +258,6 @@ export function PlatformDropdown({
                       option.value ? "checkmark.circle.fill" : "circle"
                     }
                     onPress={() => {
-                      console.log(
-                        "[PlatformDropdown iOS] Toggle pressed:",
-                        option.label,
-                      );
                       option.onToggle();
                       onOptionSelect?.(option.value);
                     }}
@@ -296,4 +282,18 @@ export function PlatformDropdown({
       {trigger || <Text className='text-white'>Open Menu</Text>}
     </TouchableOpacity>
   );
-}
+};
+
+// Memoize to prevent unnecessary re-renders when parent re-renders
+export const PlatformDropdown = React.memo(
+  PlatformDropdownComponent,
+  (prevProps, nextProps) => {
+    // Custom comparison - only re-render if these props actually change
+    return (
+      prevProps.title === nextProps.title &&
+      prevProps.open === nextProps.open &&
+      prevProps.groups === nextProps.groups && // Reference equality (works because we memoize groups in caller)
+      prevProps.trigger === nextProps.trigger // Reference equality
+    );
+  },
+);
