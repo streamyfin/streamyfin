@@ -88,6 +88,8 @@ export interface DownloadsDatabase {
   movies: Record<string, DownloadedItem>;
   /** A map of series IDs to their downloaded series data. */
   series: Record<string, DownloadedSeries>;
+  /** A map of IDs to downloaded items that are neither movies nor episodes */
+  other: Record<string, DownloadedItem>;
 }
 
 /**

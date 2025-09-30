@@ -37,7 +37,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
    */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
-      deleteFile(item.Id, "Movie");
+      deleteFile(item.Id, item.Type);
     }
   }, [deleteFile, item.Id]);
 
