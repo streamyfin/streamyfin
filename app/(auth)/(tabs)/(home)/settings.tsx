@@ -46,7 +46,7 @@ export default function settings() {
             logout();
           }}
         >
-          <Text className='text-red-600'>
+          <Text className='text-red-600 px-2'>
             {t("home.settings.log_out_button")}
           </Text>
         </TouchableOpacity>

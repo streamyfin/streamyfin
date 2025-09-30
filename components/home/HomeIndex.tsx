@@ -37,7 +37,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { AppleTVCarousel } from "../AppleTVCarousel";
+import { AppleTVCarousel } from "../apple-tv-carousel/AppleTVCarousel";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";

@@ -22,6 +22,11 @@ export default function IndexLayout() {
         options={{
           headerShown: !Platform.isTV,
           headerTitle: t("tabs.home"),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -43,48 +48,88 @@ export default function IndexLayout() {
         name='downloads/index'
         options={{
           title: t("home.downloads.downloads_title"),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='downloads/[seriesId]'
         options={{
           title: t("home.downloads.tvseries"),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='sessions/index'
         options={{
           title: t("home.sessions.title"),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings'
         options={{
           title: t("home.settings.settings_title"),
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/marlin-search/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/jellyseerr/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/hide-libraries/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/logs/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
@@ -92,6 +137,11 @@ export default function IndexLayout() {
         options={{
           headerShown: false,
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
           presentation: "modal",
         }}
       />
@@ -102,6 +152,11 @@ export default function IndexLayout() {
         name='collections/[collectionId]'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
           headerShown: true,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
