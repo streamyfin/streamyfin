@@ -35,7 +35,6 @@ export const AppLanguageSelector: React.FC<Props> = () => {
 
     return [
       {
-        title: t("home.settings.languages.title"),
         options,
       },
     ];

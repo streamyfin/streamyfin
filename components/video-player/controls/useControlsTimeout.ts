@@ -13,7 +13,7 @@ export const useControlsTimeout = ({
   isSliding,
   episodeView,
   onHideControls,
-  timeout = 4000,
+  timeout = 10000,
 }: UseControlsTimeoutProps) => {
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

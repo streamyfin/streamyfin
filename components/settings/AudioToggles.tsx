@@ -49,7 +49,6 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
 
     return [
       {
-        title: t("home.settings.audio.language"),
         options,
       },
     ];

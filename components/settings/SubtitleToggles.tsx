@@ -65,7 +65,6 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
 
     return [
       {
-        title: t("home.settings.subtitles.language"),
         options,
       },
     ];
@@ -82,7 +81,6 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
 
     return [
       {
-        title: t("home.settings.subtitles.subtitle_mode"),
         options,
       },
     ];

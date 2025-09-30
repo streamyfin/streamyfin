@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { Platform, TouchableOpacity } from "react-native";
-import { Text } from "@/components/common/Text";
-import { FilterSheet } from "@/components/filters/FilterSheet";
+import React, { useMemo } from "react";
+import { Platform, View } from "react-native";
+import {
+  type OptionGroup,
+  PlatformDropdown,
+} from "@/components/PlatformDropdown";
 import { useHaptic } from "@/hooks/useHaptic";
 
 export type AspectRatio = "default" | "16:9" | "4:3" | "1:1" | "21:9";
@@ -53,56 +55,51 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   disabled = false,
 }) => {
   const lightHapticFeedback = useHaptic("light");
-  const [open, setOpen] = useState(false);
-
-  // Hide on TV platforms
-  if (Platform.isTV) return null;
 
   const handleRatioSelect = (ratio: AspectRatio) => {
     onRatioChange(ratio);
     lightHapticFeedback();
   };
 
-  const currentOption = ASPECT_RATIO_OPTIONS.find(
-    (option) => option.id === currentRatio,
-  );
+  const optionGroups = useMemo<OptionGroup[]>(() => {
+    return [
+      {
+        options: ASPECT_RATIO_OPTIONS.map((option) => ({
+          type: "radio" as const,
+          label: option.label,
+          value: option.id,
+          selected: option.id === currentRatio,
+          onPress: () => handleRatioSelect(option.id),
+          disabled,
+        })),
+      },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRatio, disabled]);
 
-  return (
-    <>
-      <TouchableOpacity
-        disabled={disabled}
+  const trigger = useMemo(
+    () => (
+      <View
         className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
         style={{ opacity: disabled ? 0.5 : 1 }}
-        onPress={() => setOpen(true)}
       >
         <Ionicons name='crop-outline' size={24} color='white' />
-      </TouchableOpacity>
+      </View>
+    ),
+    [disabled],
+  );
 
-      <FilterSheet
-        open={open}
-        setOpen={setOpen}
-        title='Aspect Ratio'
-        data={ASPECT_RATIO_OPTIONS}
-        values={currentOption ? [currentOption] : []}
-        multiple={false}
-        searchFilter={(item, query) => {
-          const option = item as AspectRatioOption;
-          return (
-            option.label.toLowerCase().includes(query.toLowerCase()) ||
-            option.description.toLowerCase().includes(query.toLowerCase())
-          );
-        }}
-        renderItemLabel={(item) => {
-          const option = item as AspectRatioOption;
-          return <Text>{option.label}</Text>;
-        }}
-        set={(vals) => {
-          const chosen = vals[0] as AspectRatioOption | undefined;
-          if (chosen) {
-            handleRatioSelect(chosen.id);
-          }
-        }}
-      />
-    </>
+  // Hide on TV platforms
+  if (Platform.isTV) return null;
+
+  return (
+    <PlatformDropdown
+      title='Aspect Ratio'
+      groups={optionGroups}
+      trigger={trigger}
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

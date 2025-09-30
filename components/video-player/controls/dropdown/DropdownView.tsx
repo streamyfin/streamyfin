@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
-import { Platform, TouchableOpacity } from "react-native";
+import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import {
   type OptionGroup,
@@ -133,9 +133,9 @@ const DropdownView = () => {
   // Memoize the trigger to prevent re-renders
   const trigger = useMemo(
     () => (
-      <TouchableOpacity className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'>
+      <View className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'>
         <Ionicons name='ellipsis-horizontal' size={24} color={"white"} />
-      </TouchableOpacity>
+      </View>
     ),
     [],
   );

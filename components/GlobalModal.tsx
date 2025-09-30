@@ -2,7 +2,6 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useCallback } from "react";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
@@ -66,7 +65,7 @@ export const GlobalModal = () => {
       enablePanDownToClose={modalOptions.enablePanDownToClose}
       enableDismissOnClose
     >
-      <BottomSheetView>{modalState.content}</BottomSheetView>
+      {modalState.content}
     </BottomSheetModal>
   );
 };

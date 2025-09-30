@@ -92,7 +92,6 @@ export const OtherSettings: React.FC = () => {
   const orientationOptions = useMemo(
     () => [
       {
-        title: t("home.settings.other.orientation"),
         options: orientations.map((orientation) => ({
           type: "radio" as const,
           label: t(ScreenOrientationEnum[orientation]),
@@ -109,7 +108,6 @@ export const OtherSettings: React.FC = () => {
   const bitrateOptions = useMemo(
     () => [
       {
-        title: t("home.settings.other.default_quality"),
         options: BITRATES.map((bitrate) => ({
           type: "radio" as const,
           label: bitrate.key,
@@ -125,7 +123,6 @@ export const OtherSettings: React.FC = () => {
   const autoPlayEpisodeOptions = useMemo(
     () => [
       {
-        title: t("home.settings.other.max_auto_play_episode_count"),
         options: AUTOPLAY_EPISODES_COUNT(t).map((item) => ({
           type: "radio" as const,
           label: item.key,

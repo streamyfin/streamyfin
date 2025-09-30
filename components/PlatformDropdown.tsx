@@ -1,5 +1,6 @@
 import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect } from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -156,7 +157,7 @@ const BottomSheetContent: React.FC<{
   }));
 
   return (
-    <View
+    <BottomSheetScrollView
       className='px-4 pb-8 pt-2'
       style={{
         paddingLeft: Math.max(16, insets.left),
@@ -167,7 +168,7 @@ const BottomSheetContent: React.FC<{
       {wrappedGroups.map((group, index) => (
         <OptionGroupComponent key={index} group={group} />
       ))}
-    </View>
+    </BottomSheetScrollView>
   );
 };
 
@@ -228,25 +229,48 @@ const PlatformDropdownComponent = ({
 
               const items = [];
 
-              // Add Picker for radio options if present
+              // Add Picker for radio options ONLY if there's a group title
+              // Otherwise render as individual buttons
               if (radioOptions.length > 0) {
-                items.push(
-                  <Picker
-                    key={`picker-${groupIndex}`}
-                    label={group.title || "Options"}
-                    options={radioOptions.map((opt) => opt.label)}
-                    variant='menu'
-                    selectedIndex={radioOptions.findIndex(
-                      (opt) => opt.selected,
-                    )}
-                    onOptionSelected={(event: any) => {
-                      const index = event.nativeEvent.index;
-                      const selectedOption = radioOptions[index];
-                      selectedOption?.onPress();
-                      onOptionSelect?.(selectedOption?.value);
-                    }}
-                  />,
-                );
+                if (group.title) {
+                  // Use Picker for grouped options
+                  items.push(
+                    <Picker
+                      key={`picker-${groupIndex}`}
+                      label={group.title}
+                      options={radioOptions.map((opt) => opt.label)}
+                      variant='menu'
+                      selectedIndex={radioOptions.findIndex(
+                        (opt) => opt.selected,
+                      )}
+                      onOptionSelected={(event: any) => {
+                        const index = event.nativeEvent.index;
+                        const selectedOption = radioOptions[index];
+                        selectedOption?.onPress();
+                        onOptionSelect?.(selectedOption?.value);
+                      }}
+                    />,
+                  );
+                } else {
+                  // Render radio options as direct buttons
+                  radioOptions.forEach((option, optionIndex) => {
+                    items.push(
+                      <Button
+                        key={`radio-${groupIndex}-${optionIndex}`}
+                        systemImage={
+                          option.selected ? "checkmark.circle.fill" : "circle"
+                        }
+                        onPress={() => {
+                          option.onPress();
+                          onOptionSelect?.(option.value);
+                        }}
+                        disabled={option.disabled}
+                      >
+                        {option.label}
+                      </Button>,
+                    );
+                  });
+                }
               }
 
               // Add Buttons for toggle options
