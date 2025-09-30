@@ -29,18 +29,30 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            // Check if we're running from a fork
-            const isFromFork = context.payload.pull_request?.head?.repo?.full_name !== context.repo.owner + '/' + context.repo.repo;
-            const workflowFromFork = context.payload.workflow_run?.head_repository?.full_name !== context.repo.owner + '/' + context.repo.repo;
+            // Check if we're running from a fork (more precise detection)
+            const targetRepo = context.repo.owner + '/' + context.repo.repo;
+            const prHeadRepo = context.payload.pull_request?.head?.repo?.full_name;
+            const workflowHeadRepo = context.payload.workflow_run?.head_repository?.full_name;
+
+            // For debugging
+            console.log('🔍 Repository detection:');
+            console.log('- Target repository:', targetRepo);
+            console.log('- PR head repository:', prHeadRepo || 'N/A');
+            console.log('- Workflow head repository:', workflowHeadRepo || 'N/A');
+            console.log('- Event name:', context.eventName);
+
+            // Only skip if it's actually a different repository (fork)
+            const isFromFork = prHeadRepo && prHeadRepo !== targetRepo;
+            const workflowFromFork = workflowHeadRepo && workflowHeadRepo !== targetRepo;
 
             if (isFromFork || workflowFromFork) {
               console.log('🚫 Workflow running from fork - skipping comment creation to avoid permission errors');
-              console.log('Fork repository:', context.payload.pull_request?.head?.repo?.full_name || context.payload.workflow_run?.head_repository?.full_name);
-              console.log('Target repository:', context.repo.owner + '/' + context.repo.repo);
+              console.log('Fork repository:', prHeadRepo || workflowHeadRepo);
+              console.log('Target repository:', targetRepo);
               return;
             }
 
-            // Handle repository_dispatch, pull_request, and manual dispatch events
+            console.log('✅ Same repository - proceeding with comment creation');            // Handle repository_dispatch, pull_request, and manual dispatch events
             let pr;
             let targetCommitSha;
 
