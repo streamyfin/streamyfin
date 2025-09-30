@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 
 const _DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
@@ -10,7 +9,6 @@ import { Switch } from "react-native-gesture-handler";
 import Dropdown from "@/components/common/Dropdown";
 import { Stepper } from "@/components/inputs/Stepper";
 import { useSettings } from "@/utils/atoms/settings";
-import { storage } from "@/utils/mmkv";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -29,51 +27,14 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const cultures = media.cultures;
   const { t } = useTranslation();
 
-  // VLC subtitle styling states
-  const [textColor, setTextColor] = useState(
-    storage.getString("vlc.textColor") || "White",
-  );
-  const [backgroundColor, setBackgroundColor] = useState(
-    storage.getString("vlc.backgroundColor") || "Black",
-  );
-  const [outlineColor, setOutlineColor] = useState(
-    storage.getString("vlc.outlineColor") || "Black",
-  );
-  const [outlineThickness, setOutlineThickness] = useState(
-    storage.getString("vlc.outlineThickness") || "Normal",
-  );
-  const [backgroundOpacity, setBackgroundOpacity] = useState(
-    storage.getNumber("vlc.backgroundOpacity") || 128,
-  );
-  const [outlineOpacity, setOutlineOpacity] = useState(
-    storage.getNumber("vlc.outlineOpacity") || 255,
-  );
-  const [isBold, setIsBold] = useState(
-    storage.getBoolean("vlc.isBold") || false,
-  );
-
-  // VLC settings effects
-  useEffect(() => {
-    storage.set("vlc.textColor", textColor);
-  }, [textColor]);
-  useEffect(() => {
-    storage.set("vlc.backgroundColor", backgroundColor);
-  }, [backgroundColor]);
-  useEffect(() => {
-    storage.set("vlc.outlineColor", outlineColor);
-  }, [outlineColor]);
-  useEffect(() => {
-    storage.set("vlc.outlineThickness", outlineThickness);
-  }, [outlineThickness]);
-  useEffect(() => {
-    storage.set("vlc.backgroundOpacity", backgroundOpacity);
-  }, [backgroundOpacity]);
-  useEffect(() => {
-    storage.set("vlc.outlineOpacity", outlineOpacity);
-  }, [outlineOpacity]);
-  useEffect(() => {
-    storage.set("vlc.isBold", isBold);
-  }, [isBold]);
+  // Get VLC subtitle settings from the settings system
+  const textColor = pluginSettings?.vlcTextColor ?? "White";
+  const backgroundColor = pluginSettings?.vlcBackgroundColor ?? "Black";
+  const outlineColor = pluginSettings?.vlcOutlineColor ?? "Black";
+  const outlineThickness = pluginSettings?.vlcOutlineThickness ?? "Normal";
+  const backgroundOpacity = pluginSettings?.vlcBackgroundOpacity ?? 128;
+  const outlineOpacity = pluginSettings?.vlcOutlineOpacity ?? 255;
+  const isBold = pluginSettings?.vlcIsBold ?? false;
 
   if (isTv) return null;
   if (!settings) return null;
@@ -217,7 +178,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               </TouchableOpacity>
             }
             label={t("home.settings.subtitles.text_color")}
-            onSelected={setTextColor}
+            onSelected={(value) => updateSettings({ vlcTextColor: value })}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.background_color")}>
@@ -240,7 +201,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               </TouchableOpacity>
             }
             label={t("home.settings.subtitles.background_color")}
-            onSelected={setBackgroundColor}
+            onSelected={(value) =>
+              updateSettings({ vlcBackgroundColor: value })
+            }
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.outline_color")}>
@@ -263,7 +226,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               </TouchableOpacity>
             }
             label={t("home.settings.subtitles.outline_color")}
-            onSelected={setOutlineColor}
+            onSelected={(value) => updateSettings({ vlcOutlineColor: value })}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.outline_thickness")}>
@@ -286,7 +249,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               </TouchableOpacity>
             }
             label={t("home.settings.subtitles.outline_thickness")}
-            onSelected={setOutlineThickness}
+            onSelected={(value) =>
+              updateSettings({ vlcOutlineThickness: value })
+            }
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.background_opacity")}>
@@ -305,7 +270,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               </TouchableOpacity>
             }
             label={t("home.settings.subtitles.background_opacity")}
-            onSelected={setBackgroundOpacity}
+            onSelected={(value) =>
+              updateSettings({ vlcBackgroundOpacity: value })
+            }
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.outline_opacity")}>
@@ -324,11 +291,14 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               </TouchableOpacity>
             }
             label={t("home.settings.subtitles.outline_opacity")}
-            onSelected={setOutlineOpacity}
+            onSelected={(value) => updateSettings({ vlcOutlineOpacity: value })}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.bold_text")}>
-          <Switch value={isBold} onValueChange={setIsBold} />
+          <Switch
+            value={isBold}
+            onValueChange={(value) => updateSettings({ vlcIsBold: value })}
+          />
         </ListItem>
       </ListGroup>
     </View>

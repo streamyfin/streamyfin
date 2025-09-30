@@ -44,7 +44,6 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
-import { storage } from "@/utils/mmkv";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
@@ -566,18 +565,15 @@ export default function page() {
     initOptions.push(`--sub-track=${finalIndex}`);
 
     // Add VLC subtitle styling options from settings
-    const textColor = (storage.getString("vlc.textColor") ||
-      "White") as VLCColor;
-    const backgroundColor = (storage.getString("vlc.backgroundColor") ||
+    const textColor = (settings.vlcTextColor ?? "White") as VLCColor;
+    const backgroundColor = (settings.vlcBackgroundColor ??
       "Black") as VLCColor;
-    const outlineColor = (storage.getString("vlc.outlineColor") ||
-      "Black") as VLCColor;
-    const outlineThickness = (storage.getString("vlc.outlineThickness") ||
+    const outlineColor = (settings.vlcOutlineColor ?? "Black") as VLCColor;
+    const outlineThickness = (settings.vlcOutlineThickness ??
       "Normal") as OutlineThickness;
-    const backgroundOpacity = storage.getNumber("vlc.backgroundOpacity") || 128;
-    const outlineOpacity = storage.getNumber("vlc.outlineOpacity") || 255;
-    const isBold = storage.getBoolean("vlc.isBold") || false;
-
+    const backgroundOpacity = settings.vlcBackgroundOpacity ?? 128;
+    const outlineOpacity = settings.vlcOutlineOpacity ?? 255;
+    const isBold = settings.vlcIsBold ?? false;
     // Add subtitle styling options
     initOptions.push(`--freetype-color=${VLC_COLORS[textColor]}`);
     initOptions.push(`--freetype-background-opacity=${backgroundOpacity}`);
