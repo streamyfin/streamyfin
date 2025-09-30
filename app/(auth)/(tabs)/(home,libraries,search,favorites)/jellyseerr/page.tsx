@@ -139,7 +139,15 @@ const Page: React.FC = () => {
     }
 
     requestMedia(mediaTitle, body, refetch);
-  }, [details, result, requestMedia, hasAdvancedRequestPermission]);
+  }, [
+    details,
+    result,
+    requestMedia,
+    hasAdvancedRequestPermission,
+    mediaTitle,
+    refetch,
+    mediaType,
+  ]);
 
   const isAnime = useMemo(
     () =>
@@ -277,12 +285,16 @@ const Page: React.FC = () => {
                     <Button
                       className='flex-1 bg-purple-600/50 border-purple-400 ring-purple-400 text-purple-100'
                       onPress={() => {
-                        const url =
-                          mediaType === MediaType.MOVIE
-                            ? `/(auth)/(tabs)/(search)/items/page?id=${details?.mediaInfo.jellyfinMediaId}`
-                            : `/(auth)/(tabs)/(search)/series/${details?.mediaInfo.jellyfinMediaId}`;
-                        // @ts-expect-error
-                        router.push(url);
+                        router.push({
+                          pathname:
+                            mediaType === MediaType.MOVIE
+                              ? "/(auth)/(tabs)/(search)/items/page"
+                              : "/(auth)/(tabs)/(search)/series/[id]",
+                          params:
+                            mediaType === MediaType.MOVIE
+                              ? { id: details?.mediaInfo.jellyfinMediaId }
+                              : { id: details?.mediaInfo.jellyfinMediaId },
+                        });
                       }}
                       iconLeft={
                         <Ionicons name='play-outline' size={20} color='white' />
@@ -292,7 +304,7 @@ const Page: React.FC = () => {
                         borderStyle: "solid",
                       }}
                     >
-                      <Text className='text-sm'>Play</Text>
+                      <Text className='text-sm'>{t("common.play")}</Text>
                     </Button>
                   </View>
                 )

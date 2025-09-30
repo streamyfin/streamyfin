@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,6 @@ import {
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { Text } from "../common/Text";
@@ -100,8 +99,6 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     },
     enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
-
-  const queryClient = useQueryClient();
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);

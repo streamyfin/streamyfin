@@ -41,10 +41,10 @@ export const OtherSettings: React.FC = () => {
 
       if (settings?.autoDownload === true && !registered) {
         registerBackgroundFetchAsync();
-        toast.success("Background downloads enabled");
+        toast.success(t("home.settings.toasts.background_downloads_enabled"));
       } else if (settings?.autoDownload === false && registered) {
         unregisterBackgroundFetchAsync();
-        toast.info("Background downloads disabled");
+        toast.info(t("home.settings.toasts.background_downloads_disabled"));
       } else if (settings?.autoDownload === true && registered) {
         // Don't to anything
       } else if (settings?.autoDownload === false && !registered) {

@@ -254,7 +254,9 @@
         "system": "System"
       },
       "toasts": {
-        "error_deleting_files": "Error Deleting Files"
+        "error_deleting_files": "Error Deleting Files",
+        "background_downloads_enabled": "Background downloads enabled",
+        "background_downloads_disabled": "Background downloads disabled"
       }
     },
     "sessions": {
@@ -297,10 +299,22 @@
         "download_completed": "Download Completed",
         "download_failed_for_item": "Download failed for {{item}} - {{error}}",
         "download_completed_for_item": "Download Completed for {{item}}",
+        "download_started_for_item": "Download Started for {{item}}",
+        "failed_to_start_download": "Failed to start download",
         "all_files_folders_and_jobs_deleted_successfully": "All files, folders, and jobs deleted successfully",
+        "failed_to_clean_cache_directory": "Failed to clean cache directory",
+        "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
         "go_to_downloads": "Go to Downloads"
       }
     }
+  },
+  "common": {
+    "select": "Select",
+    "no_trailer_available": "No trailer available",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitle": "Subtitle",
+    "play": "Play"
   },
   "search": {
     "search": "Search...",
@@ -315,7 +329,28 @@
     "collections": "Collections",
     "actors": "Actors",
     "request_movies": "Request Movies",
-    "request_series": "Request Series"
+    "request_series": "Request Series",
+    "recently_added": "Recently Added",
+    "recent_requests": "Recent Requests",
+    "plex_watchlist": "Plex Watchlist",
+    "trending": "Trending",
+    "popular_movies": "Popular Movies",
+    "movie_genres": "Movie Genres",
+    "upcoming_movies": "Upcoming Movies",
+    "studios": "Studios",
+    "popular_tv": "Popular TV",
+    "tv_genres": "TV Genres",
+    "upcoming_tv": "Upcoming TV",
+    "networks": "Networks",
+    "tmdb_movie_keyword": "TMDB Movie Keyword",
+    "tmdb_movie_genre": "TMDB Movie Genre",
+    "tmdb_tv_keyword": "TMDB TV Keyword",
+    "tmdb_tv_genre": "TMDB TV Genre",
+    "tmdb_search": "TMDB Search",
+    "tmdb_studio": "TMDB Studio",
+    "tmdb_network": "TMDB Network",
+    "tmdb_movie_streaming_services": "TMDB Movie Streaming Services",
+    "tmdb_tv_streaming_services": "TMDB TV Streaming Services"
   },
   "library": {
     "no_results": "No Results",
