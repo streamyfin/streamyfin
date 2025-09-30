@@ -38,9 +38,13 @@ import {
 } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
 
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
+// TEMPORARILY DISABLED
+// To re-enable: Move package from "disabledDependencies" to "dependencies" in package.json,
+// run "bun install", then uncomment the require below and remove the null assignment
+// const BackGroundDownloader = !Platform.isTV
+//   ? require("@kesha-antonov/react-native-background-downloader")
+//   : null;
+const BackGroundDownloader = null;
 
 // Cap progress at 99% to avoid showing 100% before the download is actually complete
 const MAX_PROGRESS_BEFORE_COMPLETION = 99;
@@ -179,6 +183,9 @@ function useDownloadProvider() {
 
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
+    if (!BackGroundDownloader) {
+      return;
+    }
     const tasks = await BackGroundDownloader.checkForExistingDownloads();
     if (!tasks) {
       return;
@@ -462,7 +469,8 @@ function useDownloadProvider() {
    */
   const startDownload = useCallback(
     async (process: JobStatus) => {
-      if (!process?.item.Id || !authHeader) throw new Error("No item id");
+      if (!process?.item.Id || !authHeader || !BackGroundDownloader)
+        throw new Error("No item id or downloader unavailable");
 
       // Enhanced cleanup for existing tasks to prevent duplicates
       try {
@@ -738,6 +746,10 @@ function useDownloadProvider() {
 
   const removeProcess = useCallback(
     async (id: string) => {
+      if (!BackGroundDownloader) {
+        setProcesses((prev) => prev.filter((process) => process.id !== id));
+        return;
+      }
       const tasks = await BackGroundDownloader.checkForExistingDownloads();
       const task = tasks?.find((t: any) => t.id === id);
       if (task) {
@@ -1012,7 +1024,8 @@ function useDownloadProvider() {
   const pauseDownload = useCallback(
     async (id: string) => {
       const process = processes.find((p) => p.id === id);
-      if (!process) throw new Error("No active download");
+      if (!process || !BackGroundDownloader)
+        throw new Error("No active download or downloader unavailable");
 
       // TODO: iOS pause functionality temporarily disabled due to background task issues
       // Remove this check to re-enable iOS pause functionality in the future
@@ -1114,7 +1127,8 @@ function useDownloadProvider() {
   const resumeDownload = useCallback(
     async (id: string) => {
       const process = processes.find((p) => p.id === id);
-      if (!process) throw new Error("No active download");
+      if (!process || !BackGroundDownloader)
+        throw new Error("No active download or downloader unavailable");
 
       // TODO: iOS resume functionality temporarily disabled due to background task issues
       // Remove this check to re-enable iOS resume functionality in the future
