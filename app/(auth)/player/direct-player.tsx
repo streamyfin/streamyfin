@@ -22,6 +22,12 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
+import {
+  OUTLINE_THICKNESS,
+  OutlineThickness,
+  VLC_COLORS,
+  VLCColor,
+} from "@/constants/SubtitleConstants";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
@@ -98,7 +104,7 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  useSettings();
+  const { settings } = useSettings();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -557,8 +563,34 @@ export default function page() {
       ? allSubs.indexOf(chosenSubtitleTrack)
       : [...textSubs].reverse().indexOf(chosenSubtitleTrack);
     initOptions.push(`--sub-track=${finalIndex}`);
-  }
 
+    // Add VLC subtitle styling options from settings
+    const textColor = (settings.vlcTextColor ?? "White") as VLCColor;
+    const backgroundColor = (settings.vlcBackgroundColor ??
+      "Black") as VLCColor;
+    const outlineColor = (settings.vlcOutlineColor ?? "Black") as VLCColor;
+    const outlineThickness = (settings.vlcOutlineThickness ??
+      "Normal") as OutlineThickness;
+    const backgroundOpacity = settings.vlcBackgroundOpacity ?? 128;
+    const outlineOpacity = settings.vlcOutlineOpacity ?? 255;
+    const isBold = settings.vlcIsBold ?? false;
+    // Add subtitle styling options
+    initOptions.push(`--freetype-color=${VLC_COLORS[textColor]}`);
+    initOptions.push(`--freetype-background-opacity=${backgroundOpacity}`);
+    initOptions.push(
+      `--freetype-background-color=${VLC_COLORS[backgroundColor]}`,
+    );
+    initOptions.push(`--freetype-outline-opacity=${outlineOpacity}`);
+    initOptions.push(`--freetype-outline-color=${VLC_COLORS[outlineColor]}`);
+    initOptions.push(
+      `--freetype-outline-thickness=${OUTLINE_THICKNESS[outlineThickness]}`,
+    );
+    initOptions.push(`--sub-text-scale=${settings.subtitleSize}`);
+    initOptions.push("--sub-margin=40");
+    if (isBold) {
+      initOptions.push("--freetype-bold");
+    }
+  }
   if (notTranscoding && chosenAudioTrack) {
     initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
   }
