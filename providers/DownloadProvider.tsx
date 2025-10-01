@@ -183,6 +183,9 @@ function useDownloadProvider() {
     if (!tasks) {
       return;
     }
+
+    console.log(`[UPDATE_PROGRESS] Checking ${tasks.length} active tasks`);
+
     // check if processes are missing
     setProcesses((processes) => {
       const missingProcesses = tasks
@@ -272,6 +275,52 @@ function useDownloadProvider() {
               progress = MAX_PROGRESS_BEFORE_COMPLETION;
             }
             const speed = calculateSpeed(p, task.bytesDownloaded);
+
+            console.log(
+              `[UPDATE_PROGRESS] Task ${p.item.Name}: ${progress.toFixed(1)}% (${task.bytesDownloaded}/${estimatedSize} bytes), state: ${task.state}`,
+            );
+
+            // WORKAROUND: Check if download is actually complete by checking file existence
+            // This handles cases where the .done() callback doesn't fire (unknown content length, simulator issues, etc.)
+            if (progress >= 90 && task.state === "DONE") {
+              console.log(
+                `[UPDATE_PROGRESS] Task appears complete (state=DONE), checking file...`,
+              );
+              const filename = generateFilename(p.item);
+              const videoFile = new File(Paths.document, `${filename}.mp4`);
+
+              console.log(
+                `[UPDATE_PROGRESS] Looking for file at: ${videoFile.uri}`,
+              );
+              console.log(
+                `[UPDATE_PROGRESS] Paths.document.uri: ${Paths.document.uri}`,
+              );
+              console.log(`[UPDATE_PROGRESS] File exists: ${videoFile.exists}`);
+              console.log(`[UPDATE_PROGRESS] File size: ${videoFile.size}`);
+
+              if (videoFile.exists && videoFile.size > 0) {
+                console.log(
+                  `[UPDATE_PROGRESS] File exists with size ${videoFile.size}, marking as complete!`,
+                );
+                // Mark as complete by setting status - this will trigger removal from processes
+                return {
+                  ...p,
+                  progress: 100,
+                  speed: 0,
+                  bytesDownloaded: videoFile.size,
+                  lastProgressUpdateTime: new Date(),
+                  estimatedTotalSizeBytes: videoFile.size,
+                  lastSessionBytes: videoFile.size,
+                  lastSessionUpdateTime: new Date(),
+                  status: "completed" as const,
+                };
+              } else {
+                console.warn(
+                  `[UPDATE_PROGRESS] File not found or empty! Task state=${task.state}, progress=${progress}%`,
+                );
+              }
+            }
+
             return {
               ...p,
               progress,
@@ -298,6 +347,7 @@ function useDownloadProvider() {
 
     // Check movies first
     if (db.movies[id]) {
+      console.log(`[DB] Found movie with ID: ${id}`);
       return db.movies[id];
     }
 
@@ -306,12 +356,14 @@ function useDownloadProvider() {
       for (const season of Object.values(series.seasons)) {
         for (const episode of Object.values(season.episodes)) {
           if (episode.item.Id === id) {
+            console.log(`[DB] Found episode with ID: ${id}`);
             return episode;
           }
         }
       }
     }
 
+    console.log(`[DB] No item found with ID: ${id}`);
     return undefined;
   };
 
@@ -349,28 +401,48 @@ function useDownloadProvider() {
   const getDownloadsDatabase = (): DownloadsDatabase => {
     const file = storage.getString(DOWNLOADS_DATABASE_KEY);
     if (file) {
-      return JSON.parse(file) as DownloadsDatabase;
+      const db = JSON.parse(file) as DownloadsDatabase;
+      return db;
     }
     return { movies: {}, series: {} };
   };
 
-  const getDownloadedItems = () => {
+  const getDownloadedItems = useCallback(() => {
     const db = getDownloadsDatabase();
-    const allItems = [
-      ...Object.values(db.movies),
-      ...Object.values(db.series).flatMap((series) =>
-        Object.values(series.seasons).flatMap((season) =>
-          Object.values(season.episodes),
-        ),
+    const movies = Object.values(db.movies);
+    const episodes = Object.values(db.series).flatMap((series) =>
+      Object.values(series.seasons).flatMap((season) =>
+        Object.values(season.episodes),
       ),
-    ];
-    return allItems;
-  };
+    );
+    const allItems = [...movies, ...episodes];
 
-  const downloadedItems = getDownloadedItems();
+    // Only log when there are items to avoid spam
+    if (allItems.length > 0) {
+      console.log(
+        `[DB] Retrieved ${movies.length} movies and ${episodes.length} episodes from database`,
+      );
+      console.log(`[DB] Total downloaded items: ${allItems.length}`);
+
+      // Log details of each item for debugging
+      allItems.forEach((item, index) => {
+        console.log(
+          `[DB] Item ${index + 1}: ${item.item.Name} - Path: ${item.videoFilePath}, Size: ${item.videoFileSize}`,
+        );
+      });
+    }
+
+    return allItems;
+  }, []);
 
   const saveDownloadsDatabase = (db: DownloadsDatabase) => {
+    const movieCount = Object.keys(db.movies).length;
+    const seriesCount = Object.keys(db.series).length;
+    console.log(
+      `[DB] Saving database: ${movieCount} movies, ${seriesCount} series`,
+    );
     storage.set(DOWNLOADS_DATABASE_KEY, JSON.stringify(db));
+    console.log(`[DB] Database saved successfully to MMKV`);
   };
 
   /** Generates a filename for a given item */
@@ -539,22 +611,35 @@ function useDownloadProvider() {
         progress: process.progress || 0, // Preserve existing progress for resume
       });
 
-      BackGroundDownloader?.setConfig({
-        isLogsEnabled: false,
+      if (!BackGroundDownloader) {
+        throw new Error("Background downloader not available");
+      }
+
+      BackGroundDownloader.setConfig({
+        isLogsEnabled: true, // Enable logs to debug
         progressInterval: 500,
         headers: {
           Authorization: authHeader,
         },
       });
       const filename = generateFilename(process.item);
-      const videoFilePath = new File(Paths.document, `${filename}.mp4`).uri;
-      BackGroundDownloader?.download({
+      const videoFile = new File(Paths.document, `${filename}.mp4`);
+      const videoFilePath = videoFile.uri;
+      console.log(`[DOWNLOAD] Starting download for ${filename}`);
+      console.log(`[DOWNLOAD] Destination path: ${videoFilePath}`);
+
+      const downloadTask = BackGroundDownloader.download({
         id: process.id,
         url: process.inputUrl,
         destination: videoFilePath,
         metadata: process,
-      })
+      });
+
+      console.log(`[DOWNLOAD] Download task created:`, typeof downloadTask);
+
+      downloadTask
         .begin(() => {
+          console.log(`[DOWNLOAD] Download began for ${process.item.Name}`);
           updateProcess(process.id, {
             status: "downloading",
             progress: process.progress || 0,
@@ -566,6 +651,9 @@ function useDownloadProvider() {
         })
         .progress(
           throttle((data) => {
+            console.log(
+              `[DOWNLOAD] Progress: ${data.bytesDownloaded}/${data.bytesTotal} bytes`,
+            );
             updateProcess(process.id, (currentProcess) => {
               // If this is a resumed download, add the paused bytes to current session bytes
               const resumedBytes = currentProcess.pausedBytes || 0;
@@ -598,27 +686,236 @@ function useDownloadProvider() {
           }, 500),
         )
         .done(async () => {
-          const trickPlayData = await downloadTrickplayImages(process.item);
-          const videoFile = new File(videoFilePath);
-          if (!videoFile.exists) {
-            throw new Error("Downloaded file does not exist");
+          try {
+            console.log(
+              `[DOWNLOAD] .done() callback triggered for ${process.item.Name}`,
+            );
+            console.log(
+              `[DOWNLOAD] Download completed for ${process.item.Name}`,
+            );
+            console.log(`[DOWNLOAD] Verifying file at: ${videoFilePath}`);
+
+            // Re-create the File object using the same method as when we created it
+            const filename = generateFilename(process.item);
+            const videoFile = new File(Paths.document, `${filename}.mp4`);
+
+            console.log(`[DOWNLOAD] File exists: ${videoFile.exists}`);
+            console.log(`[DOWNLOAD] File URI: ${videoFile.uri}`);
+            console.log(
+              `[DOWNLOAD] File path matches: ${videoFile.uri === videoFilePath}`,
+            );
+
+            if (!videoFile.exists) {
+              console.error(
+                `[DOWNLOAD] File does not exist at ${videoFile.uri}`,
+              );
+              throw new Error("Downloaded file does not exist");
+            }
+            const videoFileSize = videoFile.size;
+            console.log(`[DOWNLOAD] File size: ${videoFileSize} bytes`);
+
+            const trickPlayData = await downloadTrickplayImages(process.item);
+            console.log(
+              `[DOWNLOAD] Trickplay data: ${trickPlayData ? "downloaded" : "not available"}`,
+            );
+
+            const db = getDownloadsDatabase();
+            const { item, mediaSource } = process;
+            // Only download external subtitles for non-transcoded streams.
+            if (!mediaSource.TranscodingUrl) {
+              await downloadAndLinkSubtitles(mediaSource, item);
+            }
+            const { introSegments, creditSegments } =
+              await fetchAndParseSegments(item.Id!, api!);
+            const downloadedItem: DownloadedItem = {
+              item,
+              mediaSource,
+              videoFilePath,
+              videoFileSize,
+              videoFileName: `${filename}.mp4`, // Store filename separately for easy reconstruction
+              trickPlayData,
+              userData: {
+                audioStreamIndex: 0,
+                subtitleStreamIndex: 0,
+              },
+              introSegments,
+              creditSegments,
+            };
+
+            console.log(`[DOWNLOAD] Saving to database:`);
+            console.log(`[DOWNLOAD] - Item: ${item.Name} (${item.Type})`);
+            console.log(`[DOWNLOAD] - Video path: ${videoFilePath}`);
+            console.log(`[DOWNLOAD] - Video size: ${videoFileSize} bytes`);
+            console.log(
+              `[DOWNLOAD] - Trickplay path: ${trickPlayData?.path || "none"}`,
+            );
+
+            if (item.Type === "Movie" && item.Id) {
+              db.movies[item.Id] = downloadedItem;
+              console.log(`[DOWNLOAD] Saved movie with ID: ${item.Id}`);
+            } else if (
+              item.Type === "Episode" &&
+              item.SeriesId &&
+              item.ParentIndexNumber !== undefined &&
+              item.ParentIndexNumber !== null &&
+              item.IndexNumber !== undefined &&
+              item.IndexNumber !== null
+            ) {
+              if (!db.series[item.SeriesId]) {
+                const seriesInfo: Partial<BaseItemDto> = {
+                  Id: item.SeriesId,
+                  Name: item.SeriesName,
+                  Type: "Series",
+                };
+                db.series[item.SeriesId] = {
+                  seriesInfo: seriesInfo as BaseItemDto,
+                  seasons: {},
+                };
+              }
+
+              const seasonNumber = item.ParentIndexNumber;
+              if (!db.series[item.SeriesId].seasons[seasonNumber]) {
+                db.series[item.SeriesId].seasons[seasonNumber] = {
+                  episodes: {},
+                };
+              }
+
+              const episodeNumber = item.IndexNumber;
+              db.series[item.SeriesId].seasons[seasonNumber].episodes[
+                episodeNumber
+              ] = downloadedItem;
+              console.log(
+                `[DOWNLOAD] Saved episode: S${seasonNumber}E${episodeNumber} of series ${item.SeriesId}`,
+              );
+            }
+
+            console.log(`[DOWNLOAD] Database saved successfully`);
+            await saveDownloadsDatabase(db);
+
+            // Send native notification for successful download
+            const successNotification = getNotificationContent(
+              process.item,
+              true,
+            );
+            await sendDownloadNotification(
+              successNotification.title,
+              successNotification.body,
+              {
+                itemId: process.item.Id,
+                itemName: process.item.Name,
+                type: "download_completed",
+              },
+            );
+
+            toast.success(
+              t("home.downloads.toasts.download_completed_for_item", {
+                item: process.item.Name,
+              }),
+            );
+
+            console.log(
+              `[DOWNLOAD] Removing process ${process.id} from active downloads`,
+            );
+            removeProcess(process.id);
+          } catch (error) {
+            console.error(`[DOWNLOAD] Error in .done() callback:`, error);
+            throw error;
           }
+        })
+        .error(async (error: any) => {
+          console.error(
+            `[DOWNLOAD] .error() callback triggered for ${process.item.Name}`,
+          );
+          console.error("[DOWNLOAD] Download error:", error);
+          console.error(
+            "[DOWNLOAD] Error details:",
+            JSON.stringify(error, null, 2),
+          );
+
+          // Send native notification for failed download
+          const failureNotification = getNotificationContent(
+            process.item,
+            false,
+          );
+          await sendDownloadNotification(
+            failureNotification.title,
+            failureNotification.body,
+            {
+              itemId: process.item.Id,
+              itemName: process.item.Name,
+              type: "download_failed",
+              error: error?.message || "Unknown error",
+            },
+          );
+
+          toast.error(
+            t("home.downloads.toasts.download_failed_for_item", {
+              item: process.item.Name,
+            }),
+          );
+
+          console.log(
+            `[DOWNLOAD] Removing process ${process.id} from active downloads (error)`,
+          );
+          removeProcess(process.id);
+        });
+    },
+    [authHeader, sendDownloadNotification, getNotificationContent],
+  );
+
+  const manageDownloadQueue = useCallback(() => {
+    // Handle completed downloads (workaround for when .done() callback doesn't fire)
+    const completedDownloads = processes.filter(
+      (p) => p.status === "completed",
+    );
+    for (const completedProcess of completedDownloads) {
+      console.log(
+        `[QUEUE] Processing completed download: ${completedProcess.item.Name}`,
+      );
+
+      // Save to database
+      (async () => {
+        try {
+          const filename = generateFilename(completedProcess.item);
+          const videoFile = new File(Paths.document, `${filename}.mp4`);
+          const videoFilePath = videoFile.uri;
           const videoFileSize = videoFile.size;
+
+          console.log(`[QUEUE] Saving completed download to database`);
+          console.log(`[QUEUE] Video file path: ${videoFilePath}`);
+          console.log(`[QUEUE] Video file size: ${videoFileSize}`);
+          console.log(`[QUEUE] Video file exists: ${videoFile.exists}`);
+
+          if (!videoFile.exists) {
+            console.error(
+              `[QUEUE] Cannot save - video file does not exist at ${videoFilePath}`,
+            );
+            removeProcess(completedProcess.id);
+            return;
+          }
+
+          const trickPlayData = await downloadTrickplayImages(
+            completedProcess.item,
+          );
           const db = getDownloadsDatabase();
-          const { item, mediaSource } = process;
+          const { item, mediaSource } = completedProcess;
+
           // Only download external subtitles for non-transcoded streams.
           if (!mediaSource.TranscodingUrl) {
             await downloadAndLinkSubtitles(mediaSource, item);
           }
+
           const { introSegments, creditSegments } = await fetchAndParseSegments(
             item.Id!,
             api!,
           );
+
           const downloadedItem: DownloadedItem = {
             item,
             mediaSource,
             videoFilePath,
             videoFileSize,
+            videoFileName: `${filename}.mp4`,
             trickPlayData,
             userData: {
               audioStreamIndex: 0,
@@ -662,61 +959,26 @@ function useDownloadProvider() {
               episodeNumber
             ] = downloadedItem;
           }
-          await saveDownloadsDatabase(db);
 
-          // Send native notification for successful download
-          const successNotification = getNotificationContent(
-            process.item,
-            true,
-          );
-          await sendDownloadNotification(
-            successNotification.title,
-            successNotification.body,
-            {
-              itemId: process.item.Id,
-              itemName: process.item.Name,
-              type: "download_completed",
-            },
-          );
+          await saveDownloadsDatabase(db);
 
           toast.success(
             t("home.downloads.toasts.download_completed_for_item", {
-              item: process.item.Name,
+              item: item.Name,
             }),
           );
-          removeProcess(process.id);
-        })
-        .error(async (error: any) => {
-          console.error("Download error:", error);
 
-          // Send native notification for failed download
-          const failureNotification = getNotificationContent(
-            process.item,
-            false,
+          console.log(
+            `[QUEUE] Removing completed process: ${completedProcess.id}`,
           );
-          await sendDownloadNotification(
-            failureNotification.title,
-            failureNotification.body,
-            {
-              itemId: process.item.Id,
-              itemName: process.item.Name,
-              type: "download_failed",
-              error: error?.message || "Unknown error",
-            },
-          );
+          removeProcess(completedProcess.id);
+        } catch (error) {
+          console.error(`[QUEUE] Error processing completed download:`, error);
+          removeProcess(completedProcess.id);
+        }
+      })();
+    }
 
-          toast.error(
-            t("home.downloads.toasts.download_failed_for_item", {
-              item: process.item.Name,
-            }),
-          );
-          removeProcess(process.id);
-        });
-    },
-    [authHeader, sendDownloadNotification, getNotificationContent],
-  );
-
-  const manageDownloadQueue = useCallback(() => {
     const activeDownloads = processes.filter(
       (p) => p.status === "downloading",
     ).length;
@@ -737,7 +999,7 @@ function useDownloadProvider() {
         });
       }
     }
-  }, [processes, settings?.remuxConcurrentLimit, startDownload]);
+  }, [processes, settings?.remuxConcurrentLimit, startDownload, api, t]);
 
   const removeProcess = useCallback(
     async (id: string) => {
@@ -903,9 +1165,44 @@ function useDownloadProvider() {
 
     if (downloadedItem?.videoFilePath) {
       try {
-        new File(downloadedItem.videoFilePath).delete();
-      } catch (_err) {
-        // File might not exist, ignore
+        console.log(
+          `[DELETE] Attempting to delete video file: ${downloadedItem.videoFilePath}`,
+        );
+
+        // Properly reconstruct File object using Paths.document and filename
+        let videoFile: File;
+        if (downloadedItem.videoFileName) {
+          // New approach: use stored filename with Paths.document
+          videoFile = new File(Paths.document, downloadedItem.videoFileName);
+          console.log(
+            `[DELETE] Reconstructed file from stored filename: ${downloadedItem.videoFileName}`,
+          );
+        } else {
+          // Fallback for old downloads: extract filename from URI
+          const filename = downloadedItem.videoFilePath.split("/").pop();
+          if (!filename) {
+            throw new Error("Could not extract filename from path");
+          }
+          videoFile = new File(Paths.document, filename);
+          console.log(
+            `[DELETE] Reconstructed file from URI (legacy): ${filename}`,
+          );
+        }
+
+        console.log(`[DELETE] File URI: ${videoFile.uri}`);
+        console.log(
+          `[DELETE] File exists before deletion: ${videoFile.exists}`,
+        );
+
+        if (videoFile.exists) {
+          videoFile.delete();
+          console.log(`[DELETE] Video file deleted successfully`);
+        } else {
+          console.warn(`[DELETE] File does not exist, skipping deletion`);
+        }
+      } catch (err) {
+        console.error(`[DELETE] Failed to delete video file:`, err);
+        // File might not exist, continue anyway
       }
     }
 
@@ -913,11 +1210,26 @@ function useDownloadProvider() {
       for (const stream of downloadedItem.mediaSource.MediaStreams) {
         if (
           stream.Type === "Subtitle" &&
-          stream.DeliveryMethod === "External"
+          stream.DeliveryMethod === "External" &&
+          stream.DeliveryUrl
         ) {
           try {
-            new File(stream.DeliveryUrl!).delete();
-          } catch (_err) {
+            console.log(
+              `[DELETE] Deleting subtitle file: ${stream.DeliveryUrl}`,
+            );
+            // Extract filename from the subtitle URI
+            const subtitleFilename = stream.DeliveryUrl.split("/").pop();
+            if (subtitleFilename) {
+              const subtitleFile = new File(Paths.document, subtitleFilename);
+              if (subtitleFile.exists) {
+                subtitleFile.delete();
+                console.log(
+                  `[DELETE] Subtitle file deleted: ${subtitleFilename}`,
+                );
+              }
+            }
+          } catch (err) {
+            console.error(`[DELETE] Failed to delete subtitle:`, err);
             // File might not exist, ignore
           }
         }
@@ -926,8 +1238,24 @@ function useDownloadProvider() {
 
     if (downloadedItem?.trickPlayData?.path) {
       try {
-        new Directory(downloadedItem.trickPlayData.path).delete();
-      } catch (_err) {
+        console.log(
+          `[DELETE] Deleting trickplay directory: ${downloadedItem.trickPlayData.path}`,
+        );
+        // Extract directory name from URI
+        const trickplayDirName = downloadedItem.trickPlayData.path
+          .split("/")
+          .pop();
+        if (trickplayDirName) {
+          const trickplayDir = new Directory(Paths.document, trickplayDirName);
+          if (trickplayDir.exists) {
+            trickplayDir.delete();
+            console.log(
+              `[DELETE] Trickplay directory deleted: ${trickplayDirName}`,
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`[DELETE] Failed to delete trickplay directory:`, err);
         // Directory might not exist, ignore
       }
     }
@@ -957,6 +1285,7 @@ function useDownloadProvider() {
 
   /** Deletes all files of a given type. */
   const deleteFileByType = async (type: BaseItemDto["Type"]) => {
+    const downloadedItems = getDownloadedItems();
     const itemsToDelete = downloadedItems?.filter(
       (file) => file.item.Type === type,
     );
@@ -1003,14 +1332,37 @@ function useDownloadProvider() {
     const remaining = Paths.availableDiskSpace;
 
     let appSize = 0;
-    const documentDir = Paths.document;
-    const contents = documentDir.list();
-    for (const item of contents) {
-      if (item instanceof File) {
-        appSize += item.size;
-      } else if (item instanceof Directory) {
-        appSize += item.size || 0;
+    try {
+      // Paths.document is a Directory object in the new API
+      const documentDir = Paths.document;
+      console.log(`[STORAGE] Listing contents of: ${documentDir.uri}`);
+      console.log(`[STORAGE] Document dir exists: ${documentDir.exists}`);
+
+      if (!documentDir.exists) {
+        console.warn(`[STORAGE] Document directory does not exist`);
+        return { total, remaining, appSize: 0 };
       }
+
+      const contents = documentDir.list();
+      console.log(
+        `[STORAGE] Found ${contents.length} items in document directory`,
+      );
+
+      for (const item of contents) {
+        if (item instanceof File) {
+          console.log(`[STORAGE] File: ${item.name}, size: ${item.size} bytes`);
+          appSize += item.size;
+        } else if (item instanceof Directory) {
+          const dirSize = item.size || 0;
+          console.log(
+            `[STORAGE] Directory: ${item.name}, size: ${dirSize} bytes`,
+          );
+          appSize += dirSize;
+        }
+      }
+      console.log(`[STORAGE] Total app size: ${appSize} bytes`);
+    } catch (error) {
+      console.error(`[STORAGE] Error calculating app size:`, error);
     }
     return { total, remaining, appSize: appSize };
   };

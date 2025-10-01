@@ -90,6 +90,11 @@ export const HomeIndex = () => {
     prevIsConnected.current = isConnected;
   }, [isConnected, invalidateCache]);
 
+  const hasDownloads = useMemo(() => {
+    if (Platform.isTV) return false;
+    return getDownloadedItems().length > 0;
+  }, [getDownloadedItems]);
+
   useEffect(() => {
     if (Platform.isTV) {
       navigation.setOptions({
@@ -97,7 +102,6 @@ export const HomeIndex = () => {
       });
       return;
     }
-    const hasDownloads = getDownloadedItems().length > 0;
     navigation.setOptions({
       headerLeft: () => (
         <TouchableOpacity
@@ -114,7 +118,7 @@ export const HomeIndex = () => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, router]);
+  }, [navigation, router, hasDownloads]);
 
   useEffect(() => {
     cleanCacheDirectory().catch((_e) =>
@@ -460,12 +464,7 @@ export const HomeIndex = () => {
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      <AppleTVCarousel
-        initialIndex={0}
-        onItemChange={(index) => {
-          console.log(`Now viewing carousel item ${index}`);
-        }}
-      />
+      <AppleTVCarousel initialIndex={0} />
       <View
         style={{
           paddingLeft: insets.left,

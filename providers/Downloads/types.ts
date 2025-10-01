@@ -46,6 +46,8 @@ export interface DownloadedItem {
   videoFilePath: string;
   /** The size of the video file in bytes. */
   videoFileSize: number;
+  /** The video filename (for easy File object reconstruction). Optional for backwards compatibility. */
+  videoFileName?: string;
   /** The local file path of the downloaded trickplay images. */
   trickPlayData?: TrickPlayData;
   /** The intro segments for the item. */

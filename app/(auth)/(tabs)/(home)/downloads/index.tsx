@@ -62,7 +62,10 @@ export default function page() {
     );
   };
 
-  const downloadedFiles = getDownloadedItems();
+  const downloadedFiles = useMemo(
+    () => getDownloadedItems(),
+    [getDownloadedItems],
+  );
 
   const movies = useMemo(() => {
     try {

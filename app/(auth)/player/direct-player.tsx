@@ -69,7 +69,10 @@ export default function page() {
     : require("react-native-volume-manager");
 
   const downloadUtils = useDownload();
-  const downloadedFiles = downloadUtils.getDownloadedItems();
+  const downloadedFiles = useMemo(
+    () => downloadUtils.getDownloadedItems(),
+    [downloadUtils.getDownloadedItems],
+  );
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 

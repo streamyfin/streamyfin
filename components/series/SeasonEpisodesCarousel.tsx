@@ -29,7 +29,10 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { getDownloadedItems } = useDownload();
-  const downloadedFiles = getDownloadedItems();
+  const downloadedFiles = useMemo(
+    () => getDownloadedItems(),
+    [getDownloadedItems],
+  );
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
