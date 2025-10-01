@@ -33,29 +33,27 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   const optionGroups: OptionGroup[] = useMemo(() => {
     const options = [
       {
-        id: "none",
         type: "radio" as const,
-        groupId: "subtitle-streams",
         label: t("item_card.none"),
+        value: -1,
         selected: selected === -1,
+        onPress: () => onChange(-1),
       },
       ...(subtitleStreams?.map((subtitle, idx) => ({
-        id: `${subtitle.Index || idx}`,
         type: "radio" as const,
-        groupId: "subtitle-streams",
         label: subtitle.DisplayTitle || `Subtitle Stream ${idx + 1}`,
+        value: subtitle.Index,
         selected: subtitle.Index === selected,
+        onPress: () => onChange(subtitle.Index ?? -1),
       })) || []),
     ];
 
     return [
       {
-        id: "subtitle-streams",
-        title: "Subtitle tracks",
         options,
       },
     ];
-  }, [subtitleStreams, selected, t]);
+  }, [subtitleStreams, selected, t, onChange]);
 
   const handleOptionSelect = (optionId: string) => {
     if (optionId === "none") {
@@ -96,27 +94,19 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   if (Platform.isTV || subtitleStreams?.length === 0) return null;
 
   return (
-    <View
-      className='flex col shrink justify-start place-self-start items-start'
-      style={{
-        minWidth: 60,
-        maxWidth: 200,
+    <PlatformDropdown
+      groups={optionGroups}
+      trigger={trigger}
+      title={t("item_card.subtitles")}
+      open={open}
+      onOpenChange={setOpen}
+      onOptionSelect={handleOptionSelect}
+      expoUIConfig={{
+        hostStyle: { flex: 1 },
       }}
-    >
-      <PlatformDropdown
-        groups={optionGroups}
-        trigger={trigger}
-        title={t("item_card.subtitles")}
-        open={open}
-        onOpenChange={setOpen}
-        onOptionSelect={handleOptionSelect}
-        expoUIConfig={{
-          hostStyle: { flex: 1 },
-        }}
-        bottomSheetConfig={{
-          enablePanDownToClose: true,
-        }}
-      />
-    </View>
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

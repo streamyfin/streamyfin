@@ -79,18 +79,16 @@ export const BitrateSelector: React.FC<Props> = ({
   const optionGroups: OptionGroup[] = useMemo(
     () => [
       {
-        id: "bitrates",
-        title: "Bitrates",
         options: sorted.map((bitrate) => ({
-          id: bitrate.key,
           type: "radio" as const,
-          groupId: "bitrates",
           label: bitrate.key,
+          value: bitrate,
           selected: bitrate.value === selected?.value,
+          onPress: () => onChange(bitrate),
         })),
       },
     ],
-    [sorted, selected],
+    [sorted, selected, onChange],
   );
 
   const handleOptionSelect = (optionId: string) => {
@@ -118,27 +116,19 @@ export const BitrateSelector: React.FC<Props> = ({
   if (isTv) return null;
 
   return (
-    <View
-      className='flex shrink'
-      style={{
-        minWidth: 60,
-        maxWidth: 200,
+    <PlatformDropdown
+      groups={optionGroups}
+      trigger={trigger}
+      title={t("item_card.quality")}
+      open={open}
+      onOpenChange={setOpen}
+      onOptionSelect={handleOptionSelect}
+      expoUIConfig={{
+        hostStyle: { flex: 1 },
       }}
-    >
-      <PlatformDropdown
-        groups={optionGroups}
-        trigger={trigger}
-        title={t("item_card.quality")}
-        open={open}
-        onOpenChange={setOpen}
-        onOptionSelect={handleOptionSelect}
-        expoUIConfig={{
-          hostStyle: { flex: 1 },
-        }}
-        bottomSheetConfig={{
-          enablePanDownToClose: true,
-        }}
-      />
-    </View>
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

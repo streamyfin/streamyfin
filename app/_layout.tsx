@@ -28,13 +28,9 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
-// TEMPORARILY DISABLED
-// To re-enable: Move package from "disabledDependencies" to "dependencies" in package.json,
-// run "bun install", then uncomment the require below and remove the null assignment
-// const BackGroundDownloader = !Platform.isTV
-//   ? require("@kesha-antonov/react-native-background-downloader")
-//   : null;
-const BackGroundDownloader = null;
+const BackGroundDownloader = !Platform.isTV
+  ? require("@kesha-antonov/react-native-background-downloader")
+  : null;
 
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -42,7 +38,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as BackgroundTask from "expo-background-task";
 
 import * as Device from "expo-device";
-import * as FileSystem from "expo-file-system";
+import { Paths } from "expo-file-system";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
@@ -149,7 +145,7 @@ if (!Platform.isTV) {
 
     const token = getTokenFromStorage();
     const deviceId = getOrSetDeviceId();
-    const baseDirectory = FileSystem.documentDirectory;
+    const baseDirectory = Paths.document.uri;
 
     if (!token || !deviceId || !baseDirectory)
       return BackgroundTask.BackgroundTaskResult.Failed;
@@ -426,10 +422,10 @@ function Layout() {
           <LogProvider>
             <WebSocketProvider>
               <DownloadProvider>
-                <BottomSheetModalProvider>
-                  <GlobalModalProvider>
-                    <SystemBars style='light' hidden={false} />
+                <GlobalModalProvider>
+                  <BottomSheetModalProvider>
                     <ThemeProvider value={DarkTheme}>
+                      <SystemBars style='light' hidden={false} />
                       <Stack initialRouteName='(auth)/(tabs)'>
                         <Stack.Screen
                           name='(auth)/(tabs)'
@@ -471,10 +467,10 @@ function Layout() {
                         }}
                         closeButton
                       />
+                      <GlobalModal />
                     </ThemeProvider>
-                    <GlobalModal />
-                  </GlobalModalProvider>
-                </BottomSheetModalProvider>
+                  </BottomSheetModalProvider>
+                </GlobalModalProvider>
               </DownloadProvider>
             </WebSocketProvider>
           </LogProvider>

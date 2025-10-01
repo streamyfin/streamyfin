@@ -3,12 +3,12 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import * as Application from "expo-application";
-import * as FileSystem from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
 import { throttle } from "lodash";
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
@@ -341,7 +341,10 @@ function useDownloadProvider() {
     return api?.accessToken;
   }, [api]);
 
-  const APP_CACHE_DOWNLOAD_DIRECTORY = `${FileSystem.cacheDirectory}${Application.applicationId}/Downloads/`;
+  const APP_CACHE_DOWNLOAD_DIRECTORY = new Directory(
+    Paths.cache,
+    `${Application.applicationId}/Downloads/`,
+  );
 
   const getDownloadsDatabase = (): DownloadsDatabase => {
     const file = storage.getString(DOWNLOADS_DATABASE_KEY);
@@ -406,20 +409,17 @@ function useDownloadProvider() {
     }
 
     const filename = generateFilename(item);
-    const trickplayDir = `${FileSystem.documentDirectory}${filename}_trickplay/`;
-    await FileSystem.makeDirectoryAsync(trickplayDir, { intermediates: true });
+    const trickplayDir = new Directory(Paths.document, `${filename}_trickplay`);
+    trickplayDir.create({ intermediates: true });
     let totalSize = 0;
 
     for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
       const url = generateTrickplayUrl(item, index);
       if (!url) continue;
-      const destination = `${trickplayDir}${index}.jpg`;
+      const destination = new File(trickplayDir, `${index}.jpg`);
       try {
-        await FileSystem.downloadAsync(url, destination);
-        const fileInfo = await FileSystem.getInfoAsync(destination);
-        if (fileInfo.exists) {
-          totalSize += fileInfo.size;
-        }
+        await File.downloadFileAsync(url, destination);
+        totalSize += destination.size;
       } catch (e) {
         console.error(
           `Failed to download trickplay image ${index} for item ${item.Id}`,
@@ -428,7 +428,7 @@ function useDownloadProvider() {
       }
     }
 
-    return { path: trickplayDir, size: totalSize };
+    return { path: trickplayDir.uri, size: totalSize };
   };
 
   /**
@@ -448,9 +448,12 @@ function useDownloadProvider() {
         externalSubtitles.map(async (subtitle) => {
           const url = api.basePath + subtitle.DeliveryUrl;
           const filename = generateFilename(item);
-          const destination = `${FileSystem.documentDirectory}${filename}_subtitle_${subtitle.Index}`;
-          await FileSystem.downloadAsync(url, destination);
-          subtitle.DeliveryUrl = destination;
+          const destination = new File(
+            Paths.document,
+            `${filename}_subtitle_${subtitle.Index}`,
+          );
+          await File.downloadFileAsync(url, destination);
+          subtitle.DeliveryUrl = destination.uri;
         }),
       );
     }
@@ -544,7 +547,7 @@ function useDownloadProvider() {
         },
       });
       const filename = generateFilename(process.item);
-      const videoFilePath = `${FileSystem.documentDirectory}${filename}.mp4`;
+      const videoFilePath = new File(Paths.document, `${filename}.mp4`).uri;
       BackGroundDownloader?.download({
         id: process.id,
         url: process.inputUrl,
@@ -596,11 +599,11 @@ function useDownloadProvider() {
         )
         .done(async () => {
           const trickPlayData = await downloadTrickplayImages(process.item);
-          const videoFileInfo = await FileSystem.getInfoAsync(videoFilePath);
-          if (!videoFileInfo.exists) {
+          const videoFile = new File(videoFilePath);
+          if (!videoFile.exists) {
             throw new Error("Downloaded file does not exist");
           }
-          const videoFileSize = videoFileInfo.size;
+          const videoFileSize = videoFile.size;
           const db = getDownloadsDatabase();
           const { item, mediaSource } = process;
           // Only download external subtitles for non-transcoded streams.
@@ -787,11 +790,12 @@ function useDownloadProvider() {
    */
   const cleanCacheDirectory = async (): Promise<void> => {
     try {
-      await FileSystem.deleteAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {
-        idempotent: true,
-      });
-      await FileSystem.makeDirectoryAsync(APP_CACHE_DOWNLOAD_DIRECTORY, {
+      if (APP_CACHE_DOWNLOAD_DIRECTORY.exists) {
+        APP_CACHE_DOWNLOAD_DIRECTORY.delete();
+      }
+      APP_CACHE_DOWNLOAD_DIRECTORY.create({
         intermediates: true,
+        idempotent: true,
       });
     } catch (_error) {
       toast.error(t("home.downloads.toasts.failed_to_clean_cache_directory"));
@@ -898,9 +902,11 @@ function useDownloadProvider() {
     }
 
     if (downloadedItem?.videoFilePath) {
-      await FileSystem.deleteAsync(downloadedItem.videoFilePath, {
-        idempotent: true,
-      });
+      try {
+        new File(downloadedItem.videoFilePath).delete();
+      } catch (_err) {
+        // File might not exist, ignore
+      }
     }
 
     if (downloadedItem?.mediaSource?.MediaStreams) {
@@ -909,17 +915,21 @@ function useDownloadProvider() {
           stream.Type === "Subtitle" &&
           stream.DeliveryMethod === "External"
         ) {
-          await FileSystem.deleteAsync(stream.DeliveryUrl!, {
-            idempotent: true,
-          });
+          try {
+            new File(stream.DeliveryUrl!).delete();
+          } catch (_err) {
+            // File might not exist, ignore
+          }
         }
       }
     }
 
     if (downloadedItem?.trickPlayData?.path) {
-      await FileSystem.deleteAsync(downloadedItem.trickPlayData.path, {
-        idempotent: true,
-      });
+      try {
+        new Directory(downloadedItem.trickPlayData.path).delete();
+      } catch (_err) {
+        // Directory might not exist, ignore
+      }
     }
 
     await saveDownloadsDatabase(db);
@@ -989,21 +999,17 @@ function useDownloadProvider() {
    * @returns The size of the app and the remaining space on the device.
    */
   const appSizeUsage = async () => {
-    const [total, remaining] = await Promise.all([
-      FileSystem.getTotalDiskCapacityAsync(),
-      FileSystem.getFreeDiskStorageAsync(),
-    ]);
+    const total = Paths.totalDiskSpace;
+    const remaining = Paths.availableDiskSpace;
 
     let appSize = 0;
-    const downloadedFiles = await FileSystem.readDirectoryAsync(
-      `${FileSystem.documentDirectory!}`,
-    );
-    for (const file of downloadedFiles) {
-      const fileInfo = await FileSystem.getInfoAsync(
-        `${FileSystem.documentDirectory!}${file}`,
-      );
-      if (fileInfo.exists) {
-        appSize += fileInfo.size;
+    const documentDir = Paths.document;
+    const contents = documentDir.list();
+    for (const item of contents) {
+      if (item instanceof File) {
+        appSize += item.size;
+      } else if (item instanceof Directory) {
+        appSize += item.size || 0;
       }
     }
     return { total, remaining, appSize: appSize };
@@ -1208,7 +1214,7 @@ function useDownloadProvider() {
     deleteFileByType,
     getDownloadedItemSize,
     getDownloadedItemById,
-    APP_CACHE_DOWNLOAD_DIRECTORY,
+    APP_CACHE_DOWNLOAD_DIRECTORY: APP_CACHE_DOWNLOAD_DIRECTORY.uri,
     cleanCacheDirectory,
     updateDownloadedItem,
     appSizeUsage,

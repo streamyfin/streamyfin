@@ -4,7 +4,6 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtomValue } from "jotai";
-import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -82,10 +81,10 @@ const Login: React.FC = () => {
             onPress={() => {
               removeServer();
             }}
-            className='flex flex-row items-center'
+            className='flex flex-row items-center pr-2 pl-1'
           >
             <Ionicons name='chevron-back' size={18} color={Colors.primary} />
-            <Text className='ml-2 text-purple-600'>
+            <Text className=' ml-1 text-purple-600'>
               {t("login.change_server")}
             </Text>
           </TouchableOpacity>

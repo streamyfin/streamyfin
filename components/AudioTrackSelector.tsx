@@ -34,7 +34,6 @@ export const AudioTrackSelector: React.FC<Props> = ({
   const optionGroups: OptionGroup[] = useMemo(
     () => [
       {
-        title: "Audio streams",
         options:
           audioStreams?.map((audio, idx) => ({
             type: "radio" as const,
@@ -71,26 +70,19 @@ export const AudioTrackSelector: React.FC<Props> = ({
   if (isTv) return null;
 
   return (
-    <View
-      className='flex shrink'
-      style={{
-        minWidth: 50,
+    <PlatformDropdown
+      groups={optionGroups}
+      trigger={trigger}
+      title={t("item_card.audio")}
+      open={open}
+      onOpenChange={setOpen}
+      onOptionSelect={handleOptionSelect}
+      expoUIConfig={{
+        hostStyle: { flex: 1 },
       }}
-    >
-      <PlatformDropdown
-        groups={optionGroups}
-        trigger={trigger}
-        title={t("item_card.audio")}
-        open={open}
-        onOpenChange={setOpen}
-        onOptionSelect={handleOptionSelect}
-        expoUIConfig={{
-          hostStyle: { flex: 1 },
-        }}
-        bottomSheetConfig={{
-          enablePanDownToClose: true,
-        }}
-      />
-    </View>
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

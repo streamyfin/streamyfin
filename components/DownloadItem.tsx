@@ -359,16 +359,18 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                   })}
               </Text>
             </View>
-            <View className='flex flex-col space-y-2 w-full items-start'>
-              <BitrateSelector
-                inverted
-                onChange={(val) =>
-                  setSelectedOptions(
-                    (prev) => prev && { ...prev, bitrate: val },
-                  )
-                }
-                selected={selectedOptions?.bitrate}
-              />
+            <View className='flex flex-col space-y-2 w-full'>
+              <View className='items-start'>
+                <BitrateSelector
+                  inverted
+                  onChange={(val) =>
+                    setSelectedOptions(
+                      (prev) => prev && { ...prev, bitrate: val },
+                    )
+                  }
+                  selected={selectedOptions?.bitrate}
+                />
+              </View>
               {itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
                   <Text>{t("item_card.download.download_unwatched_only")}</Text>
@@ -380,21 +382,23 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
               {itemsNotDownloaded.length === 1 && (
                 <View>
-                  <MediaSourceSelector
-                    item={items[0]}
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            mediaSource: val,
-                          },
-                      )
-                    }
-                    selected={selectedOptions?.mediaSource}
-                  />
+                  <View className='items-start'>
+                    <MediaSourceSelector
+                      item={items[0]}
+                      onChange={(val) =>
+                        setSelectedOptions(
+                          (prev) =>
+                            prev && {
+                              ...prev,
+                              mediaSource: val,
+                            },
+                        )
+                      }
+                      selected={selectedOptions?.mediaSource}
+                    />
+                  </View>
                   {selectedOptions?.mediaSource && (
-                    <View className='flex flex-col space-y-2'>
+                    <View className='flex flex-col space-y-2 items-start'>
                       <AudioTrackSelector
                         source={selectedOptions.mediaSource}
                         onChange={(val) => {
@@ -427,11 +431,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
             </View>
 
-            <Button
-              className='mt-auto'
-              onPress={acceptDownloadOptions}
-              color='purple'
-            >
+            <Button onPress={acceptDownloadOptions} color='purple'>
               {t("item_card.download.download_button")}
             </Button>
           </View>

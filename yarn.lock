@@ -1523,9 +1523,9 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@kesha-antonov/react-native-background-downloader@github:fredrikburmester/react-native-background-downloader#f3bf69ad124b6ec6adbc30c7f688935d0376fc56":
+"@kesha-antonov/react-native-background-downloader@github:fredrikburmester/react-native-background-downloader#dce095fd2a5f257ab3e2e49252fbe206ad994202":
   version "3.2.6"
-  resolved "https://codeload.github.com/fredrikburmester/react-native-background-downloader/tar.gz/f3bf69ad124b6ec6adbc30c7f688935d0376fc56"
+  resolved "https://codeload.github.com/fredrikburmester/react-native-background-downloader/tar.gz/dce095fd2a5f257ab3e2e49252fbe206ad994202"
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"

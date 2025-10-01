@@ -47,19 +47,17 @@ export const MediaSourceSelector: React.FC<Props> = ({
   const optionGroups: OptionGroup[] = useMemo(
     () => [
       {
-        id: "media-sources",
-        title: "Media sources",
         options:
-          item.MediaSources?.map((source, idx) => ({
-            id: `${source.Id || idx}`,
+          item.MediaSources?.map((source) => ({
             type: "radio" as const,
-            groupId: "media-sources",
             label: getDisplayName(source),
+            value: source,
             selected: source.Id === selected?.Id,
+            onPress: () => onChange(source),
           })) || [],
       },
     ],
-    [item.MediaSources, selected, getDisplayName],
+    [item.MediaSources, selected, getDisplayName, onChange],
   );
 
   const handleOptionSelect = (optionId: string) => {
@@ -87,26 +85,19 @@ export const MediaSourceSelector: React.FC<Props> = ({
   if (isTv) return null;
 
   return (
-    <View
-      className='flex shrink'
-      style={{
-        minWidth: 50,
+    <PlatformDropdown
+      groups={optionGroups}
+      trigger={trigger}
+      title={t("item_card.video")}
+      open={open}
+      onOpenChange={setOpen}
+      onOptionSelect={handleOptionSelect}
+      expoUIConfig={{
+        hostStyle: { flex: 1 },
       }}
-    >
-      <PlatformDropdown
-        groups={optionGroups}
-        trigger={trigger}
-        title={t("item_card.video")}
-        open={open}
-        onOpenChange={setOpen}
-        onOptionSelect={handleOptionSelect}
-        expoUIConfig={{
-          hostStyle: { flex: 1 },
-        }}
-        bottomSheetConfig={{
-          enablePanDownToClose: true,
-        }}
-      />
-    </View>
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

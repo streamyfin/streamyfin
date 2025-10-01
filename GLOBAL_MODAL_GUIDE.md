@@ -176,6 +176,45 @@ The modal uses these default styles (can be overridden via options):
 4. **Avoid nesting** - Don't show modals from within modals
 5. **Consider UX** - Only use for important, contextual information that requires user attention
 
+## Using with PlatformDropdown
+
+When using `PlatformDropdown` with option groups, avoid setting a `title` on the `OptionGroup` if you're already passing a `title` prop to `PlatformDropdown`. This prevents nested menu behavior on iOS where users have to click through an extra layer.
+
+```tsx
+// Good - No title in option group (title is on PlatformDropdown)
+const optionGroups: OptionGroup[] = [
+  {
+    options: items.map((item) => ({
+      type: "radio",
+      label: item.name,
+      value: item,
+      selected: item.id === selected?.id,
+      onPress: () => onChange(item),
+    })),
+  },
+];
+
+<PlatformDropdown
+  groups={optionGroups}
+  title="Select Item"  // Title here
+  // ...
+/>
+
+// Bad - Causes nested menu on iOS
+const optionGroups: OptionGroup[] = [
+  {
+    title: "Items",  // This creates a nested Picker on iOS
+    options: items.map((item) => ({
+      type: "radio",
+      label: item.name,
+      value: item,
+      selected: item.id === selected?.id,
+      onPress: () => onChange(item),
+    })),
+  },
+];
+```
+
 ## Troubleshooting
 
 ### Modal doesn't appear
