@@ -460,12 +460,7 @@ export const HomeIndex = () => {
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      <AppleTVCarousel
-        initialIndex={0}
-        onItemChange={(index) => {
-          console.log(`Now viewing carousel item ${index}`);
-        }}
-      />
+      <AppleTVCarousel initialIndex={0} />
       <View
         style={{
           paddingLeft: insets.left,
