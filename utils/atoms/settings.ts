@@ -168,6 +168,13 @@ export type Settings = {
   defaultPlayer: VideoPlayer;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
+  vlcTextColor?: string;
+  vlcBackgroundColor?: string;
+  vlcOutlineColor?: string;
+  vlcOutlineThickness?: string;
+  vlcBackgroundOpacity?: number;
+  vlcOutlineOpacity?: number;
+  vlcIsBold?: boolean;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -229,6 +236,13 @@ export const defaultValues: Settings = {
   defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
+  vlcTextColor: undefined,
+  vlcBackgroundColor: undefined,
+  vlcOutlineColor: undefined,
+  vlcOutlineThickness: undefined,
+  vlcBackgroundOpacity: undefined,
+  vlcOutlineOpacity: undefined,
+  vlcIsBold: undefined,
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,

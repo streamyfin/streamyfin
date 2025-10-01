@@ -111,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Subtitles",
-        "subtitle_language": "Subtitle Language",
+        "subtitle_hint": "Configure how subtitles look and behave.",
+        "subtitle_language": "Subtitle language",
         "subtitle_mode": "Subtitle Mode",
         "set_subtitle_track": "Set Subtitle Track From Previous Item",
         "subtitle_size": "Subtitle Size",
-        "subtitle_hint": "Configure Subtitle Preference.",
         "none": "None",
         "language": "Language",
         "loading": "Loading",
@@ -124,7 +124,38 @@
           "Smart": "Smart",
           "Always": "Always",
           "None": "None",
-          "OnlyForced": "Only Forced"
+          "OnlyForced": "OnlyForced"
+        },
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "outline_color": "Outline Color",
+        "outline_thickness": "Outline Thickness",
+        "background_opacity": "Background Opacity",
+        "outline_opacity": "Outline Opacity",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Black",
+          "Gray": "Gray",
+          "Silver": "Silver",
+          "White": "White",
+          "Maroon": "Maroon",
+          "Red": "Red",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Yellow",
+          "Olive": "Olive",
+          "Green": "Green",
+          "Teal": "Teal",
+          "Lime": "Lime",
+          "Purple": "Purple",
+          "Navy": "Navy",
+          "Blue": "Blue",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "None",
+          "Thin": "Thin",
+          "Normal": "Normal",
+          "Thick": "Thick"
         }
       },
       "other": {
