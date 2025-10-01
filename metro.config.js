@@ -1,7 +1,5 @@
 // Learn more https://docs.expo.io/guides/customizing-metro
 const { getDefaultConfig } = require("expo/metro-config");
-const path = require("node:path");
-const fs = require("node:fs");
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname); // eslint-disable-line no-undef
@@ -23,27 +21,6 @@ if (process.env?.EXPO_TV === "1") {
     ...originalSourceExts,
   ];
   config.resolver.sourceExts = tvSourceExts;
-}
-
-// Support for symlinked packages (yarn link) - only if the directory exists
-const linkedPackagePath = path.resolve(
-  __dirname,
-  "../react-native-background-downloader",
-);
-
-if (fs.existsSync(linkedPackagePath)) {
-  console.log("Detected symlinked package, configuring Metro to support it");
-
-  // Watch the linked package directory
-  config.watchFolders = [linkedPackagePath];
-
-  // Add the parent directory to node module paths
-  config.resolver.nodeModulesPaths = [path.resolve(__dirname, "node_modules")];
-
-  // Map the package to the local directory
-  config.resolver.extraNodeModules = {
-    "@kesha-antonov/react-native-background-downloader": linkedPackagePath,
-  };
 }
 
 // config.resolver.unstable_enablePackageExports = false;
