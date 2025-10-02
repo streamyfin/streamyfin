@@ -468,6 +468,7 @@ const TranscodingStreamView = ({
 };
 
 const TranscodingView = ({ session }: SessionCardProps) => {
+  const { t } = useTranslation();
   const videoStream = useMemo(() => {
     return session.NowPlayingItem?.MediaStreams?.filter(
       (s) => s.Type === "Video",
@@ -501,7 +502,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   return (
     <View className='flex flex-col bg-neutral-800 rounded-b-2xl p-4 pt-2'>
       <TranscodingStreamView
-        title='Video'
+        title={t("common.video")}
         properties={{
           resolution: videoStreamTitle(),
           bitrate: videoStream?.BitRate,
@@ -518,7 +519,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       />
 
       <TranscodingStreamView
-        title='Audio'
+        title={t("common.audio")}
         properties={{
           language: audioStream?.Language,
           bitrate: audioStream?.BitRate,
@@ -536,7 +537,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
 
       {subtitleStream && (
         <TranscodingStreamView
-          title='Subtitle'
+          title={t("common.subtitle")}
           isTranscoding={false}
           properties={{
             language: subtitleStream?.Language,

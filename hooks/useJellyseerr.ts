@@ -387,7 +387,7 @@ export class JellyseerrApi {
           `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
-        if (error.status === 403) {
+        if (error.response?.status === 403) {
           clearJellyseerrStorageData();
         }
         return Promise.reject(error);
@@ -512,7 +512,7 @@ export const useJellyseerr = () => {
   };
 
   const jellyseerrRegion = useMemo(
-    () => jellyseerrUser?.settings?.region || "US",
+    () => jellyseerrUser?.settings?.discoverRegion || "US",
     [jellyseerrUser],
   );
 

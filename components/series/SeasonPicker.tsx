@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,6 @@ import {
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { Text } from "../common/Text";
@@ -87,7 +86,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
         seasonId: selectedSeasonId,
         enableUserData: true,
         // Note: Including trick play is necessary to enable trick play downloads
-        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
+        fields: ["Overview", "Trickplay"],
       });
 
       if (res.data.TotalRecordCount === 0)
@@ -100,25 +99,6 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     },
     enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
-
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    for (const e of episodes || []) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", e.Id],
-        queryFn: async () => {
-          if (!e.Id) return;
-          const res = await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: e.Id,
-          });
-          return res;
-        },
-        staleTime: 60 * 5 * 1000,
-      });
-    }
-  }, [episodes]);
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);

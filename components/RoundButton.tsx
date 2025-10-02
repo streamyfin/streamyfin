@@ -10,6 +10,7 @@ interface Props extends ViewProps {
   background?: boolean;
   size?: "default" | "large";
   fillColor?: "primary";
+  color?: "white" | "purple";
   hapticFeedback?: boolean;
 }
 
@@ -20,6 +21,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   children,
   size = "default",
   fillColor,
+  color = "white",
   hapticFeedback = true,
   ...viewProps
 }) => {
@@ -33,6 +35,25 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     }
     onPress?.();
   };
+
+  if (Platform.OS === "ios") {
+    return (
+      <TouchableOpacity
+        onPress={handlePress}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
+        {...(viewProps as any)}
+      >
+        {icon ? (
+          <Ionicons
+            name={icon}
+            size={size === "large" ? 22 : 18}
+            color={color === "white" ? "white" : "#9334E9"}
+          />
+        ) : null}
+        {children ? children : null}
+      </TouchableOpacity>
+    );
+  }
 
   if (fillColor)
     return (
