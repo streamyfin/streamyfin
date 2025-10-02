@@ -41,7 +41,6 @@ jobs:
           pull_request_labels: "🌐 translation"
           # Quality control options
           skip_untranslated_strings: true
-          skip_untranslated_files: true
           export_only_approved: false
           # Commit customization
           commit_message: "feat(i18n): update translations from Crowdin"
