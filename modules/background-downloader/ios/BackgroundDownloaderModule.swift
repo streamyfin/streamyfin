@@ -7,15 +7,71 @@ enum DownloadError: Error {
   case downloadFailed
 }
 
-public class BackgroundDownloaderModule: Module, URLSessionDownloadDelegate {
-  private var session: URLSession?
-  private static var backgroundCompletionHandler: (() -> Void)?
-  private var downloadTasks: [Int: DownloadTaskInfo] = [:]
+struct DownloadTaskInfo {
+  let url: String
+  let destinationPath: String?
+}
+
+// Separate delegate class to handle URLSession callbacks
+class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
+  weak var module: BackgroundDownloaderModule?
   
-  struct DownloadTaskInfo {
-    let url: String
-    let destinationPath: String?
+  init(module: BackgroundDownloaderModule) {
+    self.module = module
+    super.init()
   }
+  
+  func urlSession(
+    _ session: URLSession,
+    downloadTask: URLSessionDownloadTask,
+    didWriteData bytesWritten: Int64,
+    totalBytesWritten: Int64,
+    totalBytesExpectedToWrite: Int64
+  ) {
+    module?.handleProgress(
+      taskId: downloadTask.taskIdentifier,
+      bytesWritten: totalBytesWritten,
+      totalBytes: totalBytesExpectedToWrite
+    )
+  }
+  
+  func urlSession(
+    _ session: URLSession,
+    downloadTask: URLSessionDownloadTask,
+    didFinishDownloadingTo location: URL
+  ) {
+    module?.handleDownloadComplete(
+      taskId: downloadTask.taskIdentifier,
+      location: location,
+      downloadTask: downloadTask
+    )
+  }
+  
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    didCompleteWithError error: Error?
+  ) {
+    if let error = error {
+      module?.handleError(taskId: task.taskIdentifier, error: error)
+    }
+  }
+  
+  func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+    DispatchQueue.main.async {
+      if let completion = BackgroundDownloaderModule.backgroundCompletionHandler {
+        completion()
+        BackgroundDownloaderModule.backgroundCompletionHandler = nil
+      }
+    }
+  }
+}
+
+public class BackgroundDownloaderModule: Module {
+  private var session: URLSession?
+  private var sessionDelegate: DownloadSessionDelegate?
+  fileprivate static var backgroundCompletionHandler: (() -> Void)?
+  private var downloadTasks: [Int: DownloadTaskInfo] = [:]
   
   public func definition() -> ModuleDefinition {
     Name("BackgroundDownloader")
@@ -84,7 +140,7 @@ public class BackgroundDownloaderModule: Module, URLSessionDownloadDelegate {
       return try await withCheckedThrowingContinuation { continuation in
         self.session?.getAllTasks { tasks in
           let activeDownloads = tasks.compactMap { task -> [String: Any]? in
-            guard let downloadTask = task as? URLSessionDownloadTask,
+            guard task is URLSessionDownloadTask,
                   let info = self.downloadTasks[task.taskIdentifier] else {
               return nil
             }
@@ -109,9 +165,10 @@ public class BackgroundDownloaderModule: Module, URLSessionDownloadDelegate {
     config.sessionSendsLaunchEvents = true
     config.isDiscretionary = false
     
+    self.sessionDelegate = DownloadSessionDelegate(module: self)
     self.session = URLSession(
       configuration: config,
-      delegate: self,
+      delegate: self.sessionDelegate,
       delegateQueue: nil
     )
   }
@@ -131,31 +188,21 @@ public class BackgroundDownloaderModule: Module, URLSessionDownloadDelegate {
     }
   }
   
-  public func urlSession(
-    _ session: URLSession,
-    downloadTask: URLSessionDownloadTask,
-    didWriteData bytesWritten: Int64,
-    totalBytesWritten: Int64,
-    totalBytesExpectedToWrite: Int64
-  ) {
-    let progress = totalBytesExpectedToWrite > 0
-      ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+  // Handler methods called by the delegate
+  func handleProgress(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {
+    let progress = totalBytes > 0
+      ? Double(bytesWritten) / Double(totalBytes)
       : 0.0
     
     self.sendEvent("onDownloadProgress", [
-      "taskId": downloadTask.taskIdentifier,
-      "bytesWritten": totalBytesWritten,
-      "totalBytes": totalBytesExpectedToWrite,
+      "taskId": taskId,
+      "bytesWritten": bytesWritten,
+      "totalBytes": totalBytes,
       "progress": progress
     ])
   }
   
-  public func urlSession(
-    _ session: URLSession,
-    downloadTask: URLSessionDownloadTask,
-    didFinishDownloadingTo location: URL
-  ) {
-    let taskId = downloadTask.taskIdentifier
+  func handleDownloadComplete(taskId: Int, location: URL, downloadTask: URLSessionDownloadTask) {
     guard let taskInfo = downloadTasks[taskId] else {
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
@@ -210,34 +257,17 @@ public class BackgroundDownloaderModule: Module, URLSessionDownloadDelegate {
     }
   }
   
-  public func urlSession(
-    _ session: URLSession,
-    task: URLSessionTask,
-    didCompleteWithError error: Error?
-  ) {
-    if let error = error {
-      let taskId = task.taskIdentifier
-      
-      let isCancelled = (error as NSError).code == NSURLErrorCancelled
-      
-      if !isCancelled {
-        self.sendEvent("onDownloadError", [
-          "taskId": taskId,
-          "error": error.localizedDescription
-        ])
-      }
-      
-      downloadTasks.removeValue(forKey: taskId)
+  func handleError(taskId: Int, error: Error) {
+    let isCancelled = (error as NSError).code == NSURLErrorCancelled
+    
+    if !isCancelled {
+      self.sendEvent("onDownloadError", [
+        "taskId": taskId,
+        "error": error.localizedDescription
+      ])
     }
-  }
-  
-  public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-    DispatchQueue.main.async {
-      if let completion = BackgroundDownloaderModule.backgroundCompletionHandler {
-        completion()
-        BackgroundDownloaderModule.backgroundCompletionHandler = nil
-      }
-    }
+    
+    downloadTasks.removeValue(forKey: taskId)
   }
   
   static func setBackgroundCompletionHandler(_ handler: @escaping () -> Void) {
