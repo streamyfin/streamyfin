@@ -409,7 +409,7 @@ function useDownloadProvider() {
 
     console.log(`[DB] No item found with ID: ${id}`);
     // Check other media types
-    if (db.other[id]) {
+    if (db.other?.[id]) {
       return db.other[id];
     }
 
@@ -464,7 +464,7 @@ function useDownloadProvider() {
         Object.values(season.episodes),
       ),
     );
-    const otherItems = Object.values(db.other);
+    const otherItems = Object.values(db.other || {});
     const allItems = [...movies, ...episodes, ...otherItems];
     return allItems;
   }, []);
@@ -769,6 +769,7 @@ function useDownloadProvider() {
             ] = downloadedItem;
           } else if (item.Id) {
             // Handle other media types
+            if (!db.other) db.other = {};
             db.other[item.Id] = downloadedItem;
           }
 
@@ -981,9 +982,11 @@ function useDownloadProvider() {
       }
     } else {
       // Handle other media types
-      downloadedItem = db.other[id];
-      if (downloadedItem) {
-        delete db.other[id];
+      if (db.other) {
+        downloadedItem = db.other[id];
+        if (downloadedItem) {
+          delete db.other[id];
+        }
       }
     }
 
@@ -1133,7 +1136,7 @@ function useDownloadProvider() {
     const db = getDownloadsDatabase();
     if (db.movies[itemId]) {
       db.movies[itemId] = updatedItem;
-    } else if (db.other[itemId]) {
+    } else if (db.other?.[itemId]) {
       db.other[itemId] = updatedItem;
     } else {
       for (const series of Object.values(db.series)) {
