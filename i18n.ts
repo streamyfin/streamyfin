@@ -2,6 +2,7 @@ import { getLocales } from "expo-localization";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import ca from "./translations/ca.json";
+import ar from "./translations/ar.json";
 import da from "./translations/da.json";
 import de from "./translations/de.json";
 import en from "./translations/en.json";
@@ -29,6 +30,7 @@ import zhTW from "./translations/zh-TW.json";
 
 export const APP_LANGUAGES = [
   { label: "Catalan", value: "ca" },
+  { label: "العربية", value: "ar" },
   { label: "Dansk", value: "da" },
   { label: "Deutsch", value: "de" },
   { label: "English", value: "en" },
@@ -59,6 +61,7 @@ i18n.use(initReactI18next).init({
   compatibilityJSON: "v4",
   resources: {
     ca: { translation: ca },
+    ar: { translation: ar },
     da: { translation: da },
     de: { translation: de },
     en: { translation: en },
