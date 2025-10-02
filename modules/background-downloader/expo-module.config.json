@@ -1,0 +1,8 @@
+{
+  "name": "background-downloader",
+  "version": "1.0.0",
+  "platforms": ["ios"],
+  "ios": {
+    "appDelegateSubscribers": ["BackgroundDownloaderAppDelegate"]
+  }
+}

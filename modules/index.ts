@@ -1,3 +1,11 @@
+import type {
+  ActiveDownload,
+  DownloadCompleteEvent,
+  DownloadErrorEvent,
+  DownloadProgressEvent,
+  DownloadStartedEvent,
+} from "./background-downloader";
+import BackgroundDownloader from "./background-downloader";
 import {
   ChapterInfo,
   PlaybackStatePayload,
@@ -12,8 +20,8 @@ import {
 } from "./VlcPlayer.types";
 import VlcPlayerView from "./VlcPlayerView";
 
-export {
-  VlcPlayerView,
+export { VlcPlayerView, BackgroundDownloader };
+export type {
   VlcPlayerViewProps,
   VlcPlayerViewRef,
   PlaybackStatePayload,
@@ -24,4 +32,9 @@ export {
   VlcPlayerSource,
   TrackInfo,
   ChapterInfo,
+  DownloadProgressEvent,
+  DownloadCompleteEvent,
+  DownloadErrorEvent,
+  DownloadStartedEvent,
+  ActiveDownload,
 };
