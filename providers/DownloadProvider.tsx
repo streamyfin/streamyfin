@@ -7,7 +7,6 @@ import { Directory, File, Paths } from "expo-file-system";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { atom, useAtom } from "jotai";
-import { throttle } from "lodash";
 import {
   createContext,
   useCallback,
@@ -16,7 +15,7 @@ import {
   useMemo,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { DeviceEventEmitter, Platform } from "react-native";
 import { toast } from "sonner-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import useImageStorage from "@/hooks/useImageStorage";
@@ -114,6 +113,20 @@ function useDownloadProvider() {
   const { settings } = useSettings();
   const successHapticFeedback = useHaptic("success");
 
+  // Set up global download complete listener for debugging
+  useEffect(() => {
+    const listener = DeviceEventEmitter.addListener(
+      "downloadComplete",
+      (data) => {
+        console.log("🔥 GLOBAL TEST LISTENER received downloadComplete:", data);
+      },
+    );
+
+    return () => {
+      listener.remove();
+    };
+  }, []);
+
   // Generate notification content based on item type
   const getNotificationContent = useCallback(
     (item: BaseItemDto, isSuccess: boolean) => {
@@ -180,7 +193,7 @@ function useDownloadProvider() {
   /// Cant use the background downloader callback. As its not triggered if size is unknown.
   const updateProgress = async () => {
     const tasks = await BackGroundDownloader.checkForExistingDownloads();
-    if (!tasks) {
+    if (!tasks || tasks.length === 0) {
       return;
     }
 
@@ -204,10 +217,41 @@ function useDownloadProvider() {
 
         // Find task for this process
         const task = tasks.find((s: any) => s.id === p.id);
+
         if (!task) {
+          // ORPHANED DOWNLOAD CHECK: Task disappeared, but was it because it completed?
+          // This handles the race condition where download finishes between polling intervals
+          if (p.progress >= 90) {
+            // Lower threshold to catch more cases
+            console.log(
+              `[UPDATE_PROGRESS] Orphaned download detected for ${p.item.Name} at ${p.progress.toFixed(1)}%, checking file...`,
+            );
+            const filename = generateFilename(p.item);
+            const videoFile = new File(Paths.document, `${filename}.mp4`);
+
+            if (videoFile.exists && videoFile.size > 0) {
+              console.log(
+                `[UPDATE_PROGRESS] Orphaned download complete! File size: ${videoFile.size}, marking as complete`,
+              );
+              return {
+                ...p,
+                progress: 100,
+                speed: 0,
+                bytesDownloaded: videoFile.size,
+                lastProgressUpdateTime: new Date(),
+                estimatedTotalSizeBytes: videoFile.size,
+                lastSessionBytes: videoFile.size,
+                lastSessionUpdateTime: new Date(),
+                status: "completed" as const,
+              };
+            } else {
+              console.warn(
+                `[UPDATE_PROGRESS] Orphaned download at ${p.progress.toFixed(1)}% but file not found. Keeping current state.`,
+              );
+            }
+          }
           return p; // No task found, keep current state
         }
-
         /* 
         // TODO: Uncomment this block to re-enable iOS zombie task detection
         // iOS: Extra validation to prevent zombie task interference
@@ -340,7 +384,7 @@ function useDownloadProvider() {
     });
   };
 
-  useInterval(updateProgress, 2000);
+  useInterval(updateProgress, 1000);
 
   const getDownloadedItemById = (id: string): DownloadedItem | undefined => {
     const db = getDownloadsDatabase();
@@ -628,237 +672,12 @@ function useDownloadProvider() {
       console.log(`[DOWNLOAD] Starting download for ${filename}`);
       console.log(`[DOWNLOAD] Destination path: ${videoFilePath}`);
 
-      const downloadTask = BackGroundDownloader.download({
+      BackGroundDownloader.download({
         id: process.id,
         url: process.inputUrl,
         destination: videoFilePath,
         metadata: process,
       });
-
-      console.log(`[DOWNLOAD] Download task created:`, typeof downloadTask);
-
-      downloadTask
-        .begin(() => {
-          console.log(`[DOWNLOAD] Download began for ${process.item.Name}`);
-          updateProcess(process.id, {
-            status: "downloading",
-            progress: process.progress || 0,
-            bytesDownloaded: process.bytesDownloaded || 0,
-            lastProgressUpdateTime: new Date(),
-            lastSessionBytes: process.lastSessionBytes || 0,
-            lastSessionUpdateTime: new Date(),
-          });
-        })
-        .progress(
-          throttle((data) => {
-            console.log(
-              `[DOWNLOAD] Progress: ${data.bytesDownloaded}/${data.bytesTotal} bytes`,
-            );
-            updateProcess(process.id, (currentProcess) => {
-              // If this is a resumed download, add the paused bytes to current session bytes
-              const resumedBytes = currentProcess.pausedBytes || 0;
-              const totalBytes = data.bytesDownloaded + resumedBytes;
-
-              // Calculate progress based on total bytes if we have resumed bytes
-              let percent: number;
-              if (resumedBytes > 0 && data.bytesTotal > 0) {
-                // For resumed downloads, calculate based on estimated total size
-                const estimatedTotal =
-                  currentProcess.estimatedTotalSizeBytes ||
-                  data.bytesTotal + resumedBytes;
-                percent = (totalBytes / estimatedTotal) * 100;
-              } else {
-                // For fresh downloads, use normal calculation
-                percent = (data.bytesDownloaded / data.bytesTotal) * 100;
-              }
-
-              return {
-                speed: calculateSpeed(currentProcess, totalBytes),
-                status: "downloading",
-                progress: Math.min(percent, MAX_PROGRESS_BEFORE_COMPLETION),
-                bytesDownloaded: totalBytes,
-                lastProgressUpdateTime: new Date(),
-                // update session-only counters - use current session bytes only for speed calc
-                lastSessionBytes: data.bytesDownloaded,
-                lastSessionUpdateTime: new Date(),
-              };
-            });
-          }, 500),
-        )
-        .done(async () => {
-          try {
-            console.log(
-              `[DOWNLOAD] .done() callback triggered for ${process.item.Name}`,
-            );
-            console.log(
-              `[DOWNLOAD] Download completed for ${process.item.Name}`,
-            );
-            console.log(`[DOWNLOAD] Verifying file at: ${videoFilePath}`);
-
-            // Re-create the File object using the same method as when we created it
-            const filename = generateFilename(process.item);
-            const videoFile = new File(Paths.document, `${filename}.mp4`);
-
-            console.log(`[DOWNLOAD] File exists: ${videoFile.exists}`);
-            console.log(`[DOWNLOAD] File URI: ${videoFile.uri}`);
-            console.log(
-              `[DOWNLOAD] File path matches: ${videoFile.uri === videoFilePath}`,
-            );
-
-            if (!videoFile.exists) {
-              console.error(
-                `[DOWNLOAD] File does not exist at ${videoFile.uri}`,
-              );
-              throw new Error("Downloaded file does not exist");
-            }
-            const videoFileSize = videoFile.size;
-            console.log(`[DOWNLOAD] File size: ${videoFileSize} bytes`);
-
-            const trickPlayData = await downloadTrickplayImages(process.item);
-            console.log(
-              `[DOWNLOAD] Trickplay data: ${trickPlayData ? "downloaded" : "not available"}`,
-            );
-
-            const db = getDownloadsDatabase();
-            const { item, mediaSource } = process;
-            // Only download external subtitles for non-transcoded streams.
-            if (!mediaSource.TranscodingUrl) {
-              await downloadAndLinkSubtitles(mediaSource, item);
-            }
-            const { introSegments, creditSegments } =
-              await fetchAndParseSegments(item.Id!, api!);
-            const downloadedItem: DownloadedItem = {
-              item,
-              mediaSource,
-              videoFilePath,
-              videoFileSize,
-              videoFileName: `${filename}.mp4`, // Store filename separately for easy reconstruction
-              trickPlayData,
-              userData: {
-                audioStreamIndex: 0,
-                subtitleStreamIndex: 0,
-              },
-              introSegments,
-              creditSegments,
-            };
-
-            console.log(`[DOWNLOAD] Saving to database:`);
-            console.log(`[DOWNLOAD] - Item: ${item.Name} (${item.Type})`);
-            console.log(`[DOWNLOAD] - Video path: ${videoFilePath}`);
-            console.log(`[DOWNLOAD] - Video size: ${videoFileSize} bytes`);
-            console.log(
-              `[DOWNLOAD] - Trickplay path: ${trickPlayData?.path || "none"}`,
-            );
-
-            if (item.Type === "Movie" && item.Id) {
-              db.movies[item.Id] = downloadedItem;
-              console.log(`[DOWNLOAD] Saved movie with ID: ${item.Id}`);
-            } else if (
-              item.Type === "Episode" &&
-              item.SeriesId &&
-              item.ParentIndexNumber !== undefined &&
-              item.ParentIndexNumber !== null &&
-              item.IndexNumber !== undefined &&
-              item.IndexNumber !== null
-            ) {
-              if (!db.series[item.SeriesId]) {
-                const seriesInfo: Partial<BaseItemDto> = {
-                  Id: item.SeriesId,
-                  Name: item.SeriesName,
-                  Type: "Series",
-                };
-                db.series[item.SeriesId] = {
-                  seriesInfo: seriesInfo as BaseItemDto,
-                  seasons: {},
-                };
-              }
-
-              const seasonNumber = item.ParentIndexNumber;
-              if (!db.series[item.SeriesId].seasons[seasonNumber]) {
-                db.series[item.SeriesId].seasons[seasonNumber] = {
-                  episodes: {},
-                };
-              }
-
-              const episodeNumber = item.IndexNumber;
-              db.series[item.SeriesId].seasons[seasonNumber].episodes[
-                episodeNumber
-              ] = downloadedItem;
-              console.log(
-                `[DOWNLOAD] Saved episode: S${seasonNumber}E${episodeNumber} of series ${item.SeriesId}`,
-              );
-            }
-
-            console.log(`[DOWNLOAD] Database saved successfully`);
-            await saveDownloadsDatabase(db);
-
-            // Send native notification for successful download
-            const successNotification = getNotificationContent(
-              process.item,
-              true,
-            );
-            await sendDownloadNotification(
-              successNotification.title,
-              successNotification.body,
-              {
-                itemId: process.item.Id,
-                itemName: process.item.Name,
-                type: "download_completed",
-              },
-            );
-
-            toast.success(
-              t("home.downloads.toasts.download_completed_for_item", {
-                item: process.item.Name,
-              }),
-            );
-
-            console.log(
-              `[DOWNLOAD] Removing process ${process.id} from active downloads`,
-            );
-            removeProcess(process.id);
-          } catch (error) {
-            console.error(`[DOWNLOAD] Error in .done() callback:`, error);
-            throw error;
-          }
-        })
-        .error(async (error: any) => {
-          console.error(
-            `[DOWNLOAD] .error() callback triggered for ${process.item.Name}`,
-          );
-          console.error("[DOWNLOAD] Download error:", error);
-          console.error(
-            "[DOWNLOAD] Error details:",
-            JSON.stringify(error, null, 2),
-          );
-
-          // Send native notification for failed download
-          const failureNotification = getNotificationContent(
-            process.item,
-            false,
-          );
-          await sendDownloadNotification(
-            failureNotification.title,
-            failureNotification.body,
-            {
-              itemId: process.item.Id,
-              itemName: process.item.Name,
-              type: "download_failed",
-              error: error?.message || "Unknown error",
-            },
-          );
-
-          toast.error(
-            t("home.downloads.toasts.download_failed_for_item", {
-              item: process.item.Name,
-            }),
-          );
-
-          console.log(
-            `[DOWNLOAD] Removing process ${process.id} from active downloads (error)`,
-          );
-          removeProcess(process.id);
-        });
     },
     [authHeader, sendDownloadNotification, getNotificationContent],
   );
@@ -1071,8 +890,14 @@ function useDownloadProvider() {
       mediaSource: MediaSourceInfo,
       maxBitrate: Bitrate,
     ) => {
-      if (!api || !item.Id || !authHeader)
+      if (!api || !item.Id || !authHeader) {
+        console.warn("startBackgroundDownload ~ Missing required params", {
+          api,
+          item,
+          authHeader,
+        });
         throw new Error("startBackgroundDownload ~ Missing required params");
+      }
       try {
         const deviceId = getOrSetDeviceId();
         await saveSeriesPrimaryImage(item);

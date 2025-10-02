@@ -8,6 +8,7 @@
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
     "jsEngine": "hermes",
+    "newArchEnabled": true,
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "requireFullScreen": true,
