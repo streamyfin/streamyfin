@@ -1,34 +1,51 @@
-name: Crowdin Action
+name: 🌐 Translation Sync
 
 on:
   push:
-    branches: [ main ]
+    branches: [develop]
+    paths:
+      - "translations/**"
+      - "crowdin.yml"
+      - "i18n.ts"
+      - ".github/workflows/crowdin.yml"
+  # Run weekly to pull new translations
+  schedule:
+    - cron: "0 2 * * 1" # Every Monday at 2 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  synchronize-with-crowdin:
+  sync-translations:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
 
-      - name: crowdin action
-        uses: crowdin/github-action@v2
+      - name: 🌐 Sync Translations with Crowdin
+        uses: crowdin/github-action@0749939f635900a2521aa6aac7a3766642b2dc71 # v2.11.0
         with:
           upload_sources: true
           upload_translations: true
           download_translations: true
-          localization_branch_name: l10n_crowdin_translations
+          localization_branch_name: I10n_crowdin_translations
           create_pull_request: true
-          pull_request_title: 'feat: New Crowdin Translations'
-          pull_request_body: 'New Crowdin translations by [Crowdin GH Action](https://github.com/crowdin/github-action)'
-          pull_request_base_branch_name: 'develop'
+          pull_request_title: "feat: New Crowdin Translations"
+          pull_request_body: "New Crowdin translations by [Crowdin GH Action](https://github.com/crowdin/github-action)"
+          pull_request_base_branch_name: "develop"
+          pull_request_labels: "🌐 translation"
+          # Quality control options
+          skip_untranslated_strings: true
+          skip_untranslated_files: true
+          export_only_approved: false
+          # Commit customization
+          commit_message: "feat(i18n): update translations from Crowdin"
         env:
-          # A classic GitHub Personal Access Token with the 'repo' scope selected (the user should have write access to the repository).
           GITHUB_TOKEN: ${{ secrets.CROWDIN_GITHUB_TOKEN }}
-          
-          # A numeric ID, found at https://crowdin.com/project/<projectName>/tools/api
           CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
-
-          # Visit https://crowdin.com/settings#api-key to create this token
           CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
