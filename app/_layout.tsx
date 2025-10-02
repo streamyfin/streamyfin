@@ -20,8 +20,8 @@ import {
 } from "@/utils/background-tasks";
 import {
   LogProvider,
-  writeDebugLog,
   writeErrorLog,
+  writeInfoLog,
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
@@ -84,18 +84,18 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+function redirect(notification: typeof Notifications.Notification) {
+  const url = notification.request.content.data?.url;
+  if (url) {
+    router.push(url);
+  }
+}
+
 function useNotificationObserver() {
   useEffect(() => {
     if (Platform.isTV) return;
 
     let isMounted = true;
-
-    function redirect(notification: typeof Notifications.Notification) {
-      const url = notification.request.content.data?.url;
-      if (url) {
-        router.push(url);
-      }
-    }
 
     Notifications.getLastNotificationResponseAsync().then(
       (response: { notification: any }) => {
@@ -106,15 +106,8 @@ function useNotificationObserver() {
       },
     );
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: any }) => {
-        redirect(response.notification);
-      },
-    );
-
     return () => {
       isMounted = false;
-      subscription.remove();
     };
   }, []);
 }
@@ -317,38 +310,42 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
+            // redirect if internal notification
+            redirect(response?.notification);
+
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
-            writeDebugLog(
-              `Notification ${title} opened`,
-              response.notification.request.content,
-            );
-            if (data && Object.keys(data).length > 0) {
-              const type = (data?.type ?? "").toString().toLowerCase();
-              const itemId = data?.id;
+            writeInfoLog(`Notification ${title} opened`, data);
 
-              switch (type) {
-                case "movie":
-                  router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                  break;
-                case "episode":
-                  // We just clicked a notification for an individual episode.
-                  if (itemId) {
-                    router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                    // summarized season notification for multiple episodes. Bring them to series season
+            let url: any;
+            const type = (data?.type ?? "").toString().toLowerCase();
+            const itemId = data?.id;
+
+            switch (type) {
+              case "movie":
+                url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+                break;
+              case "episode":
+                // `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
+                // We just clicked a notification for an individual episode.
+                if (itemId) {
+                  url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+                  // summarized season notification for multiple episodes. Bring them to series season
+                } else {
+                  const seriesId = data.seriesId;
+                  const seasonIndex = data.seasonIndex;
+                  if (seasonIndex) {
+                    url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
                   } else {
-                    const seriesId = data.seriesId;
-                    const seasonIndex = data.seasonIndex;
-                    if (seasonIndex) {
-                      router.push(
-                        `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`,
-                      );
-                    } else {
-                      router.push(`/(auth)/(tabs)/home/series/${seriesId}`);
-                    }
+                    url = `/(auth)/(tabs)/home/series/${seriesId}`;
                   }
-                  break;
-              }
+                }
+                break;
+            }
+
+            writeInfoLog(`Notification attempting to redirect to ${url}`);
+            if (url) {
+              router.push(url);
             }
           },
         );
@@ -398,12 +395,17 @@ function Layout() {
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
-        BackGroundDownloader.checkForExistingDownloads();
+        BackGroundDownloader.checkForExistingDownloads().catch(
+          (error: unknown) => {
+            writeErrorLog("Failed to resume background downloads", error);
+          },
+        );
       }
     });
 
-    BackGroundDownloader.checkForExistingDownloads();
-
+    BackGroundDownloader.checkForExistingDownloads().catch((error: unknown) => {
+      writeErrorLog("Failed to resume background downloads", error);
+    });
     return () => {
       subscription.remove();
     };

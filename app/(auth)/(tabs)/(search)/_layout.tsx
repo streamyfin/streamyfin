@@ -14,12 +14,8 @@ export default function SearchLayout() {
         name='index'
         options={{
           headerShown: !Platform.isTV,
-          headerLargeTitle: true,
           headerTitle: t("tabs.search"),
-          headerLargeStyle: {
-            backgroundColor: "black",
-          },
-          headerBlurEffect: "prominent",
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}

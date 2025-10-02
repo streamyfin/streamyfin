@@ -64,7 +64,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.36.0" },
+            clientInfo: { name: "Streamyfin", version: "0.39.0" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -87,7 +87,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.36.0"`,
+      }, DeviceId="${deviceId}", Version="0.39.0"`,
     };
   }, [deviceId]);
 
@@ -374,7 +374,7 @@ function useProtectedRoute(user: UserDto | null, loaded = false) {
   useEffect(() => {
     if (loaded === false) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inAuthGroup = segments.length > 1 && segments[0] === "(auth)";
 
     if (!user?.Id && inAuthGroup) {
       console.log("Redirected to login");

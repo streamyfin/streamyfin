@@ -27,7 +27,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
-import { LargeMovieCarousel } from "@/components/home/LargeMovieCarousel";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
@@ -38,6 +37,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { AppleTVCarousel } from "../AppleTVCarousel";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -74,7 +74,12 @@ export const HomeIndex = () => {
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
-  const { isConnected, loading: retryLoading, retryCheck } = useNetworkStatus();
+  const {
+    isConnected,
+    serverConnected,
+    loading: retryLoading,
+    retryCheck,
+  } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   useEffect(() => {
     // Only invalidate cache when transitioning from offline to online
@@ -120,8 +125,11 @@ export const HomeIndex = () => {
   const segments = useSegments();
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
-      if (segments[2] === "(home)")
-        scrollViewRef.current?.scrollTo({ y: -152, animated: true });
+      if ((segments as string[])[2] === "(home)")
+        scrollViewRef.current?.scrollTo({
+          y: Platform.isTV ? -152 : -100,
+          animated: true,
+        });
     });
 
     return () => {
@@ -187,9 +195,9 @@ export const HomeIndex = () => {
             await getUserLibraryApi(api).getLatestMedia({
               userId: user?.Id,
               limit: 20,
-              fields: ["PrimaryImageAspectRatio", "Path"],
+              fields: ["PrimaryImageAspectRatio", "Path", "Genres"],
               imageTypeLimit: 1,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes,
               parentId,
             })
@@ -231,8 +239,9 @@ export const HomeIndex = () => {
           (
             await getItemsApi(api).getResumeItems({
               userId: user.Id,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes: ["Movie", "Series", "Episode"],
+              fields: ["Genres"],
             })
           ).data.Items || [],
         type: "ScrollingCollectionList",
@@ -245,9 +254,9 @@ export const HomeIndex = () => {
           (
             await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
-              fields: ["MediaSourceCount"],
+              fields: ["MediaSourceCount", "Genres"],
               limit: 20,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: false,
             })
           ).data.Items || [],
@@ -311,7 +320,7 @@ export const HomeIndex = () => {
       const id = section.title || `section-${index}`;
       ss.push({
         title: t(`${id}`),
-        queryKey: ["home", id],
+        queryKey: ["home", "custom", String(index), section.title ?? null],
         queryFn: async () => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
@@ -329,9 +338,9 @@ export const HomeIndex = () => {
           if (section.nextUp) {
             const response = await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
-              fields: ["MediaSourceCount"],
+              fields: ["MediaSourceCount", "Genres"],
               limit: section.nextUp?.limit || 25,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: section.nextUp?.enableResumable,
               enableRewatching: section.nextUp?.enableRewatching,
             });
@@ -358,13 +367,28 @@ export const HomeIndex = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
-  if (isConnected === false) {
+  if (!isConnected || serverConnected !== true) {
+    let title = "";
+    let subtitle = "";
+
+    if (!isConnected) {
+      // No network connection
+      title = t("home.no_internet");
+      subtitle = t("home.no_internet_message");
+    } else if (serverConnected === null) {
+      // Network is up, but server is being checked
+      title = t("home.checking_server_connection");
+      subtitle = t("home.checking_server_connection_message");
+    } else if (!serverConnected) {
+      // Network is up, but server is unreachable
+      title = t("home.server_unreachable");
+      subtitle = t("home.server_unreachable_message");
+    }
     return (
       <View className='flex flex-col items-center justify-center h-full -mt-6 px-8'>
-        <Text className='text-3xl font-bold mb-2'>{t("home.no_internet")}</Text>
-        <Text className='text-center opacity-70'>
-          {t("home.no_internet_message")}
-        </Text>
+        <Text className='text-3xl font-bold mb-2'>{title}</Text>
+        <Text className='text-center opacity-70'>{subtitle}</Text>
+
         <View className='mt-4'>
           {!Platform.isTV && (
             <Button
@@ -378,6 +402,7 @@ export const HomeIndex = () => {
               {t("home.go_to_downloads")}
             </Button>
           )}
+
           <Button
             color='black'
             onPress={retryCheck}
@@ -390,9 +415,9 @@ export const HomeIndex = () => {
             }
           >
             {retryLoading ? (
-              <ActivityIndicator size={"small"} color={"white"} />
+              <ActivityIndicator size='small' color='white' />
             ) : (
-              "Retry"
+              t("home.retry")
             )}
           </Button>
         </View>
@@ -422,44 +447,55 @@ export const HomeIndex = () => {
       scrollToOverflowEnabled={true}
       ref={scrollViewRef}
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior='automatic'
+      contentInsetAdjustmentBehavior='never'
       refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={refetch} />
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={refetch}
+          tintColor='white' // For iOS
+          colors={["white"]} // For Android
+          progressViewOffset={200} // This offsets the refresh indicator to appear over the carousel
+        />
       }
-      contentContainerStyle={{
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
-        paddingBottom: 16,
-      }}
+      style={{ marginTop: Platform.isTV ? 0 : -100 }}
+      contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      <View className='flex flex-col space-y-4'>
-        <LargeMovieCarousel />
-
-        {sections.map((section, index) => {
-          if (section.type === "ScrollingCollectionList") {
-            return (
-              <ScrollingCollectionList
-                key={index}
-                title={section.title}
-                queryKey={section.queryKey}
-                queryFn={section.queryFn}
-                orientation={section.orientation}
-                hideIfEmpty
-              />
-            );
-          }
-          if (section.type === "MediaListSection") {
-            return (
-              <MediaListSection
-                key={index}
-                queryKey={section.queryKey}
-                queryFn={section.queryFn}
-              />
-            );
-          }
-          return null;
-        })}
+      <AppleTVCarousel initialIndex={0} />
+      <View
+        style={{
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+          paddingBottom: 16,
+        }}
+      >
+        <View className='flex flex-col space-y-4'>
+          {sections.map((section, index) => {
+            if (section.type === "ScrollingCollectionList") {
+              return (
+                <ScrollingCollectionList
+                  key={index}
+                  title={section.title}
+                  queryKey={section.queryKey}
+                  queryFn={section.queryFn}
+                  orientation={section.orientation}
+                  hideIfEmpty
+                />
+              );
+            }
+            if (section.type === "MediaListSection") {
+              return (
+                <MediaListSection
+                  key={index}
+                  queryKey={section.queryKey}
+                  queryFn={section.queryFn}
+                />
+              );
+            }
+            return null;
+          })}
+        </View>
       </View>
+      <View className='h-24' />
     </ScrollView>
   );
 };

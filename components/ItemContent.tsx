@@ -22,7 +22,7 @@ import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useImageColors } from "@/hooks/useImageColors";
+import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -61,7 +61,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     const [user] = useAtom(userAtom);
     const { t } = useTranslation();
 
-    useImageColors({ item });
+    const itemColors = useImageColorsReturn({ item });
 
     const [loadingLogo, setLoadingLogo] = useState(true);
     const [headerHeight, setHeaderHeight] = useState(350);
@@ -105,13 +105,27 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       if (!Platform.isTV) {
         navigation.setOptions({
           headerRight: () =>
-            item && (
+            item &&
+            (Platform.OS === "ios" ? (
+              <View className='flex flex-row items-center pl-2'>
+                <Chromecast.Chromecast width={22} height={22} />
+                {item.Type !== "Program" && (
+                  <View className='flex flex-row items-center'>
+                    {!Platform.isTV && (
+                      <DownloadSingleItem item={item} size='large' />
+                    )}
+                    {user?.Policy?.IsAdministrator && (
+                      <PlayInRemoteSessionButton item={item} size='large' />
+                    )}
+
+                    <PlayedStatus items={[item]} size='large' />
+                    <AddToFavorites item={item} />
+                  </View>
+                )}
+              </View>
+            ) : (
               <View className='flex flex-row items-center space-x-2'>
-                <Chromecast.Chromecast
-                  background='blur'
-                  width={22}
-                  height={22}
-                />
+                <Chromecast.Chromecast width={22} height={22} />
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
@@ -126,7 +140,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                   </View>
                 )}
               </View>
-            ),
+            )),
         });
       }
     }, [item, navigation, user]);
@@ -253,6 +267,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 selectedOptions={selectedOptions}
                 item={item}
                 isOffline={isOffline}
+                colors={itemColors}
               />
             </View>
 
