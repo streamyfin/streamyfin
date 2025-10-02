@@ -23,112 +23,117 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerRight: () => (
-            <PlatformDropdown
-              trigger={
-                <Ionicons
-                  name='ellipsis-horizontal-outline'
-                  size={24}
-                  color='white'
-                />
-              }
-              title={t("library.options.display")}
-              groups={[
-                {
-                  title: t("library.options.display"),
-                  options: [
-                    {
-                      type: "radio",
-                      label: t("library.options.row"),
-                      value: "row",
-                      selected: settings.libraryOptions.display === "row",
-                      onPress: () =>
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            display: "row",
-                          },
-                        }),
-                    },
-                    {
-                      type: "radio",
-                      label: t("library.options.list"),
-                      value: "list",
-                      selected: settings.libraryOptions.display === "list",
-                      onPress: () =>
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            display: "list",
-                          },
-                        }),
-                    },
-                  ],
-                },
-                {
-                  title: t("library.options.image_style"),
-                  options: [
-                    {
-                      type: "radio",
-                      label: t("library.options.poster"),
-                      value: "poster",
-                      selected: settings.libraryOptions.imageStyle === "poster",
-                      onPress: () =>
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            imageStyle: "poster",
-                          },
-                        }),
-                    },
-                    {
-                      type: "radio",
-                      label: t("library.options.cover"),
-                      value: "cover",
-                      selected: settings.libraryOptions.imageStyle === "cover",
-                      onPress: () =>
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            imageStyle: "cover",
-                          },
-                        }),
-                    },
-                  ],
-                },
-                {
-                  title: "Options",
-                  options: [
-                    {
-                      type: "toggle",
-                      label: t("library.options.show_titles"),
-                      value: settings.libraryOptions.showTitles,
-                      onToggle: () =>
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            showTitles: !settings.libraryOptions.showTitles,
-                          },
-                        }),
-                      disabled: settings.libraryOptions.imageStyle === "poster",
-                    },
-                    {
-                      type: "toggle",
-                      label: t("library.options.show_stats"),
-                      value: settings.libraryOptions.showStats,
-                      onToggle: () =>
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            showStats: !settings.libraryOptions.showStats,
-                          },
-                        }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ),
+          headerRight: () =>
+            !pluginSettings?.libraryOptions?.locked &&
+            !Platform.isTV && (
+              <PlatformDropdown
+                trigger={
+                  <Ionicons
+                    name='ellipsis-horizontal-outline'
+                    size={24}
+                    color='white'
+                  />
+                }
+                title={t("library.options.display")}
+                groups={[
+                  {
+                    title: t("library.options.display"),
+                    options: [
+                      {
+                        type: "radio",
+                        label: t("library.options.row"),
+                        value: "row",
+                        selected: settings.libraryOptions.display === "row",
+                        onPress: () =>
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              display: "row",
+                            },
+                          }),
+                      },
+                      {
+                        type: "radio",
+                        label: t("library.options.list"),
+                        value: "list",
+                        selected: settings.libraryOptions.display === "list",
+                        onPress: () =>
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              display: "list",
+                            },
+                          }),
+                      },
+                    ],
+                  },
+                  {
+                    title: t("library.options.image_style"),
+                    options: [
+                      {
+                        type: "radio",
+                        label: t("library.options.poster"),
+                        value: "poster",
+                        selected:
+                          settings.libraryOptions.imageStyle === "poster",
+                        onPress: () =>
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              imageStyle: "poster",
+                            },
+                          }),
+                      },
+                      {
+                        type: "radio",
+                        label: t("library.options.cover"),
+                        value: "cover",
+                        selected:
+                          settings.libraryOptions.imageStyle === "cover",
+                        onPress: () =>
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              imageStyle: "cover",
+                            },
+                          }),
+                      },
+                    ],
+                  },
+                  {
+                    title: "Options",
+                    options: [
+                      {
+                        type: "toggle",
+                        label: t("library.options.show_titles"),
+                        value: settings.libraryOptions.showTitles,
+                        onToggle: () =>
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              showTitles: !settings.libraryOptions.showTitles,
+                            },
+                          }),
+                        disabled:
+                          settings.libraryOptions.imageStyle === "poster",
+                      },
+                      {
+                        type: "toggle",
+                        label: t("library.options.show_stats"),
+                        value: settings.libraryOptions.showStats,
+                        onToggle: () =>
+                          updateSettings({
+                            libraryOptions: {
+                              ...settings.libraryOptions,
+                              showStats: !settings.libraryOptions.showStats,
+                            },
+                          }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            ),
         }}
       />
       <Stack.Screen
