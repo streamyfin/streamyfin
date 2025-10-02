@@ -113,7 +113,6 @@
     "cross-env": "^10.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
-    "postinstall-postinstall": "^2.1.0",
     "react-test-renderer": "19.1.1",
     "typescript": "~5.8.3"
   },
@@ -149,7 +148,6 @@
     ]
   },
   "trustedDependencies": [
-    "postinstall-postinstall",
     "unrs-resolver"
   ]
 }
