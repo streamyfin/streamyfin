@@ -9,6 +9,7 @@ import { Switch } from "react-native-gesture-handler";
 import Dropdown from "@/components/common/Dropdown";
 import { Stepper } from "@/components/inputs/Stepper";
 import { useSettings } from "@/utils/atoms/settings";
+import { getLockableValue } from "@/utils/lockable";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -28,13 +29,28 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
   // Get VLC subtitle settings from the settings system
-  const textColor = pluginSettings?.vlcTextColor ?? "White";
-  const backgroundColor = pluginSettings?.vlcBackgroundColor ?? "Black";
-  const outlineColor = pluginSettings?.vlcOutlineColor ?? "Black";
-  const outlineThickness = pluginSettings?.vlcOutlineThickness ?? "Normal";
-  const backgroundOpacity = pluginSettings?.vlcBackgroundOpacity ?? 128;
-  const outlineOpacity = pluginSettings?.vlcOutlineOpacity ?? 255;
-  const isBold = pluginSettings?.vlcIsBold ?? false;
+  const textColor = getLockableValue(pluginSettings?.vlcTextColor, "White");
+  const backgroundColor = getLockableValue(
+    pluginSettings?.vlcBackgroundColor,
+    "Black",
+  );
+  const outlineColor = getLockableValue(
+    pluginSettings?.vlcOutlineColor,
+    "Black",
+  );
+  const outlineThickness = getLockableValue(
+    pluginSettings?.vlcOutlineThickness,
+    "Normal",
+  );
+  const backgroundOpacity = getLockableValue(
+    pluginSettings?.vlcBackgroundOpacity,
+    128,
+  );
+  const outlineOpacity = getLockableValue(
+    pluginSettings?.vlcOutlineOpacity,
+    255,
+  );
+  const isBold = getLockableValue(pluginSettings?.vlcIsBold, false);
 
   if (isTv) return null;
   if (!settings) return null;

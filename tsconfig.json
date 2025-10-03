@@ -20,6 +20,7 @@
     "providers/**/*",
     "scripts/**/*",
     "translations/**/*",
+    "utils/**/*",
     "*.ts",
     "*.tsx",
     ".expo/types/**/*.ts",
