@@ -26,6 +26,11 @@ import type {
   TrickPlayData,
 } from "../types";
 import { generateFilename } from "../utils";
+import {
+  addSpeedDataPoint,
+  calculateWeightedSpeed,
+  clearSpeedData,
+} from "./useDownloadSpeedCalculator";
 
 interface UseDownloadEventHandlersProps {
   taskMapRef: MutableRefObject<Map<number, string>>;
@@ -80,6 +85,7 @@ export function useDownloadEventHandlers({
           taskId: event.taskId,
           progress: event.progress,
           bytesWritten: event.bytesWritten,
+          totalBytes: event.totalBytes,
           taskMapSize: taskMapRef.current.size,
           taskMapKeys: Array.from(taskMapRef.current.keys()),
         });
@@ -93,19 +99,52 @@ export function useDownloadEventHandlers({
           return;
         }
 
+        // Validate event data before processing
+        if (
+          typeof event.bytesWritten !== "number" ||
+          event.bytesWritten < 0 ||
+          !Number.isFinite(event.bytesWritten)
+        ) {
+          console.warn(
+            `[DPL] Invalid bytesWritten for taskId ${event.taskId}: ${event.bytesWritten}`,
+          );
+          return;
+        }
+
+        if (
+          typeof event.progress !== "number" ||
+          event.progress < 0 ||
+          event.progress > 1 ||
+          !Number.isFinite(event.progress)
+        ) {
+          console.warn(
+            `[DPL] Invalid progress for taskId ${event.taskId}: ${event.progress}`,
+          );
+          return;
+        }
+
         const progress = Math.min(
           Math.floor(event.progress * 100),
           99, // Cap at 99% until completion
         );
 
+        // Add data point and calculate speed (validation happens inside)
+        addSpeedDataPoint(processId, event.bytesWritten);
+        const speed = calculateWeightedSpeed(processId);
+
         console.log(
-          `[DPL] Progress update for processId: ${processId}, taskId: ${event.taskId}, progress: ${progress}%, bytesWritten: ${event.bytesWritten}`,
+          `[DPL] Progress update for processId: ${processId}, taskId: ${event.taskId}, progress: ${progress}%, bytesWritten: ${event.bytesWritten}, speed: ${speed ? (speed / 1024 / 1024).toFixed(2) : "N/A"} MB/s`,
         );
 
         updateProcess(processId, {
           progress,
           bytesDownloaded: event.bytesWritten,
           lastProgressUpdateTime: new Date(),
+          speed,
+          estimatedTotalSizeBytes:
+            event.totalBytes > 0 && Number.isFinite(event.totalBytes)
+              ? event.totalBytes
+              : undefined,
         });
       },
     );
@@ -197,6 +236,9 @@ export function useDownloadEventHandlers({
 
           onSuccess?.();
 
+          // Clean up speed data when download completes
+          clearSpeedData(processId);
+
           // Remove process after short delay
           setTimeout(() => {
             removeProcess(processId);
@@ -204,6 +246,7 @@ export function useDownloadEventHandlers({
         } catch (error) {
           console.error("Error handling download completion:", error);
           updateProcess(processId, { status: "error" });
+          clearSpeedData(processId);
           removeProcess(processId);
         }
       },
@@ -235,6 +278,9 @@ export function useDownloadEventHandlers({
         console.error(`Download error for ${processId}:`, event.error);
 
         updateProcess(processId, { status: "error" });
+
+        // Clean up speed data
+        clearSpeedData(processId);
 
         const notificationContent = getNotificationContent(
           process.item,
