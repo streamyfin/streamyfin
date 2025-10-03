@@ -1,6 +1,6 @@
 # Background Downloader Module
 
-A native iOS module for downloading large files in the background using `NSURLSession` with background configuration.
+A native iOS and Android module for downloading large files in the background using `NSURLSession` (iOS) and `DownloadManager` (Android).
 
 ## Features
 
@@ -10,6 +10,7 @@ A native iOS module for downloading large files in the background using `NSURLSe
 - **Cancellation**: Cancel individual or all downloads
 - **Custom Destination**: Optionally specify custom file paths
 - **Error Handling**: Comprehensive error reporting
+- **Cross-Platform**: Works on both iOS and Android
 
 ## Usage
 
@@ -201,35 +202,57 @@ interface ActiveDownload {
 - Downloads continue when app is backgrounded or suspended
 - System may terminate downloads if app is force-quit
 
+### Android Background Downloads
+
+- Uses Android's `DownloadManager` API
+- Downloads are managed by the system and continue in the background
+- Shows download notification in the notification tray
+- Downloads continue even if the app is closed
+- Requires `INTERNET` permission (automatically added by Expo)
+
 ### Background Modes
 
-The app's `Info.plist` already includes the required background mode:
+The app's `Info.plist` already includes the required background mode for iOS:
 
 - `UIBackgroundModes`: `["audio", "fetch"]`
 
 ### File Storage
 
-By default, downloaded files are saved to the app's Documents directory. You can specify a custom path using the `destinationPath` parameter.
+**iOS:** By default, downloaded files are saved to the app's Documents directory.
+
+**Android:** By default, files are saved to the app's external files directory (accessible via `FileSystem.documentDirectory` in Expo).
+
+You can specify a custom path using the `destinationPath` parameter on both platforms.
 
 ## Building
 
-After adding this module, rebuild the iOS app:
+After adding this module, rebuild the app:
 
 ```bash
+# iOS
 npx expo prebuild -p ios
 npx expo run:ios
+
+# Android
+npx expo prebuild -p android
+npx expo run:android
 ```
 
-Or install pods manually:
+Or install manually:
 
 ```bash
+# iOS
 cd ios
 pod install
 cd ..
+
+# Android - prebuild handles everything
+npx expo prebuild -p android
 ```
 
 ## Notes
 
-- Background downloads may be cancelled if the user force-quits the app
+- Background downloads may be cancelled if the user force-quits the app (iOS)
 - The OS manages download priority and may pause downloads to save battery
-- Downloads over cellular can be disabled in the module configuration if needed
+- Android shows a system notification for ongoing downloads
+- Downloads over cellular are allowed by default on both platforms
