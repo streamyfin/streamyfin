@@ -113,7 +113,6 @@ export type JobStatus = {
   /** Current status of the download job */
   status:
     | "downloading" // The job is actively downloading
-    | "paused" // The job is paused
     | "error" // The job encountered an error
     | "pending" // The job is waiting to start
     | "completed" // The job has finished downloading
@@ -133,14 +132,4 @@ export type JobStatus = {
   /** Estimated total size of the download in bytes (optional) this is used when we
    * download transcoded content because we don't know the size of the file until it's downloaded */
   estimatedTotalSizeBytes?: number;
-  /** Timestamp when the download was paused (optional) */
-  pausedAt?: Date;
-  /** Progress percentage when download was paused (optional) */
-  pausedProgress?: number;
-  /** Bytes downloaded when download was paused (optional) */
-  pausedBytes?: number;
-  /** Bytes downloaded in the current session (since last resume). Used for session-only speed calculation. */
-  lastSessionBytes?: number;
-  /** Timestamp when the session-only bytes were last updated. */
-  lastSessionUpdateTime?: Date;
 };

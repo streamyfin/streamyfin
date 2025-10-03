@@ -6,7 +6,6 @@ import { t } from "i18next";
 import { useMemo } from "react";
 import {
   ActivityIndicator,
-  Platform,
   TouchableOpacity,
   type TouchableOpacityProps,
   View,
@@ -28,29 +27,9 @@ interface DownloadCardProps extends TouchableOpacityProps {
 }
 
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
-  const { pauseDownload, resumeDownload, removeProcess } = useDownload();
+  const { removeProcess } = useDownload();
   const router = useRouter();
   const queryClient = useQueryClient();
-
-  const handlePause = async () => {
-    try {
-      await pauseDownload();
-      toast.success(t("home.downloads.toasts.download_paused"));
-    } catch (error) {
-      console.error("Error pausing download:", error);
-      toast.error(t("home.downloads.toasts.could_not_pause_download"));
-    }
-  };
-
-  const handleResume = async () => {
-    try {
-      await resumeDownload();
-      toast.success(t("home.downloads.toasts.download_resumed"));
-    } catch (error) {
-      console.error("Error resuming download:", error);
-      toast.error(t("home.downloads.toasts.could_not_resume_download"));
-    }
-  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -118,22 +97,6 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
       {/* Action buttons in bottom right corner */}
       <View className='absolute bottom-2 right-2 flex flex-row items-center space-x-2 z-10'>
-        {process.status === "downloading" && Platform.OS !== "ios" && (
-          <TouchableOpacity
-            onPress={() => handlePause()}
-            className='p-2 bg-neutral-800 rounded-full'
-          >
-            <Ionicons name='pause' size={20} color='white' />
-          </TouchableOpacity>
-        )}
-        {process.status === "paused" && Platform.OS !== "ios" && (
-          <TouchableOpacity
-            onPress={() => handleResume()}
-            className='p-2 bg-neutral-800 rounded-full'
-          >
-            <Ionicons name='play' size={20} color='white' />
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           onPress={() => handleDelete(process.id)}
           className='p-2 bg-neutral-800 rounded-full'

@@ -135,8 +135,6 @@ function useDownloadProvider() {
     appSizeUsage,
     // Deprecated/not implemented in simple version
     startDownload: async () => {},
-    pauseDownload: async () => {},
-    resumeDownload: async () => {},
     cleanCacheDirectory: async () => {},
     updateDownloadedItem: () => {},
     dumpDownloadDiagnostics: async () => "",
@@ -161,8 +159,6 @@ export function useDownload() {
       cancelDownload: async () => {},
       triggerRefresh: () => {},
       startDownload: async () => {},
-      pauseDownload: async () => {},
-      resumeDownload: async () => {},
       getDownloadedItemSize: () => 0,
       getDownloadedItemById: () => undefined,
       APP_CACHE_DOWNLOAD_DIRECTORY: "",
