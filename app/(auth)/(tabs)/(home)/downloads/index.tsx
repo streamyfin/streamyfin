@@ -18,7 +18,10 @@ import ActiveDownloads from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
-import { useDownload } from "@/providers/DownloadProvider";
+import {
+  downloadsRefreshAtom,
+  useDownload,
+} from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { queueAtom } from "@/utils/atoms/queue";
 import { writeToLog } from "@/utils/log";
@@ -27,6 +30,7 @@ export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
+  const [refreshKey] = useAtom(downloadsRefreshAtom);
   const {
     removeProcess,
     getDownloadedItems,
@@ -64,7 +68,7 @@ export default function page() {
 
   const downloadedFiles = useMemo(
     () => getDownloadedItems(),
-    [getDownloadedItems],
+    [getDownloadedItems, refreshKey],
   );
 
   const movies = useMemo(() => {

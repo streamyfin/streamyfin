@@ -16,6 +16,7 @@ import type { JobStatus } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
 
 export const processesAtom = atom<JobStatus[]>([]);
+export const downloadsRefreshAtom = atom<number>(0);
 
 const DownloadContext = createContext<ReturnType<
   typeof useDownloadProvider
@@ -24,10 +25,16 @@ const DownloadContext = createContext<ReturnType<
 function useDownloadProvider() {
   const [api] = useAtom(apiAtom);
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
+  const [, setRefreshKey] = useAtom(downloadsRefreshAtom);
   const successHapticFeedback = useHaptic("success");
 
   // Track task ID to process ID mapping
   const taskMapRef = useRef<Map<number, string>>(new Map());
+
+  // Trigger refresh of download lists
+  const triggerRefresh = useCallback(() => {
+    setRefreshKey((prev) => prev + 1);
+  }, [setRefreshKey]);
 
   const authHeader = useMemo(() => {
     return api?.accessToken;
@@ -81,6 +88,7 @@ function useDownloadProvider() {
     updateProcess,
     removeProcess,
     onSuccess: successHapticFeedback,
+    onDataChange: triggerRefresh,
     api: api || undefined,
   });
 
@@ -100,6 +108,7 @@ function useDownloadProvider() {
     removeProcess,
     api,
     authHeader,
+    onDataChange: triggerRefresh,
   });
 
   return {
@@ -115,6 +124,7 @@ function useDownloadProvider() {
     cancelDownload,
     getDownloadedItemSize,
     getDownloadedItemById,
+    triggerRefresh,
     APP_CACHE_DOWNLOAD_DIRECTORY: APP_CACHE_DOWNLOAD_DIRECTORY.uri,
     appSizeUsage,
     // Deprecated/not implemented in simple version
@@ -142,6 +152,7 @@ export function useDownload() {
       deleteFileByType: async () => {},
       removeProcess: () => {},
       cancelDownload: async () => {},
+      triggerRefresh: () => {},
       startDownload: async () => {},
       pauseDownload: async () => {},
       resumeDownload: async () => {},

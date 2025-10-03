@@ -41,6 +41,7 @@ interface UseDownloadEventHandlersProps {
   ) => void;
   removeProcess: (id: string) => void;
   onSuccess?: () => void;
+  onDataChange?: () => void;
   api?: Api;
 }
 
@@ -53,6 +54,7 @@ export function useDownloadEventHandlers({
   updateProcess,
   removeProcess,
   onSuccess,
+  onDataChange,
   api,
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
@@ -235,6 +237,7 @@ export function useDownloadEventHandlers({
           );
 
           onSuccess?.();
+          onDataChange?.();
 
           // Clean up speed data when download completes
           clearSpeedData(processId);
@@ -259,6 +262,7 @@ export function useDownloadEventHandlers({
     updateProcess,
     removeProcess,
     onSuccess,
+    onDataChange,
     api,
     saveImage,
     saveSeriesPrimaryImage,

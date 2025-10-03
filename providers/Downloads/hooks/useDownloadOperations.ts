@@ -32,6 +32,7 @@ interface UseDownloadOperationsProps {
   removeProcess: (id: string) => void;
   api: any;
   authHeader?: string;
+  onDataChange?: () => void;
 }
 
 /**
@@ -44,6 +45,7 @@ export function useDownloadOperations({
   removeProcess,
   api,
   authHeader,
+  onDataChange,
 }: UseDownloadOperationsProps) {
   const { t } = useTranslation();
   const { saveSeriesPrimaryImage } = useDownloadHelper();
@@ -182,12 +184,13 @@ export function useDownloadOperations({
               item: itemToDelete.item.Name,
             }),
           );
+          onDataChange?.();
         } catch (error) {
           console.error("Failed to delete files:", error);
         }
       }
     },
-    [t],
+    [t, onDataChange],
   );
 
   const deleteItems = useCallback(
@@ -212,7 +215,8 @@ export function useDownloadOperations({
 
     clearAllDownloadedItems();
     toast.success(t("home.downloads.toasts.all_files_deleted"));
-  }, [t]);
+    onDataChange?.();
+  }, [t, onDataChange]);
 
   const deleteFileByType = useCallback(
     async (itemType: string) => {
@@ -256,8 +260,10 @@ export function useDownloadOperations({
           defaultValue: `${itemsToDelete.length} ${itemLabel} deleted`,
         }),
       );
+
+      onDataChange?.();
     },
-    [t],
+    [t, onDataChange],
   );
 
   const appSizeUsage = useCallback(async () => {
