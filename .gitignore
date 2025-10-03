@@ -47,3 +47,4 @@ streamyfin-4fec1-firebase-adminsdk.json
 *.aab
 /version-backup-*
 bun.lockb
+modules/background-downloader/android/build/*
