@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Don't run the development server or build anything. Assume the user has a separate terminal. Tell the user what to execute. 

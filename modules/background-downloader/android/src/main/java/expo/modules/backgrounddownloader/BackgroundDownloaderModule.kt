@@ -36,8 +36,15 @@ class BackgroundDownloaderModule : Module() {
   private val downloadCompleteReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
       val downloadId = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1) ?: -1
+      Log.d(TAG, "Broadcast received for downloadId: $downloadId, action: ${intent?.action}")
+      
       if (downloadId != -1L && downloadTasks.containsKey(downloadId)) {
+        Log.d(TAG, "Calling handleDownloadComplete for task: $downloadId")
         handleDownloadComplete(downloadId)
+      } else if (downloadId != -1L) {
+        Log.w(TAG, "Received broadcast for unknown downloadId: $downloadId (not in our task map)")
+      } else {
+        Log.w(TAG, "Received broadcast with invalid downloadId: $downloadId")
       }
     }
   }
@@ -199,6 +206,7 @@ class BackgroundDownloaderModule : Module() {
     val runnable = object : Runnable {
       override fun run() {
         if (!downloadTasks.containsKey(downloadId)) {
+          Log.d(TAG, "Task $downloadId no longer in map, stopping progress tracking")
           return
         }
 
@@ -215,21 +223,47 @@ class BackgroundDownloaderModule : Module() {
           val totalBytesIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
           val totalBytes = if (totalBytesIndex >= 0) cursor.getLong(totalBytesIndex) else 0L
 
+          val statusString = when (status) {
+            DownloadManager.STATUS_RUNNING -> "RUNNING"
+            DownloadManager.STATUS_PAUSED -> "PAUSED"
+            DownloadManager.STATUS_PENDING -> "PENDING"
+            DownloadManager.STATUS_SUCCESSFUL -> "SUCCESSFUL"
+            DownloadManager.STATUS_FAILED -> "FAILED"
+            else -> "UNKNOWN($status)"
+          }
+
+          // Log status periodically for debugging
+          val progress = if (totalBytes > 0) (bytesDownloaded.toDouble() / totalBytes.toDouble() * 100).toInt() else 0
+          if (progress % 10 == 0 || status != DownloadManager.STATUS_RUNNING) {
+            Log.d(TAG, "Task $downloadId: status=$statusString, progress=$progress%, bytes=$bytesDownloaded/$totalBytes")
+          }
+
           if (status == DownloadManager.STATUS_RUNNING && totalBytes > 0) {
-            val progress = bytesDownloaded.toDouble() / totalBytes.toDouble()
+            val progressRatio = bytesDownloaded.toDouble() / totalBytes.toDouble()
             
             sendEvent("onDownloadProgress", mapOf(
               "taskId" to downloadId.toInt(),
               "bytesWritten" to bytesDownloaded,
               "totalBytes" to totalBytes,
-              "progress" to progress
+              "progress" to progressRatio
             ))
+          }
+
+          // Check if download completed but broadcast was missed
+          if (status == DownloadManager.STATUS_SUCCESSFUL) {
+            Log.w(TAG, "Task $downloadId: Download is SUCCESSFUL but completion handler wasn't called! Calling manually.")
+            cursor.close()
+            stopProgressTracking(downloadId)
+            handleDownloadComplete(downloadId)
+            return
           }
 
           // Check for errors
           if (status == DownloadManager.STATUS_FAILED) {
             val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
             val reason = if (reasonIndex >= 0) cursor.getInt(reasonIndex) else -1
+            
+            Log.e(TAG, "Task $downloadId: Download FAILED with reason code: $reason")
             
             cursor.close()
             stopProgressTracking(downloadId)
@@ -242,6 +276,13 @@ class BackgroundDownloaderModule : Module() {
             downloadTasks.remove(downloadId)
             return
           }
+
+          // Check if download is paused or pending for too long
+          if (status == DownloadManager.STATUS_PAUSED || status == DownloadManager.STATUS_PENDING) {
+            Log.w(TAG, "Task $downloadId: Download is $statusString")
+          }
+        } else {
+          Log.e(TAG, "Task $downloadId: No cursor data found in DownloadManager")
         }
 
         cursor.close()
@@ -284,51 +325,83 @@ class BackgroundDownloaderModule : Module() {
         val localUri = if (uriIndex >= 0) cursor.getString(uriIndex) else null
 
         if (localUri != null) {
-          var finalFilePath = Uri.parse(localUri).path ?: localUri
+          val downloadedFilePath = Uri.parse(localUri).path ?: localUri
           
-          // If we have a custom destination path for internal storage, move the file
+          // If we have a custom destination path for internal storage, move the file in background
           if (taskInfo.destinationPath != null) {
             val isInternalPath = taskInfo.destinationPath.startsWith("/data/data/") || 
                                 taskInfo.destinationPath.startsWith("/data/user/")
             
             if (isInternalPath) {
-              try {
-                val sourceFile = File(finalFilePath)
-                val destFile = File(taskInfo.destinationPath)
-                
-                // Create destination directory if needed
-                val destDir = destFile.parentFile
-                if (destDir != null && !destDir.exists()) {
-                  destDir.mkdirs()
+              Log.d(TAG, "Starting file move in background thread for taskId: ${downloadId.toInt()}")
+              
+              // Move file in background thread to avoid blocking
+              Thread {
+                try {
+                  val sourceFile = File(downloadedFilePath)
+                  val destFile = File(taskInfo.destinationPath)
+                  
+                  Log.d(TAG, "Moving file from $downloadedFilePath to ${taskInfo.destinationPath}")
+                  
+                  // Create destination directory if needed
+                  val destDir = destFile.parentFile
+                  if (destDir != null && !destDir.exists()) {
+                    destDir.mkdirs()
+                  }
+                  
+                  // Try to move file (fast if on same filesystem)
+                  val moveSuccessful = sourceFile.renameTo(destFile)
+                  
+                  if (moveSuccessful) {
+                    Log.d(TAG, "File moved successfully via rename")
+                    
+                    sendEvent("onDownloadComplete", mapOf(
+                      "taskId" to downloadId.toInt(),
+                      "filePath" to taskInfo.destinationPath,
+                      "url" to taskInfo.url
+                    ))
+                  } else {
+                    // Rename failed (likely different filesystems), need to copy
+                    Log.d(TAG, "Rename failed, copying file (this may take a while for large files)")
+                    
+                    sourceFile.inputStream().use { input ->
+                      destFile.outputStream().use { output ->
+                        input.copyTo(output)
+                      }
+                    }
+                    
+                    // Delete source file after successful copy
+                    if (sourceFile.delete()) {
+                      Log.d(TAG, "File copied and source deleted successfully")
+                    } else {
+                      Log.w(TAG, "File copied but failed to delete source file")
+                    }
+                    
+                    sendEvent("onDownloadComplete", mapOf(
+                      "taskId" to downloadId.toInt(),
+                      "filePath" to taskInfo.destinationPath,
+                      "url" to taskInfo.url
+                    ))
+                  }
+                } catch (e: Exception) {
+                  Log.e(TAG, "Failed to move file to internal storage: ${e.message}", e)
+                  sendEvent("onDownloadError", mapOf(
+                    "taskId" to downloadId.toInt(),
+                    "error" to "Failed to move file to destination: ${e.message}"
+                  ))
                 }
-                
-                // Move file to internal storage
-                if (sourceFile.renameTo(destFile)) {
-                  finalFilePath = taskInfo.destinationPath
-                  Log.d(TAG, "Moved file to internal storage: $finalFilePath")
-                } else {
-                  // If rename fails, try copy and delete
-                  sourceFile.copyTo(destFile, overwrite = true)
-                  sourceFile.delete()
-                  finalFilePath = taskInfo.destinationPath
-                  Log.d(TAG, "Copied file to internal storage: $finalFilePath")
-                }
-              } catch (e: Exception) {
-                Log.e(TAG, "Failed to move file to internal storage: ${e.message}", e)
-                sendEvent("onDownloadError", mapOf(
-                  "taskId" to downloadId.toInt(),
-                  "error" to "Failed to move file to destination: ${e.message}"
-                ))
-                cursor.close()
-                downloadTasks.remove(downloadId)
-                return
-              }
+              }.start()
+              
+              cursor.close()
+              downloadTasks.remove(downloadId)
+              return
             }
           }
           
+          // No internal path or external path - send completion immediately
           sendEvent("onDownloadComplete", mapOf(
             "taskId" to downloadId.toInt(),
-            "filePath" to finalFilePath,
+            "filePath" to downloadedFilePath,
             "url" to taskInfo.url
           ))
         } else {
