@@ -1,228 +1,149 @@
-# Download System
+# Downloads Module
 
-This directory contains the types and utilities for the download system in Streamyfin.
+This module handles all download functionality for the Streamyfin app, including video downloads, subtitles, trickplay images, and cover images.
 
 ## Architecture
 
-### DownloadProvider
+The downloads module is structured with a clean separation of concerns:
 
-The `DownloadProvider` is a React context provider that manages all download operations in the app. It uses a custom native `BackgroundDownloader` module for iOS to enable true background downloads.
+### Core Files
 
-**Location**: `providers/DownloadProvider.tsx`
+- **`database.ts`** - Pure functions for MMKV database operations
+- **`fileOperations.ts`** - Pure functions for file system operations
+- **`utils.ts`** - Pure utility functions (filename generation, URI conversion)
+- **`additionalDownloads.ts`** - Pure functions for downloading additional assets
+- **`notifications.ts`** - Pure functions for notification handling
+- **`types.ts`** - TypeScript type definitions
 
-### Key Features
+### Hooks
 
-1. **Background Downloads**: Downloads continue even when app is backgrounded
-2. **Progress Tracking**: Real-time progress updates via native events
-3. **Persistent Storage**: Downloads are saved to device storage and tracked in a JSON database
-4. **Type Safety**: Full TypeScript support with proper types
-5. **Notifications**: System notifications for download completion/errors
+- **`useDownloadOperations.ts`** - Hook providing download operations (start, cancel, delete)
+- **`useDownloadEventHandlers.ts`** - Hook setting up native download event listeners
 
-### Database Structure
+### Main Provider
 
-Downloads are persisted in MMKV storage with the key `downloads.v2.json`:
+- **`DownloadProvider.tsx`** - React context provider that orchestrates all download functionality
 
-```typescript
-interface DownloadsDatabase {
-  movies: Record<string, DownloadedItem>;
-  series: Record<string, DownloadedSeries>;
-  other: Record<string, DownloadedItem>;
-}
-```
+## Features
 
-### Download Flow
+### Video Downloads
+- Background download support using native module
+- Progress tracking and reporting
+- Pause/resume capability (future enhancement)
+- Download queue management
 
-1. **Start Download**
-   ```typescript
-   await startBackgroundDownload(url, item, mediaSource, maxBitrate);
-   ```
+### Additional Assets (Automatic)
+When a video download completes, the following are automatically downloaded:
 
-2. **Track Progress**
-   - Native module emits progress events
-   - Provider updates `processes` state
-   - UI reflects current progress
+1. **Trickplay Images** - Preview thumbnail sheets for video scrubbing
+2. **Subtitles** - External subtitle files (for non-transcoded content)
+3. **Cover Images** - Primary item images and series images
+4. **Segments** - Intro and credit skip timestamps
 
-3. **Handle Completion**
-   - File is moved to permanent location
-   - Database is updated
-   - User receives notification
-   - Process is cleaned up
+### File Management
+- Automatic cleanup of all associated files (video, subtitles, trickplay)
+- Size calculation including all assets
+- Batch delete operations
 
-4. **Error Handling**
-   - Errors are caught and logged
-   - User receives error notification
-   - Process is marked as failed and removed
+## Implementation Details
 
-## Types
+### Pure Functions
+All core logic is implemented as pure functions that:
+- Take explicit parameters
+- Return explicit values
+- Have no side effects
+- Are easily testable
 
-### JobStatus
+### Imperative Design
+The module uses imperative function calls rather than reactive patterns:
+- Direct function invocation
+- Explicit error handling
+- Clear control flow
+- Minimal side effects
 
-Represents an active download job:
+### Storage
+- **MMKV** - Used for persistent database storage
+- **expo-file-system** - Used for file operations
+- **Native module** - Used for background downloads
 
-```typescript
-type JobStatus = {
-  id: string;                    // Item ID
-  inputUrl: string;              // Download URL
-  item: BaseItemDto;             // Jellyfin item
-  itemId: string;                // Item ID
-  deviceId: string;              // Device identifier
-  progress: number;              // 0-100
-  status: DownloadStatus;        // Current status
-  timestamp: Date;               // Created/updated time
-  mediaSource: MediaSourceInfo;  // Media source info
-  maxBitrate: Bitrate;          // Selected bitrate
-  bytesDownloaded?: number;      // Bytes downloaded
-  lastProgressUpdateTime?: Date; // Last update time
-};
-```
-
-### DownloadedItem
-
-Represents a completed download in the database:
-
-```typescript
-interface DownloadedItem {
-  item: BaseItemDto;
-  mediaSource: MediaSourceInfo;
-  videoFilePath: string;
-  videoFileSize: number;
-  videoFileName?: string;
-  trickPlayData?: TrickPlayData;
-  introSegments?: MediaTimeSegment[];
-  creditSegments?: MediaTimeSegment[];
-  userData: UserData;
-}
-```
-
-## Usage Examples
-
-### Basic Download
+## Usage
 
 ```typescript
 import { useDownload } from '@/providers/DownloadProvider';
 
 function MyComponent() {
-  const { startBackgroundDownload } = useDownload();
+  const {
+    startBackgroundDownload,
+    cancelDownload,
+    deleteFile,
+    getDownloadedItems,
+    processes,
+  } = useDownload();
 
-  const handleDownload = async () => {
-    await startBackgroundDownload(
-      downloadUrl,
-      jellyfinItem,
-      mediaSource,
-      selectedBitrate
-    );
-  };
-}
-```
+  // Start a download
+  await startBackgroundDownload(url, item, mediaSource, bitrate);
 
-### Monitor Progress
+  // Cancel a download
+  await cancelDownload(itemId);
 
-```typescript
-function DownloadsList() {
-  const { processes } = useDownload();
+  // Delete a download
+  await deleteFile(itemId);
 
-  return (
-    <View>
-      {processes.map(process => (
-        <ProgressBar 
-          key={process.id}
-          progress={process.progress}
-          title={process.item.Name}
-        />
-      ))}
-    </View>
-  );
-}
-```
-
-### List Downloaded Items
-
-```typescript
-function DownloadedList() {
-  const { getDownloadedItems } = useDownload();
+  // Get all downloads
   const items = getDownloadedItems();
-
-  return (
-    <FlatList
-      data={items}
-      renderItem={({ item }) => (
-        <ItemCard item={item.item} />
-      )}
-    />
-  );
 }
 ```
 
-### Delete Downloads
+## Event Flow
 
-```typescript
-function DeleteButton({ itemId }: { itemId: string }) {
-  const { deleteFile } = useDownload();
+1. **Start Download**
+   - Pre-download cover images
+   - Start video download via native module
+   - Track progress via event listeners
 
-  const handleDelete = async () => {
-    await deleteFile(itemId);
-  };
+2. **Download Progress**
+   - Native module emits progress events
+   - React state updated with progress percentage
+   - UI reflects current download state
 
-  return <Button onPress={handleDelete} title="Delete" />;
-}
+3. **Download Complete**
+   - Video file saved to disk
+   - Additional assets downloaded in parallel:
+     - Trickplay images
+     - Subtitles (if applicable)
+     - Segments data
+   - Item saved to database
+   - Notification sent
+   - Process removed from queue
+
+4. **Delete**
+   - Item removed from database
+   - All associated files deleted:
+     - Video file
+     - Subtitle files
+     - Trickplay directory
+
+## File Structure
+
+```
+providers/Downloads/
+├── additionalDownloads.ts    # Trickplay, subtitles, cover images
+├── database.ts                # MMKV operations
+├── fileOperations.ts          # File system operations
+├── notifications.ts           # Notification helpers
+├── types.ts                   # TypeScript types
+├── utils.ts                   # Utility functions
+├── index.ts                   # Module exports
+├── hooks/
+│   ├── useDownloadEventHandlers.ts
+│   └── useDownloadOperations.ts
+└── README.md                  # This file
 ```
 
-## File Storage
+## Future Enhancements
 
-Downloads are stored in the app's Documents directory:
-
-```
-Documents/
-  └── [filename].mp4
-```
-
-Filenames are generated based on item type:
-- Movies: `{title}_{year}.mp4`
-- Episodes: `{series}_s{season}e{episode}.mp4`
-
-## Native Module Integration
-
-The provider uses the `BackgroundDownloader` native module:
-
-```typescript
-import { BackgroundDownloader } from '@/modules';
-
-// Start download
-const taskId = await BackgroundDownloader.startDownload(url, destPath);
-
-// Listen for events
-BackgroundDownloader.addProgressListener(event => {
-  // Handle progress
-});
-
-BackgroundDownloader.addCompleteListener(event => {
-  // Handle completion
-});
-
-BackgroundDownloader.addErrorListener(event => {
-  // Handle error
-});
-```
-
-## Platform Support
-
-- **iOS**: Full support with background downloads
-- **Android**: Planned
-- **tvOS**: Disabled (returns no-op functions)
-
-## Migration
-
-If upgrading from the old download system, see [MIGRATION.md](./MIGRATION.md) for details.
-
-## Future Improvements
-
-- [ ] Add pause/resume functionality
-- [ ] Implement download queue with concurrent limits
-- [ ] Add trickplay image downloads
-- [ ] Add subtitle downloads
-- [ ] Add intro/credit segment detection
-- [ ] Persist downloads across app restarts
-- [ ] Add cellular data controls
-- [ ] Improve download speed calculation
-- [ ] Add download size estimates
-
+- Background download scheduling
+- Network condition awareness
+- Download priority management
+- Automatic cleanup of old downloads
+- Series season download management

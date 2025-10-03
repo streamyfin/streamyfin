@@ -8,8 +8,11 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner-native";
 import type { Bitrate } from "@/components/BitrateSelector";
+import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
 import { getOrSetDeviceId } from "@/utils/device";
+import useDownloadHelper from "@/utils/download";
+import { getItemImage } from "@/utils/getItemImage";
 import {
   clearAllDownloadedItems,
   getAllDownloadedItems,
@@ -17,7 +20,7 @@ import {
 } from "../database";
 import {
   calculateTotalDownloadedSize,
-  deleteVideoFile,
+  deleteAllAssociatedFiles,
 } from "../fileOperations";
 import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
@@ -43,6 +46,8 @@ export function useDownloadOperations({
   authHeader,
 }: UseDownloadOperationsProps) {
   const { t } = useTranslation();
+  const { saveSeriesPrimaryImage } = useDownloadHelper();
+  const { saveImage } = useImageStorage();
 
   const startBackgroundDownload = useCallback(
     async (
@@ -70,6 +75,18 @@ export function useDownloadOperations({
           );
           return;
         }
+
+        // Pre-download cover images before starting the video download
+        console.log(`[DOWNLOAD] Pre-downloading cover images for ${item.Name}`);
+        await saveSeriesPrimaryImage(item);
+        const itemImage = getItemImage({
+          item,
+          api,
+          variant: "Primary",
+          quality: 90,
+          width: 500,
+        });
+        await saveImage(item.Id, itemImage?.uri);
 
         // Create job status
         const jobStatus: JobStatus = {
@@ -159,14 +176,14 @@ export function useDownloadOperations({
 
       if (itemToDelete) {
         try {
-          deleteVideoFile(itemToDelete.videoFilePath);
+          deleteAllAssociatedFiles(itemToDelete);
           toast.success(
             t("home.downloads.toasts.file_deleted", {
               item: itemToDelete.item.Name,
             }),
           );
         } catch (error) {
-          console.error("Failed to delete video file:", error);
+          console.error("Failed to delete files:", error);
         }
       }
     },
@@ -187,7 +204,7 @@ export function useDownloadOperations({
 
     for (const item of allItems) {
       try {
-        deleteVideoFile(item.videoFilePath);
+        deleteAllAssociatedFiles(item);
       } catch (error) {
         console.error("Failed to delete file:", error);
       }

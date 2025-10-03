@@ -1,4 +1,14 @@
 // Database operations
+
+// Additional downloads (trickplay, subtitles, cover images)
+export {
+  downloadAdditionalAssets,
+  downloadCoverImage,
+  downloadSeriesImage,
+  downloadSubtitles,
+  downloadTrickplayImages,
+  fetchSegments,
+} from "./additionalDownloads";
 export {
   addDownloadedItem,
   clearAllDownloadedItems,
@@ -8,10 +18,10 @@ export {
   removeDownloadedItem,
   saveDownloadsDatabase,
 } from "./database";
-
 // File operations
 export {
   calculateTotalDownloadedSize,
+  deleteAllAssociatedFiles,
   deleteVideoFile,
   getDownloadedItemSize,
 } from "./fileOperations";

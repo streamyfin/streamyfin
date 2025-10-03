@@ -1,8 +1,10 @@
+import type { Api } from "@jellyfin/sdk";
 import { File } from "expo-file-system";
 import type { MutableRefObject } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner-native";
+import useImageStorage from "@/hooks/useImageStorage";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
@@ -10,12 +12,19 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
+import useDownloadHelper from "@/utils/download";
+import { downloadAdditionalAssets } from "../additionalDownloads";
 import { addDownloadedItem } from "../database";
 import {
   getNotificationContent,
   sendDownloadNotification,
 } from "../notifications";
-import type { DownloadedItem, JobStatus } from "../types";
+import type {
+  DownloadedItem,
+  JobStatus,
+  MediaTimeSegment,
+  TrickPlayData,
+} from "../types";
 import { generateFilename } from "../utils";
 
 interface UseDownloadEventHandlersProps {
@@ -27,6 +36,7 @@ interface UseDownloadEventHandlersProps {
   ) => void;
   removeProcess: (id: string) => void;
   onSuccess?: () => void;
+  api?: Api;
 }
 
 /**
@@ -38,8 +48,11 @@ export function useDownloadEventHandlers({
   updateProcess,
   removeProcess,
   onSuccess,
+  api,
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
+  const { saveSeriesPrimaryImage } = useDownloadHelper();
+  const { saveImage } = useImageStorage();
 
   // Handle download started events
   useEffect(() => {
@@ -119,12 +132,44 @@ export function useDownloadEventHandlers({
           const videoFileSize = videoFile.size || 0;
           const filename = generateFilename(item);
 
+          console.log(
+            `[COMPLETE] Video download complete, starting additional downloads for ${item.Name}`,
+          );
+
+          // Download additional assets (trickplay, subtitles, cover images, segments)
+          let trickPlayData: TrickPlayData | undefined;
+          let updatedMediaSource = mediaSource;
+          let introSegments: MediaTimeSegment[] | undefined;
+          let creditSegments: MediaTimeSegment[] | undefined;
+
+          if (api) {
+            const additionalAssets = await downloadAdditionalAssets({
+              item,
+              mediaSource,
+              api,
+              saveImageFn: saveImage,
+              saveSeriesImageFn: saveSeriesPrimaryImage,
+            });
+
+            trickPlayData = additionalAssets.trickPlayData;
+            updatedMediaSource = additionalAssets.updatedMediaSource;
+            introSegments = additionalAssets.introSegments;
+            creditSegments = additionalAssets.creditSegments;
+          } else {
+            console.warn(
+              "[COMPLETE] API not available, skipping additional downloads",
+            );
+          }
+
           const downloadedItem: DownloadedItem = {
             item,
-            mediaSource,
+            mediaSource: updatedMediaSource,
             videoFilePath: event.filePath,
             videoFileSize,
             videoFileName: `${filename}.mp4`,
+            trickPlayData,
+            introSegments,
+            creditSegments,
             userData: {
               audioStreamIndex: 0,
               subtitleStreamIndex: 0,
@@ -165,7 +210,17 @@ export function useDownloadEventHandlers({
     );
 
     return () => completeSub.remove();
-  }, [taskMapRef, processes, updateProcess, removeProcess, onSuccess, t]);
+  }, [
+    taskMapRef,
+    processes,
+    updateProcess,
+    removeProcess,
+    onSuccess,
+    api,
+    saveImage,
+    saveSeriesPrimaryImage,
+    t,
+  ]);
 
   // Handle download error events
   useEffect(() => {

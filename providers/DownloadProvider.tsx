@@ -81,6 +81,7 @@ function useDownloadProvider() {
     updateProcess,
     removeProcess,
     onSuccess: successHapticFeedback,
+    api: api || undefined,
   });
 
   // Get download operation functions

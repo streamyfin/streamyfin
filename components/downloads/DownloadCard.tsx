@@ -17,7 +17,6 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { JobStatus } from "@/providers/Downloads/types";
 import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
-import { Button } from "../Button";
 
 const bytesToMB = (bytes: number) => {
   return bytes / 1024 / 1024;
@@ -28,14 +27,13 @@ interface DownloadCardProps extends TouchableOpacityProps {
 }
 
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
-  const { startDownload, pauseDownload, resumeDownload, removeProcess } =
-    useDownload();
+  const { pauseDownload, resumeDownload, removeProcess } = useDownload();
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const handlePause = async (id: string) => {
+  const handlePause = async () => {
     try {
-      await pauseDownload(id);
+      await pauseDownload();
       toast.success(t("home.downloads.toasts.download_paused"));
     } catch (error) {
       console.error("Error pausing download:", error);
@@ -43,9 +41,9 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     }
   };
 
-  const handleResume = async (id: string) => {
+  const handleResume = async () => {
     try {
-      await resumeDownload(id);
+      await resumeDownload();
       toast.success(t("home.downloads.toasts.download_resumed"));
     } catch (error) {
       console.error("Error resuming download:", error);
@@ -113,18 +111,12 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       {/* Action buttons in bottom right corner */}
       <View className='absolute bottom-2 right-2 flex flex-row items-center space-x-2 z-10'>
         {process.status === "downloading" && Platform.OS !== "ios" && (
-          <TouchableOpacity
-            onPress={() => handlePause(process.id)}
-            className='p-1'
-          >
+          <TouchableOpacity onPress={() => handlePause()} className='p-1'>
             <Ionicons name='pause' size={20} color='white' />
           </TouchableOpacity>
         )}
         {process.status === "paused" && Platform.OS !== "ios" && (
-          <TouchableOpacity
-            onPress={() => handleResume(process.id)}
-            className='p-1'
-          >
+          <TouchableOpacity onPress={() => handleResume()} className='p-1'>
             <Ionicons name='play' size={20} color='white' />
           </TouchableOpacity>
         )}
@@ -181,18 +173,6 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
             </View>
           </View>
         </View>
-        {process.status === "completed" && (
-          <View className='flex flex-row mt-4 space-x-4'>
-            <Button
-              onPress={() => {
-                startDownload(process);
-              }}
-              className='w-full'
-            >
-              Download now
-            </Button>
-          </View>
-        )}
       </View>
     </TouchableOpacity>
   );
