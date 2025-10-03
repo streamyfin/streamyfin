@@ -19,7 +19,13 @@ export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
     return storage.getString(items[0].SeriesId!);
   }, []);
 
-  const deleteSeries = useCallback(async () => deleteItems(items), [items]);
+  const deleteSeries = useCallback(
+    async () =>
+      deleteItems(
+        items.map((item) => item.Id).filter((id) => id !== undefined),
+      ),
+    [items],
+  );
 
   const showActionSheet = useCallback(() => {
     const options = ["Delete", "Cancel"];

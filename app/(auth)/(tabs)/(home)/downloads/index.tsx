@@ -146,23 +146,25 @@ export default function page() {
       });
   const deleteOtherMedia = () =>
     Promise.all(
-      otherMedia.map((item) =>
-        deleteFileByType(item.item.Type)
-          .then(() =>
-            toast.success(
-              t("home.downloads.toasts.deleted_media_successfully", {
-                type: item.item.Type,
-              }),
-            ),
-          )
-          .catch((reason) => {
-            writeToLog("ERROR", reason);
-            toast.error(
-              t("home.downloads.toasts.failed_to_delete_media", {
-                type: item.item.Type,
-              }),
-            );
-          }),
+      otherMedia.map(
+        (item) =>
+          item.item.Type &&
+          deleteFileByType(item.item.Type)
+            .then(() =>
+              toast.success(
+                t("home.downloads.toasts.deleted_media_successfully", {
+                  type: item.item.Type,
+                }),
+              ),
+            )
+            .catch((reason) => {
+              writeToLog("ERROR", reason);
+              toast.error(
+                t("home.downloads.toasts.failed_to_delete_media", {
+                  type: item.item.Type,
+                }),
+              );
+            }),
       ),
     );
 

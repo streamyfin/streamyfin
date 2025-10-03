@@ -42,7 +42,6 @@ export type {
   JobStatus,
   MediaTimeSegment,
   TrickPlayData,
-  UserData,
 } from "./types";
 // Utility functions
 export { generateFilename, uriToFilePath } from "./utils";

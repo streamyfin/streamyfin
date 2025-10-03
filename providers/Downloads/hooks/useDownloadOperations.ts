@@ -214,6 +214,52 @@ export function useDownloadOperations({
     toast.success(t("home.downloads.toasts.all_files_deleted"));
   }, [t]);
 
+  const deleteFileByType = useCallback(
+    async (itemType: string) => {
+      const allItems = getAllDownloadedItems();
+      const itemsToDelete = allItems.filter(
+        (item) => item.item.Type === itemType,
+      );
+
+      if (itemsToDelete.length === 0) {
+        console.log(`[DELETE] No items found with type: ${itemType}`);
+        return;
+      }
+
+      console.log(
+        `[DELETE] Deleting ${itemsToDelete.length} items of type: ${itemType}`,
+      );
+
+      for (const item of itemsToDelete) {
+        try {
+          deleteAllAssociatedFiles(item);
+          removeDownloadedItem(item.item.Id || "");
+        } catch (error) {
+          console.error(
+            `Failed to delete ${itemType} file ${item.item.Name}:`,
+            error,
+          );
+        }
+      }
+
+      const itemLabel =
+        itemType === "Movie"
+          ? t("common.movies")
+          : itemType === "Episode"
+            ? t("common.episodes")
+            : itemType;
+
+      toast.success(
+        t("home.downloads.toasts.files_deleted_by_type", {
+          count: itemsToDelete.length,
+          type: itemLabel,
+          defaultValue: `${itemsToDelete.length} ${itemLabel} deleted`,
+        }),
+      );
+    },
+    [t],
+  );
+
   const appSizeUsage = useCallback(async () => {
     const totalSize = calculateTotalDownloadedSize();
 
@@ -230,6 +276,7 @@ export function useDownloadOperations({
     deleteFile,
     deleteItems,
     deleteAllFiles,
+    deleteFileByType,
     appSizeUsage,
   };
 }

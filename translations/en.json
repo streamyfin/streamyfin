@@ -308,7 +308,8 @@
         "all_files_folders_and_jobs_deleted_successfully": "All files, folders, and jobs deleted successfully",
         "failed_to_clean_cache_directory": "Failed to clean cache directory",
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
-        "go_to_downloads": "Go to Downloads"
+        "go_to_downloads": "Go to Downloads",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },
