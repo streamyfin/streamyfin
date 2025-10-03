@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
+import { calculateSmoothedETA } from "@/providers/Downloads/hooks/useDownloadSpeedCalculator";
 import { JobStatus } from "@/providers/Downloads/types";
 import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
@@ -62,16 +63,23 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     }
   };
 
-  const eta = (p: JobStatus) => {
-    if (!p.speed || p.speed <= 0 || !p.estimatedTotalSizeBytes) return null;
+  const eta = useMemo(() => {
+    if (!process.estimatedTotalSizeBytes || !process.bytesDownloaded) {
+      return null;
+    }
 
-    const bytesRemaining = p.estimatedTotalSizeBytes - (p.bytesDownloaded || 0);
-    if (bytesRemaining <= 0) return null;
+    const secondsRemaining = calculateSmoothedETA(
+      process.id,
+      process.bytesDownloaded,
+      process.estimatedTotalSizeBytes,
+    );
 
-    const secondsRemaining = bytesRemaining / p.speed;
+    if (!secondsRemaining || secondsRemaining <= 0) {
+      return null;
+    }
 
     return formatTimeString(secondsRemaining, "s");
-  };
+  }, [process.id, process.bytesDownloaded, process.estimatedTotalSizeBytes]);
 
   const base64Image = useMemo(() => {
     return storage.getString(process.item.Id!);
@@ -161,9 +169,9 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
                   {bytesToMB(process.speed).toFixed(2)} MB/s
                 </Text>
               )}
-              {eta(process) && (
+              {eta && (
                 <Text className='text-xs'>
-                  {t("home.downloads.eta", { eta: eta(process) })}
+                  {t("home.downloads.eta", { eta: eta })}
                 </Text>
               )}
             </View>

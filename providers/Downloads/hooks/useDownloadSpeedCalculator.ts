@@ -4,11 +4,13 @@ interface SpeedDataPoint {
 }
 
 const WINDOW_DURATION = 60000; // 1 minute in ms
-const MIN_DATA_POINTS = 3; // Need at least 3 points for accurate speed
+const MIN_DATA_POINTS = 5; // Need at least 5 points for accurate speed
 const MAX_REASONABLE_SPEED = 1024 * 1024 * 1024; // 1 GB/s sanity check
+const EMA_ALPHA = 0.2; // Smoothing factor for EMA (lower = smoother, 0-1 range)
 
 // Private state
 const dataPoints = new Map<string, SpeedDataPoint[]>();
+const emaSpeed = new Map<string, number>(); // Store EMA speed for each process
 
 function isValidBytes(bytes: number): boolean {
   return typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0;
@@ -161,7 +163,8 @@ export function calculateWeightedSpeed(processId: string): number | undefined {
     }
 
     // More recent points get exponentially higher weight
-    const weight = 2 ** i;
+    // Using 1.3 instead of 2 for gentler weighting (less sensitive to recent changes)
+    const weight = 1.3 ** i;
     totalWeightedSpeed += speed * weight;
     totalWeight += weight;
   }
@@ -180,12 +183,74 @@ export function calculateWeightedSpeed(processId: string): number | undefined {
   return weightedSpeed;
 }
 
+// Calculate ETA in seconds
+export function calculateETA(
+  processId: string,
+  bytesDownloaded: number,
+  totalBytes: number,
+): number | undefined {
+  const speed = calculateWeightedSpeed(processId);
+
+  if (!speed || speed <= 0 || !totalBytes || totalBytes <= 0) {
+    return undefined;
+  }
+
+  const bytesRemaining = totalBytes - bytesDownloaded;
+  if (bytesRemaining <= 0) {
+    return 0;
+  }
+
+  const secondsRemaining = bytesRemaining / speed;
+
+  // Sanity check
+  if (!Number.isFinite(secondsRemaining) || secondsRemaining < 0) {
+    return undefined;
+  }
+
+  return secondsRemaining;
+}
+
+// Calculate smoothed ETA using Exponential Moving Average (EMA)
+// This provides much smoother ETA estimates, reducing jumpy time estimates
+const emaETA = new Map<string, number>();
+
+export function calculateSmoothedETA(
+  processId: string,
+  bytesDownloaded: number,
+  totalBytes: number,
+): number | undefined {
+  const currentETA = calculateETA(processId, bytesDownloaded, totalBytes);
+
+  if (currentETA === undefined) {
+    return undefined;
+  }
+
+  const previousEma = emaETA.get(processId);
+
+  if (previousEma === undefined) {
+    // First calculation, initialize with current ETA
+    emaETA.set(processId, currentETA);
+    return currentETA;
+  }
+
+  // EMA formula: EMA(t) = α * current + (1 - α) * EMA(t-1)
+  // Lower alpha = smoother but slower to respond
+  const smoothed = EMA_ALPHA * currentETA + (1 - EMA_ALPHA) * previousEma;
+
+  emaETA.set(processId, smoothed);
+  return smoothed;
+}
+
 export function clearSpeedData(processId: string): void {
   dataPoints.delete(processId);
+  emaSpeed.delete(processId);
+  emaETA.delete(processId);
 }
 
 export function resetAllSpeedData(): void {
   dataPoints.clear();
+  emaSpeed.clear();
+  emaETA.clear();
 }
 
 // Debug function to inspect current state

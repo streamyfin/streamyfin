@@ -19,6 +19,7 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
   init(module: BackgroundDownloaderModule) {
     self.module = module
     super.init()
+    print("[DownloadSessionDelegate] Delegate initialized with module: \(String(describing: module))")
   }
   
   func urlSession(
@@ -141,10 +142,73 @@ public class BackgroundDownloaderModule: Module {
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
         session.getAllTasks { tasks in
           if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
-            print("[BackgroundDownloader] Task state after 0.5s: \(self.taskStateString(downloadTask.state))")
+            print("[BackgroundDownloader] === 0.5s CHECK ===")
+            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
             if let response = downloadTask.response as? HTTPURLResponse {
               print("[BackgroundDownloader] Response status: \(response.statusCode)")
               print("[BackgroundDownloader] Expected content length: \(response.expectedContentLength)")
+            } else {
+              print("[BackgroundDownloader] No HTTP response yet after 0.5s")
+            }
+          } else {
+            print("[BackgroundDownloader] Task not found after 0.5s")
+          }
+        }
+      }
+      
+      // Additional diagnostics at 1s, 2s, and 3s
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        session.getAllTasks { tasks in
+          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
+            print("[BackgroundDownloader] === 1s CHECK ===")
+            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
+            print("[BackgroundDownloader] Task error: \(String(describing: downloadTask.error))")
+            print("[BackgroundDownloader] Current request URL: \(downloadTask.currentRequest?.url?.absoluteString ?? "nil")")
+            print("[BackgroundDownloader] Original request URL: \(downloadTask.originalRequest?.url?.absoluteString ?? "nil")")
+            
+            if let response = downloadTask.response as? HTTPURLResponse {
+              print("[BackgroundDownloader] HTTP Status: \(response.statusCode)")
+              print("[BackgroundDownloader] Expected content length: \(response.expectedContentLength)")
+              print("[BackgroundDownloader] All headers: \(response.allHeaderFields)")
+            } else {
+              print("[BackgroundDownloader] ⚠️ STILL NO HTTP RESPONSE after 1s")
+            }
+            
+            let countOfBytesReceived = downloadTask.countOfBytesReceived
+            if countOfBytesReceived > 0 {
+              print("[BackgroundDownloader] Bytes received: \(countOfBytesReceived)")
+            } else {
+              print("[BackgroundDownloader] ⚠️ NO BYTES RECEIVED YET")
+            }
+          } else {
+            print("[BackgroundDownloader] ⚠️ Task disappeared after 1s")
+          }
+        }
+      }
+      
+      DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        session.getAllTasks { tasks in
+          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
+            print("[BackgroundDownloader] === 2s CHECK ===")
+            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
+            let countOfBytesReceived = downloadTask.countOfBytesReceived
+            print("[BackgroundDownloader] Bytes received: \(countOfBytesReceived)")
+            if downloadTask.error != nil {
+              print("[BackgroundDownloader] ⚠️ Task has error: \(String(describing: downloadTask.error))")
+            }
+          }
+        }
+      }
+      
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+        session.getAllTasks { tasks in
+          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
+            print("[BackgroundDownloader] === 3s CHECK ===")
+            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
+            let countOfBytesReceived = downloadTask.countOfBytesReceived
+            print("[BackgroundDownloader] Bytes received: \(countOfBytesReceived)")
+            if downloadTask.error != nil {
+              print("[BackgroundDownloader] ⚠️ Task has error: \(String(describing: downloadTask.error))")
             }
           }
         }
@@ -173,17 +237,20 @@ public class BackgroundDownloaderModule: Module {
     
     AsyncFunction("getActiveDownloads") { () -> [[String: Any]] in
       return try await withCheckedThrowingContinuation { continuation in
+        let downloadTasks = self.downloadTasks
+        let taskStateString = self.taskStateString
+        
         self.session?.getAllTasks { tasks in
           let activeDownloads = tasks.compactMap { task -> [String: Any]? in
             guard task is URLSessionDownloadTask,
-                  let info = self.downloadTasks[task.taskIdentifier] else {
+                  let info = downloadTasks[task.taskIdentifier] else {
               return nil
             }
             
             return [
               "taskId": task.taskIdentifier,
               "url": info.url,
-              "state": self.taskStateString(task.state)
+              "state": taskStateString(task.state)
             ]
           }
           continuation.resume(returning: activeDownloads)
@@ -210,6 +277,15 @@ public class BackgroundDownloaderModule: Module {
     )
     
     print("[BackgroundDownloader] URLSession initialized with delegate: \(String(describing: self.sessionDelegate))")
+    print("[BackgroundDownloader] Session identifier: \(config.identifier ?? "nil")")
+    print("[BackgroundDownloader] Delegate queue: nil (uses default)")
+    
+    // Verify delegate is connected
+    if let session = self.session, session.delegate != nil {
+      print("[BackgroundDownloader] ✅ Delegate successfully attached to session")
+    } else {
+      print("[BackgroundDownloader] ⚠️ DELEGATE NOT ATTACHED!")
+    }
   }
   
   private func taskStateString(_ state: URLSessionTask.State) -> String {
