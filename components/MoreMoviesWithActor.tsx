@@ -82,7 +82,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
       <HorizontalScroll
         data={items}
         loading={isLoading}
-        height={247}
+        height={218}
         renderItem={(item: BaseItemDto, idx: number) => (
           <TouchableItemRouter
             key={idx}

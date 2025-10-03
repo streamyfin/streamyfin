@@ -27,18 +27,23 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
         {title}
       </Text>
       <View
-        style={[]}
+        style={{
+          borderRadius: 12,
+        }}
         className='flex flex-col rounded-xl overflow-hidden pl-0 bg-neutral-900'
       >
         {Children.map(childrenArray, (child, index) => {
           if (isValidElement<{ style?: ViewStyle }>(child)) {
+            const isLastItem = index === childrenArray.length - 1;
             return cloneElement(child as any, {
-              style: StyleSheet.compose(
-                child.props.style,
-                index < childrenArray.length - 1
-                  ? styles.borderBottom
-                  : undefined,
-              ),
+              ...(isLastItem
+                ? {}
+                : {
+                    style: StyleSheet.compose(
+                      child.props.style,
+                      styles.borderBottom,
+                    ),
+                  }),
             });
           }
           return child;

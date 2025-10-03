@@ -59,6 +59,7 @@ import { useAtom } from "jotai";
 import { Toaster } from "sonner-native";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
+import "../global.css";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({

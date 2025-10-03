@@ -22,9 +22,7 @@ export const Tag: React.FC<
 > = ({ text, textClass, textStyle, ...props }) => {
   return (
     <View className='bg-neutral-800 rounded-full px-2 py-1' {...props}>
-      <Text className={textClass} style={textStyle}>
-        {text}
-      </Text>
+      <Text className='text-white'>{text}</Text>
     </View>
   );
 };

@@ -201,7 +201,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
           }
         >
           <View className='flex flex-col bg-transparent shrink'>
-            <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
+            <View className='flex flex-col px-4 w-full pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-2' />
               {item.Type !== "Program" && !Platform.isTV && !isOffline && (
                 <View className='flex flex-row items-center justify-start w-full h-16'>
@@ -287,21 +287,21 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             {item.Type !== "Program" && (
               <>
                 {item.Type === "Episode" && !isOffline && (
-                  <CurrentSeries item={item} className='mb-4' />
+                  <CurrentSeries item={item} className='' />
                 )}
 
                 {!isOffline && (
-                  <CastAndCrew item={item} className='mb-4' loading={loading} />
+                  <CastAndCrew item={item} className='' loading={loading} />
                 )}
 
                 {item.People && item.People.length > 0 && !isOffline && (
-                  <View className='mb-4'>
+                  <View className=''>
                     {item.People.slice(0, 3).map((person, idx) => (
                       <MoreMoviesWithActor
                         currentItem={item}
                         key={idx}
                         actorId={person.Id!}
-                        className='mb-4'
+                        className=''
                       />
                     ))}
                   </View>

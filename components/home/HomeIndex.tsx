@@ -472,7 +472,7 @@ export const HomeIndex = () => {
           paddingBottom: 16,
         }}
       >
-        <View className='flex flex-col space-y-4'>
+        <View className='flex flex-col gap-4'>
           {sections.map((section, index) => {
             if (section.type === "ScrollingCollectionList") {
               return (

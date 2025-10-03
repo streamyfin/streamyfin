@@ -29,7 +29,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source }) => {
     <View className='px-4 mt-2 mb-4'>
       <Text className='text-lg font-bold mb-4'>{t("item_card.video")}</Text>
       <TouchableOpacity onPress={() => bottomSheetModalRef.current?.present()}>
-        <View className='flex flex-row space-x-2'>
+        <View className='flex flex-row mb-2'>
           <VideoStreamInfo source={source} />
         </View>
         <Text className='text-purple-600'>{t("item_card.more_details")}</Text>

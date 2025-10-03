@@ -25,7 +25,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
       </Text>
       <HorizontalScroll
         data={[item]}
-        height={247}
+        height={218}
         renderItem={(item, _index) => (
           <TouchableOpacity
             key={item?.Id}
@@ -38,7 +38,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
               id={item?.Id}
               url={getPrimaryImageUrlById({ api, id: item?.ParentId })}
             />
-            <Text>{item?.SeriesName}</Text>
+            <Text className='mt-2'>{item?.SeriesName}</Text>
           </TouchableOpacity>
         )}
       />

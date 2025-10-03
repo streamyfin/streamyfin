@@ -107,7 +107,7 @@ const ListItemContent = ({
           </Text>
           {subtitle && (
             <Text
-              className='text-[#9899A1] text-[12px] mt-0.5'
+              className='text-neutral-500 text-[11px] mt-0.5'
               numberOfLines={2}
             >
               {subtitle}

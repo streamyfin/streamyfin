@@ -73,23 +73,24 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       ${size === "small" ? "w-32" : "w-44"}
     `}
     >
-      <View className='w-full h-full flex items-center justify-center'>
-        <Image
-          key={item.Id}
-          id={item.Id}
-          source={{
-            uri: url,
-          }}
-          cachePolicy={"memory-disk"}
-          contentFit='cover'
-          className='w-full h-full'
-        />
-        {showPlayButton && (
-          <View className='absolute inset-0 flex items-center justify-center'>
-            <Ionicons name='play-circle' size={40} color='white' />
-          </View>
-        )}
-      </View>
+      <Image
+        key={item.Id}
+        id={item.Id}
+        source={{
+          uri: url,
+        }}
+        cachePolicy={"memory-disk"}
+        contentFit='cover'
+        style={{
+          height: "100%",
+          width: "100%",
+        }}
+      />
+      {showPlayButton && (
+        <View className='absolute inset-0 flex items-center justify-center'>
+          <Ionicons name='play-circle' size={40} color='white' />
+        </View>
+      )}
       {!item.UserData?.Played && <WatchedIndicator item={item} />}
       <ProgressBar item={item} />
     </View>

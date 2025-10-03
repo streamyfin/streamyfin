@@ -170,11 +170,12 @@ export function useDownloadEventHandlers({
         try {
           const { item, mediaSource } = process;
           const videoFile = new File("", event.filePath);
-          const videoFileSize = videoFile.size || 0;
+          const fileInfo = videoFile.info();
+          const videoFileSize = fileInfo.size || 0;
           const filename = generateFilename(item);
 
           console.log(
-            `[COMPLETE] Video download complete, starting additional downloads for ${item.Name}`,
+            `[COMPLETE] Video download complete (${videoFileSize} bytes), starting additional downloads for ${item.Name}`,
           );
 
           // Download additional assets (trickplay, subtitles, cover images, segments)
