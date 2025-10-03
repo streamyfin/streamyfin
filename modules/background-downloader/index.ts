@@ -1,4 +1,4 @@
-import { EventEmitter, type Subscription } from "expo-modules-core";
+import type { Subscription } from "expo-modules-core";
 import type {
   ActiveDownload,
   DownloadCompleteEvent,
@@ -7,8 +7,6 @@ import type {
   DownloadStartedEvent,
 } from "./src/BackgroundDownloader.types";
 import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
-
-const emitter = new EventEmitter(BackgroundDownloaderModule);
 
 export interface BackgroundDownloader {
   startDownload(url: string, destinationPath?: string): Promise<number>;
@@ -51,25 +49,34 @@ const BackgroundDownloader: BackgroundDownloader = {
   addProgressListener(
     listener: (event: DownloadProgressEvent) => void,
   ): Subscription {
-    return emitter.addListener("onDownloadProgress", listener);
+    return BackgroundDownloaderModule.addListener(
+      "onDownloadProgress",
+      listener,
+    );
   },
 
   addCompleteListener(
     listener: (event: DownloadCompleteEvent) => void,
   ): Subscription {
-    return emitter.addListener("onDownloadComplete", listener);
+    return BackgroundDownloaderModule.addListener(
+      "onDownloadComplete",
+      listener,
+    );
   },
 
   addErrorListener(
     listener: (event: DownloadErrorEvent) => void,
   ): Subscription {
-    return emitter.addListener("onDownloadError", listener);
+    return BackgroundDownloaderModule.addListener("onDownloadError", listener);
   },
 
   addStartedListener(
     listener: (event: DownloadStartedEvent) => void,
   ): Subscription {
-    return emitter.addListener("onDownloadStarted", listener);
+    return BackgroundDownloaderModule.addListener(
+      "onDownloadStarted",
+      listener,
+    );
   },
 };
 

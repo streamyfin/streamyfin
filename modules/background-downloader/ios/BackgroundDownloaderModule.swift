@@ -28,6 +28,8 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     totalBytesWritten: Int64,
     totalBytesExpectedToWrite: Int64
   ) {
+    let progress = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0.0
+    print("[BackgroundDownloader] Progress callback: taskId=\(downloadTask.taskIdentifier), written=\(totalBytesWritten), total=\(totalBytesExpectedToWrite), progress=\(progress)")
     module?.handleProgress(
       taskId: downloadTask.taskIdentifier,
       bytesWritten: totalBytesWritten,
@@ -40,6 +42,7 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     downloadTask: URLSessionDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
+    print("[BackgroundDownloader] Download finished callback: taskId=\(downloadTask.taskIdentifier)")
     module?.handleDownloadComplete(
       taskId: downloadTask.taskIdentifier,
       location: location,
@@ -52,7 +55,15 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     task: URLSessionTask,
     didCompleteWithError error: Error?
   ) {
+    print("[BackgroundDownloader] Task completed: taskId=\(task.taskIdentifier), error=\(String(describing: error))")
+    
+    if let httpResponse = task.response as? HTTPURLResponse {
+      print("[BackgroundDownloader] HTTP Status: \(httpResponse.statusCode)")
+      print("[BackgroundDownloader] Content-Length: \(httpResponse.expectedContentLength)")
+    }
+    
     if let error = error {
+      print("[BackgroundDownloader] Task error: \(error.localizedDescription)")
       module?.handleError(taskId: task.taskIdentifier, error: error)
     }
   }
@@ -100,8 +111,16 @@ public class BackgroundDownloaderModule: Module {
         throw DownloadError.downloadFailed
       }
       
-      let task = session.downloadTask(with: url)
+      // Create a URLRequest to ensure proper handling
+      var request = URLRequest(url: url)
+      request.httpMethod = "GET"
+      request.timeoutInterval = 300
+      
+      let task = session.downloadTask(with: request)
       let taskId = task.taskIdentifier
+      
+      print("[BackgroundDownloader] Starting download: taskId=\(taskId), url=\(urlString)")
+      print("[BackgroundDownloader] Destination: \(destinationPath ?? "default")")
       
       self.downloadTasks[taskId] = DownloadTaskInfo(
         url: urlString,
@@ -110,10 +129,26 @@ public class BackgroundDownloaderModule: Module {
       
       task.resume()
       
+      print("[BackgroundDownloader] Task resumed with state: \(self.taskStateString(task.state))")
+      print("[BackgroundDownloader] Sending started event")
+      
       self.sendEvent("onDownloadStarted", [
         "taskId": taskId,
         "url": urlString
       ])
+      
+      // Check task state after a brief delay
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        session.getAllTasks { tasks in
+          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
+            print("[BackgroundDownloader] Task state after 0.5s: \(self.taskStateString(downloadTask.state))")
+            if let response = downloadTask.response as? HTTPURLResponse {
+              print("[BackgroundDownloader] Response status: \(response.statusCode)")
+              print("[BackgroundDownloader] Expected content length: \(response.expectedContentLength)")
+            }
+          }
+        }
+      }
       
       return taskId
     }
@@ -158,6 +193,8 @@ public class BackgroundDownloaderModule: Module {
   }
   
   private func initializeSession() {
+    print("[BackgroundDownloader] Initializing URLSession")
+    
     let config = URLSessionConfiguration.background(
       withIdentifier: "com.fredrikburmester.streamyfin.backgrounddownloader"
     )
@@ -171,6 +208,8 @@ public class BackgroundDownloaderModule: Module {
       delegate: self.sessionDelegate,
       delegateQueue: nil
     )
+    
+    print("[BackgroundDownloader] URLSession initialized with delegate: \(String(describing: self.sessionDelegate))")
   }
   
   private func taskStateString(_ state: URLSessionTask.State) -> String {
@@ -193,6 +232,8 @@ public class BackgroundDownloaderModule: Module {
     let progress = totalBytes > 0
       ? Double(bytesWritten) / Double(totalBytes)
       : 0.0
+    
+    print("[BackgroundDownloader] Sending progress event: taskId=\(taskId), progress=\(progress)")
     
     self.sendEvent("onDownloadProgress", [
       "taskId": taskId,
