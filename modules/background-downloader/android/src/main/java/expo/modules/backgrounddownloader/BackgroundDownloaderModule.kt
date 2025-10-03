@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -17,6 +18,10 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 
 class BackgroundDownloaderModule : Module() {
+  companion object {
+    private const val TAG = "BackgroundDownloader"
+  }
+
   private val context
     get() = requireNotNull(appContext.reactContext)
 
@@ -70,11 +75,28 @@ class BackgroundDownloaderModule : Module() {
 
           if (destinationPath != null) {
             val file = File(destinationPath)
-            val directory = file.parentFile
-            if (directory != null && !directory.exists()) {
-              directory.mkdirs()
+            val fileName = file.name
+            
+            // Check if destination is in internal storage (starts with /data/data/ or /data/user/)
+            // DownloadManager can't write to internal storage directly
+            val isInternalPath = destinationPath.startsWith("/data/data/") || 
+                                destinationPath.startsWith("/data/user/")
+            
+            if (isInternalPath) {
+              // Download to external files dir, we'll move it later
+              setDestinationInExternalFilesDir(
+                context,
+                null,
+                fileName
+              )
+            } else {
+              // External path - create directory and set destination
+              val directory = file.parentFile
+              if (directory != null && !directory.exists()) {
+                directory.mkdirs()
+              }
+              setDestinationUri(Uri.fromFile(file))
             }
-            setDestinationUri(Uri.fromFile(file))
           } else {
             val fileName = uri.lastPathSegment ?: "download_${System.currentTimeMillis()}"
             setDestinationInExternalFilesDir(
@@ -262,11 +284,51 @@ class BackgroundDownloaderModule : Module() {
         val localUri = if (uriIndex >= 0) cursor.getString(uriIndex) else null
 
         if (localUri != null) {
-          val filePath = Uri.parse(localUri).path ?: localUri
+          var finalFilePath = Uri.parse(localUri).path ?: localUri
+          
+          // If we have a custom destination path for internal storage, move the file
+          if (taskInfo.destinationPath != null) {
+            val isInternalPath = taskInfo.destinationPath.startsWith("/data/data/") || 
+                                taskInfo.destinationPath.startsWith("/data/user/")
+            
+            if (isInternalPath) {
+              try {
+                val sourceFile = File(finalFilePath)
+                val destFile = File(taskInfo.destinationPath)
+                
+                // Create destination directory if needed
+                val destDir = destFile.parentFile
+                if (destDir != null && !destDir.exists()) {
+                  destDir.mkdirs()
+                }
+                
+                // Move file to internal storage
+                if (sourceFile.renameTo(destFile)) {
+                  finalFilePath = taskInfo.destinationPath
+                  Log.d(TAG, "Moved file to internal storage: $finalFilePath")
+                } else {
+                  // If rename fails, try copy and delete
+                  sourceFile.copyTo(destFile, overwrite = true)
+                  sourceFile.delete()
+                  finalFilePath = taskInfo.destinationPath
+                  Log.d(TAG, "Copied file to internal storage: $finalFilePath")
+                }
+              } catch (e: Exception) {
+                Log.e(TAG, "Failed to move file to internal storage: ${e.message}", e)
+                sendEvent("onDownloadError", mapOf(
+                  "taskId" to downloadId.toInt(),
+                  "error" to "Failed to move file to destination: ${e.message}"
+                ))
+                cursor.close()
+                downloadTasks.remove(downloadId)
+                return
+              }
+            }
+          }
           
           sendEvent("onDownloadComplete", mapOf(
             "taskId" to downloadId.toInt(),
-            "filePath" to filePath,
+            "filePath" to finalFilePath,
             "url" to taskInfo.url
           ))
         } else {
