@@ -1,6 +1,11 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as BackgroundTask from "expo-background-task";
+import * as Device from "expo-device";
+import { Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
@@ -28,18 +33,6 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
-
-import { DarkTheme, ThemeProvider } from "@react-navigation/native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-import * as BackgroundTask from "expo-background-task";
-
-import * as Device from "expo-device";
-import { Paths } from "expo-file-system";
-
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
 import { getLocales } from "expo-localization";
@@ -50,7 +43,7 @@ import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { Appearance, AppState } from "react-native";
+import { Appearance } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
@@ -228,7 +221,6 @@ function Layout() {
   const { settings } = useSettings();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
-  const appState = useRef(AppState.currentState);
   const segments = useSegments();
 
   useEffect(() => {
@@ -386,34 +378,6 @@ function Layout() {
     settings.defaultVideoOrientation,
     segments,
   ]);
-
-  useEffect(() => {
-    if (Platform.isTV || !BackGroundDownloader) {
-      return;
-    }
-
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
-        BackGroundDownloader?.checkForExistingDownloads().catch(
-          (error: unknown) => {
-            writeErrorLog("Failed to resume background downloads", error);
-          },
-        );
-      }
-    });
-
-    BackGroundDownloader?.checkForExistingDownloads().catch(
-      (error: unknown) => {
-        writeErrorLog("Failed to resume background downloads", error);
-      },
-    );
-    return () => {
-      subscription.remove();
-    };
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
