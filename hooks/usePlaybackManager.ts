@@ -69,7 +69,7 @@ export const usePlaybackManager = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { isConnected } = useNetworkStatus();
-  const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
+  const { getDownloadedItemById, updateDownloadedItem, downloadedItems } =
     useDownload();
 
   /** Whether the device is online. actually it's connected to the internet. */
@@ -77,14 +77,20 @@ export const usePlaybackManager = ({
 
   // Adjacent episodes logic
   const { data: adjacentItems } = useQuery({
-    queryKey: ["adjacentItems", item?.Id, item?.SeriesId, isOffline],
+    queryKey: [
+      "adjacentItems",
+      item?.Id,
+      item?.SeriesId,
+      isOffline,
+      downloadedItems,
+    ],
     queryFn: async (): Promise<BaseItemDto[] | null> => {
       if (!item || !item.SeriesId) {
         return null;
       }
 
       if (isOffline) {
-        return getOfflineAdjacentItems(item, getDownloadedItems() || []);
+        return getOfflineAdjacentItems(item, downloadedItems || []);
       }
 
       if (!api) {

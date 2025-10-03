@@ -64,12 +64,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const { settings } = useSettings();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
-  const { processes, startBackgroundDownload, getDownloadedItems } =
-    useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
+  const { processes, startBackgroundDownload, downloadedItems } = useDownload();
+  const downloadedFiles = downloadedItems;
 
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined

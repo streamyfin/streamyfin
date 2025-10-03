@@ -28,11 +28,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
+  const { downloadedItems } = useDownload();
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
@@ -45,10 +41,10 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
   }, [item]);
 
   const { data: episodes, isPending } = useQuery({
-    queryKey: ["episodes", seasonId, isOffline],
+    queryKey: ["episodes", seasonId, isOffline, downloadedItems],
     queryFn: async () => {
       if (isOffline) {
-        return downloadedFiles
+        return downloadedItems
           ?.filter(
             (f) => f.item.Type === "Episode" && f.item.SeasonId === seasonId,
           )

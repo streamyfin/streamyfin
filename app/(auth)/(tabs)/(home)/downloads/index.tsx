@@ -18,10 +18,7 @@ import ActiveDownloads from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
-import {
-  downloadsRefreshAtom,
-  useDownload,
-} from "@/providers/DownloadProvider";
+import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { queueAtom } from "@/utils/atoms/queue";
 import { writeToLog } from "@/utils/log";
@@ -30,13 +27,8 @@ export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const [refreshKey] = useAtom(downloadsRefreshAtom);
-  const {
-    removeProcess,
-    getDownloadedItems,
-    deleteFileByType,
-    deleteAllFiles,
-  } = useDownload();
+  const { removeProcess, downloadedItems, deleteFileByType, deleteAllFiles } =
+    useDownload();
   const router = useRouter();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -66,10 +58,7 @@ export default function page() {
     );
   };
 
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems, refreshKey],
-  );
+  const downloadedFiles = downloadedItems;
 
   const movies = useMemo(() => {
     try {

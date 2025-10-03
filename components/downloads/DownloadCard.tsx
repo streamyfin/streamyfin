@@ -119,18 +119,24 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       {/* Action buttons in bottom right corner */}
       <View className='absolute bottom-2 right-2 flex flex-row items-center space-x-2 z-10'>
         {process.status === "downloading" && Platform.OS !== "ios" && (
-          <TouchableOpacity onPress={() => handlePause()} className='p-1'>
+          <TouchableOpacity
+            onPress={() => handlePause()}
+            className='p-2 bg-neutral-800 rounded-full'
+          >
             <Ionicons name='pause' size={20} color='white' />
           </TouchableOpacity>
         )}
         {process.status === "paused" && Platform.OS !== "ios" && (
-          <TouchableOpacity onPress={() => handleResume()} className='p-1'>
+          <TouchableOpacity
+            onPress={() => handleResume()}
+            className='p-2 bg-neutral-800 rounded-full'
+          >
             <Ionicons name='play' size={20} color='white' />
           </TouchableOpacity>
         )}
         <TouchableOpacity
           onPress={() => handleDelete(process.id)}
-          className='p-1'
+          className='p-2 bg-neutral-800 rounded-full'
         >
           <Ionicons name='close' size={20} color='red' />
         </TouchableOpacity>

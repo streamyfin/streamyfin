@@ -25,11 +25,16 @@ const DownloadContext = createContext<ReturnType<
 function useDownloadProvider() {
   const [api] = useAtom(apiAtom);
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
-  const [, setRefreshKey] = useAtom(downloadsRefreshAtom);
+  const [refreshKey, setRefreshKey] = useAtom(downloadsRefreshAtom);
   const successHapticFeedback = useHaptic("success");
 
   // Track task ID to process ID mapping
   const taskMapRef = useRef<Map<number, string>>(new Map());
+
+  // Reactive downloaded items that updates when refreshKey changes
+  const downloadedItems = useMemo(() => {
+    return getAllDownloadedItems();
+  }, [refreshKey]);
 
   // Trigger refresh of download lists
   const triggerRefresh = useCallback(() => {
@@ -114,7 +119,8 @@ function useDownloadProvider() {
   return {
     processes,
     startBackgroundDownload,
-    getDownloadedItems: getAllDownloadedItems,
+    downloadedItems, // Reactive value that auto-updates
+    getDownloadedItems: getAllDownloadedItems, // Keep for backward compatibility
     getDownloadsDatabase,
     deleteAllFiles,
     deleteFile,
@@ -144,6 +150,7 @@ export function useDownload() {
     return {
       processes: [],
       startBackgroundDownload: async () => {},
+      downloadedItems: [],
       getDownloadedItems: () => [],
       getDownloadsDatabase: () => ({ movies: {}, series: {}, other: {} }),
       deleteAllFiles: async () => {},

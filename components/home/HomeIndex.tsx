@@ -72,7 +72,7 @@ export const HomeIndex = () => {
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { getDownloadedItems, cleanCacheDirectory } = useDownload();
+  const { downloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
   const {
     isConnected,
@@ -92,8 +92,8 @@ export const HomeIndex = () => {
 
   const hasDownloads = useMemo(() => {
     if (Platform.isTV) return false;
-    return getDownloadedItems().length > 0;
-  }, [getDownloadedItems]);
+    return downloadedItems.length > 0;
+  }, [downloadedItems]);
 
   useEffect(() => {
     if (Platform.isTV) {
