@@ -102,7 +102,10 @@ export default function page() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={bottomSheetModalRef.current?.present}>
+        <TouchableOpacity
+          onPress={bottomSheetModalRef.current?.present}
+          className='px-2'
+        >
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
         </TouchableOpacity>
       ),
@@ -169,7 +172,7 @@ export default function page() {
       <View style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} className='flex-1'>
           <View className='py-4'>
-            <View className='mb-4 flex flex-col space-y-4 px-4'>
+            <View className='mb-4 flex flex-col gap-y-4 px-4'>
               <View className='bg-neutral-900 p-4 rounded-2xl'>
                 <Text className='text-lg font-bold'>
                   {t("home.downloads.queue")}
@@ -177,7 +180,7 @@ export default function page() {
                 <Text className='text-xs opacity-70 text-red-600'>
                   {t("home.downloads.queue_hint")}
                 </Text>
-                <View className='flex flex-col space-y-2 mt-2'>
+                <View className='flex flex-col gap-y-2 mt-2'>
                   {queue.map((q, index) => (
                     <TouchableOpacity
                       onPress={() =>

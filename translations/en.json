@@ -269,7 +269,7 @@
       "movies": "Movies",
       "queue": "Queue",
       "other_media": "Other media",
-      "queue_hint": "Queue and downloads will be lost on app restart",
+      "queue_hint": "Queue will be lost on app restart",
       "no_items_in_queue": "No Items in Queue",
       "no_downloaded_items": "No Downloaded Items",
       "delete_all_movies_button": "Delete All Movies",

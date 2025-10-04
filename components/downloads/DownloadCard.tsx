@@ -96,7 +96,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       )}
 
       {/* Action buttons in bottom right corner */}
-      <View className='absolute bottom-2 right-2 flex flex-row items-center space-x-2 z-10'>
+      <View className='absolute bottom-2 right-2 flex flex-row items-center z-10'>
         <TouchableOpacity
           onPress={() => handleDelete(process.id)}
           className='p-2 bg-neutral-800 rounded-full'
@@ -127,7 +127,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
             <Text className='text-xs opacity-50'>
               {process.item.ProductionYear}
             </Text>
-            <View className='flex flex-row items-center space-x-2 mt-1 text-purple-600'>
+            <View className='flex flex-row items-center gap-x-2 mt-1 text-purple-600'>
               {sanitizedProgress === 0 ? (
                 <ActivityIndicator size={"small"} color={"white"} />
               ) : (
@@ -145,7 +145,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               )}
             </View>
 
-            <View className='flex flex-row items-center space-x-2 mt-1 text-purple-600'>
+            <View className='flex flex-row items-center gap-x-2 mt-1 text-purple-600'>
               <Text className='text-xs capitalize'>{process.status}</Text>
             </View>
           </View>
