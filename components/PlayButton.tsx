@@ -377,7 +377,7 @@ export const PlayButton: React.FC<Props> = ({
           onPress={onPress}
           color={effectiveColors.primary}
         >
-          <View className='flex flex-row items-center space-x-2 h-full w-full justify-center -mb-3.5 '>
+          <View className='flex flex-row items-center gap-x-2 h-full w-full justify-center -mb-3.5 '>
             <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
               {runtimeTicksToMinutes(item?.RunTimeTicks)}
             </Animated.Text>
