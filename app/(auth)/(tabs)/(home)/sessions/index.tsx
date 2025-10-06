@@ -258,7 +258,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
             </View>
 
             {/* Session controls */}
-            <View className='flex flex-row mt-2 space-x-4 justify-center'>
+            <View className='flex flex-row mt-2 gap-x-4 justify-center'>
               <TouchableOpacity
                 onPress={handlePrevious}
                 disabled={isControlLoading[PlaystateCommand.PreviousTrack]}

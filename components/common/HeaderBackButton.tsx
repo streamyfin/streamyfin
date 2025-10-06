@@ -26,7 +26,7 @@ export const HeaderBackButton: React.FC<Props> = ({
         className='flex items-center justify-center w-9 h-9'
         {...touchableOpacityProps}
       >
-        <Ionicons name='arrow-back' size={24} color='white' />
+        <Ionicons name='chevron-back' size={24} color='white' />
       </TouchableOpacity>
     );
   }

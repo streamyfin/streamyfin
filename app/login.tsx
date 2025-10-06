@@ -375,7 +375,7 @@ const Login: React.FC = () => {
         {api?.basePath ? (
           <View className='flex flex-col h-full relative items-center justify-center'>
             <View className='px-4 -mt-20 w-full'>
-              <View className='flex flex-col space-y-2'>
+              <View className='flex flex-col gap-y-2'>
                 <Text className='text-2xl font-bold -mb-2'>
                   {serverName ? (
                     <>
