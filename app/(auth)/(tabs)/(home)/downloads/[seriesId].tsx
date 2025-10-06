@@ -145,7 +145,7 @@ export default function page() {
           </View>
         </View>
       )}
-      <ScrollView key={seasonIndex} className='px-4'>
+      <ScrollView key={seasonIndex} style={{ paddingHorizontal: 16 }}>
         {groupBySeason.map((episode, index) => (
           <EpisodeCard key={index} item={episode} />
         ))}
