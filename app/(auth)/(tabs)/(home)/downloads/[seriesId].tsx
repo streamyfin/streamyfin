@@ -107,7 +107,12 @@ export default function page() {
         },
         {
           text: "Delete",
-          onPress: () => deleteItems(groupBySeason),
+          onPress: () =>
+            deleteItems(
+              groupBySeason
+                .map((episode) => episode.Id!)
+                .filter((id) => id !== undefined),
+            ),
           style: "destructive",
         },
       ],
