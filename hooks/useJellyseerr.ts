@@ -1,3 +1,7 @@
+import axios, { type AxiosError, type AxiosInstance } from "axios";
+import { atom } from "jotai";
+import { useAtom } from "jotai/index";
+import { inRange } from "lodash";
 import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
 import type {
   MovieResult,
@@ -5,11 +9,11 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import { storage } from "@/utils/mmkv";
-import axios, { type AxiosError, type AxiosInstance } from "axios";
-import { atom } from "jotai";
-import { useAtom } from "jotai/index";
-import { inRange } from "lodash";
 import "@/augmentations";
+import { useQueryClient } from "@tanstack/react-query";
+import { t } from "i18next";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner-native";
 import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
@@ -36,6 +40,7 @@ import type { UserResultsResponse } from "@/utils/jellyseerr/server/interfaces/a
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
   CombinedCredit,
+  PersonCreditCast,
   PersonDetails,
 } from "@/utils/jellyseerr/server/models/Person";
 import type {
@@ -43,10 +48,6 @@ import type {
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
 import { writeErrorLog } from "@/utils/log";
-import { useQueryClient } from "@tanstack/react-query";
-import { t } from "i18next";
-import { useCallback, useMemo } from "react";
-import { toast } from "sonner-native";
 
 interface SearchParams {
   query: string;
@@ -386,7 +387,7 @@ export class JellyseerrApi {
           `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
-        if (error.status === 403) {
+        if (error.response?.status === 403) {
           clearJellyseerrStorageData();
         }
         return Promise.reject(error);
@@ -417,8 +418,8 @@ export class JellyseerrApi {
 const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 
 export const useJellyseerr = () => {
+  const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
-  const [settings, updateSettings] = useSettings();
   const queryClient = useQueryClient();
 
   const jellyseerrApi = useMemo(() => {
@@ -466,52 +467,52 @@ export const useJellyseerr = () => {
     [jellyseerrApi],
   );
 
-  const isJellyseerrResult = (
+  const isJellyseerrMovieOrTvResult = (
     items: any | null | undefined,
-  ): items is Results => {
+  ): items is MovieResult | TvResult => {
     return (
       items &&
       Object.hasOwn(items, "mediaType") &&
-      Object.values(MediaType).includes(items.mediaType)
+      (items.mediaType === MediaType.MOVIE || items.mediaType === MediaType.TV)
     );
   };
 
   const getTitle = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
-    return isJellyseerrResult(item)
+    return isJellyseerrMovieOrTvResult(item)
       ? item.mediaType === MediaType.MOVIE
         ? item?.title
         : item?.name
-      : item?.mediaInfo.mediaType === MediaType.MOVIE
+      : item?.mediaInfo?.mediaType === MediaType.MOVIE
         ? (item as MovieDetails)?.title
         : (item as TvDetails)?.name;
   };
 
   const getYear = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
     return new Date(
-      (isJellyseerrResult(item)
+      (isJellyseerrMovieOrTvResult(item)
         ? item.mediaType === MediaType.MOVIE
           ? item?.releaseDate
           : item?.firstAirDate
-        : item?.mediaInfo.mediaType === MediaType.MOVIE
+        : item?.mediaInfo?.mediaType === MediaType.MOVIE
           ? (item as MovieDetails)?.releaseDate
           : (item as TvDetails)?.firstAirDate) || "",
     )?.getFullYear?.();
   };
 
   const getMediaType = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ): MediaType => {
-    return isJellyseerrResult(item)
-      ? item.mediaType
+    return isJellyseerrMovieOrTvResult(item)
+      ? (item.mediaType as MediaType)
       : item?.mediaInfo?.mediaType;
   };
 
   const jellyseerrRegion = useMemo(
-    () => jellyseerrUser?.settings?.region || "US",
+    () => jellyseerrUser?.settings?.discoverRegion || "US",
     [jellyseerrUser],
   );
 
@@ -524,7 +525,7 @@ export const useJellyseerr = () => {
     jellyseerrUser,
     setJellyseerrUser,
     clearAllJellyseerData,
-    isJellyseerrResult,
+    isJellyseerrMovieOrTvResult,
     getTitle,
     getYear,
     getMediaType,

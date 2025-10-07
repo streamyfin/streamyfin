@@ -1,18 +1,17 @@
-import { ItemImage } from "@/components/common/ItemImage";
-import { Text } from "@/components/common/Text";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import React from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ItemImage } from "@/components/common/ItemImage";
+import { Text } from "@/components/common/Text";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 export default function page() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const insets = useSafeAreaInsets();
+  const _insets = useSafeAreaInsets();
 
   const { data: channels } = useQuery({
     queryKey: ["livetv", "channels"],

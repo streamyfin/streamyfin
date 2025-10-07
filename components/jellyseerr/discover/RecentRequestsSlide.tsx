@@ -1,21 +1,24 @@
+import { useQuery } from "@tanstack/react-query";
+import type React from "react";
+import type { ViewProps } from "react-native";
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import type { NonFunctionProperties } from "@/utils/jellyseerr/server/interfaces/api/common";
-import { useQuery } from "@tanstack/react-query";
-import type React from "react";
-import type { ViewProps } from "react-native";
 
-const RequestCard: React.FC<{ request: MediaRequest }> = ({ request }) => {
+type ExtendedMediaRequest = NonFunctionProperties<MediaRequest> & {
+  profileName: string;
+  canRemove: boolean;
+};
+
+const RequestCard: React.FC<{ request: ExtendedMediaRequest }> = ({
+  request,
+}) => {
   const { jellyseerrApi } = useJellyseerr();
 
-  const {
-    data: details,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data: details } = useQuery({
     queryKey: [
       "jellyseerr",
       "detail",
@@ -57,11 +60,7 @@ const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({
 }) => {
   const { jellyseerrApi } = useJellyseerr();
 
-  const {
-    data: requests,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data: requests } = useQuery({
     queryKey: ["jellyseerr", "recent_requests"],
     queryFn: async () => jellyseerrApi?.requests(),
     enabled: !!jellyseerrApi,
@@ -75,9 +74,15 @@ const RecentRequestsSlide: React.FC<SlideProps & ViewProps> = ({
       <Slide
         {...props}
         slide={slide}
-        data={requests.results}
+        data={
+          requests.results.map((item) => ({
+            ...item,
+            profileName: item.profileName ?? "Unknown",
+            canRemove: Boolean(item.canRemove),
+          })) as ExtendedMediaRequest[]
+        }
         keyExtractor={(item) => item.id.toString()}
-        renderItem={(item: NonFunctionProperties<MediaRequest>) => (
+        renderItem={(item: ExtendedMediaRequest) => (
           <RequestCard request={item} />
         )}
       />

@@ -3,7 +3,7 @@ import { JellyseerrSettings } from "@/components/settings/Jellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
-  const [settings, updateSettings, pluginSettings] = useSettings();
+  const { pluginSettings } = useSettings();
 
   return (
     <DisabledSetting

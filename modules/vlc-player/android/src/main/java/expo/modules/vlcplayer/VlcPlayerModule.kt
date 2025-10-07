@@ -82,6 +82,14 @@ class VlcPlayerModule : Module() {
       AsyncFunction("setSubtitleURL") { view: VlcPlayerView, url: String, name: String ->
         view.setSubtitleURL(url, name)
       }
+
+      AsyncFunction("setVideoAspectRatio") { view: VlcPlayerView, aspectRatio: String? ->
+        view.setVideoAspectRatio(aspectRatio)
+      }
+
+      AsyncFunction("setVideoScaleFactor") { view: VlcPlayerView, scaleFactor: Float ->
+        view.setVideoScaleFactor(scaleFactor)
+      }
     }
   }
 }

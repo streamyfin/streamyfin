@@ -1,25 +1,17 @@
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useLocalSearchParams } from "expo-router";
+import { uniqBy } from "lodash";
+import { useMemo } from "react";
 import { Text } from "@/components/common/Text";
-import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
-import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
+import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import Poster from "@/components/posters/Poster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import {
-  type MovieResult,
-  Results,
-  type TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { router, useLocalSearchParams, useSegments } from "expo-router";
-import { uniqBy } from "lodash";
-import React, { useMemo } from "react";
-import { TouchableOpacity } from "react-native";
 
 export default function page() {
   const local = useLocalSearchParams();
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 
   const { genreId, name, type } = local as unknown as {
     genreId: string;
@@ -55,7 +47,10 @@ export default function page() {
       uniqBy(
         data?.pages
           ?.filter((p) => p?.results.length)
-          .flatMap((p) => p?.results ?? []),
+          .flatMap(
+            (p) =>
+              p?.results.filter((r) => isJellyseerrMovieOrTvResult(r)) ?? [],
+          ),
         "id",
       ) ?? [],
     [data],
@@ -66,7 +61,7 @@ export default function page() {
       jellyseerrApi
         ? flatData.map((r) =>
             jellyseerrApi.imageProxy(
-              (r as TvResult | MovieResult).backdropPath,
+              r.backdropPath,
               "w1920_and_h800_multi_faces",
             ),
           )
@@ -96,9 +91,7 @@ export default function page() {
           {name}
         </Text>
       }
-      renderItem={(item, index) => (
-        <JellyseerrPoster item={item as MovieResult | TvResult} />
-      )}
+      renderItem={(item, _index) => <JellyseerrPoster item={item} />}
     />
   );
 }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.28.0",
+    "version": "0.39.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -29,18 +29,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fredrikburmester.streamyfin",
       "icon": {
-        "dark": "./assets/images/icon-plain.png",
+        "dark": "./assets/images/icon-ios-plain.png",
         "light": "./assets/images/icon-ios-light.png",
         "tinted": "./assets/images/icon-ios-tinted.png"
-      }
+      },
+      "appleTeamId": "MWD5K362T8"
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 56,
+      "versionCode": 71,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-plain.png",
-        "monochromeImage": "./assets/images/icon-mono.png",
-        "backgroundColor": "#464646"
+        "foregroundImage": "./assets/images/icon-android-plain.png",
+        "monochromeImage": "./assets/images/icon-android-themed.png",
+        "backgroundColor": "#2E2E2E"
       },
       "package": "com.fredrikburmester.streamyfin",
       "permissions": [
@@ -48,6 +49,7 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WRITE_SETTINGS"
       ],
+      "blockedPermissions": ["android.permission.ACTIVITY_RECOGNITION"],
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
@@ -113,17 +115,15 @@
           }
         }
       ],
-      ["react-native-bottom-tabs"],
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
-      ["./plugins/withRNBackgroundDownloader.js"],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#2e2e2e",
-          "image": "./assets/images/StreamyFinFinal.png",
+          "backgroundColor": "#010101",
+          "image": "./assets/images/icon-ios-plain.png",
           "imageWidth": 100
         }
       ],
@@ -134,12 +134,8 @@
           "color": "#9333EA"
         }
       ],
-      [
-        "react-native-google-cast",
-        {
-          "useDefaultExpandedMediaControls": true
-        }
-      ]
+      "./plugins/with-runtime-framework-headers.js",
+      "react-native-bottom-tabs"
     ],
     "experiments": {
       "typedRoutes": true

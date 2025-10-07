@@ -1,3 +1,7 @@
+import { sortBy } from "lodash";
+import type React from "react";
+import { useMemo } from "react";
+import { View } from "react-native";
 import CompanySlide from "@/components/jellyseerr/discover/CompanySlide";
 import GenreSlide from "@/components/jellyseerr/discover/GenreSlide";
 import MovieTvSlide from "@/components/jellyseerr/discover/MovieTvSlide";
@@ -6,26 +10,25 @@ import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 import { networks } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 import { studios } from "@/utils/jellyseerr/src/components/Discover/StudioSlider";
-import { sortBy } from "lodash";
-import type React from "react";
-import { useMemo } from "react";
-import { View } from "react-native";
 
 interface Props {
   sliders?: DiscoverSlider[];
 }
+
 const Discover: React.FC<Props> = ({ sliders }) => {
-  if (!sliders) return;
+  const hasSliders = !!sliders;
 
   const sortedSliders = useMemo(
     () =>
       sortBy(
-        sliders.filter((s) => s.enabled),
+        (sliders ?? []).filter((s) => s.enabled),
         "order",
         "asc",
       ),
     [sliders],
   );
+
+  if (!hasSliders) return null;
 
   return (
     <View className='flex flex-col space-y-4 mb-8'>
@@ -60,6 +63,8 @@ const Discover: React.FC<Props> = ({ sliders }) => {
                 contentContainerStyle={{ paddingBottom: 16 }}
               />
             );
+          default:
+            return null;
         }
       })}
     </View>

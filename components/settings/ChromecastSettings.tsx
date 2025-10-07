@@ -1,10 +1,10 @@
-import { useSettings } from "@/utils/atoms/settings";
 import { Switch, View } from "react-native";
+import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const ChromecastSettings: React.FC = ({ ...props }) => {
-  const [settings, updateSettings] = useSettings();
+  const { settings, updateSettings } = useSettings();
   return (
     <View {...props}>
       <ListGroup title={"Chromecast"}>

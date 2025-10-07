@@ -1,8 +1,3 @@
-import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { Video } from "@/utils/jellyseerr/server/models/Movie";
-import { writeInfoLog } from "@/utils/log";
 import {
   type BaseItemKind,
   type CultureDto,
@@ -14,9 +9,13 @@ import {
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { Platform } from "react-native";
+import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
 
-const STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
+const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
 
 export type DownloadQuality = "original" | "high" | "low";
@@ -82,7 +81,6 @@ export type DefaultLanguageOption = {
 
 export enum DownloadMethod {
   Remux = "remux",
-  Optimized = "optimized",
 }
 
 export type Home = {
@@ -90,6 +88,7 @@ export type Home = {
 };
 
 export type HomeSection = {
+  title?: string;
   orientation?: "horizontal" | "vertical";
   items?: HomeSectionItemResolver;
   nextUp?: HomeSectionNextUpResolver;
@@ -156,7 +155,6 @@ export type Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
   rewindSkipTime: number;
-  optimizedVersionsServerUrl?: string | null;
   downloadMethod: DownloadMethod;
   autoDownload: boolean;
   showCustomMenuLinks: boolean;
@@ -170,6 +168,18 @@ export type Settings = {
   defaultPlayer: VideoPlayer;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
+  vlcTextColor?: string;
+  vlcBackgroundColor?: string;
+  vlcOutlineColor?: string;
+  vlcOutlineThickness?: string;
+  vlcBackgroundOpacity?: number;
+  vlcOutlineOpacity?: number;
+  vlcIsBold?: boolean;
+  // Gesture controls
+  enableHorizontalSwipeSkip: boolean;
+  enableLeftSideBrightnessSwipe: boolean;
+  enableRightSideVolumeSwipe: boolean;
+  usePopularPlugin: boolean;
 };
 
 export interface Lockable<T> {
@@ -184,7 +194,7 @@ export type StreamyfinPluginConfig = {
   settings: PluginLockableSettings;
 };
 
-const defaultValues: Settings = {
+export const defaultValues: Settings = {
   home: null,
   followDeviceOrientation: true,
   forceLandscapeInVideoPlayer: false,
@@ -213,7 +223,6 @@ const defaultValues: Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,
   rewindSkipTime: 10,
-  optimizedVersionsServerUrl: null,
   downloadMethod: DownloadMethod.Remux,
   autoDownload: false,
   showCustomMenuLinks: false,
@@ -227,6 +236,18 @@ const defaultValues: Settings = {
   defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
+  vlcTextColor: undefined,
+  vlcBackgroundColor: undefined,
+  vlcOutlineColor: undefined,
+  vlcOutlineThickness: undefined,
+  vlcBackgroundOpacity: undefined,
+  vlcOutlineOpacity: undefined,
+  vlcIsBold: undefined,
+  // Gesture controls
+  enableHorizontalSwipeSkip: true,
+  enableLeftSideBrightnessSwipe: true,
+  enableRightSideVolumeSwipe: true,
+  usePopularPlugin: true,
 };
 
 const loadSettings = (): Partial<Settings> => {
@@ -238,25 +259,38 @@ const loadSettings = (): Partial<Settings> => {
     return loadedValues;
   } catch (error) {
     console.error("Failed to load settings:", error);
-    return defaultValues;
+    return {};
   }
 };
 
 const EXCLUDE_FROM_SAVE = ["home"];
 
 const saveSettings = (settings: Settings) => {
-  for (const key of Object.keys(settings)) {
-    if (EXCLUDE_FROM_SAVE.includes(key)) {
-      delete settings[key as keyof Settings];
+  try {
+    for (const key of Object.keys(settings)) {
+      if (EXCLUDE_FROM_SAVE.includes(key)) {
+        delete settings[key as keyof Settings];
+      }
     }
+    const jsonValue = JSON.stringify(settings);
+    storage.set("settings", jsonValue);
+  } catch (error) {
+    console.error("Failed to save settings:", error);
   }
-  const jsonValue = JSON.stringify(settings);
-  storage.set("settings", jsonValue);
 };
 
 export const settingsAtom = atom<Partial<Settings> | null>(null);
-export const pluginSettingsAtom = atom(
-  storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS),
+const loadPluginSettings = () => {
+  try {
+    return storage.get<PluginLockableSettings>(STREAMYFIN_PLUGIN_SETTINGS);
+  } catch (error) {
+    console.error("Failed to load plugin settings:", error);
+    return undefined;
+  }
+};
+
+export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
+  loadPluginSettings(),
 );
 
 export const useSettings = () => {
@@ -288,7 +322,7 @@ export const useSettings = () => {
         writeInfoLog("Got plugin settings", data?.settings);
         return data?.settings;
       },
-      (err) => undefined,
+      (_err) => undefined,
     );
     setPluginSettings(settings);
     return settings;
@@ -318,7 +352,7 @@ export const useSettings = () => {
   // If admin sets locked to false but provides a value,
   // use user settings first and fallback on admin setting if required.
   const settings: Settings = useMemo(() => {
-    const unlockedPluginDefaults = {} as Settings;
+    const unlockedPluginDefaults: Partial<Settings> = {};
     const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
       Partial<Settings>
     >((acc, [key, setting]) => {
@@ -332,14 +366,12 @@ export const useSettings = () => {
           value !== undefined &&
           _settings?.[settingsKey] !== value
         ) {
-          Object.assign(unlockedPluginDefaults, {
-            [settingsKey]: value,
-          });
+          (unlockedPluginDefaults as any)[settingsKey] = value;
         }
 
-        Object.assign(acc, {
-          [settingsKey]: locked ? value : (_settings?.[settingsKey] ?? value),
-        });
+        (acc as any)[settingsKey] = locked
+          ? value
+          : (_settings?.[settingsKey] ?? value);
       }
       return acc;
     }, {});
@@ -351,11 +383,11 @@ export const useSettings = () => {
     };
   }, [_settings, pluginSettings]);
 
-  return [
+  return {
     settings,
     updateSettings,
     pluginSettings,
     setPluginSettings,
     refreshStreamyfinPluginSettings,
-  ] as const;
+  };
 };

@@ -1,12 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  type BaseItemDto,
-  BaseItemKind,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useState } from "react";
 import { View, type ViewProps } from "react-native";
-import { WatchedIndicator } from "../WatchedIndicator";
 import { ItemImage } from "../common/ItemImage";
+import { WatchedIndicator } from "../WatchedIndicator";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
@@ -18,7 +15,7 @@ export const ItemPoster: React.FC<Props> = ({
   showProgress,
   ...props
 }) => {
-  const [progress, setProgress] = useState(
+  const [progress, _setProgress] = useState(
     item.UserData?.PlayedPercentage || 0,
   );
 

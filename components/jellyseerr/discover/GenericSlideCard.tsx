@@ -1,8 +1,8 @@
-import { Text } from "@/components/common/Text";
 import { Image, type ImageContentFit } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import type React from "react";
 import { StyleSheet, View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
 
 export const textShadowStyle = StyleSheet.create({
   shadow: {
@@ -23,7 +23,7 @@ const GenericSlideCard: React.FC<
     id: string;
     url?: string;
     title?: string;
-    colors?: string[];
+    colors?: readonly [string, string, ...string[]];
     contentFit?: ImageContentFit;
   } & ViewProps
 > = ({

@@ -1,19 +1,15 @@
-import { OverviewText } from "@/components/OverviewText";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { useLocalSearchParams } from "expo-router";
+import { orderBy, uniqBy } from "lodash";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Text } from "@/components/common/Text";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
+import { OverviewText } from "@/components/OverviewText";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import type { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
-import { useLocalSearchParams, useSegments } from "expo-router";
-import { orderBy, uniqBy } from "lodash";
-import React, { useMemo } from "react";
-import { useTranslation } from "react-i18next";
 
 export default function page() {
   const local = useLocalSearchParams();
@@ -21,14 +17,13 @@ export default function page() {
 
   const {
     jellyseerrApi,
-    jellyseerrUser,
     jellyseerrRegion: region,
     jellyseerrLocale: locale,
   } = useJellyseerr();
 
   const { personId } = local as { personId: string };
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data } = useQuery({
     queryKey: ["jellyseerr", "person", personId],
     queryFn: async () => ({
       details: await jellyseerrApi?.personDetails(personId),
@@ -107,9 +102,7 @@ export default function page() {
       MainContent={() => (
         <OverviewText text={data?.details?.biography} className='mt-4' />
       )}
-      renderItem={(item, index) => (
-        <JellyseerrPoster item={item as MovieResult | TvResult} />
-      )}
+      renderItem={(item, _index) => <JellyseerrPoster item={item} />}
     />
   );
 }

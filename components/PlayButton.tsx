@@ -1,13 +1,3 @@
-import { useHaptic } from "@/hooks/useHaptic";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { useSettings } from "@/utils/atoms/settings";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
-import { runtimeTicksToMinutes } from "@/utils/time";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
@@ -15,7 +5,6 @@ import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable } from "react-native";
 import { Alert, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
@@ -33,12 +22,25 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useHaptic } from "@/hooks/useHaptic";
+import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
+import { useSettings } from "@/utils/atoms/settings";
+import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { chromecast } from "@/utils/profiles/chromecast";
+import { chromecasth265 } from "@/utils/profiles/chromecasth265";
+import { runtimeTicksToMinutes } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
 
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
+  isOffline?: boolean;
+  colors?: ThemeColors;
 }
 
 const ANIMATION_DURATION = 500;
@@ -47,6 +49,8 @@ const MIN_PLAYBACK_WIDTH = 15;
 export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
+  isOffline,
+  colors,
   ...props
 }: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
@@ -54,19 +58,22 @@ export const PlayButton: React.FC<Props> = ({
   const mediaStatus = useMediaStatus();
   const { t } = useTranslation();
 
-  const [colorAtom] = useAtom(itemThemeColorAtom);
+  const [globalColorAtom] = useAtom(itemThemeColorAtom);
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+
+  // Use colors prop if provided, otherwise fallback to global atom
+  const effectiveColors = colors || globalColorAtom;
 
   const router = useRouter();
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
-  const endColor = useSharedValue(colorAtom);
-  const startColor = useSharedValue(colorAtom);
+  const endColor = useSharedValue(effectiveColors);
+  const startColor = useSharedValue(effectiveColors);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
-  const [settings, updateSettings] = useSettings();
+  const { settings, updateSettings } = useSettings();
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
@@ -76,7 +83,7 @@ export const PlayButton: React.FC<Props> = ({
       }
       router.push(`/player/direct-player?${q}`);
     },
-    [router],
+    [router, isOffline],
   );
 
   const onPress = useCallback(async () => {
@@ -91,6 +98,8 @@ export const PlayButton: React.FC<Props> = ({
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
       bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+      playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+      offline: isOffline ? "true" : "false",
     });
 
     const queryString = queryParams.toString();
@@ -122,6 +131,34 @@ export const PlayButton: React.FC<Props> = ({
                 // Check if user wants H265 for Chromecast
                 const enableH265 = settings.enableH265ForChromecast;
 
+                // Validate required parameters before calling getStreamUrl
+                if (!api) {
+                  console.warn("API not available for Chromecast streaming");
+                  Alert.alert(
+                    t("player.client_error"),
+                    t("player.missing_parameters"),
+                  );
+                  return;
+                }
+                if (!user?.Id) {
+                  console.warn(
+                    "User not authenticated for Chromecast streaming",
+                  );
+                  Alert.alert(
+                    t("player.client_error"),
+                    t("player.missing_parameters"),
+                  );
+                  return;
+                }
+                if (!item?.Id) {
+                  console.warn("Item not available for Chromecast streaming");
+                  Alert.alert(
+                    t("player.client_error"),
+                    t("player.missing_parameters"),
+                  );
+                  return;
+                }
+
                 // Get a new URL with the Chromecast device profile
                 try {
                   const data = await getStreamUrl({
@@ -129,7 +166,7 @@ export const PlayButton: React.FC<Props> = ({
                     item,
                     deviceProfile: enableH265 ? chromecasth265 : chromecast,
                     startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
-                    userId: user?.Id,
+                    userId: user.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
                     maxStreamingBitrate: selectedOptions.bitrate?.value,
                     mediaSourceId: selectedOptions.mediaSource?.Id,
@@ -266,7 +303,7 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   useAnimatedReaction(
-    () => colorAtom,
+    () => effectiveColors,
     (newColor) => {
       endColor.value = newColor;
       colorChangeProgress.value = 0;
@@ -275,19 +312,19 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.9, 0, 0.31, 0.99),
       });
     },
-    [colorAtom],
+    [effectiveColors],
   );
 
   useEffect(() => {
     const timeout_2 = setTimeout(() => {
-      startColor.value = colorAtom;
+      startColor.value = effectiveColors;
       startWidth.value = targetWidth.value;
     }, ANIMATION_DURATION);
 
     return () => {
       clearTimeout(timeout_2);
     };
-  }, [colorAtom, item]);
+  }, [effectiveColors, item]);
 
   /**
    * ANIMATED STYLES
@@ -336,7 +373,7 @@ export const PlayButton: React.FC<Props> = ({
       className={"relative"}
       {...props}
     >
-      <View className='absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden'>
+      <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
         <Animated.View
           style={[
             animatedPrimaryStyle,
@@ -350,15 +387,15 @@ export const PlayButton: React.FC<Props> = ({
 
       <Animated.View
         style={[animatedAverageStyle, { opacity: 0.5 }]}
-        className='absolute w-full h-full top-0 left-0 rounded-xl'
+        className='absolute w-full h-full top-0 left-0 rounded-full'
       />
       <View
         style={{
           borderWidth: 1,
-          borderColor: colorAtom.primary,
+          borderColor: effectiveColors.primary,
           borderStyle: "solid",
         }}
-        className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
+        className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
       >
         <View className='flex flex-row items-center space-x-2'>
           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>

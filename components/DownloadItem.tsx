@@ -1,11 +1,3 @@
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { queueActions, queueAtom } from "@/utils/atoms/queue";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { saveDownloadItemInfoToDiskTmp } from "@/utils/optimize-server";
-import download from "@/utils/profiles/download";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
@@ -17,22 +9,36 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { type Href, router, useFocusEffect } from "expo-router";
+import { type Href, router } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Platform, View, type ViewProps } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { queueAtom } from "@/utils/atoms/queue";
+import { useSettings } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
+import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
-import { Text } from "./common/Text";
+
+export type SelectedOptions = {
+  bitrate: Bitrate;
+  mediaSource: MediaSourceInfo | undefined;
+  audioIndex: number | undefined;
+  subtitleIndex: number;
+};
 
 interface DownloadProps extends ViewProps {
   items: BaseItemDto[];
@@ -54,32 +60,28 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const [queue, setQueue] = useAtom(queueAtom);
-  const [settings] = useSettings();
+  const [queue, _setQueue] = useAtom(queueAtom);
+  const { settings } = useSettings();
+  const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
-  const { processes, startBackgroundDownload, downloadedFiles } = useDownload();
-  //const { startRemuxing } = useRemuxHlsToMp4();
+  const { processes, startBackgroundDownload, getDownloadedItems } =
+    useDownload();
+  const downloadedFiles = getDownloadedItems();
 
-  const [selectedMediaSource, setSelectedMediaSource] = useState<
-    MediaSourceInfo | undefined | null
+  const [selectedOptions, setSelectedOptions] = useState<
+    SelectedOptions | undefined
   >(undefined);
-  const [selectedAudioStream, setSelectedAudioStream] = useState<number>(-1);
-  const [selectedSubtitleStream, setSelectedSubtitleStream] =
-    useState<number>(0);
-  const [maxBitrate, setMaxBitrate] = useState<Bitrate>(
-    settings?.defaultBitrate ?? {
-      key: "Max",
-      value: undefined,
-    },
-  );
+
+  const {
+    defaultAudioIndex,
+    defaultBitrate,
+    defaultMediaSource,
+    defaultSubtitleIndex,
+  } = useDefaultPlaySettings(items[0], settings);
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
     [user],
-  );
-  const usingOptimizedServer = useMemo(
-    () => settings?.downloadMethod === DownloadMethod.Optimized,
-    [settings],
   );
 
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -88,7 +90,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((index: number) => {}, []);
+  const handleSheetChanges = useCallback((index: number) => {
+    // Ensure modal is fully dismissed when index is -1
+    if (index === -1) {
+      // Modal is fully closed
+    }
+  }, []);
 
   const closeModal = useCallback(() => {
     bottomSheetModalRef.current?.dismiss();
@@ -101,6 +108,28 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       items.filter((i) => !downloadedFiles?.some((f) => f.item.Id === i.Id)),
     [items, downloadedFiles],
   );
+
+  // Initialize selectedOptions with default values
+  useEffect(() => {
+    setSelectedOptions(() => ({
+      bitrate: defaultBitrate,
+      mediaSource: defaultMediaSource,
+      subtitleIndex: defaultSubtitleIndex ?? -1,
+      audioIndex: defaultAudioIndex,
+    }));
+  }, [
+    defaultAudioIndex,
+    defaultBitrate,
+    defaultSubtitleIndex,
+    defaultMediaSource,
+  ]);
+
+  const itemsToDownload = useMemo(() => {
+    if (downloadUnwatchedOnly) {
+      return itemsNotDownloaded.filter((item) => !item.UserData?.Played);
+    }
+    return itemsNotDownloaded;
+  }, [itemsNotDownloaded, downloadUnwatchedOnly]);
 
   const allItemsDownloaded = useMemo(() => {
     if (items.length === 0) return false;
@@ -144,98 +173,102 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     );
   };
 
-  const acceptDownloadOptions = useCallback(() => {
-    if (userCanDownload === true) {
-      if (itemsNotDownloaded.some((i) => !i.Id)) {
-        throw new Error("No item id");
-      }
-      closeModal();
-
-      initiateDownload(...itemsNotDownloaded);
-    } else {
-      toast.error(
-        t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
-      );
-    }
-  }, [
-    queue,
-    setQueue,
-    itemsNotDownloaded,
-    usingOptimizedServer,
-    userCanDownload,
-    maxBitrate,
-    selectedMediaSource,
-    selectedAudioStream,
-    selectedSubtitleStream,
-  ]);
-
   const initiateDownload = useCallback(
     async (...items: BaseItemDto[]) => {
       if (
         !api ||
         !user?.Id ||
         items.some((p) => !p.Id) ||
-        (itemsNotDownloaded.length === 1 && !selectedMediaSource?.Id)
+        (itemsNotDownloaded.length === 1 && !selectedOptions?.mediaSource?.Id)
       ) {
         throw new Error(
           "DownloadItem ~ initiateDownload: No api or user or item",
         );
       }
-      let mediaSource = selectedMediaSource;
-      let audioIndex: number | undefined = selectedAudioStream;
-      let subtitleIndex: number | undefined = selectedSubtitleStream;
+      const downloadDetailsPromises = items.map(async (item) => {
+        const { mediaSource, audioIndex, subtitleIndex } =
+          itemsNotDownloaded.length > 1
+            ? getDefaultPlaySettings(item, settings!)
+            : {
+                mediaSource: selectedOptions?.mediaSource,
+                audioIndex: selectedOptions?.audioIndex,
+                subtitleIndex: selectedOptions?.subtitleIndex,
+              };
 
-      for (const item of items) {
-        if (itemsNotDownloaded.length > 1) {
-          const defaults = getDefaultPlaySettings(item, settings!);
-          mediaSource = defaults.mediaSource;
-          audioIndex = defaults.audioIndex;
-          subtitleIndex = defaults.subtitleIndex;
-        }
-
-        const res = await getStreamUrl({
+        const downloadDetails = await getDownloadUrl({
           api,
           item,
-          startTimeTicks: 0,
-          userId: user?.Id,
-          audioStreamIndex: audioIndex,
-          maxStreamingBitrate: maxBitrate.value,
-          mediaSourceId: mediaSource?.Id,
-          subtitleStreamIndex: subtitleIndex,
-          deviceProfile: download,
-          download: true,
-          // deviceId: mediaSource?.Id,
+          userId: user.Id!,
+          mediaSource: mediaSource!,
+          audioStreamIndex: audioIndex ?? -1,
+          subtitleStreamIndex: subtitleIndex ?? -1,
+          maxBitrate: selectedOptions?.bitrate || defaultBitrate,
+          deviceId: api.deviceInfo.id,
         });
 
-        if (!res) {
+        return {
+          url: downloadDetails?.url,
+          item,
+          mediaSource: downloadDetails?.mediaSource,
+        };
+      });
+
+      const downloadDetails = await Promise.all(downloadDetailsPromises);
+      for (const { url, item, mediaSource } of downloadDetails) {
+        if (!url) {
           Alert.alert(
             t("home.downloads.something_went_wrong"),
             t("home.downloads.could_not_get_stream_url_from_jellyfin"),
           );
           continue;
         }
-
-        const { mediaSource: source, url } = res;
-
-        if (!url || !source) throw new Error("No url");
-
-        saveDownloadItemInfoToDiskTmp(item, source, url);
-        await startBackgroundDownload(url, item, source, maxBitrate);
+        if (!mediaSource) {
+          console.error(`Could not get download URL for ${item.Name}`);
+          toast.error(
+            t("home.downloads.toasts.could_not_get_download_url_for_item", {
+              itemName: item.Name,
+            }),
+          );
+          continue;
+        }
+        await startBackgroundDownload(
+          url,
+          item,
+          mediaSource,
+          selectedOptions?.bitrate || defaultBitrate,
+        );
       }
     },
     [
       api,
       user?.Id,
       itemsNotDownloaded,
-      selectedMediaSource,
-      selectedAudioStream,
-      selectedSubtitleStream,
+      selectedOptions,
       settings,
-      maxBitrate,
-      usingOptimizedServer,
+      defaultBitrate,
       startBackgroundDownload,
     ],
   );
+
+  const acceptDownloadOptions = useCallback(async () => {
+    if (userCanDownload === true) {
+      if (itemsToDownload.some((i) => !i.Id)) {
+        throw new Error("No item id");
+      }
+
+      // Ensure modal is dismissed before starting download
+      await closeModal();
+
+      // Small delay to ensure modal is fully dismissed
+      setTimeout(() => {
+        initiateDownload(...itemsToDownload);
+      }, 100);
+    } else {
+      toast.error(
+        t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
+      );
+    }
+  }, [closeModal, initiateDownload, itemsToDownload, userCanDownload]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -246,19 +279,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       />
     ),
     [],
-  );
-  useFocusEffect(
-    useCallback(() => {
-      if (!settings) return;
-      if (itemsNotDownloaded.length !== 1) return;
-      const { bitrate, mediaSource, audioIndex, subtitleIndex } =
-        getDefaultPlaySettings(items[0], settings);
-
-      setSelectedMediaSource(mediaSource ?? undefined);
-      setSelectedAudioStream(audioIndex ?? 0);
-      setSelectedSubtitleStream(subtitleIndex ?? -1);
-      setMaxBitrate(bitrate);
-    }, [items, itemsNotDownloaded, settings]),
   );
 
   const renderButtonContent = () => {
@@ -316,7 +336,15 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           backgroundColor: "#171717",
         }}
         onChange={handleSheetChanges}
+        onDismiss={() => {
+          // Ensure any pending state is cleared when modal is dismissed
+        }}
         backdropComponent={renderBackdrop}
+        enablePanDownToClose
+        enableDismissOnClose
+        android_keyboardInputMode='adjustResize'
+        keyboardBehavior='interactive'
+        keyboardBlurBehavior='restore'
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
@@ -327,40 +355,78 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               <Text className='text-neutral-300'>
                 {subtitle ||
                   t("item_card.download.download_x_item", {
-                    item_count: itemsNotDownloaded.length,
+                    item_count: itemsToDownload.length,
                   })}
               </Text>
             </View>
             <View className='flex flex-col space-y-2 w-full items-start'>
               <BitrateSelector
                 inverted
-                onChange={setMaxBitrate}
-                selected={maxBitrate}
+                onChange={(val) =>
+                  setSelectedOptions(
+                    (prev) => prev && { ...prev, bitrate: val },
+                  )
+                }
+                selected={selectedOptions?.bitrate}
               />
+              {itemsNotDownloaded.length > 1 && (
+                <View className='flex flex-row items-center justify-between w-full py-2'>
+                  <Text>{t("item_card.download.download_unwatched_only")}</Text>
+                  <Switch
+                    onValueChange={setDownloadUnwatchedOnly}
+                    value={downloadUnwatchedOnly}
+                  />
+                </View>
+              )}
               {itemsNotDownloaded.length === 1 && (
-                <>
+                <View>
                   <MediaSourceSelector
                     item={items[0]}
-                    onChange={setSelectedMediaSource}
-                    selected={selectedMediaSource}
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            mediaSource: val,
+                          },
+                      )
+                    }
+                    selected={selectedOptions?.mediaSource}
                   />
-                  {selectedMediaSource && (
+                  {selectedOptions?.mediaSource && (
                     <View className='flex flex-col space-y-2'>
                       <AudioTrackSelector
-                        source={selectedMediaSource}
-                        onChange={setSelectedAudioStream}
-                        selected={selectedAudioStream}
+                        source={selectedOptions.mediaSource}
+                        onChange={(val) => {
+                          setSelectedOptions(
+                            (prev) =>
+                              prev && {
+                                ...prev,
+                                audioIndex: val,
+                              },
+                          );
+                        }}
+                        selected={selectedOptions.audioIndex}
                       />
                       <SubtitleTrackSelector
-                        source={selectedMediaSource}
-                        onChange={setSelectedSubtitleStream}
-                        selected={selectedSubtitleStream}
+                        source={selectedOptions.mediaSource}
+                        onChange={(val) => {
+                          setSelectedOptions(
+                            (prev) =>
+                              prev && {
+                                ...prev,
+                                subtitleIndex: val,
+                              },
+                          );
+                        }}
+                        selected={selectedOptions.subtitleIndex}
                       />
                     </View>
                   )}
-                </>
+                </View>
               )}
             </View>
+
             <Button
               className='mt-auto'
               onPress={acceptDownloadOptions}
@@ -368,13 +434,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
             >
               {t("item_card.download.download_button")}
             </Button>
-            <View className='opacity-70 text-center w-full flex items-center'>
-              <Text className='text-xs'>
-                {usingOptimizedServer
-                  ? t("item_card.download.using_optimized_server")
-                  : t("item_card.download.using_default_method")}
-              </Text>
-            </View>
           </View>
         </BottomSheetView>
       </BottomSheetModal>

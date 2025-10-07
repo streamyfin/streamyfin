@@ -1,23 +1,16 @@
-import { ItemImage } from "@/components/common/ItemImage";
-import { Text } from "@/components/common/Text";
-import { HourHeader } from "@/components/livetv/HourHeader";
-import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
-import { TAB_HEIGHT } from "@/constants/Values";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Button,
-  Dimensions,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Dimensions, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ItemImage } from "@/components/common/ItemImage";
+import { Text } from "@/components/common/Text";
+import { HourHeader } from "@/components/livetv/HourHeader";
+import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const HOUR_HEIGHT = 30;
 const ITEMS_PER_PAGE = 20;
@@ -28,16 +21,8 @@ export default function page() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, _setDate] = useState<Date>(new Date());
   const [currentPage, setCurrentPage] = useState(1);
-
-  const { data: guideInfo } = useQuery({
-    queryKey: ["livetv", "guideInfo"],
-    queryFn: async () => {
-      const res = await getLiveTvApi(api!).getGuideInfo();
-      return res.data;
-    },
-  });
 
   const { data: channels } = useQuery({
     queryKey: ["livetv", "channels", currentPage],
@@ -131,8 +116,8 @@ export default function page() {
                 style={{
                   width: "100%",
                   height: "100%",
-                  resizeMode: "contain",
                 }}
+                contentFit='contain'
                 item={c}
               />
             </View>
@@ -150,7 +135,7 @@ export default function page() {
         >
           <View className='flex flex-col'>
             <HourHeader height={HOUR_HEIGHT} />
-            {channels?.Items?.map((c, i) => (
+            {channels?.Items?.map((c, _i) => (
               <MemoizedLiveTVGuideRow
                 channel={c}
                 programs={programs?.Items}

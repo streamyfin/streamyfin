@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useCallback, useEffect } from "react";
-import { Platform, TouchableOpacity, type ViewProps } from "react-native";
+import { useCallback, useEffect } from "react";
+import { Platform, TouchableOpacity } from "react-native";
 import GoogleCast, {
   CastButton,
   CastContext,
@@ -10,12 +10,6 @@ import GoogleCast, {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import { RoundButton } from "./RoundButton";
-
-interface Props extends ViewProps {
-  width?: number;
-  height?: number;
-  background?: "blur" | "transparent";
-}
 
 export function Chromecast({
   width = 48,
@@ -44,13 +38,25 @@ export function Chromecast({
   // Android requires the cast button to be present for startDiscovery to work
   const AndroidCastButton = useCallback(
     () =>
-      Platform.OS === "android" ? (
-        <CastButton tintColor='transparent' />
-      ) : (
-        <></>
-      ),
+      Platform.OS === "android" ? <CastButton tintColor='transparent' /> : null,
     [Platform.OS],
   );
+
+  if (Platform.OS === "ios") {
+    return (
+      <TouchableOpacity
+        className='mr-4'
+        onPress={() => {
+          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+          else CastContext.showCastDialog();
+        }}
+        {...props}
+      >
+        <AndroidCastButton />
+        <Feather name='cast' size={22} color={"white"} />
+      </TouchableOpacity>
+    );
+  }
 
   if (background === "transparent")
     return (

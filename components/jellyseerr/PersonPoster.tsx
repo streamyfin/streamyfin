@@ -1,9 +1,9 @@
-import { Text } from "@/components/common/Text";
-import Poster from "@/components/posters/Poster";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useRouter, useSegments } from "expo-router";
 import type React from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import Poster from "@/components/posters/Poster";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
 
 interface Props {
   id: string;
@@ -22,7 +22,7 @@ const PersonPoster: React.FC<Props & ViewProps> = ({
   const { jellyseerrApi } = useJellyseerr();
   const router = useRouter();
   const segments = useSegments();
-  const from = segments[2];
+  const from = (segments as string[])[2] || "(home)";
 
   if (from === "(home)" || from === "(search)" || from === "(libraries)")
     return (

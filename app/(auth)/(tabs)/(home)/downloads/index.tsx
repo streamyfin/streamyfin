@@ -1,13 +1,3 @@
-import { Button } from "@/components/Button";
-import { Text } from "@/components/common/Text";
-import { ActiveDownloads } from "@/components/downloads/ActiveDownloads";
-import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { MovieCard } from "@/components/downloads/MovieCard";
-import { SeriesCard } from "@/components/downloads/SeriesCard";
-import { type DownloadedItem, useDownload } from "@/providers/DownloadProvider";
-import { queueAtom } from "@/utils/atoms/queue";
-import { DownloadMethod, useSettings } from "@/utils/atoms/settings";
-import { writeToLog } from "@/utils/log";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
@@ -16,28 +6,69 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useNavigation, useRouter } from "expo-router";
-import { t } from "i18next";
 import { useAtom } from "jotai";
-import React, { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import ActiveDownloads from "@/components/downloads/ActiveDownloads";
+import { DownloadSize } from "@/components/downloads/DownloadSize";
+import { MovieCard } from "@/components/downloads/MovieCard";
+import { SeriesCard } from "@/components/downloads/SeriesCard";
+import { useDownload } from "@/providers/DownloadProvider";
+import { type DownloadedItem } from "@/providers/Downloads/types";
+import { queueAtom } from "@/utils/atoms/queue";
+import { writeToLog } from "@/utils/log";
 
 export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const { removeProcess, downloadedFiles, deleteFileByType } = useDownload();
+  const {
+    removeProcess,
+    getDownloadedItems,
+    deleteFileByType,
+    deleteAllFiles,
+  } = useDownload();
   const router = useRouter();
-  const [settings] = useSettings();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  const [showMigration, setShowMigration] = useState(false);
+
+  const migration_20241124 = () => {
+    Alert.alert(
+      t("home.downloads.new_app_version_requires_re_download"),
+      t("home.downloads.new_app_version_requires_re_download_description"),
+      [
+        {
+          text: t("home.downloads.back"),
+          onPress: () => {
+            setShowMigration(false);
+            router.back();
+          },
+        },
+        {
+          text: t("home.downloads.delete"),
+          style: "destructive",
+          onPress: async () => {
+            await deleteAllFiles();
+            setShowMigration(false);
+          },
+        },
+      ],
+    );
+  };
+
+  const downloadedFiles = getDownloadedItems();
 
   const movies = useMemo(() => {
     try {
       return downloadedFiles?.filter((f) => f.item.Type === "Movie") || [];
     } catch {
-      migration_20241124();
+      setShowMigration(true);
       return [];
     }
   }, [downloadedFiles]);
@@ -54,12 +85,23 @@ export default function page() {
       });
       return Object.values(series);
     } catch {
-      migration_20241124();
+      setShowMigration(true);
       return [];
     }
   }, [downloadedFiles]);
 
-  const insets = useSafeAreaInsets();
+  const otherMedia = useMemo(() => {
+    try {
+      return (
+        downloadedFiles?.filter(
+          (f) => f.item.Type !== "Movie" && f.item.Type !== "Episode",
+        ) || []
+      );
+    } catch {
+      setShowMigration(true);
+      return [];
+    }
+  }, [downloadedFiles]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -70,6 +112,12 @@ export default function page() {
       ),
     });
   }, [downloadedFiles]);
+
+  useEffect(() => {
+    if (showMigration) {
+      migration_20241124();
+    }
+  }, [showMigration]);
 
   const deleteMovies = () =>
     deleteFileByType("Movie")
@@ -93,21 +141,37 @@ export default function page() {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
       });
+  const deleteOtherMedia = () =>
+    Promise.all(
+      otherMedia.map((item) =>
+        deleteFileByType(item.item.Type)
+          .then(() =>
+            toast.success(
+              t("home.downloads.toasts.deleted_media_successfully", {
+                type: item.item.Type,
+              }),
+            ),
+          )
+          .catch((reason) => {
+            writeToLog("ERROR", reason);
+            toast.error(
+              t("home.downloads.toasts.failed_to_delete_media", {
+                type: item.item.Type,
+              }),
+            );
+          }),
+      ),
+    );
+
   const deleteAllMedia = async () =>
-    await Promise.all([deleteMovies(), deleteShows()]);
+    await Promise.all([deleteMovies(), deleteShows(), deleteOtherMedia()]);
 
   return (
     <>
-      <ScrollView
-        contentContainerStyle={{
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-          paddingBottom: 100,
-        }}
-      >
-        <View className='py-4'>
-          <View className='mb-4 flex flex-col space-y-4 px-4'>
-            {settings?.downloadMethod === DownloadMethod.Remux && (
+      <View style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} className='flex-1'>
+          <View className='py-4'>
+            <View className='mb-4 flex flex-col space-y-4 px-4'>
               <View className='bg-neutral-900 p-4 rounded-2xl'>
                 <Text className='text-lg font-bold'>
                   {t("home.downloads.queue")}
@@ -151,70 +215,102 @@ export default function page() {
                   </Text>
                 )}
               </View>
+
+              <ActiveDownloads />
+            </View>
+
+            {movies.length > 0 && (
+              <View className='mb-4'>
+                <View className='flex flex-row items-center justify-between mb-2 px-4'>
+                  <Text className='text-lg font-bold'>
+                    {t("home.downloads.movies")}
+                  </Text>
+                  <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                    <Text className='text-xs font-bold'>{movies?.length}</Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className='px-4 flex flex-row'>
+                    {movies?.map((item) => (
+                      <TouchableItemRouter
+                        item={item.item}
+                        isOffline
+                        key={item.item.Id}
+                      >
+                        <MovieCard item={item.item} />
+                      </TouchableItemRouter>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+            {groupedBySeries.length > 0 && (
+              <View className='mb-4'>
+                <View className='flex flex-row items-center justify-between mb-2 px-4'>
+                  <Text className='text-lg font-bold'>
+                    {t("home.downloads.tvseries")}
+                  </Text>
+                  <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                    <Text className='text-xs font-bold'>
+                      {groupedBySeries?.length}
+                    </Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className='px-4 flex flex-row'>
+                    {groupedBySeries?.map((items) => (
+                      <View
+                        className='mb-2 last:mb-0'
+                        key={items[0].item.SeriesId}
+                      >
+                        <SeriesCard
+                          items={items.map((i) => i.item)}
+                          key={items[0].item.SeriesId}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
             )}
 
-            <ActiveDownloads />
-          </View>
-
-          {movies.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.movies")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>{movies?.length}</Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {movies?.map((item) => (
-                    <View className='mb-2 last:mb-0' key={item.item.Id}>
-                      <MovieCard item={item.item} />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-          {groupedBySeries.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.tvseries")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>
-                    {groupedBySeries?.length}
+            {otherMedia.length > 0 && (
+              <View className='mb-4'>
+                <View className='flex flex-row items-center justify-between mb-2 px-4'>
+                  <Text className='text-lg font-bold'>
+                    {t("home.downloads.other_media")}
                   </Text>
+                  <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                    <Text className='text-xs font-bold'>
+                      {otherMedia?.length}
+                    </Text>
+                  </View>
                 </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className='px-4 flex flex-row'>
+                    {otherMedia?.map((item) => (
+                      <TouchableItemRouter
+                        item={item.item}
+                        isOffline
+                        key={item.item.Id}
+                      >
+                        <MovieCard item={item.item} />
+                      </TouchableItemRouter>
+                    ))}
+                  </View>
+                </ScrollView>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {groupedBySeries?.map((items) => (
-                    <View
-                      className='mb-2 last:mb-0'
-                      key={items[0].item.SeriesId}
-                    >
-                      <SeriesCard
-                        items={items.map((i) => i.item)}
-                        key={items[0].item.SeriesId}
-                      />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-          {downloadedFiles?.length === 0 && (
-            <View className='flex px-4'>
-              <Text className='opacity-50'>
-                {t("home.downloads.no_downloaded_items")}
-              </Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
+            )}
+            {downloadedFiles?.length === 0 && (
+              <View className='flex px-4'>
+                <Text className='opacity-50'>
+                  {t("home.downloads.no_downloaded_items")}
+                </Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </View>
       <BottomSheetModal
         ref={bottomSheetModalRef}
         enableDynamicSizing
@@ -240,6 +336,11 @@ export default function page() {
             <Button color='purple' onPress={deleteShows}>
               {t("home.downloads.delete_all_tvseries_button")}
             </Button>
+            {otherMedia.length > 0 && (
+              <Button color='purple' onPress={deleteOtherMedia}>
+                {t("home.downloads.delete_all_other_media_button")}
+              </Button>
+            )}
             <Button color='red' onPress={deleteAllMedia}>
               {t("home.downloads.delete_all_button")}
             </Button>
@@ -247,25 +348,5 @@ export default function page() {
         </BottomSheetView>
       </BottomSheetModal>
     </>
-  );
-}
-
-function migration_20241124() {
-  const router = useRouter();
-  const { deleteAllFiles } = useDownload();
-  Alert.alert(
-    t("home.downloads.new_app_version_requires_re_download"),
-    t("home.downloads.new_app_version_requires_re_download_description"),
-    [
-      {
-        text: t("home.downloads.back"),
-        onPress: () => router.back(),
-      },
-      {
-        text: t("home.downloads.delete"),
-        style: "destructive",
-        onPress: async () => await deleteAllFiles(),
-      },
-    ],
   );
 }

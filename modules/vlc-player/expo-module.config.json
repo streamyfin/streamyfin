@@ -1,8 +1,7 @@
 {
   "platforms": ["ios", "tvos", "android", "web"],
   "ios": {
-    "modules": ["VlcPlayerModule"],
-    "appDelegateSubscribers": ["AppLifecycleDelegate"]
+    "modules": ["VlcPlayerModule"]
   },
   "android": {
     "modules": ["expo.modules.vlcplayer.VlcPlayerModule"]

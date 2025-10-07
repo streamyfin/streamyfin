@@ -1,24 +1,23 @@
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery } from "@tanstack/react-query";
+import { atom, useAtom } from "jotai";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { View } from "react-native";
 import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { atom, useAtom } from "jotai";
-import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { View } from "react-native";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
+import { Text } from "../common/Text";
+import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { DownloadItems, DownloadSingleItem } from "../DownloadItem";
 import { Loader } from "../Loader";
 import { PlayedStatus } from "../PlayedStatus";
-import { Text } from "../common/Text";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
 type Props = {
   item: BaseItemDto;
@@ -27,7 +26,7 @@ type Props = {
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
-export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
+export const SeasonPicker: React.FC<Props> = ({ item }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
@@ -74,7 +73,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     return season.Id!;
   }, [seasons, seasonIndex]);
 
-  const { data: episodes, isFetching } = useQuery({
+  const { data: episodes, isPending } = useQuery({
     queryKey: ["episodes", item.Id, selectedSeasonId],
     queryFn: async () => {
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) {
@@ -86,7 +85,8 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         userId: user.Id,
         seasonId: selectedSeasonId,
         enableUserData: true,
-        fields: ["MediaSources", "MediaStreams", "Overview"],
+        // Note: Including trick play is necessary to enable trick play downloads
+        fields: ["Overview", "Trickplay"],
       });
 
       if (res.data.TotalRecordCount === 0)
@@ -99,25 +99,6 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
     },
     enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
-
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    for (const e of episodes || []) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", e.Id],
-        queryFn: async () => {
-          if (!e.Id) return;
-          const res = await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: e.Id,
-          });
-          return res;
-        },
-        staleTime: 60 * 5 * 1000,
-      });
-    }
-  }, [episodes]);
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);
@@ -164,7 +145,7 @@ export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
         ) : null}
       </View>
       <View className='px-4 flex flex-col mt-4'>
-        {isFetching ? (
+        {isPending ? (
           <View
             style={{
               minHeight: 144 * nrOfEpisodes,

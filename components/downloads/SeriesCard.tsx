@@ -1,6 +1,3 @@
-import { DownloadSize } from "@/components/downloads/DownloadSize";
-import { useDownload } from "@/providers/DownloadProvider";
-import { storage } from "@/utils/mmkv";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
@@ -9,6 +6,9 @@ import { router } from "expo-router";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
+import { DownloadSize } from "@/components/downloads/DownloadSize";
+import { useDownload } from "@/providers/DownloadProvider";
+import { storage } from "@/utils/mmkv";
 import { Text } from "../common/Text";
 
 export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
@@ -52,8 +52,8 @@ export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
             style={{
               width: "100%",
               height: "100%",
-              resizeMode: "cover",
             }}
+            contentFit='cover'
           />
           <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center absolute bottom-1 right-1'>
             <Text className='text-xs font-bold'>{items.length}</Text>

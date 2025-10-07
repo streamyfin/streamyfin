@@ -1,16 +1,16 @@
-import { Colors } from "@/constants/Colors";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { Image } from "expo-image";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
-import { Image, Text, View } from "react-native";
-import { ScrollingCollectionList } from "./ScrollingCollectionList";
-
+import { Text, View } from "react-native";
 // PNG ASSET
 import heart from "@/assets/icons/heart.fill.png";
+import { Colors } from "@/constants/Colors";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { InfiniteScrollingCollectionList } from "./InfiniteScrollingCollectionList";
 
 type FavoriteTypes =
   | "Series"
@@ -34,7 +34,11 @@ export const Favorites = () => {
   });
 
   const fetchFavoritesByType = useCallback(
-    async (itemType: BaseItemKind) => {
+    async (
+      itemType: BaseItemKind,
+      startIndex: number = 0,
+      limit: number = 20,
+    ) => {
       const response = await getItemsApi(api as Api).getItems({
         userId: user?.Id,
         sortBy: ["SeriesSortName", "SortName"],
@@ -45,16 +49,19 @@ export const Favorites = () => {
         collapseBoxSetItems: false,
         excludeLocationTypes: ["Virtual"],
         enableTotalRecordCount: false,
-        limit: 20,
+        startIndex: startIndex,
+        limit: limit,
         includeItemTypes: [itemType],
       });
       const items = response.data.Items || [];
 
-      // Update empty state for this specific type
-      setEmptyState((prev) => ({
-        ...prev,
-        [itemType as FavoriteTypes]: items.length === 0,
-      }));
+      // Update empty state for this specific type only for the first page
+      if (startIndex === 0) {
+        setEmptyState((prev) => ({
+          ...prev,
+          [itemType as FavoriteTypes]: items.length === 0,
+        }));
+      }
 
       return items;
     },
@@ -83,27 +90,33 @@ export const Favorites = () => {
   };
 
   const fetchFavoriteSeries = useCallback(
-    () => fetchFavoritesByType("Series"),
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Series", pageParam),
     [fetchFavoritesByType],
   );
   const fetchFavoriteMovies = useCallback(
-    () => fetchFavoritesByType("Movie"),
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Movie", pageParam),
     [fetchFavoritesByType],
   );
   const fetchFavoriteEpisodes = useCallback(
-    () => fetchFavoritesByType("Episode"),
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Episode", pageParam),
     [fetchFavoritesByType],
   );
   const fetchFavoriteVideos = useCallback(
-    () => fetchFavoritesByType("Video"),
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Video", pageParam),
     [fetchFavoritesByType],
   );
   const fetchFavoriteBoxsets = useCallback(
-    () => fetchFavoritesByType("BoxSet"),
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("BoxSet", pageParam),
     [fetchFavoritesByType],
   );
   const fetchFavoritePlaylists = useCallback(
-    () => fetchFavoritesByType("Playlist"),
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Playlist", pageParam),
     [fetchFavoritesByType],
   );
 
@@ -113,7 +126,8 @@ export const Favorites = () => {
         <View className='flex-1 items-center justify-center py-12'>
           <Image
             className={"w-10 h-10 mb-4"}
-            style={{ tintColor: Colors.primary, resizeMode: "contain" }}
+            style={{ tintColor: Colors.primary }}
+            contentFit='contain'
             source={heart}
           />
           <Text className='text-xl font-semibold text-white mb-2'>
@@ -124,38 +138,38 @@ export const Favorites = () => {
           </Text>
         </View>
       )}
-      <ScrollingCollectionList
+      <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteSeries}
         queryKey={["home", "favorites", "series"]}
         title={t("favorites.series")}
         hideIfEmpty
       />
-      <ScrollingCollectionList
+      <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
         queryKey={["home", "favorites", "movies"]}
         title={t("favorites.movies")}
         hideIfEmpty
         orientation='vertical'
       />
-      <ScrollingCollectionList
+      <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
         queryKey={["home", "favorites", "episodes"]}
         title={t("favorites.episodes")}
         hideIfEmpty
       />
-      <ScrollingCollectionList
+      <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
         queryKey={["home", "favorites", "videos"]}
         title={t("favorites.videos")}
         hideIfEmpty
       />
-      <ScrollingCollectionList
+      <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
         queryKey={["home", "favorites", "boxsets"]}
         title={t("favorites.boxsets")}
         hideIfEmpty
       />
-      <ScrollingCollectionList
+      <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
         queryKey={["home", "favorites", "playlists"]}
         title={t("favorites.playlists")}

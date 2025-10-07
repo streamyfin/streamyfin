@@ -1,25 +1,3 @@
-import { AudioTrackSelector } from "@/components/AudioTrackSelector";
-import { type Bitrate, BitrateSelector } from "@/components/BitrateSelector";
-import { DownloadSingleItem } from "@/components/DownloadItem";
-import { OverviewText } from "@/components/OverviewText";
-import { ParallaxScrollView } from "@/components/ParallaxPage";
-// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
-import { PlayButton } from "@/components/PlayButton";
-import { PlayedStatus } from "@/components/PlayedStatus";
-import { SimilarItems } from "@/components/SimilarItems";
-import { SubtitleTrackSelector } from "@/components/SubtitleTrackSelector";
-import { ItemImage } from "@/components/common/ItemImage";
-import { CastAndCrew } from "@/components/series/CastAndCrew";
-import { CurrentSeries } from "@/components/series/CurrentSeries";
-import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
-import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useImageColors } from "@/hooks/useImageColors";
-import { useOrientation } from "@/hooks/useOrientation";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -28,14 +6,37 @@ import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { type Bitrate } from "@/components/BitrateSelector";
+import { ItemImage } from "@/components/common/ItemImage";
+import { DownloadSingleItem } from "@/components/DownloadItem";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
+import { PlayButton } from "@/components/PlayButton";
+import { PlayedStatus } from "@/components/PlayedStatus";
+import { SimilarItems } from "@/components/SimilarItems";
+import { CastAndCrew } from "@/components/series/CastAndCrew";
+import { CurrentSeries } from "@/components/series/CurrentSeries";
+import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { useOrientation } from "@/hooks/useOrientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
+import { BitrateSheet } from "./BitRateSheet";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
-import { MediaSourceSelector } from "./MediaSourceSelector";
+import { MediaSourceSheet } from "./MediaSourceSheet";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
+import { TrackSheet } from "./TrackSheet";
+
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
 export type SelectedOptions = {
@@ -45,16 +46,22 @@ export type SelectedOptions = {
   subtitleIndex: number;
 };
 
-export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
-  ({ item }) => {
+interface ItemContentProps {
+  item: BaseItemDto;
+  isOffline: boolean;
+}
+
+export const ItemContent: React.FC<ItemContentProps> = React.memo(
+  ({ item, isOffline }) => {
     const [api] = useAtom(apiAtom);
-    const [settings] = useSettings();
+    const { settings } = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const [user] = useAtom(userAtom);
+    const { t } = useTranslation();
 
-    useImageColors({ item });
+    const itemColors = useImageColorsReturn({ item });
 
     const [loadingLogo, setLoadingLogo] = useState(true);
     const [headerHeight, setHeaderHeight] = useState(350);
@@ -68,7 +75,16 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(item, settings);
+    } = useDefaultPlaySettings(item!, settings);
+
+    const logoUrl = useMemo(
+      () => (item ? getLogoImageUrlById({ api, item }) : null),
+      [api, item],
+    );
+
+    const loading = useMemo(() => {
+      return Boolean(logoUrl && loadingLogo);
+    }, [loadingLogo, logoUrl]);
 
     // Needs to automatically change the selected to the default values for default indexes.
     useEffect(() => {
@@ -85,17 +101,31 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
       defaultMediaSource,
     ]);
 
-    if (!Platform.isTV) {
-      useEffect(() => {
+    useEffect(() => {
+      if (!Platform.isTV) {
         navigation.setOptions({
           headerRight: () =>
-            item && (
+            item &&
+            (Platform.OS === "ios" ? (
+              <View className='flex flex-row items-center pl-2'>
+                <Chromecast.Chromecast width={22} height={22} />
+                {item.Type !== "Program" && (
+                  <View className='flex flex-row items-center'>
+                    {!Platform.isTV && (
+                      <DownloadSingleItem item={item} size='large' />
+                    )}
+                    {user?.Policy?.IsAdministrator && (
+                      <PlayInRemoteSessionButton item={item} size='large' />
+                    )}
+
+                    <PlayedStatus items={[item]} size='large' />
+                    <AddToFavorites item={item} />
+                  </View>
+                )}
+              </View>
+            ) : (
               <View className='flex flex-row items-center space-x-2'>
-                <Chromecast.Chromecast
-                  background='blur'
-                  width={22}
-                  height={22}
-                />
+                <Chromecast.Chromecast width={22} height={22} />
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
@@ -110,24 +140,21 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                   </View>
                 )}
               </View>
-            ),
+            )),
         });
-      }, [item]);
-    }
+      }
+    }, [item, navigation, user]);
 
     useEffect(() => {
-      if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
-        setHeaderHeight(230);
-      else if (item.Type === "Movie") setHeaderHeight(500);
-      else setHeaderHeight(350);
-    }, [item.Type, orientation]);
+      if (item) {
+        if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
+          setHeaderHeight(230);
+        else if (item.Type === "Movie") setHeaderHeight(500);
+        else setHeaderHeight(350);
+      }
+    }, [item, orientation]);
 
-    const logoUrl = useMemo(() => getLogoImageUrlById({ api, item }), [item]);
-
-    const loading = useMemo(() => {
-      return Boolean(logoUrl && loadingLogo);
-    }, [loadingLogo, logoUrl]);
-    if (!selectedOptions) return null;
+    if (!item || !selectedOptions) return null;
 
     return (
       <View
@@ -163,20 +190,22 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 style={{
                   height: 130,
                   width: "100%",
-                  resizeMode: "contain",
                 }}
+                contentFit='contain'
                 onLoad={() => setLoadingLogo(false)}
                 onError={() => setLoadingLogo(false)}
               />
-            ) : null
+            ) : (
+              <View />
+            )
           }
         >
           <View className='flex flex-col bg-transparent shrink'>
             <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
-              <ItemHeader item={item} className='mb-4' />
-              {item.Type !== "Program" && !Platform.isTV && (
+              <ItemHeader item={item} className='mb-2' />
+              {item.Type !== "Program" && !Platform.isTV && !isOffline && (
                 <View className='flex flex-row items-center justify-start w-full h-16'>
-                  <BitrateSelector
+                  <BitrateSheet
                     className='mr-1'
                     onChange={(val) =>
                       setSelectedOptions(
@@ -185,7 +214,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     }
                     selected={selectedOptions.bitrate}
                   />
-                  <MediaSourceSelector
+                  <MediaSourceSheet
                     className='mr-1'
                     item={item}
                     onChange={(val) =>
@@ -199,8 +228,10 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     }
                     selected={selectedOptions.mediaSource}
                   />
-                  <AudioTrackSelector
+                  <TrackSheet
                     className='mr-1'
+                    streamType='Audio'
+                    title={t("item_card.audio")}
                     source={selectedOptions.mediaSource}
                     onChange={(val) => {
                       setSelectedOptions(
@@ -213,8 +244,10 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                     }}
                     selected={selectedOptions.audioIndex}
                   />
-                  <SubtitleTrackSelector
+                  <TrackSheet
                     source={selectedOptions.mediaSource}
+                    streamType='Subtitle'
+                    title={t("item_card.subtitles")}
                     onChange={(val) =>
                       setSelectedOptions(
                         (prev) =>
@@ -233,25 +266,35 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                 className='grow'
                 selectedOptions={selectedOptions}
                 item={item}
+                isOffline={isOffline}
+                colors={itemColors}
               />
             </View>
 
             {item.Type === "Episode" && (
-              <SeasonEpisodesCarousel item={item} loading={loading} />
+              <SeasonEpisodesCarousel
+                item={item}
+                loading={loading}
+                isOffline={isOffline}
+              />
             )}
 
-            <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+            {!isOffline && (
+              <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+            )}
             <OverviewText text={item.Overview} className='px-4 mb-4' />
 
             {item.Type !== "Program" && (
               <>
-                {item.Type === "Episode" && (
+                {item.Type === "Episode" && !isOffline && (
                   <CurrentSeries item={item} className='mb-4' />
                 )}
 
-                <CastAndCrew item={item} className='mb-4' loading={loading} />
+                {!isOffline && (
+                  <CastAndCrew item={item} className='mb-4' loading={loading} />
+                )}
 
-                {item.People && item.People.length > 0 && (
+                {item.People && item.People.length > 0 && !isOffline && (
                   <View className='mb-4'>
                     {item.People.slice(0, 3).map((person, idx) => (
                       <MoreMoviesWithActor
@@ -264,7 +307,7 @@ export const ItemContent: React.FC<{ item: BaseItemDto }> = React.memo(
                   </View>
                 )}
 
-                <SimilarItems itemId={item.Id} />
+                {!isOffline && <SimilarItems itemId={item.Id} />}
               </>
             )}
           </View>

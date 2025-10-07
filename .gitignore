@@ -10,7 +10,6 @@ npm-debug.*
 *.orig.*
 web-build/
 modules/vlc-player/android/build
-modules/vlc-player/android/.gradle
 
 # macOS
 .DS_Store
@@ -46,3 +45,5 @@ streamyfin-4fec1-firebase-adminsdk.json
 .env
 .env.local
 *.aab
+/version-backup-*
+bun.lockb

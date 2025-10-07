@@ -1,8 +1,10 @@
-import { tc } from "@/utils/textTools";
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { useMemo } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { tc } from "@/utils/textTools";
+
 const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
 import { useTranslation } from "react-i18next";
 import { Text } from "./common/Text";
 
@@ -18,7 +20,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   selected,
   ...props
 }) => {
-  if (Platform.isTV) return null;
+  const { t } = useTranslation();
   const subtitleStreams = useMemo(() => {
     return source?.MediaStreams?.filter((x) => x.Type === "Subtitle");
   }, [source]);
@@ -28,9 +30,7 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
     [subtitleStreams, selected],
   );
 
-  if (subtitleStreams?.length === 0) return null;
-
-  const { t } = useTranslation();
+  if (Platform.isTV || subtitleStreams?.length === 0) return null;
 
   return (
     <View

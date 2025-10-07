@@ -1,5 +1,3 @@
-import React from "react";
-
-export default function DownloadSettings({ ...props }) {
-  return <></>;
+export default function DownloadSettings() {
+  return null;
 }

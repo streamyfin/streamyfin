@@ -1,13 +1,12 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useAtom } from "jotai/index";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { FlatList, Platform, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ListItem } from "@/components/list/ListItem";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useAtom } from "jotai/index";
-import React, { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
-import { FlatList, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const WebBrowser = !Platform.isTV ? require("expo-web-browser") : null;
 

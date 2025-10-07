@@ -1,23 +1,25 @@
+import { useMemo } from "react";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import {
   MediaRequestStatus,
   MediaStatus,
+  MediaType,
 } from "@/utils/jellyseerr/server/constants/media";
 import {
-  Permission,
   hasPermission,
+  Permission,
 } from "@/utils/jellyseerr/server/lib/permissions";
+import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 import type {
   MovieResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
-import { useMemo } from "react";
 import type MediaRequest from "../jellyseerr/server/entity/MediaRequest";
 import type { MovieDetails } from "../jellyseerr/server/models/Movie";
 import type { TvDetails } from "../jellyseerr/server/models/Tv";
 
 export const useJellyseerrCanRequest = (
-  item?: MovieResult | TvResult | MovieDetails | TvDetails,
+  item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast,
 ) => {
   const { jellyseerrUser } = useJellyseerr();
 
@@ -40,7 +42,7 @@ export const useJellyseerrCanRequest = (
     const userHasPermission = hasPermission(
       [
         Permission.REQUEST,
-        item?.mediaInfo?.mediaType
+        item?.mediaInfo?.mediaType === MediaType.MOVIE
           ? Permission.REQUEST_MOVIE
           : Permission.REQUEST_TV,
       ],
