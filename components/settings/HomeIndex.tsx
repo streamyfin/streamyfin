@@ -358,11 +358,23 @@ export const HomeIndex = () => {
             return response.data || [];
           }
           if (section.custom) {
+            let query: any = {};
+            let headers: any = {};
+
+            if (section.custom.query) {
+              query = section.custom.query;
+            }
+
+            if (section.custom.headers) {
+              headers = section.custom.headers;
+            }
+
+            query.userId = user?.Id;
             const response = await api.get<BaseItemDtoQueryResult>(
               section.custom.endpoint,
               {
-                params: { ...(section.custom.query || {}), userId: user?.Id },
-                headers: section.custom.headers || {},
+                params: query,
+                headers: headers,
               },
             );
             return response.data.Items || [];
