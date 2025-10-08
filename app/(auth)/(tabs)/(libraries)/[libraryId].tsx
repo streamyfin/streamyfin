@@ -162,8 +162,12 @@ const Page = () => {
       } else if (library.CollectionType === "boxsets") {
         itemTypes = ["BoxSet"];
       } else if (library.CollectionType === "homevideos") {
-        itemTypes = ["Folder", "Video", "PhotoAlbum"];
+        itemTypes = ["Folder", "Video", "PhotoAlbum", "Photo"];
         recursive = false; // Important: Only get videos from the main folder
+        customSortBy = [SortByOption.IsFolder, SortByOption.SortName];
+      } else if (library.CollectionType === "photos") {
+        itemTypes = ["Folder", "PhotoAlbum", "Photo"];
+        recursive = false; // Important: Only get photos from the main folder
         customSortBy = [SortByOption.IsFolder, SortByOption.SortName];
       }
 

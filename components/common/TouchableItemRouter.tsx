@@ -90,6 +90,20 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     };
   }
 
+  if (item.Type === "Folder" || item.Type === "PhotoAlbum") {
+    return {
+      pathname: "/[libraryId]" as const,
+      params: { libraryId: item.Id! },
+    };
+  }
+
+  if (item.Type === "Photo") {
+    return {
+      pathname: "/photos/view" as const,
+      params: { id: item.Id! },
+    };
+  }
+
   // Default case - items page
   return {
     pathname: "/items/page" as const,
