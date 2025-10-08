@@ -346,7 +346,7 @@ const PhotoViewPage: React.FC = () => {
                 transition={300}
                 //onLoad={() => console.log("Image loaded successfully")}
                 //onError={(error) => console.log("Image loading error:", error)}
-                cachePolicy='none' // Important - don't cache to ensure fresh load
+                cachePolicy='disk' // Use disk caching for better performance
                 recyclingKey={id} // Use id to force reload when image changes
               />
             </Animated.View>
