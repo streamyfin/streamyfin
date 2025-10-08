@@ -2,6 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
+  BaseItemDtoQueryResult,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
@@ -355,6 +356,16 @@ export const HomeIndex = () => {
               groupItems: section.latest?.groupItems,
             });
             return response.data || [];
+          }
+          if (section.custom) {
+            const response = await api.get<BaseItemDtoQueryResult>(
+              section.custom.endpoint,
+              {
+                params: { ...(section.custom.query || {}), userId: user?.Id },
+                headers: section.custom.headers || {},
+              },
+            );
+            return response.data.Items || [];
           }
           return [];
         },
