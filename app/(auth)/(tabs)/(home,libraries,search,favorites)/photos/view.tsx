@@ -1,15 +1,11 @@
-import { Text } from "@/components/common/Text";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getPhotoImageUrl } from "@/utils/jellyfin/image/getPhotoImageUrl";
 import { Ionicons } from "@expo/vector-icons";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useLocalSearchParams } from "expo-router";
-import { useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Dimensions, StyleSheet, View } from "react-native";
 import {
@@ -18,12 +14,15 @@ import {
   TouchableOpacity,
 } from "react-native-gesture-handler";
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  runOnJS,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "@/components/common/Text";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getPhotoImageUrl } from "@/utils/jellyfin/image/getPhotoImageUrl";
 
 const PhotoViewPage: React.FC = () => {
   const [api] = useAtom(apiAtom);
@@ -345,8 +344,8 @@ const PhotoViewPage: React.FC = () => {
                 contentFit='contain'
                 contentPosition='center'
                 transition={300}
-                onLoad={() => console.log("Image loaded successfully")}
-                onError={(error) => console.log("Image loading error:", error)}
+                //onLoad={() => console.log("Image loaded successfully")}
+                //onError={(error) => console.log("Image loading error:", error)}
                 cachePolicy='none' // Important - don't cache to ensure fresh load
                 recyclingKey={id} // Use id to force reload when image changes
               />
