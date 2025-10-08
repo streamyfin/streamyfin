@@ -110,13 +110,8 @@ export type HomeSectionItemResolver = {
 export type HomeSectionCustomEndpointResolver = {
   title?: string;
   endpoint: string;
-  headers?: Array<HomeSectionCustomParameterResolver>;
-  query?: Array<HomeSectionCustomParameterResolver>;
-};
-
-export type HomeSectionCustomParameterResolver = {
-  key: string;
-  value: string;
+  headers?: any;
+  query?: any;
 };
 
 export type HomeSectionNextUpResolver = {

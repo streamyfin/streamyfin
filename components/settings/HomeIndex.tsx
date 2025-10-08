@@ -358,24 +358,18 @@ export const HomeIndex = () => {
             return response.data || [];
           }
           if (section.custom) {
-            // Pull in the query configured from the config and add the userId parameter
-            const query: any = {
-              userId: user?.Id,
-            };
-            const headers: any = {};
+            let query: any = {};
+            let headers: any = {};
 
             if (section.custom.query) {
-              section.custom.query.forEach((value) => {
-                query[value.key] = value.value;
-              });
+              query = section.custom.query;
             }
 
             if (section.custom.headers) {
-              section.custom.headers.forEach((value) => {
-                headers[value.key] = value.value;
-              });
+              headers = section.custom.headers;
             }
 
+            query.userId = user?.Id;
             const response = await api.get<BaseItemDtoQueryResult>(
               section.custom.endpoint,
               {
