@@ -49,15 +49,11 @@ export const getPhotoImageUrl = ({
     params.append("tag", imageTag);
   }
 
-  // For photos, try different approaches
+  // For photos, use the secure Images endpoint
   if (item.Type === "Photo") {
-    // First option: Use the direct download URL to get original image
-    if (api.accessToken) {
-      return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Download?api_key=${api.accessToken ?? ""}`;
-    }
-
-    // Second option: Try to get the image using a different endpoint
-    return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Images/Primary/0/Original?${params.toString()}`;
+    // Use the Images/Primary endpoint which supports session-based authentication
+    // This avoids exposing the API key in the URL
+    return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Images/Primary?${params.toString()}`;
   }
 
   // Fallback to standard Images/Primary endpoint
