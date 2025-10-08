@@ -2,6 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
+  BaseItemDtoQueryResult,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
@@ -355,6 +356,34 @@ export const HomeIndex = () => {
               groupItems: section.latest?.groupItems,
             });
             return response.data || [];
+          }
+          if (section.custom) {
+            // Pull in the query configured from the config and add the userId parameter
+            const query: any = {
+              userId: user?.Id,
+            };
+            const headers: any = {};
+
+            if (section.custom.query) {
+              section.custom.query.forEach((value) => {
+                query[value.key] = value.value;
+              });
+            }
+
+            if (section.custom.headers) {
+              section.custom.headers.forEach((value) => {
+                headers[value.key] = value.value;
+              });
+            }
+
+            const response = await api.get<BaseItemDtoQueryResult>(
+              section.custom.endpoint,
+              {
+                params: query,
+                headers: headers,
+              },
+            );
+            return response.data.Items || [];
           }
           return [];
         },
