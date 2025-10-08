@@ -310,6 +310,29 @@
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
         "go_to_downloads": "Go to Downloads"
       }
+    },
+    "admin": {
+      "title": "Admin",
+      "server_name": "Server Name",
+      "server_version": "Server Version",
+      "active_devices": "Active Devices",
+      "active_sessions": "Active Sessions",
+      "running_tasks": "Running Tasks",
+      "manage_users": "Manage Users",
+      "manage_plugins": "Manage Plugins",
+      "manage_server": "Manage Server",
+      "read_more_about_admin_features": "Read More About Admin Features",
+      "tasks": {
+        "unnamed_task": "Unnamed Task",
+        "never_run": "Never run",
+        "invalid_date": "Invalid date",
+        "complete": "complete",
+        "running_count_one": "{{count}} task running",
+        "running_count_other": "{{count}} tasks running",
+        "no_running_tasks": "All tasks idle",
+        "no_active_tasks": "No Active Tasks",
+        "no_active_tasks_description": "All scheduled tasks are currently idle. Running or recently completed tasks will appear here."
+      }
     }
   },
   "common": {
