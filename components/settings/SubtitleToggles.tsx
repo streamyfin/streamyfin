@@ -28,13 +28,13 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
   // Get VLC subtitle settings from the settings system
-  const textColor = pluginSettings?.vlcTextColor ?? "White";
-  const backgroundColor = pluginSettings?.vlcBackgroundColor ?? "Black";
-  const outlineColor = pluginSettings?.vlcOutlineColor ?? "Black";
-  const outlineThickness = pluginSettings?.vlcOutlineThickness ?? "Normal";
-  const backgroundOpacity = pluginSettings?.vlcBackgroundOpacity ?? 128;
-  const outlineOpacity = pluginSettings?.vlcOutlineOpacity ?? 255;
-  const isBold = pluginSettings?.vlcIsBold ?? false;
+  const textColor = settings?.vlcTextColor ?? "White";
+  const backgroundColor = settings?.vlcBackgroundColor ?? "Black";
+  const outlineColor = settings?.vlcOutlineColor ?? "Black";
+  const outlineThickness = settings?.vlcOutlineThickness ?? "Normal";
+  const backgroundOpacity = settings?.vlcBackgroundOpacity ?? 128;
+  const outlineOpacity = settings?.vlcOutlineOpacity ?? 255;
+  const isBold = settings?.vlcIsBold ?? false;
 
   if (isTv) return null;
   if (!settings) return null;
