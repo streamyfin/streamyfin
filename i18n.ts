@@ -10,6 +10,7 @@ import eo from "./translations/eo.json";
 import es from "./translations/es.json";
 import fi from "./translations/fi.json";
 import fr from "./translations/fr.json";
+import hu from "./translations/hu.json";
 import it from "./translations/it.json";
 import ja from "./translations/ja.json";
 import nb from "./translations/nb.json";
@@ -41,6 +42,7 @@ export const APP_LANGUAGES = [
   { label: "日本語", value: "ja" },
   { label: "Klingon", value: "tlh" },
   { label: "Türkçe", value: "tr" },
+  { label: "Magyar", value: "hu" },
   { label: "Nederlands", value: "nl" },
   { label: "Polski", value: "pl" },
   { label: "Português (Brasil)", value: "pt-BR" },
@@ -68,6 +70,7 @@ i18n.use(initReactI18next).init({
     es: { translation: es },
     eo: { translation: eo },
     fr: { translation: fr },
+    hu: { translation: hu },
     it: { translation: it },
     ja: { translation: ja },
     nl: { translation: nl },
