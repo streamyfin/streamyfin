@@ -1,4 +1,4 @@
-import {
+import type {
   ChapterInfo,
   PlaybackStatePayload,
   ProgressUpdatePayload,
@@ -12,17 +12,20 @@ import {
 } from "./VlcPlayer.types";
 import VlcPlayerView from "./VlcPlayerView";
 
+// Component
 export { VlcPlayerView };
 
+// Component Types
+export type { VlcPlayerViewProps, VlcPlayerViewRef };
+
+// Media Types
+export type { ChapterInfo, TrackInfo, VlcPlayerSource };
+
+// Playback Events (alphabetically sorted)
 export type {
-  VlcPlayerViewProps,
-  VlcPlayerViewRef,
   PlaybackStatePayload,
   ProgressUpdatePayload,
   VideoLoadStartPayload,
-  VideoStateChangePayload,
   VideoProgressPayload,
-  VlcPlayerSource,
-  TrackInfo,
-  ChapterInfo,
+  VideoStateChangePayload,
 };
