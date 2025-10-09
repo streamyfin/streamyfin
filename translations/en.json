@@ -322,6 +322,23 @@
       "manage_plugins": "Manage Plugins",
       "manage_server": "Manage Server",
       "read_more_about_admin_features": "Read More About Admin Features",
+      "users": {
+        "title": "Manage Users",
+        "subtitle": "{{count}} users found",
+        "error_loading_users": "Failed to load users. Please try again.",
+        "unknown_user": "Unknown User",
+        "admin": "Admin",
+        "disabled": "Disabled",
+        "last_seen": "Last seen",
+        "never_active": "Never Active",
+        "just_now": "Just now",
+        "minutes_ago": "{{count}} minutes ago",
+        "hours_ago": "{{count}} hours ago",
+        "yesterday": "Yesterday",
+        "days_ago": "{{count}} days ago",
+        "folders_count": "{{count}} folders",
+        "parental_rating": "Rating"
+      },
       "tasks": {
         "unnamed_task": "Unnamed Task",
         "never_run": "Never run",

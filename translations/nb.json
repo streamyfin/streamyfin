@@ -470,6 +470,34 @@
       "something_went_wrong_requesting_media": "Noe gikk galt med å be om media!"
     }
   },
+  "admin": {
+    "users": {
+      "title": "Brukere",
+      "subtitle": "Administrer serverbrukere",
+      "loading": "Laster brukere...",
+      "error": "Kunne ikke laste brukere",
+      "no_users": "Ingen brukere funnet",
+      "administrator": "Administrator",
+      "enabled": "Aktivert",
+      "disabled": "Deaktivert",
+      "last_activity": "Siste aktivitet",
+      "created": "Opprettet",
+      "never": "Aldri",
+      "time_ago": {
+        "just_now": "Akkurat nå",
+        "minute_ago": "{{count}} minutt siden",
+        "minute_ago_plural": "{{count}} minutter siden",
+        "hour_ago": "{{count}} time siden",
+        "hour_ago_plural": "{{count}} timer siden",
+        "day_ago": "{{count}} dag siden",
+        "day_ago_plural": "{{count}} dager siden",
+        "month_ago": "{{count}} måned siden",
+        "month_ago_plural": "{{count}} måneder siden",
+        "year_ago": "{{count}} år siden",
+        "year_ago_plural": "{{count}} år siden"
+      }
+    }
+  },
   "tabs": {
     "home": "Hjem",
     "search": "Søk",

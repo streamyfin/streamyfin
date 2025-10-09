@@ -19,7 +19,11 @@ export const AdminManage: React.FC<Props> = ({ ...props }) => {
           onPress={() => router.push("/(auth)/admin/tasks/page")}
           showArrow
         />
-        <ListItem title={t("home.admin.manage_users")} showArrow />
+        <ListItem
+          title={t("home.admin.manage_users")}
+          onPress={() => router.push("/(auth)/admin/users/page")}
+          showArrow
+        />
         <ListItem title={t("home.admin.active_devices")} showArrow />
         <ListItem title={t("home.admin.active_sessions")} showArrow />
       </ListGroup>

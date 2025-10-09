@@ -470,6 +470,34 @@
       "something_went_wrong_requesting_media": "Noko gjekk gale med å be om media!"
     }
   },
+  "admin": {
+    "users": {
+      "title": "Brukarar",
+      "subtitle": "Administrer tenarar-brukarar",
+      "loading": "Lastar brukarar...",
+      "error": "Kunne ikkje lasta brukarar",
+      "no_users": "Ingen brukarar funne",
+      "administrator": "Administrator",
+      "enabled": "Aktivert",
+      "disabled": "Deaktivert",
+      "last_activity": "Siste aktivitet",
+      "created": "Oppretta",
+      "never": "Aldri",
+      "time_ago": {
+        "just_now": "Akkurat no",
+        "minute_ago": "{{count}} minutt sidan",
+        "minute_ago_plural": "{{count}} minutt sidan",
+        "hour_ago": "{{count}} time sidan",
+        "hour_ago_plural": "{{count}} timar sidan",
+        "day_ago": "{{count}} dag sidan",
+        "day_ago_plural": "{{count}} dagar sidan",
+        "month_ago": "{{count}} månad sidan",
+        "month_ago_plural": "{{count}} månadar sidan",
+        "year_ago": "{{count}} år sidan",
+        "year_ago_plural": "{{count}} år sidan"
+      }
+    }
+  },
   "tabs": {
     "home": "Heim",
     "search": "Søk",

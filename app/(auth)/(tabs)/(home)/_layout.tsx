@@ -71,6 +71,12 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name='admin/users/page'
+        options={{
+          title: t("home.admin.manage_users"),
+        }}
+      />
+      <Stack.Screen
         name='settings'
         options={{
           title: t("home.settings.settings_title"),
