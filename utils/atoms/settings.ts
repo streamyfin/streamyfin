@@ -93,6 +93,7 @@ export type HomeSection = {
   items?: HomeSectionItemResolver;
   nextUp?: HomeSectionNextUpResolver;
   latest?: HomeSectionLatestResolver;
+  custom?: HomeSectionCustomEndpointResolver;
 };
 
 export type HomeSectionItemResolver = {
@@ -104,6 +105,13 @@ export type HomeSectionItemResolver = {
   parentId?: string;
   limit?: number;
   filters?: Array<ItemFilter>;
+};
+
+export type HomeSectionCustomEndpointResolver = {
+  title?: string;
+  endpoint: string;
+  headers?: any;
+  query?: any;
 };
 
 export type HomeSectionNextUpResolver = {
