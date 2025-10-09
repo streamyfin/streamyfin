@@ -148,86 +148,10 @@ Special shoutout to the JF official clients for being an inspiration to ours.
 
 Thanks to the following contributors for their significant contributions:
 
-<div align="left">
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/Alexk2309">
-        <img src="https://github.com/Alexk2309.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@Alexk2309</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/herrrta">
-        <img src="https://github.com/herrrta.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@herrrta</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/lostb1t">
-        <img src="https://github.com/lostb1t.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@lostb1t</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/Simon-Eklundh">
-        <img src="https://github.com/Simon-Eklundh.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@Simon-Eklundh</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/topiga">
-        <img src="https://github.com/topiga.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@topiga</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/lancechant">
-        <img src="https://github.com/lancechant.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@lancechant</b></sub>
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/simoncaron">
-        <img src="https://github.com/simoncaron.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@simoncaron</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/jakequade">
-        <img src="https://github.com/jakequade.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@jakequade</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/Ryan0204">
-        <img src="https://github.com/Ryan0204.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@Ryan0204</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/retardgerman">
-        <img src="https://github.com/retardgerman.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@retardgerman</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/whoopsi-daisy">
-        <img src="https://github.com/whoopsi-daisy.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@whoopsi-daisy</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/Gauvino">
-        <img src="https://github.com/Gauvino.png?size=55" width="55" style="border-radius: 50%;" />
-        <br /><sub><b>@Gauvino</b></sub>
-      </a>
-    </td>
-  </tr>
-</table>
-</div>
+| [![Fredrik Burmester](https://github.com/fredrikburmester.png?size=55)](https://github.com/fredrikburmester) <br> [@fredrikburmester](https://github.com/fredrikburmester) | [![Alexk2309](https://github.com/Alexk2309.png?size=55)](https://github.com/Alexk2309) <br> [@Alexk2309](https://github.com/Alexk2309) | [![herrrta](https://github.com/herrrta.png?size=55)](https://github.com/herrrta) <br> [@herrrta](https://github.com/herrrta) | [![lostb1t](https://github.com/lostb1t.png?size=55)](https://github.com/lostb1t) <br> [@lostb1t](https://github.com/lostb1t) | [![Simon-Eklundh](https://github.com/Simon-Eklundh.png?size=55)](https://github.com/Simon-Eklundh) <br> [@Simon-Eklundh](https://github.com/Simon-Eklundh) | [![topiga](https://github.com/topiga.png?size=55)](https://github.com/topiga) <br> [@topiga](https://github.com/topiga) | [![lancechant](https://github.com/lancechant.png?size=55)](https://github.com/lancechant) <br> [@lancechant](https://github.com/lancechant) |
+|---|---|---|---|---|---|---|
+| [![simoncaron](https://github.com/simoncaron.png?size=55)](https://github.com/simoncaron) <br> [@simoncaron](https://github.com/simoncaron) | [![jakequade](https://github.com/jakequade.png?size=55)](https://github.com/jakequade) <br> [@jakequade](https://github.com/jakequade) | [![Ryan0204](https://github.com/Ryan0204.png?size=55)](https://github.com/Ryan0204) <br> [@Ryan0204](https://github.com/Ryan0204) | [![retardgerman](https://github.com/retardgerman.png?size=55)](https://github.com/retardgerman) <br> [@retardgerman](https://github.com/retardgerman) | [![whoopsi-daisy](https://github.com/whoopsi-daisy.png?size=55)](https://github.com/whoopsi-daisy) <br> [@whoopsi-daisy](https://github.com/whoopsi-daisy) | [![Gauvino](https://github.com/Gauvino.png?size=55)](https://github.com/Gauvino) <br> [@Gauvino](https://github.com/Gauvino) |  |
+
 
 And all other developers who have contributed to Streamyfin, thank you for your contributions.
 
