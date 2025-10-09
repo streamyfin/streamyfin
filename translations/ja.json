@@ -20,11 +20,13 @@
     "server_is_taking_too_long_to_respond_try_again_later": "サーバーの応答に時間がかかりすぎています。しばらくしてからもう一度お試しください。",
     "server_received_too_many_requests_try_again_later": "サーバーにリクエストが多すぎます。後でもう一度お試しください。",
     "there_is_a_server_error": "サーバーエラーが発生しました",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "予期しないエラーが発生しました。サーバーのURLを正しく入力しましたか？"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "予期しないエラーが発生しました。サーバーのURLを正しく入力しましたか？",
+    "too_old_server_text": "",
+    "too_old_server_description": ""
   },
   "server": {
     "enter_url_to_jellyfin_server": "JellyfinサーバーのURLを入力してください",
-    "server_url_placeholder": "http(s)://your-server.com",
+    "server_url_placeholder": "",
     "connect_button": "接続",
     "previous_servers": "前のサーバー",
     "clear_button": "クリア",
@@ -33,10 +35,15 @@
     "servers": "サーバー"
   },
   "home": {
+    "checking_server_connection": "",
     "no_internet": "インターネット接続がありません",
     "no_items": "アイテムはありません",
     "no_internet_message": "心配しないでください。\nダウンロードしたコンテンツは引き続き視聴できます。",
+    "checking_server_connection_message": "",
     "go_to_downloads": "ダウンロードに移動",
+    "retry": "",
+    "server_unreachable": "",
+    "server_unreachable_message": "",
     "oops": "おっと！",
     "error_message": "何か問題が発生しました。\nログアウトして再度ログインしてください。",
     "continue_watching": "続きを見る",
@@ -83,7 +90,16 @@
         "media_controls_title": "メディアコントロール",
         "forward_skip_length": "スキップの長さ",
         "rewind_length": "巻き戻しの長さ",
-        "seconds_unit": "s"
+        "seconds_unit": ""
+      },
+      "gesture_controls": {
+        "gesture_controls_title": "",
+        "horizontal_swipe_skip": "",
+        "horizontal_swipe_skip_description": "",
+        "left_side_brightness": "",
+        "left_side_brightness_description": "",
+        "right_side_volume": "",
+        "right_side_volume_description": ""
       },
       "audio": {
         "audio_title": "オーディオ",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "字幕",
+        "subtitle_hint": "字幕設定を構成します。",
         "subtitle_language": "字幕の言語",
         "subtitle_mode": "字幕モード",
         "set_subtitle_track": "前のアイテムから字幕トラックを設定",
         "subtitle_size": "字幕サイズ",
-        "subtitle_hint": "字幕設定を構成します。",
         "none": "なし",
         "language": "言語",
         "loading": "ロード中",
@@ -109,6 +125,37 @@
           "Always": "常に",
           "None": "なし",
           "OnlyForced": "強制のみ"
+        },
+        "text_color": "",
+        "background_color": "",
+        "outline_color": "",
+        "outline_thickness": "",
+        "background_opacity": "",
+        "outline_opacity": "",
+        "bold_text": "",
+        "colors": {
+          "Black": "",
+          "Gray": "",
+          "Silver": "",
+          "White": "",
+          "Maroon": "",
+          "Red": "",
+          "Fuchsia": "",
+          "Yellow": "",
+          "Olive": "",
+          "Green": "",
+          "Teal": "",
+          "Lime": "",
+          "Purple": "",
+          "Navy": "",
+          "Blue": "",
+          "Aqua": ""
+        },
+        "thickness": {
+          "None": "",
+          "Thin": "",
+          "Normal": "",
+          "Thick": ""
         }
       },
       "other": {
@@ -131,30 +178,20 @@
         "safe_area_in_controls": "コントロールの安全エリア",
         "video_player": "Video player",
         "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
+          "VLC_3": "",
+          "VLC_4": ""
         },
         "show_custom_menu_links": "カスタムメニューのリンクを表示",
         "hide_libraries": "ライブラリを非表示",
         "select_liraries_you_want_to_hide": "ライブラリタブとホームページセクションから非表示にするライブラリを選択します。",
-        "disable_haptic_feedback": "触覚フィードバックを無効にする"
+        "disable_haptic_feedback": "触覚フィードバックを無効にする",
+        "default_quality": "",
+        "max_auto_play_episode_count": "",
+        "disabled": ""
       },
       "downloads": {
         "downloads_title": "ダウンロード",
-        "download_method": "ダウンロード方法",
-        "remux_max_download": "Remux最大ダウンロード数",
-        "auto_download": "自動ダウンロード",
-        "optimized_versions_server": "Optimized versionsサーバー",
-        "save_button": "保存",
-        "optimized_server": "Optimizedサーバー",
-        "optimized": "最適化",
-        "default": "デフォルト",
-        "optimized_version_hint": "OptimizeサーバーのURLを入力します。URLにはhttpまたはhttpsを含め、オプションでポートを指定します。",
-        "read_more_about_optimized_server": "Optimizeサーバーの詳細をご覧ください。",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:ポート",
-        "default_quality": "デフォルトの品質",
-        "disabled": "無効"
+        "remux_max_download": "Remux最大ダウンロード数"
       },
       "plugins": {
         "plugins_title": "プラグイン",
@@ -165,8 +202,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "パスワード",
           "password_placeholder": "Jellyfinユーザー {{username}} のパスワードを入力してください",
-          "save_button": "保存",
-          "clear_button": "クリア",
           "login_button": "ログイン",
           "total_media_requests": "メディアリクエストの合計",
           "movie_quota_limit": "映画のクオータ制限",
@@ -177,14 +212,14 @@
           "unlimited": "無制限",
           "plus_n_more": "+{{n}} more",
           "order_by": {
-            "DEFAULT": "Default",
-            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
-            "POPULARITY": "Popularity"
+            "DEFAULT": "",
+            "VOTE_COUNT_AND_AVERAGE": "",
+            "POPULARITY": ""
           }
         },
         "marlin_search": {
           "enable_marlin_search": "マーリン検索を有効にする ",
-          "url": "URL",
+          "url": "",
           "server_url_placeholder": "http(s)://domain.org:ポート",
           "marlin_search_hint": "MarlinサーバーのURLを入力します。URLにはhttpまたはhttpsを含め、オプションでポートを指定します。",
           "read_more_about_marlin": "Marlinについて詳しく読む。",
@@ -197,7 +232,7 @@
       "storage": {
         "storage_title": "ストレージ",
         "app_usage": "アプリ {{usedSpace}}%",
-        "phone_usage": "電話 {{availableSpace}}%",
+        "device_usage": "",
         "size_used": "{{used}} / {{total}} 使用済み",
         "delete_all_downloaded_files": "すべてのダウンロードファイルを削除"
       },
@@ -209,36 +244,38 @@
         "logs_title": "ログ",
         "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
-        "level": "Level",
+        "level": "",
         "no_logs_available": "ログがありません",
         "delete_all_logs": "すべてのログを削除"
       },
       "languages": {
         "title": "言語",
         "app_language": "アプリの言語",
-        "app_language_description": "アプリの言語を選択。",
         "system": "システム"
       },
       "toasts": {
         "error_deleting_files": "ファイルの削除エラー",
         "background_downloads_enabled": "バックグラウンドでのダウンロードは有効です",
-        "background_downloads_disabled": "バックグラウンドでのダウンロードは無効です",
-        "connected": "接続済み",
-        "could_not_connect": "接続できません",
-        "invalid_url": "無効なURL"
+        "background_downloads_disabled": "バックグラウンドでのダウンロードは無効です"
       }
+    },
+    "sessions": {
+      "title": "",
+      "no_active_sessions": ""
     },
     "downloads": {
       "downloads_title": "ダウンロード",
       "tvseries": "TVシリーズ",
       "movies": "映画",
       "queue": "キュー",
+      "other_media": "",
       "queue_hint": "アプリを再起動するとキューとダウンロードは失われます",
       "no_items_in_queue": "キューにアイテムがありません",
       "no_downloaded_items": "ダウンロードしたアイテムはありません",
       "delete_all_movies_button": "すべての映画を削除",
       "delete_all_tvseries_button": "すべてのシリーズを削除",
       "delete_all_button": "すべて削除",
+      "delete_all_other_media_button": "",
       "active_download": "アクティブなダウンロード",
       "no_active_downloads": "アクティブなダウンロードはありません",
       "active_downloads": "アクティブなダウンロード",
@@ -248,36 +285,42 @@
       "delete": "削除",
       "something_went_wrong": "問題が発生しました",
       "could_not_get_stream_url_from_jellyfin": "JellyfinからストリームURLを取得できませんでした",
-      "eta": "ETA {{eta}}",
-      "methods": "方法",
+      "eta": "",
       "toasts": {
         "you_are_not_allowed_to_download_files": "ファイルをダウンロードする権限がありません。",
         "deleted_all_movies_successfully": "すべての映画を正常に削除しました！",
         "failed_to_delete_all_movies": "すべての映画を削除できませんでした",
         "deleted_all_tvseries_successfully": "すべてのシリーズを正常に削除しました！",
         "failed_to_delete_all_tvseries": "すべてのシリーズを削除できませんでした",
-        "download_cancelled": "ダウンロードをキャンセルしました",
-        "could_not_cancel_download": "ダウンロードをキャンセルできませんでした",
+        "deleted_media_successfully": "",
+        "failed_to_delete_media": "",
+        "download_deleted": "",
+        "could_not_delete_download": "",
+        "download_paused": "",
+        "could_not_pause_download": "",
+        "download_resumed": "",
+        "could_not_resume_download": "",
         "download_completed": "ダウンロードが完了しました",
-        "download_started_for": "{{item}}のダウンロードが開始されました",
-        "item_is_ready_to_be_downloaded": "{{item}}をダウンロードする準備ができました",
-        "download_stated_for_item": "{{item}}のダウンロードが開始されました",
         "download_failed_for_item": "{{item}}のダウンロードに失敗しました - {{error}}",
         "download_completed_for_item": "{{item}}のダウンロードが完了しました",
-        "queued_item_for_optimization": "{{item}}をoptimizeのキューに追加しました",
-        "failed_to_start_download_for_item": "{{item}}のダウンロードを開始できませんでした: {{message}}",
-        "server_responded_with_status_code": "サーバーはステータス{{statusCode}}で応答しました",
-        "no_response_received_from_server": "サーバーからの応答がありません",
-        "error_setting_up_the_request": "リクエストの設定中にエラーが発生しました",
-        "failed_to_start_download_for_item_unexpected_error": "{{item}}のダウンロードを開始できませんでした: 予期しないエラーが発生しました",
+        "download_started_for_item": "",
+        "failed_to_start_download": "",
         "all_files_folders_and_jobs_deleted_successfully": "すべてのファイル、フォルダ、ジョブが正常に削除されました",
-        "an_error_occured_while_deleting_files_and_jobs": "ファイルとジョブの削除中にエラーが発生しました",
+        "failed_to_clean_cache_directory": "",
+        "could_not_get_download_url_for_item": "",
         "go_to_downloads": "ダウンロードに移動"
       }
     }
   },
+  "common": {
+    "select": "",
+    "no_trailer_available": "",
+    "video": "",
+    "audio": "",
+    "subtitle": "",
+    "play": ""
+  },
   "search": {
-    "search_here": "ここを検索...",
     "search": "検索...",
     "x_items": "{{count}}のアイテム",
     "library": "ライブラリ",
@@ -314,7 +357,6 @@
     "tmdb_tv_streaming_services": "TMDBシリーズストリーミングサービス"
   },
   "library": {
-    "no_items_found": "アイテムが見つかりません",
     "no_results": "検索結果はありません",
     "no_libraries_found": "ライブラリが見つかりません",
     "item_types": {
@@ -338,8 +380,6 @@
       "years": "年",
       "sort_by": "ソート",
       "sort_order": "ソート順",
-      "asc": "Ascending",
-      "desc": "Descending",
       "tags": "タグ"
     }
   },
@@ -363,14 +403,10 @@
     "client_error": "クライアントエラー",
     "could_not_create_stream_for_chromecast": "Chromecastのストリームを作成できませんでした",
     "message_from_server": "サーバーからのメッセージ",
-    "video_has_finished_playing": "ビデオの再生が終了しました！",
-    "no_video_source": "動画ソースがありません...",
     "next_episode": "次のエピソード",
     "refresh_tracks": "トラックを更新",
-    "subtitle_tracks": "字幕トラック:",
     "audio_tracks": "音声トラック:",
     "playback_state": "再生状態:",
-    "no_data_available": "データなし",
     "index": "インデックス:",
     "continue_watching": "視聴を続ける",
     "go_back": "戻る"
@@ -403,15 +439,13 @@
       "download_episode": "エピソードをダウンロード",
       "download_movie": "映画をダウンロード",
       "download_x_item": "{{item_count}}のアイテムをダウンロード",
-      "download_button": "ダウンロード",
-      "using_optimized_server": "Optimizeサーバーを使用する",
-      "using_default_method": "デフォルトの方法を使用"
+      "download_unwatched_only": "",
+      "download_button": "ダウンロード"
     }
   },
   "live_tv": {
     "next": "次",
     "previous": "前",
-    "live_tv": "ライブTV",
     "coming_soon": "近日公開",
     "on_now": "現在",
     "shows": "表示",

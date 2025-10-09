@@ -5,7 +5,7 @@
     "login_title": "Accesso",
     "login_to_title": "Accedi a",
     "username_placeholder": "Nome utente",
-    "password_placeholder": "Password",
+    "password_placeholder": "",
     "login_button": "Accedi",
     "quick_connect": "Connessione Rapida",
     "enter_code_to_login": "Inserire {{code}} per accedere",
@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Il server sta impiegando troppo tempo per rispondere, riprovare più tardi",
     "server_received_too_many_requests_try_again_later": "Il server ha ricevuto troppe richieste, riprovare più tardi.",
     "there_is_a_server_error": "Si è verificato un errore del server",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Si è verificato un errore imprevisto. L'URL del server è stato inserito correttamente?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Si è verificato un errore imprevisto. L'URL del server è stato inserito correttamente?",
+    "too_old_server_text": "",
+    "too_old_server_description": ""
   },
   "server": {
     "enter_url_to_jellyfin_server": "Inserisci l'URL del tuo server Jellyfin",
@@ -30,14 +32,19 @@
     "clear_button": "Cancella",
     "search_for_local_servers": "Ricerca dei server locali",
     "searching": "Cercando...",
-    "servers": "Servers"
+    "servers": ""
   },
   "home": {
+    "checking_server_connection": "",
     "no_internet": "Nessun Internet",
     "no_items": "Nessun oggetto",
     "no_internet_message": "Non c'è da preoccuparsi, è ancora possibile guardare\n i contenuti scaricati.",
+    "checking_server_connection_message": "",
     "go_to_downloads": "Vai agli elementi scaricati",
-    "oops": "Oops!",
+    "retry": "",
+    "server_unreachable": "",
+    "server_unreachable_message": "",
+    "oops": "",
     "error_message": "Qualcosa è andato storto. \nEffetturare il logout e riaccedere.",
     "continue_watching": "Continua a guardare",
     "next_up": "Prossimo",
@@ -65,8 +72,8 @@
       "user_info": {
         "user_info_title": "Info utente",
         "user": "Utente",
-        "server": "Server",
-        "token": "Token",
+        "server": "",
+        "token": "",
         "app_version": "Versione dell'App"
       },
       "quick_connect": {
@@ -83,10 +90,19 @@
         "media_controls_title": "Controlli multimediali",
         "forward_skip_length": "Lunghezza del salto in avanti",
         "rewind_length": "Lunghezza del riavvolgimento",
-        "seconds_unit": "s"
+        "seconds_unit": ""
+      },
+      "gesture_controls": {
+        "gesture_controls_title": "",
+        "horizontal_swipe_skip": "",
+        "horizontal_swipe_skip_description": "",
+        "left_side_brightness": "",
+        "left_side_brightness_description": "",
+        "right_side_volume": "",
+        "right_side_volume_description": ""
       },
       "audio": {
-        "audio_title": "Audio",
+        "audio_title": "",
         "set_audio_track": "Imposta la traccia audio dall'elemento precedente",
         "audio_language": "Lingua Audio",
         "audio_hint": "Scegli la lingua audio predefinita.",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Sottotitoli",
+        "subtitle_hint": "Configura la preferenza dei sottotitoli.",
         "subtitle_language": "Lingua dei sottotitoli",
         "subtitle_mode": "Modalità dei sottotitoli",
         "set_subtitle_track": "Imposta la traccia dei sottotitoli dall'elemento precedente",
         "subtitle_size": "Dimensione dei sottotitoli",
-        "subtitle_hint": "Configura la preferenza dei sottotitoli.",
         "none": "Nessuno",
         "language": "Lingua",
         "loading": "Caricamento",
@@ -109,6 +125,37 @@
           "Always": "Sempre",
           "None": "Nessuno",
           "OnlyForced": "Solo forzati"
+        },
+        "text_color": "",
+        "background_color": "",
+        "outline_color": "",
+        "outline_thickness": "",
+        "background_opacity": "",
+        "outline_opacity": "",
+        "bold_text": "",
+        "colors": {
+          "Black": "",
+          "Gray": "",
+          "Silver": "",
+          "White": "",
+          "Maroon": "",
+          "Red": "",
+          "Fuchsia": "",
+          "Yellow": "",
+          "Olive": "",
+          "Green": "",
+          "Teal": "",
+          "Lime": "",
+          "Purple": "",
+          "Navy": "",
+          "Blue": "",
+          "Aqua": ""
+        },
+        "thickness": {
+          "None": "",
+          "Thin": "",
+          "Normal": "",
+          "Thick": ""
         }
       },
       "other": {
@@ -131,30 +178,20 @@
         "safe_area_in_controls": "Area sicura per i controlli",
         "video_player": "Video player",
         "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
+          "VLC_3": "",
+          "VLC_4": ""
         },
         "show_custom_menu_links": "Mostra i link del menu personalizzato",
         "hide_libraries": "Nascondi Librerie",
         "select_liraries_you_want_to_hide": "Selezionate le librerie che volete nascondere dalla scheda Libreria e dalle sezioni della pagina iniziale.",
         "disable_haptic_feedback": "Disabilita il feedback aptico",
         "default_quality": "Qualità predefinita",
+        "max_auto_play_episode_count": "",
         "disabled": "Disabilitato"
       },
       "downloads": {
         "downloads_title": "Scaricamento",
-        "download_method": "Metodo per lo scaricamento",
-        "remux_max_download": "Numero di Remux da scaricare al massimo",
-        "auto_download": "Scaricamento automatico",
-        "optimized_versions_server": "Versioni del server di ottimizzazione",
-        "save_button": "Salva",
-        "optimized_server": "Server di ottimizzazione",
-        "optimized": "Ottimizzato",
-        "default": "Predefinito",
-        "optimized_version_hint": "Inserire l'URL del server di ottimizzazione. L'URL deve includere http o https e, facoltativamente, la porta.",
-        "read_more_about_optimized_server": "Per saperne di più sul server di ottimizzazione.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://dominio.org:porta"
+        "remux_max_download": "Numero di Remux da scaricare al massimo"
       },
       "plugins": {
         "plugins_title": "Plugin",
@@ -163,10 +200,8 @@
           "server_url": "URL del Server",
           "server_url_hint": "Esempio: http(s)://tuo-host.url\n(aggiungere la porta se richiesto)",
           "server_url_placeholder": "URL di Jellyseerr...",
-          "password": "Password",
+          "password": "",
           "password_placeholder": "Inserire la password per l'utente {{username}} di Jellyfin",
-          "save_button": "Salva",
-          "clear_button": "Cancella",
           "login_button": "Accedi",
           "total_media_requests": "Totale di richieste di media",
           "movie_quota_limit": "Limite di quota per i film",
@@ -177,14 +212,14 @@
           "unlimited": "Illimitato",
           "plus_n_more": "+{{n}} more",
           "order_by": {
-            "DEFAULT": "Default",
-            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
-            "POPULARITY": "Popularity"
+            "DEFAULT": "",
+            "VOTE_COUNT_AND_AVERAGE": "",
+            "POPULARITY": ""
           }
         },
         "marlin_search": {
           "enable_marlin_search": "Abilita la ricerca Marlin ",
-          "url": "URL",
+          "url": "",
           "server_url_placeholder": "http(s)://dominio.org:porta",
           "marlin_search_hint": "Inserire l'URL del server Marlin. L'URL deve includere http o https e, facoltativamente, la porta.",
           "read_more_about_marlin": "Leggi di più su Marlin.",
@@ -196,7 +231,7 @@
       },
       "storage": {
         "storage_title": "Spazio",
-        "app_usage": "App {{usedSpace}}%",
+        "app_usage": "",
         "device_usage": "Dispositivo {{availableSpace}}%",
         "size_used": "{{used}} di {{total}} usato",
         "delete_all_downloaded_files": "Cancella Tutti i File Scaricati"
@@ -209,36 +244,38 @@
         "logs_title": "Log",
         "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
-        "level": "Level",
+        "level": "",
         "no_logs_available": "Nessun log disponibile",
         "delete_all_logs": "Cancella tutti i log"
       },
       "languages": {
         "title": "Lingue",
         "app_language": "Lingua dell'App",
-        "app_language_description": "Selezione la lingua dell'app.",
         "system": "Sistema"
       },
       "toasts": {
         "error_deleting_files": "Errore nella cancellazione dei file",
         "background_downloads_enabled": "Scaricamento in background abilitato",
-        "background_downloads_disabled": "Scaricamento in background disabilitato",
-        "connected": "Connesso",
-        "could_not_connect": "Non è stato possibile connettersi",
-        "invalid_url": "URL invalido"
+        "background_downloads_disabled": "Scaricamento in background disabilitato"
       }
+    },
+    "sessions": {
+      "title": "",
+      "no_active_sessions": ""
     },
     "downloads": {
       "downloads_title": "Scaricati",
       "tvseries": "Serie TV",
       "movies": "Film",
       "queue": "Coda",
+      "other_media": "",
       "queue_hint": "La coda e gli elementi scaricati saranno persi con il riavvio dell'app",
       "no_items_in_queue": "Nessun elemento in coda",
       "no_downloaded_items": "Nessun elemento scaricato",
       "delete_all_movies_button": "Cancella tutti i film",
       "delete_all_tvseries_button": "Cancella tutte le serie TV",
       "delete_all_button": "Cancella tutti",
+      "delete_all_other_media_button": "",
       "active_download": "Scaricamento in corso",
       "no_active_downloads": "Nessun scaricamento in corso",
       "active_downloads": "Scaricamenti in corso",
@@ -248,36 +285,42 @@
       "delete": "Cancella",
       "something_went_wrong": "Qualcosa è andato storto",
       "could_not_get_stream_url_from_jellyfin": "Impossibile ottenere l'URL del flusso da Jellyfin",
-      "eta": "ETA {{eta}}",
-      "methods": "Metodi",
+      "eta": "",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Non è consentito scaricare file.",
         "deleted_all_movies_successfully": "Cancellati tutti i film con successo!",
         "failed_to_delete_all_movies": "Impossibile eliminare tutti i film",
         "deleted_all_tvseries_successfully": "Eliminate tutte le serie TV con successo!",
         "failed_to_delete_all_tvseries": "Impossibile eliminare tutte le serie TV",
-        "download_cancelled": "Scaricamento annullato",
-        "could_not_cancel_download": "Impossibile annullare lo scaricamento",
+        "deleted_media_successfully": "",
+        "failed_to_delete_media": "",
+        "download_deleted": "",
+        "could_not_delete_download": "",
+        "download_paused": "",
+        "could_not_pause_download": "",
+        "download_resumed": "",
+        "could_not_resume_download": "",
         "download_completed": "Scaricamento completato",
-        "download_started_for": "Scaricamento iniziato per {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} è pronto per essere scaricato",
-        "download_stated_for_item": "Scaricamento iniziato per {{item}}",
         "download_failed_for_item": "Scaricamento fallito per {{item}} - {{error}}",
         "download_completed_for_item": "Scaricamento completato per {{item}}",
-        "queued_item_for_optimization": "Messo in coda {{item}} per l'ottimizzazione",
-        "failed_to_start_download_for_item": "Failed to start downloading for {{item}}: {{message}}",
-        "server_responded_with_status_code": "Server responded with status {{statusCode}}",
-        "no_response_received_from_server": "No response received from the server",
-        "error_setting_up_the_request": "Error setting up the request",
-        "failed_to_start_download_for_item_unexpected_error": "Impossibile avviare il download per {{item}}: Errore imprevisto",
+        "download_started_for_item": "",
+        "failed_to_start_download": "",
         "all_files_folders_and_jobs_deleted_successfully": "Tutti i file, le cartelle e i processi sono stati eliminati con successo.",
-        "an_error_occured_while_deleting_files_and_jobs": "Si è verificato un errore durante l'eliminazione di file e processi",
+        "failed_to_clean_cache_directory": "",
+        "could_not_get_download_url_for_item": "",
         "go_to_downloads": "Vai agli elementi scaricati"
       }
     }
   },
+  "common": {
+    "select": "",
+    "no_trailer_available": "",
+    "video": "",
+    "audio": "",
+    "subtitle": "",
+    "play": ""
+  },
   "search": {
-    "search_here": "Cerca qui...",
     "search": "Cerca...",
     "x_items": "{{count}} elementi",
     "library": "Libreria",
@@ -293,7 +336,7 @@
     "request_series": "Serie Richieste",
     "recently_added": "Aggiunti di Recente",
     "recent_requests": "Richiesti di Recente",
-    "plex_watchlist": "Plex Watchlist",
+    "plex_watchlist": "",
     "trending": "In tendenza",
     "popular_movies": "Film Popolari",
     "movie_genres": "Generi Film",
@@ -308,13 +351,12 @@
     "tmdb_tv_keyword": "TMDB Parola chiave della serie",
     "tmdb_tv_genre": "TMDB Genere Televisivo",
     "tmdb_search": "TMDB Cerca",
-    "tmdb_studio": "TMDB Studio",
-    "tmdb_network": "TMDB Network",
+    "tmdb_studio": "",
+    "tmdb_network": "",
     "tmdb_movie_streaming_services": "TMDB Servizi di Streaming di Film",
     "tmdb_tv_streaming_services": "TMDB Servizi di Streaming di Serie"
   },
   "library": {
-    "no_items_found": "Nessun elemento trovato",
     "no_results": "Nessun risultato",
     "no_libraries_found": "Nessuna libreria trovata",
     "item_types": {
@@ -324,12 +366,12 @@
       "items": "elementi"
     },
     "options": {
-      "display": "Display",
+      "display": "",
       "row": "Fila",
       "list": "Lista",
       "image_style": "Stile dell'immagine",
-      "poster": "Poster",
-      "cover": "Cover",
+      "poster": "",
+      "cover": "",
       "show_titles": "Mostra titoli",
       "show_stats": "Mostra statistiche"
     },
@@ -338,8 +380,6 @@
       "years": "Anni",
       "sort_by": "Ordina per",
       "sort_order": "Criterio di ordinamento",
-      "asc": "Ascending",
-      "desc": "Descending",
       "tags": "Tag"
     }
   },
@@ -363,14 +403,10 @@
     "client_error": "Errore del client",
     "could_not_create_stream_for_chromecast": "Impossibile creare uno stream per Chromecast",
     "message_from_server": "Messaggio dal server",
-    "video_has_finished_playing": "La riproduzione del video è terminata!",
-    "no_video_source": "Nessuna sorgente video...",
     "next_episode": "Prossimo Episodio",
     "refresh_tracks": "Aggiorna tracce",
-    "subtitle_tracks": "Tracce di sottotitoli:",
     "audio_tracks": "Tracce audio:",
     "playback_state": "Stato della riproduzione:",
-    "no_data_available": "Nessun dato disponibile",
     "index": "Indice:",
     "continue_watching": "Continua a guardare",
     "go_back": "Indietro"
@@ -387,10 +423,10 @@
     "more_with": "Altri con {{name}}",
     "similar_items": "Elementi simili",
     "no_similar_items_found": "Non sono stati trovati elementi simili",
-    "video": "Video",
+    "video": "",
     "more_details": "Più dettagli",
     "quality": "Qualità",
-    "audio": "Audio",
+    "audio": "",
     "subtitles": "Sottotitoli",
     "show_more": "Mostra di più",
     "show_less": "Mostra di meno",
@@ -403,15 +439,13 @@
       "download_episode": "Scarica Episodio",
       "download_movie": "Scarica Film",
       "download_x_item": "Scarica {{item_count}} elementi",
-      "download_button": "Scarica",
-      "using_optimized_server": "Utilizzando il server di ottimizzazione",
-      "using_default_method": "Utilizzando il metodo predefinito"
+      "download_unwatched_only": "",
+      "download_button": "Scarica"
     }
   },
   "live_tv": {
     "next": "Prossimo",
     "previous": "Precedente",
-    "live_tv": "TV in diretta",
     "coming_soon": "Prossimamente",
     "on_now": "In onda ora",
     "shows": "Programmi",
@@ -434,7 +468,7 @@
     "request_button": "Richiedi",
     "are_you_sure_you_want_to_request_all_seasons": "Sei sicuro di voler richiedere tutte le stagioni?",
     "failed_to_login": "Accesso non riuscito",
-    "cast": "Cast",
+    "cast": "",
     "details": "Dettagli",
     "status": "Stato",
     "original_title": "Titolo originale",
@@ -443,11 +477,11 @@
     "first_air_date": "Prima Data di Messa in Onda",
     "next_air_date": "Prossima Data di Messa in Onda",
     "revenue": "Ricavi",
-    "budget": "Budget",
+    "budget": "",
     "original_language": "Lingua Originale",
     "production_country": "Paese di Produzione",
     "studios": "Studio",
-    "network": "Network",
+    "network": "",
     "currently_streaming_on": "Attualmente in streaming su",
     "advanced": "Avanzate",
     "request_as": "Richiedi Come",
@@ -470,7 +504,7 @@
     }
   },
   "tabs": {
-    "home": "Home",
+    "home": "",
     "search": "Cerca",
     "library": "Libreria",
     "custom_links": "Collegamenti personalizzati",

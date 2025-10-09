@@ -20,11 +20,13 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Сервер долго не отвечает, попробуйте позже.",
     "server_received_too_many_requests_try_again_later": "Сервер получил слишком много запросов, попробуйте позже.",
     "there_is_a_server_error": "Возникла ошибка сервера",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Возникла непредвиденная ошибка. Вы правильно ввели URL?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Возникла непредвиденная ошибка. Вы правильно ввели URL?",
+    "too_old_server_text": "",
+    "too_old_server_description": ""
   },
   "server": {
     "enter_url_to_jellyfin_server": "Укажите URL на ваш Jellyfin сервер",
-    "server_url_placeholder": "http(s)://your-server.com",
+    "server_url_placeholder": "",
     "connect_button": "Подключиться",
     "previous_servers": "предыдущие серверы",
     "clear_button": "Очистить",
@@ -33,10 +35,15 @@
     "servers": "Сервера"
   },
   "home": {
+    "checking_server_connection": "",
     "no_internet": "Нет интернета",
     "no_items": "Нет элементов",
     "no_internet_message": "Не переживайте, Вы всё ещё можете смотреть\nскачанный контент.",
+    "checking_server_connection_message": "",
     "go_to_downloads": "В загрузки",
+    "retry": "",
+    "server_unreachable": "",
+    "server_unreachable_message": "",
     "oops": "Упс!",
     "error_message": "Что-то пошло не так.\nПожалуйста выйдите и зайдите снова.",
     "continue_watching": "Продолжить просмотр",
@@ -85,6 +92,15 @@
         "rewind_length": "Длина перемотки",
         "seconds_unit": "c"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "",
+        "horizontal_swipe_skip": "",
+        "horizontal_swipe_skip_description": "",
+        "left_side_brightness": "",
+        "left_side_brightness_description": "",
+        "right_side_volume": "",
+        "right_side_volume_description": ""
+      },
       "audio": {
         "audio_title": "Аудио",
         "set_audio_track": "Устанавливать аудио дорожку из предыдущего элемента",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Субтитры",
+        "subtitle_hint": "Настроить субтитры.",
         "subtitle_language": "Язык субтитров",
         "subtitle_mode": "Режим субтитров",
         "set_subtitle_track": "Устанавливать субтитры из предыдущего элемента",
         "subtitle_size": "Размер субтитров",
-        "subtitle_hint": "Настроить субтитры.",
         "none": "Отсутствует",
         "language": "Язык",
         "loading": "Загрузка",
@@ -109,6 +125,37 @@
           "Always": "Всегда",
           "None": "Отсутствует",
           "OnlyForced": "Только принудительные"
+        },
+        "text_color": "",
+        "background_color": "",
+        "outline_color": "",
+        "outline_thickness": "",
+        "background_opacity": "",
+        "outline_opacity": "",
+        "bold_text": "",
+        "colors": {
+          "Black": "",
+          "Gray": "",
+          "Silver": "",
+          "White": "",
+          "Maroon": "",
+          "Red": "",
+          "Fuchsia": "",
+          "Yellow": "",
+          "Olive": "",
+          "Green": "",
+          "Teal": "",
+          "Lime": "",
+          "Purple": "",
+          "Navy": "",
+          "Blue": "",
+          "Aqua": ""
+        },
+        "thickness": {
+          "None": "",
+          "Thin": "",
+          "Normal": "",
+          "Thick": ""
         }
       },
       "other": {
@@ -131,7 +178,7 @@
         "safe_area_in_controls": "Безопасная зона в элементах управления",
         "video_player": "Видео прейер",
         "video_players": {
-          "VLC_3": "VLC 3",
+          "VLC_3": "",
           "VLC_4": "VLC 4 (Экспериментальный + PiP)"
         },
         "show_custom_menu_links": "Показать ссылки кастомного меню",
@@ -139,22 +186,12 @@
         "select_liraries_you_want_to_hide": "Выберите Библиотеки, которое хотите спрятать из вкладки Библиотеки и домашней страницы.",
         "disable_haptic_feedback": "Отключить тактильную обратную связь",
         "default_quality": "Качество по умолчанию",
+        "max_auto_play_episode_count": "",
         "disabled": "Отключено"
       },
       "downloads": {
         "downloads_title": "Загрузки",
-        "download_method": "способ загрузки",
-        "remux_max_download": "Remux max скачать",
-        "auto_download": "Авто-загрузка",
-        "optimized_versions_server": "Оптимизированные версии сервера",
-        "save_button": "Сохранить",
-        "optimized_server": "Оптимизированный сервер",
-        "optimized": "Оптимизированный",
-        "default": "По умолчанию",
-        "optimized_version_hint": "Укажите URL на оптимизированный сервер. URL должен включать http or https и опционально порт.",
-        "read_more_about_optimized_server": "Узнать больше про оптимизацию сервера.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:port"
+        "remux_max_download": "Remux max скачать"
       },
       "plugins": {
         "plugins_title": "Плагины",
@@ -165,8 +202,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Пароль",
           "password_placeholder": "Введите пароль для пользователя Jellyfin {{username}}",
-          "save_button": "Сохранить",
-          "clear_button": "Очистить",
           "login_button": "Войти",
           "total_media_requests": "Всего запросов на медиа",
           "movie_quota_limit": "Ограничение квоты на фильмы",
@@ -184,8 +219,8 @@
         },
         "marlin_search": {
           "enable_marlin_search": "Включить Marlin Search ",
-          "url": "URL",
-          "server_url_placeholder": "http(s)://domain.org:port",
+          "url": "",
+          "server_url_placeholder": "",
           "marlin_search_hint": "Введите URL для Marlin сервера. URL должен включать http or https и опционально порт.",
           "read_more_about_marlin": "Узнать больше о Marlin.",
           "save_button": "Сохранить",
@@ -207,22 +242,21 @@
       },
       "logs": {
         "logs_title": "Логи",
+        "export_logs": "",
+        "click_for_more_info": "",
+        "level": "",
         "no_logs_available": "Логи не доступны",
         "delete_all_logs": "Удалить все логи"
       },
       "languages": {
         "title": "Языки",
         "app_language": "Язык приложения",
-        "app_language_description": "Выберите язык для приложения.",
         "system": "Системный"
       },
       "toasts": {
         "error_deleting_files": "Ошибка при удалении файлов",
         "background_downloads_enabled": "Фоновая загрузка включена",
-        "background_downloads_disabled": "Фоновая загрузка отключена",
-        "connected": "Подключено",
-        "could_not_connect": "Не удалось подключиться",
-        "invalid_url": "Неверный URL"
+        "background_downloads_disabled": "Фоновая загрузка отключена"
       }
     },
     "sessions": {
@@ -234,12 +268,14 @@
       "tvseries": "Сериалы",
       "movies": "Фильмы",
       "queue": "Очередь",
+      "other_media": "",
       "queue_hint": "Очередь и загрузки будут удалены при перезагрузке приложения",
       "no_items_in_queue": "Нет элементов в очереди",
       "no_downloaded_items": "Нет загруженых предметов",
       "delete_all_movies_button": "Удалить все фильмы",
       "delete_all_tvseries_button": "Удалить все сериалы",
       "delete_all_button": "Удалить все",
+      "delete_all_other_media_button": "",
       "active_download": "Активно загружается",
       "no_active_downloads": "Нет активных загрузок",
       "active_downloads": "Активные загрузки",
@@ -249,36 +285,42 @@
       "delete": "Удалить",
       "something_went_wrong": "Что-то пошло не так",
       "could_not_get_stream_url_from_jellyfin": "Не удалось получить ссылку трансляции из Jellyfin",
-      "eta": "ETA {{eta}}",
-      "methods": "Методы",
+      "eta": "",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Нет разрешения на скачивание файлов.",
         "deleted_all_movies_successfully": "Все фильмы были успешно удалены!",
         "failed_to_delete_all_movies": "Возникла ошибка при удалении всех фильмов",
         "deleted_all_tvseries_successfully": "Все сериалы были успешно удалены!",
         "failed_to_delete_all_tvseries": "Возникла ошибка при удалении всех сериалов",
-        "download_cancelled": "Загрузка отменена",
-        "could_not_cancel_download": "Не удалось отменить загрузку",
+        "deleted_media_successfully": "",
+        "failed_to_delete_media": "",
+        "download_deleted": "",
+        "could_not_delete_download": "",
+        "download_paused": "",
+        "could_not_pause_download": "",
+        "download_resumed": "",
+        "could_not_resume_download": "",
         "download_completed": "Загрузка завершена",
-        "download_started_for": "Загрузка {{item}} началась",
-        "item_is_ready_to_be_downloaded": "{{item}} готов к загрузке",
-        "download_stated_for_item": "Загрузка {{item} началась",
         "download_failed_for_item": "Загрузка {{item}} провалилась с ошибкой: {{error}}",
         "download_completed_for_item": "{{item}} успешно загружен",
-        "queued_item_for_optimization": "{{item}} поставлен в очередь для оптимизации",
-        "failed_to_start_download_for_item": "Не удалось начать загрузку {{item}}: {{message}}",
-        "server_responded_with_status_code": "Сервер ответил со статусом {{statusCode}}",
-        "no_response_received_from_server": "Нет ответа от сервера",
-        "error_setting_up_the_request": "Ошибка при создании запроса",
-        "failed_to_start_download_for_item_unexpected_error": "Не удалось начать загрузку {{item}}: Неожиданная ошибка",
+        "download_started_for_item": "",
+        "failed_to_start_download": "",
         "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и задачи были успешно удалены",
-        "an_error_occured_while_deleting_files_and_jobs": "Возникла ошибка при удалении файлов и работ",
+        "failed_to_clean_cache_directory": "",
+        "could_not_get_download_url_for_item": "",
         "go_to_downloads": "В загрузки"
       }
     }
   },
+  "common": {
+    "select": "",
+    "no_trailer_available": "",
+    "video": "",
+    "audio": "",
+    "subtitle": "",
+    "play": ""
+  },
   "search": {
-    "search_here": "Искать здесь...",
     "search": "Поиск...",
     "x_items": "{{count}} предметов",
     "library": "Библиотека",
@@ -315,7 +357,6 @@
     "tmdb_tv_streaming_services": "TMDB Потоковые сервисы сериалов"
   },
   "library": {
-    "no_items_found": "элементы не найдены",
     "no_results": "Нет результатов",
     "no_libraries_found": "Библиотеки не найдены",
     "item_types": {
@@ -339,8 +380,6 @@
       "years": "Года",
       "sort_by": "Сортировать по",
       "sort_order": "Порядок сортировки",
-      "asc": "По Возрастанию",
-      "desc": "По убыванию",
       "tags": "Тэги"
     }
   },
@@ -364,14 +403,10 @@
     "client_error": "Ошибка клиента",
     "could_not_create_stream_for_chromecast": "Не удалось создать поток для Chromecast",
     "message_from_server": "Сообщение от сервера: {{message}}",
-    "video_has_finished_playing": "Видео закончило воспроизводиться!",
-    "no_video_source": "Нет источника видео...",
     "next_episode": "Следующая серия",
     "refresh_tracks": "Обновить дорожки",
-    "subtitle_tracks": "Субтитры:",
     "audio_tracks": "Аудио дорожки:",
     "playback_state": "Состояние воспроизведения:",
-    "no_data_available": "Данные не доступны",
     "index": "Индекс:",
     "continue_watching": "Продолжить просмотр",
     "go_back": "Назад"
@@ -404,15 +439,13 @@
       "download_episode": "Загрузить серию",
       "download_movie": "Скачать фильм",
       "download_x_item": "Загрузить {{item_count}} элементов",
-      "download_button": "Загрузить",
-      "using_optimized_server": "Использовать оптимизированный сервер",
-      "using_default_method": "Использовать стандартный метод"
+      "download_unwatched_only": "",
+      "download_button": "Загрузить"
     }
   },
   "live_tv": {
     "next": "Следующая",
     "previous": "Предыдущая",
-    "live_tv": "Прямой эфир ТВ",
     "coming_soon": "Скоро",
     "on_now": "Сейчас в эфире",
     "shows": "Сериалы",

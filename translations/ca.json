@@ -1,7 +1,7 @@
 {
   "login": {
     "username_required": "Nom d'usuari requerit",
-    "error_title": "Error",
+    "error_title": "",
     "login_title": "Inicia sessió",
     "login_to_title": "Inicia sessió a",
     "username_placeholder": "Nom d'usuari",
@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "El servidor triga massa a respondre, torneu-ho a provar més tard",
     "server_received_too_many_requests_try_again_later": "El servidor ha rebut massa sol·licituds, torneu-ho a provar més tard.",
     "there_is_a_server_error": "Error del servidor",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "S'ha produït un error inesperat. Heu introduït correctament l'URL del servidor?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "S'ha produït un error inesperat. Heu introduït correctament l'URL del servidor?",
+    "too_old_server_text": "",
+    "too_old_server_description": ""
   },
   "server": {
     "enter_url_to_jellyfin_server": "Introdueix l'URL del vostre servidor Jellyfin",
@@ -33,11 +35,16 @@
     "servers": "Servidors"
   },
   "home": {
+    "checking_server_connection": "",
     "no_internet": "Sense internet",
     "no_items": "No hi ha elements",
     "no_internet_message": "No us preocupeu, encara podeu veure\nel contingut descarregat.",
+    "checking_server_connection_message": "",
     "go_to_downloads": "Anar a les descàrregues",
-    "oops": "Oops!",
+    "retry": "",
+    "server_unreachable": "",
+    "server_unreachable_message": "",
+    "oops": "",
     "error_message": "Alguna cosa ha anat malament.\nTanqueu la sessió i torneu-la a iniciar.",
     "continue_watching": "Continua veient",
     "next_up": "A continuació",
@@ -66,7 +73,7 @@
         "user_info_title": "Informació de l'usuari",
         "user": "Usuari",
         "server": "Servidor",
-        "token": "Token",
+        "token": "",
         "app_version": "Versió de l'aplicació"
       },
       "quick_connect": {
@@ -75,7 +82,7 @@
         "enter_the_quick_connect_code": "Introdueix el codi de connexió ràpida...",
         "success": "Èxit",
         "quick_connect_autorized": "Connexió ràpida autoritzada",
-        "error": "Error",
+        "error": "",
         "invalid_code": "Codi invàlid",
         "authorize": "Autoritza"
       },
@@ -83,7 +90,16 @@
         "media_controls_title": "Controls multimèdia",
         "forward_skip_length": "Durada del salt endavant",
         "rewind_length": "Durada del rebobinat",
-        "seconds_unit": "s"
+        "seconds_unit": ""
+      },
+      "gesture_controls": {
+        "gesture_controls_title": "",
+        "horizontal_swipe_skip": "",
+        "horizontal_swipe_skip_description": "",
+        "left_side_brightness": "",
+        "left_side_brightness_description": "",
+        "right_side_volume": "",
+        "right_side_volume_description": ""
       },
       "audio": {
         "audio_title": "Àudio",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Subtítols",
+        "subtitle_hint": "Configureu les preferències dels subtítols.",
         "subtitle_language": "Idioma dels subtítols",
         "subtitle_mode": "Mode dels subtítols",
         "set_subtitle_track": "Establir pista de subtítols de l'element anterior",
         "subtitle_size": "Mida dels subtítols",
-        "subtitle_hint": "Configureu les preferències dels subtítols.",
         "none": "Cap",
         "language": "Idioma",
         "loading": "Carregant",
@@ -109,6 +125,37 @@
           "Always": "Sempre",
           "None": "Cap",
           "OnlyForced": "Només els forçats"
+        },
+        "text_color": "",
+        "background_color": "",
+        "outline_color": "",
+        "outline_thickness": "",
+        "background_opacity": "",
+        "outline_opacity": "",
+        "bold_text": "",
+        "colors": {
+          "Black": "",
+          "Gray": "",
+          "Silver": "",
+          "White": "",
+          "Maroon": "",
+          "Red": "",
+          "Fuchsia": "",
+          "Yellow": "",
+          "Olive": "",
+          "Green": "",
+          "Teal": "",
+          "Lime": "",
+          "Purple": "",
+          "Navy": "",
+          "Blue": "",
+          "Aqua": ""
+        },
+        "thickness": {
+          "None": "",
+          "Thin": "",
+          "Normal": "",
+          "Thick": ""
         }
       },
       "other": {
@@ -131,8 +178,8 @@
         "safe_area_in_controls": "Àrea segura als controls",
         "video_player": "Reproductor de vídeo",
         "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
+          "VLC_3": "",
+          "VLC_4": ""
         },
         "show_custom_menu_links": "Mostrar enllaços del menú personalitzats",
         "hide_libraries": "Oculta biblioteques",
@@ -144,18 +191,7 @@
       },
       "downloads": {
         "downloads_title": "Descàrregues",
-        "download_method": "Mètode de descàrrega",
-        "remux_max_download": "Màxima descàrrega remux",
-        "auto_download": "Descàrrega automàtica",
-        "optimized_versions_server": "Servidor de versions optimitzades",
-        "save_button": "Desa",
-        "optimized_server": "Servidor optimitzat",
-        "optimized": "Optimitzat",
-        "default": "Per defecte",
-        "optimized_version_hint": "Introdueix l'URL del servidor d'optimització. L'URL ha d'incloure http o https i opcionalment el port.",
-        "read_more_about_optimized_server": "Mostra més sobre el servidor d'optimització.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domini.org:port"
+        "remux_max_download": "Màxima descàrrega remux"
       },
       "plugins": {
         "plugins_title": "Connectors",
@@ -166,8 +202,6 @@
           "server_url_placeholder": "URL de Jellyseerr...",
           "password": "Contrasenya",
           "password_placeholder": "Introdueix la contrasenya per a l'usuari de Jellyfin {{username}}",
-          "save_button": "Desa",
-          "clear_button": "Esborra",
           "login_button": "Inicia sessió",
           "total_media_requests": "Sol·licituds totals de contingut",
           "movie_quota_limit": "Límit de quota de pel·lícules",
@@ -185,7 +219,7 @@
         },
         "marlin_search": {
           "enable_marlin_search": "Activa la cerca de Marlin",
-          "url": "URL",
+          "url": "",
           "server_url_placeholder": "http(s)://domini.org:port",
           "marlin_search_hint": "Introdueix l'URL del servidor Marlin. L'URL ha d'incloure http o https i opcionalment el port.",
           "read_more_about_marlin": "Mostra més sobre Marlin.",
@@ -217,20 +251,16 @@
       "languages": {
         "title": "Idiomes",
         "app_language": "Idioma de l'aplicació",
-        "app_language_description": "Seleccioneu l'idioma de l'aplicació.",
         "system": "Sistema"
       },
       "toasts": {
         "error_deleting_files": "Error en suprimir fitxers",
         "background_downloads_enabled": "Descàrregues en segon pla activades",
-        "background_downloads_disabled": "Descàrregues en segon pla desactivades",
-        "connected": "Connectat",
-        "could_not_connect": "No s'ha pogut connectar",
-        "invalid_url": "URL invàlida"
+        "background_downloads_disabled": "Descàrregues en segon pla desactivades"
       }
     },
     "sessions": {
-      "title": "Sessions",
+      "title": "",
       "no_active_sessions": "No hi ha sessions actives"
     },
     "downloads": {
@@ -238,12 +268,14 @@
       "tvseries": "Sèries",
       "movies": "Pel·lícules",
       "queue": "Cua",
+      "other_media": "",
       "queue_hint": "La cua i les descàrregues es perdran en reiniciar l'aplicació",
       "no_items_in_queue": "No hi ha elements a la cua",
       "no_downloaded_items": "No hi ha elements descarregats",
       "delete_all_movies_button": "Suprimeix totes les pel·lícules",
       "delete_all_tvseries_button": "Suprimeix totes les sèries",
       "delete_all_button": "Suprimeix-ho tot",
+      "delete_all_other_media_button": "",
       "active_download": "Descàrrega activa",
       "no_active_downloads": "No hi ha descàrregues actives",
       "active_downloads": "Descàrregues actives",
@@ -253,36 +285,42 @@
       "delete": "Suprimeix",
       "something_went_wrong": "Alguna cosa ha anat malament",
       "could_not_get_stream_url_from_jellyfin": "No s'ha pogut obtenir l'URL del flux de Jellyfin",
-      "eta": "ETA {{eta}}",
-      "methods": "Mètodes",
+      "eta": "",
       "toasts": {
         "you_are_not_allowed_to_download_files": "No teniu permís per descarregar fitxers.",
         "deleted_all_movies_successfully": "S'han suprimit totes les pel·lícules correctament!",
         "failed_to_delete_all_movies": "No s'han pogut suprimir totes les pel·lícules",
         "deleted_all_tvseries_successfully": "S'han suprimit totes les sèries correctament!",
         "failed_to_delete_all_tvseries": "No s'han pogut suprimir totes les sèries",
-        "download_cancelled": "Descàrrega cancel·lada",
-        "could_not_cancel_download": "No s'ha pogut cancel·lar la descàrrega",
+        "deleted_media_successfully": "",
+        "failed_to_delete_media": "",
+        "download_deleted": "",
+        "could_not_delete_download": "",
+        "download_paused": "",
+        "could_not_pause_download": "",
+        "download_resumed": "",
+        "could_not_resume_download": "",
         "download_completed": "Descàrrega completada",
-        "download_started_for": "S'ha iniciat la descàrrega per a {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} està preparat per ser descarregat",
-        "download_stated_for_item": "S'ha iniciat la descàrrega per a {{item}}",
         "download_failed_for_item": "Ha fallat la descàrrega per a {{item}} - {{error}}",
         "download_completed_for_item": "S'ha completat la descàrrega per a {{item}}",
-        "queued_item_for_optimization": "S'ha afegit {{item}} a la cua per a l'optimització",
-        "failed_to_start_download_for_item": "No s'ha pogut iniciar la descàrrega per a {{item}}: {{message}}",
-        "server_responded_with_status_code": "El servidor ha respost amb l'estat {{statusCode}}",
-        "no_response_received_from_server": "No s'ha rebut resposta del servidor",
-        "error_setting_up_the_request": "Error en configurar la sol·licitud",
-        "failed_to_start_download_for_item_unexpected_error": "No s'ha pogut iniciar la descàrrega per a {{item}}: Error inesperat",
+        "download_started_for_item": "",
+        "failed_to_start_download": "",
         "all_files_folders_and_jobs_deleted_successfully": "Tots els fitxers, carpetes i treballs s'han suprimit correctament",
-        "an_error_occured_while_deleting_files_and_jobs": "S'ha produït un error en suprimir fitxers i treballs",
+        "failed_to_clean_cache_directory": "",
+        "could_not_get_download_url_for_item": "",
         "go_to_downloads": "Ves a les descàrregues"
       }
     }
   },
+  "common": {
+    "select": "",
+    "no_trailer_available": "",
+    "video": "",
+    "audio": "",
+    "subtitle": "",
+    "play": ""
+  },
   "search": {
-    "search_here": "Cerca aquí...",
     "search": "Cerca...",
     "x_items": "{{count}} elements",
     "library": "Biblioteca",
@@ -293,7 +331,7 @@
     "series": "Sèries",
     "episodes": "Episodis",
     "collections": "Col·leccions",
-    "actors": "Actors",
+    "actors": "",
     "request_movies": "Sol·licita pel·lícules",
     "request_series": "Sol·licita sèries",
     "recently_added": "Afegit recentment",
@@ -319,7 +357,6 @@
     "tmdb_tv_streaming_services": "Serveis de reproducció de sèries TMDB"
   },
   "library": {
-    "no_items_found": "No s'han trobat elements",
     "no_results": "No hi ha resultats",
     "no_libraries_found": "No s'han trobat biblioteques",
     "item_types": {
@@ -343,8 +380,6 @@
       "years": "Anys",
       "sort_by": "Ordenar per",
       "sort_order": "Ordre",
-      "asc": "Ascendent",
-      "desc": "Descendent",
       "tags": "Etiquetes"
     }
   },
@@ -362,20 +397,16 @@
     "no_links": "No hi ha enllaços"
   },
   "player": {
-    "error": "Error",
+    "error": "",
     "failed_to_get_stream_url": "No s'ha pogut obtenir l'URL del flux",
     "an_error_occured_while_playing_the_video": "S'ha produït un error en reproduir el vídeo. Consulteu els registres a la configuració.",
     "client_error": "Error del client",
     "could_not_create_stream_for_chromecast": "No s'ha pogut crear un flux per a Chromecast",
     "message_from_server": "Missatge del servidor: {{message}}",
-    "video_has_finished_playing": "El vídeo ha acabat de reproduir-se!",
-    "no_video_source": "No hi ha font de vídeo...",
     "next_episode": "Episodi següent",
     "refresh_tracks": "Actualitzar pistes",
-    "subtitle_tracks": "Pistes de subtítols:",
     "audio_tracks": "Pistes d'àudio:",
     "playback_state": "Estat de reproducció:",
-    "no_data_available": "No hi ha dades disponibles",
     "index": "Índex:",
     "continue_watching": "Continuar veient",
     "go_back": "Enrere"
@@ -408,15 +439,13 @@
       "download_episode": "Descarrega l'episodi",
       "download_movie": "Descarrega la pel·lícula",
       "download_x_item": "Descarrega {{item_count}} elements",
-      "download_button": "Descarrega",
-      "using_optimized_server": "Utilitzant servidor optimitzat",
-      "using_default_method": "Utilitzant mètode per defecte"
+      "download_unwatched_only": "",
+      "download_button": "Descarrega"
     }
   },
   "live_tv": {
     "next": "Següent",
     "previous": "Anterior",
-    "live_tv": "TV en directe",
     "coming_soon": "Pròximament",
     "on_now": "Ara en emissió",
     "shows": "Programes",

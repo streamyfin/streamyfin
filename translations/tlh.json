@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Ho'Do' veS jachrup. pItlh yIHaD.",
     "server_received_too_many_requests_try_again_later": "Ho'Do' veS lutlh ngeb petlh law'. pItlh yIHaD.",
     "there_is_a_server_error": "Ho'Do' veS ghIq maS",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "num ghIq Doch. URL mej Danej'a'?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "num ghIq Doch. URL mej Danej'a'?",
+    "too_old_server_text": "",
+    "too_old_server_description": ""
   },
   "server": {
     "enter_url_to_jellyfin_server": "Jellyfin Ho'Do' veS URL yI'el",
@@ -33,10 +35,15 @@
     "servers": "Ho'Do' veS"
   },
   "home": {
+    "checking_server_connection": "",
     "no_internet": "ret pagh",
     "no_items": "Doch pagh",
     "no_internet_message": "QublaHbe'.\nDoch Qaw'laHnIS SoH.",
+    "checking_server_connection_message": "",
     "go_to_downloads": "Qaw' Doch yIghoS",
+    "retry": "",
+    "server_unreachable": "",
+    "server_unreachable_message": "",
     "oops": "QI'ya!",
     "error_message": "Doch rurbe'.\nyIQo' 'ej yI'elqa'.",
     "continue_watching": "tlhol yIHaDqa'",
@@ -85,6 +92,15 @@
         "rewind_length": "bavHom vum",
         "seconds_unit": "tera' rep"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "",
+        "horizontal_swipe_skip": "",
+        "horizontal_swipe_skip_description": "",
+        "left_side_brightness": "",
+        "left_side_brightness_description": "",
+        "right_side_volume": "",
+        "right_side_volume_description": ""
+      },
       "audio": {
         "audio_title": "QoQ",
         "set_audio_track": "namen Doch QoQ ret yISeH",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "De' chu'",
+        "subtitle_hint": "De' chu' wIvlaw' yISeH.",
         "subtitle_language": "De' chu' Hol",
         "subtitle_mode": "De' chu' mIw",
         "set_subtitle_track": "namen Doch De' chu' ret yISeH",
         "subtitle_size": "De' chu' qIt",
-        "subtitle_hint": "De' chu' wIvlaw' yISeH.",
         "none": "pagh",
         "language": "Hol",
         "loading": "tlha'... ",
@@ -109,6 +125,37 @@
           "Always": "reH",
           "None": "pagh",
           "OnlyForced": "Dun je'"
+        },
+        "text_color": "",
+        "background_color": "",
+        "outline_color": "",
+        "outline_thickness": "",
+        "background_opacity": "",
+        "outline_opacity": "",
+        "bold_text": "",
+        "colors": {
+          "Black": "",
+          "Gray": "",
+          "Silver": "",
+          "White": "",
+          "Maroon": "",
+          "Red": "",
+          "Fuchsia": "",
+          "Yellow": "",
+          "Olive": "",
+          "Green": "",
+          "Teal": "",
+          "Lime": "",
+          "Purple": "",
+          "Navy": "",
+          "Blue": "",
+          "Aqua": ""
+        },
+        "thickness": {
+          "None": "",
+          "Thin": "",
+          "Normal": "",
+          "Thick": ""
         }
       },
       "other": {
@@ -131,29 +178,20 @@
         "safe_area_in_controls": "SeHlawDaq yot QIH",
         "video_player": "mu'tlhegh tlholwI'",
         "video_players": {
-          "VLC_3": "VLC 3",
+          "VLC_3": "",
           "VLC_4": "VLC 4 (PiP mIwHa')"
         },
         "show_custom_menu_links": "menuDaq ret teqlu' yInej",
         "hide_libraries": "De'wI' bom yIQIj",
         "select_liraries_you_want_to_hide": "De'wI' bom Danej QIj yIwIv.",
         "disable_haptic_feedback": "Qub quvHa' yIQIj",
-        "default_quality": "wa' luj"
+        "default_quality": "wa' luj",
+        "max_auto_play_episode_count": "",
+        "disabled": ""
       },
       "downloads": {
         "downloads_title": "Qaw' Doch",
-        "download_method": "Qaw' mIw",
-        "remux_max_download": "Remux Qaw' Dun",
-        "auto_download": "chIch Qaw'",
-        "optimized_versions_server": "luj wej Ho'Do' veS",
-        "save_button": "yIqIp",
-        "optimized_server": "luj Ho'Do' veS",
-        "optimized": "luj",
-        "default": "wa'",
-        "optimized_version_hint": "luj Ho'Do' veS URL yI'el.",
-        "read_more_about_optimized_server": "luj Ho'Do' veS latlh yIlaD",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domajn.org:pord"
+        "remux_max_download": "Remux Qaw' Dun"
       },
       "plugins": {
         "plugins_title": "mIwHom",
@@ -164,8 +202,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "ngoq De'",
           "password_placeholder": "tlhIngan {{username}} ngoq De' yI'el",
-          "save_button": "yIqIp",
-          "clear_button": "yIQaw'",
           "login_button": "yI'el!",
           "total_media_requests": "Hoch tlhol petlh",
           "movie_quota_limit": "DIS petlh Dun",
@@ -183,7 +219,7 @@
         },
         "marlin_search": {
           "enable_marlin_search": "Marlin Sam yIchu'",
-          "url": "URL",
+          "url": "",
           "server_url_placeholder": "http(s)://domajn.org:pord",
           "marlin_search_hint": "Marlin Ho'Do' veS URL yI'el.",
           "read_more_about_marlin": "Marlin latlh yIlaD",
@@ -215,16 +251,12 @@
       "languages": {
         "title": "Holmey",
         "app_language": "ghun Hol",
-        "app_language_description": "ghun Hol yIwIv.",
         "system": "mIw'a'"
       },
       "toasts": {
         "error_deleting_files": "Qaw' ghIq",
         "background_downloads_enabled": "tlhegh Qaw' chu'",
-        "background_downloads_disabled": "tlhegh Qaw' QIj",
-        "connected": "ngoQ",
-        "could_not_connect": "ngoQlaHbe'",
-        "invalid_url": "URL law'be'"
+        "background_downloads_disabled": "tlhegh Qaw' QIj"
       }
     },
     "sessions": {
@@ -236,12 +268,14 @@
       "tvseries": "TV Hem",
       "movies": "DIS",
       "queue": "ghom",
+      "other_media": "",
       "queue_hint": "ghun ghImDI' ghom Qaw'laH.",
       "no_items_in_queue": "ghom Doch pagh",
       "no_downloaded_items": "Qaw' Doch pagh",
       "delete_all_movies_button": "Hoch DIS yIQaw'",
       "delete_all_tvseries_button": "Hoch TV Hem yIQaw'",
       "delete_all_button": "Hoch yIQaw'",
+      "delete_all_other_media_button": "",
       "active_download": "chu' Qaw'",
       "no_active_downloads": "chu' Qaw' pagh",
       "active_downloads": "chu' Qaw'",
@@ -251,36 +285,42 @@
       "delete": "yIQaw'",
       "something_went_wrong": "Doch rurbe'",
       "could_not_get_stream_url_from_jellyfin": "Jellyfin tlhol ret URL tu'laHbe'",
-      "eta": "ETA {{eta}}",
-      "methods": "mIw",
+      "eta": "",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Doch Qaw' je'laHbe'.",
         "deleted_all_movies_successfully": "Hoch DIS Qaw' Qapla'!",
         "failed_to_delete_all_movies": "Hoch DIS Qaw'laHbe'",
         "deleted_all_tvseries_successfully": "Hoch TV Hem Qaw' Qapla'!",
         "failed_to_delete_all_tvseries": "Hoch TV Hem Qaw'laHbe'",
-        "download_cancelled": "Qaw' ghIm",
-        "could_not_cancel_download": "Qaw' ghImlaHbe'",
+        "deleted_media_successfully": "",
+        "failed_to_delete_media": "",
+        "download_deleted": "",
+        "could_not_delete_download": "",
+        "download_paused": "",
+        "could_not_pause_download": "",
+        "download_resumed": "",
+        "could_not_resume_download": "",
         "download_completed": "Qaw' Qapla'",
-        "download_started_for": "{{item}} Qaw' vIlchu'",
-        "item_is_ready_to_be_downloaded": "{{item}} Qaw'laHnIS",
-        "download_stated_for_item": "{{item}} Qaw' vIlchu'",
         "download_failed_for_item": "{{item}} Qaw'laHbe' - {{error}}",
         "download_completed_for_item": "{{item}} Qaw' Qapla'",
-        "queued_item_for_optimization": "{{item}} luj ghom",
-        "failed_to_start_download_for_item": "{{item}} Qaw' vIlchu'laHbe': {{message}}",
-        "server_responded_with_status_code": "Ho'Do' veS jachrup {{statusCode}}",
-        "no_response_received_from_server": "Ho'Do' veS jachbe'",
-        "error_setting_up_the_request": "petlh SeH ghIq",
-        "failed_to_start_download_for_item_unexpected_error": "{{item}} Qaw' vIlchu'laHbe': num ghIq",
+        "download_started_for_item": "",
+        "failed_to_start_download": "",
         "all_files_folders_and_jobs_deleted_successfully": "Hoch De', ram 'ej vum Qaw' Qapla'",
-        "an_error_occured_while_deleting_files_and_jobs": "De', ram 'ej vum Qaw'DI' ghIq",
+        "failed_to_clean_cache_directory": "",
+        "could_not_get_download_url_for_item": "",
         "go_to_downloads": "Qaw' Doch yIghoS"
       }
     }
   },
+  "common": {
+    "select": "",
+    "no_trailer_available": "",
+    "video": "",
+    "audio": "",
+    "subtitle": "",
+    "play": ""
+  },
   "search": {
-    "search_here": "DaH yISam...",
     "search": "yISam...",
     "x_items": "{{count}} Doch",
     "library": "De'wI' bom",
@@ -317,7 +357,6 @@
     "tmdb_tv_streaming_services": "TMDB TV tlhol mIw"
   },
   "library": {
-    "no_items_found": "Doch pagh tu'",
     "no_results": "Doch pagh tu'",
     "no_libraries_found": "De'wI' bom pagh tu'",
     "item_types": {
@@ -341,8 +380,6 @@
       "years": "DIS",
       "sort_by": "yIwIv",
       "sort_order": "wIv mIw",
-      "asc": "Dung",
-      "desc": "nuq",
       "tags": "De'Hom"
     }
   },
@@ -366,15 +403,13 @@
     "client_error": "lut 'el ghIq",
     "could_not_create_stream_for_chromecast": "Chromecast tlhol ret qonlaHbe'",
     "message_from_server": "Ho'Do' veS jach: {{message}}",
-    "video_has_finished_playing": "mu'tlhegh tlhol Qapla'!",
-    "no_video_source": "mu'tlhegh wang pagh",
     "next_episode": "wej HemHom",
     "refresh_tracks": "ret yIchu'qa'",
-    "subtitle_tracks": "De' chu' ret:",
     "audio_tracks": "QoQ ret:",
     "playback_state": "tlhol mIw:",
-    "no_data_available": "De' pagh tu'",
-    "index": "nem:"
+    "index": "nem:",
+    "continue_watching": "",
+    "go_back": ""
   },
   "item_card": {
     "next_up": "wej",
@@ -404,15 +439,13 @@
       "download_episode": "HemHom yIQaw'",
       "download_movie": "DIS yIQaw'",
       "download_x_item": "{{item_count}} Doch yIQaw'",
-      "download_button": "yIQaw'",
-      "using_optimized_server": "luj Ho'Do' veS tu'lu'",
-      "using_default_method": "wa' mIw tu'lu'"
+      "download_unwatched_only": "",
+      "download_button": "yIQaw'"
     }
   },
   "live_tv": {
     "next": "wej",
     "previous": "namen",
-    "live_tv": "chu' TV",
     "coming_soon": "wej lup",
     "on_now": "DaH",
     "shows": "tlhol",

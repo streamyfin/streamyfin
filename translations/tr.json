@@ -7,7 +7,7 @@
     "username_placeholder": "Kullanıcı adı",
     "password_placeholder": "Şifre",
     "login_button": "Giriş yap",
-    "quick_connect": "Quick Connect",
+    "quick_connect": "",
     "enter_code_to_login": "Giriş yapmak için {{code}} kodunu girin",
     "failed_to_initiate_quick_connect": "Quick Connect başlatılamadı",
     "got_it": "Anlaşıldı",
@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Sunucu yanıt vermekte çok uzun sürüyor, lütfen tekrar deneyin",
     "server_received_too_many_requests_try_again_later": "Sunucu çok fazla istek aldı, lütfen tekrar deneyin.",
     "there_is_a_server_error": "Sunucu hatası var",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Beklenmedik bir hata oluştu. Sunucu URL'sini doğru girdiğinizden emin oldunuz mu?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Beklenmedik bir hata oluştu. Sunucu URL'sini doğru girdiğinizden emin oldunuz mu?",
+    "too_old_server_text": "",
+    "too_old_server_description": ""
   },
   "server": {
     "enter_url_to_jellyfin_server": "Jellyfin sunucunusun URL'sini girin",
@@ -33,10 +35,15 @@
     "servers": "Sunucular"
   },
   "home": {
+    "checking_server_connection": "",
     "no_internet": "İnternet Yok",
     "no_items": "Öge Yok",
     "no_internet_message": "Endişelenmeyin, hala\ndownloaded içerik izleyebilirsiniz.",
+    "checking_server_connection_message": "",
     "go_to_downloads": "İndirmelere Git",
+    "retry": "",
+    "server_unreachable": "",
+    "server_unreachable_message": "",
     "oops": "Hups!",
     "error_message": "Bir şeyler ters gitti.\nLütfen çıkış yapın ve tekrar giriş yapın.",
     "continue_watching": "İzlemeye Devam Et",
@@ -66,7 +73,7 @@
         "user_info_title": "Kullanıcı Bilgisi",
         "user": "Kullanıcı",
         "server": "Sunucu",
-        "token": "Token",
+        "token": "",
         "app_version": "Uygulama Sürümü"
       },
       "quick_connect": {
@@ -83,7 +90,16 @@
         "media_controls_title": "Medya Kontrolleri",
         "forward_skip_length": "İleri Sarma Uzunluğu",
         "rewind_length": "Geri Sarma Uzunluğu",
-        "seconds_unit": "s"
+        "seconds_unit": ""
+      },
+      "gesture_controls": {
+        "gesture_controls_title": "",
+        "horizontal_swipe_skip": "",
+        "horizontal_swipe_skip_description": "",
+        "left_side_brightness": "",
+        "left_side_brightness_description": "",
+        "right_side_volume": "",
+        "right_side_volume_description": ""
       },
       "audio": {
         "audio_title": "Ses",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Altyazılar",
+        "subtitle_hint": "Altyazı tercihini yapılandırın.",
         "subtitle_language": "Altyazı Dili",
         "subtitle_mode": "Altyazı Modu",
         "set_subtitle_track": "Önceki Öğeden Altyazı Parçası Ayarla",
         "subtitle_size": "Altyazı Boyutu",
-        "subtitle_hint": "Altyazı tercihini yapılandırın.",
         "none": "Yok",
         "language": "Dil",
         "loading": "Yükleniyor",
@@ -109,6 +125,37 @@
           "Always": "Her Zaman",
           "None": "Yok",
           "OnlyForced": "Sadece Zorunlu"
+        },
+        "text_color": "",
+        "background_color": "",
+        "outline_color": "",
+        "outline_thickness": "",
+        "background_opacity": "",
+        "outline_opacity": "",
+        "bold_text": "",
+        "colors": {
+          "Black": "",
+          "Gray": "",
+          "Silver": "",
+          "White": "",
+          "Maroon": "",
+          "Red": "",
+          "Fuchsia": "",
+          "Yellow": "",
+          "Olive": "",
+          "Green": "",
+          "Teal": "",
+          "Lime": "",
+          "Purple": "",
+          "Navy": "",
+          "Blue": "",
+          "Aqua": ""
+        },
+        "thickness": {
+          "None": "",
+          "Thin": "",
+          "Normal": "",
+          "Thick": ""
         }
       },
       "other": {
@@ -131,30 +178,20 @@
         "safe_area_in_controls": "Kontrollerde Güvenli Alan",
         "video_player": "Video player",
         "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
+          "VLC_3": "",
+          "VLC_4": ""
         },
         "show_custom_menu_links": "Özel Menü Bağlantılarını Göster",
         "hide_libraries": "Kütüphaneleri Gizle",
         "select_liraries_you_want_to_hide": "Kütüphane sekmesinden ve ana sayfa bölümlerinden gizlemek istediğiniz kütüphaneleri seçin.",
         "disable_haptic_feedback": "Dokunsal Geri Bildirimi Devre Dışı Bırak",
         "default_quality": "Varsayılan kalite",
+        "max_auto_play_episode_count": "",
         "disabled": "Devre dışı"
       },
       "downloads": {
         "downloads_title": "İndirmeler",
-        "download_method": "İndirme Yöntemi",
-        "remux_max_download": "Remux max indirme",
-        "auto_download": "Otomatik İndirme",
-        "optimized_versions_server": "Optimize edilmiş sürümler sunucusu",
-        "save_button": "Kaydet",
-        "optimized_server": "Optimize Sunucu",
-        "optimized": "Optimize",
-        "default": "Varsayılan",
-        "optimized_version_hint": "Optimize sunucusu için URL girin. URL, http veya https içermeli ve isteğe bağlı olarak portu içerebilir.",
-        "read_more_about_optimized_server": "Optimize sunucusu hakkında daha fazla oku.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:port"
+        "remux_max_download": "Remux max indirme"
       },
       "plugins": {
         "plugins_title": "Eklentiler",
@@ -165,8 +202,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Şifre",
           "password_placeholder": "Jellyfin kullanıcısı {{username}} için şifre girin",
-          "save_button": "Kaydet",
-          "clear_button": "Temizle",
           "login_button": "Giriş Yap",
           "total_media_requests": "Toplam medya istekleri",
           "movie_quota_limit": "Film kota limiti",
@@ -177,15 +212,15 @@
           "unlimited": "Sınırsız",
           "plus_n_more": "+{{n}} more",
           "order_by": {
-            "DEFAULT": "Default",
-            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
-            "POPULARITY": "Popularity"
+            "DEFAULT": "",
+            "VOTE_COUNT_AND_AVERAGE": "",
+            "POPULARITY": ""
           }
         },
         "marlin_search": {
           "enable_marlin_search": "Marlin Aramasını Etkinleştir ",
-          "url": "URL",
-          "server_url_placeholder": "http(s)://domain.org:port",
+          "url": "",
+          "server_url_placeholder": "",
           "marlin_search_hint": "Marlin sunucu URL'sini girin. URL, http veya https içermeli ve isteğe bağlı olarak portu içerebilir.",
           "read_more_about_marlin": "Marlin hakkında daha fazla oku.",
           "save_button": "Kaydet",
@@ -209,36 +244,38 @@
         "logs_title": "Günlükler",
         "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
-        "level": "Level",
+        "level": "",
         "no_logs_available": "Günlükler mevcut değil",
         "delete_all_logs": "Tüm günlükleri sil"
       },
       "languages": {
         "title": "Diller",
         "app_language": "Uygulama dili",
-        "app_language_description": "Uygulama dilini seçin.",
         "system": "Sistem"
       },
       "toasts": {
         "error_deleting_files": "Dosyalar silinirken hata oluştu",
         "background_downloads_enabled": "Arka plan indirmeleri etkinleştirildi",
-        "background_downloads_disabled": "Arka plan indirmeleri devre dışı bırakıldı",
-        "connected": "Bağlandı",
-        "could_not_connect": "Bağlanılamadı",
-        "invalid_url": "Geçersiz URL"
+        "background_downloads_disabled": "Arka plan indirmeleri devre dışı bırakıldı"
       }
+    },
+    "sessions": {
+      "title": "",
+      "no_active_sessions": ""
     },
     "downloads": {
       "downloads_title": "İndirilenler",
       "tvseries": "Diziler",
       "movies": "Filmler",
       "queue": "Sıra",
+      "other_media": "",
       "queue_hint": "Sıra ve indirmeler uygulama yeniden başlatıldığında kaybolacaktır",
       "no_items_in_queue": "Sırada öğe yok",
       "no_downloaded_items": "İndirilen öğe yok",
       "delete_all_movies_button": "Tüm Filmleri Sil",
       "delete_all_tvseries_button": "Tüm Dizileri Sil",
       "delete_all_button": "Tümünü Sil",
+      "delete_all_other_media_button": "",
       "active_download": "Aktif indirme",
       "no_active_downloads": "Aktif indirme yok",
       "active_downloads": "Aktif indirmeler",
@@ -249,35 +286,41 @@
       "something_went_wrong": "Bir şeyler ters gitti",
       "could_not_get_stream_url_from_jellyfin": "Jellyfin'den yayın URL'si alınamadı",
       "eta": "Tahmini Süre {{eta}}",
-      "methods": "Yöntemler",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Dosyaları indirme izniniz yok.",
         "deleted_all_movies_successfully": "Tüm filmler başarıyla silindi!",
         "failed_to_delete_all_movies": "Filmler silinemedi",
         "deleted_all_tvseries_successfully": "Tüm diziler başarıyla silindi!",
         "failed_to_delete_all_tvseries": "Diziler silinemedi",
-        "download_cancelled": "İndirme iptal edildi",
-        "could_not_cancel_download": "İndirme iptal edilemedi",
+        "deleted_media_successfully": "",
+        "failed_to_delete_media": "",
+        "download_deleted": "",
+        "could_not_delete_download": "",
+        "download_paused": "",
+        "could_not_pause_download": "",
+        "download_resumed": "",
+        "could_not_resume_download": "",
         "download_completed": "İndirme tamamlandı",
-        "download_started_for": "{{item}} için indirme başlatıldı",
-        "item_is_ready_to_be_downloaded": "{{item}} indirmeye hazır",
-        "download_stated_for_item": "{{item}} için indirme başlatıldı",
         "download_failed_for_item": "{{item}} için indirme başarısız oldu - {{error}}",
         "download_completed_for_item": "{{item}} için indirme tamamlandı",
-        "queued_item_for_optimization": "{{item}} optimizasyon için sıraya alındı",
-        "failed_to_start_download_for_item": "{{item}} için indirme başlatılamadı: {{message}}",
-        "server_responded_with_status_code": "Sunucu şu durum koduyla yanıt verdi: {{statusCode}}",
-        "no_response_received_from_server": "Sunucudan yanıt alınamadı",
-        "error_setting_up_the_request": "İstek ayarlanırken hata oluştu",
-        "failed_to_start_download_for_item_unexpected_error": "{{item}} için indirme başlatılamadı: Beklenmeyen hata",
+        "download_started_for_item": "",
+        "failed_to_start_download": "",
         "all_files_folders_and_jobs_deleted_successfully": "Tüm dosyalar, klasörler ve işler başarıyla silindi",
-        "an_error_occured_while_deleting_files_and_jobs": "Dosyalar ve işler silinirken hata oluştu",
+        "failed_to_clean_cache_directory": "",
+        "could_not_get_download_url_for_item": "",
         "go_to_downloads": "İndirmelere git"
       }
     }
   },
+  "common": {
+    "select": "",
+    "no_trailer_available": "",
+    "video": "",
+    "audio": "",
+    "subtitle": "",
+    "play": ""
+  },
   "search": {
-    "search_here": "Burada ara...",
     "search": "Ara...",
     "x_items": "{{count}} öge(ler)",
     "library": "Kütüphane",
@@ -314,7 +357,6 @@
     "tmdb_tv_streaming_services": "TMDB Dizi Yayın Servisleri"
   },
   "library": {
-    "no_items_found": "Öğe bulunamadı",
     "no_results": "Sonuç bulunamadı",
     "no_libraries_found": "Kütüphane bulunamadı",
     "item_types": {
@@ -328,7 +370,7 @@
       "row": "Satır",
       "list": "Liste",
       "image_style": "Görsel stili",
-      "poster": "Poster",
+      "poster": "",
       "cover": "Kapak",
       "show_titles": "Başlıkları göster",
       "show_stats": "İstatistikleri göster"
@@ -338,8 +380,6 @@
       "years": "Yıllar",
       "sort_by": "Sırala",
       "sort_order": "Sıralama düzeni",
-      "asc": "Ascending",
-      "desc": "Descending",
       "tags": "Etiketler"
     }
   },
@@ -363,14 +403,10 @@
     "client_error": "İstemci hatası",
     "could_not_create_stream_for_chromecast": "Chromecast için yayın oluşturulamadı",
     "message_from_server": "Sunucudan mesaj: {{message}}",
-    "video_has_finished_playing": "Video oynatıldı!",
-    "no_video_source": "Video kaynağı yok...",
     "next_episode": "Sonraki bölüm",
     "refresh_tracks": "Parçaları yenile",
-    "subtitle_tracks": "Altyazı Parçaları:",
     "audio_tracks": "Ses Parçaları:",
     "playback_state": "Oynatma Durumu:",
-    "no_data_available": "Veri bulunamadı",
     "index": "İndeks:",
     "continue_watching": "İzlemeye devam et",
     "go_back": "Geri"
@@ -387,7 +423,7 @@
     "more_with": "Daha fazla {{name}}",
     "similar_items": "Benzer ögeler",
     "no_similar_items_found": "Benzer öge bulunamadı",
-    "video": "Video",
+    "video": "",
     "more_details": "Daha fazla detay",
     "quality": "Kalite",
     "audio": "Ses",
@@ -403,15 +439,13 @@
       "download_episode": "Bölümü indir",
       "download_movie": "Filmi indir",
       "download_x_item": "{{item_count}} tane ögeyi indir",
-      "download_button": "İndir",
-      "using_optimized_server": "Optimize edilmiş sunucu kullanılıyor",
-      "using_default_method": "Varsayılan yöntem kullanılıyor"
+      "download_unwatched_only": "",
+      "download_button": "İndir"
     }
   },
   "live_tv": {
     "next": "Sonraki",
     "previous": "Önceki",
-    "live_tv": "Canlı TV",
     "coming_soon": "Yakında",
     "on_now": "Şu anda yayında",
     "shows": "Programlar",
