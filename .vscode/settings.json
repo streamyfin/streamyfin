@@ -174,11 +174,5 @@
   },
 
   // Problem matcher for better error display
-  "typescript.tsc.autoDetect": "on",
-
-  // ==========================================
-  // LEGACY SETTINGS (keeping for compatibility)
-  // ==========================================
-
-  "prettier.printWidth": 120
+  "typescript.tsc.autoDetect": "on"
 }
