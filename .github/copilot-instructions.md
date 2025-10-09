@@ -43,6 +43,7 @@ and provides seamless media streaming with offline capabilities and Chromecast s
 ## Coding Standards
 
 - Use TypeScript for ALL files (no .js files)
+- Use descriptive English names for variables, functions, and components
 - Prefer functional React components with hooks
 - Use Jotai atoms for global state management
 - Use React Query for server state and caching
