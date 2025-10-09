@@ -124,6 +124,19 @@ const DownloadsPage = () => {
     }
   }, [downloadedFiles]);
 
+  const otherMedia = useMemo(() => {
+    try {
+      return (
+        downloadedFiles?.filter(
+          (f) => f.item.Type !== "Movie" && f.item.Type !== "Episode",
+        ) || []
+      );
+    } catch {
+      setShowMigration(true);
+      return [];
+    }
+  }, [downloadedFiles]);
+
   const headerRightComponent = useMemo(
     () => (
       <HeaderRight
@@ -168,8 +181,30 @@ const DownloadsPage = () => {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
       });
+  const deleteOtherMedia = () =>
+    Promise.all(
+      otherMedia.map((item) =>
+        deleteFileByType(item.item.Type)
+          .then(() =>
+            toast.success(
+              t("home.downloads.toasts.deleted_media_successfully", {
+                type: item.item.Type,
+              }),
+            ),
+          )
+          .catch((reason) => {
+            writeToLog("ERROR", reason);
+            toast.error(
+              t("home.downloads.toasts.failed_to_delete_media", {
+                type: item.item.Type,
+              }),
+            );
+          }),
+      ),
+    );
+
   const deleteAllMedia = async () =>
-    await Promise.all([deleteMovies(), deleteShows()]);
+    await Promise.all([deleteMovies(), deleteShows(), deleteOtherMedia()]);
 
   return (
     <>
@@ -272,6 +307,34 @@ const DownloadsPage = () => {
                 </ScrollView>
               </View>
             )}
+
+            {otherMedia.length > 0 && (
+              <View className='mb-4'>
+                <View className='flex flex-row items-center justify-between mb-2 px-4'>
+                  <Text className='text-lg font-bold'>
+                    {t("home.downloads.other_media")}
+                  </Text>
+                  <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                    <Text className='text-xs font-bold'>
+                      {otherMedia?.length}
+                    </Text>
+                  </View>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className='px-4 flex flex-row'>
+                    {otherMedia?.map((item) => (
+                      <TouchableItemRouter
+                        item={item.item}
+                        isOffline
+                        key={item.item.Id}
+                      >
+                        <MovieCard item={item.item} />
+                      </TouchableItemRouter>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
             {downloadedFiles?.length === 0 && (
               <View className='flex px-4'>
                 <Text className='opacity-50'>
@@ -301,6 +364,11 @@ const DownloadsPage = () => {
             <Button color='purple' onPress={deleteShows}>
               {t("home.downloads.delete_all_tvseries_button")}
             </Button>
+            {otherMedia.length > 0 && (
+              <Button color='purple' onPress={deleteOtherMedia}>
+                {t("home.downloads.delete_all_other_media_button")}
+              </Button>
+            )}
             <Button color='red' onPress={deleteAllMedia}>
               {t("home.downloads.delete_all_button")}
             </Button>

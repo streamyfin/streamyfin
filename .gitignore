@@ -1,4 +1,6 @@
+# Dependencies and Package Managers
 node_modules/
+<<<<<<< HEAD
 .expo/
 dist/
 npm-debug.*
@@ -23,8 +25,19 @@ Streamyfin.app
 
 *.mp4
 Streamyfin.app
+=======
+bun.lock
+bun.lockb
+>>>>>>> origin/develop
 package-lock.json
 
+# Expo and React Native Build Artifacts
+.expo/
+dist/
+web-build/
+.tsbuildinfo
+
+# Platform-specific Build Directories
 /ios
 /android
 /iostv
@@ -32,21 +45,50 @@ package-lock.json
 /androidmobile
 /androidtv
 
+# Module-specific Builds
+modules/vlc-player/android/build
 modules/player/android
+modules/hls-downloader/android/build
 
-pc-api-7079014811501811218-719-3b9f15aeccf8.json
-credentials.json
+# Generated Applications
+Streamyfin.app
 *.apk
 *.ipa
-.continuerc.json
+*.aab
 
+# Certificates and Keys
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Debug and Temporary Files
+npm-debug.*
+*.orig.*
+*.mp4
+
+# OS-specific Files
+# macOS
+.DS_Store
+
+# IDE and Editor Files
 .vscode/
 .idea/
 .ruby-lsp
-modules/hls-downloader/android/build
-streamyfin-4fec1-firebase-adminsdk.json
+.cursor/
+.claude/
+
+# Environment and Configuration
+expo-env.d.ts
+.continuerc.json
 .env
 .env.local
-*.aab
+
+# Secrets and Credentials
+pc-api-7079014811501811218-719-3b9f15aeccf8.json
+credentials.json
+streamyfin-4fec1-firebase-adminsdk.json
+
+# Version and Backup Files
 /version-backup-*
-bun.lockb

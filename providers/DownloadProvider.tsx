@@ -189,7 +189,7 @@ function useDownloadProvider() {
       return task.metadata && !processes.some((p) => p.id === task.id);
     };
 
-    const findTaskById = (taskId: string) => {
+    const _findTaskById = (taskId: string) => {
       return tasks.find((taskItem: any) => taskItem.id === taskId);
     };
 
@@ -310,7 +310,7 @@ function useDownloadProvider() {
       return db.movies[id];
     }
 
-    // If not in movies, check episodes
+    // Check episodes
     for (const series of Object.values(db.series)) {
       for (const season of Object.values(series.seasons)) {
         for (const episode of Object.values(season.episodes)) {
@@ -319,6 +319,11 @@ function useDownloadProvider() {
           }
         }
       }
+    }
+
+    // Check other media types
+    if (db.other[id]) {
+      return db.other[id];
     }
 
     return undefined;
@@ -357,7 +362,7 @@ function useDownloadProvider() {
     if (file) {
       return JSON.parse(file) as DownloadsDatabase;
     }
-    return { movies: {}, series: {} };
+    return { movies: {}, series: {}, other: {} }; // Initialize other media types storage
   };
 
   const getDownloadedItems = () => {
@@ -369,6 +374,7 @@ function useDownloadProvider() {
           Object.values(season.episodes),
         ),
       ),
+      ...Object.values(db.other), // Include other media types in results
     ];
     return allItems;
   };
@@ -667,6 +673,9 @@ function useDownloadProvider() {
             db.series[item.SeriesId].seasons[seasonNumber].episodes[
               episodeNumber
             ] = downloadedItem;
+          } else if (item.Id) {
+            // Handle other media types
+            db.other[item.Id] = downloadedItem;
           }
           saveDownloadsDatabase(db);
 
@@ -865,31 +874,6 @@ function useDownloadProvider() {
     [authHeader, startDownload],
   );
 
-  const findAndDeleteMovie = (
-    db: DownloadsDatabase,
-    id: string,
-  ): DownloadedItem | undefined => {
-    const downloadedItem = db.movies[id];
-    if (downloadedItem) {
-      delete db.movies[id];
-    }
-    return downloadedItem;
-  };
-
-  const cleanUpEmptyParents = (
-    series: DownloadedSeries,
-    seasonNumber: string,
-    seriesId: string,
-    db: DownloadsDatabase,
-  ) => {
-    if (!Object.keys(series.seasons[Number(seasonNumber)].episodes).length) {
-      delete series.seasons[Number(seasonNumber)];
-    }
-    if (!Object.keys(series.seasons).length) {
-      delete db.series[seriesId];
-    }
-  };
-
   const findAndDeleteEpisode = (
     db: DownloadsDatabase,
     id: string,
@@ -902,13 +886,39 @@ function useDownloadProvider() {
           if (episode.item.Id === id) {
             const downloadedItem = episode;
             delete season.episodes[Number(episodeNumber)];
-            cleanUpEmptyParents(series, seasonNumber, seriesId, db);
+            cleanUpEmptyParents(series, Number(seasonNumber), seriesId, db);
             return downloadedItem;
           }
         }
       }
     }
+
     return undefined;
+  };
+
+  const cleanUpEmptyParents = (
+    series: DownloadedSeries,
+    seasonNumber: number,
+    seriesId: string,
+    db: DownloadsDatabase,
+  ) => {
+    if (!Object.keys(series.seasons[seasonNumber].episodes).length) {
+      delete series.seasons[seasonNumber];
+    }
+    if (!Object.keys(series.seasons).length) {
+      delete db.series[seriesId];
+    }
+  };
+
+  const findAndDeleteMovie = (
+    db: DownloadsDatabase,
+    id: string,
+  ): DownloadedItem | undefined => {
+    const downloadedItem = db.movies[id];
+    if (downloadedItem) {
+      delete db.movies[id];
+    }
+    return downloadedItem;
   };
 
   const deleteMediaFiles = async (downloadedItem: DownloadedItem) => {
@@ -938,7 +948,7 @@ function useDownloadProvider() {
     }
   };
 
-  const deleteFile = async (id: string, type: "Movie" | "Episode") => {
+  const deleteFile = async (id: string, type: BaseItemDto["Type"]) => {
     const db = getDownloadsDatabase();
     let downloadedItem: DownloadedItem | undefined;
 
@@ -946,6 +956,10 @@ function useDownloadProvider() {
       downloadedItem = findAndDeleteMovie(db, id);
     } else if (type === "Episode") {
       downloadedItem = findAndDeleteEpisode(db, id);
+    } else {
+      // Other media types
+      downloadedItem = db.other[id];
+      if (downloadedItem) delete db.other[id];
     }
 
     if (downloadedItem) {
@@ -958,7 +972,7 @@ function useDownloadProvider() {
 
   const deleteItems = async (items: BaseItemDto[]) => {
     for (const item of items) {
-      if (item.Id && (item.Type === "Movie" || item.Type === "Episode")) {
+      if (item.Id) {
         await deleteFile(item.Id, item.Type);
       }
     }
@@ -1019,6 +1033,8 @@ function useDownloadProvider() {
     const db = getDownloadsDatabase();
     if (db.movies[itemId]) {
       db.movies[itemId] = updatedItem;
+    } else if (db.other[itemId]) {
+      db.other[itemId] = updatedItem;
     } else {
       updateEpisodeInSeries(db, itemId, updatedItem);
     }

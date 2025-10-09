@@ -22,6 +22,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
+  BaseItemDtoQueryResult,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
@@ -364,6 +365,16 @@ export const HomeIndex = () => {
             });
             return response.data || [];
           }
+          if (section.custom) {
+            const response = await api.get<BaseItemDtoQueryResult>(
+              section.custom.endpoint,
+              {
+                params: { ...(section.custom.query || {}), userId: user?.Id },
+                headers: section.custom.headers || {},
+              },
+            );
+            return response.data.Items || [];
+          }
           return [];
         },
         type: "ScrollingCollectionList",
@@ -468,12 +479,7 @@ export const HomeIndex = () => {
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      <AppleTVCarousel
-        initialIndex={0}
-        onItemChange={(index) => {
-          console.log(`Now viewing carousel item ${index}`);
-        }}
-      />
+      <AppleTVCarousel initialIndex={0} />
       <View
         style={{
           paddingLeft: insets.left,
