@@ -49,6 +49,8 @@ npm-debug.*
 .vscode/
 .idea/
 .ruby-lsp
+.cursor/
+.claude/
 
 # Environment and Configuration
 expo-env.d.ts
