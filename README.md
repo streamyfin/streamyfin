@@ -23,20 +23,20 @@
 ## 🌟 Features
 
 - 🚀 **Skip Intro / Credits Support**
-- 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking.
-- 📥 **Download media** (Experimental): Save your media locally and watch it offline.
-- 📡 **Chromecast** (Experimental): Cast your media to any Chromecast-enabled device.
-- 📡 **Settings management** (Experimental): Manage app settings for all your users with a JF plugin.
-- 🤖 **Jellyseerr integration**: Request media directly in the app.
-- 👁️ **Sessions View:** View all active sessions currently streaming on your server.
+- 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking
+- 📥 **Download media** (Experimental): Save your media locally and watch it offline
+- 📡 **Chromecast** (Experimental): Cast your media to any Chromecast-enabled device
+- 📡 **Settings management** (Experimental): Manage app settings for all your users with a JF plugin
+- 🤖 **Seerr (former Jellyseerr) integration**: Request media directly in the app
+- 👁️ **Sessions View:** View all active sessions currently streaming on your server
 
 ## 🧪 Experimental Features
 
-Streamyfin includes some exciting experimental features like media downloading and Chromecast support. These features are still in development, and your patience and feedback are much appreciated as we work to improve them.
+Streamyfin offers exciting experimental features such as media downloading and Chromecast support. These features are under active development, and your feedback and patience help us make them even better.
 
 ### 📥 Downloading
 
-Downloading works by using ffmpeg to convert an HLS stream into a video file on the device. This means that you can download and view any file you can stream! The file is converted by Jellyfin on the server in real time as it is downloaded. This means a **bit longer download times** but supports any file that your server can transcode.
+Downloading works by using ffmpeg to convert an HLS stream into a video file on your device. This allows you to download and watch any content that you can stream. The file is converted by Jellyfin on the server in real time during the download. This may result in slightly longer download times, but it ensures compatibility with any file your server can transcode.
 
 ### 🎥 Chromecast
 
@@ -46,7 +46,7 @@ Chromecast support is still in development, and we're working on improving it. C
 
 The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that holds all settings for the client Streamyfin. This allows you to synchronize settings across all your users, like for example:
 
-- Auto log in to Jellyseerr without the user having to do anything
+- Auto log in to Seerr without the user having to do anything
 - Choose the default languages
 - Set download method and search provider
 - Customize home screen
@@ -64,14 +64,13 @@ The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that ho
 
 Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) To see what we're working on next, we are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
 
-## 📥 Get it now
+## 📥 Download Streamyfin
 
 <div style="display: flex; gap: 5px;">
   <a href="https://apps.apple.com/app/streamyfin/id6593660679?l=en-GB"><img height=50 alt="Get Streamyfin on App Store" src="./assets/Download_on_the_App_Store_Badge.png"/></a>
-  <a href="https://play.google.com/store/apps/details?id=com.fredrikburmester.streamyfin"><img height=50 alt="Get the beta on Google Play" src="./assets/Google_Play_Store_badge_EN.svg"/></a>
+  <a href="https://play.google.com/store/apps/details?id=com.fredrikburmester.streamyfin"><img height=50 alt="Get Streamyfin on Google Play Store" src="./assets/Google_Play_Store_badge_EN.svg"/></a>
+  <a href="https://github.com/streamyfin/streamyfin/releases/latest"><img height=50 alt="Get Streamyfin on Github" src="./assets/Download_on_Github_.png"/></a>
 </div>
-
-Or download the APKs [here on GitHub](https://github.com/streamyfin/streamyfin/releases) for Android.
 
 ### 🧪 Beta testing
 
@@ -88,7 +87,7 @@ To access the Streamyfin beta, you need to subscribe to the Member tier (or high
 
 ## 🙌 Contributing
 
-We welcome any help to make Streamyfin better. If you'd like to contribute, please fork the repository and submit a pull request. For major changes, it's best to open an issue first to discuss your ideas.
+We appreciate all contributions that help make Streamyfin better. To get started, fork the repository and submit a pull request. For significant changes or new features, open an issue first to discuss your ideas and ensure alignment with the project.
 
 ### 👨‍💻 Development info
 
@@ -124,7 +123,7 @@ Join our Discord: [![](https://dcbadge.limes.pink/api/server/https://discord.gg/
 
 Need support or have questions:
 
-- GitHub Issues: Report bugs or request features here.
+- GitHub Issues: Report bugs or request features [here](https://github.com/streamyfin/streamyfin/issues)
 - Email: [developer@streamyfin.app](mailto:developer@streamyfin.app)
 
 ## ❓ FAQ
@@ -144,7 +143,7 @@ We would like to thank the Jellyfin team for their great software and awesome su
 
 Special shoutout to the JF official clients for being an inspiration to ours.
 
-### 🏆 Core Developers
+## 🏆 Core Developers
 
 Thanks to the following contributors for their significant contributions:
 
@@ -235,8 +234,8 @@ I'd also like to thank the following people and projects for their contributions
 
 - [Reiverr](https://github.com/aleksilassila/reiverr) for great help with understanding the Jellyfin API.
 - [Jellyfin TS SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) for the TypeScript SDK.
-- [Jellyseerr](https://github.com/Fallenbagel/jellyseerr) for enabling API integration with their project.
-- The Jellyfin devs for always being helpful in the Discord.
+- [Seerr](https://github.com/seerr-team/seerr) for enabling API integration with their project.
+- The Jellyfin developers for always being helpful on Discord.
 
 ## ⭐ Star History
 
