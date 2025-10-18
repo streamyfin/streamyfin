@@ -52,7 +52,7 @@ export const ItemCardText: React.FC<ItemCardProps> = ({ item }) => {
       default:
         return otherText;
     }
-  }, [episodeText, otherText]);
+  }, [episodeText, seasonText, otherText]);
 
   return <View className='mt-2 flex flex-col'>{text}</View>;
 };
