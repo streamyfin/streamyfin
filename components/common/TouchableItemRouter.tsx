@@ -58,7 +58,6 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
   }
 
   if (item.Type === "Season") {
-    console.log(item.IndexNumber);
     return {
       pathname: "/series/[id]" as const,
       params: {
