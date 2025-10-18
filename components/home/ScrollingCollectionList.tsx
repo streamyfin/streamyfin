@@ -109,11 +109,17 @@ export const ScrollingCollectionList: React.FC<Props> = ({
                 {item.Type === "Movie" && orientation === "vertical" && (
                   <MoviePoster item={item} />
                 )}
+                {item.Type === "Series" && orientation === "horizontal" && (
+                  <ContinueWatchingPoster item={item} />
+                )}
                 {item.Type === "Series" && orientation === "vertical" && (
                   <SeriesPoster item={item} />
                 )}
-                {item.Type === "Series" && orientation === "horizontal" && (
+                {item.Type === "Season" && orientation === "horizontal" && (
                   <ContinueWatchingPoster item={item} />
+                )}
+                {item.Type === "Season" && orientation === "vertical" && (
+                  <SeriesPoster item={item} />
                 )}
                 {item.Type === "Program" && (
                   <ContinueWatchingPoster item={item} />
