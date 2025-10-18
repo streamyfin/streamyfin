@@ -26,7 +26,7 @@ type Props = {
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
-export const SeasonPicker: React.FC<Props> = ({ item }) => {
+export const SeasonPicker: React.FC<Props> = ({ item, initialSeasonIndex }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
@@ -107,6 +107,15 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
       setNrOfEpisodes(episodes.length);
     }
   }, [episodes]);
+
+  useEffect(() => {
+    if (initialSeasonIndex && item.Id) {
+      setSeasonIndexState((prev) => ({
+        ...prev,
+        [item.Id!]: initialSeasonIndex,
+      }));
+    }
+  }, [initialSeasonIndex, item.Id, setSeasonIndexState]);
 
   return (
     <View
