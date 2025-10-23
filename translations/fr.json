@@ -139,6 +139,7 @@
         "select_liraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l'onglet Bibliothèque et les sections de la page d'accueil.",
         "disable_haptic_feedback": "Désactiver le retour haptique",
         "default_quality": "Qualité par défaut",
+        "max_auto_play_episode_count": "Nombre maximum d'épisodes à lire en lecture automatique",
         "disabled": "Désactivé"
       },
       "downloads": {
