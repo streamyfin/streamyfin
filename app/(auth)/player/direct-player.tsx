@@ -737,7 +737,6 @@ export default function page() {
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
-          videoRef={videoRef}
           togglePlay={togglePlay}
           isPlaying={isPlaying}
           isSeeking={isSeeking}

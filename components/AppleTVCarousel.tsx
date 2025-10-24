@@ -251,11 +251,25 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   useEffect(() => {
     // Only set options if we have valid current item
     if (currentItem) {
+      let selectedPlaybackSpeed = settings.defaultPlaybackSpeed;
+      if (currentItem.Id) {
+        if (settings.playbackSpeedPerMedia[currentItem.Id] !== undefined) {
+          selectedPlaybackSpeed =
+            settings.playbackSpeedPerMedia[currentItem.Id];
+        }
+      } else if (currentItem.SeriesId) {
+        if (settings.playbackSpeedPerShow[currentItem.SeriesId]) {
+          selectedPlaybackSpeed =
+            settings.playbackSpeedPerShow[currentItem.SeriesId];
+        }
+      }
+
       setSelectedOptions({
         bitrate: defaultBitrate,
         mediaSource: defaultMediaSource,
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
+        playbackSpeed: selectedPlaybackSpeed,
       });
     } else {
       setSelectedOptions(undefined);
@@ -267,6 +281,9 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     defaultMediaSource,
     currentIndex,
     currentItem,
+    settings.defaultPlaybackSpeed,
+    settings.playbackSpeedPerMedia,
+    settings.playbackSpeedPerShow,
   ]);
 
   useEffect(() => {

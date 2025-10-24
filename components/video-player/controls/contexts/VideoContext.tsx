@@ -38,7 +38,7 @@ interface VideoProviderProps {
   setAudioTrack: ((index: number) => void) | undefined;
   setSubtitleTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
-  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
+  videoRef?: MutableRefObject<VlcPlayerViewRef | null>;
 }
 
 export const VideoProvider: React.FC<VideoProviderProps> = ({
