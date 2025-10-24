@@ -80,17 +80,17 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
 
   const scopeLabels = useMemo<Record<PlaybackSpeedScope, string>>(() => {
     const labels: Record<string, string> = {
-      [PlaybackSpeedScope.Media]: "Custom for this media",
+      [PlaybackSpeedScope.Media]: t("playback_speed.scope.media"),
     };
 
     if (item?.SeriesId) {
-      labels[PlaybackSpeedScope.Show] = "Custom for this show";
+      labels[PlaybackSpeedScope.Show] = t("playback_speed.scope.show");
     }
 
-    labels[PlaybackSpeedScope.All] = "Default for all media";
+    labels[PlaybackSpeedScope.All] = t("playback_speed.scope.all");
 
     return labels as Record<PlaybackSpeedScope, string>;
-  }, [item?.SeriesId]);
+  }, [item?.SeriesId, t]);
 
   const availableScopes = useMemo<PlaybackSpeedScope[]>(() => {
     const scopes = [PlaybackSpeedScope.Media];
@@ -102,8 +102,8 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
   }, [item?.SeriesId]);
 
   const speedOptions = useMemo<PlaybackSpeedOption[]>(() => {
-    return [{ value: -1, label: "None" }, ...PLAYBACK_SPEEDS];
-  }, []);
+    return [{ value: -1, label: t("playback_speed.none") }, ...PLAYBACK_SPEEDS];
+  }, [t]);
 
   const _selectedSpeed = useMemo(
     () => speedOptions.find((x) => x.value === selected),
@@ -185,12 +185,14 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
               paddingRight: Math.max(16, insets.right),
             }}
           >
-            <Text className='font-bold text-2xl mb-6'>Playback Speed</Text>
+            <Text className='font-bold text-2xl mb-6'>
+              {t("playback_speed.title")}
+            </Text>
 
             {/* Scope Selection */}
             <View className='mb-6'>
               <Text className='font-semibold text-lg mb-3 text-neutral-300'>
-                Apply To
+                {t("playback_speed.apply_to")}
               </Text>
               <View
                 style={{
@@ -236,7 +238,7 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
             {/* Speed Selection */}
             <View className='mb-6'>
               <Text className='font-semibold text-lg mb-3 text-neutral-300'>
-                Speed
+                {t("playback_speed.speed")}
               </Text>
               <View
                 style={{
