@@ -1,5 +1,3 @@
-import { useAllSessions, type useSessionsProps } from "@/hooks/useSessions";
-import { apiAtom } from "@/providers/JellyfinProvider";
 import { Ionicons } from "@expo/vector-icons";
 import {
   type BaseItemDto,
@@ -15,9 +13,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAllSessions, type useSessionsProps } from "@/hooks/useSessions";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { RoundButton } from "./RoundButton";
-import { Text } from "./common/Text";
 
 interface Props extends React.ComponentProps<typeof View> {
   item: BaseItemDto;

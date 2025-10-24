@@ -23,9 +23,9 @@ const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 const LogContext = createContext<ReturnType<typeof useLogProvider> | null>(
   null,
 );
-const DownloadContext = createContext<ReturnType<typeof useLogProvider> | null>(
-  null,
-);
+const _DownloadContext = createContext<ReturnType<
+  typeof useLogProvider
+> | null>(null);
 
 function useLogProvider() {
   const { data: logs } = useQuery({
@@ -75,6 +75,17 @@ export const readFromLog = (): LogEntry[] => {
 
 export const clearLogs = () => {
   storage.delete("logs");
+};
+
+export const dumpDownloadDiagnostics = (extra: any = {}) => {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    processes: extra?.processes || [],
+    nativeTasks: extra?.nativeTasks || [],
+    focusedProcess: extra?.focusedProcess || null,
+  };
+  writeDebugLog("Download diagnostics", diagnostics);
+  return diagnostics;
 };
 
 export function useLog() {

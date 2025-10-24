@@ -1,31 +1,72 @@
-import React, { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
+
 // import * as Brightness from "expo-brightness";
 const Brightness = !Platform.isTV ? require("expo-brightness") : null;
+
 import { Ionicons } from "@expo/vector-icons";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 const BrightnessSlider = () => {
-  if (Platform.isTV) return;
+  const isTv = Platform.isTV;
 
   const brightness = useSharedValue(50);
   const min = useSharedValue(0);
   const max = useSharedValue(100);
+  const isUserInteracting = useRef(false);
+  const lastKnownBrightness = useRef<number>(50);
+
+  // Update brightness from device
+  const updateBrightnessFromDevice = async () => {
+    if (isTv || !Brightness || isUserInteracting.current) return;
+
+    try {
+      const currentBrightness = await Brightness.getBrightnessAsync();
+      const brightnessPercent = Math.round(currentBrightness * 100);
+
+      // Only update if brightness actually changed
+      if (Math.abs(brightnessPercent - lastKnownBrightness.current) > 1) {
+        brightness.value = brightnessPercent;
+        lastKnownBrightness.current = brightnessPercent;
+      }
+    } catch (error) {
+      console.error("Error fetching brightness:", error);
+    }
+  };
 
   useEffect(() => {
-    const fetchInitialBrightness = async () => {
-      const initialBrightness = await Brightness.getBrightnessAsync();
-      brightness.value = initialBrightness * 100;
+    if (isTv) return;
+
+    // Initial brightness fetch
+    updateBrightnessFromDevice();
+
+    // Set up periodic brightness checking to sync with gesture changes
+    const interval = setInterval(updateBrightnessFromDevice, 200); // Check every 200ms
+
+    return () => {
+      clearInterval(interval);
     };
-    fetchInitialBrightness();
-  }, []);
+  }, [isTv]);
 
   const handleValueChange = async (value: number) => {
+    isUserInteracting.current = true;
     brightness.value = value;
-    await Brightness.setBrightnessAsync(value / 100);
+    lastKnownBrightness.current = value;
+
+    try {
+      await Brightness.setBrightnessAsync(value / 100);
+    } catch (error) {
+      console.error("Error setting brightness:", error);
+    }
+
+    // Reset interaction flag after a delay
+    setTimeout(() => {
+      isUserInteracting.current = false;
+    }, 100);
   };
+
+  if (isTv) return null;
 
   return (
     <View style={styles.sliderContainer}>
@@ -59,7 +100,7 @@ const BrightnessSlider = () => {
 
 const styles = StyleSheet.create({
   sliderContainer: {
-    width: 150,
+    width: 130,
     display: "flex",
     flexDirection: "row",
     justifyContent: "center",

@@ -1,3 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import * as TaskManager from "expo-task-manager";
+import { TFunction } from "i18next";
+import type React from "react";
+import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { Linking, Platform, Switch, TouchableOpacity } from "react-native";
+import { toast } from "sonner-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import Dropdown from "@/components/common/Dropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
@@ -8,26 +17,13 @@ import {
   registerBackgroundFetchAsync,
   unregisterBackgroundFetchAsync,
 } from "@/utils/background-tasks";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import i18n, { TFunction } from "i18next";
-import type React from "react";
-import { useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { Linking, Platform, Switch, TouchableOpacity } from "react-native";
-import { toast } from "sonner-native";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { PLAYBACK_SPEEDS } from "../video-player/controls/dropdown/DropdownView";
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();
-  const [settings, updateSettings, pluginSettings] = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
 
   const { t } = useTranslation();
 
@@ -35,10 +31,8 @@ export const OtherSettings: React.FC = () => {
    * Background task
    *******************/
   const checkStatusAsync = async () => {
-    if (Platform.isTV) return;
-
-    await BackgroundFetch.getStatusAsync();
-    return await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
+    if (Platform.isTV) return false;
+    return TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   };
 
   useEffect(() => {
@@ -47,10 +41,10 @@ export const OtherSettings: React.FC = () => {
 
       if (settings?.autoDownload === true && !registered) {
         registerBackgroundFetchAsync();
-        toast.success("Background downloads enabled");
+        toast.success(t("home.settings.toasts.background_downloads_enabled"));
       } else if (settings?.autoDownload === false && registered) {
         unregisterBackgroundFetchAsync();
-        toast.info("Background downloads disabled");
+        toast.info(t("home.settings.toasts.background_downloads_disabled"));
       } else if (settings?.autoDownload === true && registered) {
         // Don't to anything
       } else if (settings?.autoDownload === false && !registered) {

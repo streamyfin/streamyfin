@@ -1,12 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { Platform, View } from "react-native";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
-import { useQuery } from "@tanstack/react-query";
-import * as FileSystem from "expo-file-system";
-import { useTranslation } from "react-i18next";
-import { View } from "react-native";
-import { toast } from "sonner-native";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -16,15 +15,17 @@ export const StorageSettings = () => {
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
 
-  const { data: size, isLoading: appSizeLoading } = useQuery({
-    queryKey: ["appSize", appSizeUsage],
+  const { data: size } = useQuery({
+    queryKey: ["appSize"],
     queryFn: async () => {
-      const app = await appSizeUsage;
+      const app = await appSizeUsage();
 
-      const remaining = await FileSystem.getFreeDiskStorageAsync();
-      const total = await FileSystem.getTotalDiskCapacityAsync();
-
-      return { app, remaining, total, used: (total - remaining) / total };
+      return {
+        appSize: app.appSize,
+        total: app.total,
+        remaining: app.remaining,
+        used: (app.total - app.remaining) / app.total,
+      };
     },
   });
 
@@ -32,7 +33,7 @@ export const StorageSettings = () => {
     try {
       await deleteAllFiles();
       successHapticFeedback();
-    } catch (e) {
+    } catch (_e) {
       errorHapticFeedback();
       toast.error(t("home.settings.toasts.error_deleting_files"));
     }
@@ -58,33 +59,30 @@ export const StorageSettings = () => {
         </View>
         <View className='h-3 w-full bg-gray-100/10 rounded-md overflow-hidden flex flex-row'>
           {size && (
-            <>
+            <View className='flex flex-row'>
               <View
                 style={{
-                  width: `${(size.app / size.total) * 100}%`,
+                  width: `${(size.appSize / size.total) * 100}%`,
                   backgroundColor: Colors.primaryRGB,
                 }}
               />
               <View
                 style={{
-                  width: `${
-                    ((size.total - size.remaining - size.app) / size.total) *
-                    100
-                  }%`,
+                  width: `${((size.total - size.remaining - size.appSize) / size.total) * 100}%`,
                   backgroundColor: Colors.primaryLightRGB,
                 }}
               />
-            </>
+            </View>
           )}
         </View>
         <View className='flex flex-row gap-x-2'>
           {size && (
-            <>
+            <View className='flex flex-row gap-x-2'>
               <View className='flex flex-row items-center'>
                 <View className='w-3 h-3 rounded-full bg-purple-600 mr-1' />
                 <Text className='text-white text-xs'>
                   {t("home.settings.storage.app_usage", {
-                    usedSpace: calculatePercentage(size.app, size.total),
+                    usedSpace: calculatePercentage(size.appSize, size.total),
                   })}
                 </Text>
               </View>
@@ -93,23 +91,25 @@ export const StorageSettings = () => {
                 <Text className='text-white text-xs'>
                   {t("home.settings.storage.device_usage", {
                     availableSpace: calculatePercentage(
-                      size.total - size.remaining - size.app,
+                      size.total - size.remaining - size.appSize,
                       size.total,
                     ),
                   })}
                 </Text>
               </View>
-            </>
+            </View>
           )}
         </View>
       </View>
-      <ListGroup>
-        <ListItem
-          textColor='red'
-          onPress={onDeleteClicked}
-          title={t("home.settings.storage.delete_all_downloaded_files")}
-        />
-      </ListGroup>
+      {!Platform.isTV && (
+        <ListGroup>
+          <ListItem
+            textColor='red'
+            onPress={onDeleteClicked}
+            title={t("home.settings.storage.delete_all_downloaded_files")}
+          />
+        </ListGroup>
+      )}
     </View>
   );
 };

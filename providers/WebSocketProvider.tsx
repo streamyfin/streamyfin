@@ -1,17 +1,17 @@
-import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
 import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, {
+import {
   createContext,
+  type ReactNode,
+  useCallback,
   useContext,
   useEffect,
-  useState,
-  type ReactNode,
   useMemo,
-  useCallback,
+  useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
 
 interface WebSocketMessage {
   MessageType: string;
@@ -56,7 +56,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     }&deviceId=${deviceId}`;
 
     const newWebSocket = new WebSocket(url);
-    let keepAliveInterval: number | null = null;
+    let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
     newWebSocket.onopen = () => {
       console.log("WebSocket connection opened");

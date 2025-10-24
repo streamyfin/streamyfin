@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🤔 Questions and Help
+    url: https://discord.streamyfin.app
+    about: Support questions? Please use our Streamyfin Discord community for help.
+  - name: 🛡️ Security vulnerability report
+    url: https://github.com/streamyfin/streamyfin/security/policy
+    about: Please report security vulnerabilities privately via our Security Policy for responsible disclosure.

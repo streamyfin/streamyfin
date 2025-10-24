@@ -1,5 +1,3 @@
-import { Text } from "@/components/common/Text";
-import MoviePoster from "@/components/posters/MoviePoster";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   type QueryFunction,
@@ -8,9 +6,11 @@ import {
 } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
+import MoviePoster from "@/components/posters/MoviePoster";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
-import { ItemCardText } from "../ItemCardText";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import { ItemCardText } from "../ItemCardText";
 import SeriesPoster from "../posters/SeriesPoster";
 
 interface Props extends ViewProps {
@@ -20,6 +20,7 @@ interface Props extends ViewProps {
   queryKey: QueryKey;
   queryFn: QueryFunction<BaseItemDto[]>;
   hideIfEmpty?: boolean;
+  isOffline?: boolean;
 }
 
 export const ScrollingCollectionList: React.FC<Props> = ({
@@ -29,6 +30,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   queryFn,
   queryKey,
   hideIfEmpty = false,
+  isOffline = false,
   ...props
 }) => {
   const { data, isLoading } = useQuery({
@@ -90,6 +92,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
+                isOffline={isOffline}
                 className={`mr-2 
                   ${orientation === "horizontal" ? "w-44" : "w-28"}
                 `}

@@ -1,9 +1,5 @@
 import type { Api } from "@jellyfin/sdk";
-import {
-  type BaseItemDto,
-  BaseItemPerson,
-} from "@jellyfin/sdk/lib/generated-client/models";
-import { isBaseItemDto } from "../jellyfin";
+import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 
 /**
  * Retrieves the primary image URL for a given item.

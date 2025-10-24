@@ -1,7 +1,3 @@
-import { Text } from "@/components/common/Text";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
@@ -15,6 +11,10 @@ import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { type TouchableOpacityProps, View } from "react-native";
+import { Text } from "@/components/common/Text";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 
 interface Props extends TouchableOpacityProps {
@@ -41,7 +41,7 @@ const icons: Record<CollectionType, IconName> = {
 export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const [settings] = useSettings();
+  const { settings } = useSettings();
 
   const { t } = useTranslation();
 

@@ -1,30 +1,30 @@
+import { useQuery } from "@tanstack/react-query";
+import { router, useSegments } from "expo-router";
+import type React from "react";
+import { useCallback } from "react";
+import { TouchableOpacity, type ViewProps } from "react-native";
 import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard";
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import type { GenreSliderItem } from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
 import { genreColorMap } from "@/utils/jellyseerr/src/components/Discover/constants";
-import { useQuery } from "@tanstack/react-query";
-import { router, useSegments } from "expo-router";
-import type React from "react";
-import { useCallback } from "react";
-import { TouchableOpacity, type ViewProps } from "react-native";
 
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
-  const from = segments[2];
+  const from = (segments as string[])[2] || "(home)";
 
   const navigate = useCallback(
     (genre: GenreSliderItem) =>
       router.push({
-        pathname: `/(auth)/(tabs)/${from}/jellyseerr/genre/${genre.id}`,
+        pathname: `/(auth)/(tabs)/${from}/jellyseerr/genre/${genre.id}` as any,
         params: { type: slide.type, name: genre.name },
       }),
     [slide],
   );
 
-  const { data, isFetching, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["jellyseerr", "discover", slide.type, slide.id],
     queryFn: async () => {
       return jellyseerrApi?.getGenreSliders(
@@ -43,7 +43,7 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
         slide={slide}
         data={data}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={(item, index) => (
+        renderItem={(item, _index) => (
           <TouchableOpacity className='mr-2' onPress={() => navigate(item)}>
             <GenericSlideCard
               className='w-28 rounded-lg overflow-hidden border border-neutral-900'

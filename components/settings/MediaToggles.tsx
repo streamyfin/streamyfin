@@ -1,10 +1,10 @@
-import { Stepper } from "@/components/inputs/Stepper";
-import DisabledSetting from "@/components/settings/DisabledSetting";
-import { useSettings } from "@/utils/atoms/settings";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
+import { Stepper } from "@/components/inputs/Stepper";
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -13,9 +13,7 @@ interface Props extends ViewProps {}
 export const MediaToggles: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
-  const [settings, updateSettings, pluginSettings] = useSettings();
-
-  if (!settings) return null;
+  const { settings, updateSettings, pluginSettings } = useSettings();
 
   const disabled = useMemo(
     () =>
@@ -23,6 +21,8 @@ export const MediaToggles: React.FC<Props> = ({ ...props }) => {
       pluginSettings?.rewindSkipTime?.locked === true,
     [pluginSettings],
   );
+
+  if (!settings) return null;
 
   return (
     <DisabledSetting disabled={disabled} {...props}>

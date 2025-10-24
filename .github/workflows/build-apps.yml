@@ -1,0 +1,280 @@
+name: 🏗️ Build Apps
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+
+jobs:
+  build-android-phone:
+    if: (!contains(github.event.head_commit.message, '[skip ci]'))
+    runs-on: ubuntu-24.04
+    name: 🤖 Build Android APK (Phone)
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version: latest
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-develop
+            ${{ runner.os }}-bun-develop
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 💾 Cache Gradle global
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild
+
+      - name: 💾 Cache project Gradle (.gradle)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: android/.gradle
+          key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-android-gradle-develop
+
+      - name: 🚀 Build APK
+        env:
+          EXPO_TV: 0
+        run: bun run build:android:local
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: streamyfin-android-phone-apk-${{ env.DATE_TAG }}
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+          retention-days: 7
+
+  build-android-tv:
+    if: (!contains(github.event.head_commit.message, '[skip ci]'))
+    runs-on: ubuntu-24.04
+    name: 🤖 Build Android APK (TV)
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version: latest
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-develop
+            ${{ runner.os }}-bun-develop
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 💾 Cache Gradle global
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild:tv
+
+      - name: 💾 Cache project Gradle (.gradle)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: android/.gradle
+          key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-android-gradle-develop
+
+      - name: 🚀 Build APK
+        env:
+          EXPO_TV: 1
+        run: bun run build:android:local
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: streamyfin-android-tv-apk-${{ env.DATE_TAG }}
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+          retention-days: 7
+
+  build-ios-phone:
+    if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
+    runs-on: macos-15
+    name: 🍎 Build iOS IPA (Phone)
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version: latest
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-cache
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild
+
+      - name: 🏗️ Setup EAS
+        uses: expo/expo-github-action@main
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          eas-cache: true
+
+      - name: ⚙️ Ensure iOS SDKs installed
+        run: xcodebuild -downloadPlatform iOS
+
+      - name: 🚀 Build iOS app
+        env:
+          EXPO_TV: 0
+        run: eas build -p ios --local --non-interactive
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: streamyfin-ios-phone-ipa-${{ env.DATE_TAG }}
+          path: build-*.ipa
+          retention-days: 7
+
+  # Disabled for now - uncomment when ready to build iOS TV
+  # build-ios-tv:
+  #   if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
+  #   runs-on: macos-15
+  #   name: 🍎 Build iOS IPA (TV)
+  #   permissions:
+  #     contents: read
+  #
+  #   steps:
+  #     - name: 📥 Checkout code
+  #       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+  #       with:
+  #         ref: ${{ github.event.pull_request.head.sha || github.sha }}
+  #         fetch-depth: 0
+  #         submodules: recursive
+  #         show-progress: false
+  #
+  #     - name: 🍞 Setup Bun
+  #       uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+  #       with:
+  #         bun-version: latest
+  #
+  #     - name: 💾 Cache Bun dependencies
+  #       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+  #       with:
+  #         path: ~/.bun/install/cache
+  #         key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-bun-cache
+  #
+  #     - name: 📦 Install dependencies and reload submodules
+  #       run: |
+  #         bun install --frozen-lockfile
+  #         bun run submodule-reload
+  #
+  #     - name: 🛠️ Generate project files
+  #       run: bun run prebuild:tv
+  #
+  #     - name: 🏗️ Setup EAS
+  #       uses: expo/expo-github-action@main
+  #       with:
+  #         eas-version: latest
+  #         token: ${{ secrets.EXPO_TOKEN }}
+  #         eas-cache: true
+  #
+  #     - name: ⚙️ Ensure tvOS SDKs installed
+  #       run: xcodebuild -downloadPlatform tvOS
+  #
+  #     - name: 🚀 Build iOS app
+  #       env:
+  #         EXPO_TV: 1
+  #       run: eas build -p ios --local --non-interactive
+  #
+  #     - name: 📅 Set date tag
+  #       run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+  #
+  #     - name: 📤 Upload IPA artifact
+  #       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+  #       with:
+  #         name: streamyfin-ios-tv-ipa-${{ env.DATE_TAG }}
+  #         path: build-*.ipa
+  #         retention-days: 7

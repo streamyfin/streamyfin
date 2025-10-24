@@ -1,22 +1,17 @@
-import { useFavorite } from "@/hooks/useFavorite";
-import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import type {
-  BaseItemDto,
-  BaseItemPerson,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useRouter, useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import { useFavorite } from "@/hooks/useFavorite";
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
+  isOffline?: boolean;
 }
 
-export const itemRouter = (
-  item: BaseItemDto | BaseItemPerson,
-  from: string,
-) => {
+export const itemRouter = (item: BaseItemDto, from: string) => {
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${from}/livetv`;
   }
@@ -25,8 +20,8 @@ export const itemRouter = (
     return `/(auth)/(tabs)/${from}/series/${item.Id}`;
   }
 
-  if (item.Type === "Person" || item.Type === "Actor") {
-    return `/(auth)/(tabs)/${from}/actors/${item.Id}`;
+  if (item.Type === "Person") {
+    return `/(auth)/(tabs)/${from}/persons/${item.Id}`;
   }
 
   if (item.Type === "BoxSet") {
@@ -48,8 +43,51 @@ export const itemRouter = (
   return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
 };
 
+export const getItemNavigation = (item: BaseItemDto, _from: string) => {
+  if ("CollectionType" in item && item.CollectionType === "livetv") {
+    return {
+      pathname: "/livetv" as const,
+    };
+  }
+
+  if (item.Type === "Series") {
+    return {
+      pathname: "/series/[id]" as const,
+      params: { id: item.Id! },
+    };
+  }
+
+  if (item.Type === "Person") {
+    return {
+      pathname: "/persons/[personId]" as const,
+      params: { personId: item.Id! },
+    };
+  }
+
+  if (item.Type === "BoxSet" || item.Type === "UserView") {
+    return {
+      pathname: "/collections/[collectionId]" as const,
+      params: { collectionId: item.Id! },
+    };
+  }
+
+  if (item.Type === "CollectionFolder" || item.Type === "Playlist") {
+    return {
+      pathname: "/[libraryId]" as const,
+      params: { libraryId: item.Id! },
+    };
+  }
+
+  // Default case - items page
+  return {
+    pathname: "/items/page" as const,
+    params: { id: item.Id! },
+  };
+};
+
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
+  isOffline = false,
   children,
   ...props
 }) => {
@@ -59,7 +97,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
 
-  const from = segments[2];
+  const from = (segments as string[])[2] || "(home)";
 
   const showActionSheet = useCallback(() => {
     if (
@@ -105,13 +143,21 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         onLongPress={showActionSheet}
         onPress={() => {
-          const url = itemRouter(item, from);
-          // @ts-expect-error
-          router.push(url);
+          if (isOffline) {
+            // For offline mode, we still need to use query params
+            const url = `${itemRouter(item, from)}&offline=true`;
+            router.push(url as any);
+            return;
+          }
+
+          const navigation = getItemNavigation(item, from);
+          router.push(navigation as any);
         }}
         {...props}
       >
         {children}
       </TouchableOpacity>
     );
+
+  return null;
 };

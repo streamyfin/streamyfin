@@ -1,21 +1,3 @@
-import { Tag, Tags } from "@/components/GenreTags";
-import { TouchableJellyseerrRouter } from "@/components/common/JellyseerrItemRouter";
-import { Text } from "@/components/common/Text";
-import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
-import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
-import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
-import { Colors } from "@/constants/Colors";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
-import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
-import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
-import type { DownloadingItem } from "@/utils/jellyseerr/server/lib/downloadtracker";
-import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
-import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Image } from "expo-image";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,9 +7,28 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { TouchableJellyseerrRouter } from "@/components/common/JellyseerrItemRouter";
+import { Text } from "@/components/common/Text";
+import { Tag, Tags } from "@/components/GenreTags";
+import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
+import JellyseerrMediaIcon from "@/components/jellyseerr/JellyseerrMediaIcon";
+import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
+import { Colors } from "@/constants/Colors";
+import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
+import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
+import type { DownloadingItem } from "@/utils/jellyseerr/server/lib/downloadtracker";
+import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
+import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
+import type {
+  MovieResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
+import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
 interface Props extends ViewProps {
-  item?: MovieResult | TvResult | MovieDetails | TvDetails;
+  item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast;
   horizontal?: boolean;
   showDownloadInfo?: boolean;
   mediaRequest?: MediaRequest;
@@ -38,7 +39,6 @@ const JellyseerrPoster: React.FC<Props> = ({
   horizontal,
   showDownloadInfo,
   mediaRequest,
-  ...props
 }) => {
   const { jellyseerrApi, getTitle, getYear, getMediaType } = useJellyseerr();
   const loadingOpacity = useSharedValue(1);

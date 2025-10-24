@@ -1,11 +1,96 @@
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { ticksToMs } from "@/utils/time";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
-import { useAtom } from "jotai";
+import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useDownload } from "@/providers/DownloadProvider";
+import { ticksToMs } from "@/utils/time";
+import {
+  generateTrickplayUrl,
+  getTrickplayInfo,
+  type TrickplayInfo,
+} from "@/utils/trickplay";
 
-interface TrickplayData {
+interface TrickplayUrl {
+  x: number;
+  y: number;
+  url: string;
+}
+
+/** Hook to handle trickplay logic for a given item. */
+export const useTrickplay = (item: BaseItemDto) => {
+  const { getDownloadedItemById } = useDownload();
+  const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
+  const lastCalculationTime = useRef(0);
+  const throttleDelay = 200;
+  const isOffline = useGlobalSearchParams().offline === "true";
+  const trickplayInfo = useMemo(() => getTrickplayInfo(item), [item]);
+
+  /** Generates the trickplay URL for the given item and sheet index.
+   * We change between offline and online trickplay URLs depending on the state of the app. */
+  const getTrickplayUrl = useCallback(
+    (item: BaseItemDto, sheetIndex: number) => {
+      // If we are offline, we can use the downloaded item's trickplay data path
+      const downloadedItem = getDownloadedItemById(item.Id!);
+      if (isOffline && downloadedItem?.trickPlayData?.path) {
+        return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
+      }
+      return generateTrickplayUrl(item, sheetIndex);
+    },
+    [trickplayInfo, isOffline, getDownloadedItemById],
+  );
+
+  /** Calculates the trickplay URL for the current progress. */
+  const calculateTrickplayUrl = useCallback(
+    (progress: number) => {
+      const now = Date.now();
+      if (
+        !trickplayInfo ||
+        !item.Id ||
+        now - lastCalculationTime.current < throttleDelay
+      )
+        return;
+      lastCalculationTime.current = now;
+      const { sheetIndex, x, y } = calculateTrickplayTile(
+        progress,
+        trickplayInfo,
+      );
+      const url = getTrickplayUrl(item, sheetIndex);
+      if (url) setTrickPlayUrl({ x, y, url });
+    },
+    [trickplayInfo, item, throttleDelay, getTrickplayUrl],
+  );
+
+  /** Prefetches all the trickplay images for the item, limiting concurrency to avoid I/O spikes. */
+  const prefetchAllTrickplayImages = useCallback(async () => {
+    if (!trickplayInfo || !item.Id) return;
+    const maxConcurrent = 4;
+    const total = trickplayInfo.totalImageSheets;
+    const urls: string[] = [];
+    for (let index = 0; index < total; index++) {
+      const url = getTrickplayUrl(item, index);
+      if (url) urls.push(url);
+    }
+    for (let i = 0; i < urls.length; i += maxConcurrent) {
+      const batch = urls.slice(i, i + maxConcurrent);
+      await Promise.all(
+        batch.map(
+          (url) => Image.prefetch(url).catch(() => {}), // Ignore errors
+        ),
+      );
+      // Yield to the event loop between batches to avoid blocking
+      await Promise.resolve();
+    }
+  }, [trickplayInfo, item, getTrickplayUrl]);
+
+  return {
+    trickPlayUrl,
+    calculateTrickplayUrl,
+    prefetchAllTrickplayImages,
+    trickplayInfo,
+  };
+};
+
+export interface TrickplayData {
   Interval?: number;
   TileWidth?: number;
   TileHeight?: number;
@@ -14,141 +99,32 @@ interface TrickplayData {
   ThumbnailCount?: number;
 }
 
-interface TrickplayInfo {
-  resolution: string;
-  aspectRatio: number;
-  data: TrickplayData;
-}
+/**
+ * Calculates the specific image sheet and tile offset for a given time.
+ * @param progressTicks The current playback time in ticks.
+ * @param trickplayInfo The parsed trickplay information object.
+ * @returns An object with the image sheet index, and the X/Y coordinates for the tile.
+ */
+const calculateTrickplayTile = (
+  progressTicks: number,
+  trickplayInfo: TrickplayInfo,
+) => {
+  const { data } = trickplayInfo;
+  const { Interval, TileWidth, TileHeight } = data;
 
-interface TrickplayUrl {
-  x: number;
-  y: number;
-  url: string;
-}
+  if (!Interval || !TileWidth || !TileHeight) {
+    throw new Error("Invalid trickplay data provided to calculateTile");
+  }
 
-export const useTrickplay = (item: BaseItemDto, enabled = true) => {
-  const [api] = useAtom(apiAtom);
-  const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
-  const lastCalculationTime = useRef(0);
-  const throttleDelay = 200; // 200ms throttle
+  const currentTimeMs = Math.max(0, ticksToMs(progressTicks));
+  const currentTile = Math.floor(currentTimeMs / Interval);
 
-  const trickplayInfo = useMemo(() => {
-    if (!enabled || !item.Id || !item.Trickplay) {
-      return null;
-    }
+  const tilesPerSheet = TileWidth * TileHeight;
+  const sheetIndex = Math.floor(currentTile / tilesPerSheet);
+  const tileIndexInSheet = currentTile % tilesPerSheet;
 
-    const mediaSourceId = item.Id;
-    const trickplayData = item.Trickplay[mediaSourceId];
+  const x = tileIndexInSheet % TileWidth;
+  const y = Math.floor(tileIndexInSheet / TileWidth);
 
-    if (!trickplayData) {
-      return null;
-    }
-
-    // Get the first available resolution
-    const firstResolution = Object.keys(trickplayData)[0];
-    return firstResolution
-      ? {
-          resolution: firstResolution,
-          aspectRatio:
-            trickplayData[firstResolution].Width! /
-            trickplayData[firstResolution].Height!,
-          data: trickplayData[firstResolution],
-        }
-      : null;
-  }, [item, enabled]);
-
-  // Takes in ticks.
-  const calculateTrickplayUrl = useCallback(
-    (progress: number) => {
-      if (!enabled) {
-        return null;
-      }
-
-      const now = Date.now();
-      if (now - lastCalculationTime.current < throttleDelay) {
-        return null;
-      }
-      lastCalculationTime.current = now;
-
-      if (!trickplayInfo || !api || !item.Id) {
-        return null;
-      }
-
-      const { data, resolution } = trickplayInfo;
-      const { Interval, TileWidth, TileHeight, Width, Height } = data;
-
-      if (
-        !Interval ||
-        !TileWidth ||
-        !TileHeight ||
-        !resolution ||
-        !Width ||
-        !Height
-      ) {
-        throw new Error("Invalid trickplay data");
-      }
-
-      const currentTimeMs = Math.max(0, ticksToMs(progress));
-      const currentTile = Math.floor(currentTimeMs / Interval);
-
-      const tileSize = TileWidth * TileHeight;
-      const tileOffset = currentTile % tileSize;
-      const index = Math.floor(currentTile / tileSize);
-
-      const tileOffsetX = tileOffset % TileWidth;
-      const tileOffsetY = Math.floor(tileOffset / TileWidth);
-
-      const newTrickPlayUrl = {
-        x: tileOffsetX,
-        y: tileOffsetY,
-        url: `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${index}.jpg?api_key=${api.accessToken}`,
-      };
-
-      setTrickPlayUrl(newTrickPlayUrl);
-      return newTrickPlayUrl;
-    },
-    [trickplayInfo, item, api, enabled],
-  );
-
-  const prefetchAllTrickplayImages = useCallback(() => {
-    if (!api || !enabled || !trickplayInfo || !item.Id || !item.RunTimeTicks) {
-      return;
-    }
-
-    const { data, resolution } = trickplayInfo;
-    const { Interval, TileWidth, TileHeight, Width, Height } = data;
-
-    if (
-      !Interval ||
-      !TileWidth ||
-      !TileHeight ||
-      !resolution ||
-      !Width ||
-      !Height
-    ) {
-      throw new Error("Invalid trickplay data");
-    }
-
-    // Calculate tiles per sheet
-    const tilesPerRow = TileWidth;
-    const tilesPerColumn = TileHeight;
-    const tilesPerSheet = tilesPerRow * tilesPerColumn;
-    const totalTiles = Math.ceil(ticksToMs(item.RunTimeTicks) / Interval);
-    const totalIndexes = Math.ceil(totalTiles / tilesPerSheet);
-
-    // Prefetch all trickplay images
-    for (let index = 0; index < totalIndexes; index++) {
-      const url = `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${index}.jpg?api_key=${api.accessToken}`;
-      Image.prefetch(url);
-    }
-  }, [trickplayInfo, item, api, enabled]);
-
-  return {
-    trickPlayUrl: enabled ? trickPlayUrl : null,
-    calculateTrickplayUrl: enabled ? calculateTrickplayUrl : () => null,
-    prefetchAllTrickplayImages: enabled
-      ? prefetchAllTrickplayImages
-      : () => null,
-    trickplayInfo: enabled ? trickplayInfo : null,
-  };
+  return { sheetIndex, x, y };
 };

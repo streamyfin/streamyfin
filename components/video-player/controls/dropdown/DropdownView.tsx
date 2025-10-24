@@ -1,11 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useState, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, TouchableOpacity } from "react-native";
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-import { BITRATES } from "@/components/BitrateSelector";
-import { Settings, useSettings } from "@/utils/atoms/settings";
+
+const _DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
+
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from "@gorhom/bottom-sheet";
 import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRef } from "react";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BITRATES } from "@/components/BitrateSelector";
+import { Text } from "@/components/common/Text";
+import { Settings, useSettings } from "@/utils/atoms/settings";
 import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
 
@@ -18,6 +30,10 @@ export const PLAYBACK_SPEEDS = [
   { label: "1.5x", value: 1.5 },
   { label: "1.75x", value: 1.75 },
   { label: "2x", value: 2.0 },
+  { label: "2.25x", value: 2.25 },
+  { label: "2.5x", value: 2.5 },
+  { label: "2.75x", value: 2.75 },
+  { label: "3x", value: 3.0 },
 ];
 export enum PlaybackSpeedScope {
   Media = "media",
@@ -34,12 +50,12 @@ const DropdownView = () => {
     ControlContext?.mediaSource,
   ];
   const router = useRouter();
-  const [currentSpeed, setCurrentSpeed] = useState(1.0);
-  const [playbackSpeedScope, setPlaybackSpeedScope] = useState(
+  const [_currentSpeed, setCurrentSpeed] = useState(1.0);
+  const [_playbackSpeedScope, setPlaybackSpeedScope] = useState(
     PlaybackSpeedScope.All,
   );
 
-  const PLAYBACK_SPEED_SCOPE_LABELS = useMemo(() => {
+  const _PLAYBACK_SPEED_SCOPE_LABELS = useMemo(() => {
     const labels: Record<string, string> = {
       [PlaybackSpeedScope.Media]: "Custom for this media",
     };
@@ -52,14 +68,23 @@ const DropdownView = () => {
 
     return labels;
   }, [item?.SeriesId]);
+  const insets = useSafeAreaInsets();
+  const [open, setOpen] = useState(false);
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ["75%"], []);
 
-  const { subtitleIndex, audioIndex, bitrateValue } = useLocalSearchParams<{
-    itemId: string;
-    audioIndex: string;
-    subtitleIndex: string;
-    mediaSourceId: string;
-    bitrateValue: string;
-  }>();
+  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition, offline } =
+    useLocalSearchParams<{
+      itemId: string;
+      audioIndex: string;
+      subtitleIndex: string;
+      mediaSourceId: string;
+      bitrateValue: string;
+      playbackPosition: string;
+      offline: string;
+    }>();
+
+  const isOffline = offline === "true";
 
   const changeBitrate = useCallback(
     (bitrate: string) => {
@@ -69,11 +94,11 @@ const DropdownView = () => {
         subtitleIndex: subtitleIndex.toString() ?? "",
         mediaSourceId: mediaSource?.Id ?? "",
         bitrateValue: bitrate.toString(),
+        playbackPosition: playbackPosition,
       }).toString();
-      // @ts-expect-error
-      router.replace(`player/direct-player?${queryParams}`);
+      router.replace(`player/direct-player?${queryParams}` as any);
     },
-    [item, mediaSource, subtitleIndex, audioIndex],
+    [item, mediaSource, subtitleIndex, audioIndex, playbackPosition],
   );
 
   const [settings, updateSettings] = useSettings();
@@ -151,7 +176,7 @@ const DropdownView = () => {
     [settings, updateSettings, clearConflictingSettings],
   );
 
-  const changePlaybackSpeed = useCallback(
+  const _changePlaybackSpeed = useCallback(
     (speed: number, scope: PlaybackSpeedScope) => {
       setCurrentSpeed(speed);
       setPlaybackSpeedScope(scope);
@@ -192,160 +217,231 @@ const DropdownView = () => {
     setCurrentSpeed(preferredSpeed);
   }, [item, settings, videoContext]);
 
+  const handleSheetChanges = useCallback((index: number) => {
+    if (index === -1) {
+      setOpen(false);
+    }
+  }, []);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    [],
+  );
+
+  const handleOpen = () => {
+    setOpen(true);
+    bottomSheetModalRef.current?.present();
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    bottomSheetModalRef.current?.dismiss();
+  };
+
+  useEffect(() => {
+    if (open) bottomSheetModalRef.current?.present();
+    else bottomSheetModalRef.current?.dismiss();
+  }, [open]);
+
+  // Hide on TV platforms
+  if (Platform.isTV) return null;
+
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <TouchableOpacity className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'>
-          <Ionicons name='ellipsis-horizontal' size={24} color={"white"} />
-        </TouchableOpacity>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content
-        loop={true}
-        side='bottom'
-        align='start'
-        alignOffset={0}
-        avoidCollisions={true}
-        collisionPadding={8}
-        sideOffset={8}
+    <>
+      <TouchableOpacity
+        className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+        onPress={handleOpen}
       >
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key='qualitytrigger'>
-            Quality
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
-          >
-            {BITRATES?.map((bitrate, idx: number) => (
-              <DropdownMenu.CheckboxItem
-                key={`quality-item-${idx}`}
-                value={bitrateValue === (bitrate.value?.toString() ?? "")}
-                onValueChange={() =>
-                  changeBitrate(bitrate.value?.toString() ?? "")
-                }
-              >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                  {bitrate.key}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.CheckboxItem>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
+        <Ionicons name='ellipsis-horizontal' size={24} color={"white"} />
+      </TouchableOpacity>
 
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key='speed-trigger'>
-            Playback Speed
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        index={0}
+        snapPoints={snapPoints}
+        onChange={handleSheetChanges}
+        backdropComponent={renderBackdrop}
+        handleIndicatorStyle={{
+          backgroundColor: "white",
+        }}
+        backgroundStyle={{
+          backgroundColor: "#171717",
+        }}
+      >
+        <BottomSheetScrollView
+          style={{
+            flex: 1,
+          }}
+        >
+          <View
+            className='mt-2 mb-8'
+            style={{
+              paddingLeft: Math.max(16, insets.left),
+              paddingRight: Math.max(16, insets.right),
+            }}
           >
-            {PLAYBACK_SPEEDS.map((speed, idx) => (
-              <DropdownMenu.Sub key={`speed-${idx}`}>
-                <DropdownMenu.SubTrigger
-                  key={speed.label}
-                  textValue={`${speed.label} ${currentSpeed === speed.value ? "✓" : ""}`}
+            <Text className='font-bold text-2xl mb-6'>Playback Options</Text>
+
+            {/* Quality Section */}
+            {!isOffline && (
+              <View className='mb-6'>
+                <Text className='font-semibold text-lg mb-3 text-neutral-300'>
+                  Quality
+                </Text>
+                <View
+                  style={{
+                    borderRadius: 20,
+                    overflow: "hidden",
+                  }}
+                  className='flex flex-col rounded-xl overflow-hidden'
                 >
-                  {speed.label} {currentSpeed === speed.value && "✓"}
-                </DropdownMenu.SubTrigger>
-                <DropdownMenu.SubContent
-                  alignOffset={-10}
-                  avoidCollisions={true}
-                  collisionPadding={0}
-                  loop={true}
-                  sideOffset={10}
+                  {BITRATES?.map((bitrate, idx: number) => (
+                    <View key={`quality-item-${idx}`}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          changeBitrate(bitrate.value?.toString() ?? "");
+                          setTimeout(() => handleClose(), 250);
+                        }}
+                        className='bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
+                      >
+                        <Text className='flex shrink'>{bitrate.key}</Text>
+                        {bitrateValue === (bitrate.value?.toString() ?? "") ? (
+                          <Ionicons
+                            name='radio-button-on'
+                            size={24}
+                            color='white'
+                          />
+                        ) : (
+                          <Ionicons
+                            name='radio-button-off'
+                            size={24}
+                            color='white'
+                          />
+                        )}
+                      </TouchableOpacity>
+                      {idx < BITRATES.length - 1 && (
+                        <View
+                          style={{
+                            height: StyleSheet.hairlineWidth,
+                          }}
+                          className='bg-neutral-700'
+                        />
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Subtitle Section */}
+            <View className='mb-6'>
+              <Text className='font-semibold text-lg mb-3 text-neutral-300'>
+                Subtitles
+              </Text>
+              <View
+                style={{
+                  borderRadius: 20,
+                  overflow: "hidden",
+                }}
+                className='flex flex-col rounded-xl overflow-hidden'
+              >
+                {subtitleTracks?.map((sub, idx: number) => (
+                  <View key={`subtitle-item-${idx}`}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        sub.setTrack();
+                        setTimeout(() => handleClose(), 250);
+                      }}
+                      className='bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
+                    >
+                      <Text className='flex shrink'>{sub.name}</Text>
+                      {subtitleIndex === sub.index.toString() ? (
+                        <Ionicons
+                          name='radio-button-on'
+                          size={24}
+                          color='white'
+                        />
+                      ) : (
+                        <Ionicons
+                          name='radio-button-off'
+                          size={24}
+                          color='white'
+                        />
+                      )}
+                    </TouchableOpacity>
+                    {idx < (subtitleTracks?.length ?? 0) - 1 && (
+                      <View
+                        style={{
+                          height: StyleSheet.hairlineWidth,
+                        }}
+                        className='bg-neutral-700'
+                      />
+                    )}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Audio Section */}
+            {(audioTracks?.length ?? 0) > 0 && (
+              <View className='mb-6'>
+                <Text className='font-semibold text-lg mb-3 text-neutral-300'>
+                  Audio
+                </Text>
+                <View
+                  style={{
+                    borderRadius: 20,
+                    overflow: "hidden",
+                  }}
+                  className='flex flex-col rounded-xl overflow-hidden'
                 >
-                  {Object.entries(PLAYBACK_SPEED_SCOPE_LABELS).map(
-                    ([scope, label]) => {
-                      let isSelected = "";
-                      if (
-                        currentSpeed === speed.value &&
-                        playbackSpeedScope === scope
-                      ) {
-                        isSelected = "✓";
-                      }
-                      const labelText = `${label} ${isSelected}`;
-
-                      return (
-                        <DropdownMenu.Item
-                          key={`speed-${scope}-${idx}`}
-                          textValue={labelText}
-                          onSelect={() =>
-                            changePlaybackSpeed(
-                              speed.value,
-                              scope as PlaybackSpeedScope,
-                            )
-                          }
-                        >
-                          <DropdownMenu.ItemTitle>
-                            {labelText}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.Item>
-                      );
-                    },
-                  )}
-                </DropdownMenu.SubContent>
-              </DropdownMenu.Sub>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
-
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key='subtitle-trigger'>
-            Subtitle
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
-          >
-            {subtitleTracks?.map((sub, idx: number) => (
-              <DropdownMenu.CheckboxItem
-                key={`subtitle-item-${idx}`}
-                value={subtitleIndex === sub.index.toString()}
-                onValueChange={() => sub.setTrack()}
-              >
-                <DropdownMenu.ItemTitle key={`subtitle-item-title-${idx}`}>
-                  {sub.name}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.CheckboxItem>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
-        <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger key='audio-trigger'>
-            Audio
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.SubContent
-            alignOffset={-10}
-            avoidCollisions={true}
-            collisionPadding={0}
-            loop={true}
-            sideOffset={10}
-          >
-            {audioTracks?.map((track, idx: number) => (
-              <DropdownMenu.CheckboxItem
-                key={`audio-item-${idx}`}
-                value={audioIndex === track.index.toString()}
-                onValueChange={() => track.setTrack()}
-              >
-                <DropdownMenu.ItemTitle key={`audio-item-title-${idx}`}>
-                  {track.name}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.CheckboxItem>
-            ))}
-          </DropdownMenu.SubContent>
-        </DropdownMenu.Sub>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+                  {audioTracks?.map((track, idx: number) => (
+                    <View key={`audio-item-${idx}`}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          track.setTrack();
+                          setTimeout(() => handleClose(), 250);
+                        }}
+                        className='bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
+                      >
+                        <Text className='flex shrink'>{track.name}</Text>
+                        {audioIndex === track.index.toString() ? (
+                          <Ionicons
+                            name='radio-button-on'
+                            size={24}
+                            color='white'
+                          />
+                        ) : (
+                          <Ionicons
+                            name='radio-button-off'
+                            size={24}
+                            color='white'
+                          />
+                        )}
+                      </TouchableOpacity>
+                      {idx < (audioTracks?.length ?? 0) - 1 && (
+                        <View
+                          style={{
+                            height: StyleSheet.hairlineWidth,
+                          }}
+                          className='bg-neutral-700'
+                        />
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        </BottomSheetScrollView>
+      </BottomSheetModal>
+    </>
   );
 };
 

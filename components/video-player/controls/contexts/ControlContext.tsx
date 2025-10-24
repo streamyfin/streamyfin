@@ -3,7 +3,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import type React from "react";
-import { type ReactNode, createContext, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext } from "react";
 
 interface ControlContextProps {
   item: BaseItemDto;

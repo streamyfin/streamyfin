@@ -1,3 +1,9 @@
+import { useNavigation, useRouter } from "expo-router";
+import { t } from "i18next";
+import { useAtom } from "jotai";
+import { useEffect } from "react";
+import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -5,6 +11,7 @@ import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { AudioToggles } from "@/components/settings/AudioToggles";
 import { ChromecastSettings } from "@/components/settings/ChromecastSettings";
 import DownloadSettings from "@/components/settings/DownloadSettings";
+import { GestureControls } from "@/components/settings/GestureControls";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
 import { OtherSettings } from "@/components/settings/OtherSettings";
@@ -14,21 +21,14 @@ import { StorageSettings } from "@/components/settings/StorageSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useJellyfin } from "@/providers/JellyfinProvider";
-import { userAtom } from "@/providers/JellyfinProvider";
+import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { clearLogs } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
-import { useNavigation, useRouter } from "expo-router";
-import { t } from "i18next";
-import { useAtom } from "jotai";
-import React, { useEffect } from "react";
-import { ScrollView, Switch, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [user] = useAtom(userAtom);
+  const [_user] = useAtom(userAtom);
   const { logout } = useJellyfin();
   const successHapticFeedback = useHaptic("success");
 
@@ -68,19 +68,20 @@ export default function settings() {
 
         <MediaProvider>
           <MediaToggles className='mb-4' />
+          <GestureControls className='mb-4' />
           <AudioToggles className='mb-4' />
           <SubtitleToggles className='mb-4' />
         </MediaProvider>
 
         <OtherSettings />
 
-        <DownloadSettings />
+        {!Platform.isTV && <DownloadSettings />}
 
         <PluginSettings />
 
         <AppLanguageSelector />
 
-        <ChromecastSettings />
+        {!Platform.isTV && <ChromecastSettings />}
 
         <ListGroup title={"Intro"}>
           <ListItem
@@ -113,7 +114,7 @@ export default function settings() {
           </ListGroup>
         </View>
 
-        <StorageSettings />
+        {!Platform.isTV && <StorageSettings />}
       </View>
     </ScrollView>
   );

@@ -1,10 +1,7 @@
-import { BITRATES, Bitrate } from "@/components/BitrateSelector";
-import type { Settings } from "@/utils/atoms/settings";
-import {
-  type BaseItemDto,
-  MediaSourceInfo,
-} from "@jellyfin/sdk/lib/generated-client";
+import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
+import { BITRATES } from "@/components/BitrateSelector";
+import type { Settings } from "@/utils/atoms/settings";
 
 // Used only for initial play settings.
 const useDefaultPlaySettings = (
@@ -29,14 +26,18 @@ const useDefaultPlaySettings = (
     )?.Index;
 
     // 4. Get default bitrate from settings or fallback to max
-    const bitrate = settings?.defaultBitrate ?? BITRATES[0];
+    let bitrate = settings?.defaultBitrate ?? BITRATES[0];
+    // value undefined seems to get lost in settings. This is just a failsafe
+    if (bitrate.key === BITRATES[0].key) {
+      bitrate = BITRATES[0];
+    }
 
     return {
       defaultAudioIndex:
-        preferedAudioIndex || defaultAudioIndex || firstAudioIndex || undefined,
-      defaultSubtitleIndex: mediaSource?.DefaultSubtitleStreamIndex || -1,
-      defaultMediaSource: mediaSource || undefined,
-      defaultBitrate: bitrate || undefined,
+        preferedAudioIndex ?? defaultAudioIndex ?? firstAudioIndex ?? undefined,
+      defaultSubtitleIndex: mediaSource?.DefaultSubtitleStreamIndex ?? -1,
+      defaultMediaSource: mediaSource ?? undefined,
+      defaultBitrate: bitrate ?? undefined,
     };
   }, [
     item.MediaSources,

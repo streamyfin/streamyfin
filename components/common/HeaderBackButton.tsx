@@ -1,4 +1,3 @@
-import { Text } from "@/components/common/Text";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView, type BlurViewProps } from "expo-blur";
 import { useRouter } from "expo-router";
@@ -6,8 +5,6 @@ import {
   Platform,
   TouchableOpacity,
   type TouchableOpacityProps,
-  View,
-  ViewProps,
 } from "react-native";
 
 interface Props extends BlurViewProps {
@@ -21,6 +18,18 @@ export const HeaderBackButton: React.FC<Props> = ({
   ...props
 }) => {
   const router = useRouter();
+
+  if (Platform.OS === "ios") {
+    return (
+      <TouchableOpacity
+        onPress={() => router.back()}
+        className='flex items-center justify-center w-9 h-9'
+        {...touchableOpacityProps}
+      >
+        <Ionicons name='arrow-back' size={24} color='white' />
+      </TouchableOpacity>
+    );
+  }
 
   if (background === "transparent" && Platform.OS !== "android")
     return (
