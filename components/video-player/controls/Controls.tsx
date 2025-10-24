@@ -7,7 +7,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   type Dispatch,
   type FC,
-  type MutableRefObject,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -28,7 +27,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import type { TrackInfo } from "@/modules/VlcPlayer.types";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -51,7 +50,6 @@ import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
@@ -88,7 +86,6 @@ interface Props {
 
 export const Controls: FC<Props> = ({
   item,
-  videoRef,
   seek,
   startPictureInPicture,
   play,

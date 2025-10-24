@@ -55,7 +55,7 @@ interface ItemContentProps {
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
   ({ item, isOffline }) => {
     const [api] = useAtom(apiAtom);
-    const { settings, updateSettings } = useSettings();
+    const { settings } = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
