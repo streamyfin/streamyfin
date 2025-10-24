@@ -34,6 +34,7 @@ import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSheet } from "./MediaSourceSheet";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
+import { PlaybackSpeedSelector } from "./PlaybackSpeedSelector";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
 import { TrackSheet } from "./TrackSheet";
 
@@ -55,7 +56,7 @@ interface ItemContentProps {
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
   ({ item, isOffline }) => {
     const [api] = useAtom(apiAtom);
-    const { settings } = useSettings();
+    const { settings, updateSettings } = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();

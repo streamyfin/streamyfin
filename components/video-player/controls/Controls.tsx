@@ -37,6 +37,7 @@ import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { ControlProvider } from "./contexts/ControlContext";
+import { PlaybackSpeedScope } from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -75,6 +76,7 @@ interface Props {
   setAudioTrack?: (index: number) => void;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  setRate?: (rate: number) => Promise<void>;
   aspectRatio?: AspectRatio;
   scaleFactor?: ScaleFactor;
   setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
@@ -108,6 +110,7 @@ export const Controls: FC<Props> = ({
   setAudioTrack,
   setVideoAspectRatio,
   setVideoScaleFactor,
+  setRate,
   aspectRatio = "default",
   scaleFactor = 1.0,
   setAspectRatio,
@@ -123,6 +126,7 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+  const [playbackSpeed, setPlaybackSpeedState] = useState(1.0);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -479,6 +483,77 @@ export const Controls: FC<Props> = ({
     }
   }, [isPlaying, togglePlay]);
 
+  // Initialize playback speed based on stored preferences
+  useEffect(() => {
+    if (!item?.Id || !settings || !setRate) return;
+
+    let preferredSpeed = settings.defaultPlaybackSpeed;
+
+    // Check for media-specific speed preference (highest priority)
+    if (settings.playbackSpeedPerMedia[item.Id]) {
+      preferredSpeed = settings.playbackSpeedPerMedia[item.Id];
+    }
+    // Check for show-specific speed preference (only for episodes)
+    else if (item.SeriesId && settings.playbackSpeedPerShow[item.SeriesId]) {
+      preferredSpeed = settings.playbackSpeedPerShow[item.SeriesId];
+    }
+
+    // Set the speed on the player and update local state
+    setRate(preferredSpeed);
+    setPlaybackSpeedState(preferredSpeed);
+  }, [item, settings, setRate]);
+
+  // Handler for changing playback speed
+  const handleSetPlaybackSpeed = useCallback(
+    (speed: number, scope: PlaybackSpeedScope) => {
+      if (!setRate || !item?.Id) return;
+
+      // Update the video player
+      setRate(speed);
+      setPlaybackSpeedState(speed);
+
+      // Clear conflicting settings based on scope
+      const updatedPerMedia = { ...settings.playbackSpeedPerMedia };
+      const updatedPerShow = { ...settings.playbackSpeedPerShow };
+
+      if (scope === PlaybackSpeedScope.All) {
+        // Clear both media-specific and show-specific settings
+        if (item.Id && updatedPerMedia[item.Id] !== undefined) {
+          delete updatedPerMedia[item.Id];
+        }
+        if (item.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
+          delete updatedPerShow[item.SeriesId];
+        }
+        updateSettings({
+          defaultPlaybackSpeed: speed,
+          playbackSpeedPerMedia: updatedPerMedia,
+          playbackSpeedPerShow: updatedPerShow,
+        });
+      } else if (scope === PlaybackSpeedScope.Media) {
+        // Clear show-specific setting only
+        if (item.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
+          delete updatedPerShow[item.SeriesId];
+        }
+        updatedPerMedia[item.Id] = speed;
+        updateSettings({
+          playbackSpeedPerMedia: updatedPerMedia,
+          playbackSpeedPerShow: updatedPerShow,
+        });
+      } else if (scope === PlaybackSpeedScope.Show && item.SeriesId) {
+        // Clear media-specific setting only
+        if (item.Id && updatedPerMedia[item.Id] !== undefined) {
+          delete updatedPerMedia[item.Id];
+        }
+        updatedPerShow[item.SeriesId] = speed;
+        updateSettings({
+          playbackSpeedPerShow: updatedPerShow,
+          playbackSpeedPerMedia: updatedPerMedia,
+        });
+      }
+    },
+    [item, settings, updateSettings, setRate],
+  );
+
   return (
     <ControlProvider
       item={item}
@@ -523,10 +598,12 @@ export const Controls: FC<Props> = ({
               setSubtitleURL={setSubtitleURL}
               aspectRatio={aspectRatio}
               scaleFactor={scaleFactor}
+              playbackSpeed={playbackSpeed}
               setAspectRatio={setAspectRatio}
               setScaleFactor={setScaleFactor}
               setVideoAspectRatio={setVideoAspectRatio}
               setVideoScaleFactor={setVideoScaleFactor}
+              setPlaybackSpeed={handleSetPlaybackSpeed}
             />
           </Animated.View>
           <Animated.View

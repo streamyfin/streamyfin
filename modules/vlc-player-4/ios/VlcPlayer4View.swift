@@ -22,6 +22,8 @@ public class VLCPlayerView: UIView {
             subview.frame = bounds
         }
     }
+    
+    
 }
 
 class VLCPlayerWrapper: NSObject {
@@ -99,6 +101,10 @@ extension VLCPlayerWrapper: VLCPictureInPictureMediaControlling {
 
     func isMediaPlaying() -> Bool {
         return player.isPlaying
+    }
+    
+    func setRate(_ rate: Float) {
+        player.rate = rate
     }
 }
 
@@ -212,6 +218,10 @@ class VlcPlayer4View: ExpoView {
     @objc func pause() {
         self.vlc.player.pause()
         self.isPaused = true
+    }
+    
+    @objc func setRate(_ rate: Float) {
+        self.vlc.player.rate = rate
     }
 
     @objc func seekTo(_ time: Int32) {

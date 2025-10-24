@@ -101,7 +101,7 @@ const DropdownView = () => {
     [item, mediaSource, subtitleIndex, audioIndex, playbackPosition],
   );
 
-  const [settings, updateSettings] = useSettings();
+  const { settings, updateSettings } = useSettings();
 
   // Helper function to clear conflicting playback speed settings
   const clearConflictingSettings = useCallback(

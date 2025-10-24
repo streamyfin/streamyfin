@@ -70,6 +70,10 @@ public class VlcPlayerModule: Module {
                 view.setVideoScaleFactor(scaleFactor)
             }
 
+            AsyncFunction("setRate") { (view: VlcPlayerView, rate: Float) in
+                view.setRate(rate)
+            }
+
             AsyncFunction("getSubtitleTracks") { (view: VlcPlayerView) -> [[String: Any]]? in
                 return view.getSubtitleTracks()
             }

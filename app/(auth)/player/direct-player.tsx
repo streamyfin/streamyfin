@@ -655,6 +655,10 @@ export default function page() {
     );
   }, []);
 
+  const setRate = useCallback(async (rate: number) => {
+    await videoRef.current?.setRate?.(rate);
+  }, []);
+
   console.log("Debug: component render"); // Uncomment to debug re-renders
 
   // Show error UI first, before checking loading/missing‐data
@@ -756,6 +760,7 @@ export default function page() {
           setAudioTrack={setAudioTrack}
           setVideoAspectRatio={setVideoAspectRatio}
           setVideoScaleFactor={setVideoScaleFactor}
+          setRate={setRate}
           aspectRatio={aspectRatio}
           scaleFactor={scaleFactor}
           setAspectRatio={setAspectRatio}

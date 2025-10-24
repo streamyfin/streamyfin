@@ -3,13 +3,14 @@ import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
   createContext,
+  type MutableRefObject,
   type ReactNode,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from "react";
-import type { TrackInfo } from "@/modules/VlcPlayer.types";
+import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import type { Track } from "../types";
 import { useControlContext } from "./ControlContext";
 

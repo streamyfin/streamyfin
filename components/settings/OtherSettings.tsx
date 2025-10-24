@@ -20,6 +20,7 @@ import {
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { PLAYBACK_SPEEDS } from "../video-player/controls/dropdown/DropdownView";
 
 export const OtherSettings: React.FC = () => {
   const router = useRouter();

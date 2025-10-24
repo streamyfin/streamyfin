@@ -4,7 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
-import { type Dispatch, type FC, type SetStateAction } from "react";
+import { type Dispatch, type FC, type SetStateAction, useState } from "react";
 import {
   Platform,
   TouchableOpacity,
@@ -12,11 +12,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PlaybackSpeedSelector } from "@/components/PlaybackSpeedSelector";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
 import { VideoProvider } from "./contexts/VideoContext";
-import DropdownView from "./dropdown/DropdownView";
+import DropdownView, { PlaybackSpeedScope } from "./dropdown/DropdownView";
 import { type ScaleFactor, ScaleFactorSelector } from "./ScaleFactorSelector";
 import {
   type AspectRatio,
@@ -41,10 +42,12 @@ interface HeaderControlsProps {
   setSubtitleURL?: (url: string, customName: string) => void;
   aspectRatio?: AspectRatio;
   scaleFactor?: ScaleFactor;
+  playbackSpeed?: number;
   setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
   setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
 }
 
 export const HeaderControls: FC<HeaderControlsProps> = ({
@@ -65,16 +68,19 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   setSubtitleURL,
   aspectRatio = "default",
   scaleFactor = 1.0,
+  playbackSpeed = 1.0,
   setAspectRatio,
   setScaleFactor,
   setVideoAspectRatio,
   setVideoScaleFactor,
+  setPlaybackSpeed,
 }) => {
   const { settings } = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const lightHapticFeedback = useHaptic("light");
+  const [playbackSpeedSheetOpen, setPlaybackSpeedSheetOpen] = useState(false);
 
   const handleAspectRatioChange = async (newRatio: AspectRatio) => {
     if (!setAspectRatio || !setVideoAspectRatio) return;
@@ -89,6 +95,14 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
 
     setScaleFactor(newScale);
     await setVideoScaleFactor(newScale);
+  };
+
+  const handlePlaybackSpeedChange = (
+    newSpeed: number,
+    scope: PlaybackSpeedScope,
+  ) => {
+    if (!setPlaybackSpeed) return;
+    setPlaybackSpeed(newSpeed, scope);
   };
 
   const onClose = async () => {
@@ -172,6 +186,12 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             />
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          onPress={() => setPlaybackSpeedSheetOpen(true)}
+          className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+        >
+          <Ionicons name='speedometer' size={ICON_SIZES.HEADER} color='white' />
+        </TouchableOpacity>
         <AspectRatioSelector
           currentRatio={aspectRatio}
           onRatioChange={handleAspectRatioChange}
@@ -189,6 +209,14 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
           <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
         </TouchableOpacity>
       </View>
+      <PlaybackSpeedSelector
+        onChange={handlePlaybackSpeedChange}
+        selected={playbackSpeed}
+        item={item}
+        open={playbackSpeedSheetOpen}
+        onOpenChange={setPlaybackSpeedSheetOpen}
+        style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
+      />
     </View>
   );
 };

@@ -263,6 +263,13 @@ class VlcPlayerView: ExpoView {
         }
     }
 
+    @objc func setRate(_ rate: Float) {
+        DispatchQueue.main.async {
+            self.mediaPlayer?.rate = rate
+            print("Set playback rate: \(rate)")
+        }
+    }
+
     @objc func stop(completion: (() -> Void)? = nil) {
         guard !isStopping else {
             completion?()
