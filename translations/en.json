@@ -160,8 +160,6 @@
       },
       "other": {
         "other_title": "Other",
-        "follow_device_orientation": "Auto rotate",
-        "video_orientation": "Video orientation",
         "follow_device_orientation": "Auto Rotate",
         "video_orientation": "Video Orientation",
         "orientation": "Orientation",
@@ -512,5 +510,16 @@
     "library": "Library",
     "custom_links": "Custom Links",
     "favorites": "Favorites"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "none": "None",
+    "scope": {
+      "media": "Custom for this media",
+      "show": "Custom for this show",
+      "all": "Default for all media"
+    }
   }
 }
