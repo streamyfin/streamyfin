@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "./common/Text";
 import {
   PLAYBACK_SPEEDS,
@@ -39,10 +40,40 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
 }) => {
   const isTv = Platform.isTV;
   const { t } = useTranslation();
+  const { settings } = useSettings();
   const [internalOpen, setInternalOpen] = useState(false);
-  const [selectedScope, setSelectedScope] = useState<PlaybackSpeedScope>(
-    PlaybackSpeedScope.All,
-  );
+
+  // Determine initial scope based on existing settings
+  const initialScope = useMemo<PlaybackSpeedScope>(() => {
+    if (!item?.Id || !settings) return PlaybackSpeedScope.All;
+
+    // Check for media-specific speed preference
+    if (settings.playbackSpeedPerMedia[item.Id] !== undefined) {
+      return PlaybackSpeedScope.Media;
+    }
+
+    // Check for show-specific speed preference (only for episodes)
+    if (
+      item.SeriesId &&
+      settings.playbackSpeedPerShow[item.SeriesId] !== undefined
+    ) {
+      return PlaybackSpeedScope.Show;
+    }
+
+    // If no custom setting exists, check default playback speed
+    // Show "All" if speed is not 1x, otherwise show "Media"
+    return settings.defaultPlaybackSpeed !== 1.0
+      ? PlaybackSpeedScope.All
+      : PlaybackSpeedScope.Media;
+  }, [item?.Id, item?.SeriesId, settings]);
+
+  const [selectedScope, setSelectedScope] =
+    useState<PlaybackSpeedScope>(initialScope);
+
+  // Update selectedScope when initialScope changes
+  useEffect(() => {
+    setSelectedScope(initialScope);
+  }, [initialScope]);
 
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = onOpenChange || setInternalOpen;
