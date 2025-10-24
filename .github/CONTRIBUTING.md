@@ -24,21 +24,21 @@ Thank you for your interest in contributing to the Streamyfin project. This docu
 ## AI Assistance Disclosure
 
 > [!IMPORTANT]  
-> If any AI tool was used while contributing to Seerr, it must be disclosed in the pull request.
+> If any AI tool was used while contributing to Streamyfin, it must be disclosed in the pull request.
 
-Note in your PR whether AI assistance was used and to what extent (for example, *docs only* or *code generation*).  
-If AI-generated text was used in PR responses, disclose that as well.  
-Simple tab-completion or short keyword suggestions do **not** require disclosure.
+State in your PR whether AI assistance was used and to what extent (for example, *docs only* or *code generation*).  
+If AI-generated text was used in PR discussions or responses, disclose that as well.  
+Minor autocomplete or keyword suggestions do not require disclosure.
 
 ### Examples
 
 > This PR was written primarily by Claude Code.  
-> I used Cursor to understand parts of the codebase, but the implementation is fully manual.
+> I used Cursor to explore parts of the codebase, but the implementation is fully manual.
 
-Failing to disclose AI usage wastes maintainers time and makes it harder to judge review effort.  
-We welcome AI-assisted work, but contributors must understand and take full responsibility for the code they submit.  
+Failing to disclose AI usage wastes maintainers’ time and complicates review efforts.  
+AI-assisted contributions are welcome, but contributors remain fully responsible for the code they submit.  
 
-Be respectful to maintainers and always disclose AI involvement.
+Always disclose AI involvement to maintain transparency and respect for maintainers’ time.
 
 ## Reporting Issues
 
