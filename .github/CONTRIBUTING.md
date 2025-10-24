@@ -1,11 +1,13 @@
 # Contributing to Streamyfin
 
-Thank you for your interest in contributing to the Streamyfin mobile app project! This document provides guidelines to smoothly collaborate on the Streamyfin codebase and help improve the app for all users.
+Thank you for your interest in contributing to the Streamyfin project. This document outlines the guidelines for effective collaboration across the Streamyfin codebase and aims to ensure a smooth, productive experience for all contributors.
 
 ---
 
 ## Table of Contents
 
+
+- [AI Assistance Disclosure](#ai-assistance-disclosure)
 - [Reporting Issues](#reporting-issues)
 - [Reporting Security Vulnerabilities](#reporting-security-vulnerabilities)
 - [Requesting Features & Enhancements](#requesting-features--enhancements)
@@ -18,6 +20,25 @@ Thank you for your interest in contributing to the Streamyfin mobile app project
 - [Getting Help and Community](#getting-help-and-community)
 
 ---
+
+## AI Assistance Disclosure
+
+> [!IMPORTANT]  
+> If any AI tool was used while contributing to Seerr, it must be disclosed in the pull request.
+
+Note in your PR whether AI assistance was used and to what extent (for example, *docs only* or *code generation*).  
+If AI-generated text was used in PR responses, disclose that as well.  
+Simple tab-completion or short keyword suggestions do **not** require disclosure.
+
+### Examples
+
+> This PR was written primarily by Claude Code.  
+> I used Cursor to understand parts of the codebase, but the implementation is fully manual.
+
+Failing to disclose AI usage wastes maintainers time and makes it harder to judge review effort.  
+We welcome AI-assisted work, but contributors must understand and take full responsibility for the code they submit.  
+
+Be respectful to maintainers and always disclose AI involvement.
 
 ## Reporting Issues
 
@@ -46,11 +67,11 @@ When creating a new feature request:
 
 - Check if the idea or similar request exists.
 - Use reactions like 👍 to support existing requests.
-- Provide a clear explanation of the use case and benefits.
-
+- Clearly describe the use case and potential benefits.
+- Include screenshots when relevant.
 ---
 
-## Developing the Mobile App
+## Developing Streamyfin
 
 ### Codebase Overview
 
@@ -136,6 +157,8 @@ When opening a PR:
 - Provide a detailed description in the PR body, explaining what, why, and any impacts.
 - Include screenshots or recordings if UI changes are involved.
 - Ensure CI checks are green (lint, type-check, build).
+- Confirm that the branch is **up to date with `main`** before submission. 
+- Mention if AI-generated code or content was used (see [AI Assistance Disclosure](#ai-assistance-disclosure)).  
 - Do not include secrets, tokens, or production credentials. Redact sensitive data in logs and screenshots.
 - Keep PRs focused; avoid bundling unrelated changes together.
 
@@ -159,4 +182,4 @@ PRs require review and approval by maintainers before merging.---
 
 ---
 
-Thank you for helping make Streamyfin a better app for everyone!
+Thank you for contributing to make Streamyfin better for everyone!
