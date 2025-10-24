@@ -34,7 +34,6 @@ import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSheet } from "./MediaSourceSheet";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
-import { PlaybackSpeedSelector } from "./PlaybackSpeedSelector";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
 import { TrackSheet } from "./TrackSheet";
 
@@ -272,37 +271,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                       )
                     }
                     selected={selectedOptions.subtitleIndex}
-                  />
-
-                  <PlaybackSpeedSelector
-                    onChange={(val) => {
-                      if (item.SeriesId) {
-                        const updatedPerShow = {
-                          ...settings.playbackSpeedPerShow,
-                          [item.SeriesId]: val,
-                        };
-                        updateSettings({
-                          playbackSpeedPerShow: updatedPerShow,
-                        });
-                      } else if (item.Id) {
-                        const updatedPerMedia = {
-                          ...settings.playbackSpeedPerMedia,
-                          [item.Id]: val,
-                        };
-                        updateSettings({
-                          playbackSpeedPerMedia: updatedPerMedia,
-                        });
-                      }
-
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            playbackSpeed: val,
-                          },
-                      );
-                    }}
-                    selected={selectedOptions.playbackSpeed}
                   />
                 </View>
               )}
