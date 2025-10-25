@@ -221,8 +221,8 @@ export const HomeIndex = () => {
       const queryKey = [
         "home",
         `recentlyAddedIn${c.CollectionType}`,
-        user?.Id!,
-        c.Id!,
+        user?.Id ?? "",
+        c.Id ?? "",
       ];
       return createCollectionConfig(
         title || "",

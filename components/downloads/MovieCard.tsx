@@ -29,7 +29,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { showActionSheetWithOptions } = useActionSheet();
 
   const base64Image = useMemo(() => {
-    return storage.getString(item?.Id!);
+    return item?.Id ? storage.getString(item.Id) : undefined;
   }, []);
 
   /**

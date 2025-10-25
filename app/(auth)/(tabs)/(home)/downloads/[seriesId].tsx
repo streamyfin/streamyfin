@@ -31,7 +31,9 @@ export default function page() {
         getDownloadedItems()
           ?.filter((f) => f.item.SeriesId === seriesId)
           ?.sort(
-            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
+            (a, b) =>
+              (a?.item.ParentIndexNumber ?? 0) -
+              (b.item.ParentIndexNumber ?? 0),
           ) || []
       );
     } catch {

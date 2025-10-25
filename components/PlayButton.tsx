@@ -165,7 +165,7 @@ export const PlayButton: React.FC<Props> = ({
                     api,
                     item,
                     deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+                    startTimeTicks: item?.UserData?.PlaybackPositionTicks ?? 0,
                     userId: user.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
                     maxStreamingBitrate: selectedOptions.bitrate?.value,

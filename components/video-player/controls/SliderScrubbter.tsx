@@ -89,10 +89,10 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
               <Image
                 cachePolicy={"memory-disk"}
                 style={{
-                  width: 150 * trickplayInfo?.data.TileWidth!,
+                  width: 150 * (trickplayInfo?.data.TileWidth ?? 1),
                   height:
                     (150 / trickplayInfo.aspectRatio!) *
-                    trickplayInfo?.data.TileHeight!,
+                    (trickplayInfo?.data.TileHeight ?? 1),
                   transform: [
                     { translateX: -x * tileWidth },
                     { translateY: -y * tileHeight },

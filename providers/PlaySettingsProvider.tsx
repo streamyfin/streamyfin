@@ -94,9 +94,9 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log(`${data?.url?.slice(0, 100)}...${data?.url?.slice(-50)}`);
 
         _setPlaySettings(newSettings);
-        setPlayUrl(data?.url!);
-        setPlaySessionId(data?.sessionId!);
-        setMediaSource(data?.mediaSource!);
+        setPlayUrl(data?.url ?? "");
+        setPlaySessionId(data?.sessionId ?? "");
+        setMediaSource(data?.mediaSource ?? null);
 
         return data;
       } catch (error) {
