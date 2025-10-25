@@ -112,7 +112,7 @@
     "expo-dev-client": "5.2.4",
     "expo-doctor": "1.17.11",
     "husky": "9.1.7",
-    "lint-staged": "16.2.4",
+    "lint-staged": "16.2.5",
     "react-test-renderer": "19.1.1",
     "typescript": "5.8.3"
   },
