@@ -79,7 +79,7 @@ and provides seamless media streaming with offline capabilities and Chromecast s
 
 ## Commit Messages
 
-Use [Conventional Commits](https://www.conventionalcommits.org/):
+Use Conventional Commits (https://www.conventionalcommits.org/):
 Exemples:
 - `feat(player): add Chromecast support`
 - `fix(auth): handle expired JWT tokens`
