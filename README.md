@@ -82,12 +82,22 @@ To access the Streamyfin beta, you need to subscribe to the Member tier (or high
 
 ### ⚙️ Prerequisites
 
-- Confirm your Jellyfin server is running
-- Verify your device is on the same network as the Jellyfin server
+- Your device is on the same network as the Jellyfin server (for local connections)  
+- Your Jellyfin server is up and running with remote access enabled if you plan to connect from outside your local network  
+- Your server version is up to date (older versions may cause compatibility issues)  
+- You have a valid Jellyfin user account with access to the media libraries you want to view  
+- If using features such as **downloads** or **Seerr integration**, confirm the required plugins are installed and configured on your Jellyfin server
 
 ## 🙌 Contributing
 
 We welcome contributions that improve Streamyfin. Start by forking the repository and submitting a pull request. For major changes or new features, please open an issue first to discuss your ideas and ensure alignment with the project.
+
+## 🌍 Translations
+
+[![Crowdin Translation Status](https://badges.crowdin.net/streamyfin/localized.svg)](https://crowdin.com/project/streamyfin)
+
+Streamyfin is available in multiple languages, and we’re always looking for contributors to help make the app accessible worldwide.  
+You can contribute translations directly on our [Crowdin project page](https://crowdin.com/project/streamyfin).
 
 ### 👨‍💻 Development Info
 
@@ -105,13 +115,11 @@ For the TV version suffix the npm commands with `:tv`.
 
 ## 👋 Get in Touch with Us
 
-Feel free to join our Discord server: [![Join our Discord](https://dcbadge.limes.pink/api/server/https://discord.gg/BuGG9ZNhaE?style=flat-square)](https://discord.gg/BuGG9ZNhaE)
+Need assistance or have any questions?
 
-Need support or have any questions:
-
-- GitHub Issues: Report bugs or request features [here](https://github.com/streamyfin/streamyfin/issues)  
-- Email: Reach out at [developer@streamyfin.app](mailto:developer@streamyfin.app)
-- Discord: Join our server at 
+- **Discord:** [Join our server](https://discord.gg/BuGG9ZNhaE)
+- **GitHub Issues:** [Report bugs or request features](https://github.com/streamyfin/streamyfin/issues)  
+- **Email:** [developer@streamyfin.app](mailto:developer@streamyfin.app)  
 
 
 ## ❓ FAQ
