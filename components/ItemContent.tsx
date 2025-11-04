@@ -87,15 +87,14 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
 
-    let selectedPlaybackSpeed = settings.defaultPlaybackSpeed;
-    if (item.Id) {
-      if (settings.playbackSpeedPerMedia[item.Id] !== undefined) {
-        selectedPlaybackSpeed = settings.playbackSpeedPerMedia[item.Id];
-      }
-    } else if (item.SeriesId) {
-      if (settings.playbackSpeedPerShow[item.SeriesId]) {
-        selectedPlaybackSpeed = settings.playbackSpeedPerShow[item.SeriesId];
-      }
+    let selectedPlaybackSpeed = settings.defaultPlaybackSpeed; // Lowest priority default, if nothing else is set.
+    if (item.SeriesId && settings.playbackSpeedPerShow[item.SeriesId]) {
+      // second priority, use what is set for Series if it is a Series
+      selectedPlaybackSpeed = settings.playbackSpeedPerShow[item.SeriesId];
+    }
+    if (item.Id && settings.playbackSpeedPerMedia[item.Id] !== undefined) {
+      // Highest priority, use what is set for Media if it is set
+      selectedPlaybackSpeed = settings.playbackSpeedPerMedia[item.Id];
     }
 
     // Needs to automatically change the selected to the default values for default indexes.
