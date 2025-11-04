@@ -216,7 +216,9 @@ export const HomeIndex = () => {
 
     const latestMediaViews = collections.map((c) => {
       const includeItemTypes: BaseItemKind[] =
-        c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
+        c.CollectionType === "tvshows" || c.CollectionType === "movies"
+          ? []
+          : ["Movie"];
       const title = t("home.recently_added_in", { libraryName: c.Name });
       const queryKey = [
         "home",
