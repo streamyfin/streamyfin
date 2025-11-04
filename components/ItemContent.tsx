@@ -24,6 +24,7 @@ import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarous
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
+import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -78,6 +79,11 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       defaultSubtitleIndex,
     } = useDefaultPlaySettings(item!, settings);
 
+    const { playbackSpeed: selectedPlaybackSpeed } = usePlaybackSpeed(
+      item,
+      settings,
+    );
+
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
       [api, item],
@@ -86,16 +92,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
     }, [loadingLogo, logoUrl]);
-
-    let selectedPlaybackSpeed = settings.defaultPlaybackSpeed; // Lowest priority default, if nothing else is set.
-    if (item.SeriesId && settings.playbackSpeedPerShow[item.SeriesId]) {
-      // second priority, use what is set for Series if it is a Series
-      selectedPlaybackSpeed = settings.playbackSpeedPerShow[item.SeriesId];
-    }
-    if (item.Id && settings.playbackSpeedPerMedia[item.Id] !== undefined) {
-      // Highest priority, use what is set for Media if it is set
-      selectedPlaybackSpeed = settings.playbackSpeedPerMedia[item.Id];
-    }
 
     // Needs to automatically change the selected to the default values for default indexes.
     useEffect(() => {
@@ -111,6 +107,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       defaultBitrate,
       defaultSubtitleIndex,
       defaultMediaSource,
+      selectedPlaybackSpeed,
     ]);
 
     useEffect(() => {

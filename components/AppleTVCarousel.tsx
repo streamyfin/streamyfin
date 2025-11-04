@@ -22,6 +22,7 @@ import Animated, {
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -244,6 +245,11 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     defaultSubtitleIndex,
   } = useDefaultPlaySettings(itemForPlaySettings as BaseItemDto, settings);
 
+  const { playbackSpeed: selectedPlaybackSpeed } = usePlaybackSpeed(
+    currentItem,
+    settings,
+  );
+
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
   >(undefined);
@@ -251,19 +257,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   useEffect(() => {
     // Only set options if we have valid current item
     if (currentItem) {
-      let selectedPlaybackSpeed = settings.defaultPlaybackSpeed;
-      if (currentItem.Id) {
-        if (settings.playbackSpeedPerMedia[currentItem.Id] !== undefined) {
-          selectedPlaybackSpeed =
-            settings.playbackSpeedPerMedia[currentItem.Id];
-        }
-      } else if (currentItem.SeriesId) {
-        if (settings.playbackSpeedPerShow[currentItem.SeriesId]) {
-          selectedPlaybackSpeed =
-            settings.playbackSpeedPerShow[currentItem.SeriesId];
-        }
-      }
-
       setSelectedOptions({
         bitrate: defaultBitrate,
         mediaSource: defaultMediaSource,
@@ -281,9 +274,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     defaultMediaSource,
     currentIndex,
     currentItem,
-    settings.defaultPlaybackSpeed,
-    settings.playbackSpeedPerMedia,
-    settings.playbackSpeedPerShow,
+    selectedPlaybackSpeed,
   ]);
 
   useEffect(() => {
