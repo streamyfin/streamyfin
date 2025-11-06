@@ -5,10 +5,14 @@ import { useAtom } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
+export const DEFAULT_FIELDS_EXCEPT_MEDIA_SOURCES = Object.values(ItemFields).filter(
+  (field) => field !== ItemFields.MediaSources
+);
+
 export const useItem = (
   itemId: string | undefined,
-  fields?: ItemFields[],
   isOffline?: boolean
+  fields?: ItemFields[],
 ) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
