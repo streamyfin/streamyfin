@@ -12,7 +12,7 @@ export const excludeFields = (fieldsToExclude: ItemFields[]) => {
   );
 };
 
-export const useItem = (
+export const useItemQuery = (
   itemId: string | undefined,
   isOffline?: boolean,
   fields?: ItemFields[],
