@@ -1,99 +1,319 @@
-import { useLocalSearchParams } from "expo-router";
-import type React from "react";
-import { useEffect } from "react";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { Image } from "expo-image";
+import { useNavigation } from "expo-router";
+import { useAtom } from "jotai";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
-import { Text } from "@/components/common/Text";
-import { ItemContent } from "@/components/ItemContent";
-import { useItemQuery } from "@/hooks/useItemQuery";
+import { Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { type Bitrate } from "@/components/BitrateSelector";
+import { ItemImage } from "@/components/common/ItemImage";
+import { DownloadSingleItem } from "@/components/DownloadItem";
+import { OverviewText } from "@/components/OverviewText";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+// const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
+import { PlayButton } from "@/components/PlayButton";
+import { PlayedStatus } from "@/components/PlayedStatus";
+import { SimilarItems } from "@/components/SimilarItems";
+import { CastAndCrew } from "@/components/series/CastAndCrew";
+import { CurrentSeries } from "@/components/series/CurrentSeries";
+import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { useOrientation } from "@/hooks/useOrientation";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { AddToFavorites } from "./AddToFavorites";
+import { BitrateSheet } from "./BitRateSheet";
+import { ItemHeader } from "./ItemHeader";
+import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
+import { MediaSourceSheet } from "./MediaSourceSheet";
+import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
+import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
+import { TrackSheet } from "./TrackSheet";
 
-const Page: React.FC = () => {
-  const { id } = useLocalSearchParams() as { id: string };
-  const { t } = useTranslation();
+const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
-  const { offline } = useLocalSearchParams() as { offline?: string };
-  const isOffline = offline === "true";
-
-  const { data: item, isError } = useItemQuery(itemId, false, undefined, [ItemFields.MediaSources]);
-  const { data: mediaSourcesitem, isError } = useItemQuery(id, isOffline);
-
-  const opacity = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacity.value,
-    };
-  });
-
-  const fadeOut = (callback: any) => {
-    setTimeout(() => {
-      opacity.value = withTiming(0, { duration: 500 }, (finished) => {
-        if (finished) {
-          runOnJS(callback)();
-        }
-      });
-    }, 100);
-  };
-
-  const fadeIn = (callback: any) => {
-    setTimeout(() => {
-      opacity.value = withTiming(1, { duration: 500 }, (finished) => {
-        if (finished) {
-          runOnJS(callback)();
-        }
-      });
-    }, 100);
-  };
-
-  useEffect(() => {
-    if (item) {
-      fadeOut(() => {});
-    } else {
-      fadeIn(() => {});
-    }
-  }, [item]);
-
-  if (isError)
-    return (
-      <View className='flex flex-col items-center justify-center h-screen w-screen'>
-        <Text>{t("item_card.could_not_load_item")}</Text>
-      </View>
-    );
-
-  return (
-    <View className='flex flex-1 relative'>
-      <Animated.View
-        pointerEvents={"none"}
-        style={[animatedStyle]}
-        className='absolute top-0 left-0 flex flex-col items-start h-screen w-screen px-4 z-50 bg-black'
-      >
-        <View
-          style={{
-            height: item?.Type === "Episode" ? 300 : 450,
-          }}
-          className='bg-transparent rounded-lg mb-4 w-full'
-        />
-        <View className='h-6 bg-neutral-900 rounded mb-4 w-14' />
-        <View className='h-10 bg-neutral-900 rounded-lg mb-2 w-1/2' />
-        <View className='h-3 bg-neutral-900 rounded mb-3 w-8' />
-        <View className='flex flex-row space-x-1 mb-8'>
-          <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
-          <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
-          <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
-        </View>
-        <View className='h-3 bg-neutral-900 rounded w-2/3 mb-1' />
-        <View className='h-10 bg-neutral-900 rounded-lg w-full mb-2' />
-        <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
-        <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
-      </Animated.View>
-      {item && <ItemContent item={item} isOffline={isOffline} mediaSourcesItem={mediaSourcesItem} />}
-    </View>
-  );
+export type SelectedOptions = {
+  bitrate: Bitrate;
+  mediaSource: MediaSourceInfo | undefined;
+  audioIndex: number | undefined;
+  subtitleIndex: number;
 };
 
-export default Page;
+interface ItemContentProps {
+  item: BaseItemDto;
+  isOffline: boolean;
+  mediaSourcesitem: BaseItemDto;
+}
+
+export const ItemContent: React.FC<ItemContentProps> = React.memo(
+  ({ item, isOffline, mediaSourcesitem }) => {
+    const [api] = useAtom(apiAtom);
+    const { settings } = useSettings();
+    const { orientation } = useOrientation();
+    const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
+    const [user] = useAtom(userAtom);
+    const { t } = useTranslation();
+
+    const itemColors = useImageColorsReturn({ item });
+
+    const [loadingLogo, setLoadingLogo] = useState(true);
+    const [headerHeight, setHeaderHeight] = useState(350);
+
+    const [selectedOptions, setSelectedOptions] = useState<
+      SelectedOptions | undefined
+    >(undefined);
+
+    const {
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultMediaSource,
+      defaultSubtitleIndex,
+    } = useDefaultPlaySettings(item!, settings);
+
+    const logoUrl = useMemo(
+      () => (item ? getLogoImageUrlById({ api, item }) : null),
+      [api, item],
+    );
+
+    const loading = useMemo(() => {
+      return Boolean(logoUrl && loadingLogo);
+    }, [loadingLogo, logoUrl]);
+
+    // Needs to automatically change the selected to the default values for default indexes.
+    useEffect(() => {
+      setSelectedOptions(() => ({
+        bitrate: defaultBitrate,
+        mediaSource: defaultMediaSource,
+        subtitleIndex: defaultSubtitleIndex ?? -1,
+        audioIndex: defaultAudioIndex,
+      }));
+    }, [
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultSubtitleIndex,
+      defaultMediaSource,
+    ]);
+
+    useEffect(() => {
+      if (!Platform.isTV) {
+        navigation.setOptions({
+          headerRight: () =>
+            item &&
+            (Platform.OS === "ios" ? (
+              <View className='flex flex-row items-center pl-2'>
+                <Chromecast.Chromecast width={22} height={22} />
+                {item.Type !== "Program" && (
+                  <View className='flex flex-row items-center'>
+                    {!Platform.isTV && (
+                      <DownloadSingleItem item={item} size='large' />
+                    )}
+                    {user?.Policy?.IsAdministrator && (
+                      <PlayInRemoteSessionButton item={item} size='large' />
+                    )}
+
+                    <PlayedStatus items={[item]} size='large' />
+                    <AddToFavorites item={item} />
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View className='flex flex-row items-center space-x-2'>
+                <Chromecast.Chromecast width={22} height={22} />
+                {item.Type !== "Program" && (
+                  <View className='flex flex-row items-center space-x-2'>
+                    {!Platform.isTV && (
+                      <DownloadSingleItem item={item} size='large' />
+                    )}
+                    {user?.Policy?.IsAdministrator && (
+                      <PlayInRemoteSessionButton item={item} size='large' />
+                    )}
+
+                    <PlayedStatus items={[item]} size='large' />
+                    <AddToFavorites item={item} />
+                  </View>
+                )}
+              </View>
+            )),
+        });
+      }
+    }, [item, navigation, user]);
+
+    useEffect(() => {
+      if (item) {
+        if (orientation !== ScreenOrientation.OrientationLock.PORTRAIT_UP)
+          setHeaderHeight(230);
+        else if (item.Type === "Movie") setHeaderHeight(500);
+        else setHeaderHeight(350);
+      }
+    }, [item, orientation]);
+
+    if (!item || !selectedOptions) return null;
+
+    return (
+      <View
+        className='flex-1 relative'
+        style={{
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        }}
+      >
+        <ParallaxScrollView
+          className={`flex-1 ${loading ? "opacity-0" : "opacity-100"}`}
+          headerHeight={headerHeight}
+          headerImage={
+            <View style={[{ flex: 1 }]}>
+              <ItemImage
+                variant={
+                  item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
+                }
+                item={item}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                }}
+              />
+            </View>
+          }
+          logo={
+            logoUrl ? (
+              <Image
+                source={{
+                  uri: logoUrl,
+                }}
+                style={{
+                  height: 130,
+                  width: "100%",
+                }}
+                contentFit='contain'
+                onLoad={() => setLoadingLogo(false)}
+                onError={() => setLoadingLogo(false)}
+              />
+            ) : (
+              <View />
+            )
+          }
+        >
+          <View className='flex flex-col bg-transparent shrink'>
+            <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
+              <ItemHeader item={item} className='mb-2' />
+              {item.Type !== "Program" && !Platform.isTV && !isOffline && (
+                <View className='flex flex-row items-center justify-start w-full h-16'>
+                  <BitrateSheet
+                    className='mr-1'
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) => prev && { ...prev, bitrate: val },
+                      )
+                    }
+                    selected={selectedOptions.bitrate}
+                  />
+                  <MediaSourceSheet
+                    className='mr-1'
+                    item={mediaSourcesitem}
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            mediaSource: val,
+                          },
+                      )
+                    }
+                    selected={selectedOptions.mediaSource}
+                  />
+                  <TrackSheet
+                    className='mr-1'
+                    streamType='Audio'
+                    title={t("item_card.audio")}
+                    source={selectedOptions.mediaSource}
+                    onChange={(val) => {
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            audioIndex: val,
+                          },
+                      );
+                    }}
+                    selected={selectedOptions.audioIndex}
+                  />
+                  <TrackSheet
+                    source={selectedOptions.mediaSource}
+                    streamType='Subtitle'
+                    title={t("item_card.subtitles")}
+                    onChange={(val) =>
+                      setSelectedOptions(
+                        (prev) =>
+                          prev && {
+                            ...prev,
+                            subtitleIndex: val,
+                          },
+                      )
+                    }
+                    selected={selectedOptions.subtitleIndex}
+                  />
+                </View>
+              )}
+
+              <PlayButton
+                className='grow'
+                selectedOptions={selectedOptions}
+                item={mediaSourcesitem}
+                isOffline={isOffline}
+                colors={itemColors}
+              />
+            </View>
+
+            {item.Type === "Episode" && (
+              <SeasonEpisodesCarousel
+                item={item}
+                loading={loading}
+                isOffline={isOffline}
+              />
+            )}
+
+            {!isOffline && (
+              <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+            )}
+            <OverviewText text={item.Overview} className='px-4 mb-4' />
+
+            {item.Type !== "Program" && (
+              <>
+                {item.Type === "Episode" && !isOffline && (
+                  <CurrentSeries item={item} className='mb-4' />
+                )}
+
+                {!isOffline && (
+                  <CastAndCrew item={item} className='mb-4' loading={loading} />
+                )}
+
+                {item.People && item.People.length > 0 && !isOffline && (
+                  <View className='mb-4'>
+                    {item.People.slice(0, 3).map((person, idx) => (
+                      <MoreMoviesWithActor
+                        currentItem={item}
+                        key={idx}
+                        actorId={person.Id!}
+                        className='mb-4'
+                      />
+                    ))}
+                  </View>
+                )}
+
+                {!isOffline && <SimilarItems itemId={item.Id} />}
+              </>
+            )}
+          </View>
+        </ParallaxScrollView>
+      </View>
+    );
+  },
+);
