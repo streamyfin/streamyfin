@@ -49,10 +49,11 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   isOffline: boolean;
+  mediaSourcesitem: BaseItemDto;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
-  ({ item, isOffline }) => {
+  ({ item, isOffline, mediaSourcesitem }) => {
     const [api] = useAtom(apiAtom);
     const { settings } = useSettings();
     const { orientation } = useOrientation();
@@ -216,7 +217,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                   />
                   <MediaSourceSheet
                     className='mr-1'
-                    item={item}
+                    item={mediaSourcesitem}
                     onChange={(val) =>
                       setSelectedOptions(
                         (prev) =>
@@ -265,7 +266,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
               <PlayButton
                 className='grow'
                 selectedOptions={selectedOptions}
-                item={item}
+                item={mediaSourcesitem}
                 isOffline={isOffline}
                 colors={itemColors}
               />
