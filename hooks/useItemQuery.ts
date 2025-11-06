@@ -5,21 +5,30 @@ import { useAtom } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
-export const DEFAULT_FIELDS_EXCEPT_MEDIA_SOURCES = Object.values(ItemFields).filter(
-  (field) => field !== ItemFields.MediaSources
-);
+// Helper to exclude specific fields
+export const excludeFields = (fieldsToExclude: ItemFields[]) => {
+  return Object.values(ItemFields).filter(
+    (field) => !fieldsToExclude.includes(field)
+  );
+};
 
 export const useItem = (
   itemId: string | undefined,
-  isOffline?: boolean
+  isOffline?: boolean,
   fields?: ItemFields[],
+  excludeFields?: ItemFields[]
 ) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { getDownloadedItemById } = useDownload();
 
+  // Calculate final fields: use excludeFields if provided, otherwise use fields
+  const finalFields = excludeFields 
+    ? Object.values(ItemFields).filter(field => !excludeFields.includes(field))
+    : fields;
+
   return useQuery({
-    queryKey: ["item", itemId, fields],
+    queryKey: ["item", itemId, finalFields],
     queryFn: async () => {
       if (!itemId) throw new Error('Item ID is required');
       
@@ -32,7 +41,7 @@ export const useItem = (
       const response = await getUserLibraryApi(api).getItem({
         itemId,
         userId: user.Id,
-        ...(fields && { fields }),
+        ...(finalFields && { fields: finalFields }),
       });
       
       return response.data;
