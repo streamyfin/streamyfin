@@ -49,7 +49,6 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   isOffline: boolean;
-  mediaSourcesItem: BaseItemDto;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
