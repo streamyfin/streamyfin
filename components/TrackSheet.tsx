@@ -33,12 +33,27 @@ export const TrackSheet: React.FC<Props> = ({
     () => streams?.find((x) => x.Index === selected),
     [streams, selected],
   );
+
+  const noneOption = useMemo(
+    () => ({ Index: -1, DisplayTitle: t("common.none") }),
+    [t],
+  );
+
+  // Creates a modified data array that includes a "None" option for subtitles
+  // We might want to possibly do this for other places, like audio?
+  const addNoneToSubtitles = useMemo(() => {
+    if (streamType === "Subtitle") {
+      const result = streams ? [noneOption, ...streams] : [noneOption];
+      return result;
+    }
+    return streams;
+  }, [streams, streamType, noneOption]);
   const [open, setOpen] = useState(false);
 
   if (isTv || (streams && streams.length === 0)) return null;
 
   return (
-    <View className='flex shrink' style={{ minWidth: 25 }} {...props}>
+    <View className='flex shrink' style={{ minWidth: 60 }} {...props}>
       <View className='flex flex-col'>
         <Text className='opacity-50 mb-1 text-xs'>{title}</Text>
         <TouchableOpacity
@@ -46,7 +61,9 @@ export const TrackSheet: React.FC<Props> = ({
           onPress={() => setOpen(true)}
         >
           <Text numberOfLines={1}>
-            {selectedSteam?.DisplayTitle || t("common.select", "Select")}
+            {selected === -1 && streamType === "Subtitle"
+              ? t("common.none")
+              : selectedSteam?.DisplayTitle || t("common.select", "Select")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -54,8 +71,14 @@ export const TrackSheet: React.FC<Props> = ({
         open={open}
         setOpen={setOpen}
         title={title}
-        data={streams || []}
-        values={selectedSteam ? [selectedSteam] : []}
+        data={addNoneToSubtitles || []}
+        values={
+          selected === -1 && streamType === "Subtitle"
+            ? [{ Index: -1, DisplayTitle: t("common.none") }]
+            : selectedSteam
+              ? [selectedSteam]
+              : []
+        }
         multiple={false}
         searchFilter={(item, query) => {
           const label = (item as any).DisplayTitle || "";

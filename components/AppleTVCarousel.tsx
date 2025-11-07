@@ -10,11 +10,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
+import {
+  Pressable,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  interpolate,
   runOnJS,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -35,12 +42,10 @@ import { PlayedStatus } from "./PlayedStatus";
 interface AppleTVCarouselProps {
   initialIndex?: number;
   onItemChange?: (index: number) => void;
+  scrollOffset?: SharedValue<number>;
 }
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-
 // Layout Constants
-const CAROUSEL_HEIGHT = screenHeight / 1.45;
 const GRADIENT_HEIGHT_TOP = 150;
 const GRADIENT_HEIGHT_BOTTOM = 150;
 const LOGO_HEIGHT = 80;
@@ -148,14 +153,21 @@ const DotIndicator = ({
 export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   initialIndex = 0,
   onItemChange,
+  scrollOffset,
 }) => {
   const { settings } = useSettings();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { isConnected, serverConnected } = useNetworkStatus();
   const router = useRouter();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth >= screenHeight;
+  const carouselHeight = useMemo(
+    () => (isLandscape ? screenHeight * 0.9 : screenHeight / 1.45),
+    [isLandscape, screenHeight],
+  );
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const translateX = useSharedValue(-currentIndex * screenWidth);
+  const translateX = useSharedValue(-initialIndex * screenWidth);
 
   const isQueryEnabled =
     !!api && !!user?.Id && isConnected && serverConnected === true;
@@ -289,7 +301,11 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       translateX.value = -newIndex * screenWidth;
       return newIndex;
     });
-  }, [hasItems, items, initialIndex, translateX]);
+  }, [hasItems, items, initialIndex, screenWidth, translateX]);
+
+  useEffect(() => {
+    translateX.value = -currentIndex * screenWidth;
+  }, [currentIndex, screenWidth, translateX]);
 
   useEffect(() => {
     if (hasItems) {
@@ -309,7 +325,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       setCurrentIndex(index);
       onItemChange?.(index);
     },
-    [hasItems, items, onItemChange, translateX],
+    [hasItems, items, onItemChange, screenWidth, translateX],
   );
 
   const navigateToItem = useCallback(
@@ -356,6 +372,28 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     };
   });
 
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    if (!scrollOffset) return {};
+    return {
+      transform: [
+        {
+          translateY: interpolate(
+            scrollOffset.value,
+            [-carouselHeight, 0, carouselHeight],
+            [-carouselHeight / 2, 0, carouselHeight * 0.75],
+          ),
+        },
+        {
+          scale: interpolate(
+            scrollOffset.value,
+            [-carouselHeight, 0, carouselHeight],
+            [2, 1, 1],
+          ),
+        },
+      ],
+    };
+  });
+
   const renderDots = () => {
     if (!hasItems || items.length <= 1) return null;
 
@@ -389,7 +427,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       <View
         style={{
           width: screenWidth,
-          height: CAROUSEL_HEIGHT,
+          height: carouselHeight,
           backgroundColor: "#000",
         }}
       >
@@ -557,20 +595,30 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         key={item.Id}
         style={{
           width: screenWidth,
-          height: CAROUSEL_HEIGHT,
+          height: carouselHeight,
           position: "relative",
         }}
       >
         {/* Background Backdrop */}
-        <ItemImage
-          item={item}
-          variant='Backdrop'
-          style={{
-            width: "100%",
-            height: "100%",
-            position: "absolute",
-          }}
-        />
+        <Animated.View
+          style={[
+            {
+              width: "100%",
+              height: "100%",
+              position: "absolute",
+            },
+            headerAnimatedStyle,
+          ]}
+        >
+          <ItemImage
+            item={item}
+            variant='Backdrop'
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+          />
+        </Animated.View>
 
         {/* Dark Overlay */}
         <View
@@ -739,7 +787,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     return (
       <View
         style={{
-          height: CAROUSEL_HEIGHT,
+          height: carouselHeight,
           backgroundColor: "#000",
           overflow: "hidden",
         }}
@@ -757,7 +805,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   return (
     <View
       style={{
-        height: CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
+        height: carouselHeight, // Fixed height instead of flex: 1
         backgroundColor: "#000",
         overflow: "hidden",
       }}
@@ -766,7 +814,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <Animated.View
           style={[
             {
-              height: CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
+              height: carouselHeight, // Fixed height instead of flex: 1
               flexDirection: "row",
               width: screenWidth * items.length,
             },

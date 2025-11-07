@@ -125,7 +125,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       });
       return;
     }
-    setTrack?.(index);
+    setTrack?.(serverIndex);
     router.setParams({
       [paramKey]: serverIndex.toString(),
     });
