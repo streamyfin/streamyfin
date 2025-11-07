@@ -230,11 +230,21 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     const nextItems = nextUpData ?? [];
     const recentItems = recentlyAddedData ?? [];
 
-    return [
+    const allItems = [
       ...continueItems.slice(0, 2),
       ...nextItems.slice(0, 2),
       ...recentItems.slice(0, 2),
     ];
+
+    // Deduplicate by item ID to prevent duplicate keys
+    const seen = new Set<string>();
+    return allItems.filter((item) => {
+      if (item.Id && !seen.has(item.Id)) {
+        seen.add(item.Id);
+        return true;
+      }
+      return false;
+    });
   }, [continueWatchingData, nextUpData, recentlyAddedData]);
 
   const isLoading =
