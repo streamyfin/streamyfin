@@ -287,7 +287,9 @@ function Layout() {
 
     // only create push token for real devices (pointless for emulators)
     if (Device.isDevice) {
-      Notifications?.getExpoPushTokenAsync()
+      Notifications?.getExpoPushTokenAsync({
+        projectId: "streamyfin-4fec1",
+      })
         .then((token: ExpoPushToken) => token && setExpoPushToken(token))
         .catch((reason: any) => console.log("Failed to get token", reason));
     }
