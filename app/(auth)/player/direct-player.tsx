@@ -56,6 +56,7 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
+  const [isPipMode, setIsPipMode] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<
     "default" | "16:9" | "4:3" | "1:1" | "21:9"
   >("default");
@@ -727,9 +728,12 @@ export default function page() {
             );
             writeToLog("ERROR", "Video Error", e.nativeEvent);
           }}
+          onPipStarted={(e) => {
+            setIsPipMode(e.nativeEvent.pipStarted);
+          }}
         />
       </View>
-      {isMounted === true && item && (
+      {isMounted === true && item && !isPipMode && (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
