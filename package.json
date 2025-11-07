@@ -22,7 +22,7 @@
     "test": "bun run typecheck && bun run lint && bun run format && bun run doctor"
   },
   "dependencies": {
-    "@bottom-tabs/react-navigation": "^0.11.2",
+    "@bottom-tabs/react-navigation": "^0.12.0",
     "@expo/metro-runtime": "~5.0.5",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/vector-icons": "^14.1.0",
@@ -70,7 +70,7 @@
     "react-i18next": "^15.4.0",
     "react-native": "npm:react-native-tvos@0.79.5-0",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-bottom-tabs": "^0.11.2",
+    "react-native-bottom-tabs": "^0.12.0",
     "react-native-circular-progress": "^1.4.1",
     "react-native-collapsible": "^1.6.2",
     "react-native-country-flag": "^2.0.2",
