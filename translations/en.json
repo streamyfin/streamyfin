@@ -318,7 +318,8 @@
     "video": "Video",
     "audio": "Audio",
     "subtitle": "Subtitle",
-    "play": "Play"
+    "play": "Play",
+    "none": "None"
   },
   "search": {
     "search": "Search...",
