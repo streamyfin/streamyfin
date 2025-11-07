@@ -39,7 +39,7 @@ interface AppleTVCarouselProps {
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 // Layout Constants
-const CAROUSEL_HEIGHT = screenHeight / 1.45;
+export const APPLE_TV_CAROUSEL_HEIGHT = screenHeight / 1.45;
 const GRADIENT_HEIGHT_TOP = 150;
 const GRADIENT_HEIGHT_BOTTOM = 150;
 const LOGO_HEIGHT = 80;
@@ -381,7 +381,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       <View
         style={{
           width: screenWidth,
-          height: CAROUSEL_HEIGHT,
+          height: APPLE_TV_CAROUSEL_HEIGHT,
           backgroundColor: "#000",
         }}
       >
@@ -549,7 +549,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         key={item.Id}
         style={{
           width: screenWidth,
-          height: CAROUSEL_HEIGHT,
+        height: APPLE_TV_CAROUSEL_HEIGHT,
           position: "relative",
         }}
       >
@@ -731,7 +731,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     return (
       <View
         style={{
-          height: CAROUSEL_HEIGHT,
+        height: APPLE_TV_CAROUSEL_HEIGHT,
           backgroundColor: "#000",
           overflow: "hidden",
         }}
@@ -749,7 +749,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   return (
     <View
       style={{
-        height: CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
+        height: APPLE_TV_CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
         backgroundColor: "#000",
         overflow: "hidden",
       }}
@@ -758,7 +758,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         <Animated.View
           style={[
             {
-              height: CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
+              height: APPLE_TV_CAROUSEL_HEIGHT, // Fixed height instead of flex: 1
               flexDirection: "row",
               width: screenWidth * items.length,
             },

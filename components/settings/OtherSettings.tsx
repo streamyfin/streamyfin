@@ -62,6 +62,7 @@ export const OtherSettings: React.FC = () => {
       pluginSettings?.followDeviceOrientation?.locked === true &&
       pluginSettings?.defaultVideoOrientation?.locked === true &&
       pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
+      pluginSettings?.showHomeCarousel?.locked === true &&
       pluginSettings?.showCustomMenuLinks?.locked === true &&
       pluginSettings?.hiddenLibraries?.locked === true &&
       pluginSettings?.disableHapticFeedback?.locked === true,
@@ -154,6 +155,19 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
             onValueChange={(value) =>
               updateSettings({ safeAreaInControlsEnabled: value })
+            }
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.other.show_home_carousel")}
+          disabled={pluginSettings?.showHomeCarousel?.locked}
+        >
+          <Switch
+            value={settings.showHomeCarousel}
+            disabled={pluginSettings?.showHomeCarousel?.locked}
+            onValueChange={(value) =>
+              updateSettings({ showHomeCarousel: value })
             }
           />
         </ListItem>

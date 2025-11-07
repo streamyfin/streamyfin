@@ -1,6 +1,19 @@
 import { LinearGradient } from "expo-linear-gradient";
-import type { PropsWithChildren, ReactElement } from "react";
-import { type NativeScrollEvent, View, type ViewProps } from "react-native";
+import type {
+  MutableRefObject,
+  PropsWithChildren,
+  ReactElement,
+  Ref,
+} from "react";
+import { useEffect } from "react";
+import {
+  type NativeScrollEvent,
+  type ScrollViewProps,
+  type StyleProp,
+  View,
+  type ViewProps,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   interpolate,
   useAnimatedRef,
@@ -14,6 +27,9 @@ interface Props extends ViewProps {
   episodePoster?: ReactElement;
   headerHeight?: number;
   onEndReached?: (() => void) | null | undefined;
+  scrollViewProps?: Animated.AnimatedProps<ScrollViewProps>;
+  contentContainerStyle?: StyleProp<ViewStyle>;
+  scrollViewRef?: Ref<Animated.ScrollView>;
 }
 
 export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
@@ -23,10 +39,33 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
   headerHeight = 400,
   logo,
   onEndReached,
+  contentContainerStyle,
+  scrollViewProps,
+  scrollViewRef,
   ...props
 }: Props) => {
-  const scrollRef = useAnimatedRef<Animated.ScrollView>();
-  const scrollOffset = useScrollViewOffset(scrollRef);
+  const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollOffset = useScrollViewOffset(animatedScrollRef);
+
+  const {
+    onScroll: externalOnScroll,
+    style: scrollStyle,
+    scrollEventThrottle: externalScrollEventThrottle,
+    ...restScrollViewProps
+  } = scrollViewProps ?? {};
+
+  useEffect(() => {
+    if (!scrollViewRef) return;
+    const node = animatedScrollRef.current;
+
+    if (typeof scrollViewRef === "function") {
+      scrollViewRef(node);
+      return () => scrollViewRef(null);
+    }
+
+    (scrollViewRef as MutableRefObject<Animated.ScrollView | null>).current =
+      node;
+  }, [animatedScrollRef, scrollViewRef]);
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -62,12 +101,17 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
   return (
     <View className='flex-1' {...props}>
       <Animated.ScrollView
-        style={{
-          position: "relative",
-        }}
-        ref={scrollRef}
-        scrollEventThrottle={16}
+        {...restScrollViewProps}
+        style={[
+          {
+            position: "relative",
+          },
+          scrollStyle,
+        ]}
+        ref={animatedScrollRef}
+        scrollEventThrottle={externalScrollEventThrottle ?? 16}
         onScroll={(e) => {
+          externalOnScroll?.(e);
           if (isCloseToBottom(e.nativeEvent)) onEndReached?.();
         }}
       >
@@ -96,9 +140,12 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
         </Animated.View>
 
         <View
-          style={{
-            top: -50,
-          }}
+          style={[
+            {
+              top: -50,
+            },
+            contentContainerStyle,
+          ]}
           className='relative flex-1  bg-transparent pb-24'
         >
           <LinearGradient

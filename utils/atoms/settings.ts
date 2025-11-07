@@ -160,6 +160,7 @@ export type Settings = {
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
   showHomeTitles: boolean;
+  showHomeCarousel: boolean;
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
   rewindSkipTime: number;
@@ -228,6 +229,7 @@ export const defaultValues: Settings = {
   subtitleMode: SubtitlePlaybackMode.Default,
   rememberSubtitleSelections: true,
   showHomeTitles: true,
+  showHomeCarousel: true,
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,
   rewindSkipTime: 10,

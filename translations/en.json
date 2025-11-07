@@ -176,6 +176,7 @@
           "UNKNOWN": "Unknown"
         },
         "safe_area_in_controls": "Safe Area in Controls",
+        "show_home_carousel": "Show Home Carousel",
         "video_player": "Video Player",
         "video_players": {
           "VLC_3": "VLC 3",

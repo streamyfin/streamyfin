@@ -16,14 +16,15 @@ import { type QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Animated from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Platform,
   RefreshControl,
-  ScrollView,
   TouchableOpacity,
   View,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
@@ -38,7 +39,8 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { AppleTVCarousel } from "../AppleTVCarousel";
+import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { AppleTVCarousel, APPLE_TV_CAROUSEL_HEIGHT } from "../AppleTVCarousel";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -66,12 +68,13 @@ export const HomeIndex = () => {
 
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
+  const showCarousel = settings?.showHomeCarousel ?? true;
 
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
 
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<Animated.ScrollView | null>(null);
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
@@ -128,7 +131,7 @@ export const HomeIndex = () => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
       if ((segments as string[])[2] === "(home)")
         scrollViewRef.current?.scrollTo({
-          y: Platform.isTV ? -152 : -100,
+          y: 0,
           animated: true,
         });
     });
@@ -455,25 +458,36 @@ export const HomeIndex = () => {
       </View>
     );
 
+  const headerHeight = showCarousel ? APPLE_TV_CAROUSEL_HEIGHT : 120;
+  const refreshProgressOffset = showCarousel ? 200 : 80;
+
   return (
-    <ScrollView
-      scrollToOverflowEnabled={true}
-      ref={scrollViewRef}
-      nestedScrollEnabled
-      contentInsetAdjustmentBehavior='never'
-      refreshControl={
-        <RefreshControl
-          refreshing={loading}
-          onRefresh={refetch}
-          tintColor='white' // For iOS
-          colors={["white"]} // For Android
-          progressViewOffset={200} // This offsets the refresh indicator to appear over the carousel
-        />
+    <ParallaxScrollView
+      scrollViewRef={scrollViewRef}
+      headerHeight={headerHeight}
+      headerImage={
+        showCarousel ? (
+          <AppleTVCarousel initialIndex={0} />
+        ) : (
+          <View className='flex-1 bg-black' />
+        )
       }
-      style={{ marginTop: Platform.isTV ? 0 : -100 }}
-      contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
+      contentContainerStyle={showCarousel ? undefined : { top: 0 }}
+      scrollViewProps={{
+        refreshControl: (
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetch}
+            tintColor='white'
+            colors={["white"]}
+            progressViewOffset={refreshProgressOffset}
+          />
+        ),
+        contentInsetAdjustmentBehavior: "never",
+        nestedScrollEnabled: true,
+        scrollToOverflowEnabled: true,
+      }}
     >
-      <AppleTVCarousel initialIndex={0} />
       <View
         style={{
           paddingLeft: insets.left,
@@ -509,7 +523,7 @@ export const HomeIndex = () => {
         </View>
       </View>
       <View className='h-24' />
-    </ScrollView>
+    </ParallaxScrollView>
   );
 };
 
