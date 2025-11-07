@@ -188,7 +188,7 @@ export type Settings = {
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
-  showLargeHomeCarousel?: boolean;
+  showLargeHomeCarousel: boolean;
 };
 
 export interface Lockable<T> {
