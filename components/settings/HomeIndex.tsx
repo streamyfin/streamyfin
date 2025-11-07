@@ -21,10 +21,13 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
-  ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  useAnimatedRef,
+  useScrollViewOffset,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -64,14 +67,21 @@ export const HomeIndex = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
+  const insets = useSafeAreaInsets();
+
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
+  const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
+  const headerOverlayOffset = Platform.isTV
+    ? 0
+    : showLargeHomeCarousel
+      ? 60
+      : 0;
 
   const navigation = useNavigation();
 
-  const insets = useSafeAreaInsets();
-
-  const scrollViewRef = useRef<ScrollView>(null);
+  const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollOffset = useScrollViewOffset(animatedScrollRef);
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
@@ -127,7 +137,7 @@ export const HomeIndex = () => {
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
       if ((segments as string[])[2] === "(home)")
-        scrollViewRef.current?.scrollTo({
+        animatedScrollRef.current?.scrollTo({
           y: Platform.isTV ? -152 : -100,
           animated: true,
         });
@@ -456,29 +466,37 @@ export const HomeIndex = () => {
     );
 
   return (
-    <ScrollView
+    <Animated.ScrollView
       scrollToOverflowEnabled={true}
-      ref={scrollViewRef}
+      ref={animatedScrollRef}
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='never'
+      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={loading}
           onRefresh={refetch}
           tintColor='white' // For iOS
           colors={["white"]} // For Android
-          progressViewOffset={200} // This offsets the refresh indicator to appear over the carousel
+          progressViewOffset={showLargeHomeCarousel ? 200 : 0} // This offsets the refresh indicator to appear over the carousel
         />
       }
-      style={{ marginTop: Platform.isTV ? 0 : -100 }}
-      contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
+      style={{ marginTop: -headerOverlayOffset }}
+      contentContainerStyle={{ paddingTop: headerOverlayOffset }}
     >
-      <AppleTVCarousel initialIndex={0} />
+      {showLargeHomeCarousel && (
+        <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
+      )}
       <View
         style={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
+          paddingTop: Platform.isTV
+            ? 0
+            : showLargeHomeCarousel
+              ? 0
+              : insets.top + 60,
         }}
       >
         <View className='flex flex-col space-y-4'>
@@ -509,7 +527,7 @@ export const HomeIndex = () => {
         </View>
       </View>
       <View className='h-24' />
-    </ScrollView>
+    </Animated.ScrollView>
   );
 };
 
