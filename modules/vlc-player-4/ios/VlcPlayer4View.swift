@@ -102,10 +102,6 @@ extension VLCPlayerWrapper: VLCPictureInPictureMediaControlling {
     func isMediaPlaying() -> Bool {
         return player.isPlaying
     }
-    
-    func setRate(_ rate: Float) {
-        player.rate = rate
-    }
 }
 
 // MARK: - VLCDrawable
