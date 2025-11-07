@@ -36,7 +36,6 @@ import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { ControlProvider } from "./contexts/ControlContext";
-import { PlaybackSpeedScope } from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -46,6 +45,10 @@ import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { type ScaleFactor } from "./ScaleFactorSelector";
 import { useControlsTimeout } from "./useControlsTimeout";
+import {
+  PlaybackSpeedScope,
+  updatePlaybackSpeedSettings,
+} from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
@@ -509,44 +512,8 @@ export const Controls: FC<Props> = ({
       setRate(speed);
       setPlaybackSpeedState(speed);
 
-      // Clear conflicting settings based on scope
-      const updatedPerMedia = { ...settings.playbackSpeedPerMedia };
-      const updatedPerShow = { ...settings.playbackSpeedPerShow };
-
-      if (scope === PlaybackSpeedScope.All) {
-        // Clear both media-specific and show-specific settings
-        if (item.Id && updatedPerMedia[item.Id] !== undefined) {
-          delete updatedPerMedia[item.Id];
-        }
-        if (item.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
-          delete updatedPerShow[item.SeriesId];
-        }
-        updateSettings({
-          defaultPlaybackSpeed: speed,
-          playbackSpeedPerMedia: updatedPerMedia,
-          playbackSpeedPerShow: updatedPerShow,
-        });
-      } else if (scope === PlaybackSpeedScope.Media) {
-        // Clear show-specific setting only
-        if (item.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
-          delete updatedPerShow[item.SeriesId];
-        }
-        updatedPerMedia[item.Id] = speed;
-        updateSettings({
-          playbackSpeedPerMedia: updatedPerMedia,
-          playbackSpeedPerShow: updatedPerShow,
-        });
-      } else if (scope === PlaybackSpeedScope.Show && item.SeriesId) {
-        // Clear media-specific setting only
-        if (item.Id && updatedPerMedia[item.Id] !== undefined) {
-          delete updatedPerMedia[item.Id];
-        }
-        updatedPerShow[item.SeriesId] = speed;
-        updateSettings({
-          playbackSpeedPerShow: updatedPerShow,
-          playbackSpeedPerMedia: updatedPerMedia,
-        });
-      }
+      // Update settings using the shared utility function
+      updatePlaybackSpeedSettings(speed, scope, item, settings, updateSettings);
     },
     [item, settings, updateSettings, setRate],
   );

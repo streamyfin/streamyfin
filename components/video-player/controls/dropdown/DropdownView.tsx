@@ -10,16 +10,19 @@ import {
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
-import { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
-import { Settings, useSettings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { useControlContext } from "../contexts/ControlContext";
 import { useVideoContext } from "../contexts/VideoContext";
+import {
+  PlaybackSpeedScope,
+  updatePlaybackSpeedSettings,
+} from "../utils/playback-speed-settings";
 
 export const PLAYBACK_SPEEDS = [
   { label: "0.25x", value: 0.25 },
@@ -35,11 +38,6 @@ export const PLAYBACK_SPEEDS = [
   { label: "2.75x", value: 2.75 },
   { label: "3x", value: 3.0 },
 ];
-export enum PlaybackSpeedScope {
-  Media = "media",
-  Show = "show",
-  All = "all",
-}
 
 const DropdownView = () => {
   const videoContext = useVideoContext();
@@ -103,79 +101,6 @@ const DropdownView = () => {
 
   const { settings, updateSettings } = useSettings();
 
-  // Helper function to clear conflicting playback speed settings
-  const clearConflictingSettings = useCallback(
-    (
-      scope: PlaybackSpeedScope,
-      item: BaseItemDto | undefined,
-      perMedia: Settings["playbackSpeedPerMedia"],
-      perShow: Settings["playbackSpeedPerShow"],
-    ) => {
-      const updatedPerMedia = { ...perMedia };
-      const updatedPerShow = { ...perShow };
-
-      if (scope === "all") {
-        // Clear both media-specific and show-specific settings
-        if (item?.Id && updatedPerMedia[item.Id] !== undefined) {
-          delete updatedPerMedia[item.Id];
-        }
-        if (item?.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
-          delete updatedPerShow[item.SeriesId];
-        }
-      } else if (scope === "media") {
-        // Clear show-specific setting only
-        if (item?.SeriesId && updatedPerShow[item.SeriesId] !== undefined) {
-          delete updatedPerShow[item.SeriesId];
-        }
-      } else if (scope === "show") {
-        // Clear media-specific setting only
-        if (item?.Id && updatedPerMedia[item.Id] !== undefined) {
-          delete updatedPerMedia[item.Id];
-        }
-      }
-
-      return { updatedPerMedia, updatedPerShow };
-    },
-    [],
-  );
-
-  // Helper function to update playback speed settings
-  const updatePlaybackSpeedSettings = useCallback(
-    (
-      speed: number,
-      scope: PlaybackSpeedScope,
-      item: BaseItemDto | undefined,
-    ) => {
-      const { updatedPerMedia, updatedPerShow } = clearConflictingSettings(
-        scope,
-        item,
-        settings.playbackSpeedPerMedia,
-        settings.playbackSpeedPerShow,
-      );
-
-      if (scope === "all") {
-        updateSettings({
-          defaultPlaybackSpeed: speed,
-          playbackSpeedPerMedia: updatedPerMedia,
-          playbackSpeedPerShow: updatedPerShow,
-        });
-      } else if (scope === "media" && item?.Id) {
-        updatedPerMedia[item.Id] = speed;
-        updateSettings({
-          playbackSpeedPerMedia: updatedPerMedia,
-          playbackSpeedPerShow: updatedPerShow,
-        });
-      } else if (scope === "show" && item?.SeriesId) {
-        updatedPerShow[item.SeriesId] = speed;
-        updateSettings({
-          playbackSpeedPerShow: updatedPerShow,
-          playbackSpeedPerMedia: updatedPerMedia,
-        });
-      }
-    },
-    [settings, updateSettings, clearConflictingSettings],
-  );
-
   const _changePlaybackSpeed = useCallback(
     (speed: number, scope: PlaybackSpeedScope) => {
       setCurrentSpeed(speed);
@@ -186,10 +111,10 @@ const DropdownView = () => {
         videoContext.videoRef.current.setRate(speed);
       }
 
-      // Update settings using the helper function
-      updatePlaybackSpeedSettings(speed, scope, item);
+      // Update settings using the shared utility function
+      updatePlaybackSpeedSettings(speed, scope, item, settings, updateSettings);
     },
-    [videoContext, item, updatePlaybackSpeedSettings],
+    [videoContext, item, settings, updateSettings],
   );
 
   // Initialize playback speed based on stored preferences
