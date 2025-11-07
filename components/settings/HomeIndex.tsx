@@ -67,12 +67,18 @@ export const HomeIndex = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
+  const insets = useSafeAreaInsets();
+
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
+  const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
+  const headerOverlayOffset = Platform.isTV
+    ? 0
+    : showLargeHomeCarousel
+      ? 60
+      : 0;
 
   const navigation = useNavigation();
-
-  const insets = useSafeAreaInsets();
 
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(animatedScrollRef);
@@ -472,13 +478,13 @@ export const HomeIndex = () => {
           onRefresh={refetch}
           tintColor='white' // For iOS
           colors={["white"]} // For Android
-          progressViewOffset={200} // This offsets the refresh indicator to appear over the carousel
+          progressViewOffset={showLargeHomeCarousel ? 200 : 0} // This offsets the refresh indicator to appear over the carousel
         />
       }
-      style={{ marginTop: Platform.isTV ? 0 : -100 }}
-      contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
+      style={{ marginTop: -headerOverlayOffset }}
+      contentContainerStyle={{ paddingTop: headerOverlayOffset }}
     >
-      {(settings.showLargeHomeCarousel ?? true) && (
+      {showLargeHomeCarousel && (
         <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
       )}
       <View
@@ -486,12 +492,11 @@ export const HomeIndex = () => {
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
-          paddingTop:
-            settings.showLargeHomeCarousel === false
-              ? Platform.isTV
-                ? 0
-                : insets.top + 60
-              : 0,
+          paddingTop: Platform.isTV
+            ? 0
+            : showLargeHomeCarousel
+              ? 0
+              : insets.top + 60,
         }}
       >
         <View className='flex flex-col space-y-4'>
