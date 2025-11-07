@@ -131,7 +131,10 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification.png",
-          "color": "#9333EA"
+          "color": "#9333EA",
+          "android": {
+            "projectId": "streamyfin-4fec1"
+          }
         }
       ],
       "./plugins/with-runtime-framework-headers.js",
