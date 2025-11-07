@@ -218,7 +218,7 @@
           }
         },
         "marlin_search": {
-          "enable_marlin_search": "Enable Marlin Search ",
+          "enable_marlin_search": "Enable Marlin Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://domain.org:port",
           "marlin_search_hint": "Enter the URL for the Marlin server. The URL should include http or https and optionally the port.",
