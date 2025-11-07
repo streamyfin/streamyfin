@@ -12,10 +12,8 @@ import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "./common/Text";
-import {
-  PLAYBACK_SPEEDS,
-  PlaybackSpeedScope,
-} from "./video-player/controls/dropdown/DropdownView";
+import { PLAYBACK_SPEEDS } from "./video-player/controls/dropdown/DropdownView";
+import { PlaybackSpeedScope } from "./video-player/controls/utils/playback-speed-settings";
 
 interface Props extends React.ComponentProps<typeof View> {
   onChange: (value: number, scope: PlaybackSpeedScope) => void;

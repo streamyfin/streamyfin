@@ -17,8 +17,9 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
 import { VideoProvider } from "./contexts/VideoContext";
-import DropdownView, { PlaybackSpeedScope } from "./dropdown/DropdownView";
+import DropdownView from "./dropdown/DropdownView";
 import { type ScaleFactor, ScaleFactorSelector } from "./ScaleFactorSelector";
+import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import {
   type AspectRatio,
   AspectRatioSelector,
