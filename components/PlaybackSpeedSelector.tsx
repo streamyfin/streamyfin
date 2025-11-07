@@ -45,10 +45,13 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
 
   // Determine initial scope based on existing settings
   const initialScope = useMemo<PlaybackSpeedScope>(() => {
-    if (!item || !item.Id || !settings) return PlaybackSpeedScope.All;
+    if (!item || !settings) return PlaybackSpeedScope.All;
+
+    const itemId = item.Id;
+    if (!itemId) return PlaybackSpeedScope.All;
 
     // Check for media-specific speed preference
-    if (settings.playbackSpeedPerMedia?.[item.Id] !== undefined) {
+    if (settings.playbackSpeedPerMedia?.[itemId] !== undefined) {
       return PlaybackSpeedScope.Media;
     }
 
