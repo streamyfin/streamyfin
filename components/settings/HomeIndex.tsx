@@ -480,7 +480,7 @@ export const HomeIndex = () => {
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      {settings.showLargeHomeCarousel !== false && (
+      {(settings.showLargeHomeCarousel ?? true) && (
         <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
       )}
       <View
