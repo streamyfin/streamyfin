@@ -47,18 +47,18 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
   const initialScope = useMemo<PlaybackSpeedScope>(() => {
     if (!item || !settings) return PlaybackSpeedScope.All;
 
-    const itemId = item.Id ?? undefined;
+    const itemId = item?.Id;
     if (!itemId) return PlaybackSpeedScope.All;
 
     // Check for media-specific speed preference
-    const perMediaSettings = settings.playbackSpeedPerMedia;
+    const perMediaSettings = settings?.playbackSpeedPerMedia;
     if (perMediaSettings && perMediaSettings[itemId] !== undefined) {
       return PlaybackSpeedScope.Media;
     }
 
     // Check for show-specific speed preference (only for episodes)
-    const seriesId = item.SeriesId ?? undefined;
-    const perShowSettings = settings.playbackSpeedPerShow;
+    const seriesId = item?.SeriesId;
+    const perShowSettings = settings?.playbackSpeedPerShow;
     if (
       seriesId &&
       perShowSettings &&
@@ -69,7 +69,7 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
 
     // If no custom setting exists, check default playback speed
     // Show "All" if speed is not 1x, otherwise show "Media"
-    return (settings.defaultPlaybackSpeed ?? 1.0) !== 1.0
+    return (settings?.defaultPlaybackSpeed ?? 1.0) !== 1.0
       ? PlaybackSpeedScope.All
       : PlaybackSpeedScope.Media;
   }, [item?.Id, item?.SeriesId, settings]);
