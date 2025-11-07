@@ -45,24 +45,22 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
 
   // Determine initial scope based on existing settings
   const initialScope = useMemo<PlaybackSpeedScope>(() => {
-    if (!item?.Id || !settings) return PlaybackSpeedScope.All;
+    if (!item || !item.Id || !settings) return PlaybackSpeedScope.All;
 
     // Check for media-specific speed preference
-    if (settings.playbackSpeedPerMedia[item.Id] !== undefined) {
+    if (settings.playbackSpeedPerMedia?.[item.Id] !== undefined) {
       return PlaybackSpeedScope.Media;
     }
 
     // Check for show-specific speed preference (only for episodes)
-    if (
-      item.SeriesId &&
-      settings.playbackSpeedPerShow[item.SeriesId] !== undefined
-    ) {
+    const seriesId = item.SeriesId;
+    if (seriesId && settings.playbackSpeedPerShow?.[seriesId] !== undefined) {
       return PlaybackSpeedScope.Show;
     }
 
     // If no custom setting exists, check default playback speed
     // Show "All" if speed is not 1x, otherwise show "Media"
-    return settings.defaultPlaybackSpeed !== 1.0
+    return (settings.defaultPlaybackSpeed ?? 1.0) !== 1.0
       ? PlaybackSpeedScope.All
       : PlaybackSpeedScope.Media;
   }, [item?.Id, item?.SeriesId, settings]);
