@@ -21,7 +21,6 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
-  ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -75,7 +74,6 @@ export const HomeIndex = () => {
 
   const insets = useSafeAreaInsets();
 
-  const scrollViewRef = useRef<ScrollView>(null);
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(animatedScrollRef);
 
@@ -133,7 +131,7 @@ export const HomeIndex = () => {
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
       if ((segments as string[])[2] === "(home)")
-        scrollViewRef.current?.scrollTo({
+        animatedScrollRef.current?.scrollTo({
           y: Platform.isTV ? -152 : -100,
           animated: true,
         });
@@ -488,7 +486,12 @@ export const HomeIndex = () => {
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
-          paddingTop: settings.showLargeHomeCarousel === false ? (Platform.isTV ? 0 : insets.top + 60) : 0,
+          paddingTop:
+            settings.showLargeHomeCarousel === false
+              ? Platform.isTV
+                ? 0
+                : insets.top + 60
+              : 0,
         }}
       >
         <View className='flex flex-col space-y-4'>
