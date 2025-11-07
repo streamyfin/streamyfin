@@ -25,6 +25,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  useAnimatedRef,
+  useScrollViewOffset,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -72,6 +76,8 @@ export const HomeIndex = () => {
   const insets = useSafeAreaInsets();
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollOffset = useScrollViewOffset(animatedScrollRef);
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
@@ -456,11 +462,12 @@ export const HomeIndex = () => {
     );
 
   return (
-    <ScrollView
+    <Animated.ScrollView
       scrollToOverflowEnabled={true}
-      ref={scrollViewRef}
+      ref={animatedScrollRef}
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='never'
+      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={loading}
@@ -473,12 +480,15 @@ export const HomeIndex = () => {
       style={{ marginTop: Platform.isTV ? 0 : -100 }}
       contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
     >
-      <AppleTVCarousel initialIndex={0} />
+      {settings.showLargeHomeCarousel !== false && (
+        <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
+      )}
       <View
         style={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
+          paddingTop: settings.showLargeHomeCarousel === false ? (Platform.isTV ? 0 : insets.top + 60) : 0,
         }}
       >
         <View className='flex flex-col space-y-4'>
@@ -509,7 +519,7 @@ export const HomeIndex = () => {
         </View>
       </View>
       <View className='h-24' />
-    </ScrollView>
+    </Animated.ScrollView>
   );
 };
 

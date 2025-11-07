@@ -14,7 +14,9 @@ import { Dimensions, Pressable, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  interpolate,
   runOnJS,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -34,6 +36,7 @@ import { PlayedStatus } from "./PlayedStatus";
 interface AppleTVCarouselProps {
   initialIndex?: number;
   onItemChange?: (index: number) => void;
+  scrollOffset?: SharedValue<number>;
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -147,6 +150,7 @@ const DotIndicator = ({
 export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   initialIndex = 0,
   onItemChange,
+  scrollOffset,
 }) => {
   const { settings } = useSettings();
   const api = useAtomValue(apiAtom);
@@ -345,6 +349,28 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   const containerAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateX: translateX.value }],
+    };
+  });
+
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    if (!scrollOffset) return {};
+    return {
+      transform: [
+        {
+          translateY: interpolate(
+            scrollOffset.value,
+            [-CAROUSEL_HEIGHT, 0, CAROUSEL_HEIGHT],
+            [-CAROUSEL_HEIGHT / 2, 0, CAROUSEL_HEIGHT * 0.75],
+          ),
+        },
+        {
+          scale: interpolate(
+            scrollOffset.value,
+            [-CAROUSEL_HEIGHT, 0, CAROUSEL_HEIGHT],
+            [2, 1, 1],
+          ),
+        },
+      ],
     };
   });
 
@@ -554,15 +580,25 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         }}
       >
         {/* Background Backdrop */}
-        <ItemImage
-          item={item}
-          variant='Backdrop'
-          style={{
-            width: "100%",
-            height: "100%",
-            position: "absolute",
-          }}
-        />
+        <Animated.View
+          style={[
+            {
+              width: "100%",
+              height: "100%",
+              position: "absolute",
+            },
+            headerAnimatedStyle,
+          ]}
+        >
+          <ItemImage
+            item={item}
+            variant='Backdrop'
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+          />
+        </Animated.View>
 
         {/* Dark Overlay */}
         <View

@@ -182,6 +182,7 @@
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
         "show_custom_menu_links": "Show Custom Menu Links",
+        "show_large_home_carousel": "Show Large Home Carousel",
         "hide_libraries": "Hide Libraries",
         "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable Haptic Feedback",
