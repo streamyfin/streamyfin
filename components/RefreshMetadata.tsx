@@ -31,6 +31,7 @@ export const RefreshMetadata: FC<Props> = ({ item, ...props }) => {
         icon='reload-outline'
         onPress={refreshMetadata}
         hapticFeedback={!isRefreshing}
+        fillColor={isRefreshing ? "primary" : undefined}
       />
     </View>
   );
