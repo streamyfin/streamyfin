@@ -296,6 +296,7 @@
         "deleted_media_successfully": "Deleted other media Successfully!",
         "failed_to_delete_media": "Failed to Delete other media",
         "download_deleted": "Download Deleted",
+        "download_cancelled": "Download Cancelled",
         "could_not_delete_download": "Could Not Delete Download",
         "download_paused": "Download Paused",
         "could_not_pause_download": "Could Not Pause Download",
