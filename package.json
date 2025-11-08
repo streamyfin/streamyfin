@@ -152,7 +152,6 @@
     ]
   },
   "trustedDependencies": [
-    "postinstall-postinstall",
     "unrs-resolver"
   ]
 }

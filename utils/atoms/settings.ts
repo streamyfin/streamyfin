@@ -93,6 +93,7 @@ export type HomeSection = {
   items?: HomeSectionItemResolver;
   nextUp?: HomeSectionNextUpResolver;
   latest?: HomeSectionLatestResolver;
+  custom?: HomeSectionCustomEndpointResolver;
 };
 
 export type HomeSectionItemResolver = {
@@ -104,6 +105,13 @@ export type HomeSectionItemResolver = {
   parentId?: string;
   limit?: number;
   filters?: Array<ItemFilter>;
+};
+
+export type HomeSectionCustomEndpointResolver = {
+  title?: string;
+  endpoint: string;
+  headers?: any;
+  query?: any;
 };
 
 export type HomeSectionNextUpResolver = {
@@ -180,6 +188,7 @@ export type Settings = {
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
+  showLargeHomeCarousel: boolean;
 };
 
 export interface Lockable<T> {
@@ -248,6 +257,7 @@ export const defaultValues: Settings = {
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
+  showLargeHomeCarousel: true,
 };
 
 const loadSettings = (): Partial<Settings> => {

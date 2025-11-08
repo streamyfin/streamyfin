@@ -2,6 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
+  BaseItemDtoQueryResult,
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
@@ -11,7 +12,11 @@ import {
   getUserLibraryApi,
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { type QueryFunction, useQuery } from "@tanstack/react-query";
+import {
+  type QueryFunction,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useNavigation, useRouter, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,10 +25,13 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
-  ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  useAnimatedRef,
+  useScrollViewOffset,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -63,14 +71,22 @@ export const HomeIndex = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
+  const insets = useSafeAreaInsets();
+
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
+  const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
+  const queryClient = useQueryClient();
+  const headerOverlayOffset = Platform.isTV
+    ? 0
+    : showLargeHomeCarousel
+      ? 60
+      : 0;
 
   const navigation = useNavigation();
 
-  const insets = useSafeAreaInsets();
-
-  const scrollViewRef = useRef<ScrollView>(null);
+  const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollOffset = useScrollViewOffset(animatedScrollRef);
 
   const { getDownloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
@@ -108,12 +124,12 @@ export const HomeIndex = () => {
           onPress={() => {
             router.push("/(auth)/downloads");
           }}
-          className='p-2'
+          className='ml-1.5'
         >
           <Feather
             name='download'
             color={hasDownloads ? Colors.primary : "white"}
-            size={22}
+            size={24}
           />
         </TouchableOpacity>
       ),
@@ -130,7 +146,7 @@ export const HomeIndex = () => {
   useEffect(() => {
     const unsubscribe = eventBus.on("scrollToTop", () => {
       if ((segments as string[])[2] === "(home)")
-        scrollViewRef.current?.scrollTo({
+        animatedScrollRef.current?.scrollTo({
           y: Platform.isTV ? -152 : -100,
           animated: true,
         });
@@ -179,9 +195,20 @@ export const HomeIndex = () => {
   const refetch = async () => {
     setLoading(true);
     await refreshStreamyfinPluginSettings();
+    await queryClient.clear();
     await invalidateCache();
     setLoading(false);
   };
+
+  useEffect(() => {
+    const unsubscribe = eventBus.on("refreshHome", () => {
+      refetch();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [refetch]);
 
   const createCollectionConfig = useCallback(
     (
@@ -219,7 +246,9 @@ export const HomeIndex = () => {
 
     const latestMediaViews = collections.map((c) => {
       const includeItemTypes: BaseItemKind[] =
-        c.CollectionType === "tvshows" ? ["Series"] : ["Movie"];
+        c.CollectionType === "tvshows" || c.CollectionType === "movies"
+          ? []
+          : ["Movie"];
       const title = t("home.recently_added_in", { libraryName: c.Name });
       const queryKey = [
         "home",
@@ -320,7 +349,7 @@ export const HomeIndex = () => {
   const customSections = useMemo(() => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
     const ss: Section[] = [];
-    for (const [index, section] of settings.home.sections.entries()) {
+    settings.home.sections.forEach((section, index) => {
       const id = section.title || `section-${index}`;
       ss.push({
         title: t(`${id}`),
@@ -360,12 +389,22 @@ export const HomeIndex = () => {
             });
             return response.data || [];
           }
+          if (section.custom) {
+            const response = await api.get<BaseItemDtoQueryResult>(
+              section.custom.endpoint,
+              {
+                params: { ...(section.custom.query || {}), userId: user?.Id },
+                headers: section.custom.headers || {},
+              },
+            );
+            return response.data.Items || [];
+          }
           return [];
         },
         type: "ScrollingCollectionList",
         orientation: section?.orientation || "vertical",
       });
-    }
+    });
     return ss;
   }, [api, user?.Id, settings?.home?.sections]);
 
@@ -447,29 +486,41 @@ export const HomeIndex = () => {
     );
 
   return (
-    <ScrollView
+    <Animated.ScrollView
       scrollToOverflowEnabled={true}
-      ref={scrollViewRef}
+      ref={animatedScrollRef}
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='never'
+      scrollEventThrottle={16}
+      bounces={!showLargeHomeCarousel}
+      overScrollMode={showLargeHomeCarousel ? "never" : "auto"}
       refreshControl={
-        <RefreshControl
-          refreshing={loading}
-          onRefresh={refetch}
-          tintColor='white' // For iOS
-          colors={["white"]} // For Android
-          progressViewOffset={200} // This offsets the refresh indicator to appear over the carousel
-        />
+        showLargeHomeCarousel ? undefined : (
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetch}
+            tintColor='white'
+            colors={["white"]}
+            progressViewOffset={100}
+          />
+        )
       }
-      style={{ marginTop: Platform.isTV ? 0 : -100 }}
-      contentContainerStyle={{ paddingTop: Platform.isTV ? 0 : 100 }}
+      style={{ marginTop: -headerOverlayOffset }}
+      contentContainerStyle={{ paddingTop: headerOverlayOffset }}
     >
-      <AppleTVCarousel initialIndex={0} />
+      {showLargeHomeCarousel && (
+        <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
+      )}
       <View
         style={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
+          paddingTop: Platform.isTV
+            ? 0
+            : showLargeHomeCarousel
+              ? 0
+              : insets.top + 60,
         }}
       >
         <View className='flex flex-col space-y-4'>
@@ -500,7 +551,7 @@ export const HomeIndex = () => {
         </View>
       </View>
       <View className='h-24' />
-    </ScrollView>
+    </Animated.ScrollView>
   );
 };
 

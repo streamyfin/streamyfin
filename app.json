@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.39.0",
+    "version": "0.40.4",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -38,7 +38,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 71,
+      "versionCode": 76,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
@@ -133,7 +133,10 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification.png",
-          "color": "#9333EA"
+          "color": "#9333EA",
+          "android": {
+            "projectId": "streamyfin-4fec1"
+          }
         }
       ],
       "./plugins/with-runtime-framework-headers.js",
