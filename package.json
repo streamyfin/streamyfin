@@ -69,7 +69,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-i18next": "^15.4.0",
-    "react-native": "^0.82.1",
+    "react-native": "0.81.5",
     "react-native-awesome-slider": "^2.9.0",
     "react-native-bottom-tabs": "^1.0.2",
     "react-native-circular-progress": "^1.4.1",
@@ -120,19 +120,12 @@
     "typescript": "~5.9.2"
   },
   "expo": {
-    "install": {
-      "exclude": [
-        "react-native"
-      ]
-    },
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
           "react-native-google-cast",
           "react-native-udp",
-          "@bottom-tabs/react-navigation",
-          "@jellyfin/sdk",
-          "expo-doctor"
+          "@jellyfin/sdk"
         ],
         "listUnknownPackages": false
       }
