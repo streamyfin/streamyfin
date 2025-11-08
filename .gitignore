@@ -65,3 +65,4 @@ streamyfin-4fec1-firebase-adminsdk.json
 
 # Version and Backup Files
 /version-backup-*
+modules/background-downloader/android/build/*
