@@ -27,12 +27,8 @@ export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [queue, setQueue] = useAtom(queueAtom);
-  const {
-    removeProcess,
-    getDownloadedItems,
-    deleteFileByType,
-    deleteAllFiles,
-  } = useDownload();
+  const { removeProcess, downloadedItems, deleteFileByType, deleteAllFiles } =
+    useDownload();
   const router = useRouter();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -62,10 +58,7 @@ export default function page() {
     );
   };
 
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
+  const downloadedFiles = useMemo(() => downloadedItems, [downloadedItems]);
 
   const movies = useMemo(() => {
     try {
@@ -146,24 +139,26 @@ export default function page() {
       });
   const deleteOtherMedia = () =>
     Promise.all(
-      otherMedia.map((item) =>
-        deleteFileByType(item.item.Type)
-          .then(() =>
-            toast.success(
-              t("home.downloads.toasts.deleted_media_successfully", {
-                type: item.item.Type,
-              }),
-            ),
-          )
-          .catch((reason) => {
-            writeToLog("ERROR", reason);
-            toast.error(
-              t("home.downloads.toasts.failed_to_delete_media", {
-                type: item.item.Type,
-              }),
-            );
-          }),
-      ),
+      otherMedia
+        .filter((item) => item.item.Type)
+        .map((item) =>
+          deleteFileByType(item.item.Type!)
+            .then(() =>
+              toast.success(
+                t("home.downloads.toasts.deleted_media_successfully", {
+                  type: item.item.Type,
+                }),
+              ),
+            )
+            .catch((reason) => {
+              writeToLog("ERROR", reason);
+              toast.error(
+                t("home.downloads.toasts.failed_to_delete_media", {
+                  type: item.item.Type,
+                }),
+              );
+            }),
+        ),
     );
 
   const deleteAllMedia = async () =>

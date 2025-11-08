@@ -23,21 +23,22 @@ export default function page() {
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>(
     {},
   );
-  const { getDownloadedItems, deleteItems } = useDownload();
+  const { downloadedItems, deleteItems } = useDownload();
 
   const series = useMemo(() => {
     try {
       return (
-        getDownloadedItems()
+        downloadedItems
           ?.filter((f) => f.item.SeriesId === seriesId)
           ?.sort(
-            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
+            (a, b) =>
+              (a.item.ParentIndexNumber ?? 0) - (b.item.ParentIndexNumber ?? 0),
           ) || []
       );
     } catch {
       return [];
     }
-  }, [getDownloadedItems]);
+  }, [downloadedItems, seriesId]);
 
   // Group episodes by season in a single pass
   const seasonGroups = useMemo(() => {
@@ -107,12 +108,17 @@ export default function page() {
         },
         {
           text: "Delete",
-          onPress: () => deleteItems(groupBySeason),
+          onPress: () =>
+            deleteItems(
+              groupBySeason
+                .map((item) => item.Id)
+                .filter((id) => id !== undefined),
+            ),
           style: "destructive",
         },
       ],
     );
-  }, [groupBySeason]);
+  }, [groupBySeason, deleteItems]);
 
   return (
     <View className='flex-1'>
