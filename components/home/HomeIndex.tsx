@@ -88,7 +88,7 @@ export const HomeIndex = () => {
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(animatedScrollRef);
 
-  const { getDownloadedItems, cleanCacheDirectory } = useDownload();
+  const { downloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
   const {
     isConnected,
@@ -108,8 +108,8 @@ export const HomeIndex = () => {
 
   const hasDownloads = useMemo(() => {
     if (Platform.isTV) return false;
-    return getDownloadedItems().length > 0;
-  }, [getDownloadedItems]);
+    return downloadedItems.length > 0;
+  }, [downloadedItems]);
 
   useEffect(() => {
     if (Platform.isTV) {
@@ -250,10 +250,10 @@ export const HomeIndex = () => {
           ? []
           : ["Movie"];
       const title = t("home.recently_added_in", { libraryName: c.Name });
-      const queryKey = [
+      const queryKey: string[] = [
         "home",
         `recentlyAddedIn${c.CollectionType}`,
-        user?.Id!,
+        user.Id!,
         c.Id!,
       ];
       return createCollectionConfig(
