@@ -98,8 +98,13 @@ const fetchMediaSegments = async (
 } | null> => {
   try {
     const response = await api.axiosInstance.get<MediaSegmentsResponse>(
-      `${api.basePath}/Items/${itemId}/MediaSegments`,
-      { headers: getAuthHeaders(api) },
+      `${api.basePath}/MediaSegments/${itemId}`,
+      {
+        headers: getAuthHeaders(api),
+        params: {
+          includeSegmentTypes: ["Intro", "Outro"],
+        },
+      },
     );
 
     const introSegments: MediaTimeSegment[] = [];
