@@ -27,13 +27,13 @@ interface DownloadCardProps extends TouchableOpacityProps {
 }
 
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
-  const { removeProcess } = useDownload();
+  const { cancelDownload } = useDownload();
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const handleDelete = async (id: string) => {
     try {
-      await removeProcess(id);
+      await cancelDownload(id);
       toast.success(t("home.downloads.toasts.download_deleted"));
       queryClient.invalidateQueries({ queryKey: ["downloads"] });
     } catch (error) {
