@@ -77,11 +77,11 @@ function useDownloadProvider() {
       setProcesses((prev) => prev.filter((process) => process.id !== id));
 
       // Find and remove from task map
-      for (const [taskId, processId] of taskMapRef.current.entries()) {
+      taskMapRef.current.forEach((processId, taskId) => {
         if (processId === id) {
           taskMapRef.current.delete(taskId);
         }
-      }
+      });
     },
     [setProcesses],
   );

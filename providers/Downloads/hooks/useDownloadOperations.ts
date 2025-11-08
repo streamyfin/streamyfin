@@ -155,12 +155,11 @@ export function useDownloadOperations({
     async (id: string) => {
       // Find the task ID for this process
       let taskId: number | undefined;
-      for (const [tId, pId] of taskMapRef.current.entries()) {
+      taskMapRef.current.forEach((pId, tId) => {
         if (pId === id) {
           taskId = tId;
-          break;
         }
-      }
+      });
 
       if (taskId !== undefined) {
         BackgroundDownloader.cancelDownload(taskId);
