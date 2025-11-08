@@ -35,6 +35,7 @@ import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MediaSourceSheet } from "./MediaSourceSheet";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
+import { RefreshMetadata } from "./RefreshMetadata";
 import { TrackSheet } from "./TrackSheet";
 
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
@@ -115,7 +116,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                       <DownloadSingleItem item={item} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
+                      <>
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                        <RefreshMetadata item={item} />
+                      </>
                     )}
 
                     <PlayedStatus items={[item]} size='large' />
@@ -132,7 +136,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                       <DownloadSingleItem item={item} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
+                      <>
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                        <RefreshMetadata item={item} />
+                      </>
                     )}
 
                     <PlayedStatus items={[item]} size='large' />
