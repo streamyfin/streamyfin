@@ -1,3 +1,5 @@
+import type { EventSubscription } from "expo-modules-core";
+
 export interface DownloadProgressEvent {
   taskId: number;
   bytesWritten: number;
@@ -32,4 +34,8 @@ export interface BackgroundDownloaderModuleType {
   cancelDownload(taskId: number): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
+  addListener(
+    eventName: string,
+    listener: (event: any) => void,
+  ): EventSubscription;
 }

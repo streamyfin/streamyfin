@@ -3,7 +3,6 @@ import { File } from "expo-file-system";
 import type { MutableRefObject } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner-native";
 import useImageStorage from "@/hooks/useImageStorage";
 import type {
   DownloadCompleteEvent,
@@ -231,12 +230,6 @@ export function useDownloadEventHandlers({
             notificationContent.body,
           );
 
-          toast.success(
-            t("home.downloads.toasts.download_completed_for_item", {
-              item: item.Name,
-            }),
-          );
-
           onSuccess?.();
           onDataChange?.();
 
@@ -295,15 +288,6 @@ export function useDownloadEventHandlers({
         await sendDownloadNotification(
           notificationContent.title,
           notificationContent.body,
-        );
-
-        toast.error(
-          t("home.downloads.toasts.download_failed_for_item", {
-            item: process.item.Name,
-          }),
-          {
-            description: event.error,
-          },
         );
 
         // Remove process after short delay

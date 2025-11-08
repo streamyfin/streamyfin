@@ -73,7 +73,9 @@ class BackgroundDownloaderModule : Module() {
       try {
         val uri = Uri.parse(urlString)
         val request = DownloadManager.Request(uri).apply {
-          setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+          // Hide DownloadManager notifications - we handle notifications via expo-notifications
+          // This prevents duplicate notifications (DownloadManager + custom notification)
+          setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN)
           setAllowedNetworkTypes(
             DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE
           )

@@ -1,4 +1,4 @@
-import type { Subscription } from "expo-modules-core";
+import type { EventSubscription } from "expo-modules-core";
 import type {
   ActiveDownload,
   DownloadCompleteEvent,
@@ -16,17 +16,19 @@ export interface BackgroundDownloader {
 
   addProgressListener(
     listener: (event: DownloadProgressEvent) => void,
-  ): Subscription;
+  ): EventSubscription;
 
   addCompleteListener(
     listener: (event: DownloadCompleteEvent) => void,
-  ): Subscription;
+  ): EventSubscription;
 
-  addErrorListener(listener: (event: DownloadErrorEvent) => void): Subscription;
+  addErrorListener(
+    listener: (event: DownloadErrorEvent) => void,
+  ): EventSubscription;
 
   addStartedListener(
     listener: (event: DownloadStartedEvent) => void,
-  ): Subscription;
+  ): EventSubscription;
 }
 
 const BackgroundDownloader: BackgroundDownloader = {
@@ -48,7 +50,7 @@ const BackgroundDownloader: BackgroundDownloader = {
 
   addProgressListener(
     listener: (event: DownloadProgressEvent) => void,
-  ): Subscription {
+  ): EventSubscription {
     return BackgroundDownloaderModule.addListener(
       "onDownloadProgress",
       listener,
@@ -57,7 +59,7 @@ const BackgroundDownloader: BackgroundDownloader = {
 
   addCompleteListener(
     listener: (event: DownloadCompleteEvent) => void,
-  ): Subscription {
+  ): EventSubscription {
     return BackgroundDownloaderModule.addListener(
       "onDownloadComplete",
       listener,
@@ -66,13 +68,13 @@ const BackgroundDownloader: BackgroundDownloader = {
 
   addErrorListener(
     listener: (event: DownloadErrorEvent) => void,
-  ): Subscription {
+  ): EventSubscription {
     return BackgroundDownloaderModule.addListener("onDownloadError", listener);
   },
 
   addStartedListener(
     listener: (event: DownloadStartedEvent) => void,
-  ): Subscription {
+  ): EventSubscription {
     return BackgroundDownloaderModule.addListener(
       "onDownloadStarted",
       listener,
@@ -83,9 +85,9 @@ const BackgroundDownloader: BackgroundDownloader = {
 export default BackgroundDownloader;
 
 export type {
-  DownloadProgressEvent,
+  ActiveDownload,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadProgressEvent,
   DownloadStartedEvent,
-  ActiveDownload,
 };
