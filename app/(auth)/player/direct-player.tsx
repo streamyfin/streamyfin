@@ -286,12 +286,14 @@ export default function page() {
   };
 
   const reportPlaybackStopped = useCallback(async () => {
+    if (!item?.Id || !stream?.sessionId) return;
+
     const currentTimeInTicks = msToTicks(progress.get());
     await getPlaystateApi(api!).onPlaybackStopped({
-      itemId: item?.Id!,
+      itemId: item.Id,
       mediaSourceId: mediaSourceId,
       positionTicks: currentTimeInTicks,
-      playSessionId: stream?.sessionId!,
+      playSessionId: stream.sessionId,
     });
   }, [
     api,
@@ -322,9 +324,9 @@ export default function page() {
   }, [navigation, stop]);
 
   const currentPlayStateInfo = useCallback(() => {
-    if (!stream) return;
+    if (!stream || !item?.Id) return;
     return {
-      itemId: item?.Id!,
+      itemId: item.Id,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
       subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
       mediaSourceId: mediaSourceId,
@@ -768,6 +770,7 @@ export default function page() {
           setAspectRatio={setAspectRatio}
           setScaleFactor={setScaleFactor}
           isVlc
+          api={api}
           downloadedFiles={downloadedFiles}
         />
       )}
