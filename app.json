@@ -140,7 +140,7 @@
         }
       ],
       "./plugins/with-runtime-framework-headers.js",
-      "react-native-bottom-tabs"
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
