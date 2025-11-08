@@ -370,10 +370,11 @@ const Login: React.FC = () => {
     // Mobile layout
     <SafeAreaView style={{ flex: 1, paddingBottom: 16 }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
       >
         {api?.basePath ? (
-          <View className='flex flex-col h-full relative items-center justify-center'>
+          <View className='flex flex-col flex-1 items-center justify-center'>
             <View className='px-4 -mt-20 w-full'>
               <View className='flex flex-col space-y-2'>
                 <Text className='text-2xl font-bold -mb-2'>
@@ -442,7 +443,7 @@ const Login: React.FC = () => {
             <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
           </View>
         ) : (
-          <View className='flex flex-col h-full items-center justify-center w-full'>
+          <View className='flex flex-col flex-1 items-center justify-center w-full'>
             <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
               <Image
                 style={{
