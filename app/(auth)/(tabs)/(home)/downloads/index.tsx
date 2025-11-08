@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -26,7 +25,7 @@ import { writeToLog } from "@/utils/log";
 export default function page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const [queue, setQueue] = useAtom(queueAtom);
+  const [_queue, _setQueue] = useAtom(queueAtom);
   const { removeProcess, downloadedItems, deleteFileByType, deleteAllFiles } =
     useDownload();
   const router = useRouter();
@@ -102,7 +101,10 @@ export default function page() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={bottomSheetModalRef.current?.present}>
+        <TouchableOpacity
+          onPress={bottomSheetModalRef.current?.present}
+          className='px-2'
+        >
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
         </TouchableOpacity>
       ),
@@ -170,7 +172,8 @@ export default function page() {
         <ScrollView showsVerticalScrollIndicator={false} className='flex-1'>
           <View className='py-4'>
             <View className='mb-4 flex flex-col space-y-4 px-4'>
-              <View className='bg-neutral-900 p-4 rounded-2xl'>
+              {/* Queue card - hidden */}
+              {/* <View className='bg-neutral-900 p-4 rounded-2xl'>
                 <Text className='text-lg font-bold'>
                   {t("home.downloads.queue")}
                 </Text>
@@ -212,7 +215,7 @@ export default function page() {
                     {t("home.downloads.no_items_in_queue")}
                   </Text>
                 )}
-              </View>
+              </View> */}
 
               <ActiveDownloads />
             </View>
