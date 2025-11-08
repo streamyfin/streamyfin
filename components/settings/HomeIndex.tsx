@@ -12,7 +12,11 @@ import {
   getUserLibraryApi,
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { type QueryFunction, useQuery } from "@tanstack/react-query";
+import {
+  type QueryFunction,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useNavigation, useRouter, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -72,6 +76,7 @@ export const HomeIndex = () => {
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
   const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
+  const queryClient = useQueryClient();
   const headerOverlayOffset = Platform.isTV
     ? 0
     : showLargeHomeCarousel
@@ -186,9 +191,20 @@ export const HomeIndex = () => {
   const refetch = async () => {
     setLoading(true);
     await refreshStreamyfinPluginSettings();
+    await queryClient.clear();
     await invalidateCache();
     setLoading(false);
   };
+
+  useEffect(() => {
+    const unsubscribe = eventBus.on("refreshHome", () => {
+      refetch();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [refetch]);
 
   const createCollectionConfig = useCallback(
     (
@@ -472,14 +488,18 @@ export const HomeIndex = () => {
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='never'
       scrollEventThrottle={16}
+      bounces={!showLargeHomeCarousel}
+      overScrollMode={showLargeHomeCarousel ? "never" : "auto"}
       refreshControl={
-        <RefreshControl
-          refreshing={loading}
-          onRefresh={refetch}
-          tintColor='white' // For iOS
-          colors={["white"]} // For Android
-          progressViewOffset={showLargeHomeCarousel ? 200 : 0} // This offsets the refresh indicator to appear over the carousel
-        />
+        showLargeHomeCarousel ? undefined : (
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetch}
+            tintColor='white'
+            colors={["white"]}
+            progressViewOffset={100}
+          />
+        )
       }
       style={{ marginTop: -headerOverlayOffset }}
       contentContainerStyle={{ paddingTop: headerOverlayOffset }}

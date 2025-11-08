@@ -1,8 +1,15 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import { eventBus } from "@/utils/eventBus";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
@@ -30,7 +37,7 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast background='transparent' />
-
+                  <RefreshButton />
                   {user?.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
@@ -122,6 +129,32 @@ const SettingsButton = () => {
       }}
     >
       <Feather name='settings' color={"white"} size={22} />
+    </TouchableOpacity>
+  );
+};
+
+const RefreshButton = () => {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    eventBus.emit("refreshHome");
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 2000);
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handleRefresh}
+      className='mr-4'
+      disabled={isRefreshing}
+    >
+      {isRefreshing ? (
+        <ActivityIndicator size='small' color='white' />
+      ) : (
+        <Ionicons name='refresh-outline' color='white' size={24} />
+      )}
     </TouchableOpacity>
   );
 };
