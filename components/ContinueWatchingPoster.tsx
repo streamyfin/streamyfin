@@ -34,7 +34,8 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
     if (item.Type === "Episode" && useEpisodePoster) {
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
-    if (item.Type === "Episode") {
+    // Seasons do not (usually) have their own thumbs, so use the parent show's thumb
+    if (item.Type === "Episode" || item.Type === "Season") {
       if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
         return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
       }

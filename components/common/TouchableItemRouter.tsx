@@ -57,6 +57,16 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     };
   }
 
+  if (item.Type === "Season") {
+    return {
+      pathname: "/series/[id]" as const,
+      params: {
+        id: item.SeriesId!,
+        seasonIndex: item.IndexNumber!.toString(),
+      },
+    };
+  }
+
   if (item.Type === "Person") {
     return {
       pathname: "/persons/[personId]" as const,

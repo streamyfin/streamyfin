@@ -15,7 +15,11 @@ const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
   const [api] = useAtom(apiAtom);
 
   const url = useMemo(() => {
-    if (item.Type === "Episode") {
+    // Some seasons don't have images, so use the series image instead
+    const isSeasonWithNoImage =
+      item.Type === "Season" && !item.ImageTags?.Primary;
+
+    if (item.Type === "Episode" || isSeasonWithNoImage) {
       return `${api?.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=389&quality=80&tag=${item.SeriesPrimaryImageTag}`;
     }
     return getPrimaryImageUrl({

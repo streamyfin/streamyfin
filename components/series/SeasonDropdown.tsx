@@ -51,7 +51,7 @@ export const SeasonDropdown: React.FC<Props> = ({
   );
 
   const seasonIndex = useMemo(
-    () => state[(item[keys.id] as string) ?? ""],
+    () => state[(item[keys.id] as string) ?? "1"],
     [state, item, keys],
   );
 
@@ -99,6 +99,14 @@ export const SeasonDropdown: React.FC<Props> = ({
   const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
     Number(a[keys.index]) - Number(b[keys.index]);
 
+  const seasonTitle = useMemo(() => {
+    const idx = (seasonIndex as number) - 1;
+    const name = seasons?.[idx]?.[keys.title] as string;
+    if (name) return name;
+
+    return `${t("item_card.season")} ${seasonIndex}`;
+  }, [seasons, seasonIndex, keys]);
+
   if (isTv) return null;
 
   return (
@@ -106,9 +114,7 @@ export const SeasonDropdown: React.FC<Props> = ({
       <DropdownMenu.Trigger>
         <View className='flex flex-row'>
           <TouchableOpacity className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
-            <Text>
-              {t("item_card.season")} {seasonIndex}
-            </Text>
+            <Text>{seasonTitle}</Text>
           </TouchableOpacity>
         </View>
       </DropdownMenu.Trigger>
