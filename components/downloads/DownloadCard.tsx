@@ -30,14 +30,6 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
 };
 
-const formatElapsedTime = (startTime?: Date): string | null => {
-  if (!startTime) return null;
-  const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-};
-
 interface DownloadCardProps extends TouchableOpacityProps {
   process: JobStatus;
 }
@@ -50,7 +42,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const handleDelete = async (id: string) => {
     try {
       await cancelDownload(id);
-      toast.success(t("home.downloads.toasts.download_deleted"));
+      // cancelDownload already shows a toast, so don't show another one
       queryClient.invalidateQueries({ queryKey: ["downloads"] });
     } catch (error) {
       console.error("Error deleting download:", error);
@@ -76,38 +68,30 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     return formatTimeString(secondsRemaining, "s");
   }, [process.id, process.bytesDownloaded, process.estimatedTotalSizeBytes]);
 
-  const elapsedTime = useMemo(() => {
-    return formatElapsedTime(process.startTime);
-  }, [process.startTime]);
-
   const estimatedSize = useMemo(() => {
     if (process.estimatedTotalSizeBytes) return process.estimatedTotalSizeBytes;
 
-    // Calculate from bitrate + duration
-    return estimateDownloadSize(
-      process.maxBitrate.value,
-      process.item.RunTimeTicks,
-    );
+    // Calculate from bitrate + duration (only if bitrate value is defined)
+    if (process.maxBitrate.value) {
+      return estimateDownloadSize(
+        process.maxBitrate.value,
+        process.item.RunTimeTicks,
+      );
+    }
+
+    return undefined;
   }, [
     process.maxBitrate.value,
     process.item.RunTimeTicks,
     process.estimatedTotalSizeBytes,
   ]);
 
-  const isTranscoding = useMemo(() => {
-    // Transcoding when we don't have actual total size from server
-    return !process.estimatedTotalSizeBytes && process.status === "downloading";
-  }, [process.estimatedTotalSizeBytes, process.status]);
+  const isTranscoding = process.isTranscoding || false;
 
   const downloadedAmount = useMemo(() => {
     if (!process.bytesDownloaded) return null;
     return formatBytes(process.bytesDownloaded);
   }, [process.bytesDownloaded]);
-
-  const estimatedSizeText = useMemo(() => {
-    if (!estimatedSize) return null;
-    return `Est. ~${formatBytes(estimatedSize)}`;
-  }, [estimatedSize]);
 
   const base64Image = useMemo(() => {
     return storage.getString(process.item.Id!);
@@ -168,50 +152,50 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               />
             </View>
           )}
-          <View className='shrink mb-1 flex-1'>
+          <View className='shrink mb-1 flex-1 pr-12'>
             <Text className='text-xs opacity-50'>{process.item.Type}</Text>
             <Text className='font-semibold shrink'>{process.item.Name}</Text>
             <Text className='text-xs opacity-50'>
               {process.item.ProductionYear}
             </Text>
-            <View className='flex flex-row items-center gap-x-2 mt-1 text-purple-600'>
-              {isTranscoding && (
-                <View className='bg-purple-600/20 px-2 py-0.5 rounded-md'>
-                  <Text className='text-xs text-purple-400'>Transcoding</Text>
-                </View>
-              )}
 
+            {isTranscoding && (
+              <View className='bg-purple-600/20 px-2 py-0.5 rounded-md mt-1 self-start'>
+                <Text className='text-xs text-purple-400'>Transcoding</Text>
+              </View>
+            )}
+
+            {/* Row 1: Progress + Downloaded/Total */}
+            <View className='flex flex-row items-center gap-x-2 mt-1.5'>
               {sanitizedProgress === 0 ? (
                 <ActivityIndicator size={"small"} color={"white"} />
               ) : (
-                <Text className='text-xs'>{sanitizedProgress.toFixed(0)}%</Text>
-              )}
-
-              {downloadedAmount && (
-                <Text className='text-xs'>{downloadedAmount}</Text>
-              )}
-
-              {process.speed && process.speed > 0 && (
-                <Text className='text-xs'>
-                  {bytesToMB(process.speed).toFixed(2)} MB/s
+                <Text className='text-xs font-semibold'>
+                  {sanitizedProgress.toFixed(0)}%
                 </Text>
               )}
-
-              {elapsedTime && <Text className='text-xs'>{elapsedTime}</Text>}
-
-              {estimatedSizeText && (
-                <Text className='text-xs opacity-75'>{estimatedSizeText}</Text>
-              )}
-
-              {eta && (
-                <Text className='text-xs'>
-                  {t("home.downloads.eta", { eta: eta })}
+              {downloadedAmount && (
+                <Text className='text-xs opacity-75'>
+                  {downloadedAmount}
+                  {estimatedSize
+                    ? ` / ${isTranscoding ? "~" : ""}${formatBytes(estimatedSize)}`
+                    : ""}
                 </Text>
               )}
             </View>
 
-            <View className='flex flex-row items-center gap-x-2 mt-1 text-purple-600'>
-              <Text className='text-xs capitalize'>{process.status}</Text>
+            {/* Row 2: Speed + ETA */}
+            <View className='flex flex-row items-center gap-x-2 mt-0.5'>
+              {process.speed && process.speed > 0 && (
+                <Text className='text-xs text-purple-400'>
+                  {bytesToMB(process.speed).toFixed(2)} MB/s
+                </Text>
+              )}
+              {eta && (
+                <Text className='text-xs text-green-400'>
+                  {t("home.downloads.eta", { eta: eta })}
+                </Text>
+              )}
             </View>
           </View>
         </View>

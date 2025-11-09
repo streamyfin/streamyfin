@@ -128,31 +128,65 @@ export function useDownloadEventHandlers({
           return;
         }
 
-        const progress = Math.min(
-          Math.floor(event.progress * 100),
-          99, // Cap at 99% until completion
-        );
-
         // Add data point and calculate speed (validation happens inside)
         addSpeedDataPoint(processId, event.bytesWritten);
         const speed = calculateWeightedSpeed(processId);
 
-        // Calculate estimated size if not provided by server
-        let estimatedTotalBytes =
+        // Determine if transcoding based on whether server provides total size
+        const isTranscoding = !(
           event.totalBytes > 0 && Number.isFinite(event.totalBytes)
-            ? event.totalBytes
-            : undefined;
+        );
 
-        // If server doesn't provide size, estimate from bitrate
-        if (!estimatedTotalBytes) {
+        // Calculate total size - use actual from server or estimate from bitrate
+        let estimatedTotalBytes: number | undefined;
+        if (!isTranscoding) {
+          // Server provided total size (direct download)
+          estimatedTotalBytes = event.totalBytes;
+        } else {
+          // Transcoding - estimate from bitrate
           const process = processes.find((p) => p.id === processId);
+          console.log(
+            `[DPL] Transcoding detected, looking for process ${processId}, found:`,
+            process ? "yes" : "no",
+          );
           if (process) {
-            const { estimateDownloadSize } = require("@/utils/download");
-            estimatedTotalBytes = estimateDownloadSize(
-              process.maxBitrate.value,
-              process.item.RunTimeTicks,
-            );
+            console.log(`[DPL] Process bitrate:`, {
+              key: process.maxBitrate.key,
+              value: process.maxBitrate.value,
+              runTimeTicks: process.item.RunTimeTicks,
+            });
+            if (process.maxBitrate.value && process.item.RunTimeTicks) {
+              const { estimateDownloadSize } = require("@/utils/download");
+              estimatedTotalBytes = estimateDownloadSize(
+                process.maxBitrate.value,
+                process.item.RunTimeTicks,
+              );
+              console.log(
+                `[DPL] Calculated estimatedTotalBytes:`,
+                estimatedTotalBytes,
+              );
+            } else {
+              console.log(
+                `[DPL] Cannot estimate size - bitrate.value or RunTimeTicks missing`,
+              );
+            }
           }
+        }
+
+        // Calculate progress - use native progress if available, otherwise calculate from bytes
+        let progress: number;
+        if (event.progress > 0) {
+          // Server provided total size, use native progress
+          progress = Math.min(Math.floor(event.progress * 100), 99);
+        } else if (estimatedTotalBytes && event.bytesWritten > 0) {
+          // Calculate progress from estimated size
+          progress = Math.min(
+            Math.floor((event.bytesWritten / estimatedTotalBytes) * 100),
+            99,
+          );
+        } else {
+          // No way to calculate progress
+          progress = 0;
         }
 
         console.log(
@@ -165,6 +199,7 @@ export function useDownloadEventHandlers({
           lastProgressUpdateTime: new Date(),
           speed,
           estimatedTotalSizeBytes: estimatedTotalBytes,
+          isTranscoding,
         });
       },
     );
@@ -173,7 +208,7 @@ export function useDownloadEventHandlers({
       console.log("[DPL] Removing progress listener");
       progressSub.remove();
     };
-  }, [taskMapRef, updateProcess]);
+  }, [taskMapRef, updateProcess, processes]);
 
   // Handle download completion events
   useEffect(() => {

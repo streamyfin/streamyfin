@@ -134,4 +134,6 @@ export type JobStatus = {
   estimatedTotalSizeBytes?: number;
   /** Timestamp of when the download actually started (optional) */
   startTime?: Date;
+  /** Whether the download is being transcoded (optional) */
+  isTranscoding?: boolean;
 };

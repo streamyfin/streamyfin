@@ -35,10 +35,11 @@ export default useDownloadHelper;
 /**
  * Estimates the download file size based on bitrate and video duration.
  * Used when transcoding at lower bitrates where final size is unknown.
+ * Adds 10% overhead to account for container and metadata.
  *
  * @param bitrateValue - The bitrate in bits per second
  * @param runTimeTicks - The video duration in ticks (1 tick = 100 nanoseconds)
- * @returns Estimated file size in bytes, or undefined if duration is invalid
+ * @returns Estimated file size in bytes (with 10% overhead), or undefined if duration is invalid
  */
 export function estimateDownloadSize(
   bitrateValue: number,
@@ -50,7 +51,8 @@ export function estimateDownloadSize(
   const durationSeconds = runTimeTicks / 10000000;
 
   // Calculate size in bytes: (bitrate * duration) / 8
-  const estimatedBytes = (bitrateValue * durationSeconds) / 8;
+  // Add 10% overhead for container and metadata
+  const estimatedBytes = ((bitrateValue * durationSeconds) / 8) * 1.1;
 
   return Math.floor(estimatedBytes);
 }
