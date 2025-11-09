@@ -136,4 +136,10 @@ export type JobStatus = {
   startTime?: Date;
   /** Whether the download is being transcoded (optional) */
   isTranscoding?: boolean;
+  /** Pre-downloaded trickplay data (optional) - downloaded before video starts */
+  trickPlayData?: TrickPlayData;
+  /** Pre-downloaded intro segments (optional) - downloaded before video starts */
+  introSegments?: MediaTimeSegment[];
+  /** Pre-downloaded credit segments (optional) - downloaded before video starts */
+  creditSegments?: MediaTimeSegment[];
 };

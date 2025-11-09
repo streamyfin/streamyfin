@@ -10,6 +10,7 @@ import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
 
 export interface BackgroundDownloader {
   startDownload(url: string, destinationPath?: string): Promise<number>;
+  enqueueDownload(url: string, destinationPath?: string): Promise<number>;
   cancelDownload(taskId: number): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
@@ -34,6 +35,16 @@ export interface BackgroundDownloader {
 const BackgroundDownloader: BackgroundDownloader = {
   async startDownload(url: string, destinationPath?: string): Promise<number> {
     return await BackgroundDownloaderModule.startDownload(url, destinationPath);
+  },
+
+  async enqueueDownload(
+    url: string,
+    destinationPath?: string,
+  ): Promise<number> {
+    return await BackgroundDownloaderModule.enqueueDownload(
+      url,
+      destinationPath,
+    );
   },
 
   cancelDownload(taskId: number): void {

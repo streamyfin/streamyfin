@@ -1,9 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
 import { File } from "expo-file-system";
 import type { MutableRefObject } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import useImageStorage from "@/hooks/useImageStorage";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
@@ -11,19 +10,12 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
-import useDownloadHelper from "@/utils/download";
-import { downloadAdditionalAssets } from "../additionalDownloads";
 import { addDownloadedItem } from "../database";
 import {
   getNotificationContent,
   sendDownloadNotification,
 } from "../notifications";
-import type {
-  DownloadedItem,
-  JobStatus,
-  MediaTimeSegment,
-  TrickPlayData,
-} from "../types";
+import type { DownloadedItem, JobStatus } from "../types";
 import { generateFilename } from "../utils";
 import {
   addSpeedDataPoint,
@@ -57,50 +49,49 @@ export function useDownloadEventHandlers({
   api,
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
-  const { saveSeriesPrimaryImage } = useDownloadHelper();
-  const { saveImage } = useImageStorage();
 
   // Handle download started events
   useEffect(() => {
-    console.log("[DPL] Setting up started listener");
-
     const startedSub = BackgroundDownloader.addStartedListener(
       (event: DownloadStartedEvent) => {
-        console.log("[DPL] Download started event received:", event);
-        const processId = taskMapRef.current.get(event.taskId);
+        let processId = taskMapRef.current.get(event.taskId);
+
+        // If no mapping exists, find by URL (for queued downloads)
+        if (!processId && event.url) {
+          const matchingProcess = processes.find(
+            (p) => p.inputUrl === event.url,
+          );
+          if (matchingProcess) {
+            processId = matchingProcess.id;
+            taskMapRef.current.set(event.taskId, processId);
+            console.log(
+              `[DPL] Mapped queued download: taskId=${event.taskId} to processId=${processId.slice(0, 8)}...`,
+            );
+          }
+        }
+
         if (processId) {
           updateProcess(processId, { startTime: new Date() });
+        } else {
+          console.warn(
+            `[DPL] Started event for unknown download: taskId=${event.taskId}, url=${event.url}`,
+          );
         }
       },
     );
 
-    return () => {
-      console.log("[DPL] Removing started listener");
-      startedSub.remove();
-    };
-  }, [taskMapRef, updateProcess]);
+    return () => startedSub.remove();
+  }, [taskMapRef, updateProcess, processes]);
+
+  // Track last logged progress per process to avoid spam
+  const lastLoggedProgress = useRef<Map<string, number>>(new Map());
 
   // Handle download progress events
   useEffect(() => {
-    console.log("[DPL] Setting up progress listener");
-
     const progressSub = BackgroundDownloader.addProgressListener(
       (event: DownloadProgressEvent) => {
-        console.log("[DPL] Progress event received:", {
-          taskId: event.taskId,
-          progress: event.progress,
-          bytesWritten: event.bytesWritten,
-          totalBytes: event.totalBytes,
-          taskMapSize: taskMapRef.current.size,
-          taskMapKeys: Array.from(taskMapRef.current.keys()),
-        });
-
         const processId = taskMapRef.current.get(event.taskId);
         if (!processId) {
-          console.log(
-            `[DPL] Progress event for unknown taskId: ${event.taskId}`,
-            event,
-          );
           return;
         }
 
@@ -110,9 +101,6 @@ export function useDownloadEventHandlers({
           event.bytesWritten < 0 ||
           !Number.isFinite(event.bytesWritten)
         ) {
-          console.warn(
-            `[DPL] Invalid bytesWritten for taskId ${event.taskId}: ${event.bytesWritten}`,
-          );
           return;
         }
 
@@ -122,9 +110,6 @@ export function useDownloadEventHandlers({
           event.progress > 1 ||
           !Number.isFinite(event.progress)
         ) {
-          console.warn(
-            `[DPL] Invalid progress for taskId ${event.taskId}: ${event.progress}`,
-          );
           return;
         }
 
@@ -189,10 +174,24 @@ export function useDownloadEventHandlers({
           progress = 0;
         }
 
-        console.log(
-          `[DPL] Progress update for processId: ${processId}, taskId: ${event.taskId}, progress: ${progress}%, bytesWritten: ${event.bytesWritten}, speed: ${speed ? (speed / 1024 / 1024).toFixed(2) : "N/A"} MB/s, estimatedTotalBytes: ${estimatedTotalBytes}`,
-        );
+        // Only log when crossing 10% milestones (not on every update at that milestone)
+        const lastProgress = lastLoggedProgress.current.get(processId) ?? -1;
+        const progressMilestone = Math.floor(progress / 10) * 10;
+        const lastMilestone = Math.floor(lastProgress / 10) * 10;
 
+        // Log when crossing a milestone, or when first hitting 99%
+        const shouldLog =
+          progressMilestone !== lastMilestone ||
+          (progress === 99 && lastProgress < 99);
+
+        if (shouldLog) {
+          console.log(
+            `[DPL] ${processId.slice(0, 8)}... ${progress}% (${(event.bytesWritten / 1024 / 1024).toFixed(0)}/${estimatedTotalBytes ? (estimatedTotalBytes / 1024 / 1024).toFixed(0) : "?"}MB @ ${speed ? (speed / 1024 / 1024).toFixed(1) : "?"}MB/s)`,
+          );
+          lastLoggedProgress.current.set(processId, progress);
+        }
+
+        // Update state (native layer already throttles events to every 500ms)
         updateProcess(processId, {
           progress,
           bytesDownloaded: event.bytesWritten,
@@ -204,10 +203,7 @@ export function useDownloadEventHandlers({
       },
     );
 
-    return () => {
-      console.log("[DPL] Removing progress listener");
-      progressSub.remove();
-    };
+    return () => progressSub.remove();
   }, [taskMapRef, updateProcess, processes]);
 
   // Handle download completion events
@@ -221,44 +217,28 @@ export function useDownloadEventHandlers({
         if (!process) return;
 
         try {
-          const { item, mediaSource } = process;
+          const {
+            item,
+            mediaSource,
+            trickPlayData,
+            introSegments,
+            creditSegments,
+          } = process;
           const videoFile = new File("", event.filePath);
           const fileInfo = videoFile.info();
           const videoFileSize = fileInfo.size || 0;
           const filename = generateFilename(item);
 
           console.log(
-            `[COMPLETE] Video download complete (${videoFileSize} bytes), starting additional downloads for ${item.Name}`,
+            `[COMPLETE] Video download complete (${videoFileSize} bytes) for ${item.Name}`,
           );
-
-          // Download additional assets (trickplay, subtitles, cover images, segments)
-          let trickPlayData: TrickPlayData | undefined;
-          let updatedMediaSource = mediaSource;
-          let introSegments: MediaTimeSegment[] | undefined;
-          let creditSegments: MediaTimeSegment[] | undefined;
-
-          if (api) {
-            const additionalAssets = await downloadAdditionalAssets({
-              item,
-              mediaSource,
-              api,
-              saveImageFn: saveImage,
-              saveSeriesImageFn: saveSeriesPrimaryImage,
-            });
-
-            trickPlayData = additionalAssets.trickPlayData;
-            updatedMediaSource = additionalAssets.updatedMediaSource;
-            introSegments = additionalAssets.introSegments;
-            creditSegments = additionalAssets.creditSegments;
-          } else {
-            console.warn(
-              "[COMPLETE] API not available, skipping additional downloads",
-            );
-          }
+          console.log(
+            `[COMPLETE] Using pre-downloaded assets: trickplay=${!!trickPlayData}, intro=${!!introSegments}, credits=${!!creditSegments}`,
+          );
 
           const downloadedItem: DownloadedItem = {
             item,
-            mediaSource: updatedMediaSource,
+            mediaSource,
             videoFilePath: event.filePath,
             videoFileSize,
             videoFileName: `${filename}.mp4`,
@@ -312,8 +292,6 @@ export function useDownloadEventHandlers({
     onSuccess,
     onDataChange,
     api,
-    saveImage,
-    saveSeriesPrimaryImage,
     t,
   ]);
 

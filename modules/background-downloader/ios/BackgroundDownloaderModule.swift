@@ -19,7 +19,6 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
   init(module: BackgroundDownloaderModule) {
     self.module = module
     super.init()
-    print("[DownloadSessionDelegate] Delegate initialized with module: \(String(describing: module))")
   }
   
   func urlSession(
@@ -29,8 +28,6 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     totalBytesWritten: Int64,
     totalBytesExpectedToWrite: Int64
   ) {
-    let progress = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0.0
-    print("[BackgroundDownloader] Progress callback: taskId=\(downloadTask.taskIdentifier), written=\(totalBytesWritten), total=\(totalBytesExpectedToWrite), progress=\(progress)")
     module?.handleProgress(
       taskId: downloadTask.taskIdentifier,
       bytesWritten: totalBytesWritten,
@@ -43,7 +40,6 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     downloadTask: URLSessionDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
-    print("[BackgroundDownloader] Download finished callback: taskId=\(downloadTask.taskIdentifier)")
     module?.handleDownloadComplete(
       taskId: downloadTask.taskIdentifier,
       location: location,
@@ -56,15 +52,8 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     task: URLSessionTask,
     didCompleteWithError error: Error?
   ) {
-    print("[BackgroundDownloader] Task completed: taskId=\(task.taskIdentifier), error=\(String(describing: error))")
-    
-    if let httpResponse = task.response as? HTTPURLResponse {
-      print("[BackgroundDownloader] HTTP Status: \(httpResponse.statusCode)")
-      print("[BackgroundDownloader] Content-Length: \(httpResponse.expectedContentLength)")
-    }
-    
     if let error = error {
-      print("[BackgroundDownloader] Task error: \(error.localizedDescription)")
+      print("[BackgroundDownloader] Task \(task.taskIdentifier) error: \(error.localizedDescription)")
       module?.handleError(taskId: task.taskIdentifier, error: error)
     }
   }
@@ -84,6 +73,8 @@ public class BackgroundDownloaderModule: Module {
   private var sessionDelegate: DownloadSessionDelegate?
   fileprivate static var backgroundCompletionHandler: (() -> Void)?
   private var downloadTasks: [Int: DownloadTaskInfo] = [:]
+  private var downloadQueue: [(url: String, destinationPath: String?)] = []
+  private var lastProgressTime: [Int: Date] = [:]
   
   public func definition() -> ModuleDefinition {
     Name("BackgroundDownloader")
@@ -120,9 +111,6 @@ public class BackgroundDownloaderModule: Module {
       let task = session.downloadTask(with: request)
       let taskId = task.taskIdentifier
       
-      print("[BackgroundDownloader] Starting download: taskId=\(taskId), url=\(urlString)")
-      print("[BackgroundDownloader] Destination: \(destinationPath ?? "default")")
-      
       self.downloadTasks[taskId] = DownloadTaskInfo(
         url: urlString,
         destinationPath: destinationPath
@@ -130,91 +118,26 @@ public class BackgroundDownloaderModule: Module {
       
       task.resume()
       
-      print("[BackgroundDownloader] Task resumed with state: \(self.taskStateString(task.state))")
-      print("[BackgroundDownloader] Sending started event")
-      
       self.sendEvent("onDownloadStarted", [
         "taskId": taskId,
         "url": urlString
       ])
       
-      // Check task state after a brief delay
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-        session.getAllTasks { tasks in
-          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
-            print("[BackgroundDownloader] === 0.5s CHECK ===")
-            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
-            if let response = downloadTask.response as? HTTPURLResponse {
-              print("[BackgroundDownloader] Response status: \(response.statusCode)")
-              print("[BackgroundDownloader] Expected content length: \(response.expectedContentLength)")
-            } else {
-              print("[BackgroundDownloader] No HTTP response yet after 0.5s")
-            }
-          } else {
-            print("[BackgroundDownloader] Task not found after 0.5s")
-          }
-        }
-      }
-      
-      // Additional diagnostics at 1s, 2s, and 3s
-      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-        session.getAllTasks { tasks in
-          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
-            print("[BackgroundDownloader] === 1s CHECK ===")
-            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
-            print("[BackgroundDownloader] Task error: \(String(describing: downloadTask.error))")
-            print("[BackgroundDownloader] Current request URL: \(downloadTask.currentRequest?.url?.absoluteString ?? "nil")")
-            print("[BackgroundDownloader] Original request URL: \(downloadTask.originalRequest?.url?.absoluteString ?? "nil")")
-            
-            if let response = downloadTask.response as? HTTPURLResponse {
-              print("[BackgroundDownloader] HTTP Status: \(response.statusCode)")
-              print("[BackgroundDownloader] Expected content length: \(response.expectedContentLength)")
-              print("[BackgroundDownloader] All headers: \(response.allHeaderFields)")
-            } else {
-              print("[BackgroundDownloader] ⚠️ STILL NO HTTP RESPONSE after 1s")
-            }
-            
-            let countOfBytesReceived = downloadTask.countOfBytesReceived
-            if countOfBytesReceived > 0 {
-              print("[BackgroundDownloader] Bytes received: \(countOfBytesReceived)")
-            } else {
-              print("[BackgroundDownloader] ⚠️ NO BYTES RECEIVED YET")
-            }
-          } else {
-            print("[BackgroundDownloader] ⚠️ Task disappeared after 1s")
-          }
-        }
-      }
-      
-      DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-        session.getAllTasks { tasks in
-          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
-            print("[BackgroundDownloader] === 2s CHECK ===")
-            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
-            let countOfBytesReceived = downloadTask.countOfBytesReceived
-            print("[BackgroundDownloader] Bytes received: \(countOfBytesReceived)")
-            if downloadTask.error != nil {
-              print("[BackgroundDownloader] ⚠️ Task has error: \(String(describing: downloadTask.error))")
-            }
-          }
-        }
-      }
-      
-      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-        session.getAllTasks { tasks in
-          if let downloadTask = tasks.first(where: { $0.taskIdentifier == taskId }) {
-            print("[BackgroundDownloader] === 3s CHECK ===")
-            print("[BackgroundDownloader] Task state: \(self.taskStateString(downloadTask.state))")
-            let countOfBytesReceived = downloadTask.countOfBytesReceived
-            print("[BackgroundDownloader] Bytes received: \(countOfBytesReceived)")
-            if downloadTask.error != nil {
-              print("[BackgroundDownloader] ⚠️ Task has error: \(String(describing: downloadTask.error))")
-            }
-          }
-        }
-      }
-      
       return taskId
+    }
+    
+    AsyncFunction("enqueueDownload") { (urlString: String, destinationPath: String?) -> Int in
+      // Add to queue
+      let wasEmpty = self.downloadQueue.isEmpty
+      self.downloadQueue.append((url: urlString, destinationPath: destinationPath))
+      
+      // If queue was empty and no active downloads, start processing immediately
+      if wasEmpty {
+        return try await self.processNextInQueue()
+      }
+      
+      // Return placeholder taskId for queued items
+      return -1
     }
     
     Function("cancelDownload") { (taskId: Int) in
@@ -238,7 +161,6 @@ public class BackgroundDownloaderModule: Module {
     AsyncFunction("getActiveDownloads") { () -> [[String: Any]] in
       return try await withCheckedThrowingContinuation { continuation in
         let downloadTasks = self.downloadTasks
-        let taskStateString = self.taskStateString
         
         self.session?.getAllTasks { tasks in
           let activeDownloads = tasks.compactMap { task -> [String: Any]? in
@@ -249,8 +171,7 @@ public class BackgroundDownloaderModule: Module {
             
             return [
               "taskId": task.taskIdentifier,
-              "url": info.url,
-              "state": taskStateString(task.state)
+              "url": info.url
             ]
           }
           continuation.resume(returning: activeDownloads)
@@ -288,35 +209,28 @@ public class BackgroundDownloaderModule: Module {
     }
   }
   
-  private func taskStateString(_ state: URLSessionTask.State) -> String {
-    switch state {
-    case .running:
-      return "running"
-    case .suspended:
-      return "suspended"
-    case .canceling:
-      return "canceling"
-    case .completed:
-      return "completed"
-    @unknown default:
-      return "unknown"
-    }
-  }
-  
   // Handler methods called by the delegate
   func handleProgress(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {
     let progress = totalBytes > 0
       ? Double(bytesWritten) / Double(totalBytes)
       : 0.0
     
-    print("[BackgroundDownloader] Sending progress event: taskId=\(taskId), progress=\(progress)")
+    // Throttle progress updates: only send every 500ms
+    let lastTime = lastProgressTime[taskId] ?? Date.distantPast
+    let now = Date()
+    let timeDiff = now.timeIntervalSince(lastTime)
     
-    self.sendEvent("onDownloadProgress", [
-      "taskId": taskId,
-      "bytesWritten": bytesWritten,
-      "totalBytes": totalBytes,
-      "progress": progress
-    ])
+    // Send if 500ms passed
+    if timeDiff >= 0.5 {
+      self.sendEvent("onDownloadProgress", [
+        "taskId": taskId,
+        "bytesWritten": bytesWritten,
+        "totalBytes": totalBytes,
+        "progress": progress
+      ])
+      
+      lastProgressTime[taskId] = now
+    }
   }
   
   func handleDownloadComplete(taskId: Int, location: URL, downloadTask: URLSessionDownloadTask) {
@@ -365,12 +279,31 @@ public class BackgroundDownloaderModule: Module {
       ])
       
       downloadTasks.removeValue(forKey: taskId)
+      lastProgressTime.removeValue(forKey: taskId)
+      
+      // Process next item in queue
+      Task {
+        do {
+          _ = try await self.processNextInQueue()
+        } catch {
+          print("[BackgroundDownloader] Error processing next: \(error)")
+        }
+      }
       
     } catch {
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
         "error": "File operation failed: \(error.localizedDescription)"
       ])
+      
+      // Process next item in queue even on error
+      Task {
+        do {
+          _ = try await self.processNextInQueue()
+        } catch {
+          print("[BackgroundDownloader] Error processing next: \(error)")
+        }
+      }
     }
   }
   
@@ -378,13 +311,76 @@ public class BackgroundDownloaderModule: Module {
     let isCancelled = (error as NSError).code == NSURLErrorCancelled
     
     if !isCancelled {
+      print("[BackgroundDownloader] Task \(taskId) error: \(error.localizedDescription)")
+      
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
         "error": error.localizedDescription
       ])
+      
+      // Process next item in queue even on error
+      Task {
+        do {
+          _ = try await self.processNextInQueue()
+        } catch {
+          print("[BackgroundDownloader] Error processing next: \(error)")
+        }
+      }
     }
     
     downloadTasks.removeValue(forKey: taskId)
+    lastProgressTime.removeValue(forKey: taskId)
+  }
+  
+  private func processNextInQueue() async throws -> Int {
+    // Check if queue has items
+    guard !downloadQueue.isEmpty else {
+      return -1
+    }
+    
+    // Check if there are active downloads
+    if !downloadTasks.isEmpty {
+      return -1
+    }
+    
+    // Get next item from queue
+    let (url, destinationPath) = downloadQueue.removeFirst()
+    print("[BackgroundDownloader] Starting queued download")
+    
+    // Start the download using existing startDownload logic
+    guard let urlObj = URL(string: url) else {
+      print("[BackgroundDownloader] Invalid URL in queue: \(url)")
+      return try await processNextInQueue()
+    }
+    
+    if session == nil {
+      initializeSession()
+    }
+    
+    guard let session = self.session else {
+      throw DownloadError.downloadFailed
+    }
+    
+    var request = URLRequest(url: urlObj)
+    request.httpMethod = "GET"
+    request.timeoutInterval = 300
+    
+    let task = session.downloadTask(with: request)
+    let taskId = task.taskIdentifier
+    
+    downloadTasks[taskId] = DownloadTaskInfo(
+      url: url,
+      destinationPath: destinationPath
+    )
+    
+    task.resume()
+    
+    sendEvent("onDownloadStarted", [
+      "taskId": taskId,
+      "url": url
+    ])
+    
+    return taskId
   }
   
   static func setBackgroundCompletionHandler(_ handler: @escaping () -> Void) {

@@ -32,6 +32,8 @@ class BackgroundDownloaderModule : Module() {
   private val downloadTasks = mutableMapOf<Long, DownloadTaskInfo>()
   private val progressHandler = Handler(Looper.getMainLooper())
   private val progressRunnables = mutableMapOf<Long, Runnable>()
+  private val downloadQueue = mutableListOf<Pair<String, String?>>()
+  private val lastProgressTime = mutableMapOf<Long, Long>()
 
   private val downloadCompleteReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -133,6 +135,28 @@ class BackgroundDownloaderModule : Module() {
         promise.resolve(downloadId.toInt())
       } catch (e: Exception) {
         promise.reject("DOWNLOAD_ERROR", "Failed to start download: ${e.message}", e)
+      }
+    }
+
+    AsyncFunction("enqueueDownload") { urlString: String, destinationPath: String?, promise: Promise ->
+      try {
+        Log.d(TAG, "Enqueuing download: url=$urlString")
+        
+        // Add to queue
+        val wasEmpty = downloadQueue.isEmpty()
+        downloadQueue.add(Pair(urlString, destinationPath))
+        Log.d(TAG, "Queue size: ${downloadQueue.size}")
+        
+        // If queue was empty, try to start processing immediately
+        if (wasEmpty) {
+          val taskId = processNextInQueue()
+          promise.resolve(taskId)
+        } else {
+          // Return placeholder for queued items
+          promise.resolve(-1)
+        }
+      } catch (e: Exception) {
+        promise.reject("DOWNLOAD_ERROR", "Failed to enqueue download: ${e.message}", e)
       }
     }
 
@@ -243,12 +267,22 @@ class BackgroundDownloaderModule : Module() {
           if (status == DownloadManager.STATUS_RUNNING && totalBytes > 0) {
             val progressRatio = bytesDownloaded.toDouble() / totalBytes.toDouble()
             
-            sendEvent("onDownloadProgress", mapOf(
-              "taskId" to downloadId.toInt(),
-              "bytesWritten" to bytesDownloaded,
-              "totalBytes" to totalBytes,
-              "progress" to progressRatio
-            ))
+            // Throttle progress updates: only send every 500ms
+            val lastTime = lastProgressTime[downloadId] ?: 0L
+            val now = System.currentTimeMillis()
+            val timeDiff = now - lastTime
+            
+            // Send if 500ms passed
+            if (timeDiff >= 500) {
+              sendEvent("onDownloadProgress", mapOf(
+                "taskId" to downloadId.toInt(),
+                "bytesWritten" to bytesDownloaded,
+                "totalBytes" to totalBytes,
+                "progress" to progressRatio
+              ))
+              
+              lastProgressTime[downloadId] = now
+            }
           }
 
           // Check if download completed but broadcast was missed
@@ -276,6 +310,9 @@ class BackgroundDownloaderModule : Module() {
             ))
             
             downloadTasks.remove(downloadId)
+            
+            // Process next item in queue even on error
+            processNextInQueue()
             return
           }
 
@@ -305,6 +342,7 @@ class BackgroundDownloaderModule : Module() {
       progressHandler.removeCallbacks(runnable)
       progressRunnables.remove(downloadId)
     }
+    lastProgressTime.remove(downloadId)
   }
 
   private fun handleDownloadComplete(downloadId: Long) {
@@ -425,6 +463,81 @@ class BackgroundDownloaderModule : Module() {
 
     cursor.close()
     downloadTasks.remove(downloadId)
+    lastProgressTime.remove(downloadId)
+    
+    // Process next item in queue
+    processNextInQueue()
+  }
+
+  private fun processNextInQueue(): Int {
+    // Check if queue is empty
+    if (downloadQueue.isEmpty()) {
+      Log.d(TAG, "Queue is empty")
+      return -1
+    }
+    
+    // Check if there are active downloads
+    if (downloadTasks.isNotEmpty()) {
+      Log.d(TAG, "Active downloads in progress (${downloadTasks.size}), waiting...")
+      return -1
+    }
+    
+    // Get next item from queue
+    val (urlString, destinationPath) = downloadQueue.removeAt(0)
+    Log.d(TAG, "Processing next in queue: $urlString")
+    
+    try {
+      val uri = Uri.parse(urlString)
+      val request = DownloadManager.Request(uri).apply {
+        setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION)
+        setAllowedNetworkTypes(
+          DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE
+        )
+        setAllowedOverMetered(true)
+        setAllowedOverRoaming(true)
+
+        if (destinationPath != null) {
+          val file = File(destinationPath)
+          val fileName = file.name
+          
+          val isInternalPath = destinationPath.startsWith("/data/data/") || 
+                              destinationPath.startsWith("/data/user/")
+          
+          if (isInternalPath) {
+            setDestinationInExternalFilesDir(context, null, fileName)
+          } else {
+            val directory = file.parentFile
+            if (directory != null && !directory.exists()) {
+              directory.mkdirs()
+            }
+            setDestinationUri(Uri.fromFile(file))
+          }
+        } else {
+          val fileName = uri.lastPathSegment ?: "download_${System.currentTimeMillis()}"
+          setDestinationInExternalFilesDir(context, null, fileName)
+        }
+      }
+
+      val downloadId = downloadManager.enqueue(request)
+      
+      downloadTasks[downloadId] = DownloadTaskInfo(
+        url = urlString,
+        destinationPath = destinationPath
+      )
+
+      startProgressTracking(downloadId)
+
+      sendEvent("onDownloadStarted", mapOf(
+        "taskId" to downloadId.toInt(),
+        "url" to urlString
+      ))
+
+      return downloadId.toInt()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error processing queue item: ${e.message}", e)
+      // Try to process next item
+      return processNextInQueue()
+    }
   }
 
   private fun getStateString(status: Int): String {

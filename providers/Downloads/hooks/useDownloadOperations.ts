@@ -12,7 +12,7 @@ import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
-import { getItemImage } from "@/utils/getItemImage";
+import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
   getAllDownloadedItems,
@@ -78,19 +78,16 @@ export function useDownloadOperations({
           return;
         }
 
-        // Pre-download cover images before starting the video download
-        console.log(`[DOWNLOAD] Pre-downloading cover images for ${item.Name}`);
-        await saveSeriesPrimaryImage(item);
-        const itemImage = getItemImage({
+        // Download all additional assets BEFORE starting native video download
+        const additionalAssets = await downloadAdditionalAssets({
           item,
+          mediaSource,
           api,
-          variant: "Primary",
-          quality: 90,
-          width: 500,
+          saveImageFn: saveImage,
+          saveSeriesImageFn: saveSeriesPrimaryImage,
         });
-        await saveImage(item.Id, itemImage?.uri);
 
-        // Create job status
+        // Create job status with pre-downloaded assets
         const jobStatus: JobStatus = {
           id: processId,
           inputUrl: url,
@@ -100,9 +97,12 @@ export function useDownloadOperations({
           progress: 0,
           status: "downloading",
           timestamp: new Date(),
-          mediaSource,
+          mediaSource: additionalAssets.updatedMediaSource,
           maxBitrate,
           bytesDownloaded: 0,
+          trickPlayData: additionalAssets.trickPlayData,
+          introSegments: additionalAssets.introSegments,
+          creditSegments: additionalAssets.creditSegments,
         };
 
         // Add to processes
@@ -113,27 +113,18 @@ export function useDownloadOperations({
         const videoFile = new File(Paths.document, `${filename}.mp4`);
         const destinationPath = uriToFilePath(videoFile.uri);
 
-        console.log(`[DOWNLOAD] Starting download for ${filename}`);
-        console.log(`[DOWNLOAD] URL: ${url}`);
-        console.log(`[DOWNLOAD] Destination: ${destinationPath}`);
+        console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
 
-        // Start the download (URL already contains api_key)
-        const taskId = await BackgroundDownloader.startDownload(
+        // Start the download using enqueueDownload for sequential processing
+        const taskId = await BackgroundDownloader.enqueueDownload(
           url,
           destinationPath,
         );
 
-        console.log(
-          `[DOWNLOAD] Got taskId: ${taskId} for processId: ${processId}`,
-        );
-
-        // Map task ID to process ID
-        taskMapRef.current.set(taskId, processId);
-
-        console.log(`[DOWNLOAD] TaskMap now contains:`, {
-          size: taskMapRef.current.size,
-          entries: Array.from(taskMapRef.current.entries()),
-        });
+        // Only map task ID if it's not a placeholder (-1 means queued)
+        if (taskId !== -1) {
+          taskMapRef.current.set(taskId, processId);
+        }
 
         toast.success(
           t("home.downloads.toasts.download_started_for_item", {

@@ -19,7 +19,6 @@ export async function downloadTrickplayImages(
 ): Promise<TrickPlayData | undefined> {
   const trickplayInfo = getTrickplayInfo(item);
   if (!trickplayInfo || !item.Id) {
-    console.log(`[TRICKPLAY] No trickplay info available for ${item.Name}`);
     return undefined;
   }
 
@@ -33,10 +32,6 @@ export async function downloadTrickplayImages(
 
   let totalSize = 0;
   const downloadPromises: Promise<void>[] = [];
-
-  console.log(
-    `[TRICKPLAY] Downloading ${trickplayInfo.totalImageSheets} sheets for ${item.Name}`,
-  );
 
   for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
     const url = generateTrickplayUrl(item, index);
@@ -54,9 +49,6 @@ export async function downloadTrickplayImages(
       File.downloadFileAsync(url, destination)
         .then(() => {
           totalSize += destination.size;
-          console.log(
-            `[TRICKPLAY] Downloaded sheet ${index + 1}/${trickplayInfo.totalImageSheets}`,
-          );
         })
         .catch((error) => {
           console.error(
@@ -68,10 +60,6 @@ export async function downloadTrickplayImages(
   }
 
   await Promise.all(downloadPromises);
-
-  console.log(
-    `[TRICKPLAY] Completed download for ${item.Name}, total size: ${totalSize} bytes`,
-  );
 
   return {
     path: trickplayDir.uri,
@@ -94,13 +82,8 @@ export async function downloadSubtitles(
   );
 
   if (!externalSubtitles || externalSubtitles.length === 0) {
-    console.log(`[SUBTITLES] No external subtitles for ${item.Name}`);
     return mediaSource;
   }
-
-  console.log(
-    `[SUBTITLES] Downloading ${externalSubtitles.length} subtitle files for ${item.Name}`,
-  );
 
   const filename = generateFilename(item);
   const downloadPromises = externalSubtitles.map(async (subtitle) => {
@@ -122,9 +105,6 @@ export async function downloadSubtitles(
     try {
       await File.downloadFileAsync(url, destination);
       subtitle.DeliveryUrl = destination.uri;
-      console.log(
-        `[SUBTITLES] Downloaded subtitle ${subtitle.DisplayTitle || subtitle.Language}`,
-      );
     } catch (error) {
       console.error(
         `[SUBTITLES] Failed to download subtitle ${subtitle.Index}:`,
@@ -134,7 +114,6 @@ export async function downloadSubtitles(
   });
 
   await Promise.all(downloadPromises);
-  console.log(`[SUBTITLES] Completed subtitle downloads for ${item.Name}`);
 
   return mediaSource;
 }
@@ -163,12 +142,10 @@ export async function downloadCoverImage(
     });
 
     if (!itemImage?.uri) {
-      console.log(`[COVER] No cover image available for ${item.Name}`);
       return undefined;
     }
 
     await saveImageFn(item.Id, itemImage.uri);
-    console.log(`[COVER] Saved cover image for ${item.Name}`);
 
     return itemImage.uri;
   } catch (error) {
@@ -191,7 +168,6 @@ export async function downloadSeriesImage(
 
   try {
     await saveSeriesImageFn(item);
-    console.log(`[COVER] Saved series image for ${item.SeriesName}`);
   } catch (error) {
     console.error(`[COVER] Failed to download series image:`, error);
   }
@@ -209,7 +185,6 @@ export async function fetchSegments(
 }> {
   try {
     const segments = await fetchAndParseSegments(itemId, api);
-    console.log(`[SEGMENTS] Fetched segments for item ${itemId}`);
     return segments;
   } catch (error) {
     console.error(`[SEGMENTS] Failed to fetch segments:`, error);
@@ -235,8 +210,6 @@ export async function downloadAdditionalAssets(params: {
 }> {
   const { item, mediaSource, api, saveImageFn, saveSeriesImageFn } = params;
 
-  console.log(`[ADDITIONAL] Starting additional downloads for ${item.Name}`);
-
   // Run all downloads in parallel for speed
   const [
     trickPlayData,
@@ -260,8 +233,6 @@ export async function downloadAdditionalAssets(params: {
       return undefined;
     }),
   ]);
-
-  console.log(`[ADDITIONAL] Completed additional downloads for ${item.Name}`);
 
   return {
     trickPlayData,
