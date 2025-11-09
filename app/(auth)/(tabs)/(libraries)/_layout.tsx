@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { useSettings } from "@/utils/atoms/settings";
@@ -21,18 +21,20 @@ export default function IndexLayout() {
           headerShown: !Platform.isTV,
           headerTitle: t("tabs.library"),
           headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: true,
           headerShadowVisible: false,
           headerRight: () =>
             !pluginSettings?.libraryOptions?.locked &&
             !Platform.isTV && (
               <PlatformDropdown
                 trigger={
-                  <Ionicons
-                    name='ellipsis-horizontal-outline'
-                    size={24}
-                    color='white'
-                  />
+                  <View className='pl-1.5'>
+                    <Ionicons
+                      name='ellipsis-horizontal-outline'
+                      size={24}
+                      color='white'
+                    />
+                  </View>
                 }
                 title={t("library.options.display")}
                 groups={[
@@ -142,7 +144,7 @@ export default function IndexLayout() {
           title: "",
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: true,
           headerShadowVisible: false,
         }}
       />
@@ -155,7 +157,7 @@ export default function IndexLayout() {
           title: "",
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: true,
           headerShadowVisible: false,
         }}
       />

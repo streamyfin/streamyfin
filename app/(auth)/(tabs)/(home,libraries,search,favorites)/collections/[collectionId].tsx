@@ -15,7 +15,11 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, View } from "react-native";
+import { FlatList, Platform, View } from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
@@ -204,9 +208,14 @@ const page: React.FC = () => {
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
 
+  const insets = useSafeAreaInsets();
+
   const ListHeaderComponent = useCallback(
     () => (
-      <View className=''>
+      <SafeAreaView
+        className='flex-1'
+        style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
+      >
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -351,7 +360,7 @@ const page: React.FC = () => {
           renderItem={({ item }) => item.component}
           keyExtractor={(item) => item.key}
         />
-      </View>
+      </SafeAreaView>
     ),
     [
       collectionId,

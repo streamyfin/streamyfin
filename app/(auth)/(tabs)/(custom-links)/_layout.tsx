@@ -13,7 +13,7 @@ export default function CustomMenuLayout() {
           headerLargeTitle: true,
           headerTitle: t("tabs.custom_links"),
           headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: true,
           headerShadowVisible: false,
         }}
       />

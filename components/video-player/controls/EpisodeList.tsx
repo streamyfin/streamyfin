@@ -71,13 +71,13 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         const seriesEpisodes = downloadedFiles?.filter(
           (f: DownloadedItem) => f.item.SeriesId === item.SeriesId,
         );
-        const seasonNumbers = [
-          ...new Set(
+        const seasonNumbers = Array.from(
+          new Set(
             seriesEpisodes
               ?.map((f: DownloadedItem) => f.item.ParentIndexNumber)
               .filter(Boolean),
           ),
-        ];
+        );
         // Create fake season objects
         return seasonNumbers.map((seasonNumber) => ({
           Id: seasonNumber?.toString(),

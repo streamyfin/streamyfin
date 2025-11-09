@@ -22,13 +22,8 @@ export default function IndexLayout() {
         options={{
           headerShown: !Platform.isTV,
           headerTitle: t("tabs.home"),
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
           headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: true,
           headerShadowVisible: false,
           headerRight: () => (
             <View className='flex flex-row items-center px-2'>
@@ -46,9 +41,16 @@ export default function IndexLayout() {
       <Stack.Screen
         name='downloads/index'
         options={{
+          headerShown: true,
+          headerBlurEffect: "none",
+          headerTransparent: true,
           title: t("home.downloads.downloads_title"),
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
             </TouchableOpacity>
           ),
@@ -57,6 +59,10 @@ export default function IndexLayout() {
       <Stack.Screen
         name='downloads/[seriesId]'
         options={{
+          headerShown: true,
+          headerBlurEffect: "none",
+          headerTransparent: true,
+          headerShadowVisible: false,
           title: t("home.downloads.tvseries"),
           headerLeft: () => (
             <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
@@ -69,8 +75,16 @@ export default function IndexLayout() {
         name='sessions/index'
         options={{
           title: t("home.sessions.title"),
+          headerShown: true,
+          headerBlurEffect: "none",
+          headerTransparent: true,
+          headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
             </TouchableOpacity>
           ),
@@ -80,6 +94,9 @@ export default function IndexLayout() {
         name='settings'
         options={{
           title: t("home.settings.settings_title"),
+          headerBlurEffect: "none",
+          headerTransparent: true,
+          headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
               <Feather name='chevron-left' size={28} color='white' />
@@ -158,7 +175,7 @@ export default function IndexLayout() {
           ),
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: true,
           headerShadowVisible: false,
         }}
       />

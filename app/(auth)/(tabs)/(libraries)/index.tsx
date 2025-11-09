@@ -7,8 +7,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform, StyleSheet, View } from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { LibraryItemCard } from "@/components/library/LibraryItemCard";
@@ -80,31 +83,38 @@ export default function index() {
     );
 
   return (
-    <FlashList
-      extraData={settings}
-      contentInsetAdjustmentBehavior='automatic'
-      contentContainerStyle={{
-        paddingTop: 17,
-        paddingHorizontal: settings?.libraryOptions?.display === "row" ? 0 : 17,
-        paddingBottom: 150,
-        paddingLeft: insets.left + 17,
-        paddingRight: insets.right + 17,
-      }}
-      data={libraries}
-      renderItem={({ item }) => <LibraryItemCard library={item} />}
-      keyExtractor={(item) => item.Id || ""}
-      ItemSeparatorComponent={() =>
-        settings?.libraryOptions?.display === "row" ? (
-          <View
-            style={{
-              height: StyleSheet.hairlineWidth,
-            }}
-            className='bg-neutral-800 mx-2 my-4'
-          />
-        ) : (
-          <View className='h-4' />
-        )
-      }
-    />
+    <SafeAreaView
+      className='flex-1'
+      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
+      edges={Platform.OS === "android" ? ["top"] : []}
+    >
+      <FlashList
+        extraData={settings}
+        contentInsetAdjustmentBehavior='automatic'
+        contentContainerStyle={{
+          paddingTop: 17,
+          paddingHorizontal:
+            settings?.libraryOptions?.display === "row" ? 0 : 17,
+          paddingBottom: 150,
+          paddingLeft: insets.left + 17,
+          paddingRight: insets.right + 17,
+        }}
+        data={libraries}
+        renderItem={({ item }) => <LibraryItemCard library={item} />}
+        keyExtractor={(item) => item.Id || ""}
+        ItemSeparatorComponent={() =>
+          settings?.libraryOptions?.display === "row" ? (
+            <View
+              style={{
+                height: StyleSheet.hairlineWidth,
+              }}
+              className='bg-neutral-800 mx-2 my-4'
+            />
+          ) : (
+            <View className='h-4' />
+          )
+        }
+      />
+    </SafeAreaView>
   );
 }

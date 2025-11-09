@@ -5,7 +5,6 @@ import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
-import { Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
@@ -15,12 +14,11 @@ import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
 import {
   apiAtom,
   getOrSetDeviceId,
-  getTokenFromStorage,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
-import { type Settings, useSettings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   BACKGROUND_FETCH_TASK_SESSIONS,
@@ -124,24 +122,7 @@ if (!Platform.isTV) {
 
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     console.log("TaskManager ~ trigger");
-
-    const settingsData = storage.getString("settings");
-
-    if (!settingsData) return BackgroundTask.BackgroundTaskResult.Failed;
-
-    const settings: Partial<Settings> = JSON.parse(settingsData);
-
-    if (!settings?.autoDownload)
-      return BackgroundTask.BackgroundTaskResult.Failed;
-
-    const token = getTokenFromStorage();
-    const deviceId = getOrSetDeviceId();
-    const baseDirectory = Paths.document.uri;
-
-    if (!token || !deviceId || !baseDirectory)
-      return BackgroundTask.BackgroundTaskResult.Failed;
-
-    // Be sure to return the successful result type!
+    // Background fetch task placeholder - currently unused
     return BackgroundTask.BackgroundTaskResult.Success;
   });
 }

@@ -13,7 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -28,6 +32,7 @@ import { formatTimeString } from "@/utils/time";
 export default function page() {
   const { sessions, isLoading } = useSessions({} as useSessionsProps);
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   if (isLoading)
     return (
@@ -46,18 +51,23 @@ export default function page() {
     );
 
   return (
-    <FlashList
-      contentInsetAdjustmentBehavior='automatic'
-      contentContainerStyle={{
-        paddingTop: 17,
-        paddingHorizontal: 17,
-        paddingBottom: 150,
-      }}
-      data={sessions}
-      renderItem={({ item }) => <SessionCard session={item} />}
-      keyExtractor={(item) => item.Id || ""}
-      estimatedItemSize={200}
-    />
+    <SafeAreaView
+      className='flex-1'
+      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
+      edges={Platform.OS === "android" ? ["top"] : []}
+    >
+      <FlashList
+        contentInsetAdjustmentBehavior='automatic'
+        contentContainerStyle={{
+          paddingTop: 17,
+          paddingHorizontal: 17,
+          paddingBottom: 150,
+        }}
+        data={sessions}
+        renderItem={({ item }) => <SessionCard session={item} />}
+        keyExtractor={(item) => item.Id || ""}
+      />
+    </SafeAreaView>
   );
 }
 

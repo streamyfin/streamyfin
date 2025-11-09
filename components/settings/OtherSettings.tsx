@@ -1,22 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import * as TaskManager from "expo-task-manager";
 import { TFunction } from "i18next";
 import type React from "react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, Platform, Switch, View } from "react-native";
-import { toast } from "sonner-native";
+import { Linking, Switch, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
-import {
-  BACKGROUND_FETCH_TASK,
-  registerBackgroundFetchAsync,
-  unregisterBackgroundFetchAsync,
-} from "@/utils/background-tasks";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -26,36 +19,6 @@ export const OtherSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
 
   const { t } = useTranslation();
-
-  /********************
-   * Background task
-   *******************/
-  const checkStatusAsync = async () => {
-    if (Platform.isTV) return false;
-    return TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
-  };
-
-  useEffect(() => {
-    (async () => {
-      const registered = await checkStatusAsync();
-
-      if (settings?.autoDownload === true && !registered) {
-        registerBackgroundFetchAsync();
-        toast.success(t("home.settings.toasts.background_downloads_enabled"));
-      } else if (settings?.autoDownload === false && registered) {
-        unregisterBackgroundFetchAsync();
-        toast.info(t("home.settings.toasts.background_downloads_disabled"));
-      } else if (settings?.autoDownload === true && registered) {
-        // Don't to anything
-      } else if (settings?.autoDownload === false && !registered) {
-        // Don't to anything
-      } else {
-        updateSettings({ autoDownload: false });
-      }
-    })();
-  }, [settings?.autoDownload]);
-  /**********************
-   *********************/
 
   const disabled = useMemo(
     () =>

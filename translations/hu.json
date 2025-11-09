@@ -158,8 +158,7 @@
         "disabled": "Letiltva"
       },
       "downloads": {
-        "downloads_title": "Letöltések",
-        "remux_max_download": "Remux Maximális Letöltés"
+        "downloads_title": "Letöltések"
       },
       "plugins": {
         "plugins_title": "Bővítmények",

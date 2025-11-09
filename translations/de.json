@@ -142,9 +142,6 @@
       },
       "downloads": {
         "downloads_title": "Downloads",
-        "download_method": "Download-Methode",
-        "remux_max_download": "Maximaler Remux-Download",
-        "auto_download": "Automatischer Download",
         "optimized_versions_server": "Optimierter Versions-Server",
         "save_button": "Speichern",
         "optimized_server": "Optimierter Server",

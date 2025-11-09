@@ -165,7 +165,7 @@ export const PlayButton: React.FC<Props> = ({
                     api,
                     item,
                     deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+                    startTimeTicks: item?.UserData?.PlaybackPositionTicks ?? 0,
                     userId: user.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
                     maxStreamingBitrate: selectedOptions.bitrate?.value,
@@ -411,7 +411,6 @@ export const PlayButton: React.FC<Props> = ({
       accessibilityHint='Tap to play the media'
       onPress={onPress}
       className={"relative"}
-      {...props}
     >
       <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
         <Animated.View

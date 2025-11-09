@@ -1,6 +1,5 @@
 import type { ParamListBase, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationOptions } from "@react-navigation/native-stack";
-import { Platform } from "react-native";
 import { HeaderBackButton } from "../common/HeaderBackButton";
 
 type ICommonScreenOptions =
@@ -13,9 +12,9 @@ type ICommonScreenOptions =
 export const commonScreenOptions: ICommonScreenOptions = {
   title: "",
   headerShown: true,
-  headerTransparent: Platform.OS === "ios",
+  headerTransparent: true,
   headerShadowVisible: false,
-  headerBlurEffect: Platform.OS === "ios" ? "none" : undefined,
+  headerBlurEffect: "none",
   headerLeft: () => <HeaderBackButton />,
 };
 

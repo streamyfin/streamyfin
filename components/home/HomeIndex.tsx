@@ -125,6 +125,7 @@ export const HomeIndex = () => {
             router.push("/(auth)/downloads");
           }}
           className='ml-1.5'
+          style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
         >
           <Feather
             name='download'

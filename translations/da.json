@@ -141,9 +141,6 @@
       },
       "downloads": {
         "downloads_title": "Downloads",
-        "download_method": "Downloadmetode",
-        "remux_max_download": "Remux maks download",
-        "auto_download": "Auto download",
         "optimized_versions_server": "Optimeret versionsserver",
         "save_button": "Gem",
         "optimized_server": "Optimeret server",

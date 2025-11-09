@@ -16,7 +16,7 @@ export default function SearchLayout() {
           headerShown: !Platform.isTV,
           headerTitle: t("tabs.search"),
           headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: true,
           headerShadowVisible: false,
         }}
       />
@@ -28,8 +28,8 @@ export default function SearchLayout() {
         options={{
           title: "",
           headerShown: !Platform.isTV,
-          headerBlurEffect: "prominent",
-          headerTransparent: Platform.OS === "ios",
+          headerBlurEffect: "none",
+          headerTransparent: true,
           headerShadowVisible: false,
         }}
       />

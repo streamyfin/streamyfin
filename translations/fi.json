@@ -141,9 +141,6 @@
       },
       "downloads": {
         "downloads_title": "Lataukset",
-        "download_method": "Latausmenetelmä",
-        "remux_max_download": "Remuxin maksimi lataus",
-        "auto_download": "Automaattinen lataus",
         "optimized_versions_server": "Optimoitujen versioiden palvelin",
         "save_button": "Tallenna",
         "optimized_server": "Optimoitu palvelin",

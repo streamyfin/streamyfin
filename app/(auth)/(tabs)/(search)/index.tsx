@@ -18,7 +18,10 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Input } from "@/components/common/Input";
@@ -254,183 +257,189 @@ export default function search() {
   }, [l1, l2, l3, l7, l8]);
 
   return (
-    <ScrollView
-      keyboardDismissMode='on-drag'
-      contentInsetAdjustmentBehavior='automatic'
-      contentContainerStyle={{
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
-      }}
+    <SafeAreaView
+      className='flex-1'
+      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
+      edges={Platform.OS === "android" ? ["top"] : []}
     >
-      {/* <View
+      <ScrollView
+        keyboardDismissMode='on-drag'
+        contentInsetAdjustmentBehavior='automatic'
+        contentContainerStyle={{
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        }}
+      >
+        {/* <View
         className='flex flex-col'
         style={{
           marginTop: Platform.OS === "android" ? 16 : 0,
         }}
       > */}
-      {Platform.isTV && (
-        <Input
-          placeholder={t("search.search")}
-          onChangeText={(text) => {
-            router.setParams({ q: "" });
-            setSearch(text);
-          }}
-          keyboardType='default'
-          returnKeyType='done'
-          autoCapitalize='none'
-          clearButtonMode='while-editing'
-          maxLength={500}
-        />
-      )}
-      <View className='flex flex-col'>
-        {jellyseerrApi && (
-          <View className='pl-4 pr-4 pt-2 flex flex-row'>
-            <SearchTabButtons
-              searchType={searchType}
-              setSearchType={setSearchType}
-              t={t}
-            />
-            {searchType === "Discover" &&
-              !loading &&
-              noResults &&
-              debouncedSearch.length > 0 && (
-                <DiscoverFilters
-                  searchFilterId={searchFilterId}
-                  orderFilterId={orderFilterId}
-                  jellyseerrOrderBy={jellyseerrOrderBy}
-                  setJellyseerrOrderBy={setJellyseerrOrderBy}
-                  jellyseerrSortOrder={jellyseerrSortOrder}
-                  setJellyseerrSortOrder={setJellyseerrSortOrder}
-                  t={t}
-                />
-              )}
-          </View>
-        )}
-
-        <View className='mt-2'>
-          <LoadingSkeleton isLoading={loading} />
-        </View>
-
-        {searchType === "Library" ? (
-          <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
-            <SearchItemWrapper
-              header={t("search.movies")}
-              items={movies}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  key={item.Id}
-                  className='flex flex-col w-28 mr-2'
-                  item={item}
-                >
-                  <MoviePoster item={item} key={item.Id} />
-                  <Text numberOfLines={2} className='mt-2'>
-                    {item.Name}
-                  </Text>
-                  <Text className='opacity-50 text-xs'>
-                    {item.ProductionYear}
-                  </Text>
-                </TouchableItemRouter>
-              )}
-            />
-            <SearchItemWrapper
-              items={series}
-              header={t("search.series")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  key={item.Id}
-                  item={item}
-                  className='flex flex-col w-28 mr-2'
-                >
-                  <SeriesPoster item={item} key={item.Id} />
-                  <Text numberOfLines={2} className='mt-2'>
-                    {item.Name}
-                  </Text>
-                  <Text className='opacity-50 text-xs'>
-                    {item.ProductionYear}
-                  </Text>
-                </TouchableItemRouter>
-              )}
-            />
-            <SearchItemWrapper
-              items={episodes}
-              header={t("search.episodes")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  item={item}
-                  key={item.Id}
-                  className='flex flex-col w-44 mr-2'
-                >
-                  <ContinueWatchingPoster item={item} />
-                  <ItemCardText item={item} />
-                </TouchableItemRouter>
-              )}
-            />
-            <SearchItemWrapper
-              items={collections}
-              header={t("search.collections")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  key={item.Id}
-                  item={item}
-                  className='flex flex-col w-28 mr-2'
-                >
-                  <MoviePoster item={item} key={item.Id} />
-                  <Text numberOfLines={2} className='mt-2'>
-                    {item.Name}
-                  </Text>
-                </TouchableItemRouter>
-              )}
-            />
-            <SearchItemWrapper
-              items={actors}
-              header={t("search.actors")}
-              renderItem={(item: BaseItemDto) => (
-                <TouchableItemRouter
-                  item={item}
-                  key={item.Id}
-                  className='flex flex-col w-28 mr-2'
-                >
-                  <MoviePoster item={item} />
-                  <ItemCardText item={item} />
-                </TouchableItemRouter>
-              )}
-            />
-          </View>
-        ) : (
-          <JellyserrIndexPage
-            searchQuery={debouncedSearch}
-            sortType={jellyseerrOrderBy}
-            order={jellyseerrSortOrder}
+        {Platform.isTV && (
+          <Input
+            placeholder={t("search.search")}
+            onChangeText={(text) => {
+              router.setParams({ q: "" });
+              setSearch(text);
+            }}
+            keyboardType='default'
+            returnKeyType='done'
+            autoCapitalize='none'
+            clearButtonMode='while-editing'
+            maxLength={500}
           />
         )}
+        <View className='flex flex-col'>
+          {jellyseerrApi && (
+            <View className='pl-4 pr-4 pt-2 flex flex-row'>
+              <SearchTabButtons
+                searchType={searchType}
+                setSearchType={setSearchType}
+                t={t}
+              />
+              {searchType === "Discover" &&
+                !loading &&
+                noResults &&
+                debouncedSearch.length > 0 && (
+                  <DiscoverFilters
+                    searchFilterId={searchFilterId}
+                    orderFilterId={orderFilterId}
+                    jellyseerrOrderBy={jellyseerrOrderBy}
+                    setJellyseerrOrderBy={setJellyseerrOrderBy}
+                    jellyseerrSortOrder={jellyseerrSortOrder}
+                    setJellyseerrSortOrder={setJellyseerrSortOrder}
+                    t={t}
+                  />
+                )}
+            </View>
+          )}
 
-        {searchType === "Library" &&
-          (!loading && noResults && debouncedSearch.length > 0 ? (
-            <View>
-              <Text className='text-center text-lg font-bold mt-4'>
-                {t("search.no_results_found_for")}
-              </Text>
-              <Text className='text-xs text-purple-600 text-center'>
-                "{debouncedSearch}"
-              </Text>
+          <View className='mt-2'>
+            <LoadingSkeleton isLoading={loading} />
+          </View>
+
+          {searchType === "Library" ? (
+            <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
+              <SearchItemWrapper
+                header={t("search.movies")}
+                items={movies}
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    key={item.Id}
+                    className='flex flex-col w-28 mr-2'
+                    item={item}
+                  >
+                    <MoviePoster item={item} key={item.Id} />
+                    <Text numberOfLines={2} className='mt-2'>
+                      {item.Name}
+                    </Text>
+                    <Text className='opacity-50 text-xs'>
+                      {item.ProductionYear}
+                    </Text>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                items={series}
+                header={t("search.series")}
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    key={item.Id}
+                    item={item}
+                    className='flex flex-col w-28 mr-2'
+                  >
+                    <SeriesPoster item={item} key={item.Id} />
+                    <Text numberOfLines={2} className='mt-2'>
+                      {item.Name}
+                    </Text>
+                    <Text className='opacity-50 text-xs'>
+                      {item.ProductionYear}
+                    </Text>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                items={episodes}
+                header={t("search.episodes")}
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className='flex flex-col w-44 mr-2'
+                  >
+                    <ContinueWatchingPoster item={item} />
+                    <ItemCardText item={item} />
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                items={collections}
+                header={t("search.collections")}
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    key={item.Id}
+                    item={item}
+                    className='flex flex-col w-28 mr-2'
+                  >
+                    <MoviePoster item={item} key={item.Id} />
+                    <Text numberOfLines={2} className='mt-2'>
+                      {item.Name}
+                    </Text>
+                  </TouchableItemRouter>
+                )}
+              />
+              <SearchItemWrapper
+                items={actors}
+                header={t("search.actors")}
+                renderItem={(item: BaseItemDto) => (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className='flex flex-col w-28 mr-2'
+                  >
+                    <MoviePoster item={item} />
+                    <ItemCardText item={item} />
+                  </TouchableItemRouter>
+                )}
+              />
             </View>
-          ) : debouncedSearch.length === 0 ? (
-            <View className='mt-4 flex flex-col items-center space-y-2'>
-              {exampleSearches.map((e) => (
-                <TouchableOpacity
-                  onPress={() => {
-                    setSearch(e);
-                    searchBarRef.current?.setText(e);
-                  }}
-                  key={e}
-                  className='mb-2'
-                >
-                  <Text className='text-purple-600'>{e}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null)}
-      </View>
-    </ScrollView>
+          ) : (
+            <JellyserrIndexPage
+              searchQuery={debouncedSearch}
+              sortType={jellyseerrOrderBy}
+              order={jellyseerrSortOrder}
+            />
+          )}
+
+          {searchType === "Library" &&
+            (!loading && noResults && debouncedSearch.length > 0 ? (
+              <View>
+                <Text className='text-center text-lg font-bold mt-4'>
+                  {t("search.no_results_found_for")}
+                </Text>
+                <Text className='text-xs text-purple-600 text-center'>
+                  "{debouncedSearch}"
+                </Text>
+              </View>
+            ) : debouncedSearch.length === 0 ? (
+              <View className='mt-4 flex flex-col items-center space-y-2'>
+                {exampleSearches.map((e) => (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSearch(e);
+                      searchBarRef.current?.setText(e);
+                    }}
+                    key={e}
+                    className='mb-2'
+                  >
+                    <Text className='text-purple-600'>{e}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null)}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

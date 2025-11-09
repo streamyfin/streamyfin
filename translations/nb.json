@@ -141,9 +141,6 @@
       },
       "downloads": {
         "downloads_title": "Nedlastinger",
-        "download_method": "Nedlastingsmetode",
-        "remux_max_download": "Remux max nedlasting",
-        "auto_download": "Automatisk nedlasting",
         "optimized_versions_server": "Optimaliserte versjoner server",
         "save_button": "Lagre",
         "optimized_server": "Optimalisert Server",

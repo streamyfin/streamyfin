@@ -190,8 +190,7 @@
         "disabled": "Disabled"
       },
       "downloads": {
-        "downloads_title": "Downloads",
-        "remux_max_download": "Remux Max Download"
+        "downloads_title": "Downloads"
       },
       "plugins": {
         "plugins_title": "Plugins",
