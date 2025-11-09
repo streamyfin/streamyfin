@@ -200,16 +200,6 @@ export const HomeIndex = () => {
     setLoading(false);
   };
 
-  useEffect(() => {
-    const unsubscribe = eventBus.on("refreshHome", () => {
-      refetch();
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [refetch]);
-
   const createCollectionConfig = useCallback(
     (
       title: string,
