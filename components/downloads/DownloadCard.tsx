@@ -15,11 +15,27 @@ import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
 import { calculateSmoothedETA } from "@/providers/Downloads/hooks/useDownloadSpeedCalculator";
 import { JobStatus } from "@/providers/Downloads/types";
+import { estimateDownloadSize } from "@/utils/download";
 import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
 
 const bytesToMB = (bytes: number) => {
   return bytes / 1024 / 1024;
+};
+
+const formatBytes = (bytes: number): string => {
+  if (bytes >= 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+};
+
+const formatElapsedTime = (startTime?: Date): string | null => {
+  if (!startTime) return null;
+  const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 };
 
 interface DownloadCardProps extends TouchableOpacityProps {
@@ -60,6 +76,39 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     return formatTimeString(secondsRemaining, "s");
   }, [process.id, process.bytesDownloaded, process.estimatedTotalSizeBytes]);
 
+  const elapsedTime = useMemo(() => {
+    return formatElapsedTime(process.startTime);
+  }, [process.startTime]);
+
+  const estimatedSize = useMemo(() => {
+    if (process.estimatedTotalSizeBytes) return process.estimatedTotalSizeBytes;
+
+    // Calculate from bitrate + duration
+    return estimateDownloadSize(
+      process.maxBitrate.value,
+      process.item.RunTimeTicks,
+    );
+  }, [
+    process.maxBitrate.value,
+    process.item.RunTimeTicks,
+    process.estimatedTotalSizeBytes,
+  ]);
+
+  const isTranscoding = useMemo(() => {
+    // Transcoding when we don't have actual total size from server
+    return !process.estimatedTotalSizeBytes && process.status === "downloading";
+  }, [process.estimatedTotalSizeBytes, process.status]);
+
+  const downloadedAmount = useMemo(() => {
+    if (!process.bytesDownloaded) return null;
+    return formatBytes(process.bytesDownloaded);
+  }, [process.bytesDownloaded]);
+
+  const estimatedSizeText = useMemo(() => {
+    if (!estimatedSize) return null;
+    return `Est. ~${formatBytes(estimatedSize)}`;
+  }, [estimatedSize]);
+
   const base64Image = useMemo(() => {
     return storage.getString(process.item.Id!);
   }, []);
@@ -83,9 +132,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     >
       {process.status === "downloading" && (
         <View
-          className={`
-        bg-purple-600 h-1 absolute bottom-0 left-0
-        `}
+          className={`bg-purple-600 h-1 absolute bottom-0 left-0 ${isTranscoding ? "animate-pulse" : ""}`}
           style={{
             width:
               sanitizedProgress > 0
@@ -128,16 +175,34 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               {process.item.ProductionYear}
             </Text>
             <View className='flex flex-row items-center gap-x-2 mt-1 text-purple-600'>
+              {isTranscoding && (
+                <View className='bg-purple-600/20 px-2 py-0.5 rounded-md'>
+                  <Text className='text-xs text-purple-400'>Transcoding</Text>
+                </View>
+              )}
+
               {sanitizedProgress === 0 ? (
                 <ActivityIndicator size={"small"} color={"white"} />
               ) : (
                 <Text className='text-xs'>{sanitizedProgress.toFixed(0)}%</Text>
               )}
+
+              {downloadedAmount && (
+                <Text className='text-xs'>{downloadedAmount}</Text>
+              )}
+
               {process.speed && process.speed > 0 && (
                 <Text className='text-xs'>
                   {bytesToMB(process.speed).toFixed(2)} MB/s
                 </Text>
               )}
+
+              {elapsedTime && <Text className='text-xs'>{elapsedTime}</Text>}
+
+              {estimatedSizeText && (
+                <Text className='text-xs opacity-75'>{estimatedSizeText}</Text>
+              )}
+
               {eta && (
                 <Text className='text-xs'>
                   {t("home.downloads.eta", { eta: eta })}

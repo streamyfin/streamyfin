@@ -67,6 +67,10 @@ export function useDownloadEventHandlers({
     const startedSub = BackgroundDownloader.addStartedListener(
       (event: DownloadStartedEvent) => {
         console.log("[DPL] Download started event received:", event);
+        const processId = taskMapRef.current.get(event.taskId);
+        if (processId) {
+          updateProcess(processId, { startTime: new Date() });
+        }
       },
     );
 
@@ -74,7 +78,7 @@ export function useDownloadEventHandlers({
       console.log("[DPL] Removing started listener");
       startedSub.remove();
     };
-  }, []);
+  }, [taskMapRef, updateProcess]);
 
   // Handle download progress events
   useEffect(() => {
@@ -133,8 +137,26 @@ export function useDownloadEventHandlers({
         addSpeedDataPoint(processId, event.bytesWritten);
         const speed = calculateWeightedSpeed(processId);
 
+        // Calculate estimated size if not provided by server
+        let estimatedTotalBytes =
+          event.totalBytes > 0 && Number.isFinite(event.totalBytes)
+            ? event.totalBytes
+            : undefined;
+
+        // If server doesn't provide size, estimate from bitrate
+        if (!estimatedTotalBytes) {
+          const process = processes.find((p) => p.id === processId);
+          if (process) {
+            const { estimateDownloadSize } = require("@/utils/download");
+            estimatedTotalBytes = estimateDownloadSize(
+              process.maxBitrate.value,
+              process.item.RunTimeTicks,
+            );
+          }
+        }
+
         console.log(
-          `[DPL] Progress update for processId: ${processId}, taskId: ${event.taskId}, progress: ${progress}%, bytesWritten: ${event.bytesWritten}, speed: ${speed ? (speed / 1024 / 1024).toFixed(2) : "N/A"} MB/s`,
+          `[DPL] Progress update for processId: ${processId}, taskId: ${event.taskId}, progress: ${progress}%, bytesWritten: ${event.bytesWritten}, speed: ${speed ? (speed / 1024 / 1024).toFixed(2) : "N/A"} MB/s, estimatedTotalBytes: ${estimatedTotalBytes}`,
         );
 
         updateProcess(processId, {
@@ -142,10 +164,7 @@ export function useDownloadEventHandlers({
           bytesDownloaded: event.bytesWritten,
           lastProgressUpdateTime: new Date(),
           speed,
-          estimatedTotalSizeBytes:
-            event.totalBytes > 0 && Number.isFinite(event.totalBytes)
-              ? event.totalBytes
-              : undefined,
+          estimatedTotalSizeBytes: estimatedTotalBytes,
         });
       },
     );
