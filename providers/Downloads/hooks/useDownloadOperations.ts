@@ -121,9 +121,13 @@ export function useDownloadOperations({
           destinationPath,
         );
 
-        // Only map task ID if it's not a placeholder (-1 means queued)
+        // Map task ID or URL for later cancellation
         if (taskId !== -1) {
           taskMapRef.current.set(taskId, processId);
+        } else {
+          // For queued downloads, store a negative mapping using URL hash
+          // This allows us to cancel queued downloads by URL
+          taskMapRef.current.set(url, processId);
         }
 
         toast.success(
@@ -144,16 +148,28 @@ export function useDownloadOperations({
 
   const cancelDownload = useCallback(
     async (id: string) => {
-      // Find the task ID for this process
+      // Find the task ID or URL for this process
       let taskId: number | undefined;
-      taskMapRef.current.forEach((pId, tId) => {
+      let downloadUrl: string | undefined;
+
+      taskMapRef.current.forEach((pId, key) => {
         if (pId === id) {
-          taskId = tId;
+          if (typeof key === "number") {
+            taskId = key;
+          } else {
+            downloadUrl = key;
+          }
         }
       });
 
       if (taskId !== undefined) {
+        // Cancel active download by taskId
         BackgroundDownloader.cancelDownload(taskId);
+        taskMapRef.current.delete(taskId);
+      } else if (downloadUrl !== undefined) {
+        // Cancel queued download by URL
+        BackgroundDownloader.cancelQueuedDownload(downloadUrl);
+        taskMapRef.current.delete(downloadUrl);
       }
 
       removeProcess(id);

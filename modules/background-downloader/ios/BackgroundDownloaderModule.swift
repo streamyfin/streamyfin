@@ -149,6 +149,13 @@ public class BackgroundDownloaderModule: Module {
       }
     }
     
+    Function("cancelQueuedDownload") { (url: String) in
+      // Remove from queue by URL
+      self.downloadQueue.removeAll { queuedItem in
+        queuedItem.url == url
+      }
+    }
+    
     Function("cancelAllDownloads") {
       self.session?.getAllTasks { tasks in
         for task in tasks {
@@ -317,19 +324,19 @@ public class BackgroundDownloaderModule: Module {
         "taskId": taskId,
         "error": error.localizedDescription
       ])
-      
-      // Process next item in queue even on error
-      Task {
-        do {
-          _ = try await self.processNextInQueue()
-        } catch {
-          print("[BackgroundDownloader] Error processing next: \(error)")
-        }
-      }
     }
     
     downloadTasks.removeValue(forKey: taskId)
     lastProgressTime.removeValue(forKey: taskId)
+    
+    // Process next item in queue (whether cancelled or errored)
+    Task {
+      do {
+        _ = try await self.processNextInQueue()
+      } catch {
+        print("[BackgroundDownloader] Error processing next: \(error)")
+      }
+    }
   }
   
   private func processNextInQueue() async throws -> Int {

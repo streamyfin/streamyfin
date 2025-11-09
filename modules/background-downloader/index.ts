@@ -12,6 +12,7 @@ export interface BackgroundDownloader {
   startDownload(url: string, destinationPath?: string): Promise<number>;
   enqueueDownload(url: string, destinationPath?: string): Promise<number>;
   cancelDownload(taskId: number): void;
+  cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
 
@@ -49,6 +50,10 @@ const BackgroundDownloader: BackgroundDownloader = {
 
   cancelDownload(taskId: number): void {
     BackgroundDownloaderModule.cancelDownload(taskId);
+  },
+
+  cancelQueuedDownload(url: string): void {
+    BackgroundDownloaderModule.cancelQueuedDownload(url);
   },
 
   cancelAllDownloads(): void {

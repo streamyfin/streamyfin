@@ -166,6 +166,16 @@ class BackgroundDownloaderModule : Module() {
         downloadManager.remove(downloadId)
         stopProgressTracking(downloadId)
         downloadTasks.remove(downloadId)
+        
+        // Process next item in queue after cancellation
+        processNextInQueue()
+      }
+    }
+    
+    Function("cancelQueuedDownload") { url: String ->
+      // Remove from queue by URL
+      downloadQueue.removeAll { queuedItem ->
+        queuedItem.first == url
       }
     }
 
@@ -176,6 +186,7 @@ class BackgroundDownloaderModule : Module() {
         stopProgressTracking(downloadId)
       }
       downloadTasks.clear()
+      downloadQueue.clear()
     }
 
     AsyncFunction("getActiveDownloads") { promise: Promise ->

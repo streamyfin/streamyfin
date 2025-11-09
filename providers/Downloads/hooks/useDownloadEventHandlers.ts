@@ -58,12 +58,23 @@ export function useDownloadEventHandlers({
 
         // If no mapping exists, find by URL (for queued downloads)
         if (!processId && event.url) {
-          const matchingProcess = processes.find(
-            (p) => p.inputUrl === event.url,
-          );
-          if (matchingProcess) {
-            processId = matchingProcess.id;
+          // Check if we have a URL mapping (queued download)
+          processId = taskMapRef.current.get(event.url);
+
+          if (!processId) {
+            // Fallback: search by matching URL in processes
+            const matchingProcess = processes.find(
+              (p) => p.inputUrl === event.url,
+            );
+            if (matchingProcess) {
+              processId = matchingProcess.id;
+            }
+          }
+
+          if (processId) {
+            // Create taskId mapping and remove URL mapping
             taskMapRef.current.set(event.taskId, processId);
+            taskMapRef.current.delete(event.url);
             console.log(
               `[DPL] Mapped queued download: taskId=${event.taskId} to processId=${processId.slice(0, 8)}...`,
             );
