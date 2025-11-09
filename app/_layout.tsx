@@ -47,12 +47,11 @@ import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { Appearance } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 import "react-native-reanimated";
@@ -206,8 +205,7 @@ export default function RootLayout() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30,
-      refetchOnWindowFocus: false,
+      staleTime: 30000,
     },
   },
 });
@@ -216,7 +214,7 @@ function Layout() {
   const { settings } = useSettings();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
-  const segments = useSegments();
+  const _segments = useSegments();
 
   useEffect(() => {
     i18n.changeLanguage(
@@ -245,7 +243,7 @@ function Layout() {
     } else console.log("No token available");
   }, [api, expoPushToken, user]);
 
-  async function registerNotifications() {
+  const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
       console.log("Setting android notification channel 'default'");
       await Notifications?.setNotificationChannelAsync("default", {
@@ -282,7 +280,7 @@ function Layout() {
         .then((token: ExpoPushToken) => token && setExpoPushToken(token))
         .catch((reason: any) => console.log("Failed to get token", reason));
     }
-  }
+  }, [user]);
 
   useEffect(() => {
     if (!Platform.isTV) {
@@ -346,35 +344,7 @@ function Layout() {
         responseListener.current?.remove();
       };
     }
-  }, [user, api]);
-
-  useEffect(() => {
-    if (Platform.isTV) {
-      return;
-    }
-
-    if (segments.includes("direct-player" as never)) {
-      if (
-        !settings.followDeviceOrientation &&
-        settings.defaultVideoOrientation
-      ) {
-        ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
-      }
-      return;
-    }
-
-    if (settings.followDeviceOrientation === true) {
-      ScreenOrientation.unlockAsync();
-    } else {
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      );
-    }
-  }, [
-    settings.followDeviceOrientation,
-    settings.defaultVideoOrientation,
-    segments,
-  ]);
+  }, [user]);
 
   return (
     <QueryClientProvider client={queryClient}>
