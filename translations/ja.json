@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "その他",
-        "follow_device_orientation": "画面の自動回転",
         "video_orientation": "動画の向き",
         "orientation": "向き",
         "orientations": {

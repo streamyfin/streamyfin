@@ -59,7 +59,6 @@ export const OtherSettings: React.FC = () => {
 
   const disabled = useMemo(
     () =>
-      pluginSettings?.followDeviceOrientation?.locked === true &&
       pluginSettings?.defaultVideoOrientation?.locked === true &&
       pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
       pluginSettings?.showCustomMenuLinks?.locked === true &&
@@ -141,24 +140,8 @@ export const OtherSettings: React.FC = () => {
     <DisabledSetting disabled={disabled}>
       <ListGroup title={t("home.settings.other.other_title")} className=''>
         <ListItem
-          title={t("home.settings.other.follow_device_orientation")}
-          disabled={pluginSettings?.followDeviceOrientation?.locked}
-        >
-          <Switch
-            value={settings.followDeviceOrientation}
-            disabled={pluginSettings?.followDeviceOrientation?.locked}
-            onValueChange={(value) =>
-              updateSettings({ followDeviceOrientation: value })
-            }
-          />
-        </ListItem>
-
-        <ListItem
           title={t("home.settings.other.video_orientation")}
-          disabled={
-            pluginSettings?.defaultVideoOrientation?.locked ||
-            settings.followDeviceOrientation
-          }
+          disabled={pluginSettings?.defaultVideoOrientation?.locked}
         >
           <PlatformDropdown
             groups={orientationOptions}

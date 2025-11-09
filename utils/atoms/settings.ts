@@ -142,8 +142,6 @@ export enum VideoPlayer {
 
 export type Settings = {
   home?: Home | null;
-  followDeviceOrientation?: boolean;
-  forceLandscapeInVideoPlayer?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
@@ -205,8 +203,6 @@ export type StreamyfinPluginConfig = {
 
 export const defaultValues: Settings = {
   home: null,
-  followDeviceOrientation: true,
-  forceLandscapeInVideoPlayer: false,
   deviceProfile: "Expo",
   mediaListCollectionIds: [],
   preferedLanguage: undefined,

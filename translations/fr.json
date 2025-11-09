@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Autres",
-        "follow_device_orientation": "Rotation automatique",
         "video_orientation": "Orientation vidéo",
         "orientation": "Orientation",
         "orientations": {

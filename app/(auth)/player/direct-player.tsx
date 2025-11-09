@@ -29,6 +29,7 @@ import {
   VLCColor,
 } from "@/constants/SubtitleConstants";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useOrientationManager } from "@/hooks/useOrientationManager";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -38,6 +39,7 @@ import type {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/VlcPlayer.types";
+import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -109,6 +111,13 @@ export default function page() {
     playbackPosition?: string;
   }>();
   const { settings } = useSettings();
+  const {
+    lockOrientation,
+    unlockOrientation,
+    getDevicePhysicalOrientation,
+    startAccelerometer,
+    stopAccelerometer,
+  } = useOrientationManager();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -170,6 +179,79 @@ export default function page() {
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
+
+  // Handle orientation on mount/unmount
+  useEffect(() => {
+    if (Platform.isTV) return;
+
+    const handleOrientation = async () => {
+      const videoOrientation = settings?.defaultVideoOrientation;
+
+      // If user has a specific video orientation preference (not DEFAULT)
+      if (
+        videoOrientation !== undefined &&
+        videoOrientation !== ScreenOrientation.OrientationLock.DEFAULT
+      ) {
+        // Lock to user's preferred orientation
+        await lockOrientation(videoOrientation);
+      } else {
+        // DEFAULT: Follow device orientation
+        // First unlock to allow free rotation
+        await unlockOrientation();
+
+        // Check if device rotation is locked at OS level
+        // by comparing current orientation with physical orientation
+        const currentOrientation =
+          await ScreenOrientation.getOrientationAsync();
+
+        // Start accelerometer to detect physical orientation
+        startAccelerometer();
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        const physicalOrientation = await getDevicePhysicalOrientation();
+        stopAccelerometer();
+
+        // Convert current orientation to lock format for comparison
+        let currentLock: ScreenOrientation.OrientationLock;
+        switch (currentOrientation) {
+          case ScreenOrientation.Orientation.PORTRAIT_UP:
+            currentLock = ScreenOrientation.OrientationLock.PORTRAIT_UP;
+            break;
+          case ScreenOrientation.Orientation.LANDSCAPE_LEFT:
+            currentLock = ScreenOrientation.OrientationLock.LANDSCAPE_LEFT;
+            break;
+          case ScreenOrientation.Orientation.LANDSCAPE_RIGHT:
+            currentLock = ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT;
+            break;
+          default:
+            currentLock = ScreenOrientation.OrientationLock.PORTRAIT_UP;
+        }
+
+        // If physical orientation doesn't match current orientation after unlocking,
+        // device rotation is likely locked at OS level
+        if (currentLock !== physicalOrientation) {
+          // Device rotation is locked, lock to physical orientation (YouTube behavior)
+          await lockOrientation(physicalOrientation);
+        }
+        // Otherwise, keep unlocked for free rotation
+      }
+    };
+
+    handleOrientation();
+
+    // Cleanup: unlock orientation when leaving video player
+    return () => {
+      if (!Platform.isTV) {
+        unlockOrientation();
+      }
+    };
+  }, [
+    settings?.defaultVideoOrientation,
+    lockOrientation,
+    unlockOrientation,
+    getDevicePhysicalOrientation,
+    startAccelerometer,
+    stopAccelerometer,
+  ]);
 
   interface Stream {
     mediaSource: MediaSourceInfo;

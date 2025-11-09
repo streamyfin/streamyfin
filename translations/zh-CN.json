@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "其他",
-        "follow_device_orientation": "自动旋转",
         "video_orientation": "视频方向",
         "orientation": "方向",
         "orientations": {

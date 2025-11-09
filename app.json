@@ -117,10 +117,6 @@
           }
         }
       ],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withAndroidManifest.js"],
-      ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"],
       [
         "expo-splash-screen",
         {
@@ -139,8 +135,12 @@
           }
         }
       ],
-      "./plugins/with-runtime-framework-headers.js",
-      "expo-web-browser"
+      "expo-web-browser",
+      ["./plugins/with-runtime-framework-headers.js"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
+      ["./plugins/withAndroidManifest.js"],
+      ["./plugins/withTrustLocalCerts.js"],
+      ["./plugins/withGradleProperties.js"]
     ],
     "experiments": {
       "typedRoutes": true

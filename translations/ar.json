@@ -124,7 +124,6 @@
       },
       "other": {
         "other_title": "أخرى",
-        "follow_device_orientation": "تدوير تلقائي",
         "video_orientation": "اتجاه الفيديو",
         "orientation": "الاتجاه",
         "orientations": {

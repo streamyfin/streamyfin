@@ -129,7 +129,6 @@
       },
       "other": {
         "other_title": "Egyéb",
-        "follow_device_orientation": "Automatikus Forgatás",
         "video_orientation": "Videó Tájolás",
         "orientation": "Tájolás",
         "orientations": {
