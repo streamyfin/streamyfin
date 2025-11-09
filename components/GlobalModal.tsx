@@ -64,6 +64,8 @@ export const GlobalModal = () => {
       backgroundStyle={modalOptions.backgroundStyle}
       enablePanDownToClose={modalOptions.enablePanDownToClose}
       enableDismissOnClose
+      stackBehavior='push'
+      style={{ zIndex: 1000 }}
     >
       {modalState.content}
     </BottomSheetModal>

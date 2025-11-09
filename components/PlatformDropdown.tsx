@@ -127,7 +127,8 @@ const BottomSheetContent: React.FC<{
   title?: string;
   groups: OptionGroup[];
   onOptionSelect?: (value?: any) => void;
-}> = ({ title, groups, onOptionSelect }) => {
+  onClose?: () => void;
+}> = ({ title, groups, onOptionSelect, onClose }) => {
   const insets = useSafeAreaInsets();
 
   // Wrap the groups to call onOptionSelect when an option is pressed
@@ -140,6 +141,7 @@ const BottomSheetContent: React.FC<{
           onPress: () => {
             option.onPress();
             onOptionSelect?.(option.value);
+            onClose?.();
           },
         };
       }
@@ -184,29 +186,40 @@ const PlatformDropdownComponent = ({
 }: PlatformDropdownProps) => {
   const { showModal, hideModal } = useGlobalModal();
 
-  const handlePress = () => {
-    if (Platform.OS === "android") {
-      onOpenChange?.(true);
-      showModal(
-        <BottomSheetContent
-          title={title}
-          groups={groups}
-          onOptionSelect={onOptionSelect}
-        />,
-        {
-          snapPoints: ["90%"],
-          enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
-        },
-      );
-    }
-  };
-
-  // Close modal when open prop changes to false
+  // Handle open/close state changes for Android
   useEffect(() => {
-    if (Platform.OS === "android" && open === false) {
-      hideModal();
+    if (Platform.OS === "android") {
+      if (open === true) {
+        showModal(
+          <BottomSheetContent
+            title={title}
+            groups={groups}
+            onOptionSelect={onOptionSelect}
+            onClose={() => {
+              hideModal();
+              onOpenChange?.(false);
+            }}
+          />,
+          {
+            snapPoints: ["90%"],
+            enablePanDownToClose:
+              bottomSheetConfig?.enablePanDownToClose ?? true,
+          },
+        );
+      } else if (open === false) {
+        hideModal();
+      }
     }
-  }, [open, hideModal]);
+  }, [
+    open,
+    title,
+    groups,
+    onOptionSelect,
+    onOpenChange,
+    bottomSheetConfig,
+    showModal,
+    hideModal,
+  ]);
 
   if (Platform.OS === "ios") {
     return (
@@ -300,12 +313,9 @@ const PlatformDropdownComponent = ({
     );
   }
 
-  // Android: Trigger button for bottom modal
-  return (
-    <TouchableOpacity onPress={handlePress}>
-      {trigger || <Text className='text-white'>Open Menu</Text>}
-    </TouchableOpacity>
-  );
+  // Android: Just render the trigger, let it handle its own press events
+  // The useEffect above watches for open state changes and shows/hides the modal
+  return <>{trigger || <Text className='text-white'>Open Menu</Text>}</>;
 };
 
 // Memoize to prevent unnecessary re-renders when parent re-renders
