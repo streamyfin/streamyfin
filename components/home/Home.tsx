@@ -441,26 +441,21 @@ export const Home = () => {
     <ScrollView
       ref={scrollRef}
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior='never'
-      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={loading}
           onRefresh={refetch}
           tintColor='white'
           colors={["white"]}
-          progressViewOffset={120}
         />
       }
-      contentContainerStyle={{
-        paddingTop: Platform.isTV ? 0 : insets.top + 60,
-      }}
     >
       <View
         style={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
+          paddingTop: Platform.isTV ? 0 : insets.top * 2,
         }}
       >
         <View className='flex flex-col space-y-4'>
