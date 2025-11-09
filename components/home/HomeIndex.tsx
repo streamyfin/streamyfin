@@ -76,7 +76,7 @@ export const HomeIndex = () => {
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
   const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const headerOverlayOffset = Platform.isTV
     ? 0
     : showLargeHomeCarousel
@@ -195,7 +195,6 @@ export const HomeIndex = () => {
   const refetch = async () => {
     setLoading(true);
     await refreshStreamyfinPluginSettings();
-    await queryClient.clear();
     await invalidateCache();
     setLoading(false);
   };
@@ -491,7 +490,7 @@ export const HomeIndex = () => {
             onRefresh={refetch}
             tintColor='white'
             colors={["white"]}
-            progressViewOffset={100}
+            progressViewOffset={120}
           />
         )
       }
