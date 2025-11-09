@@ -206,11 +206,8 @@ export default function RootLayout() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0,
-      refetchOnMount: true,
-      refetchOnReconnect: true,
-      refetchOnWindowFocus: true,
-      retryOnMount: true,
+      staleTime: 30,
+      refetchOnWindowFocus: false,
     },
   },
 });
