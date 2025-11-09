@@ -75,7 +75,7 @@ export const HomeIndex = () => {
 
   const [loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
-  const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
+  const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? false;
   const _queryClient = useQueryClient();
   const headerOverlayOffset = Platform.isTV
     ? 0

@@ -243,7 +243,7 @@ export const defaultValues: Settings = {
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
-  showLargeHomeCarousel: true,
+  showLargeHomeCarousel: false,
 };
 
 const loadSettings = (): Partial<Settings> => {
