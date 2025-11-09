@@ -45,5 +45,20 @@ export const useOrientation = () => {
     };
   }, []);
 
-  return { orientation, setOrientation };
+  const lockOrientation = async (lock: OrientationLock) => {
+    if (Platform.isTV) return;
+
+    if (lock === ScreenOrientation.OrientationLock.DEFAULT) {
+      await ScreenOrientation.unlockAsync();
+    } else {
+      await ScreenOrientation.lockAsync(lock);
+    }
+  };
+
+  const unlockOrientation = async () => {
+    if (Platform.isTV) return;
+    await ScreenOrientation.unlockAsync();
+  };
+
+  return { orientation, setOrientation, lockOrientation, unlockOrientation };
 };

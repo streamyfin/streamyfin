@@ -29,6 +29,7 @@ import {
   VLCColor,
 } from "@/constants/SubtitleConstants";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -109,6 +110,7 @@ export default function page() {
     playbackPosition?: string;
   }>();
   const { settings } = useSettings();
+  const { lockOrientation, unlockOrientation } = useOrientation();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -170,6 +172,16 @@ export default function page() {
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
+
+  useEffect(() => {
+    if (settings?.defaultVideoOrientation) {
+      lockOrientation(settings.defaultVideoOrientation);
+    }
+
+    return () => {
+      unlockOrientation();
+    };
+  }, [settings?.defaultVideoOrientation]);
 
   interface Stream {
     mediaSource: MediaSourceInfo;
