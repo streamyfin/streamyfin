@@ -84,6 +84,7 @@ export default function TabLayout() {
           })}
           name='(search)'
           options={{
+            role: "search",
             title: t("tabs.search"),
             tabBarIcon:
               Platform.OS === "android"
