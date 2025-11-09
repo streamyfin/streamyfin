@@ -27,7 +27,7 @@
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/vector-icons": "^14.1.0",
     "@gorhom/bottom-sheet": "^5.1.0",
-    "@jellyfin/sdk": "^0.11.0",
+    "@jellyfin/sdk": "^0.13.0",
     "@kesha-antonov/react-native-background-downloader": "^3.2.6",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-menu/menu": "1.2.3",
