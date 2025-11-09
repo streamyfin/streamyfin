@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.46.0",
+    "version": "0.46.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -38,7 +38,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 79,
+      "versionCode": 80,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
