@@ -8,7 +8,6 @@ import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
 import {
@@ -203,15 +202,6 @@ function Layout() {
       settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
     );
   }, [settings?.preferedLanguage, i18n]);
-
-  // Unlock orientation by default for the app (allow rotation)
-  useEffect(() => {
-    if (Platform.isTV) return;
-
-    ScreenOrientation.unlockAsync().catch((error) => {
-      console.error("Failed to unlock orientation:", error);
-    });
-  }, []);
 
   useNotificationObserver();
 
