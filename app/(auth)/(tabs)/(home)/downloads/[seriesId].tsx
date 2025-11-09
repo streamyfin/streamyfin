@@ -2,7 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
 import {
@@ -120,10 +130,18 @@ export default function page() {
     );
   }, [groupBySeason, deleteItems]);
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <View className='flex-1'>
+    <SafeAreaView
+      className='flex-1'
+      edges={Platform.OS === "android" ? ["top"] : []}
+    >
       {series.length > 0 && (
-        <View className='flex flex-row items-center justify-start my-2 px-4'>
+        <View
+          className='flex flex-row items-center justify-start px-4 pb-4'
+          style={{ paddingTop: Platform.OS === "ios" ? insets.top * 2 : 0 }}
+        >
           <SeasonDropdown
             item={series[0].item}
             seasons={uniqueSeasons}
@@ -151,6 +169,6 @@ export default function page() {
           <EpisodeCard key={index} item={episode} />
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
