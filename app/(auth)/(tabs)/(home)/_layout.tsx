@@ -23,7 +23,7 @@ export default function IndexLayout() {
           headerShown: !Platform.isTV,
           headerTitle: t("tabs.home"),
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () => (
             <View className='flex flex-row items-center px-2'>
@@ -43,7 +43,7 @@ export default function IndexLayout() {
         options={{
           headerShown: true,
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           title: t("home.downloads.downloads_title"),
           headerLeft: () => (
             <TouchableOpacity
@@ -61,7 +61,7 @@ export default function IndexLayout() {
         options={{
           headerShown: true,
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           title: t("home.downloads.tvseries"),
           headerLeft: () => (
@@ -81,7 +81,7 @@ export default function IndexLayout() {
           title: t("home.sessions.title"),
           headerShown: true,
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity
@@ -99,7 +99,7 @@ export default function IndexLayout() {
         options={{
           title: t("home.settings.settings_title"),
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity
@@ -183,7 +183,7 @@ export default function IndexLayout() {
           ),
           headerShown: true,
           headerBlurEffect: "prominent",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

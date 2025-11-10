@@ -10,10 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
@@ -36,7 +33,7 @@ export default function page() {
 
   const [showMigration, setShowMigration] = useState(false);
 
-  const insets = useSafeAreaInsets();
+  const _insets = useSafeAreaInsets();
 
   const migration_20241124 = () => {
     Alert.alert(
@@ -169,19 +166,14 @@ export default function page() {
     );
 
   return (
-    <SafeAreaView
-      className='flex-1'
-      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
-      edges={Platform.OS === "android" ? ["top"] : []}
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior='automatic'
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior='automatic'
-      >
-        <View className='py-4'>
-          <View className='mb-4 flex flex-col space-y-4 px-4'>
-            {/* Queue card - hidden */}
-            {/* <View className='bg-neutral-900 p-4 rounded-2xl'>
+      <View style={{ paddingTop: Platform.OS === "android" ? 17 : 0 }}>
+        <View className='mb-4 flex flex-col space-y-4 px-4'>
+          {/* Queue card - hidden */}
+          {/* <View className='bg-neutral-900 p-4 rounded-2xl'>
                 <Text className='text-lg font-bold'>
                   {t("home.downloads.queue")}
                 </Text>
@@ -225,100 +217,94 @@ export default function page() {
                 )}
               </View> */}
 
-            <ActiveDownloads />
-          </View>
-
-          {movies.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.movies")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>{movies?.length}</Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {movies?.map((item) => (
-                    <TouchableItemRouter
-                      item={item.item}
-                      isOffline
-                      key={item.item.Id}
-                    >
-                      <MovieCard item={item.item} />
-                    </TouchableItemRouter>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-          {groupedBySeries.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.tvseries")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>
-                    {groupedBySeries?.length}
-                  </Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {groupedBySeries?.map((items) => (
-                    <View
-                      className='mb-2 last:mb-0'
-                      key={items[0].item.SeriesId}
-                    >
-                      <SeriesCard
-                        items={items.map((i) => i.item)}
-                        key={items[0].item.SeriesId}
-                      />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-
-          {otherMedia.length > 0 && (
-            <View className='mb-4'>
-              <View className='flex flex-row items-center justify-between mb-2 px-4'>
-                <Text className='text-lg font-bold'>
-                  {t("home.downloads.other_media")}
-                </Text>
-                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
-                  <Text className='text-xs font-bold'>
-                    {otherMedia?.length}
-                  </Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className='px-4 flex flex-row'>
-                  {otherMedia?.map((item) => (
-                    <TouchableItemRouter
-                      item={item.item}
-                      isOffline
-                      key={item.item.Id}
-                    >
-                      <MovieCard item={item.item} />
-                    </TouchableItemRouter>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-          {downloadedFiles?.length === 0 && (
-            <View className='flex px-4'>
-              <Text className='opacity-50'>
-                {t("home.downloads.no_downloaded_items")}
-              </Text>
-            </View>
-          )}
+          <ActiveDownloads />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        {movies.length > 0 && (
+          <View className='mb-4'>
+            <View className='flex flex-row items-center justify-between mb-2 px-4'>
+              <Text className='text-lg font-bold'>
+                {t("home.downloads.movies")}
+              </Text>
+              <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                <Text className='text-xs font-bold'>{movies?.length}</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className='px-4 flex flex-row'>
+                {movies?.map((item) => (
+                  <TouchableItemRouter
+                    item={item.item}
+                    isOffline
+                    key={item.item.Id}
+                  >
+                    <MovieCard item={item.item} />
+                  </TouchableItemRouter>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+        {groupedBySeries.length > 0 && (
+          <View className='mb-4'>
+            <View className='flex flex-row items-center justify-between mb-2 px-4'>
+              <Text className='text-lg font-bold'>
+                {t("home.downloads.tvseries")}
+              </Text>
+              <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                <Text className='text-xs font-bold'>
+                  {groupedBySeries?.length}
+                </Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className='px-4 flex flex-row'>
+                {groupedBySeries?.map((items) => (
+                  <View className='mb-2 last:mb-0' key={items[0].item.SeriesId}>
+                    <SeriesCard
+                      items={items.map((i) => i.item)}
+                      key={items[0].item.SeriesId}
+                    />
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        {otherMedia.length > 0 && (
+          <View className='mb-4'>
+            <View className='flex flex-row items-center justify-between mb-2 px-4'>
+              <Text className='text-lg font-bold'>
+                {t("home.downloads.other_media")}
+              </Text>
+              <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                <Text className='text-xs font-bold'>{otherMedia?.length}</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className='px-4 flex flex-row'>
+                {otherMedia?.map((item) => (
+                  <TouchableItemRouter
+                    item={item.item}
+                    isOffline
+                    key={item.item.Id}
+                  >
+                    <MovieCard item={item.item} />
+                  </TouchableItemRouter>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+        {downloadedFiles?.length === 0 && (
+          <View className='flex px-4'>
+            <Text className='opacity-50'>
+              {t("home.downloads.no_downloaded_items")}
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 }

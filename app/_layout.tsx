@@ -359,7 +359,7 @@ function Layout() {
                           options={{
                             headerShown: true,
                             title: "",
-                            headerTransparent: true,
+                            headerTransparent: Platform.OS === "ios",
                           }}
                         />
                         <Stack.Screen name='+not-found' />

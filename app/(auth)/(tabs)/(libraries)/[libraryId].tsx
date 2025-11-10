@@ -14,11 +14,8 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Platform, useWindowDimensions, View } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { FlatList, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
@@ -440,48 +437,42 @@ const Page = () => {
     );
 
   return (
-    <SafeAreaView
-      className='flex-1'
-      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
-      edges={Platform.OS === "android" ? ["top"] : []}
-    >
-      <FlashList
-        key={orientation}
-        ListEmptyComponent={
-          <View className='flex flex-col items-center justify-center h-full'>
-            <Text className='font-bold text-xl text-neutral-500'>
-              {t("library.no_results")}
-            </Text>
-          </View>
+    <FlashList
+      key={orientation}
+      ListEmptyComponent={
+        <View className='flex flex-col items-center justify-center h-full'>
+          <Text className='font-bold text-xl text-neutral-500'>
+            {t("library.no_results")}
+          </Text>
+        </View>
+      }
+      contentInsetAdjustmentBehavior='automatic'
+      data={flatData}
+      renderItem={renderItem}
+      extraData={[orientation, nrOfCols]}
+      keyExtractor={keyExtractor}
+      numColumns={nrOfCols}
+      onEndReached={() => {
+        if (hasNextPage) {
+          fetchNextPage();
         }
-        contentInsetAdjustmentBehavior='automatic'
-        data={flatData}
-        renderItem={renderItem}
-        extraData={[orientation, nrOfCols]}
-        keyExtractor={keyExtractor}
-        numColumns={nrOfCols}
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
-          }
-        }}
-        onEndReachedThreshold={1}
-        ListHeaderComponent={ListHeaderComponent}
-        contentContainerStyle={{
-          paddingBottom: 24,
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-        }}
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              width: 10,
-              height: 10,
-            }}
-          />
-        )}
-      />
-    </SafeAreaView>
+      }}
+      onEndReachedThreshold={1}
+      ListHeaderComponent={ListHeaderComponent}
+      contentContainerStyle={{
+        paddingBottom: 24,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
+      ItemSeparatorComponent={() => (
+        <View
+          style={{
+            width: 10,
+            height: 10,
+          }}
+        />
+      )}
+    />
   );
 };
 

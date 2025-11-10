@@ -13,7 +13,7 @@ export default function SearchLayout() {
           headerShown: !Platform.isTV,
           headerTitle: t("tabs.favorites"),
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

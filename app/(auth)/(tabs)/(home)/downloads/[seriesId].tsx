@@ -3,11 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { FlashList } from "@shopify/flash-list";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, TouchableOpacity, View } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
 import {
@@ -125,10 +121,8 @@ export default function page() {
     );
   }, [groupBySeason, deleteItems]);
 
-  const insets = useSafeAreaInsets();
-
   return (
-    <SafeAreaView className='flex-1' style={{ paddingTop: insets.top }}>
+    <View style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}>
       {series.length > 0 && (
         <View className='flex flex-row items-center justify-start px-4 pb-2'>
           <SeasonDropdown
@@ -160,6 +154,6 @@ export default function page() {
         keyExtractor={(item, index) => item.Id ?? `episode-${index}`}
         contentContainerStyle={{ paddingHorizontal: 16 }}
       />
-    </SafeAreaView>
+    </View>
   );
 }

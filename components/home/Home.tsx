@@ -25,10 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
@@ -441,58 +438,55 @@ export const Home = () => {
     );
 
   return (
-    <SafeAreaView
-      className='flex-1'
-      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
-      edges={Platform.OS === "android" ? ["top"] : []}
+    <ScrollView
+      ref={scrollRef}
+      nestedScrollEnabled
+      contentInsetAdjustmentBehavior='automatic'
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={refetch}
+          tintColor='white'
+          colors={["white"]}
+        />
+      }
+      contentContainerStyle={{
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+        paddingBottom: 16,
+      }}
     >
-      <ScrollView
-        ref={scrollRef}
-        nestedScrollEnabled
-        contentInsetAdjustmentBehavior='automatic'
-        refreshControl={
-          <RefreshControl
-            refreshing={loading}
-            onRefresh={refetch}
-            tintColor='white'
-            colors={["white"]}
-          />
-        }
-        contentContainerStyle={{
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-          paddingBottom: 16,
-        }}
+      <View
+        className='flex flex-col space-y-4'
+        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
-        <View className='flex flex-col space-y-4'>
-          {sections.map((section, index) => {
-            if (section.type === "ScrollingCollectionList") {
-              return (
-                <ScrollingCollectionList
-                  key={index}
-                  title={section.title}
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
-                  orientation={section.orientation}
-                  hideIfEmpty
-                />
-              );
-            }
-            if (section.type === "MediaListSection") {
-              return (
-                <MediaListSection
-                  key={index}
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
-                />
-              );
-            }
-            return null;
-          })}
-        </View>
-        {Platform.OS === "ios" && <View className='h-20' />}
-      </ScrollView>
-    </SafeAreaView>
+        {sections.map((section, index) => {
+          if (section.type === "ScrollingCollectionList") {
+            return (
+              <ScrollingCollectionList
+                key={index}
+                title={section.title}
+                queryKey={section.queryKey}
+                queryFn={section.queryFn}
+                orientation={section.orientation}
+                hideIfEmpty
+              />
+            );
+          }
+          if (section.type === "MediaListSection") {
+            return (
+              <MediaListSection
+                key={index}
+                queryKey={section.queryKey}
+                queryFn={section.queryFn}
+              />
+            );
+          }
+          return null;
+        })}
+      </View>
+      {Platform.OS === "ios" && <View className='h-20' />}
+    </ScrollView>
   );
 };
 

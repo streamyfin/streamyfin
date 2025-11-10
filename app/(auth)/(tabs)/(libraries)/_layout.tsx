@@ -21,7 +21,7 @@ export default function IndexLayout() {
           headerShown: !Platform.isTV,
           headerTitle: t("tabs.library"),
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () =>
             !pluginSettings?.libraryOptions?.locked &&
@@ -144,7 +144,7 @@ export default function IndexLayout() {
           title: "",
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />
@@ -157,7 +157,7 @@ export default function IndexLayout() {
           title: "",
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

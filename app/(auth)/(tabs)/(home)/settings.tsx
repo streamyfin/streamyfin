@@ -3,10 +3,7 @@ import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -58,75 +55,72 @@ export default function settings() {
   }, []);
 
   return (
-    <SafeAreaView
-      className='flex-1'
-      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
-      edges={Platform.OS === "android" ? ["top"] : []}
+    <ScrollView
+      contentInsetAdjustmentBehavior='automatic'
+      contentContainerStyle={{
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
     >
-      <ScrollView
-        contentInsetAdjustmentBehavior='automatic'
-        contentContainerStyle={{
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-        }}
+      <View
+        className='p-4 flex flex-col gap-y-4'
+        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
-        <View className='p-4 flex flex-col gap-y-4'>
-          <UserInfo />
+        <UserInfo />
 
-          <QuickConnect className='mb-4' />
+        <QuickConnect className='mb-4' />
 
-          <MediaProvider>
-            <MediaToggles className='mb-4' />
-            <GestureControls className='mb-4' />
-            <AudioToggles className='mb-4' />
-            <SubtitleToggles className='mb-4' />
-          </MediaProvider>
+        <MediaProvider>
+          <MediaToggles className='mb-4' />
+          <GestureControls className='mb-4' />
+          <AudioToggles className='mb-4' />
+          <SubtitleToggles className='mb-4' />
+        </MediaProvider>
 
-          <OtherSettings />
+        <OtherSettings />
 
-          {!Platform.isTV && <DownloadSettings />}
+        {!Platform.isTV && <DownloadSettings />}
 
-          <PluginSettings />
+        <PluginSettings />
 
-          <AppLanguageSelector />
+        <AppLanguageSelector />
 
-          {!Platform.isTV && <ChromecastSettings />}
+        {!Platform.isTV && <ChromecastSettings />}
 
-          <ListGroup title={"Intro"}>
+        <ListGroup title={"Intro"}>
+          <ListItem
+            onPress={() => {
+              router.push("/intro/page");
+            }}
+            title={t("home.settings.intro.show_intro")}
+          />
+          <ListItem
+            textColor='red'
+            onPress={() => {
+              storage.set("hasShownIntro", false);
+            }}
+            title={t("home.settings.intro.reset_intro")}
+          />
+        </ListGroup>
+
+        <View className='mb-4'>
+          <ListGroup title={t("home.settings.logs.logs_title")}>
             <ListItem
-              onPress={() => {
-                router.push("/intro/page");
-              }}
-              title={t("home.settings.intro.show_intro")}
+              onPress={() => router.push("/settings/logs/page")}
+              showArrow
+              title={t("home.settings.logs.logs_title")}
             />
             <ListItem
               textColor='red'
-              onPress={() => {
-                storage.set("hasShownIntro", false);
-              }}
-              title={t("home.settings.intro.reset_intro")}
+              onPress={onClearLogsClicked}
+              title={t("home.settings.logs.delete_all_logs")}
             />
           </ListGroup>
-
-          <View className='mb-4'>
-            <ListGroup title={t("home.settings.logs.logs_title")}>
-              <ListItem
-                onPress={() => router.push("/settings/logs/page")}
-                showArrow
-                title={t("home.settings.logs.logs_title")}
-              />
-              <ListItem
-                textColor='red'
-                onPress={onClearLogsClicked}
-                title={t("home.settings.logs.delete_all_logs")}
-              />
-            </ListGroup>
-          </View>
-
-          {!Platform.isTV && <StorageSettings />}
-          <View className='h-24' />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        {!Platform.isTV && <StorageSettings />}
+        <View className='h-24' />
+      </View>
+    </ScrollView>
   );
 }
