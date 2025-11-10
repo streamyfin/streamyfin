@@ -1,10 +1,3 @@
-import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
@@ -21,8 +14,22 @@ import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
+import {
+  Alert,
+  InteractionManager,
+  Platform,
+  Switch,
+  View,
+  type ViewProps,
+} from "react-native";
 import { toast } from "sonner-native";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { queueAtom } from "@/utils/atoms/queue";
+import { useSettings } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -89,11 +96,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((index: number) => {
-    // Ensure modal is fully dismissed when index is -1
-    if (index === -1) {
-      // Modal is fully closed
-    }
+  const handleSheetChanges = useCallback((_index: number) => {
+    // Modal state tracking handled by BottomSheetModal
   }, []);
 
   const closeModal = useCallback(() => {
@@ -262,13 +266,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         throw new Error("No item id");
       }
 
-      // Ensure modal is dismissed before starting download
-      await closeModal();
+      closeModal();
 
-      // Small delay to ensure modal is fully dismissed
-      setTimeout(() => {
+      // Use InteractionManager to wait for modal dismiss animation to complete
+      // This is the proper React Native way to defer work until animations finish
+      InteractionManager.runAfterInteractions(() => {
         initiateDownload(...itemsToDownload);
-      }, 100);
+      });
     } else {
       toast.error(
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
@@ -349,9 +353,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           backgroundColor: "#171717",
         }}
         onChange={handleSheetChanges}
-        onDismiss={() => {
-          // Ensure any pending state is cleared when modal is dismissed
-        }}
         backdropComponent={renderBackdrop}
         enablePanDownToClose
         enableDismissOnClose
