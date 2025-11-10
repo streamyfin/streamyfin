@@ -31,3 +31,14 @@ export function generateFilename(item: BaseItemDto): string {
 export function uriToFilePath(uri: string): string {
   return uri.replace(/^file:\/\//, "");
 }
+
+/**
+ * Convert plain file path to file:// URI
+ * Required for expo-file-system File constructor
+ */
+export function filePathToUri(path: string): string {
+  if (path.startsWith("file://")) {
+    return path;
+  }
+  return `file://${path}`;
+}

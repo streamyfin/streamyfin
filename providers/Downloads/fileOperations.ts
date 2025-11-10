@@ -1,13 +1,14 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { getAllDownloadedItems, getDownloadedItemById } from "./database";
 import type { DownloadedItem } from "./types";
+import { filePathToUri } from "./utils";
 
 /**
  * Delete a video file and all associated files (subtitles, trickplay, etc.)
  */
 export function deleteVideoFile(filePath: string): void {
   try {
-    const videoFile = new File("", filePath);
+    const videoFile = new File(filePathToUri(filePath));
     if (videoFile.exists) {
       videoFile.delete();
       console.log(`[DELETE] Video file deleted: ${filePath}`);

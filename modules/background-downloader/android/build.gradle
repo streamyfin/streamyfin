@@ -35,11 +35,11 @@ android {
 
 dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+  implementation "com.squareup.okhttp3:okhttp:4.12.0"
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
   kotlinOptions {
-    freeCompilerArgs += ["-Xshow-kotlin-compiler-errors"]
     jvmTarget = "17"
   }
 }

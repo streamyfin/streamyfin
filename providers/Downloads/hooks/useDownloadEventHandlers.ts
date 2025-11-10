@@ -16,7 +16,7 @@ import {
   sendDownloadNotification,
 } from "../notifications";
 import type { DownloadedItem, JobStatus } from "../types";
-import { generateFilename } from "../utils";
+import { filePathToUri, generateFilename } from "../utils";
 import {
   addSpeedDataPoint,
   calculateWeightedSpeed,
@@ -235,7 +235,7 @@ export function useDownloadEventHandlers({
             introSegments,
             creditSegments,
           } = process;
-          const videoFile = new File("", event.filePath);
+          const videoFile = new File(filePathToUri(event.filePath));
           const fileInfo = videoFile.info();
           const videoFileSize = fileInfo.size || 0;
           const filename = generateFilename(item);
@@ -250,7 +250,7 @@ export function useDownloadEventHandlers({
           const downloadedItem: DownloadedItem = {
             item,
             mediaSource,
-            videoFilePath: event.filePath,
+            videoFilePath: filePathToUri(event.filePath),
             videoFileSize,
             videoFileName: `${filename}.mp4`,
             trickPlayData,

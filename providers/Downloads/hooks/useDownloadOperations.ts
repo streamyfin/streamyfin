@@ -87,10 +87,20 @@ export function useDownloadOperations({
           saveSeriesImageFn: saveSeriesPrimaryImage,
         });
 
+        // Ensure URL is absolute (not relative) before storing
+        let downloadUrl = url;
+        if (url.startsWith("/")) {
+          const basePath = api.basePath || "";
+          downloadUrl = `${basePath}${url}`;
+          console.log(
+            `[DOWNLOAD] Converted relative URL to absolute: ${downloadUrl}`,
+          );
+        }
+
         // Create job status with pre-downloaded assets
         const jobStatus: JobStatus = {
           id: processId,
-          inputUrl: url,
+          inputUrl: downloadUrl,
           item,
           itemId: item.Id,
           deviceId,
@@ -114,10 +124,11 @@ export function useDownloadOperations({
         const destinationPath = uriToFilePath(videoFile.uri);
 
         console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
+        console.log(`[DOWNLOAD] Download URL: ${downloadUrl}`);
 
         // Start the download using enqueueDownload for sequential processing
         const taskId = await BackgroundDownloader.enqueueDownload(
-          url,
+          downloadUrl,
           destinationPath,
         );
 
@@ -127,7 +138,7 @@ export function useDownloadOperations({
         } else {
           // For queued downloads, store a negative mapping using URL hash
           // This allows us to cancel queued downloads by URL
-          taskMapRef.current.set(url, processId);
+          taskMapRef.current.set(downloadUrl, processId);
         }
 
         toast.success(

@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { t } from "i18next";
-import { useEffect, useMemo } from "react";
-import { Platform, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "../common/Text";
 import { PlatformDropdown } from "../PlatformDropdown";
 
@@ -31,6 +31,7 @@ export const SeasonDropdown: React.FC<Props> = ({
   onSelect,
 }) => {
   const isTv = Platform.isTV;
+  const [open, setOpen] = useState(false);
 
   const keys = useMemo<SeasonKeys>(
     () =>
@@ -125,12 +126,16 @@ export const SeasonDropdown: React.FC<Props> = ({
   return (
     <PlatformDropdown
       groups={optionGroups}
+      open={open}
+      onOpenChange={setOpen}
       trigger={
-        <View className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
-          <Text>
-            {t("item_card.season")} {seasonIndex}
-          </Text>
-        </View>
+        <TouchableOpacity onPress={() => setOpen(true)}>
+          <View className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
+            <Text>
+              {t("item_card.season")} {seasonIndex}
+            </Text>
+          </View>
+        </TouchableOpacity>
       }
       title={t("item_card.seasons")}
     />

@@ -65,7 +65,11 @@ export default function IndexLayout() {
           headerShadowVisible: false,
           title: t("home.downloads.tvseries"),
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
             </TouchableOpacity>
           ),
