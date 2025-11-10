@@ -21,7 +21,9 @@ export function getNotificationContent(
     const subtitle = `${item.Name} - [S${season}E${episode}] (${item.SeriesName})`;
 
     return {
-      title: isSuccess ? "Download complete" : "Download failed",
+      title: isSuccess
+        ? t("home.downloads.toasts.download_completed")
+        : t("home.downloads.toasts.download_failed"),
       body: subtitle,
     };
   }
@@ -31,7 +33,9 @@ export function getNotificationContent(
     const subtitle = `${item.Name}${year}`;
 
     return {
-      title: isSuccess ? "Download complete" : "Download failed",
+      title: isSuccess
+        ? t("home.downloads.toasts.download_completed")
+        : t("home.downloads.toasts.download_failed"),
       body: subtitle,
     };
   }
