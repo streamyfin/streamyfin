@@ -7,6 +7,7 @@ import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -62,12 +63,13 @@ const Login: React.FC = () => {
           address: _apiUrl,
         });
 
-        setTimeout(() => {
+        // Wait for server setup and state updates to complete
+        InteractionManager.runAfterInteractions(() => {
           if (_username && _password) {
             setCredentials({ username: _username, password: _password });
             login(_username, _password);
           }
-        }, 300);
+        });
       }
     })();
   }, [_apiUrl, _username, _password]);

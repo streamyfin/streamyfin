@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { InteractionManager } from "react-native";
 
 interface ModalOptions {
   enableDynamicSizing?: boolean;
@@ -60,10 +61,10 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
     (content: ReactNode, options?: ModalOptions) => {
       setModalState({ content, options });
       setIsVisible(true);
-      // Small delay to ensure state is updated before presenting
-      setTimeout(() => {
+      // Wait for state update and layout to complete before presenting
+      InteractionManager.runAfterInteractions(() => {
         modalRef.current?.present();
-      }, 100);
+      });
     },
     [],
   );
@@ -71,10 +72,10 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
   const hideModal = useCallback(() => {
     modalRef.current?.dismiss();
     setIsVisible(false);
-    // Clear content after animation completes
-    setTimeout(() => {
+    // Clear content after dismiss animation completes
+    InteractionManager.runAfterInteractions(() => {
       setModalState({ content: null, options: undefined });
-    }, 300);
+    });
   }, []);
 
   const value = {
