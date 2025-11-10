@@ -1,3 +1,10 @@
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { queueAtom } from "@/utils/atoms/queue";
+import { useSettings } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
@@ -16,13 +23,6 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
-import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { queueAtom } from "@/utils/atoms/queue";
-import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
 import { AudioTrackSelector } from "./AudioTrackSelector";
 import { type Bitrate, BitrateSelector } from "./BitrateSelector";
 import { Button } from "./Button";
@@ -156,6 +156,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       itemsNotDownloaded.every((p) => queue.some((q) => p.Id === q.item.Id))
     );
   }, [queue, itemsNotDownloaded]);
+
+  const itemsInProgressOrQueued = useMemo(() => {
+    const inProgress = itemsProcesses.length;
+    const inQueue = queue.filter((q) => itemIds.includes(q.item.Id)).length;
+    return inProgress + inQueue;
+  }, [itemsProcesses, queue, itemIds]);
+
   const navigateToDownloads = () => router.push("/downloads");
 
   const onDownloadedPress = () => {
@@ -281,7 +288,14 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   );
 
   const renderButtonContent = () => {
-    if (processes.length > 0 && itemsProcesses.length > 0) {
+    // For single item downloads, show progress if item is being processed
+    // For multi-item downloads (season/series), show progress only if 2+ items are in progress or queued
+    const shouldShowProgress =
+      itemIds.length === 1
+        ? itemsProcesses.length > 0
+        : itemsInProgressOrQueued > 1;
+
+    if (processes.length > 0 && shouldShowProgress) {
       return progress === 0 ? (
         <Loader />
       ) : (
