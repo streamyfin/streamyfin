@@ -36,11 +36,12 @@ const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
 import type { EventSubscription } from "expo-modules-core";
+import { getDevicePushTokenAsync } from "expo-notifications";
 import type {
   Notification,
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
-import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
+import type { DevicePushToken } from "expo-notifications/build/Tokens.types";
 import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
@@ -205,24 +206,24 @@ function Layout() {
 
   useNotificationObserver();
 
-  const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
+  const [pushToken, setPushToken] = useState<DevicePushToken>();
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
-    if (!Platform.isTV && expoPushToken && api && user) {
+    if (!Platform.isTV && pushToken && api && user) {
       api
         ?.post("/Streamyfin/device", {
-          token: expoPushToken.data,
+          token: pushToken.data,
           deviceId: getOrSetDeviceId(),
           userId: user.Id,
         })
-        .then((_) => console.log("Posted expo push token"))
+        .then((_) => console.log("Posted device push token"))
         .catch((_) =>
-          writeErrorLog("Failed to push expo push token to plugin"),
+          writeErrorLog("Failed to push device push token to plugin"),
         );
     } else console.log("No token available");
-  }, [api, expoPushToken, user]);
+  }, [api, pushToken, user]);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
@@ -255,10 +256,8 @@ function Layout() {
 
     // only create push token for real devices (pointless for emulators)
     if (Device.isDevice) {
-      Notifications?.getDevicePushTokenAsync({
-        projectId: "streamyfin-4fec1",
-      })
-        .then((token: ExpoPushToken) => token && setExpoPushToken(token))
+      getDevicePushTokenAsync()
+        .then((token: DevicePushToken) => token && setPushToken(token))
         .catch((reason: any) => console.log("Failed to get token", reason));
     }
   }, [user]);
