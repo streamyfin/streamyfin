@@ -25,7 +25,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
@@ -438,24 +441,27 @@ export const Home = () => {
     );
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      nestedScrollEnabled
-      refreshControl={
-        <RefreshControl
-          refreshing={loading}
-          onRefresh={refetch}
-          tintColor='white'
-          colors={["white"]}
-        />
-      }
+    <SafeAreaView
+      className='flex-1'
+      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
+      edges={Platform.OS === "android" ? ["top"] : []}
     >
-      <View
-        style={{
+      <ScrollView
+        ref={scrollRef}
+        nestedScrollEnabled
+        contentInsetAdjustmentBehavior='automatic'
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetch}
+            tintColor='white'
+            colors={["white"]}
+          />
+        }
+        contentContainerStyle={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
-          paddingTop: Platform.isTV ? 0 : insets.top * 2,
         }}
       >
         <View className='flex flex-col space-y-4'>
@@ -484,9 +490,9 @@ export const Home = () => {
             return null;
           })}
         </View>
-      </View>
-      {Platform.OS === "ios" && <View className='h-20' />}
-    </ScrollView>
+        {Platform.OS === "ios" && <View className='h-20' />}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 

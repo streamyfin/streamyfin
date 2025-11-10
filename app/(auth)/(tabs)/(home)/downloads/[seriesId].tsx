@@ -135,13 +135,11 @@ export default function page() {
   return (
     <SafeAreaView
       className='flex-1'
+      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
       edges={Platform.OS === "android" ? ["top"] : []}
     >
       {series.length > 0 && (
-        <View
-          className='flex flex-row items-center justify-start px-4 pb-4'
-          style={{ paddingTop: Platform.OS === "ios" ? insets.top * 2 : 0 }}
-        >
+        <View className='flex flex-row items-center justify-start px-4 pb-4'>
           <SeasonDropdown
             item={series[0].item}
             seasons={uniqueSeasons}
@@ -164,7 +162,11 @@ export default function page() {
           </View>
         </View>
       )}
-      <ScrollView key={seasonIndex} className='px-4'>
+      <ScrollView
+        key={seasonIndex}
+        className='px-4'
+        contentInsetAdjustmentBehavior='automatic'
+      >
         {groupBySeason.map((episode, index) => (
           <EpisodeCard key={index} item={episode} />
         ))}

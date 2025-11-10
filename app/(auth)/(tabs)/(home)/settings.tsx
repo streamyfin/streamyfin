@@ -64,15 +64,13 @@ export default function settings() {
       edges={Platform.OS === "android" ? ["top"] : []}
     >
       <ScrollView
+        contentInsetAdjustmentBehavior='automatic'
         contentContainerStyle={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
         }}
       >
-        <View
-          className='p-4 flex flex-col gap-y-4'
-          style={{ paddingTop: Platform.OS === "ios" ? insets.top * 2 : 0 }}
-        >
+        <View className='p-4 flex flex-col gap-y-4'>
           <UserInfo />
 
           <QuickConnect className='mb-4' />

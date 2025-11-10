@@ -174,11 +174,11 @@ export default function page() {
       style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
       edges={Platform.OS === "android" ? ["top"] : []}
     >
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View
-          className='py-4'
-          style={{ paddingTop: Platform.OS === "ios" ? insets.top * 2 : 0 }}
-        >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior='automatic'
+      >
+        <View className='py-4'>
           <View className='mb-4 flex flex-col space-y-4 px-4'>
             {/* Queue card - hidden */}
             {/* <View className='bg-neutral-900 p-4 rounded-2xl'>
