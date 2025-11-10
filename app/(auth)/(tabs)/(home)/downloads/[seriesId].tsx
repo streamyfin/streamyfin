@@ -1,14 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { FlashList } from "@shopify/flash-list";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, TouchableOpacity, View } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -133,13 +128,9 @@ export default function page() {
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView
-      className='flex-1'
-      style={{ paddingTop: Platform.OS === "android" ? insets.top : 0 }}
-      edges={Platform.OS === "android" ? ["top"] : []}
-    >
+    <SafeAreaView className='flex-1' style={{ paddingTop: insets.top }}>
       {series.length > 0 && (
-        <View className='flex flex-row items-center justify-start px-4 pb-4'>
+        <View className='flex flex-row items-center justify-start px-4 pb-2'>
           <SeasonDropdown
             item={series[0].item}
             seasons={uniqueSeasons}
@@ -162,15 +153,13 @@ export default function page() {
           </View>
         </View>
       )}
-      <ScrollView
+      <FlashList
         key={seasonIndex}
-        className='px-4'
-        contentInsetAdjustmentBehavior='automatic'
-      >
-        {groupBySeason.map((episode, index) => (
-          <EpisodeCard key={index} item={episode} />
-        ))}
-      </ScrollView>
+        data={groupBySeason}
+        renderItem={({ item }) => <EpisodeCard item={item} />}
+        keyExtractor={(item, index) => item.Id ?? `episode-${index}`}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+      />
     </SafeAreaView>
   );
 }

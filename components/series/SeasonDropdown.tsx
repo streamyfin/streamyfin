@@ -60,7 +60,6 @@ export const SeasonDropdown: React.FC<Props> = ({
   const optionGroups = useMemo(
     () => [
       {
-        title: t("item_card.seasons"),
         options:
           seasons?.sort(sortByIndex).map((season: any) => {
             const title =
