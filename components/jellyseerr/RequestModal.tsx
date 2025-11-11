@@ -8,7 +8,7 @@ import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescrip
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { View, type ViewProps } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
@@ -47,6 +47,11 @@ const RequestModal = forwardRef<
       mediaType: type,
       userId: jellyseerrUser?.id,
     });
+
+    const [qualityProfileOpen, setQualityProfileOpen] = useState(false);
+    const [rootFolderOpen, setRootFolderOpen] = useState(false);
+    const [tagsOpen, setTagsOpen] = useState(false);
+    const [usersOpen, setUsersOpen] = useState(false);
 
     const { t } = useTranslation();
 
@@ -291,6 +296,7 @@ const RequestModal = forwardRef<
             appearsOnIndex={0}
           />
         )}
+        stackBehavior='push'
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
@@ -312,7 +318,7 @@ const RequestModal = forwardRef<
                     <PlatformDropdown
                       groups={qualityProfileOptions}
                       trigger={
-                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
                           <Text numberOfLines={1}>
                             {defaultServiceDetails.profiles.find(
                               (p) =>
@@ -321,9 +327,11 @@ const RequestModal = forwardRef<
                                   defaultProfile?.id),
                             )?.name || defaultProfile?.name}
                           </Text>
-                        </TouchableOpacity>
+                        </View>
                       }
                       title={t("jellyseerr.quality_profile")}
+                      open={qualityProfileOpen}
+                      onOpenChange={setQualityProfileOpen}
                     />
                   </View>
 
@@ -334,7 +342,7 @@ const RequestModal = forwardRef<
                     <PlatformDropdown
                       groups={rootFolderOptions}
                       trigger={
-                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
                           <Text numberOfLines={1}>
                             {defaultServiceDetails.rootFolders.find(
                               (f) =>
@@ -352,9 +360,11 @@ const RequestModal = forwardRef<
                                 )
                               : pathTitleExtractor(defaultFolder!)}
                           </Text>
-                        </TouchableOpacity>
+                        </View>
                       }
                       title={t("jellyseerr.root_folder")}
+                      open={rootFolderOpen}
+                      onOpenChange={setRootFolderOpen}
                     />
                   </View>
 
@@ -365,7 +375,7 @@ const RequestModal = forwardRef<
                     <PlatformDropdown
                       groups={tagsOptions}
                       trigger={
-                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
                           <Text numberOfLines={1}>
                             {requestOverrides.tags
                               ? defaultServiceDetails.tags
@@ -377,9 +387,11 @@ const RequestModal = forwardRef<
                                 defaultTags.map((t) => t.label).join(", ")
                               : defaultTags.map((t) => t.label).join(", ")}
                           </Text>
-                        </TouchableOpacity>
+                        </View>
                       }
                       title={t("jellyseerr.tags")}
+                      open={tagsOpen}
+                      onOpenChange={setTagsOpen}
                     />
                   </View>
 
@@ -390,7 +402,7 @@ const RequestModal = forwardRef<
                     <PlatformDropdown
                       groups={usersOptions}
                       trigger={
-                        <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
                           <Text numberOfLines={1}>
                             {users.find(
                               (u) =>
@@ -398,9 +410,11 @@ const RequestModal = forwardRef<
                                 (requestOverrides.userId || jellyseerrUser?.id),
                             )?.displayName || jellyseerrUser!.displayName}
                           </Text>
-                        </TouchableOpacity>
+                        </View>
                       }
                       title={t("jellyseerr.request_as")}
+                      open={usersOpen}
+                      onOpenChange={setUsersOpen}
                     />
                   </View>
                 </>

@@ -63,6 +63,7 @@ const Page: React.FC = () => {
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
   const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
+  const [issueTypeDropdownOpen, setIssueTypeDropdownOpen] = useState(false);
   const advancedReqModalRef = useRef<BottomSheetModal>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
@@ -371,6 +372,7 @@ const Page: React.FC = () => {
             backgroundColor: "#171717",
           }}
           backdropComponent={renderBackdrop}
+          stackBehavior='push'
         >
           <BottomSheetView>
             <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
@@ -396,6 +398,8 @@ const Page: React.FC = () => {
                       </View>
                     }
                     title={t("jellyseerr.types")}
+                    open={issueTypeDropdownOpen}
+                    onOpenChange={setIssueTypeDropdownOpen}
                   />
                 </View>
 
