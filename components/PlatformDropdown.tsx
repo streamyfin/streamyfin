@@ -1,7 +1,7 @@
 import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -178,13 +178,18 @@ const PlatformDropdownComponent = ({
   trigger,
   title,
   groups,
-  open,
-  onOpenChange,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
   onOptionSelect,
   expoUIConfig,
   bottomSheetConfig,
 }: PlatformDropdownProps) => {
   const { showModal, hideModal } = useGlobalModal();
+
+  // Use internal state if not controlled externally
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
 
   // Handle open/close state changes for Android
   useEffect(() => {
@@ -313,9 +318,13 @@ const PlatformDropdownComponent = ({
     );
   }
 
-  // Android: Just render the trigger, let it handle its own press events
+  // Android: Wrap trigger in TouchableOpacity to handle press events
   // The useEffect above watches for open state changes and shows/hides the modal
-  return <>{trigger || <Text className='text-white'>Open Menu</Text>}</>;
+  return (
+    <TouchableOpacity onPress={() => onOpenChange(true)} activeOpacity={0.7}>
+      {trigger || <Text className='text-white'>Open Menu</Text>}
+    </TouchableOpacity>
+  );
 };
 
 // Memoize to prevent unnecessary re-renders when parent re-renders
