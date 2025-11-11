@@ -55,7 +55,7 @@ export const HeaderBackButton: React.FC<Props> = ({
   return (
     <TouchableOpacity
       onPress={() => router.back()}
-      className=' bg-neutral-800/80 rounded-full p-2'
+      className=' rounded-full p-2'
       {...touchableOpacityProps}
     >
       <Ionicons
