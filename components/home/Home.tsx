@@ -485,7 +485,6 @@ export const Home = () => {
           return null;
         })}
       </View>
-      {Platform.OS === "ios" && <View className='h-20' />}
     </ScrollView>
   );
 };
