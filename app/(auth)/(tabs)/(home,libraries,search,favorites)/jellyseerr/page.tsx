@@ -181,7 +181,9 @@ const Page: React.FC = () => {
     if (details) {
       navigation.setOptions({
         headerRight: () => (
-          <TouchableOpacity className='rounded-full p-2 bg-neutral-800/80'>
+          <TouchableOpacity
+            className={`rounded-full pl-1.5 ${Platform.OS === "android" ? "" : "bg-neutral-800/80"}`}
+          >
             <ItemActions item={details} />
           </TouchableOpacity>
         ),

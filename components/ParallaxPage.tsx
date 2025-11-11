@@ -99,7 +99,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
           style={{
             top: -50,
           }}
-          className='relative flex-1  bg-transparent pb-24'
+          className='relative flex-1  bg-transparent pb-4'
         >
           <LinearGradient
             // Background Linear Gradient
