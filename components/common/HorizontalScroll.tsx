@@ -3,17 +3,12 @@ import React, { useImperativeHandle, useRef } from "react";
 import { View, type ViewStyle } from "react-native";
 import { Text } from "./Text";
 
-type PartialExcept<T, K extends keyof T> = Partial<T> & Pick<T, K>;
-
 export interface HorizontalScrollRef {
   scrollToIndex: (index: number, viewOffset: number) => void;
 }
 
 interface HorizontalScrollProps<T>
-  extends PartialExcept<
-    Omit<FlashListProps<T>, "renderItem">,
-    "estimatedItemSize"
-  > {
+  extends Omit<FlashListProps<T>, "renderItem" | "estimatedItemSize" | "data"> {
   data?: T[] | null;
   renderItem: (item: T, index: number) => React.ReactNode;
   keyExtractor?: (item: T, index: number) => string;
@@ -44,7 +39,7 @@ export const HorizontalScroll = <T,>(
     ...restProps
   } = props;
 
-  const flashListRef = useRef<FlashList<T>>(null);
+  const flashListRef = useRef<React.ComponentRef<typeof FlashList<T>>>(null);
 
   useImperativeHandle(ref!, () => ({
     scrollToIndex: (index: number, viewOffset: number) => {
@@ -78,7 +73,6 @@ export const HorizontalScroll = <T,>(
         extraData={extraData}
         renderItem={renderFlashListItem}
         horizontal
-        estimatedItemSize={200}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 16,
