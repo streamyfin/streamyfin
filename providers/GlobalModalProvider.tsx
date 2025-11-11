@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { InteractionManager } from "react-native";
 
 interface ModalOptions {
   enableDynamicSizing?: boolean;
@@ -28,7 +27,7 @@ interface GlobalModalContextType {
   hideModal: () => void;
   isVisible: boolean;
   modalState: GlobalModalState;
-  modalRef: React.RefObject<BottomSheetModal>;
+  modalRef: React.RefObject<BottomSheetModal | null>;
 }
 
 const GlobalModalContext = createContext<GlobalModalContextType | undefined>(
@@ -62,7 +61,7 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
       setModalState({ content, options });
       setIsVisible(true);
       // Wait for state update and layout to complete before presenting
-      InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
         modalRef.current?.present();
       });
     },
@@ -73,7 +72,7 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
     modalRef.current?.dismiss();
     setIsVisible(false);
     // Clear content after dismiss animation completes
-    InteractionManager.runAfterInteractions(() => {
+    requestAnimationFrame(() => {
       setModalState({ content: null, options: undefined });
     });
   }, []);
