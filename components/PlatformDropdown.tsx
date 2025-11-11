@@ -1,7 +1,7 @@
 import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -186,52 +186,26 @@ const PlatformDropdownComponent = ({
 }: PlatformDropdownProps) => {
   const { showModal, hideModal } = useGlobalModal();
 
-  // Use internal state if not controlled externally
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = controlledOpen ?? internalOpen;
-  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
-
-  // Track if modal is currently showing to prevent duplicate calls
-  const [isModalShowing, setIsModalShowing] = useState(false);
-
-  // Handle open/close state changes for Android
+  // Handle controlled open state for Android
   useEffect(() => {
-    if (Platform.OS === "android") {
-      if (open === true && !isModalShowing) {
-        setIsModalShowing(true);
-        showModal(
-          <BottomSheetContent
-            title={title}
-            groups={groups}
-            onOptionSelect={onOptionSelect}
-            onClose={() => {
-              setIsModalShowing(false);
-              hideModal();
-              onOpenChange?.(false);
-            }}
-          />,
-          {
-            snapPoints: ["90%"],
-            enablePanDownToClose:
-              bottomSheetConfig?.enablePanDownToClose ?? true,
-          },
-        );
-      } else if (open === false && isModalShowing) {
-        setIsModalShowing(false);
-        hideModal();
-      }
+    if (Platform.OS === "android" && controlledOpen === true) {
+      showModal(
+        <BottomSheetContent
+          title={title}
+          groups={groups}
+          onOptionSelect={onOptionSelect}
+          onClose={() => {
+            hideModal();
+            controlledOnOpenChange?.(false);
+          }}
+        />,
+        {
+          snapPoints: ["90%"],
+          enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
+        },
+      );
     }
-  }, [open]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (Platform.OS === "android" && isModalShowing) {
-        setIsModalShowing(false);
-        hideModal();
-      }
-    };
-  }, []);
+  }, [controlledOpen]);
 
   if (Platform.OS === "ios") {
     return (
@@ -325,10 +299,24 @@ const PlatformDropdownComponent = ({
     );
   }
 
-  // Android: Wrap trigger in TouchableOpacity to handle press events
-  // The useEffect above watches for open state changes and shows/hides the modal
+  // Android: Direct modal trigger
+  const handlePress = () => {
+    showModal(
+      <BottomSheetContent
+        title={title}
+        groups={groups}
+        onOptionSelect={onOptionSelect}
+        onClose={hideModal}
+      />,
+      {
+        snapPoints: ["90%"],
+        enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
+      },
+    );
+  };
+
   return (
-    <TouchableOpacity onPress={() => onOpenChange(true)} activeOpacity={0.7}>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
       {trigger || <Text className='text-white'>Open Menu</Text>}
     </TouchableOpacity>
   );
