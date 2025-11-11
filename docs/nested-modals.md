@@ -1,7 +1,7 @@
 # Nested Modals with PlatformDropdown
 
 ## Issue
-PlatformDropdowns inside BottomSheetModals don't open on Android.
+PlatformDropdowns inside BottomSheetModals don't open on Android, or dropdowns reopen unexpectedly after navigation.
 
 ## Solution
 1. **Add controlled state** for each PlatformDropdown:
@@ -15,7 +15,34 @@ PlatformDropdowns inside BottomSheetModals don't open on Android.
    />
    ```
 
-2. **Use `View` for triggers, not `TouchableOpacity`**:
+2. **Memoize groups and callbacks** to prevent unnecessary re-renders:
+   ```tsx
+   const handleOption1 = useCallback(() => {
+     // handler logic
+   }, [dependencies]);
+
+   const dropdownGroups = useMemo(() => [
+     {
+       title: "Group 1",
+       options: [
+         {
+           type: "radio",
+           label: "Option 1",
+           value: "option1",
+           selected: state === "option1",
+           onPress: handleOption1,
+         },
+       ],
+     },
+   ], [state, handleOption1]);
+
+   <PlatformDropdown
+     groups={dropdownGroups}
+     // ...
+   />
+   ```
+
+3. **Use `View` for triggers, not `TouchableOpacity`**:
    ```tsx
    // ✅ Correct
    <PlatformDropdown
@@ -28,7 +55,7 @@ PlatformDropdowns inside BottomSheetModals don't open on Android.
    />
    ```
 
-3. **Add `stackBehavior='push'` to parent BottomSheetModal**:
+4. **Add `stackBehavior='push'` to parent BottomSheetModal**:
    ```tsx
    <BottomSheetModal
      stackBehavior='push'
@@ -36,7 +63,7 @@ PlatformDropdowns inside BottomSheetModals don't open on Android.
    />
    ```
 
-4. **Reset dropdown states on modal dismiss**:
+5. **Reset dropdown states on modal dismiss**:
    ```tsx
    const handleDismiss = useCallback(() => {
      setDropdown1Open(false);
@@ -53,6 +80,7 @@ PlatformDropdowns inside BottomSheetModals don't open on Android.
 
 ## Why
 - PlatformDropdown wraps triggers in TouchableOpacity on Android. Nested TouchableOpacity causes touch event conflicts.
-- PlatformDropdown's useEffect should only call `showModal()` when `open === true`, not call `hideModal()` when `open === false` (interferes with parent modals).
+- PlatformDropdown tracks internal `isModalShowing` state to prevent duplicate `showModal()` calls when dependencies change.
+- Memoizing groups prevents the useEffect from re-triggering unnecessarily, which can cause modals to reopen after navigation.
 - Dropdown states must be reset on modal dismiss to prevent them from reopening automatically when parent modal reopens.
 

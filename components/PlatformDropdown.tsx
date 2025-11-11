@@ -191,35 +191,47 @@ const PlatformDropdownComponent = ({
   const open = controlledOpen ?? internalOpen;
   const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
 
+  // Track if modal is currently showing to prevent duplicate calls
+  const [isModalShowing, setIsModalShowing] = useState(false);
+
   // Handle open/close state changes for Android
   useEffect(() => {
-    if (Platform.OS === "android" && open === true) {
-      showModal(
-        <BottomSheetContent
-          title={title}
-          groups={groups}
-          onOptionSelect={onOptionSelect}
-          onClose={() => {
-            hideModal();
-            onOpenChange?.(false);
-          }}
-        />,
-        {
-          snapPoints: ["90%"],
-          enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
-        },
-      );
+    if (Platform.OS === "android") {
+      if (open === true && !isModalShowing) {
+        setIsModalShowing(true);
+        showModal(
+          <BottomSheetContent
+            title={title}
+            groups={groups}
+            onOptionSelect={onOptionSelect}
+            onClose={() => {
+              setIsModalShowing(false);
+              hideModal();
+              onOpenChange?.(false);
+            }}
+          />,
+          {
+            snapPoints: ["90%"],
+            enablePanDownToClose:
+              bottomSheetConfig?.enablePanDownToClose ?? true,
+          },
+        );
+      } else if (open === false && isModalShowing) {
+        setIsModalShowing(false);
+        hideModal();
+      }
     }
-  }, [
-    open,
-    title,
-    groups,
-    onOptionSelect,
-    onOpenChange,
-    bottomSheetConfig,
-    showModal,
-    hideModal,
-  ]);
+  }, [open]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (Platform.OS === "android" && isModalShowing) {
+        setIsModalShowing(false);
+        hideModal();
+      }
+    };
+  }, []);
 
   if (Platform.OS === "ios") {
     return (
