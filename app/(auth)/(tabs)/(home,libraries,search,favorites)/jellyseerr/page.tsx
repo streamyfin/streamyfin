@@ -114,6 +114,10 @@ const Page: React.FC = () => {
     }
   }, [jellyseerrApi, details, result, issueType, issueMessage]);
 
+  const handleIssueModalDismiss = useCallback(() => {
+    setIssueTypeDropdownOpen(false);
+  }, []);
+
   const setRequestBody = useCallback(
     (body: MediaRequestBody) => {
       _setRequestBody(body);
@@ -373,6 +377,7 @@ const Page: React.FC = () => {
           }}
           backdropComponent={renderBackdrop}
           stackBehavior='push'
+          onDismiss={handleIssueModalDismiss}
         >
           <BottomSheetView>
             <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>

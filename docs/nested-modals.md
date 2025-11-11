@@ -36,6 +36,23 @@ PlatformDropdowns inside BottomSheetModals don't open on Android.
    />
    ```
 
+4. **Reset dropdown states on modal dismiss**:
+   ```tsx
+   const handleDismiss = useCallback(() => {
+     setDropdown1Open(false);
+     setDropdown2Open(false);
+     // reset all dropdown states
+     onDismiss?.();
+   }, [onDismiss]);
+
+   <BottomSheetModal
+     onDismiss={handleDismiss}
+     // ...
+   />
+   ```
+
 ## Why
-PlatformDropdown wraps triggers in TouchableOpacity on Android. Nested TouchableOpacity causes touch event conflicts.
+- PlatformDropdown wraps triggers in TouchableOpacity on Android. Nested TouchableOpacity causes touch event conflicts.
+- PlatformDropdown's useEffect should only call `showModal()` when `open === true`, not call `hideModal()` when `open === false` (interferes with parent modals).
+- Dropdown states must be reset on modal dismiss to prevent them from reopening automatically when parent modal reopens.
 

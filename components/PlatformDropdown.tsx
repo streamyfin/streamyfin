@@ -193,27 +193,22 @@ const PlatformDropdownComponent = ({
 
   // Handle open/close state changes for Android
   useEffect(() => {
-    if (Platform.OS === "android") {
-      if (open === true) {
-        showModal(
-          <BottomSheetContent
-            title={title}
-            groups={groups}
-            onOptionSelect={onOptionSelect}
-            onClose={() => {
-              hideModal();
-              onOpenChange?.(false);
-            }}
-          />,
-          {
-            snapPoints: ["90%"],
-            enablePanDownToClose:
-              bottomSheetConfig?.enablePanDownToClose ?? true,
-          },
-        );
-      } else if (open === false) {
-        hideModal();
-      }
+    if (Platform.OS === "android" && open === true) {
+      showModal(
+        <BottomSheetContent
+          title={title}
+          groups={groups}
+          onOptionSelect={onOptionSelect}
+          onClose={() => {
+            hideModal();
+            onOpenChange?.(false);
+          }}
+        />,
+        {
+          snapPoints: ["90%"],
+          enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
+        },
+      );
     }
   }, [
     open,

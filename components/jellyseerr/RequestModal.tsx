@@ -55,6 +55,15 @@ const RequestModal = forwardRef<
 
     const { t } = useTranslation();
 
+    // Reset all dropdown states when modal closes
+    const handleDismiss = useCallback(() => {
+      setQualityProfileOpen(false);
+      setRootFolderOpen(false);
+      setTagsOpen(false);
+      setUsersOpen(false);
+      onDismiss?.();
+    }, [onDismiss]);
+
     const { data: serviceSettings } = useQuery({
       queryKey: ["jellyseerr", "request", type, "service"],
       queryFn: async () =>
@@ -282,7 +291,7 @@ const RequestModal = forwardRef<
         ref={ref}
         enableDynamicSizing
         enableDismissOnClose
-        onDismiss={onDismiss}
+        onDismiss={handleDismiss}
         handleIndicatorStyle={{
           backgroundColor: "white",
         }}
