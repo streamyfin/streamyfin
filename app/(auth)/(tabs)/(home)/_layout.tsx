@@ -1,15 +1,8 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Platform,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import { eventBus } from "@/utils/eventBus";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
@@ -37,7 +30,6 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast background='transparent' />
-                  <RefreshButton />
                   {user?.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
@@ -49,49 +41,119 @@ export default function IndexLayout() {
       <Stack.Screen
         name='downloads/index'
         options={{
+          headerShown: true,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
           title: t("home.downloads.downloads_title"),
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='downloads/[seriesId]'
         options={{
+          headerShown: true,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
           title: t("home.downloads.tvseries"),
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='sessions/index'
         options={{
           title: t("home.sessions.title"),
+          headerShown: true,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings'
         options={{
           title: t("home.settings.settings_title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/marlin-search/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/jellyseerr/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/hide-libraries/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
         name='settings/logs/page'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
@@ -99,6 +161,11 @@ export default function IndexLayout() {
         options={{
           headerShown: false,
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
           presentation: "modal",
         }}
       />
@@ -109,6 +176,11 @@ export default function IndexLayout() {
         name='collections/[collectionId]'
         options={{
           title: "",
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
           headerShown: true,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
@@ -129,32 +201,6 @@ const SettingsButton = () => {
       }}
     >
       <Feather name='settings' color={"white"} size={22} />
-    </TouchableOpacity>
-  );
-};
-
-const RefreshButton = () => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    eventBus.emit("refreshHome");
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 2000);
-  };
-
-  return (
-    <TouchableOpacity
-      onPress={handleRefresh}
-      className='mr-4'
-      disabled={isRefreshing}
-    >
-      {isRefreshing ? (
-        <ActivityIndicator size='small' color='white' />
-      ) : (
-        <Ionicons name='refresh-outline' color='white' size={24} />
-      )}
     </TouchableOpacity>
   );
 };

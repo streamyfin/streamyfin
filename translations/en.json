@@ -160,7 +160,6 @@
       },
       "other": {
         "other_title": "Other",
-        "follow_device_orientation": "Auto Rotate",
         "video_orientation": "Video Orientation",
         "orientation": "Orientation",
         "orientations": {
@@ -182,7 +181,7 @@
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
         "show_custom_menu_links": "Show Custom Menu Links",
-        "show_large_home_carousel": "Show Large Home Carousel",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Hide Libraries",
         "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable Haptic Feedback",
@@ -191,8 +190,7 @@
         "disabled": "Disabled"
       },
       "downloads": {
-        "downloads_title": "Downloads",
-        "remux_max_download": "Remux Max Download"
+        "downloads_title": "Downloads"
       },
       "plugins": {
         "plugins_title": "Plugins",
@@ -296,20 +294,26 @@
         "deleted_media_successfully": "Deleted other media Successfully!",
         "failed_to_delete_media": "Failed to Delete other media",
         "download_deleted": "Download Deleted",
+        "download_cancelled": "Download Cancelled",
         "could_not_delete_download": "Could Not Delete Download",
         "download_paused": "Download Paused",
         "could_not_pause_download": "Could Not Pause Download",
         "download_resumed": "Download Resumed",
         "could_not_resume_download": "Could Not Resume Download",
         "download_completed": "Download Completed",
+        "download_failed": "Download Failed",
         "download_failed_for_item": "Download failed for {{item}} - {{error}}",
         "download_completed_for_item": "Download Completed for {{item}}",
         "download_started_for_item": "Download Started for {{item}}",
         "failed_to_start_download": "Failed to start download",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "All files, folders, and jobs deleted successfully",
         "failed_to_clean_cache_directory": "Failed to clean cache directory",
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
-        "go_to_downloads": "Go to Downloads"
+        "go_to_downloads": "Go to Downloads",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },

@@ -1,14 +1,13 @@
-import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { PlatformDropdown } from "../PlatformDropdown";
 import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
@@ -21,6 +20,39 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
+
+  const optionGroups = useMemo(() => {
+    const options = [
+      {
+        type: "radio" as const,
+        label: t("home.settings.audio.none"),
+        value: "none",
+        selected: !settings?.defaultAudioLanguage,
+        onPress: () => updateSettings({ defaultAudioLanguage: null }),
+      },
+      ...(cultures?.map((culture) => ({
+        type: "radio" as const,
+        label:
+          culture.DisplayName ||
+          culture.ThreeLetterISOLanguageName ||
+          "Unknown",
+        value:
+          culture.ThreeLetterISOLanguageName ||
+          culture.DisplayName ||
+          "unknown",
+        selected:
+          culture.ThreeLetterISOLanguageName ===
+          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName,
+        onPress: () => updateSettings({ defaultAudioLanguage: culture }),
+      })) || []),
+    ];
+
+    return [
+      {
+        options,
+      },
+    ];
+  }, [cultures, settings?.defaultAudioLanguage, t, updateSettings]);
 
   if (isTv) return null;
   if (!settings) return null;
@@ -48,9 +80,10 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
           />
         </ListItem>
         <ListItem title={t("home.settings.audio.audio_language")}>
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3 '>
+          <PlatformDropdown
+            groups={optionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings?.defaultAudioLanguage?.DisplayName ||
                     t("home.settings.audio.none")}
@@ -60,48 +93,10 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content
-              loop={true}
-              side='bottom'
-              align='start'
-              alignOffset={0}
-              avoidCollisions={true}
-              collisionPadding={8}
-              sideOffset={8}
-            >
-              <DropdownMenu.Label>
-                {t("home.settings.audio.language")}
-              </DropdownMenu.Label>
-              <DropdownMenu.Item
-                key={"none-audio"}
-                onSelect={() => {
-                  updateSettings({
-                    defaultAudioLanguage: null,
-                  });
-                }}
-              >
-                <DropdownMenu.ItemTitle>
-                  {t("home.settings.audio.none")}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              {cultures?.map((l) => (
-                <DropdownMenu.Item
-                  key={l?.ThreeLetterISOLanguageName ?? "unknown"}
-                  onSelect={() => {
-                    updateSettings({
-                      defaultAudioLanguage: l,
-                    });
-                  }}
-                >
-                  <DropdownMenu.ItemTitle>
-                    {l.DisplayName}
-                  </DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+              </View>
+            }
+            title={t("home.settings.audio.language")}
+          />
         </ListItem>
       </ListGroup>
     </View>

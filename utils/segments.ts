@@ -4,6 +4,20 @@ import React from "react";
 import { DownloadedItem, MediaTimeSegment } from "@/providers/Downloads/types";
 import { getAuthHeaders } from "./jellyfin/jellyfin";
 
+// New Jellyfin 10.11+ Media Segments API types
+interface MediaSegmentDto {
+  Id: string;
+  ItemId: string;
+  Type: "Intro" | "Outro" | "Recap" | "Commercial" | "Preview";
+  StartTicks: number;
+  EndTicks: number;
+}
+
+interface MediaSegmentsResponse {
+  Items: MediaSegmentDto[];
+}
+
+// Legacy API types (for fallback)
 interface IntroTimestamps {
   EpisodeId: string;
   HideSkipPromptAt: number;
@@ -25,6 +39,8 @@ interface CreditTimestamps {
     Valid: boolean;
   };
 }
+
+const TICKS_PER_SECOND = 10000000;
 
 export const useSegments = (
   itemId: string,
@@ -65,7 +81,66 @@ export const getSegmentsForItem = (
   };
 };
 
-export const fetchAndParseSegments = async (
+/**
+ * Converts Jellyfin ticks to seconds
+ */
+const ticksToSeconds = (ticks: number): number => ticks / TICKS_PER_SECOND;
+
+/**
+ * Fetches segments using the new Jellyfin 10.11+ MediaSegments API
+ */
+const fetchMediaSegments = async (
+  itemId: string,
+  api: Api,
+): Promise<{
+  introSegments: MediaTimeSegment[];
+  creditSegments: MediaTimeSegment[];
+} | null> => {
+  try {
+    const response = await api.axiosInstance.get<MediaSegmentsResponse>(
+      `${api.basePath}/MediaSegments/${itemId}`,
+      {
+        headers: getAuthHeaders(api),
+        params: {
+          includeSegmentTypes: ["Intro", "Outro"],
+        },
+      },
+    );
+
+    const introSegments: MediaTimeSegment[] = [];
+    const creditSegments: MediaTimeSegment[] = [];
+
+    response.data.Items.forEach((segment) => {
+      const timeSegment: MediaTimeSegment = {
+        startTime: ticksToSeconds(segment.StartTicks),
+        endTime: ticksToSeconds(segment.EndTicks),
+        text: segment.Type,
+      };
+
+      switch (segment.Type) {
+        case "Intro":
+          introSegments.push(timeSegment);
+          break;
+        case "Outro":
+          creditSegments.push(timeSegment);
+          break;
+        // Optionally handle other types like Recap, Commercial, Preview
+        default:
+          break;
+      }
+    });
+
+    return { introSegments, creditSegments };
+  } catch (_error) {
+    // Return null to indicate we should try legacy endpoints
+    return null;
+  }
+};
+
+/**
+ * Fetches segments using legacy pre-10.11 endpoints
+ */
+const fetchLegacySegments = async (
   itemId: string,
   api: Api,
 ): Promise<{
@@ -106,8 +181,25 @@ export const fetchAndParseSegments = async (
       });
     }
   } catch (error) {
-    console.error("Failed to fetch segments", error);
+    console.error("Failed to fetch legacy segments", error);
   }
 
   return { introSegments, creditSegments };
+};
+
+export const fetchAndParseSegments = async (
+  itemId: string,
+  api: Api,
+): Promise<{
+  introSegments: MediaTimeSegment[];
+  creditSegments: MediaTimeSegment[];
+}> => {
+  // Try new API first (Jellyfin 10.11+)
+  const newSegments = await fetchMediaSegments(itemId, api);
+  if (newSegments) {
+    return newSegments;
+  }
+
+  // Fallback to legacy endpoints
+  return fetchLegacySegments(itemId, api);
 };

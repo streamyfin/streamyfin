@@ -28,15 +28,16 @@ import Animated, {
 } from "react-native-reanimated";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { ItemImage } from "./common/ItemImage";
-import { getItemNavigation } from "./common/TouchableItemRouter";
-import type { SelectedOptions } from "./ItemContent";
-import { PlayButton } from "./PlayButton";
-import { PlayedStatus } from "./PlayedStatus";
+import { ItemImage } from "../common/ItemImage";
+import { getItemNavigation } from "../common/TouchableItemRouter";
+import type { SelectedOptions } from "../ItemContent";
+import { PlayButton } from "../PlayButton";
+import { MarkAsPlayedLargeButton } from "./MarkAsPlayedLargeButton";
 
 interface AppleTVCarouselProps {
   initialIndex?: number;
@@ -50,10 +51,11 @@ const GRADIENT_HEIGHT_BOTTOM = 150;
 const LOGO_HEIGHT = 80;
 
 // Position Constants
-const LOGO_BOTTOM_POSITION = 210;
-const GENRES_BOTTOM_POSITION = 170;
-const CONTROLS_BOTTOM_POSITION = 100;
-const DOTS_BOTTOM_POSITION = 60;
+const LOGO_BOTTOM_POSITION = 260;
+const GENRES_BOTTOM_POSITION = 220;
+const OVERVIEW_BOTTOM_POSITION = 165;
+const CONTROLS_BOTTOM_POSITION = 80;
+const DOTS_BOTTOM_POSITION = 40;
 
 // Size Constants
 const DOT_HEIGHT = 6;
@@ -63,13 +65,15 @@ const PLAY_BUTTON_SKELETON_HEIGHT = 50;
 const PLAYED_STATUS_SKELETON_SIZE = 40;
 const TEXT_SKELETON_HEIGHT = 20;
 const TEXT_SKELETON_WIDTH = 250;
+const OVERVIEW_SKELETON_HEIGHT = 16;
+const OVERVIEW_SKELETON_WIDTH = 400;
 const _EMPTY_STATE_ICON_SIZE = 64;
 
 // Spacing Constants
 const HORIZONTAL_PADDING = 40;
 const DOT_PADDING = 2;
 const DOT_GAP = 4;
-const CONTROLS_GAP = 20;
+const CONTROLS_GAP = 10;
 const _TEXT_MARGIN_TOP = 16;
 
 // Border Radius Constants
@@ -88,13 +92,16 @@ const VELOCITY_THRESHOLD = 400;
 
 // Text Constants
 const GENRES_FONT_SIZE = 16;
+const OVERVIEW_FONT_SIZE = 14;
 const _EMPTY_STATE_FONT_SIZE = 18;
 const TEXT_SHADOW_RADIUS = 2;
 const MAX_GENRES_COUNT = 2;
 const MAX_BUTTON_WIDTH = 300;
+const OVERVIEW_MAX_LINES = 2;
+const OVERVIEW_MAX_WIDTH = "80%";
 
 // Opacity Constants
-const OVERLAY_OPACITY = 0.4;
+const OVERLAY_OPACITY = 0.3;
 const DOT_INACTIVE_OPACITY = 0.6;
 const TEXT_OPACITY = 0.9;
 
@@ -180,7 +187,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           userId: user.Id,
           enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
           includeItemTypes: ["Movie", "Series", "Episode"],
-          fields: ["Genres"],
+          fields: ["Genres", "Overview"],
           limit: 2,
         });
         return response.data.Items || [];
@@ -195,7 +202,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
       if (!api || !user?.Id) return [];
       const response = await getTvShowsApi(api).getNextUp({
         userId: user.Id,
-        fields: ["MediaSourceCount", "Genres"],
+        fields: ["MediaSourceCount", "Genres", "Overview"],
         limit: 2,
         enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
         enableResumable: false,
@@ -214,7 +221,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         const response = await getUserLibraryApi(api).getLatestMedia({
           userId: user.Id,
           limit: 2,
-          fields: ["PrimaryImageAspectRatio", "Path", "Genres"],
+          fields: ["PrimaryImageAspectRatio", "Path", "Genres", "Overview"],
           imageTypeLimit: 1,
           enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
         });
@@ -374,6 +381,8 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     };
   });
 
+  const togglePlayedStatus = useMarkAsPlayed(items);
+
   const headerAnimatedStyle = useAnimatedStyle(() => {
     if (!scrollOffset) return {};
     return {
@@ -515,6 +524,36 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             style={{
               height: TEXT_SKELETON_HEIGHT,
               width: TEXT_SKELETON_WIDTH,
+              backgroundColor: SKELETON_ELEMENT_COLOR,
+              borderRadius: TEXT_SKELETON_BORDER_RADIUS,
+            }}
+          />
+        </View>
+
+        {/* Overview Skeleton */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: OVERVIEW_BOTTOM_POSITION,
+            left: 0,
+            right: 0,
+            paddingHorizontal: HORIZONTAL_PADDING,
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <View
+            style={{
+              height: OVERVIEW_SKELETON_HEIGHT,
+              width: OVERVIEW_SKELETON_WIDTH,
+              backgroundColor: SKELETON_ELEMENT_COLOR,
+              borderRadius: TEXT_SKELETON_BORDER_RADIUS,
+            }}
+          />
+          <View
+            style={{
+              height: OVERVIEW_SKELETON_HEIGHT,
+              width: OVERVIEW_SKELETON_WIDTH * 0.7,
               backgroundColor: SKELETON_ELEMENT_COLOR,
               borderRadius: TEXT_SKELETON_BORDER_RADIUS,
             }}
@@ -747,6 +786,39 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
           </TouchableOpacity>
         </View>
 
+        {/* Overview Section - for Episodes and Movies */}
+        {(item.Type === "Episode" || item.Type === "Movie") &&
+          item.Overview && (
+            <View
+              style={{
+                position: "absolute",
+                bottom: OVERVIEW_BOTTOM_POSITION,
+                left: 0,
+                right: 0,
+                paddingHorizontal: HORIZONTAL_PADDING,
+                alignItems: "center",
+              }}
+            >
+              <TouchableOpacity onPress={() => navigateToItem(item)}>
+                <Animated.Text
+                  numberOfLines={OVERVIEW_MAX_LINES}
+                  style={{
+                    color: `rgba(255, 255, 255, ${TEXT_OPACITY * 0.85})`,
+                    fontSize: OVERVIEW_FONT_SIZE,
+                    fontWeight: "400",
+                    textAlign: "center",
+                    maxWidth: OVERVIEW_MAX_WIDTH,
+                    textShadowColor: TEXT_SHADOW_COLOR,
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: TEXT_SHADOW_RADIUS,
+                  }}
+                >
+                  {item.Overview}
+                </Animated.Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
         {/* Controls Section */}
         <View
           style={{
@@ -777,7 +849,10 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             </View>
 
             {/* Mark as Played */}
-            <PlayedStatus items={[item]} size='large' />
+            <MarkAsPlayedLargeButton
+              isPlayed={item.UserData?.Played ?? false}
+              onToggle={togglePlayedStatus}
+            />
           </View>
         </View>
       </View>

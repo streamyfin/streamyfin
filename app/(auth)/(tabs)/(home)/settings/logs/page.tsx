@@ -1,4 +1,3 @@
-import * as FileSystem from "expo-file-system";
 import { useNavigation } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";

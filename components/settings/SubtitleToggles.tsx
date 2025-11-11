@@ -1,22 +1,24 @@
-import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
-
-const _DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";
-import Dropdown from "@/components/common/Dropdown";
 import { Stepper } from "@/components/inputs/Stepper";
+import {
+  OUTLINE_THICKNESS,
+  type OutlineThickness,
+  VLC_COLORS,
+  type VLCColor,
+} from "@/constants/SubtitleConstants";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { PlatformDropdown } from "../PlatformDropdown";
 import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
-
-import { OUTLINE_THICKNESS, VLC_COLORS } from "@/constants/SubtitleConstants";
 
 export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const isTv = Platform.isTV;
@@ -26,18 +28,6 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
-
-  // Get VLC subtitle settings from the settings system
-  const textColor = settings?.vlcTextColor ?? "White";
-  const backgroundColor = settings?.vlcBackgroundColor ?? "Black";
-  const outlineColor = settings?.vlcOutlineColor ?? "Black";
-  const outlineThickness = settings?.vlcOutlineThickness ?? "Normal";
-  const backgroundOpacity = settings?.vlcBackgroundOpacity ?? 128;
-  const outlineOpacity = settings?.vlcOutlineOpacity ?? 255;
-  const isBold = settings?.vlcIsBold ?? false;
-
-  if (isTv) return null;
-  if (!settings) return null;
 
   const subtitleModes = [
     SubtitlePlaybackMode.Default,
@@ -56,6 +46,133 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
     [SubtitlePlaybackMode.None]: "home.settings.subtitles.modes.None",
   };
 
+  const subtitleLanguageOptionGroups = useMemo(() => {
+    const options = [
+      {
+        type: "radio" as const,
+        label: t("home.settings.subtitles.none"),
+        value: "none",
+        selected: !settings?.defaultSubtitleLanguage,
+        onPress: () => updateSettings({ defaultSubtitleLanguage: null }),
+      },
+      ...(cultures?.map((culture) => ({
+        type: "radio" as const,
+        label: culture.DisplayName || "Unknown",
+        value:
+          culture.ThreeLetterISOLanguageName ||
+          culture.DisplayName ||
+          "unknown",
+        selected:
+          culture.ThreeLetterISOLanguageName ===
+          settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName,
+        onPress: () => updateSettings({ defaultSubtitleLanguage: culture }),
+      })) || []),
+    ];
+
+    return [
+      {
+        options,
+      },
+    ];
+  }, [cultures, settings?.defaultSubtitleLanguage, t, updateSettings]);
+
+  const subtitleModeOptionGroups = useMemo(() => {
+    const options = subtitleModes.map((mode) => ({
+      type: "radio" as const,
+      label: t(subtitleModeKeys[mode]) || String(mode),
+      value: String(mode),
+      selected: mode === settings?.subtitleMode,
+      onPress: () => updateSettings({ subtitleMode: mode }),
+    }));
+
+    return [
+      {
+        options,
+      },
+    ];
+  }, [settings?.subtitleMode, t, updateSettings]);
+
+  const textColorOptionGroups = useMemo(() => {
+    const colors = Object.keys(VLC_COLORS) as VLCColor[];
+    const options = colors.map((color) => ({
+      type: "radio" as const,
+      label: t(`home.settings.subtitles.colors.${color}`),
+      value: color,
+      selected: (settings?.vlcTextColor || "White") === color,
+      onPress: () => updateSettings({ vlcTextColor: color }),
+    }));
+
+    return [{ options }];
+  }, [settings?.vlcTextColor, t, updateSettings]);
+
+  const backgroundColorOptionGroups = useMemo(() => {
+    const colors = Object.keys(VLC_COLORS) as VLCColor[];
+    const options = colors.map((color) => ({
+      type: "radio" as const,
+      label: t(`home.settings.subtitles.colors.${color}`),
+      value: color,
+      selected: (settings?.vlcBackgroundColor || "Black") === color,
+      onPress: () => updateSettings({ vlcBackgroundColor: color }),
+    }));
+
+    return [{ options }];
+  }, [settings?.vlcBackgroundColor, t, updateSettings]);
+
+  const outlineColorOptionGroups = useMemo(() => {
+    const colors = Object.keys(VLC_COLORS) as VLCColor[];
+    const options = colors.map((color) => ({
+      type: "radio" as const,
+      label: t(`home.settings.subtitles.colors.${color}`),
+      value: color,
+      selected: (settings?.vlcOutlineColor || "Black") === color,
+      onPress: () => updateSettings({ vlcOutlineColor: color }),
+    }));
+
+    return [{ options }];
+  }, [settings?.vlcOutlineColor, t, updateSettings]);
+
+  const outlineThicknessOptionGroups = useMemo(() => {
+    const thicknesses = Object.keys(OUTLINE_THICKNESS) as OutlineThickness[];
+    const options = thicknesses.map((thickness) => ({
+      type: "radio" as const,
+      label: t(`home.settings.subtitles.thickness.${thickness}`),
+      value: thickness,
+      selected: (settings?.vlcOutlineThickness || "Normal") === thickness,
+      onPress: () => updateSettings({ vlcOutlineThickness: thickness }),
+    }));
+
+    return [{ options }];
+  }, [settings?.vlcOutlineThickness, t, updateSettings]);
+
+  const backgroundOpacityOptionGroups = useMemo(() => {
+    const opacities = [0, 32, 64, 96, 128, 160, 192, 224, 255];
+    const options = opacities.map((opacity) => ({
+      type: "radio" as const,
+      label: `${Math.round((opacity / 255) * 100)}%`,
+      value: opacity,
+      selected: (settings?.vlcBackgroundOpacity ?? 128) === opacity,
+      onPress: () => updateSettings({ vlcBackgroundOpacity: opacity }),
+    }));
+
+    return [{ options }];
+  }, [settings?.vlcBackgroundOpacity, updateSettings]);
+
+  const outlineOpacityOptionGroups = useMemo(() => {
+    const opacities = [0, 32, 64, 96, 128, 160, 192, 224, 255];
+    const options = opacities.map((opacity) => ({
+      type: "radio" as const,
+      label: `${Math.round((opacity / 255) * 100)}%`,
+      value: opacity,
+      selected: (settings?.vlcOutlineOpacity ?? 255) === opacity,
+      onPress: () => updateSettings({ vlcOutlineOpacity: opacity }),
+    }));
+
+    return [{ options }];
+  }, [settings?.vlcOutlineOpacity, updateSettings]);
+
+  if (isTv) return null;
+  if (!settings) return null;
+
   return (
     <View {...props}>
       <ListGroup
@@ -67,20 +184,10 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         }
       >
         <ListItem title={t("home.settings.subtitles.subtitle_language")}>
-          <Dropdown
-            data={[
-              {
-                DisplayName: t("home.settings.subtitles.none"),
-                ThreeLetterISOLanguageName: "none-subs",
-              },
-              ...(cultures ?? []),
-            ]}
-            keyExtractor={(item) =>
-              item?.ThreeLetterISOLanguageName ?? "unknown"
-            }
-            titleExtractor={(item) => item?.DisplayName}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={subtitleLanguageOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings?.defaultSubtitleLanguage?.DisplayName ||
                     t("home.settings.subtitles.none")}
@@ -90,18 +197,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.language")}
-            onSelected={(defaultSubtitleLanguage) =>
-              updateSettings({
-                defaultSubtitleLanguage:
-                  defaultSubtitleLanguage.DisplayName ===
-                  t("home.settings.subtitles.none")
-                    ? null
-                    : defaultSubtitleLanguage,
-              })
-            }
+            title={t("home.settings.subtitles.language")}
           />
         </ListItem>
 
@@ -109,13 +207,10 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           title={t("home.settings.subtitles.subtitle_mode")}
           disabled={pluginSettings?.subtitleMode?.locked}
         >
-          <Dropdown
-            data={subtitleModes}
-            disabled={pluginSettings?.subtitleMode?.locked}
-            keyExtractor={String}
-            titleExtractor={(item) => t(subtitleModeKeys[item]) || String(item)}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={subtitleModeOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(subtitleModeKeys[settings?.subtitleMode]) ||
                     t("home.settings.subtitles.loading")}
@@ -125,10 +220,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.subtitle_mode")}
-            onSelected={(subtitleMode) => updateSettings({ subtitleMode })}
+            title={t("home.settings.subtitles.subtitle_mode")}
           />
         </ListItem>
 
@@ -159,144 +253,120 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.text_color")}>
-          <Dropdown
-            data={Object.keys(VLC_COLORS)}
-            keyExtractor={(item) => item}
-            titleExtractor={(item) =>
-              t(`home.settings.subtitles.colors.${item}`)
-            }
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={textColorOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {t(`home.settings.subtitles.colors.${textColor}`)}
+                  {t(
+                    `home.settings.subtitles.colors.${settings?.vlcTextColor || "White"}`,
+                  )}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.text_color")}
-            onSelected={(value) => updateSettings({ vlcTextColor: value })}
+            title={t("home.settings.subtitles.text_color")}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.background_color")}>
-          <Dropdown
-            data={Object.keys(VLC_COLORS)}
-            keyExtractor={(item) => item}
-            titleExtractor={(item) =>
-              t(`home.settings.subtitles.colors.${item}`)
-            }
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={backgroundColorOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {t(`home.settings.subtitles.colors.${backgroundColor}`)}
+                  {t(
+                    `home.settings.subtitles.colors.${settings?.vlcBackgroundColor || "Black"}`,
+                  )}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.background_color")}
-            onSelected={(value) =>
-              updateSettings({ vlcBackgroundColor: value })
-            }
+            title={t("home.settings.subtitles.background_color")}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.outline_color")}>
-          <Dropdown
-            data={Object.keys(VLC_COLORS)}
-            keyExtractor={(item) => item}
-            titleExtractor={(item) =>
-              t(`home.settings.subtitles.colors.${item}`)
-            }
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={outlineColorOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {t(`home.settings.subtitles.colors.${outlineColor}`)}
+                  {t(
+                    `home.settings.subtitles.colors.${settings?.vlcOutlineColor || "Black"}`,
+                  )}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.outline_color")}
-            onSelected={(value) => updateSettings({ vlcOutlineColor: value })}
+            title={t("home.settings.subtitles.outline_color")}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.outline_thickness")}>
-          <Dropdown
-            data={Object.keys(OUTLINE_THICKNESS)}
-            keyExtractor={(item) => item}
-            titleExtractor={(item) =>
-              t(`home.settings.subtitles.thickness.${item}`)
-            }
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={outlineThicknessOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {t(`home.settings.subtitles.thickness.${outlineThickness}`)}
+                  {t(
+                    `home.settings.subtitles.thickness.${settings?.vlcOutlineThickness || "Normal"}`,
+                  )}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.outline_thickness")}
-            onSelected={(value) =>
-              updateSettings({ vlcOutlineThickness: value })
-            }
+            title={t("home.settings.subtitles.outline_thickness")}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.background_opacity")}>
-          <Dropdown
-            data={[0, 32, 64, 96, 128, 160, 192, 224, 255]}
-            keyExtractor={String}
-            titleExtractor={(item) => `${Math.round((item / 255) * 100)}%`}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
-                <Text className='mr-1 text-[#8E8D91]'>{`${Math.round((backgroundOpacity / 255) * 100)}%`}</Text>
+          <PlatformDropdown
+            groups={backgroundOpacityOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>{`${Math.round(((settings?.vlcBackgroundOpacity ?? 128) / 255) * 100)}%`}</Text>
                 <Ionicons
                   name='chevron-expand-sharp'
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.background_opacity")}
-            onSelected={(value) =>
-              updateSettings({ vlcBackgroundOpacity: value })
-            }
+            title={t("home.settings.subtitles.background_opacity")}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.outline_opacity")}>
-          <Dropdown
-            data={[0, 32, 64, 96, 128, 160, 192, 224, 255]}
-            keyExtractor={String}
-            titleExtractor={(item) => `${Math.round((item / 255) * 100)}%`}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
-                <Text className='mr-1 text-[#8E8D91]'>{`${Math.round((outlineOpacity / 255) * 100)}%`}</Text>
+          <PlatformDropdown
+            groups={outlineOpacityOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>{`${Math.round(((settings?.vlcOutlineOpacity ?? 255) / 255) * 100)}%`}</Text>
                 <Ionicons
                   name='chevron-expand-sharp'
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.outline_opacity")}
-            onSelected={(value) => updateSettings({ vlcOutlineOpacity: value })}
+            title={t("home.settings.subtitles.outline_opacity")}
           />
         </ListItem>
         <ListItem title={t("home.settings.subtitles.bold_text")}>
           <Switch
-            value={isBold}
+            value={settings?.vlcIsBold ?? false}
             onValueChange={(value) => updateSettings({ vlcIsBold: value })}
           />
         </ListItem>

@@ -14,7 +14,7 @@ export const PluginSettings = () => {
 
   if (!settings) return null;
   return (
-    <View>
+    <View className='mt-4'>
       <ListGroup
         title={t("home.settings.plugins.plugins_title")}
         className='mb-4'

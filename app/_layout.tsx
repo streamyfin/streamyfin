@@ -1,18 +1,23 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as BackgroundTask from "expo-background-task";
+import * as Device from "expo-device";
 import { Platform } from "react-native";
+import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
+import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
 import {
   apiAtom,
   getOrSetDeviceId,
-  getTokenFromStorage,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
-import { type Settings, useSettings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   BACKGROUND_FETCH_TASK_SESSIONS,
@@ -26,44 +31,30 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
-
-import { DarkTheme, ThemeProvider } from "@react-navigation/native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-import * as BackgroundTask from "expo-background-task";
-
-import * as Device from "expo-device";
-import * as FileSystem from "expo-file-system";
-
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
-import { getLocales } from "expo-localization";
-import { router, Stack, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-
-import * as TaskManager from "expo-task-manager";
-import { Provider as JotaiProvider } from "jotai";
-import { useEffect, useRef, useState } from "react";
-import { I18nextProvider } from "react-i18next";
-import { Appearance, AppState } from "react-native";
-import { SystemBars } from "react-native-edge-to-edge";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import "react-native-reanimated";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
+import { getLocales } from "expo-localization";
 import type { EventSubscription } from "expo-modules-core";
+import { getDevicePushTokenAsync } from "expo-notifications";
 import type {
   Notification,
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
-import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { useAtom } from "jotai";
-import { Toaster } from "sonner-native";
+import type { DevicePushToken } from "expo-notifications/build/Tokens.types";
+import { router, Stack, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import * as TaskManager from "expo-task-manager";
+import { Provider as JotaiProvider, useAtom } from "jotai";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { I18nextProvider } from "react-i18next";
+import { Appearance } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
+import "react-native-reanimated";
+import { Toaster } from "sonner-native";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -131,24 +122,7 @@ if (!Platform.isTV) {
 
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     console.log("TaskManager ~ trigger");
-
-    const settingsData = storage.getString("settings");
-
-    if (!settingsData) return BackgroundTask.BackgroundTaskResult.Failed;
-
-    const settings: Partial<Settings> = JSON.parse(settingsData);
-
-    if (!settings?.autoDownload)
-      return BackgroundTask.BackgroundTaskResult.Failed;
-
-    const token = getTokenFromStorage();
-    const deviceId = getOrSetDeviceId();
-    const baseDirectory = FileSystem.documentDirectory;
-
-    if (!token || !deviceId || !baseDirectory)
-      return BackgroundTask.BackgroundTaskResult.Failed;
-
-    // Be sure to return the successful result type!
+    // Background fetch task placeholder - currently unused
     return BackgroundTask.BackgroundTaskResult.Success;
   });
 }
@@ -213,11 +187,7 @@ export default function RootLayout() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0,
-      refetchOnMount: true,
-      refetchOnReconnect: true,
-      refetchOnWindowFocus: true,
-      retryOnMount: true,
+      staleTime: 30000,
     },
   },
 });
@@ -226,8 +196,7 @@ function Layout() {
   const { settings } = useSettings();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
-  const appState = useRef(AppState.currentState);
-  const segments = useSegments();
+  const _segments = useSegments();
 
   useEffect(() => {
     i18n.changeLanguage(
@@ -237,26 +206,26 @@ function Layout() {
 
   useNotificationObserver();
 
-  const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
+  const [pushToken, setPushToken] = useState<DevicePushToken>();
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
-    if (!Platform.isTV && expoPushToken && api && user) {
+    if (!Platform.isTV && pushToken && api && user) {
       api
         ?.post("/Streamyfin/device", {
-          token: expoPushToken.data,
+          token: pushToken.data,
           deviceId: getOrSetDeviceId(),
           userId: user.Id,
         })
-        .then((_) => console.log("Posted expo push token"))
+        .then((_) => console.log("Posted device push token"))
         .catch((_) =>
-          writeErrorLog("Failed to push expo push token to plugin"),
+          writeErrorLog("Failed to push device push token to plugin"),
         );
     } else console.log("No token available");
-  }, [api, expoPushToken, user]);
+  }, [api, pushToken, user]);
 
-  async function registerNotifications() {
+  const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
       console.log("Setting android notification channel 'default'");
       await Notifications?.setNotificationChannelAsync("default", {
@@ -287,13 +256,11 @@ function Layout() {
 
     // only create push token for real devices (pointless for emulators)
     if (Device.isDevice) {
-      Notifications?.getExpoPushTokenAsync({
-        projectId: "streamyfin-4fec1",
-      })
-        .then((token: ExpoPushToken) => token && setExpoPushToken(token))
+      getDevicePushTokenAsync()
+        .then((token: DevicePushToken) => token && setPushToken(token))
         .catch((reason: any) => console.log("Failed to get token", reason));
     }
-  }
+  }, [user]);
 
   useEffect(() => {
     if (!Platform.isTV) {
@@ -357,61 +324,7 @@ function Layout() {
         responseListener.current?.remove();
       };
     }
-  }, [user, api]);
-
-  useEffect(() => {
-    if (Platform.isTV) {
-      return;
-    }
-
-    if (segments.includes("direct-player" as never)) {
-      if (
-        !settings.followDeviceOrientation &&
-        settings.defaultVideoOrientation
-      ) {
-        ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
-      }
-      return;
-    }
-
-    if (settings.followDeviceOrientation === true) {
-      ScreenOrientation.unlockAsync();
-    } else {
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      );
-    }
-  }, [
-    settings.followDeviceOrientation,
-    settings.defaultVideoOrientation,
-    segments,
-  ]);
-
-  useEffect(() => {
-    if (Platform.isTV) {
-      return;
-    }
-
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
-        BackGroundDownloader.checkForExistingDownloads().catch(
-          (error: unknown) => {
-            writeErrorLog("Failed to resume background downloads", error);
-          },
-        );
-      }
-    });
-
-    BackGroundDownloader.checkForExistingDownloads().catch((error: unknown) => {
-      writeErrorLog("Failed to resume background downloads", error);
-    });
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+  }, [user]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -420,52 +333,55 @@ function Layout() {
           <LogProvider>
             <WebSocketProvider>
               <DownloadProvider>
-                <BottomSheetModalProvider>
-                  <SystemBars style='light' hidden={false} />
-                  <ThemeProvider value={DarkTheme}>
-                    <Stack initialRouteName='(auth)/(tabs)'>
-                      <Stack.Screen
-                        name='(auth)/(tabs)'
-                        options={{
-                          headerShown: false,
-                          title: "",
-                          header: () => null,
+                <GlobalModalProvider>
+                  <BottomSheetModalProvider>
+                    <ThemeProvider value={DarkTheme}>
+                      <SystemBars style='light' hidden={false} />
+                      <Stack initialRouteName='(auth)/(tabs)'>
+                        <Stack.Screen
+                          name='(auth)/(tabs)'
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name='(auth)/player'
+                          options={{
+                            headerShown: false,
+                            title: "",
+                            header: () => null,
+                          }}
+                        />
+                        <Stack.Screen
+                          name='login'
+                          options={{
+                            headerShown: true,
+                            title: "",
+                            headerTransparent: Platform.OS === "ios",
+                          }}
+                        />
+                        <Stack.Screen name='+not-found' />
+                      </Stack>
+                      <Toaster
+                        duration={4000}
+                        toastOptions={{
+                          style: {
+                            backgroundColor: "#262626",
+                            borderColor: "#363639",
+                            borderWidth: 1,
+                          },
+                          titleStyle: {
+                            color: "white",
+                          },
                         }}
+                        closeButton
                       />
-                      <Stack.Screen
-                        name='(auth)/player'
-                        options={{
-                          headerShown: false,
-                          title: "",
-                          header: () => null,
-                        }}
-                      />
-                      <Stack.Screen
-                        name='login'
-                        options={{
-                          headerShown: true,
-                          title: "",
-                          headerTransparent: true,
-                        }}
-                      />
-                      <Stack.Screen name='+not-found' />
-                    </Stack>
-                    <Toaster
-                      duration={4000}
-                      toastOptions={{
-                        style: {
-                          backgroundColor: "#262626",
-                          borderColor: "#363639",
-                          borderWidth: 1,
-                        },
-                        titleStyle: {
-                          color: "white",
-                        },
-                      }}
-                      closeButton
-                    />
-                  </ThemeProvider>
-                </BottomSheetModalProvider>
+                      <GlobalModal />
+                    </ThemeProvider>
+                  </BottomSheetModalProvider>
+                </GlobalModalProvider>
               </DownloadProvider>
             </WebSocketProvider>
           </LogProvider>

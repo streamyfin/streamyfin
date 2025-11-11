@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { Platform, TouchableOpacity } from "react-native";
-import { Text } from "@/components/common/Text";
-import { FilterSheet } from "@/components/filters/FilterSheet";
+import React, { useMemo } from "react";
+import { Platform, View } from "react-native";
+import {
+  type OptionGroup,
+  PlatformDropdown,
+} from "@/components/PlatformDropdown";
 import { useHaptic } from "@/hooks/useHaptic";
 
 export type ScaleFactor =
@@ -94,56 +96,51 @@ export const ScaleFactorSelector: React.FC<ScaleFactorSelectorProps> = ({
   disabled = false,
 }) => {
   const lightHapticFeedback = useHaptic("light");
-  const [open, setOpen] = useState(false);
-
-  // Hide on TV platforms
-  if (Platform.isTV) return null;
 
   const handleScaleSelect = (scale: ScaleFactor) => {
     onScaleChange(scale);
     lightHapticFeedback();
   };
 
-  const currentOption = SCALE_FACTOR_OPTIONS.find(
-    (option) => option.id === currentScale,
-  );
+  const optionGroups = useMemo<OptionGroup[]>(() => {
+    return [
+      {
+        options: SCALE_FACTOR_OPTIONS.map((option) => ({
+          type: "radio" as const,
+          label: option.label,
+          value: option.id,
+          selected: option.id === currentScale,
+          onPress: () => handleScaleSelect(option.id),
+          disabled,
+        })),
+      },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScale, disabled]);
 
-  return (
-    <>
-      <TouchableOpacity
-        disabled={disabled}
+  const trigger = useMemo(
+    () => (
+      <View
         className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
         style={{ opacity: disabled ? 0.5 : 1 }}
-        onPress={() => setOpen(true)}
       >
         <Ionicons name='search-outline' size={24} color='white' />
-      </TouchableOpacity>
+      </View>
+    ),
+    [disabled],
+  );
 
-      <FilterSheet
-        open={open}
-        setOpen={setOpen}
-        title='Scale Factor'
-        data={SCALE_FACTOR_OPTIONS}
-        values={currentOption ? [currentOption] : []}
-        multiple={false}
-        searchFilter={(item, query) => {
-          const option = item as ScaleFactorOption;
-          return (
-            option.label.toLowerCase().includes(query.toLowerCase()) ||
-            option.description.toLowerCase().includes(query.toLowerCase())
-          );
-        }}
-        renderItemLabel={(item) => {
-          const option = item as ScaleFactorOption;
-          return <Text>{option.label}</Text>;
-        }}
-        set={(vals) => {
-          const chosen = vals[0] as ScaleFactorOption | undefined;
-          if (chosen) {
-            handleScaleSelect(chosen.id);
-          }
-        }}
-      />
-    </>
+  // Hide on TV platforms
+  if (Platform.isTV) return null;
+
+  return (
+    <PlatformDropdown
+      title='Scale Factor'
+      groups={optionGroups}
+      trigger={trigger}
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

@@ -2,12 +2,13 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.40.4",
+    "version": "0.46.2",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
     "jsEngine": "hermes",
+    "newArchEnabled": true,
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "requireFullScreen": true,
@@ -37,7 +38,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 76,
+      "versionCode": 81,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
@@ -77,6 +78,7 @@
             "useFrameworks": "static"
           },
           "android": {
+            "buildArchs": ["arm64-v8a", "x86_64"],
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
@@ -115,10 +117,6 @@
           }
         }
       ],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withAndroidManifest.js"],
-      ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"],
       [
         "expo-splash-screen",
         {
@@ -137,8 +135,12 @@
           }
         }
       ],
-      "./plugins/with-runtime-framework-headers.js",
-      "react-native-bottom-tabs"
+      "expo-web-browser",
+      ["./plugins/with-runtime-framework-headers.js"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
+      ["./plugins/withAndroidManifest.js"],
+      ["./plugins/withTrustLocalCerts.js"],
+      ["./plugins/withGradleProperties.js"]
     ],
     "experiments": {
       "typedRoutes": true
@@ -157,7 +159,6 @@
     },
     "updates": {
       "url": "https://u.expo.dev/e79219d1-797f-4fbe-9fa1-cfd360690a68"
-    },
-    "newArchEnabled": false
+    }
   }
 }

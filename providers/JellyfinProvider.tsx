@@ -64,7 +64,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.40.4" },
+            clientInfo: { name: "Streamyfin", version: "0.46.2" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -87,7 +87,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.40.4"`,
+      }, DeviceId="${deviceId}", Version="0.46.2"`,
     };
   }, [deviceId]);
 
@@ -203,7 +203,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeServerMutation = useMutation({
     mutationFn: async () => {
-      storage.delete("serverUrl");
+      storage.remove("serverUrl");
       setApi(null);
     },
     onError: (error) => {
@@ -286,7 +286,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           writeErrorLog("Failed to delete expo push token for device"),
         );
 
-      storage.delete("token");
+      storage.remove("token");
       setUser(null);
       setApi(null);
       setPluginSettings(undefined);

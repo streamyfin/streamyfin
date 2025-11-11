@@ -12,11 +12,7 @@ import {
   getUserLibraryApi,
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import {
-  type QueryFunction,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { type QueryFunction, useQuery } from "@tanstack/react-query";
 import { useNavigation, useRouter, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +20,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Platform,
-  RefreshControl,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -45,7 +40,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { AppleTVCarousel } from "../AppleTVCarousel";
+import { AppleTVCarousel } from "../apple-tv-carousel/AppleTVCarousel";
 
 type ScrollingCollectionListSection = {
   type: "ScrollingCollectionList";
@@ -63,32 +58,19 @@ type MediaListSectionType = {
 
 type Section = ScrollingCollectionListSection | MediaListSectionType;
 
-export const HomeIndex = () => {
+export const HomeWithCarousel = () => {
   const router = useRouter();
-
   const { t } = useTranslation();
-
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-
   const insets = useSafeAreaInsets();
-
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
-  const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
-  const queryClient = useQueryClient();
-  const headerOverlayOffset = Platform.isTV
-    ? 0
-    : showLargeHomeCarousel
-      ? 60
-      : 0;
-
+  const headerOverlayOffset = Platform.isTV ? 0 : 60;
   const navigation = useNavigation();
-
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(animatedScrollRef);
-
-  const { getDownloadedItems, cleanCacheDirectory } = useDownload();
+  const { downloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
   const {
     isConnected,
@@ -97,14 +79,18 @@ export const HomeIndex = () => {
     retryCheck,
   } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
+
   useEffect(() => {
-    // Only invalidate cache when transitioning from offline to online
     if (isConnected && !prevIsConnected.current) {
       invalidateCache();
     }
-    // Update the ref to the current state for the next render
     prevIsConnected.current = isConnected;
   }, [isConnected, invalidateCache]);
+
+  const hasDownloads = useMemo(() => {
+    if (Platform.isTV) return false;
+    return downloadedItems.length > 0;
+  }, [downloadedItems]);
 
   useEffect(() => {
     if (Platform.isTV) {
@@ -113,7 +99,6 @@ export const HomeIndex = () => {
       });
       return;
     }
-    const hasDownloads = getDownloadedItems().length > 0;
     navigation.setOptions({
       headerLeft: () => (
         <TouchableOpacity
@@ -121,6 +106,7 @@ export const HomeIndex = () => {
             router.push("/(auth)/downloads");
           }}
           className='ml-1.5'
+          style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
         >
           <Feather
             name='download'
@@ -130,7 +116,7 @@ export const HomeIndex = () => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, router]);
+  }, [navigation, router, hasDownloads]);
 
   useEffect(() => {
     cleanCacheDirectory().catch((_e) =>
@@ -188,23 +174,12 @@ export const HomeIndex = () => {
     );
   }, [userViews]);
 
-  const refetch = async () => {
+  const _refetch = async () => {
     setLoading(true);
     await refreshStreamyfinPluginSettings();
-    await queryClient.clear();
     await invalidateCache();
     setLoading(false);
   };
-
-  useEffect(() => {
-    const unsubscribe = eventBus.on("refreshHome", () => {
-      refetch();
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [refetch]);
 
   const createCollectionConfig = useCallback(
     (
@@ -236,7 +211,6 @@ export const HomeIndex = () => {
     [api, user?.Id],
   );
 
-  // Always call useMemo() at the top-level, using computed dependencies for both "default"/custom sections
   const defaultSections = useMemo(() => {
     if (!api || !user?.Id) return [];
 
@@ -246,10 +220,10 @@ export const HomeIndex = () => {
           ? []
           : ["Movie"];
       const title = t("home.recently_added_in", { libraryName: c.Name });
-      const queryKey = [
+      const queryKey: string[] = [
         "home",
         `recentlyAddedIn${c.CollectionType}`,
-        user?.Id!,
+        user.Id!,
         c.Id!,
       ];
       return createCollectionConfig(
@@ -293,16 +267,6 @@ export const HomeIndex = () => {
         orientation: "horizontal",
       },
       ...latestMediaViews,
-      // ...(mediaListCollections?.map(
-      //   (ml) =>
-      //     ({
-      //       title: ml.Name,
-      //       queryKey: ["home", "mediaList", ml.Id!],
-      //       queryFn: async () => ml,
-      //       type: "MediaListSection",
-      //       orientation: "vertical",
-      //     } as Section)
-      // ) || []),
       {
         title: t("home.suggested_movies"),
         queryKey: ["home", "suggestedMovies", user?.Id],
@@ -411,15 +375,12 @@ export const HomeIndex = () => {
     let subtitle = "";
 
     if (!isConnected) {
-      // No network connection
       title = t("home.no_internet");
       subtitle = t("home.no_internet_message");
     } else if (serverConnected === null) {
-      // Network is up, but server is being checked
       title = t("home.checking_server_connection");
       subtitle = t("home.checking_server_connection_message");
     } else if (!serverConnected) {
-      // Network is up, but server is unreachable
       title = t("home.server_unreachable");
       subtitle = t("home.server_unreachable_message");
     }
@@ -488,35 +449,18 @@ export const HomeIndex = () => {
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='never'
       scrollEventThrottle={16}
-      bounces={!showLargeHomeCarousel}
-      overScrollMode={showLargeHomeCarousel ? "never" : "auto"}
-      refreshControl={
-        showLargeHomeCarousel ? undefined : (
-          <RefreshControl
-            refreshing={loading}
-            onRefresh={refetch}
-            tintColor='white'
-            colors={["white"]}
-            progressViewOffset={100}
-          />
-        )
-      }
+      bounces={false}
+      overScrollMode='never'
       style={{ marginTop: -headerOverlayOffset }}
       contentContainerStyle={{ paddingTop: headerOverlayOffset }}
     >
-      {showLargeHomeCarousel && (
-        <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
-      )}
+      <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
       <View
         style={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
-          paddingTop: Platform.isTV
-            ? 0
-            : showLargeHomeCarousel
-              ? 0
-              : insets.top + 60,
+          paddingTop: 0,
         }}
       >
         <View className='flex flex-col space-y-4'>
@@ -551,7 +495,6 @@ export const HomeIndex = () => {
   );
 };
 
-// Function to get suggestions
 async function getSuggestions(api: Api, userId: string | undefined) {
   if (!userId) return [];
   const response = await getSuggestionsApi(api).getSuggestions({
@@ -563,7 +506,6 @@ async function getSuggestions(api: Api, userId: string | undefined) {
   return response.data.Items ?? [];
 }
 
-// Function to get the next up TV show for a series
 async function getNextUp(
   api: Api,
   userId: string | undefined,

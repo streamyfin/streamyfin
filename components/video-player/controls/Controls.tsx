@@ -321,7 +321,7 @@ export const Controls: FC<Props> = ({
   }>();
 
   const { showSkipButton, skipIntro } = useIntroSkipper(
-    item?.Id!,
+    item.Id!,
     currentTime,
     seek,
     play,
@@ -332,7 +332,7 @@ export const Controls: FC<Props> = ({
   );
 
   const { showSkipCreditButton, skipCredit } = useCreditSkipper(
-    item?.Id!,
+    item.Id!,
     currentTime,
     seek,
     play,

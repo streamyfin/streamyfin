@@ -1,11 +1,12 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
+import { Button, Host } from "@expo/ui/swift-ui";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
   PlayServicesState,
@@ -33,10 +34,9 @@ import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { runtimeTicksToMinutes } from "@/utils/time";
-import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
 
-interface Props extends React.ComponentProps<typeof Button> {
+interface Props extends React.ComponentProps<typeof TouchableOpacity> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
   isOffline?: boolean;
@@ -165,7 +165,7 @@ export const PlayButton: React.FC<Props> = ({
                     api,
                     item,
                     deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+                    startTimeTicks: item?.UserData?.PlaybackPositionTicks ?? 0,
                     userId: user.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
                     maxStreamingBitrate: selectedOptions.bitrate?.value,
@@ -364,6 +364,46 @@ export const PlayButton: React.FC<Props> = ({
    * *********************
    */
 
+  if (Platform.OS === "ios")
+    return (
+      <Host
+        style={{
+          height: 50,
+          flex: 1,
+        }}
+      >
+        <Button
+          variant='glassProminent'
+          onPress={onPress}
+          color={effectiveColors.primary}
+        >
+          <View className='flex flex-row items-center space-x-2 h-full w-full justify-center -mb-3.5 '>
+            <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
+              {runtimeTicksToMinutes(item?.RunTimeTicks)}
+            </Animated.Text>
+            <Animated.Text style={animatedTextStyle}>
+              <Ionicons name='play-circle' size={24} />
+            </Animated.Text>
+            {client && (
+              <Animated.Text style={animatedTextStyle}>
+                <Feather name='cast' size={22} />
+                <CastButton tintColor='transparent' />
+              </Animated.Text>
+            )}
+            {!client && settings?.openInVLC && (
+              <Animated.Text style={animatedTextStyle}>
+                <MaterialCommunityIcons
+                  name='vlc'
+                  size={18}
+                  color={animatedTextStyle.color}
+                />
+              </Animated.Text>
+            )}
+          </View>
+        </Button>
+      </Host>
+    );
+
   return (
     <TouchableOpacity
       disabled={!item}
@@ -371,7 +411,6 @@ export const PlayButton: React.FC<Props> = ({
       accessibilityHint='Tap to play the media'
       onPress={onPress}
       className={"relative"}
-      {...props}
     >
       <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
         <Animated.View

@@ -1,11 +1,9 @@
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
-import { useMemo } from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "./common/Text";
+import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
 interface Props extends React.ComponentProps<typeof View> {
   source?: MediaSourceInfo;
@@ -20,6 +18,8 @@ export const AudioTrackSelector: React.FC<Props> = ({
   ...props
 }) => {
   const isTv = Platform.isTV;
+  const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
 
   const audioStreams = useMemo(
     () => source?.MediaStreams?.filter((x) => x.Type === "Audio"),
@@ -31,55 +31,58 @@ export const AudioTrackSelector: React.FC<Props> = ({
     [audioStreams, selected],
   );
 
-  const { t } = useTranslation();
+  const optionGroups: OptionGroup[] = useMemo(
+    () => [
+      {
+        options:
+          audioStreams?.map((audio, idx) => ({
+            type: "radio" as const,
+            label: audio.DisplayTitle || `Audio Stream ${idx + 1}`,
+            value: audio.Index ?? idx,
+            selected: audio.Index === selected,
+            onPress: () => {
+              if (audio.Index !== null && audio.Index !== undefined) {
+                onChange(audio.Index);
+              }
+            },
+          })) || [],
+      },
+    ],
+    [audioStreams, selected, onChange],
+  );
+
+  const handleOptionSelect = () => {
+    setOpen(false);
+  };
+
+  const trigger = (
+    <View className='flex flex-col' {...props}>
+      <Text className='opacity-50 mb-1 text-xs'>{t("item_card.audio")}</Text>
+      <TouchableOpacity
+        className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'
+        onPress={() => setOpen(true)}
+      >
+        <Text numberOfLines={1}>{selectedAudioSteam?.DisplayTitle}</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (isTv) return null;
 
   return (
-    <View
-      className='flex shrink'
-      style={{
-        minWidth: 50,
+    <PlatformDropdown
+      groups={optionGroups}
+      trigger={trigger}
+      title={t("item_card.audio")}
+      open={open}
+      onOpenChange={setOpen}
+      onOptionSelect={handleOptionSelect}
+      expoUIConfig={{
+        hostStyle: { flex: 1 },
       }}
-    >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <View className='flex flex-col' {...props}>
-            <Text className='opacity-50 mb-1 text-xs'>
-              {t("item_card.audio")}
-            </Text>
-            <TouchableOpacity className='bg-neutral-900  h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-              <Text className='' numberOfLines={1}>
-                {selectedAudioSteam?.DisplayTitle}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          loop={true}
-          side='bottom'
-          align='start'
-          alignOffset={0}
-          avoidCollisions={true}
-          collisionPadding={8}
-          sideOffset={8}
-        >
-          <DropdownMenu.Label>Audio streams</DropdownMenu.Label>
-          {audioStreams?.map((audio, idx: number) => (
-            <DropdownMenu.Item
-              key={idx.toString()}
-              onSelect={() => {
-                if (audio.Index !== null && audio.Index !== undefined)
-                  onChange(audio.Index);
-              }}
-            >
-              <DropdownMenu.ItemTitle>
-                {audio.DisplayTitle}
-              </DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </View>
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

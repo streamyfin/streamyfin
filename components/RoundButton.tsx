@@ -96,7 +96,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
       <TouchableOpacity
         onPress={handlePress}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${
-          fillColor ? fillColorClass : "bg-neutral-800/80"
+          fillColor ? fillColorClass : "bg-transparent"
         }`}
         {...(viewProps as any)}
       >

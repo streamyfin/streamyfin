@@ -46,7 +46,7 @@ export default function settings() {
             logout();
           }}
         >
-          <Text className='text-red-600'>
+          <Text className='text-red-600 px-2'>
             {t("home.settings.log_out_button")}
           </Text>
         </TouchableOpacity>
@@ -56,12 +56,16 @@ export default function settings() {
 
   return (
     <ScrollView
+      contentInsetAdjustmentBehavior='automatic'
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }}
     >
-      <View className='p-4 flex flex-col gap-y-4'>
+      <View
+        className='p-4 flex flex-col gap-y-4'
+        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
+      >
         <UserInfo />
 
         <QuickConnect className='mb-4' />
@@ -115,6 +119,7 @@ export default function settings() {
         </View>
 
         {!Platform.isTV && <StorageSettings />}
+        <View className='h-24' />
       </View>
     </ScrollView>
   );

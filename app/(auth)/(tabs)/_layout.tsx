@@ -55,6 +55,7 @@ export default function TabLayout() {
           backgroundColor: "#121212",
         }}
         tabBarActiveTintColor={Colors.primary}
+        activeIndicatorColor={"#392c3b"}
         scrollEdgeAppearance='default'
       >
         <NativeTabs.Screen redirect name='index' />
@@ -70,10 +71,7 @@ export default function TabLayout() {
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/house.fill.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "house.fill" }
-                      : { sfSymbol: "house" },
+                : (_e) => ({ sfSymbol: "house.fill" }),
           }}
         />
         <NativeTabs.Screen
@@ -84,14 +82,12 @@ export default function TabLayout() {
           })}
           name='(search)'
           options={{
+            role: "search",
             title: t("tabs.search"),
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/magnifyingglass.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "magnifyingglass" }
-                      : { sfSymbol: "magnifyingglass" },
+                : (_e) => ({ sfSymbol: "magnifyingglass" }),
           }}
         />
         <NativeTabs.Screen
@@ -100,14 +96,8 @@ export default function TabLayout() {
             title: t("tabs.favorites"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ focused }) =>
-                    focused
-                      ? require("@/assets/icons/heart.fill.png")
-                      : require("@/assets/icons/heart.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "heart.fill" }
-                      : { sfSymbol: "heart" },
+                ? (_e) => require("@/assets/icons/heart.fill.png")
+                : (_e) => ({ sfSymbol: "heart.fill" }),
           }}
         />
         <NativeTabs.Screen
@@ -117,10 +107,7 @@ export default function TabLayout() {
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/server.rack.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "rectangle.stack.fill" }
-                      : { sfSymbol: "rectangle.stack" },
+                : (_e) => ({ sfSymbol: "rectangle.stack.fill" }),
           }}
         />
         <NativeTabs.Screen
@@ -131,10 +118,7 @@ export default function TabLayout() {
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/list.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "list.dash.fill" }
-                      : { sfSymbol: "list.dash" },
+                : (_e) => ({ sfSymbol: "list.dash.fill" }),
           }}
         />
       </NativeTabs>

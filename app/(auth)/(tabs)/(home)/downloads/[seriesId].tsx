@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { FlashList } from "@shopify/flash-list";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
 import {
@@ -23,21 +24,22 @@ export default function page() {
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>(
     {},
   );
-  const { getDownloadedItems, deleteItems } = useDownload();
+  const { downloadedItems, deleteItems } = useDownload();
 
   const series = useMemo(() => {
     try {
       return (
-        getDownloadedItems()
+        downloadedItems
           ?.filter((f) => f.item.SeriesId === seriesId)
           ?.sort(
-            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
+            (a, b) =>
+              (a.item.ParentIndexNumber ?? 0) - (b.item.ParentIndexNumber ?? 0),
           ) || []
       );
     } catch {
       return [];
     }
-  }, [getDownloadedItems]);
+  }, [downloadedItems, seriesId]);
 
   // Group episodes by season in a single pass
   const seasonGroups = useMemo(() => {
@@ -91,7 +93,7 @@ export default function page() {
         title: series[0].item.SeriesName,
       });
     } else {
-      storage.delete(seriesId);
+      storage.remove(seriesId);
       router.back();
     }
   }, [series]);
@@ -107,17 +109,22 @@ export default function page() {
         },
         {
           text: "Delete",
-          onPress: () => deleteItems(groupBySeason),
+          onPress: () =>
+            deleteItems(
+              groupBySeason
+                .map((item) => item.Id)
+                .filter((id) => id !== undefined),
+            ),
           style: "destructive",
         },
       ],
     );
-  }, [groupBySeason]);
+  }, [groupBySeason, deleteItems]);
 
   return (
-    <View className='flex-1'>
+    <View style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}>
       {series.length > 0 && (
-        <View className='flex flex-row items-center justify-start my-2 px-4'>
+        <View className='flex flex-row items-center justify-start px-4 pb-2'>
           <SeasonDropdown
             item={series[0].item}
             seasons={uniqueSeasons}
@@ -140,11 +147,13 @@ export default function page() {
           </View>
         </View>
       )}
-      <ScrollView key={seasonIndex} className='px-4'>
-        {groupBySeason.map((episode, index) => (
-          <EpisodeCard key={index} item={episode} />
-        ))}
-      </ScrollView>
+      <FlashList
+        key={seasonIndex}
+        data={groupBySeason}
+        renderItem={({ item }) => <EpisodeCard item={item} />}
+        keyExtractor={(item, index) => item.Id ?? `episode-${index}`}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+      />
     </View>
   );
 }
