@@ -158,7 +158,6 @@ const RequestModal = forwardRef<
     const qualityProfileOptions = useMemo(
       () => [
         {
-          title: t("jellyseerr.quality_profile"),
           options:
             defaultServiceDetails?.profiles.map((profile) => ({
               type: "radio" as const,
@@ -179,14 +178,12 @@ const RequestModal = forwardRef<
         defaultServiceDetails?.profiles,
         defaultProfile,
         requestOverrides.profileId,
-        t,
       ],
     );
 
     const rootFolderOptions = useMemo(
       () => [
         {
-          title: t("jellyseerr.root_folder"),
           options:
             defaultServiceDetails?.rootFolders.map((folder) => ({
               type: "radio" as const,
@@ -207,14 +204,12 @@ const RequestModal = forwardRef<
         defaultServiceDetails?.rootFolders,
         defaultFolder,
         requestOverrides.rootFolder,
-        t,
       ],
     );
 
     const tagsOptions = useMemo(
       () => [
         {
-          title: t("jellyseerr.tags"),
           options:
             defaultServiceDetails?.tags.map((tag) => ({
               type: "toggle" as const,
@@ -236,13 +231,12 @@ const RequestModal = forwardRef<
             })) || [],
         },
       ],
-      [defaultServiceDetails?.tags, defaultTags, requestOverrides.tags, t],
+      [defaultServiceDetails?.tags, defaultTags, requestOverrides.tags],
     );
 
     const usersOptions = useMemo(
       () => [
         {
-          title: t("jellyseerr.request_as"),
           options:
             users?.map((user) => ({
               type: "radio" as const,
@@ -258,7 +252,7 @@ const RequestModal = forwardRef<
             })) || [],
         },
       ],
-      [users, jellyseerrUser, requestOverrides.userId, t],
+      [users, jellyseerrUser, requestOverrides.userId],
     );
 
     const request = useCallback(() => {
