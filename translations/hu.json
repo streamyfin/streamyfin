@@ -111,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Feliratok",
+        "subtitle_hint": "Feliratbeállítások Megadása",
         "subtitle_language": "Felirat Nyelve",
         "subtitle_mode": "Felirat Módja",
         "set_subtitle_track": "Feliratsáv Beállítása az Előző Elemből",
         "subtitle_size": "Felirat Mérete",
-        "subtitle_hint": "Feliratbeállítások Megadása",
         "none": "Nincs",
         "language": "Nyelv",
         "loading": "Betöltés",
@@ -125,6 +125,37 @@
           "Always": "Mindig",
           "None": "Nincs",
           "OnlyForced": "Csak Kényszerített"
+        },
+        "text_color": "Szövegszín",
+        "background_color": "Háttérszín",
+        "outline_color": "Körvonal színe",
+        "outline_thickness": "Körvonal Vastagsága",
+        "background_opacity": "Háttér Áttetszőség",
+        "outline_opacity": "Körvonal Áttetszőség",
+        "bold_text": "Félkövér Szöveg",
+        "colors": {
+          "Black": "Fekete",
+          "Gray": "Szürke",
+          "Silver": "Ezüst",
+          "White": "Fehér",
+          "Maroon": "Sötétvörös",
+          "Red": "Piros",
+          "Fuchsia": "Fukszia",
+          "Yellow": "Sárga",
+          "Olive": "Oliva",
+          "Green": "Zöld",
+          "Teal": "Türkiz",
+          "Lime": "Lime",
+          "Purple": "Lila",
+          "Navy": "Sötétkék",
+          "Blue": "Kék",
+          "Aqua": "Türkizkék"
+        },
+        "thickness": {
+          "None": "Nincs",
+          "Thin": "Vékony",
+          "Normal": "Normál",
+          "Thick": "Vastag"
         }
       },
       "other": {
@@ -150,6 +181,7 @@
           "VLC_4": "VLC 4 (Kísérleti + PiP)"
         },
         "show_custom_menu_links": "Egyéni Menülinkek Megjelenítése",
+        "show_large_home_carousel": "",
         "hide_libraries": "Könyvtárak Elrejtése",
         "select_liraries_you_want_to_hide": "Válaszd ki azokat a könyvtárakat, amelyeket el szeretnél rejteni a Könyvtár fülön és a kezdőlapon.",
         "disable_haptic_feedback": "Haptikus Visszajelzés Letiltása",
@@ -187,7 +219,7 @@
         "marlin_search": {
           "enable_marlin_search": "Marlin Keresés Engedélyezése",
           "url": "URL",
-          "server_url_placeholder": "http(s)://domain.org:port",
+          "server_url_placeholder": "http(s)://tartomány.org:port",
           "marlin_search_hint": "Add meg a Marlin szerver URL-jét. Az URL-nek tartalmaznia kell a http vagy https-t, és opcionálisan a portot.",
           "read_more_about_marlin": "Tudj Meg Többet a Marlinról",
           "save_button": "Mentés",
@@ -221,7 +253,9 @@
         "system": "Rendszer"
       },
       "toasts": {
-        "error_deleting_files": "Hiba a Fájlok Törlésekor"
+        "error_deleting_files": "Hiba a Fájlok Törlésekor",
+        "background_downloads_enabled": "",
+        "background_downloads_disabled": ""
       }
     },
     "sessions": {
@@ -233,12 +267,14 @@
       "tvseries": "Sorozatok",
       "movies": "Filmek",
       "queue": "Sor",
+      "other_media": "",
       "queue_hint": "A sor és a letöltések az alkalmazás újraindításakor elvesznek",
       "no_items_in_queue": "Nincs Elem a Sorban",
       "no_downloaded_items": "Nincsenek Letöltött Elemek",
       "delete_all_movies_button": "Összes Film Törlése",
       "delete_all_tvseries_button": "Összes Sorozat Törlése",
       "delete_all_button": "Összes Törlése",
+      "delete_all_other_media_button": "",
       "active_download": "Aktív Letöltés",
       "no_active_downloads": "Nincs Aktív Letöltés",
       "active_downloads": "Aktív Letöltések",
@@ -255,19 +291,40 @@
         "failed_to_delete_all_movies": "Nem Sikerült Törölni Az Összes Filmet",
         "deleted_all_tvseries_successfully": "Az Összes Sorozat Sikeresen Törölve!",
         "failed_to_delete_all_tvseries": "Nem Sikerült Törölni Az Összes Sorozatot",
+        "deleted_media_successfully": "",
+        "failed_to_delete_media": "",
         "download_deleted": "Letöltés Törölve",
+        "download_cancelled": "",
         "could_not_delete_download": "Nem Sikerült Törölni a Letöltést",
         "download_paused": "Letöltés Szüneteltetve",
         "could_not_pause_download": "Nem Sikerült Szüneteltetni a Letöltést",
         "download_resumed": "Letöltés Folytatva",
         "could_not_resume_download": "Nem Sikerült Folytatni a Letöltést",
         "download_completed": "Letöltés Befejezve",
+        "download_failed": "",
         "download_failed_for_item": "A(z) {{item}} letöltése sikertelen - {{error}}",
         "download_completed_for_item": "A(z) {{item}} letöltése befejezve",
+        "download_started_for_item": "",
+        "failed_to_start_download": "",
+        "item_already_downloading": "",
+        "all_files_deleted": "",
+        "files_deleted_by_type": "",
         "all_files_folders_and_jobs_deleted_successfully": "Minden fájl, mappa és feladat sikeresen törölve",
-        "go_to_downloads": "Ugrás a Letöltésekhez"
+        "failed_to_clean_cache_directory": "",
+        "could_not_get_download_url_for_item": "",
+        "go_to_downloads": "Ugrás a Letöltésekhez",
+        "file_deleted": ""
       }
     }
+  },
+  "common": {
+    "select": "",
+    "no_trailer_available": "",
+    "video": "Videó",
+    "audio": "Hang",
+    "subtitle": "Felirat",
+    "play": "",
+    "none": ""
   },
   "search": {
     "search": "Keresés...",
@@ -285,7 +342,7 @@
     "request_series": "Sorozatok Kérése",
     "recently_added": "Legutóbb Hozzáadva",
     "recent_requests": "Legutóbbi Kérések",
-    "plex_watchlist": "Plex Watchlist",
+    "plex_watchlist": "",
     "trending": "Népszerű",
     "popular_movies": "Népszerű Filmek",
     "movie_genres": "Film Műfajok",
@@ -356,7 +413,7 @@
     "refresh_tracks": "Sávok Frissítése",
     "audio_tracks": "Hangsávok:",
     "playback_state": "Lejátszás Állapota:",
-    "index": "Index:",
+    "index": "",
     "continue_watching": "Folytatás",
     "go_back": "Vissza"
   },

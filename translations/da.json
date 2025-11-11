@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Serveren svarer for langsomt, prøv igen senere",
     "server_received_too_many_requests_try_again_later": "Serveren modtog for mange forespørgsler, prøv igen senere.",
     "there_is_a_server_error": "Der er en serverfejl",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Der opstod en uventet fejl. Har du indtastet serverens URL korrekt?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Der opstod en uventet fejl. Har du indtastet serverens URL korrekt?",
+    "too_old_server_text": "Ikke Understøttet Jellyfin Server Opdaget",
+    "too_old_server_description": "Opdater venligst Jellyfin til den seneste version"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Indtast URL'en til din Jellyfin server",
@@ -33,10 +35,15 @@
     "servers": "Servere"
   },
   "home": {
+    "checking_server_connection": "Kontrollerer serverforbindelse...",
     "no_internet": "Ingen internetforbindelse",
     "no_items": "Ingen elementer",
     "no_internet_message": "Ingen bekymringer, du kan stadig se\ndownloadet indhold.",
+    "checking_server_connection_message": "Kontrollerer forbindelse til server",
     "go_to_downloads": "Gå til downloads",
+    "retry": "Forsøg igen",
+    "server_unreachable": "Server Utilgængelig",
+    "server_unreachable_message": "Kunne ikke nå serveren.\nKontroller venligst din netværksforbindelse.",
     "oops": "Ups!",
     "error_message": "Noget gik galt.\nLog venligst ud og ind igen.",
     "continue_watching": "Fortsæt med at se",
@@ -85,6 +92,15 @@
         "rewind_length": "Spol tilbage længde",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Bevægelsesstyring",
+        "horizontal_swipe_skip": "Vandret Stryg for at springe over",
+        "horizontal_swipe_skip_description": "Stryg venstre/højre, når kontroller skjules for at springe over",
+        "left_side_brightness": "Kontrol Af Venstre Lysstyrke",
+        "left_side_brightness_description": "Stryg op/ned på venstre side for at justere lysstyrken",
+        "right_side_volume": "Højre Side Volumen Kontrol",
+        "right_side_volume_description": "Stryg op/ned på højre side for at justere lydstyrken"
+      },
       "audio": {
         "audio_title": "Lyd",
         "set_audio_track": "Sæt lydspor fra forrige element",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Undertekster",
+        "subtitle_hint": "Konfigurer undertekstpræference.",
         "subtitle_language": "Undertekstsprog",
         "subtitle_mode": "Underteksttilstand",
         "set_subtitle_track": "Sæt undertekstspor fra forrige element",
         "subtitle_size": "Undertekststørrelse",
-        "subtitle_hint": "Konfigurer undertekstpræference.",
         "none": "Ingen",
         "language": "Sprog",
         "loading": "Indlæser",
@@ -109,6 +125,37 @@
           "Always": "Altid",
           "None": "Ingen",
           "OnlyForced": "Kun tvungne undertekster"
+        },
+        "text_color": "Tekst Farve",
+        "background_color": "Baggrunds Farve",
+        "outline_color": "Omrids Farve",
+        "outline_thickness": "Omrids Tykkelse",
+        "background_opacity": "Baggrunds Gennemsigtighed",
+        "outline_opacity": "Omrids Gennemsigtighed",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Sort",
+          "Gray": "Grå",
+          "Silver": "Sølv",
+          "White": "Hvid",
+          "Maroon": "Maroon",
+          "Red": "Rød",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Gul",
+          "Olive": "Oliven",
+          "Green": "Grøn",
+          "Teal": "Grønblåt",
+          "Lime": "Limegrøn",
+          "Purple": "Lilla",
+          "Navy": "Flåden",
+          "Blue": "Blå",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "Ingen",
+          "Thin": "Tynd",
+          "Normal": "Normal",
+          "Thick": "Tyk"
         }
       },
       "other": {
@@ -134,22 +181,16 @@
           "VLC_4": "VLC 4 (Eksperimentel + PiP)"
         },
         "show_custom_menu_links": "Vis tilpassede menulinks",
+        "show_large_home_carousel": "",
         "hide_libraries": "Skjul biblioteker",
         "select_liraries_you_want_to_hide": "Vælg de biblioteker, du ønsker at skjule fra fanen Bibliotek og startside sektionerne.",
         "disable_haptic_feedback": "Deaktiver haptisk feedback",
-        "default_quality": "Standard kvalitet"
+        "default_quality": "Standard kvalitet",
+        "max_auto_play_episode_count": "Maks. Auto Afspil Episode Antal",
+        "disabled": "Deaktiveret"
       },
       "downloads": {
-        "downloads_title": "Downloads",
-        "optimized_versions_server": "Optimeret versionsserver",
-        "save_button": "Gem",
-        "optimized_server": "Optimeret server",
-        "optimized": "Optimeret",
-        "default": "Standard",
-        "optimized_version_hint": "Indtast URL'en til den optimerede server. URL'en skal inkludere http eller https og eventuelt porten.",
-        "read_more_about_optimized_server": "Læs mere om den optimerede server.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:port"
+        "downloads_title": "Downloads"
       },
       "plugins": {
         "plugins_title": "Plugins",
@@ -160,8 +201,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Adgangskode",
           "password_placeholder": "Indtast adgangskode for Jellyfin bruger {{username}}",
-          "save_button": "Gem",
-          "clear_button": "Ryd",
           "login_button": "Log ind",
           "total_media_requests": "Samlede medieanmodninger",
           "movie_quota_limit": "Begrænsning for filmkvote",
@@ -211,16 +250,12 @@
       "languages": {
         "title": "Sprog",
         "app_language": "App sprog",
-        "app_language_description": "Vælg sproget for appen.",
         "system": "System"
       },
       "toasts": {
         "error_deleting_files": "Fejl ved sletning af filer",
         "background_downloads_enabled": "Baggrundsdownloads aktiveret",
-        "background_downloads_disabled": "Baggrundsdownloads deaktiveret",
-        "connected": "Forbundet",
-        "could_not_connect": "Kunne ikke oprette forbindelse",
-        "invalid_url": "Ugyldig URL"
+        "background_downloads_disabled": "Baggrundsdownloads deaktiveret"
       }
     },
     "sessions": {
@@ -232,12 +267,14 @@
       "tvseries": "TV-serier",
       "movies": "Film",
       "queue": "Kø",
+      "other_media": "Andre medier",
       "queue_hint": "Kø og downloads vil gå tabt ved genstart af appen",
       "no_items_in_queue": "Ingen elementer i køen",
       "no_downloaded_items": "Ingen downloadede elementer",
       "delete_all_movies_button": "Slet alle film",
       "delete_all_tvseries_button": "Slet alle TV-serier",
       "delete_all_button": "Slet alle",
+      "delete_all_other_media_button": "Slet andre medier",
       "active_download": "Aktiv download",
       "no_active_downloads": "Ingen aktive downloads",
       "active_downloads": "Aktive downloads",
@@ -248,35 +285,48 @@
       "something_went_wrong": "Noget gik galt",
       "could_not_get_stream_url_from_jellyfin": "Kunne ikke hente stream URL'en fra Jellyfin",
       "eta": "ETA {{eta}}",
-      "methods": "Metoder",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Du har ikke tilladelse til at downloade filer.",
         "deleted_all_movies_successfully": "Alle film er slettet med succes!",
         "failed_to_delete_all_movies": "Kunne ikke slette alle film",
         "deleted_all_tvseries_successfully": "Alle TV-serier er slettet med succes!",
         "failed_to_delete_all_tvseries": "Kunne ikke slette alle TV-serier",
+        "deleted_media_successfully": "Slettede andre medier med succes!",
+        "failed_to_delete_media": "Kunne ikke slette andre medier",
+        "download_deleted": "Download Slettet",
         "download_cancelled": "Download afbrudt",
-        "could_not_cancel_download": "Kunne ikke annullere download",
+        "could_not_delete_download": "Kunne Ikke Slette Download",
+        "download_paused": "Download Pauset",
+        "could_not_pause_download": "Kunne Ikke Pause Download",
+        "download_resumed": "Download Genoprettet",
+        "could_not_resume_download": "Kunne Ikke Genoptage Download",
         "download_completed": "Download fuldført",
-        "download_started_for": "Download startet for {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} er klar til download",
-        "download_stated_for_item": "Download startet for {{item}}",
+        "download_failed": "",
         "download_failed_for_item": "Download mislykkedes for {{item}} - {{error}}",
         "download_completed_for_item": "Download fuldført for {{item}}",
-        "queued_item_for_optimization": "Sat {{item}} i kø til optimering",
-        "failed_to_start_download_for_item": "Kunne ikke starte download for {{item}}: {{message}}",
-        "server_responded_with_status_code": "Serveren svarede med status {{statusCode}}",
-        "no_response_received_from_server": "Intet svar modtaget fra serveren",
-        "error_setting_up_the_request": "Fejl ved opsætning af anmodningen",
-        "failed_to_start_download_for_item_unexpected_error": "Kunne ikke starte download for {{item}}: Uventet fejl",
+        "download_started_for_item": "Download startet til {{item}}",
+        "failed_to_start_download": "Kunne ikke starte download",
+        "item_already_downloading": "",
+        "all_files_deleted": "",
+        "files_deleted_by_type": "",
         "all_files_folders_and_jobs_deleted_successfully": "Alle filer, mapper og jobs blev slettet med succes",
-        "an_error_occured_while_deleting_files_and_jobs": "Der opstod en fejl under sletning af filer og jobs",
-        "go_to_downloads": "Gå til downloads"
+        "failed_to_clean_cache_directory": "Kunne ikke rense cache-mappe",
+        "could_not_get_download_url_for_item": "Kunne ikke hente download URL til {{itemName}}",
+        "go_to_downloads": "Gå til downloads",
+        "file_deleted": ""
       }
     }
   },
+  "common": {
+    "select": "Vælg",
+    "no_trailer_available": "Intet påhængskøretøj tilgængeligt",
+    "video": "Video",
+    "audio": "Lyd",
+    "subtitle": "Undertekster",
+    "play": "Afspil",
+    "none": ""
+  },
   "search": {
-    "search_here": "Søg her...",
     "search": "Søg...",
     "x_items": "{{count}} elementer",
     "library": "Bibliotek",
@@ -313,7 +363,6 @@
     "tmdb_tv_streaming_services": "TMDB TV-streamingtjenester"
   },
   "library": {
-    "no_items_found": "Ingen elementer fundet",
     "no_results": "Ingen resultater",
     "no_libraries_found": "Ingen biblioteker fundet",
     "item_types": {
@@ -337,9 +386,7 @@
       "years": "År",
       "sort_by": "Sortér efter",
       "sort_order": "Sorteringsrækkefølge",
-      "asc": "Stigende",
-      "desc": "Faldende",
-      "tags": "Tags"
+      "tags": "Mærker"
     }
   },
   "favorites": {
@@ -362,15 +409,13 @@
     "client_error": "Klientfejl",
     "could_not_create_stream_for_chromecast": "Kunne ikke oprette en stream til Chromecast",
     "message_from_server": "Besked fra server: {{message}}",
-    "video_has_finished_playing": "Videoen er færdig med at spille!",
-    "no_video_source": "Ingen videokilde...",
     "next_episode": "Næste episode",
     "refresh_tracks": "Opdater spor",
-    "subtitle_tracks": "Undertekstspor:",
     "audio_tracks": "Lydspor:",
     "playback_state": "Afspilningstilstand:",
-    "no_data_available": "Ingen data tilgængelig",
-    "index": "Indeks:"
+    "index": "Indeks:",
+    "continue_watching": "Fortsæt med at se",
+    "go_back": "Gå Tilbage"
   },
   "item_card": {
     "next_up": "Næste",
@@ -400,18 +445,16 @@
       "download_episode": "Download episode",
       "download_movie": "Download film",
       "download_x_item": "Download {{item_count}} elementer",
-      "download_button": "Download",
-      "using_optimized_server": "Bruger optimeret server",
-      "using_default_method": "Bruger standardmetode"
+      "download_unwatched_only": "Kun Usete",
+      "download_button": "Hent"
     }
   },
   "live_tv": {
     "next": "Næste",
     "previous": "Forrige",
-    "live_tv": "Live TV",
     "coming_soon": "Kommer snart",
     "on_now": "Lige nu",
-    "shows": "Shows",
+    "shows": "Serier",
     "movies": "Film",
     "sports": "Sport",
     "for_kids": "For børn",
@@ -448,7 +491,7 @@
     "currently_streaming_on": "Streames aktuelt på",
     "advanced": "Avanceret",
     "request_as": "Anmod som",
-    "tags": "Tags",
+    "tags": "Mærker",
     "quality_profile": "Kvalitetsprofil",
     "root_folder": "Rodmappe",
     "season_all": "Sæson (alle)",

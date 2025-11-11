@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "De server doet er te lang over om te antwoorden, probeer later opnieuw",
     "server_received_too_many_requests_try_again_later": "De server heeft te veel aanvragen ontvangen, probeer later opnieuw",
     "there_is_a_server_error": "Er is een serverfout",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Er is een onverwachte fout opgetreden. Heb je de server URL correct ingegeven?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Er is een onverwachte fout opgetreden. Heb je de server URL correct ingegeven?",
+    "too_old_server_text": "Niet-ondersteunde Jellyfin Server Ontdekt",
+    "too_old_server_description": "Werk Jellyfin bij naar de laatste versie"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Geef de URL van je Jellyfin server in",
@@ -33,10 +35,15 @@
     "servers": "Servers"
   },
   "home": {
+    "checking_server_connection": "Serververbinding controleren...",
     "no_internet": "Geen Internet",
     "no_items": "Geen items",
     "no_internet_message": "Geen zorgen, je kan nog steeds\ngedownloade content bekijken",
+    "checking_server_connection_message": "Verbinding met server controleren",
     "go_to_downloads": "Ga naar downloads",
+    "retry": "Opnieuw",
+    "server_unreachable": "Server onbereikbaar",
+    "server_unreachable_message": "Kon de server niet bereiken.\nControleer uw netwerkverbinding.",
     "oops": "Oeps!",
     "error_message": "Er ging iets fout\nGelieve af en aan te melden.",
     "continue_watching": "Verder Kijken",
@@ -85,8 +92,17 @@
         "rewind_length": "Duur terugspoelen",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Gebaar Bediening",
+        "horizontal_swipe_skip": "Horizontale Swipe om over te slaan",
+        "horizontal_swipe_skip_description": "Veeg naar links/rechts wanneer de knoppen verborgen zijn om over te slaan",
+        "left_side_brightness": "Linker Zijkant Helderheidscontrole",
+        "left_side_brightness_description": "Veeg omhoog/omlaag aan linker kant om helderheid aan te passen",
+        "right_side_volume": "Rechterkant Volume Controle",
+        "right_side_volume_description": "Veeg aan rechterzijde omhoog/omlaag om volume aan te passen"
+      },
       "audio": {
-        "audio_title": "Audio",
+        "audio_title": "Geluid",
         "set_audio_track": "Gebruik Audio Track Van Vorig Item",
         "audio_language": "Audio taal",
         "audio_hint": "Kies een standaard audio taal.",
@@ -95,11 +111,11 @@
       },
       "subtitles": {
         "subtitle_title": "Ondertitels",
+        "subtitle_hint": "Stel ondertitel voorkeuren in.",
         "subtitle_language": "Ondertitel taal",
         "subtitle_mode": "Ondertitelmodus",
         "set_subtitle_track": "Gebruik Ondertitel Track Van Vorig Item",
         "subtitle_size": "Ondertitel Grootte",
-        "subtitle_hint": "Stel ondertitel voorkeuren in.",
         "none": "Geen",
         "language": "Taal",
         "loading": "Laden",
@@ -109,6 +125,37 @@
           "Always": "Altijd",
           "None": "Geen",
           "OnlyForced": "Alleen Geforceerd"
+        },
+        "text_color": "Tekst kleur",
+        "background_color": "Achtergrond Kleur",
+        "outline_color": "Kleur omlijning",
+        "outline_thickness": "Dikte omlijning",
+        "background_opacity": "Transparantie achtergrond",
+        "outline_opacity": "Doorzichtigheid omlijning",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Zwart",
+          "Gray": "Grijs",
+          "Silver": "Zilver",
+          "White": "wit",
+          "Maroon": "Kastanjebruin",
+          "Red": "Rood",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Geel",
+          "Olive": "Olijf",
+          "Green": "Groen",
+          "Teal": "Groenblauw",
+          "Lime": "Lichtgroen",
+          "Purple": "Paars",
+          "Navy": "Marine",
+          "Blue": "Blauw",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "Geen",
+          "Thin": "Dun",
+          "Normal": "normaal",
+          "Thick": "Dikke"
         }
       },
       "other": {
@@ -131,38 +178,29 @@
         "video_player": "Video player",
         "video_players": {
           "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
+          "VLC_4": "VLC 4 (Experimentele + PiP)"
         },
         "show_custom_menu_links": "Aangepaste menulinks tonen",
+        "show_large_home_carousel": "",
         "hide_libraries": "Verberg Bibliotheken",
         "select_liraries_you_want_to_hide": "Selecteer de bibliotheken die je wil verbergen van de Bibliotheektab en hoofdpagina onderdelen.",
         "disable_haptic_feedback": "Haptische feedback uitschakelen",
         "default_quality": "Standaard kwaliteit",
+        "max_auto_play_episode_count": "Max Automatisch Aflevering Aantal",
         "disabled": "Uitgeschakeld"
       },
       "downloads": {
-        "downloads_title": "Downloads",
-        "optimized_versions_server": "Geoptimaliseerde server versies",
-        "save_button": "Opslaan",
-        "optimized_server": "Geoptimaliseerde Server",
-        "optimized": "Geoptimaliseerd",
-        "default": "Standaard",
-        "optimized_version_hint": "Vul de URL van de optimalisatieserver in. De URL moet http of https bevatten en eventueel de poort.",
-        "read_more_about_optimized_server": "Lees meer over de optimalisatieserver.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domein.org:poort"
+        "downloads_title": "Downloads"
       },
       "plugins": {
-        "plugins_title": "Plugins",
+        "plugins_title": "Uitbreidingen",
         "jellyseerr": {
           "jellyseerr_warning": "Deze integratie is nog in een vroeg stadium. Verwacht dat zaken nog veranderen.",
-          "server_url": "Server URL",
+          "server_url": "Server-URL",
           "server_url_hint": "Voorbeeld: http(s)://je-host.url\n(indien nodig: voeg de poort toe)",
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Wachtwoord",
           "password_placeholder": "Voeg het wachtwoord in voor de Jellyfin gebruiker {{username}}",
-          "save_button": "Opslaan",
-          "clear_button": "Wissen",
           "login_button": "Aanmelden",
           "total_media_requests": "Totaal aantal mediaverzoeken",
           "movie_quota_limit": "Limiet filmquota",
@@ -173,9 +211,9 @@
           "unlimited": "Ongelimiteerd",
           "plus_n_more": "+{{n}} more",
           "order_by": {
-            "DEFAULT": "Default",
-            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
-            "POPULARITY": "Popularity"
+            "DEFAULT": "Standaard",
+            "VOTE_COUNT_AND_AVERAGE": "Aantal stemmen en gemiddeld",
+            "POPULARITY": "Populariteit"
           }
         },
         "marlin_search": {
@@ -202,39 +240,41 @@
         "reset_intro": "intro opnieuw instellen"
       },
       "logs": {
-        "logs_title": "Logs",
+        "logs_title": "Logboek",
         "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
-        "level": "Level",
+        "level": "Niveau",
         "no_logs_available": "Geen logs beschikbaar",
         "delete_all_logs": "Verwijder alle logs"
       },
       "languages": {
         "title": "Talen",
         "app_language": "App taal",
-        "app_language_description": "Selecteer een taal voor de app.",
         "system": "Systeem"
       },
       "toasts": {
         "error_deleting_files": "Fout bij het verwijderen van bestanden",
         "background_downloads_enabled": "Downloads op de achtergrond ingeschakeld",
-        "background_downloads_disabled": "Downloads op de achtergrond uitgeschakeld",
-        "connected": "Verbonden",
-        "could_not_connect": "Kon niet verbinden",
-        "invalid_url": "Ongeldige URL"
+        "background_downloads_disabled": "Downloads op de achtergrond uitgeschakeld"
       }
+    },
+    "sessions": {
+      "title": "Sessies",
+      "no_active_sessions": "Geen actieve sessies"
     },
     "downloads": {
       "downloads_title": "Downloads",
       "tvseries": "Series",
       "movies": "Films",
       "queue": "Wachtrij",
+      "other_media": "Andere media",
       "queue_hint": "Wachtrij en downloads verdwijnen bij een herstart van de app",
       "no_items_in_queue": "Geen items in wachtrij",
       "no_downloaded_items": "Geen gedownloade items",
       "delete_all_movies_button": "Verwijder alle films",
       "delete_all_tvseries_button": "Verwijder alle Series",
       "delete_all_button": "Verwijder alles",
+      "delete_all_other_media_button": "Andere media verwijderen",
       "active_download": "Actieve download",
       "no_active_downloads": "Geen actieve downloads",
       "active_downloads": "Actieve downloads",
@@ -245,35 +285,48 @@
       "something_went_wrong": "Er ging iets mis",
       "could_not_get_stream_url_from_jellyfin": "Kon de URL van de stream niet krijgen van Jellyfin",
       "eta": "ETA {{eta}}",
-      "methods": "Methoden",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Je mag geen bestanden downloaden.",
         "deleted_all_movies_successfully": "Alle films succesvol verwijderd!",
         "failed_to_delete_all_movies": "Alle films zijn niet verwijderd",
         "deleted_all_tvseries_successfully": "Alle series succesvol verwijderd!",
         "failed_to_delete_all_tvseries": "Alle series zijn niet verwijderd",
+        "deleted_media_successfully": "Andere media succesvol verwijderd!",
+        "failed_to_delete_media": "Verwijderen van andere media mislukt",
+        "download_deleted": "Download verwijderd",
         "download_cancelled": "Download geannuleerd",
-        "could_not_cancel_download": "Kon de download niet annuleren",
+        "could_not_delete_download": "Kon download niet verwijderen",
+        "download_paused": "Download gepauzeerd",
+        "could_not_pause_download": "Kan niet pauzeren download",
+        "download_resumed": "Download hervat",
+        "could_not_resume_download": "Kon de download niet hervatten",
         "download_completed": "Download afgerond",
-        "download_started_for": "Download gestart voor {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} is klaar op te downloaden",
-        "download_stated_for_item": "Download gestart voor {{item}}",
+        "download_failed": "",
         "download_failed_for_item": "Download gefaald voor {{item}} - {{error}}",
         "download_completed_for_item": "Download afgerond voor {{item}}",
-        "queued_item_for_optimization": "{{item}} in de wachtrij gezet voor optimalisatie",
-        "failed_to_start_download_for_item": "Kon de download voor {{item}} niet starten: {{message}}",
-        "server_responded_with_status_code": "Server heeft geantwoord met {{statusCode}}",
-        "no_response_received_from_server": "Geen antwoord gekregen van de server",
-        "error_setting_up_the_request": "Fout bij het opstellen van de aanvraag",
-        "failed_to_start_download_for_item_unexpected_error": "Kon de download voor {{item}} niet starten: Onverwachte fout",
+        "download_started_for_item": "Download gestart voor {{item}}",
+        "failed_to_start_download": "Kan download niet starten",
+        "item_already_downloading": "",
+        "all_files_deleted": "",
+        "files_deleted_by_type": "",
         "all_files_folders_and_jobs_deleted_successfully": "Alle bestanden, mappen en taken succesvol verwijderd",
-        "an_error_occured_while_deleting_files_and_jobs": "Er is een fout opgetreden tijdens het verwijderen van bestanden en taken",
-        "go_to_downloads": "Ga naar downloads"
+        "failed_to_clean_cache_directory": "Opschonen cachemap mislukt",
+        "could_not_get_download_url_for_item": "Kan download-URL voor {{itemName}} niet ophalen",
+        "go_to_downloads": "Ga naar downloads",
+        "file_deleted": ""
       }
     }
   },
+  "common": {
+    "select": "Selecteren",
+    "no_trailer_available": "Geen trailer beschikbaar",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitle": "Ondertitel",
+    "play": "Afspelen",
+    "none": ""
+  },
   "search": {
-    "search_here": "Zoek hier...",
     "search": "Zoek...",
     "x_items": "{{count}} items",
     "library": "Bibliotheek",
@@ -290,11 +343,11 @@
     "recently_added": "Recent Toegevoegd",
     "recent_requests": "Recent Aangevraagd",
     "plex_watchlist": "Plex Kijklijst",
-    "trending": "Trending",
+    "trending": "Populair",
     "popular_movies": "Populaire films",
     "movie_genres": "Film Genres",
     "upcoming_movies": "Aankomende films",
-    "studios": "Studios",
+    "studios": "Studio's",
     "popular_tv": "Populaire TV",
     "tv_genres": "TV Genres",
     "upcoming_tv": "Aankomende TV",
@@ -310,7 +363,6 @@
     "tmdb_tv_streaming_services": "TMDB TV Streaming Diensten"
   },
   "library": {
-    "no_items_found": "Geen items gevonden",
     "no_results": "Geen resultaten",
     "no_libraries_found": "Geen bibliotheken gevonden",
     "item_types": {
@@ -325,7 +377,7 @@
       "list": "Lijst",
       "image_style": "Stijl van afbeelding",
       "poster": "Poster",
-      "cover": "Cover",
+      "cover": "Omslag",
       "show_titles": "Toon titels",
       "show_stats": "Toon statistieken"
     },
@@ -334,8 +386,6 @@
       "years": "Jaren",
       "sort_by": "Sorteren op",
       "sort_order": "Sorteer volgorde",
-      "asc": "Ascending",
-      "desc": "Descending",
       "tags": "Labels"
     }
   },
@@ -359,14 +409,10 @@
     "client_error": "Fout van de client",
     "could_not_create_stream_for_chromecast": "Kon geen stream maken voor Chromecast",
     "message_from_server": "Bericht van de server",
-    "video_has_finished_playing": "Video is gedaan met spelen!",
-    "no_video_source": "Geen videobron...",
     "next_episode": "Volgende Aflevering",
     "refresh_tracks": "Tracks verversen",
-    "subtitle_tracks": "Ondertitel Tracks:",
     "audio_tracks": "Audio Tracks:",
     "playback_state": "Afspeelstatus:",
-    "no_data_available": "Geen data beschikbaar",
     "index": "Index:",
     "continue_watching": "Verder kijken",
     "go_back": "Terug"
@@ -374,7 +420,7 @@
   "item_card": {
     "next_up": "Volgende",
     "no_items_to_display": "Geen items om te tonen",
-    "cast_and_crew": "Cast & Crew",
+    "cast_and_crew": "Cast & bemanning",
     "series": "Series",
     "seasons": "Seizoenen",
     "season": "Seizoen",
@@ -399,18 +445,16 @@
       "download_episode": "Download Aflevering",
       "download_movie": "Download Film",
       "download_x_item": "Download {{item_count}} items",
-      "download_button": "Download",
-      "using_optimized_server": "Geoptimaliseerde server gebruiken",
-      "using_default_method": "Standaard methode gebruiken"
+      "download_unwatched_only": "Alleen niet bekeken",
+      "download_button": "Downloaden"
     }
   },
   "live_tv": {
     "next": "Volgende ",
     "previous": "Vorige",
-    "live_tv": "Live TV",
     "coming_soon": "Binnenkort beschikbaar",
     "on_now": "Nu op",
-    "shows": "Shows",
+    "shows": "Series",
     "movies": "Films",
     "sports": "Sport",
     "for_kids": "Voor kinderen",
