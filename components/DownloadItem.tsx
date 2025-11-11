@@ -14,14 +14,7 @@ import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  InteractionManager,
-  Platform,
-  Switch,
-  View,
-  type ViewProps,
-} from "react-native";
+import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -268,9 +261,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
       closeModal();
 
-      // Use InteractionManager to wait for modal dismiss animation to complete
-      // This is the proper React Native way to defer work until animations finish
-      InteractionManager.runAfterInteractions(() => {
+      // Wait for modal dismiss animation to complete
+      requestAnimationFrame(() => {
         initiateDownload(...itemsToDownload);
       });
     } else {
