@@ -129,10 +129,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification.png",
-          "color": "#9333EA",
-          "android": {
-            "projectId": "streamyfin-4fec1"
-          }
+          "color": "#9333EA"
         }
       ],
       "expo-web-browser",

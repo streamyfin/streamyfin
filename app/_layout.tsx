@@ -255,9 +255,19 @@ function Layout() {
 
     // only create push token for real devices (pointless for emulators)
     if (Device.isDevice) {
-      Notifications?.getExpoPushTokenAsync()
-        .then((token: ExpoPushToken) => token && setExpoPushToken(token))
-        .catch((reason: any) => console.log("Failed to get token", reason));
+      Notifications?.getExpoPushTokenAsync({
+        projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
+      })
+        .then((token: ExpoPushToken) => {
+          if (token) {
+            console.log("Expo push token obtained:", token.data);
+            setExpoPushToken(token);
+          }
+        })
+        .catch((reason: any) => {
+          console.error("Failed to get push token:", reason);
+          writeErrorLog("Failed to get Expo push token", reason);
+        });
     }
   }, [user]);
 
