@@ -119,7 +119,6 @@ export default function settings() {
         </View>
 
         {!Platform.isTV && <StorageSettings />}
-        <View className='h-24' />
       </View>
     </ScrollView>
   );
