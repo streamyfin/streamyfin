@@ -1,5 +1,4 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -28,7 +27,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
-import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
+import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
@@ -39,12 +38,13 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 
-type ScrollingCollectionListSection = {
-  type: "ScrollingCollectionList";
+type InfiniteScrollingCollectionListSection = {
+  type: "InfiniteScrollingCollectionList";
   title?: string;
   queryKey: (string | undefined | null)[];
-  queryFn: QueryFunction<BaseItemDto[]>;
+  queryFn: QueryFunction<BaseItemDto[], any, number>;
   orientation?: "horizontal" | "vertical";
+  pageSize?: number;
 };
 
 type MediaListSectionType = {
@@ -53,7 +53,7 @@ type MediaListSectionType = {
   queryFn: QueryFunction<BaseItemDto>;
 };
 
-type Section = ScrollingCollectionListSection | MediaListSectionType;
+type Section = InfiniteScrollingCollectionListSection | MediaListSectionType;
 
 export const Home = () => {
   const router = useRouter();
@@ -74,6 +74,11 @@ export const Home = () => {
     retryCheck,
   } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    console.log("scrollY", scrollY);
+  }, [scrollY]);
 
   useEffect(() => {
     if (isConnected && !prevIsConnected.current) {
@@ -182,26 +187,31 @@ export const Home = () => {
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
       parentId: string | undefined,
-    ): ScrollingCollectionListSection => ({
+      pageSize: number = 10,
+    ): InfiniteScrollingCollectionListSection => ({
       title,
       queryKey,
-      queryFn: async () => {
+      queryFn: async ({ pageParam = 0 }) => {
         if (!api) return [];
-        return (
+        // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
+        const allData =
           (
             await getUserLibraryApi(api).getLatestMedia({
               userId: user?.Id,
-              limit: 20,
+              limit: 100, // Fetch a larger set for pagination
               fields: ["PrimaryImageAspectRatio", "Path", "Genres"],
               imageTypeLimit: 1,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes,
               parentId,
             })
-          ).data || []
-        );
+          ).data || [];
+
+        // Simulate pagination by slicing
+        return allData.slice(pageParam, pageParam + pageSize);
       },
-      type: "ScrollingCollectionList",
+      type: "InfiniteScrollingCollectionList",
+      pageSize,
     }),
     [api, user?.Id],
   );
@@ -226,6 +236,7 @@ export const Home = () => {
         queryKey,
         includeItemTypes,
         c.Id,
+        10,
       );
     });
 
@@ -233,69 +244,56 @@ export const Home = () => {
       {
         title: t("home.continue_watching"),
         queryKey: ["home", "resumeItems"],
-        queryFn: async () =>
+        queryFn: async ({ pageParam = 0 }) =>
           (
             await getItemsApi(api).getResumeItems({
               userId: user.Id,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes: ["Movie", "Series", "Episode"],
               fields: ["Genres"],
+              startIndex: pageParam,
+              limit: 10,
             })
           ).data.Items || [],
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: "horizontal",
+        pageSize: 10,
       },
       {
         title: t("home.next_up"),
         queryKey: ["home", "nextUp-all"],
-        queryFn: async () =>
+        queryFn: async ({ pageParam = 0 }) =>
           (
             await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
               fields: ["MediaSourceCount", "Genres"],
-              limit: 20,
+              startIndex: pageParam,
+              limit: 10,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: false,
             })
           ).data.Items || [],
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: "horizontal",
+        pageSize: 10,
       },
       ...latestMediaViews,
       {
         title: t("home.suggested_movies"),
         queryKey: ["home", "suggestedMovies", user?.Id],
-        queryFn: async () =>
+        queryFn: async ({ pageParam = 0 }) =>
           (
             await getSuggestionsApi(api).getSuggestions({
               userId: user?.Id,
+              startIndex: pageParam,
               limit: 10,
               mediaType: ["Video"],
               type: ["Movie"],
             })
           ).data.Items || [],
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: "vertical",
-      },
-      {
-        title: t("home.suggested_episodes"),
-        queryKey: ["home", "suggestedEpisodes", user?.Id],
-        queryFn: async () => {
-          try {
-            const suggestions = await getSuggestions(api, user.Id);
-            const nextUpPromises = suggestions.map((series) =>
-              getNextUp(api, user.Id, series.Id),
-            );
-            const nextUpResults = await Promise.all(nextUpPromises);
-
-            return nextUpResults.filter((item) => item !== null) || [];
-          } catch (error) {
-            console.error("Error fetching data:", error);
-            return [];
-          }
-        },
-        type: "ScrollingCollectionList",
-        orientation: "horizontal",
+        pageSize: 10,
       },
     ];
     return ss;
@@ -306,14 +304,16 @@ export const Home = () => {
     const ss: Section[] = [];
     settings.home.sections.forEach((section, index) => {
       const id = section.title || `section-${index}`;
+      const pageSize = 10;
       ss.push({
         title: t(`${id}`),
         queryKey: ["home", "custom", String(index), section.title ?? null],
-        queryFn: async () => {
+        queryFn: async ({ pageParam = 0 }) => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
               userId: user?.Id,
-              limit: section.items?.limit || 25,
+              startIndex: pageParam,
+              limit: section.items?.limit || pageSize,
               recursive: true,
               includeItemTypes: section.items?.includeItemTypes,
               sortBy: section.items?.sortBy,
@@ -327,7 +327,8 @@ export const Home = () => {
             const response = await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
               fields: ["MediaSourceCount", "Genres"],
-              limit: section.nextUp?.limit || 25,
+              startIndex: pageParam,
+              limit: section.nextUp?.limit || pageSize,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: section.nextUp?.enableResumable,
               enableRewatching: section.nextUp?.enableRewatching,
@@ -335,20 +336,31 @@ export const Home = () => {
             return response.data.Items || [];
           }
           if (section.latest) {
-            const response = await getUserLibraryApi(api).getLatestMedia({
-              userId: user?.Id,
-              includeItemTypes: section.latest?.includeItemTypes,
-              limit: section.latest?.limit || 25,
-              isPlayed: section.latest?.isPlayed,
-              groupItems: section.latest?.groupItems,
-            });
-            return response.data || [];
+            // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
+            const allData =
+              (
+                await getUserLibraryApi(api).getLatestMedia({
+                  userId: user?.Id,
+                  includeItemTypes: section.latest?.includeItemTypes,
+                  limit: section.latest?.limit || 100, // Fetch larger set
+                  isPlayed: section.latest?.isPlayed,
+                  groupItems: section.latest?.groupItems,
+                })
+              ).data || [];
+
+            // Simulate pagination by slicing
+            return allData.slice(pageParam, pageParam + pageSize);
           }
           if (section.custom) {
             const response = await api.get<BaseItemDtoQueryResult>(
               section.custom.endpoint,
               {
-                params: { ...(section.custom.query || {}), userId: user?.Id },
+                params: {
+                  ...(section.custom.query || {}),
+                  userId: user?.Id,
+                  startIndex: pageParam,
+                  limit: pageSize,
+                },
                 headers: section.custom.headers || {},
               },
             );
@@ -356,12 +368,13 @@ export const Home = () => {
           }
           return [];
         },
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
+        pageSize,
       });
     });
     return ss;
-  }, [api, user?.Id, settings?.home?.sections]);
+  }, [api, user?.Id, settings?.home?.sections, t]);
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
@@ -442,6 +455,10 @@ export const Home = () => {
       ref={scrollRef}
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='automatic'
+      onScroll={(event) => {
+        setScrollY(event.nativeEvent.contentOffset.y - 500);
+      }}
+      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={loading}
@@ -461,15 +478,16 @@ export const Home = () => {
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
         {sections.map((section, index) => {
-          if (section.type === "ScrollingCollectionList") {
+          if (section.type === "InfiniteScrollingCollectionList") {
             return (
-              <ScrollingCollectionList
+              <InfiniteScrollingCollectionList
                 key={index}
                 title={section.title}
                 queryKey={section.queryKey}
                 queryFn={section.queryFn}
                 orientation={section.orientation}
                 hideIfEmpty
+                pageSize={section.pageSize}
               />
             );
           }
@@ -479,6 +497,8 @@ export const Home = () => {
                 key={index}
                 queryKey={section.queryKey}
                 queryFn={section.queryFn}
+                scrollY={scrollY}
+                enableLazyLoading={true}
               />
             );
           }
@@ -488,28 +508,3 @@ export const Home = () => {
     </ScrollView>
   );
 };
-
-async function getSuggestions(api: Api, userId: string | undefined) {
-  if (!userId) return [];
-  const response = await getSuggestionsApi(api).getSuggestions({
-    userId,
-    limit: 10,
-    mediaType: ["Unknown"],
-    type: ["Series"],
-  });
-  return response.data.Items ?? [];
-}
-
-async function getNextUp(
-  api: Api,
-  userId: string | undefined,
-  seriesId: string | undefined,
-) {
-  if (!userId || !seriesId) return null;
-  const response = await getTvShowsApi(api).getNextUp({
-    userId,
-    seriesId,
-    limit: 1,
-  });
-  return response.data.Items?.[0] ?? null;
-}

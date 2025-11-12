@@ -11,6 +11,7 @@ import {
 import { useAtom } from "jotai";
 import { useCallback } from "react";
 import { View, type ViewProps } from "react-native";
+import { useInView } from "@/hooks/useInView";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { InfiniteHorizontalScroll } from "../common/InfiniteHorizontalScroll";
 import { Text } from "../common/Text";
@@ -21,20 +22,29 @@ import MoviePoster from "../posters/MoviePoster";
 interface Props extends ViewProps {
   queryKey: QueryKey;
   queryFn: QueryFunction<BaseItemDto>;
+  scrollY?: number; // For lazy loading
+  enableLazyLoading?: boolean; // Enable/disable lazy loading
 }
 
 export const MediaListSection: React.FC<Props> = ({
   queryFn,
   queryKey,
+  scrollY = 0,
+  enableLazyLoading = false,
   ...props
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
+  const { ref, isInView, onLayout } = useInView(scrollY, {
+    enabled: enableLazyLoading,
+  });
+
   const { data: collection } = useQuery({
     queryKey,
     queryFn,
-    staleTime: 0,
+    staleTime: 60 * 1000, // 1 minute
+    enabled: enableLazyLoading ? isInView : true,
   });
 
   const fetchItems = useCallback(
@@ -60,7 +70,7 @@ export const MediaListSection: React.FC<Props> = ({
   if (!collection) return null;
 
   return (
-    <View {...props}>
+    <View ref={ref} onLayout={onLayout} {...props}>
       <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
         {collection.Name}
       </Text>
