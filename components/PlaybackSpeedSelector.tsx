@@ -49,8 +49,7 @@ export const PlaybackSpeedSelector: React.FC<Props> = ({
     if (!itemId) return PlaybackSpeedScope.All;
 
     // Check for media-specific speed preference
-    const perMediaSettings = settings?.playbackSpeedPerMedia;
-    if (perMediaSettings && perMediaSettings[itemId] !== undefined) {
+    if (settings?.playbackSpeedPerMedia?.[itemId] !== undefined) {
       return PlaybackSpeedScope.Media;
     }
 
