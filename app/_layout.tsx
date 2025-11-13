@@ -15,6 +15,7 @@ import {
   getOrSetDeviceId,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
+import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -338,63 +339,65 @@ function Layout() {
   return (
     <QueryClientProvider client={queryClient}>
       <JellyfinProvider>
-        <PlaySettingsProvider>
-          <LogProvider>
-            <WebSocketProvider>
-              <DownloadProvider>
-                <GlobalModalProvider>
-                  <BottomSheetModalProvider>
-                    <ThemeProvider value={DarkTheme}>
-                      <SystemBars style='light' hidden={false} />
-                      <Stack initialRouteName='(auth)/(tabs)'>
-                        <Stack.Screen
-                          name='(auth)/(tabs)'
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
+        <NetworkStatusProvider>
+          <PlaySettingsProvider>
+            <LogProvider>
+              <WebSocketProvider>
+                <DownloadProvider>
+                  <GlobalModalProvider>
+                    <BottomSheetModalProvider>
+                      <ThemeProvider value={DarkTheme}>
+                        <SystemBars style='light' hidden={false} />
+                        <Stack initialRouteName='(auth)/(tabs)'>
+                          <Stack.Screen
+                            name='(auth)/(tabs)'
+                            options={{
+                              headerShown: false,
+                              title: "",
+                              header: () => null,
+                            }}
+                          />
+                          <Stack.Screen
+                            name='(auth)/player'
+                            options={{
+                              headerShown: false,
+                              title: "",
+                              header: () => null,
+                            }}
+                          />
+                          <Stack.Screen
+                            name='login'
+                            options={{
+                              headerShown: true,
+                              title: "",
+                              headerTransparent: Platform.OS === "ios",
+                            }}
+                          />
+                          <Stack.Screen name='+not-found' />
+                        </Stack>
+                        <Toaster
+                          duration={4000}
+                          toastOptions={{
+                            style: {
+                              backgroundColor: "#262626",
+                              borderColor: "#363639",
+                              borderWidth: 1,
+                            },
+                            titleStyle: {
+                              color: "white",
+                            },
                           }}
+                          closeButton
                         />
-                        <Stack.Screen
-                          name='(auth)/player'
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
-                          }}
-                        />
-                        <Stack.Screen
-                          name='login'
-                          options={{
-                            headerShown: true,
-                            title: "",
-                            headerTransparent: Platform.OS === "ios",
-                          }}
-                        />
-                        <Stack.Screen name='+not-found' />
-                      </Stack>
-                      <Toaster
-                        duration={4000}
-                        toastOptions={{
-                          style: {
-                            backgroundColor: "#262626",
-                            borderColor: "#363639",
-                            borderWidth: 1,
-                          },
-                          titleStyle: {
-                            color: "white",
-                          },
-                        }}
-                        closeButton
-                      />
-                      <GlobalModal />
-                    </ThemeProvider>
-                  </BottomSheetModalProvider>
-                </GlobalModalProvider>
-              </DownloadProvider>
-            </WebSocketProvider>
-          </LogProvider>
-        </PlaySettingsProvider>
+                        <GlobalModal />
+                      </ThemeProvider>
+                    </BottomSheetModalProvider>
+                  </GlobalModalProvider>
+                </DownloadProvider>
+              </WebSocketProvider>
+            </LogProvider>
+          </PlaySettingsProvider>
+        </NetworkStatusProvider>
       </JellyfinProvider>
     </QueryClientProvider>
   );

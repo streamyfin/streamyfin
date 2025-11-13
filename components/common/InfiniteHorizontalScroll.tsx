@@ -59,6 +59,7 @@ export function InfiniteHorizontalScroll({
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey,
     queryFn,
+    staleTime: 60 * 1000, // 1 minute
     getNextPageParam: (lastPage, pages) => {
       if (
         !lastPage?.Items ||
