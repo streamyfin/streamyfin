@@ -10,8 +10,8 @@ import { forwardRef, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { Button } from "@/components/Button";
-import Dropdown from "@/components/common/Dropdown";
 import { Text } from "@/components/common/Text";
+import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import type {
   QualityProfile,
@@ -48,7 +48,21 @@ const RequestModal = forwardRef<
       userId: jellyseerrUser?.id,
     });
 
+    const [qualityProfileOpen, setQualityProfileOpen] = useState(false);
+    const [rootFolderOpen, setRootFolderOpen] = useState(false);
+    const [tagsOpen, setTagsOpen] = useState(false);
+    const [usersOpen, setUsersOpen] = useState(false);
+
     const { t } = useTranslation();
+
+    // Reset all dropdown states when modal closes
+    const handleDismiss = useCallback(() => {
+      setQualityProfileOpen(false);
+      setRootFolderOpen(false);
+      setTagsOpen(false);
+      setUsersOpen(false);
+      onDismiss?.();
+    }, [onDismiss]);
 
     const { data: serviceSettings } = useQuery({
       queryKey: ["jellyseerr", "request", type, "service"],
@@ -138,6 +152,109 @@ const RequestModal = forwardRef<
       });
     }, [requestBody?.seasons]);
 
+    const pathTitleExtractor = (item: RootFolder) =>
+      `${item.path} (${item.freeSpace.bytesToReadable()})`;
+
+    const qualityProfileOptions = useMemo(
+      () => [
+        {
+          options:
+            defaultServiceDetails?.profiles.map((profile) => ({
+              type: "radio" as const,
+              label: profile.name,
+              value: profile.id.toString(),
+              selected:
+                (requestOverrides.profileId || defaultProfile?.id) ===
+                profile.id,
+              onPress: () =>
+                setRequestOverrides((prev) => ({
+                  ...prev,
+                  profileId: profile.id,
+                })),
+            })) || [],
+        },
+      ],
+      [
+        defaultServiceDetails?.profiles,
+        defaultProfile,
+        requestOverrides.profileId,
+      ],
+    );
+
+    const rootFolderOptions = useMemo(
+      () => [
+        {
+          options:
+            defaultServiceDetails?.rootFolders.map((folder) => ({
+              type: "radio" as const,
+              label: pathTitleExtractor(folder),
+              value: folder.id.toString(),
+              selected:
+                (requestOverrides.rootFolder || defaultFolder?.path) ===
+                folder.path,
+              onPress: () =>
+                setRequestOverrides((prev) => ({
+                  ...prev,
+                  rootFolder: folder.path,
+                })),
+            })) || [],
+        },
+      ],
+      [
+        defaultServiceDetails?.rootFolders,
+        defaultFolder,
+        requestOverrides.rootFolder,
+      ],
+    );
+
+    const tagsOptions = useMemo(
+      () => [
+        {
+          options:
+            defaultServiceDetails?.tags.map((tag) => ({
+              type: "toggle" as const,
+              label: tag.label,
+              value:
+                requestOverrides.tags?.includes(tag.id) ||
+                defaultTags.some((dt) => dt.id === tag.id),
+              onToggle: () =>
+                setRequestOverrides((prev) => {
+                  const currentTags = prev.tags || defaultTags.map((t) => t.id);
+                  const hasTag = currentTags.includes(tag.id);
+                  return {
+                    ...prev,
+                    tags: hasTag
+                      ? currentTags.filter((id) => id !== tag.id)
+                      : [...currentTags, tag.id],
+                  };
+                }),
+            })) || [],
+        },
+      ],
+      [defaultServiceDetails?.tags, defaultTags, requestOverrides.tags],
+    );
+
+    const usersOptions = useMemo(
+      () => [
+        {
+          options:
+            users?.map((user) => ({
+              type: "radio" as const,
+              label: user.displayName,
+              value: user.id.toString(),
+              selected:
+                (requestOverrides.userId || jellyseerrUser?.id) === user.id,
+              onPress: () =>
+                setRequestOverrides((prev) => ({
+                  ...prev,
+                  userId: user.id,
+                })),
+            })) || [],
+        },
+      ],
+      [users, jellyseerrUser, requestOverrides.userId],
+    );
+
     const request = useCallback(() => {
       const body = {
         is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
@@ -163,15 +280,12 @@ const RequestModal = forwardRef<
       defaultTags,
     ]);
 
-    const pathTitleExtractor = (item: RootFolder) =>
-      `${item.path} (${item.freeSpace.bytesToReadable()})`;
-
     return (
       <BottomSheetModal
         ref={ref}
         enableDynamicSizing
         enableDismissOnClose
-        onDismiss={onDismiss}
+        onDismiss={handleDismiss}
         handleIndicatorStyle={{
           backgroundColor: "white",
         }}
@@ -185,6 +299,7 @@ const RequestModal = forwardRef<
             appearsOnIndex={0}
           />
         )}
+        stackBehavior='push'
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
@@ -199,70 +314,112 @@ const RequestModal = forwardRef<
             <View className='flex flex-col space-y-2'>
               {defaultService && defaultServiceDetails && users && (
                 <>
-                  <Dropdown
-                    data={defaultServiceDetails.profiles}
-                    titleExtractor={(item) => item.name}
-                    placeholderText={
-                      requestOverrides.profileName || defaultProfile.name
-                    }
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.quality_profile")}
-                    onSelected={(item) =>
-                      item &&
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        profileId: item?.id,
-                      }))
-                    }
-                    title={t("jellyseerr.quality_profile")}
-                  />
-                  <Dropdown
-                    data={defaultServiceDetails.rootFolders}
-                    titleExtractor={pathTitleExtractor}
-                    placeholderText={
-                      defaultFolder ? pathTitleExtractor(defaultFolder) : ""
-                    }
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.root_folder")}
-                    onSelected={(item) =>
-                      item &&
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        rootFolder: item.path,
-                      }))
-                    }
-                    title={t("jellyseerr.root_folder")}
-                  />
-                  <Dropdown
-                    multiple
-                    data={defaultServiceDetails.tags}
-                    titleExtractor={(item) => item.label}
-                    placeholderText={defaultTags.map((t) => t.label).join(",")}
-                    keyExtractor={(item) => item.id.toString()}
-                    label={t("jellyseerr.tags")}
-                    onSelected={(...selected) =>
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        tags: selected.map((i) => i.id),
-                      }))
-                    }
-                    title={t("jellyseerr.tags")}
-                  />
-                  <Dropdown
-                    data={users}
-                    titleExtractor={(item) => item.displayName}
-                    placeholderText={jellyseerrUser!.displayName}
-                    keyExtractor={(item) => item.id.toString() || ""}
-                    label={t("jellyseerr.request_as")}
-                    onSelected={(item) =>
-                      item &&
-                      setRequestOverrides((prev) => ({
-                        ...prev,
-                        userId: item?.id,
-                      }))
-                    }
-                    title={t("jellyseerr.request_as")}
-                  />
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.quality_profile")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={qualityProfileOptions}
+                      trigger={
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {defaultServiceDetails.profiles.find(
+                              (p) =>
+                                p.id ===
+                                (requestOverrides.profileId ||
+                                  defaultProfile?.id),
+                            )?.name || defaultProfile?.name}
+                          </Text>
+                        </View>
+                      }
+                      title={t("jellyseerr.quality_profile")}
+                      open={qualityProfileOpen}
+                      onOpenChange={setQualityProfileOpen}
+                    />
+                  </View>
+
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.root_folder")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={rootFolderOptions}
+                      trigger={
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {defaultServiceDetails.rootFolders.find(
+                              (f) =>
+                                f.path ===
+                                (requestOverrides.rootFolder ||
+                                  defaultFolder?.path),
+                            )
+                              ? pathTitleExtractor(
+                                  defaultServiceDetails.rootFolders.find(
+                                    (f) =>
+                                      f.path ===
+                                      (requestOverrides.rootFolder ||
+                                        defaultFolder?.path),
+                                  )!,
+                                )
+                              : pathTitleExtractor(defaultFolder!)}
+                          </Text>
+                        </View>
+                      }
+                      title={t("jellyseerr.root_folder")}
+                      open={rootFolderOpen}
+                      onOpenChange={setRootFolderOpen}
+                    />
+                  </View>
+
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.tags")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={tagsOptions}
+                      trigger={
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {requestOverrides.tags
+                              ? defaultServiceDetails.tags
+                                  .filter((t) =>
+                                    requestOverrides.tags!.includes(t.id),
+                                  )
+                                  .map((t) => t.label)
+                                  .join(", ") ||
+                                defaultTags.map((t) => t.label).join(", ")
+                              : defaultTags.map((t) => t.label).join(", ")}
+                          </Text>
+                        </View>
+                      }
+                      title={t("jellyseerr.tags")}
+                      open={tagsOpen}
+                      onOpenChange={setTagsOpen}
+                    />
+                  </View>
+
+                  <View className='flex flex-col'>
+                    <Text className='opacity-50 mb-1 text-xs'>
+                      {t("jellyseerr.request_as")}
+                    </Text>
+                    <PlatformDropdown
+                      groups={usersOptions}
+                      trigger={
+                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                          <Text numberOfLines={1}>
+                            {users.find(
+                              (u) =>
+                                u.id ===
+                                (requestOverrides.userId || jellyseerrUser?.id),
+                            )?.displayName || jellyseerrUser!.displayName}
+                          </Text>
+                        </View>
+                      }
+                      title={t("jellyseerr.request_as")}
+                      open={usersOpen}
+                      onOpenChange={setUsersOpen}
+                    />
+                  </View>
                 </>
               )}
             </View>

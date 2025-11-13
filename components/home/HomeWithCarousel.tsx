@@ -1,5 +1,4 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -20,7 +19,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Platform,
-  RefreshControl,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -31,7 +29,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
-import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
+import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
@@ -41,14 +39,15 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { AppleTVCarousel } from "../AppleTVCarousel";
+import { AppleTVCarousel } from "../apple-tv-carousel/AppleTVCarousel";
 
-type ScrollingCollectionListSection = {
-  type: "ScrollingCollectionList";
+type InfiniteScrollingCollectionListSection = {
+  type: "InfiniteScrollingCollectionList";
   title?: string;
   queryKey: (string | undefined | null)[];
-  queryFn: QueryFunction<BaseItemDto[]>;
+  queryFn: QueryFunction<BaseItemDto[], any, number>;
   orientation?: "horizontal" | "vertical";
+  pageSize?: number;
 };
 
 type MediaListSectionType = {
@@ -57,33 +56,21 @@ type MediaListSectionType = {
   queryFn: QueryFunction<BaseItemDto>;
 };
 
-type Section = ScrollingCollectionListSection | MediaListSectionType;
+type Section = InfiniteScrollingCollectionListSection | MediaListSectionType;
 
-export const HomeIndex = () => {
+export const HomeWithCarousel = () => {
   const router = useRouter();
-
   const { t } = useTranslation();
-
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-
   const insets = useSafeAreaInsets();
-
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const { settings, refreshStreamyfinPluginSettings } = useSettings();
-  const showLargeHomeCarousel = settings.showLargeHomeCarousel ?? true;
-  const headerOverlayOffset = Platform.isTV
-    ? 0
-    : showLargeHomeCarousel
-      ? 60
-      : 0;
-
+  const headerOverlayOffset = Platform.isTV ? 0 : 60;
   const navigation = useNavigation();
-
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(animatedScrollRef);
-
-  const { getDownloadedItems, cleanCacheDirectory } = useDownload();
+  const { downloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
   const {
     isConnected,
@@ -92,14 +79,19 @@ export const HomeIndex = () => {
     retryCheck,
   } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
+  const [scrollY, setScrollY] = useState(0);
+
   useEffect(() => {
-    // Only invalidate cache when transitioning from offline to online
     if (isConnected && !prevIsConnected.current) {
       invalidateCache();
     }
-    // Update the ref to the current state for the next render
     prevIsConnected.current = isConnected;
   }, [isConnected, invalidateCache]);
+
+  const hasDownloads = useMemo(() => {
+    if (Platform.isTV) return false;
+    return downloadedItems.length > 0;
+  }, [downloadedItems]);
 
   useEffect(() => {
     if (Platform.isTV) {
@@ -108,7 +100,6 @@ export const HomeIndex = () => {
       });
       return;
     }
-    const hasDownloads = getDownloadedItems().length > 0;
     navigation.setOptions({
       headerLeft: () => (
         <TouchableOpacity
@@ -116,6 +107,7 @@ export const HomeIndex = () => {
             router.push("/(auth)/downloads");
           }}
           className='ml-1.5'
+          style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
         >
           <Feather
             name='download'
@@ -125,7 +117,7 @@ export const HomeIndex = () => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, router]);
+  }, [navigation, router, hasDownloads]);
 
   useEffect(() => {
     cleanCacheDirectory().catch((_e) =>
@@ -183,7 +175,7 @@ export const HomeIndex = () => {
     );
   }, [userViews]);
 
-  const refetch = async () => {
+  const _refetch = async () => {
     setLoading(true);
     await refreshStreamyfinPluginSettings();
     await invalidateCache();
@@ -196,31 +188,35 @@ export const HomeIndex = () => {
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
       parentId: string | undefined,
-    ): ScrollingCollectionListSection => ({
+      pageSize: number = 10,
+    ): InfiniteScrollingCollectionListSection => ({
       title,
       queryKey,
-      queryFn: async () => {
+      queryFn: async ({ pageParam = 0 }) => {
         if (!api) return [];
-        return (
+        // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
+        const allData =
           (
             await getUserLibraryApi(api).getLatestMedia({
               userId: user?.Id,
-              limit: 20,
+              limit: 100, // Fetch a larger set for pagination
               fields: ["PrimaryImageAspectRatio", "Path", "Genres"],
               imageTypeLimit: 1,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes,
               parentId,
             })
-          ).data || []
-        );
+          ).data || [];
+
+        // Simulate pagination by slicing
+        return allData.slice(pageParam, pageParam + pageSize);
       },
-      type: "ScrollingCollectionList",
+      type: "InfiniteScrollingCollectionList",
+      pageSize,
     }),
     [api, user?.Id],
   );
 
-  // Always call useMemo() at the top-level, using computed dependencies for both "default"/custom sections
   const defaultSections = useMemo(() => {
     if (!api || !user?.Id) return [];
 
@@ -230,10 +226,10 @@ export const HomeIndex = () => {
           ? []
           : ["Movie"];
       const title = t("home.recently_added_in", { libraryName: c.Name });
-      const queryKey = [
+      const queryKey: string[] = [
         "home",
         `recentlyAddedIn${c.CollectionType}`,
-        user?.Id!,
+        user.Id!,
         c.Id!,
       ];
       return createCollectionConfig(
@@ -241,6 +237,7 @@ export const HomeIndex = () => {
         queryKey,
         includeItemTypes,
         c.Id,
+        10,
       );
     });
 
@@ -248,79 +245,56 @@ export const HomeIndex = () => {
       {
         title: t("home.continue_watching"),
         queryKey: ["home", "resumeItems"],
-        queryFn: async () =>
+        queryFn: async ({ pageParam = 0 }) =>
           (
             await getItemsApi(api).getResumeItems({
               userId: user.Id,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes: ["Movie", "Series", "Episode"],
               fields: ["Genres"],
+              startIndex: pageParam,
+              limit: 10,
             })
           ).data.Items || [],
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: "horizontal",
+        pageSize: 10,
       },
       {
         title: t("home.next_up"),
         queryKey: ["home", "nextUp-all"],
-        queryFn: async () =>
+        queryFn: async ({ pageParam = 0 }) =>
           (
             await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
               fields: ["MediaSourceCount", "Genres"],
-              limit: 20,
+              startIndex: pageParam,
+              limit: 10,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: false,
             })
           ).data.Items || [],
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: "horizontal",
+        pageSize: 10,
       },
       ...latestMediaViews,
-      // ...(mediaListCollections?.map(
-      //   (ml) =>
-      //     ({
-      //       title: ml.Name,
-      //       queryKey: ["home", "mediaList", ml.Id!],
-      //       queryFn: async () => ml,
-      //       type: "MediaListSection",
-      //       orientation: "vertical",
-      //     } as Section)
-      // ) || []),
       {
         title: t("home.suggested_movies"),
         queryKey: ["home", "suggestedMovies", user?.Id],
-        queryFn: async () =>
+        queryFn: async ({ pageParam = 0 }) =>
           (
             await getSuggestionsApi(api).getSuggestions({
               userId: user?.Id,
+              startIndex: pageParam,
               limit: 10,
               mediaType: ["Video"],
               type: ["Movie"],
             })
           ).data.Items || [],
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: "vertical",
-      },
-      {
-        title: t("home.suggested_episodes"),
-        queryKey: ["home", "suggestedEpisodes", user?.Id],
-        queryFn: async () => {
-          try {
-            const suggestions = await getSuggestions(api, user.Id);
-            const nextUpPromises = suggestions.map((series) =>
-              getNextUp(api, user.Id, series.Id),
-            );
-            const nextUpResults = await Promise.all(nextUpPromises);
-
-            return nextUpResults.filter((item) => item !== null) || [];
-          } catch (error) {
-            console.error("Error fetching data:", error);
-            return [];
-          }
-        },
-        type: "ScrollingCollectionList",
-        orientation: "horizontal",
+        pageSize: 10,
       },
     ];
     return ss;
@@ -331,14 +305,16 @@ export const HomeIndex = () => {
     const ss: Section[] = [];
     settings.home.sections.forEach((section, index) => {
       const id = section.title || `section-${index}`;
+      const pageSize = 10;
       ss.push({
         title: t(`${id}`),
         queryKey: ["home", "custom", String(index), section.title ?? null],
-        queryFn: async () => {
+        queryFn: async ({ pageParam = 0 }) => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
               userId: user?.Id,
-              limit: section.items?.limit || 25,
+              startIndex: pageParam,
+              limit: section.items?.limit || pageSize,
               recursive: true,
               includeItemTypes: section.items?.includeItemTypes,
               sortBy: section.items?.sortBy,
@@ -352,7 +328,8 @@ export const HomeIndex = () => {
             const response = await getTvShowsApi(api).getNextUp({
               userId: user?.Id,
               fields: ["MediaSourceCount", "Genres"],
-              limit: section.nextUp?.limit || 25,
+              startIndex: pageParam,
+              limit: section.nextUp?.limit || pageSize,
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               enableResumable: section.nextUp?.enableResumable,
               enableRewatching: section.nextUp?.enableRewatching,
@@ -360,20 +337,31 @@ export const HomeIndex = () => {
             return response.data.Items || [];
           }
           if (section.latest) {
-            const response = await getUserLibraryApi(api).getLatestMedia({
-              userId: user?.Id,
-              includeItemTypes: section.latest?.includeItemTypes,
-              limit: section.latest?.limit || 25,
-              isPlayed: section.latest?.isPlayed,
-              groupItems: section.latest?.groupItems,
-            });
-            return response.data || [];
+            // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
+            const allData =
+              (
+                await getUserLibraryApi(api).getLatestMedia({
+                  userId: user?.Id,
+                  includeItemTypes: section.latest?.includeItemTypes,
+                  limit: section.latest?.limit || 100, // Fetch larger set
+                  isPlayed: section.latest?.isPlayed,
+                  groupItems: section.latest?.groupItems,
+                })
+              ).data || [];
+
+            // Simulate pagination by slicing
+            return allData.slice(pageParam, pageParam + pageSize);
           }
           if (section.custom) {
             const response = await api.get<BaseItemDtoQueryResult>(
               section.custom.endpoint,
               {
-                params: { ...(section.custom.query || {}), userId: user?.Id },
+                params: {
+                  ...(section.custom.query || {}),
+                  userId: user?.Id,
+                  startIndex: pageParam,
+                  limit: pageSize,
+                },
                 headers: section.custom.headers || {},
               },
             );
@@ -381,12 +369,13 @@ export const HomeIndex = () => {
           }
           return [];
         },
-        type: "ScrollingCollectionList",
+        type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
+        pageSize,
       });
     });
     return ss;
-  }, [api, user?.Id, settings?.home?.sections]);
+  }, [api, user?.Id, settings?.home?.sections, t]);
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
@@ -395,15 +384,12 @@ export const HomeIndex = () => {
     let subtitle = "";
 
     if (!isConnected) {
-      // No network connection
       title = t("home.no_internet");
       subtitle = t("home.no_internet_message");
     } else if (serverConnected === null) {
-      // Network is up, but server is being checked
       title = t("home.checking_server_connection");
       subtitle = t("home.checking_server_connection_message");
     } else if (!serverConnected) {
-      // Network is up, but server is unreachable
       title = t("home.server_unreachable");
       subtitle = t("home.server_unreachable_message");
     }
@@ -472,44 +458,35 @@ export const HomeIndex = () => {
       nestedScrollEnabled
       contentInsetAdjustmentBehavior='never'
       scrollEventThrottle={16}
-      refreshControl={
-        <RefreshControl
-          refreshing={loading}
-          onRefresh={refetch}
-          tintColor='white' // For iOS
-          colors={["white"]} // For Android
-          progressViewOffset={showLargeHomeCarousel ? 200 : 0} // This offsets the refresh indicator to appear over the carousel
-        />
-      }
+      bounces={false}
+      overScrollMode='never'
       style={{ marginTop: -headerOverlayOffset }}
       contentContainerStyle={{ paddingTop: headerOverlayOffset }}
+      onScroll={(event) => {
+        setScrollY(event.nativeEvent.contentOffset.y);
+      }}
     >
-      {showLargeHomeCarousel && (
-        <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
-      )}
+      <AppleTVCarousel initialIndex={0} scrollOffset={scrollOffset} />
       <View
         style={{
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingBottom: 16,
-          paddingTop: Platform.isTV
-            ? 0
-            : showLargeHomeCarousel
-              ? 0
-              : insets.top + 60,
+          paddingTop: 0,
         }}
       >
         <View className='flex flex-col space-y-4'>
           {sections.map((section, index) => {
-            if (section.type === "ScrollingCollectionList") {
+            if (section.type === "InfiniteScrollingCollectionList") {
               return (
-                <ScrollingCollectionList
+                <InfiniteScrollingCollectionList
                   key={index}
                   title={section.title}
                   queryKey={section.queryKey}
                   queryFn={section.queryFn}
                   orientation={section.orientation}
                   hideIfEmpty
+                  pageSize={section.pageSize}
                 />
               );
             }
@@ -519,6 +496,8 @@ export const HomeIndex = () => {
                   key={index}
                   queryKey={section.queryKey}
                   queryFn={section.queryFn}
+                  scrollY={scrollY}
+                  enableLazyLoading={true}
                 />
               );
             }
@@ -530,30 +509,3 @@ export const HomeIndex = () => {
     </Animated.ScrollView>
   );
 };
-
-// Function to get suggestions
-async function getSuggestions(api: Api, userId: string | undefined) {
-  if (!userId) return [];
-  const response = await getSuggestionsApi(api).getSuggestions({
-    userId,
-    limit: 10,
-    mediaType: ["Unknown"],
-    type: ["Series"],
-  });
-  return response.data.Items ?? [];
-}
-
-// Function to get the next up TV show for a series
-async function getNextUp(
-  api: Api,
-  userId: string | undefined,
-  seriesId: string | undefined,
-) {
-  if (!userId || !seriesId) return null;
-  const response = await getTvShowsApi(api).getNextUp({
-    userId,
-    seriesId,
-    limit: 1,
-  });
-  return response.data.Items?.[0] ?? null;
-}

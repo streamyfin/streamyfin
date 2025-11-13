@@ -212,9 +212,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSource(source: Map<String, Any>) {
         log.debug("setting source $source")
         if (hasSource) {
-            log.debug("Source already set. Resuming")
-            mediaPlayer?.attachViews(videoLayout, null, false, false)
-            play()
+            log.debug("Source already set. Ignoring.")
             return
         }
         val mediaOptions = source["mediaOptions"] as? Map<String, Any> ?: emptyMap()

@@ -72,7 +72,7 @@ export const formatTimeString = (
 
 export const secondsToTicks = (seconds?: number | undefined) => {
   if (!seconds) return 0;
-  return seconds * 10000000;
+  return Math.floor(seconds * 10000000);
 };
 
 export const ticksToSeconds = (ticks?: number | undefined) => {
@@ -82,7 +82,7 @@ export const ticksToSeconds = (ticks?: number | undefined) => {
 
 export const msToTicks = (ms?: number | undefined) => {
   if (!ms) return 0;
-  return ms * 10000;
+  return Math.floor(ms * 10000);
 };
 
 export const ticksToMs = (ticks?: number | undefined) => {

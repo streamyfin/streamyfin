@@ -114,10 +114,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
         }}
       >
         <View
-          style={{
-            flexDirection: "column",
-            alignSelf: "flex-end",
-          }}
+          className='flex flex-col items-start shrink'
           pointerEvents={showControls ? "box-none" : "none"}
         >
           {item?.Type === "Episode" && (
@@ -133,7 +130,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
             <Text className='text-xs opacity-50'>{item?.Album}</Text>
           )}
         </View>
-        <View className='flex flex-row space-x-2'>
+        <View className='flex flex-row space-x-2 shrink-0'>
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}

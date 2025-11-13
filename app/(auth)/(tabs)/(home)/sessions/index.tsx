@@ -1,11 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import {
-  HardwareAccelerationType,
-  type SessionInfoDto,
-} from "@jellyfin/sdk/lib/generated-client";
+import { HardwareAccelerationType } from "@jellyfin/sdk/lib/generated-client";
 import {
   GeneralCommandType,
   PlaystateCommand,
+  SessionInfoDto,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { FlashList } from "@shopify/flash-list";
@@ -13,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -49,14 +47,13 @@ export default function page() {
     <FlashList
       contentInsetAdjustmentBehavior='automatic'
       contentContainerStyle={{
-        paddingTop: 17,
+        paddingTop: Platform.OS === "android" ? 17 : 0,
         paddingHorizontal: 17,
         paddingBottom: 150,
       }}
       data={sessions}
       renderItem={({ item }) => <SessionCard session={item} />}
       keyExtractor={(item) => item.Id || ""}
-      estimatedItemSize={200}
     />
   );
 }

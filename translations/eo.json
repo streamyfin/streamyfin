@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Alia",
-        "follow_device_orientation": "Aŭtomata rotacio",
         "video_orientation": "Video-orientiĝo",
         "orientation": "Orientiĝo",
         "orientations": {
@@ -142,9 +141,6 @@
       },
       "downloads": {
         "downloads_title": "Elŝutoj",
-        "download_method": "Elŝuta metodo",
-        "remux_max_download": "Remux maksimuma elŝuto",
-        "auto_download": "Aŭtomata elŝuto",
         "optimized_versions_server": "Optimumigitaj versioj servilo",
         "save_button": "Konservi",
         "optimized_server": "Optimumigita Servilo",

@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Anna",
-        "follow_device_orientation": "Automatisk rotasjon",
         "video_orientation": "Videoorientering",
         "orientation": "Rotasjon",
         "orientations": {
@@ -142,9 +141,6 @@
       },
       "downloads": {
         "downloads_title": "Nedlastingar",
-        "download_method": "Nedlastingsmetode",
-        "remux_max_download": "Remux max nedlasting",
-        "auto_download": "Automatisk nedlasting",
         "optimized_versions_server": "Optimaliserte versjonar servar",
         "save_button": "Lagre",
         "optimized_server": "Optimalisert Servar",

@@ -1,7 +1,23 @@
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import orientationToOrientationLock from "@/utils/OrientationLockConverter";
+import { OrientationLock } from "@/packages/expo-screen-orientation";
+import { Orientation } from "../packages/expo-screen-orientation.tv";
+
+const orientationToOrientationLock = (
+  orientation: Orientation,
+): OrientationLock => {
+  switch (orientation) {
+    case Orientation.LANDSCAPE_LEFT:
+      return OrientationLock.LANDSCAPE_LEFT;
+    case Orientation.LANDSCAPE_RIGHT:
+      return OrientationLock.LANDSCAPE_RIGHT;
+    case Orientation.PORTRAIT_UP:
+      return OrientationLock.PORTRAIT_UP;
+    default:
+      return OrientationLock.PORTRAIT_UP;
+  }
+};
 
 export const useOrientation = () => {
   const [orientation, setOrientation] = useState(
@@ -29,5 +45,20 @@ export const useOrientation = () => {
     };
   }, []);
 
-  return { orientation, setOrientation };
+  const lockOrientation = async (lock: OrientationLock) => {
+    if (Platform.isTV) return;
+
+    if (lock === ScreenOrientation.OrientationLock.DEFAULT) {
+      await ScreenOrientation.unlockAsync();
+    } else {
+      await ScreenOrientation.lockAsync(lock);
+    }
+  };
+
+  const unlockOrientation = async () => {
+    if (Platform.isTV) return;
+    await ScreenOrientation.unlockAsync();
+  };
+
+  return { orientation, setOrientation, lockOrientation, unlockOrientation };
 };

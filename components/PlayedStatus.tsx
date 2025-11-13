@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
-import { Platform, View, type ViewProps } from "react-native";
+import { View, type ViewProps } from "react-native";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 import { RoundButton } from "./RoundButton";
 
@@ -14,25 +14,10 @@ export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
   const allPlayed = items.every((item) => item.UserData?.Played);
   const toggle = useMarkAsPlayed(items);
 
-  if (Platform.OS === "ios") {
-    return (
-      <View {...props}>
-        <RoundButton
-          color={allPlayed ? "purple" : "white"}
-          icon={allPlayed ? "checkmark" : "checkmark"}
-          onPress={async () => {
-            await toggle(!allPlayed);
-          }}
-          size={props.size}
-        />
-      </View>
-    );
-  }
-
   return (
     <View {...props}>
       <RoundButton
-        fillColor={allPlayed ? "primary" : undefined}
+        color={allPlayed ? "purple" : "white"}
         icon={allPlayed ? "checkmark" : "checkmark"}
         onPress={async () => {
           await toggle(!allPlayed);

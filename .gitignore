@@ -66,3 +66,4 @@ streamyfin-4fec1-firebase-adminsdk.json
 # Version and Backup Files
 /version-backup-*
 modules/vlc-player/android/.gradle
+modules/background-downloader/android/build/*

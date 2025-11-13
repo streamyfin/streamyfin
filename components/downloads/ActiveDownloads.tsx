@@ -26,7 +26,7 @@ export default function ActiveDownloads({ ...props }: ActiveDownloadsProps) {
       <Text className='text-lg font-bold mb-2'>
         {t("home.downloads.active_downloads")}
       </Text>
-      <View className='space-y-2'>
+      <View className='gap-y-2'>
         {processes?.map((p: JobStatus) => (
           <DownloadCard key={p.item.Id} process={p} />
         ))}

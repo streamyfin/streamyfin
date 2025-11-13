@@ -6,9 +6,6 @@ module.exports = ({ config }) => {
       "react-native-google-cast",
       { useDefaultExpandedMediaControls: true },
     ]);
-
-    // Add the background downloader plugin only for non-TV builds
-    config.plugins.push("./plugins/withRNBackgroundDownloader.js");
   }
 
   // Only override googleServicesFile if env var is set

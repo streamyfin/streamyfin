@@ -129,7 +129,6 @@
       },
       "other": {
         "other_title": "Egyéb",
-        "follow_device_orientation": "Automatikus Forgatás",
         "video_orientation": "Videó Tájolás",
         "orientation": "Tájolás",
         "orientations": {
@@ -159,8 +158,7 @@
         "disabled": "Letiltva"
       },
       "downloads": {
-        "downloads_title": "Letöltések",
-        "remux_max_download": "Remux Maximális Letöltés"
+        "downloads_title": "Letöltések"
       },
       "plugins": {
         "plugins_title": "Bővítmények",

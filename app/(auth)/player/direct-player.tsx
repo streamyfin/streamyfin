@@ -29,6 +29,7 @@ import {
   VLCColor,
 } from "@/constants/SubtitleConstants";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -56,6 +57,7 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
+  const [isPipMode, setIsPipMode] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<
     "default" | "16:9" | "4:3" | "1:1" | "21:9"
   >("default");
@@ -75,7 +77,10 @@ export default function page() {
     : require("react-native-volume-manager");
 
   const downloadUtils = useDownload();
-  const downloadedFiles = downloadUtils.getDownloadedItems();
+  const downloadedFiles = useMemo(
+    () => downloadUtils.getDownloadedItems(),
+    [downloadUtils.getDownloadedItems],
+  );
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -105,6 +110,7 @@ export default function page() {
     playbackPosition?: string;
   }>();
   const { settings } = useSettings();
+  const { lockOrientation, unlockOrientation } = useOrientation();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager();
@@ -166,6 +172,16 @@ export default function page() {
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
+
+  useEffect(() => {
+    if (settings?.defaultVideoOrientation) {
+      lockOrientation(settings.defaultVideoOrientation);
+    }
+
+    return () => {
+      unlockOrientation();
+    };
+  }, [settings?.defaultVideoOrientation]);
 
   interface Stream {
     mediaSource: MediaSourceInfo;
@@ -282,12 +298,14 @@ export default function page() {
   };
 
   const reportPlaybackStopped = useCallback(async () => {
+    if (!item?.Id || !stream?.sessionId) return;
+
     const currentTimeInTicks = msToTicks(progress.get());
     await getPlaystateApi(api!).onPlaybackStopped({
-      itemId: item?.Id!,
+      itemId: item.Id,
       mediaSourceId: mediaSourceId,
       positionTicks: currentTimeInTicks,
-      playSessionId: stream?.sessionId!,
+      playSessionId: stream.sessionId,
     });
   }, [
     api,
@@ -318,9 +336,9 @@ export default function page() {
   }, [navigation, stop]);
 
   const currentPlayStateInfo = useCallback(() => {
-    if (!stream) return;
+    if (!stream || !item?.Id) return;
     return {
-      itemId: item?.Id!,
+      itemId: item.Id,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
       subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
       mediaSourceId: mediaSourceId,
@@ -731,9 +749,12 @@ export default function page() {
             );
             writeToLog("ERROR", "Video Error", e.nativeEvent);
           }}
+          onPipStarted={(e) => {
+            setIsPipMode(e.nativeEvent.pipStarted);
+          }}
         />
       </View>
-      {isMounted === true && item && (
+      {isMounted === true && item && !isPipMode && (
         <Controls
           mediaSource={stream?.mediaSource}
           item={item}
@@ -765,6 +786,7 @@ export default function page() {
           setAspectRatio={setAspectRatio}
           setScaleFactor={setScaleFactor}
           isVlc
+          api={api}
           downloadedFiles={downloadedFiles}
         />
       )}

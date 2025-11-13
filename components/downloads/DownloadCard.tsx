@@ -6,7 +6,6 @@ import { t } from "i18next";
 import { useMemo } from "react";
 import {
   ActivityIndicator,
-  Platform,
   TouchableOpacity,
   type TouchableOpacityProps,
   View,
@@ -14,13 +13,21 @@ import {
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { useDownload } from "@/providers/DownloadProvider";
+import { calculateSmoothedETA } from "@/providers/Downloads/hooks/useDownloadSpeedCalculator";
 import { JobStatus } from "@/providers/Downloads/types";
+import { estimateDownloadSize } from "@/utils/download";
 import { storage } from "@/utils/mmkv";
 import { formatTimeString } from "@/utils/time";
-import { Button } from "../Button";
 
 const bytesToMB = (bytes: number) => {
   return bytes / 1024 / 1024;
+};
+
+const formatBytes = (bytes: number): string => {
+  if (bytes >= 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
 };
 
 interface DownloadCardProps extends TouchableOpacityProps {
@@ -28,35 +35,14 @@ interface DownloadCardProps extends TouchableOpacityProps {
 }
 
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
-  const { startDownload, pauseDownload, resumeDownload, removeProcess } =
-    useDownload();
+  const { cancelDownload } = useDownload();
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const handlePause = async (id: string) => {
-    try {
-      await pauseDownload(id);
-      toast.success(t("home.downloads.toasts.download_paused"));
-    } catch (error) {
-      console.error("Error pausing download:", error);
-      toast.error(t("home.downloads.toasts.could_not_pause_download"));
-    }
-  };
-
-  const handleResume = async (id: string) => {
-    try {
-      await resumeDownload(id);
-      toast.success(t("home.downloads.toasts.download_resumed"));
-    } catch (error) {
-      console.error("Error resuming download:", error);
-      toast.error(t("home.downloads.toasts.could_not_resume_download"));
-    }
-  };
-
   const handleDelete = async (id: string) => {
     try {
-      await removeProcess(id);
-      toast.success(t("home.downloads.toasts.download_deleted"));
+      await cancelDownload(id);
+      // cancelDownload already shows a toast, so don't show another one
       queryClient.invalidateQueries({ queryKey: ["downloads"] });
     } catch (error) {
       console.error("Error deleting download:", error);
@@ -64,16 +50,48 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     }
   };
 
-  const eta = (p: JobStatus) => {
-    if (!p.speed || p.speed <= 0 || !p.estimatedTotalSizeBytes) return null;
+  const eta = useMemo(() => {
+    if (!process.estimatedTotalSizeBytes || !process.bytesDownloaded) {
+      return null;
+    }
 
-    const bytesRemaining = p.estimatedTotalSizeBytes - (p.bytesDownloaded || 0);
-    if (bytesRemaining <= 0) return null;
+    const secondsRemaining = calculateSmoothedETA(
+      process.id,
+      process.bytesDownloaded,
+      process.estimatedTotalSizeBytes,
+    );
 
-    const secondsRemaining = bytesRemaining / p.speed;
+    if (!secondsRemaining || secondsRemaining <= 0) {
+      return null;
+    }
 
     return formatTimeString(secondsRemaining, "s");
-  };
+  }, [process.id, process.bytesDownloaded, process.estimatedTotalSizeBytes]);
+
+  const estimatedSize = useMemo(() => {
+    if (process.estimatedTotalSizeBytes) return process.estimatedTotalSizeBytes;
+
+    // Calculate from bitrate + duration (only if bitrate value is defined)
+    if (process.maxBitrate.value) {
+      return estimateDownloadSize(
+        process.maxBitrate.value,
+        process.item.RunTimeTicks,
+      );
+    }
+
+    return undefined;
+  }, [
+    process.maxBitrate.value,
+    process.item.RunTimeTicks,
+    process.estimatedTotalSizeBytes,
+  ]);
+
+  const isTranscoding = process.isTranscoding || false;
+
+  const downloadedAmount = useMemo(() => {
+    if (!process.bytesDownloaded) return null;
+    return formatBytes(process.bytesDownloaded);
+  }, [process.bytesDownloaded]);
 
   const base64Image = useMemo(() => {
     return storage.getString(process.item.Id!);
@@ -98,9 +116,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     >
       {process.status === "downloading" && (
         <View
-          className={`
-        bg-purple-600 h-1 absolute bottom-0 left-0
-        `}
+          className={`bg-purple-600 h-1 absolute bottom-0 left-0 ${isTranscoding ? "animate-pulse" : ""}`}
           style={{
             width:
               sanitizedProgress > 0
@@ -111,26 +127,10 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
       )}
 
       {/* Action buttons in bottom right corner */}
-      <View className='absolute bottom-2 right-2 flex flex-row items-center space-x-2 z-10'>
-        {process.status === "downloading" && Platform.OS !== "ios" && (
-          <TouchableOpacity
-            onPress={() => handlePause(process.id)}
-            className='p-1'
-          >
-            <Ionicons name='pause' size={20} color='white' />
-          </TouchableOpacity>
-        )}
-        {process.status === "paused" && Platform.OS !== "ios" && (
-          <TouchableOpacity
-            onPress={() => handleResume(process.id)}
-            className='p-1'
-          >
-            <Ionicons name='play' size={20} color='white' />
-          </TouchableOpacity>
-        )}
+      <View className='absolute bottom-2 right-2 flex flex-row items-center z-10'>
         <TouchableOpacity
           onPress={() => handleDelete(process.id)}
-          className='p-1'
+          className='p-2 bg-neutral-800 rounded-full'
         >
           <Ionicons name='close' size={20} color='red' />
         </TouchableOpacity>
@@ -152,47 +152,53 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
               />
             </View>
           )}
-          <View className='shrink mb-1 flex-1'>
+          <View className='shrink mb-1 flex-1 pr-12'>
             <Text className='text-xs opacity-50'>{process.item.Type}</Text>
             <Text className='font-semibold shrink'>{process.item.Name}</Text>
             <Text className='text-xs opacity-50'>
               {process.item.ProductionYear}
             </Text>
-            <View className='flex flex-row items-center space-x-2 mt-1 text-purple-600'>
+
+            {isTranscoding && (
+              <View className='bg-purple-600/20 px-2 py-0.5 rounded-md mt-1 self-start'>
+                <Text className='text-xs text-purple-400'>Transcoding</Text>
+              </View>
+            )}
+
+            {/* Row 1: Progress + Downloaded/Total */}
+            <View className='flex flex-row items-center gap-x-2 mt-1.5'>
               {sanitizedProgress === 0 ? (
                 <ActivityIndicator size={"small"} color={"white"} />
               ) : (
-                <Text className='text-xs'>{sanitizedProgress.toFixed(0)}%</Text>
-              )}
-              {process.speed && process.speed > 0 && (
-                <Text className='text-xs'>
-                  {bytesToMB(process.speed).toFixed(2)} MB/s
+                <Text className='text-xs font-semibold'>
+                  {sanitizedProgress.toFixed(0)}%
                 </Text>
               )}
-              {eta(process) && (
-                <Text className='text-xs'>
-                  {t("home.downloads.eta", { eta: eta(process) })}
+              {downloadedAmount && (
+                <Text className='text-xs opacity-75'>
+                  {downloadedAmount}
+                  {estimatedSize
+                    ? ` / ${isTranscoding ? "~" : ""}${formatBytes(estimatedSize)}`
+                    : ""}
                 </Text>
               )}
             </View>
 
-            <View className='flex flex-row items-center space-x-2 mt-1 text-purple-600'>
-              <Text className='text-xs capitalize'>{process.status}</Text>
+            {/* Row 2: Speed + ETA */}
+            <View className='flex flex-row items-center gap-x-2 mt-0.5'>
+              {process.speed && process.speed > 0 && (
+                <Text className='text-xs text-purple-400'>
+                  {bytesToMB(process.speed).toFixed(2)} MB/s
+                </Text>
+              )}
+              {eta && (
+                <Text className='text-xs text-green-400'>
+                  {t("home.downloads.eta", { eta: eta })}
+                </Text>
+              )}
             </View>
           </View>
         </View>
-        {process.status === "completed" && (
-          <View className='flex flex-row mt-4 space-x-4'>
-            <Button
-              onPress={() => {
-                startDownload(process);
-              }}
-              className='w-full'
-            >
-              Download now
-            </Button>
-          </View>
-        )}
       </View>
     </TouchableOpacity>
   );
