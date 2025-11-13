@@ -22,8 +22,6 @@ public class VLCPlayerView: UIView {
             subview.frame = bounds
         }
     }
-    
-    
 }
 
 class VLCPlayerWrapper: NSObject {
