@@ -104,7 +104,7 @@ export const PlaybackControlsSettings: React.FC = () => {
           <PlatformDropdown
             groups={orientationOptions}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(
                     orientationTranslations[
@@ -143,7 +143,7 @@ export const PlaybackControlsSettings: React.FC = () => {
           <PlatformDropdown
             groups={bitrateOptions}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between pl-3 py-1.5 '>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings.defaultBitrate?.key}
                 </Text>
@@ -175,7 +175,7 @@ export const PlaybackControlsSettings: React.FC = () => {
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(settings?.maxAutoPlayEpisodeCount.key)}
                 </Text>
