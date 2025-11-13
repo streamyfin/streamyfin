@@ -188,10 +188,6 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
     videoStream.VideoRangeType === "DOVI" ||
     videoStream.DvVersionMajor != null ||
     videoStream.DvVersionMinor != null;
-  const dolbyVisionVersion =
-    videoStream.DvVersionMajor != null && videoStream.DvVersionMinor != null
-      ? `${videoStream.DvVersionMajor}.${videoStream.DvVersionMinor}`
-      : null;
 
   return (
     <View className='flex-row flex-wrap gap-2'>
@@ -211,7 +207,7 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
           iconLeft={
             <Ionicons name='sparkles-outline' size={16} color='white' />
           }
-          text={dolbyVisionVersion ? `DV ${dolbyVisionVersion}` : "DV"}
+          text={"DV"}
         />
       )}
       <Badge
