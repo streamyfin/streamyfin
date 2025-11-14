@@ -49,7 +49,6 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
       <FlashList
         contentContainerStyle={{ paddingLeft: 16 }}
         horizontal
-        estimatedItemSize={172}
         showsHorizontalScrollIndicator={false}
         data={items}
         renderItem={({ item, index }) => (

@@ -139,7 +139,7 @@ export function useDownloadOperations({
         } else {
           // For queued downloads, store a negative mapping using URL hash
           // This allows us to cancel queued downloads by URL
-          taskMapRef.current.set(downloadUrl, processId);
+          taskMapRef.current.set(downloadUrl as any, processId);
         }
 
         toast.success(
@@ -169,7 +169,7 @@ export function useDownloadOperations({
           if (typeof key === "number") {
             taskId = key;
           } else {
-            downloadUrl = key;
+            downloadUrl = key as string;
           }
         }
       });
@@ -181,7 +181,7 @@ export function useDownloadOperations({
       } else if (downloadUrl !== undefined) {
         // Cancel queued download by URL
         BackgroundDownloader.cancelQueuedDownload(downloadUrl);
-        taskMapRef.current.delete(downloadUrl);
+        taskMapRef.current.delete(downloadUrl as any);
       }
 
       removeProcess(id);

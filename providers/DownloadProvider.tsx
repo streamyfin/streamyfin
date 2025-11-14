@@ -8,6 +8,7 @@ import {
   getAllDownloadedItems,
   getDownloadedItemById,
   getDownloadsDatabase,
+  updateDownloadedItem,
 } from "./Downloads/database";
 import { getDownloadedItemSize } from "./Downloads/fileOperations";
 import { useDownloadEventHandlers } from "./Downloads/hooks/useDownloadEventHandlers";
@@ -130,13 +131,13 @@ function useDownloadProvider() {
     cancelDownload,
     getDownloadedItemSize,
     getDownloadedItemById,
+    updateDownloadedItem,
     triggerRefresh,
     APP_CACHE_DOWNLOAD_DIRECTORY: APP_CACHE_DOWNLOAD_DIRECTORY.uri,
     appSizeUsage,
     // Deprecated/not implemented in simple version
     startDownload: async () => {},
     cleanCacheDirectory: async () => {},
-    updateDownloadedItem: () => {},
     dumpDownloadDiagnostics: async () => "",
   };
 }
@@ -161,9 +162,9 @@ export function useDownload() {
       startDownload: async () => {},
       getDownloadedItemSize: () => 0,
       getDownloadedItemById: () => undefined,
+      updateDownloadedItem: () => {},
       APP_CACHE_DOWNLOAD_DIRECTORY: "",
       cleanCacheDirectory: async () => {},
-      updateDownloadedItem: () => {},
       appSizeUsage: async () => ({ total: 0, remaining: 0, appSize: 0 }),
       dumpDownloadDiagnostics: async () => "",
     };
