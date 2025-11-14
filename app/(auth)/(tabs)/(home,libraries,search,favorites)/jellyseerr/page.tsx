@@ -239,7 +239,7 @@ const Page: React.FC = () => {
         }
       >
         <View className='flex flex-col'>
-          <View className='space-y-4'>
+          <View className='gap-y-4'>
             <View className='px-4'>
               <View className='flex flex-row justify-between w-full'>
                 <View className='flex flex-col w-56'>
@@ -282,7 +282,7 @@ const Page: React.FC = () => {
                 </Button>
               ) : (
                 details?.mediaInfo?.jellyfinMediaId && (
-                  <View className='flex flex-row space-x-2 mt-4'>
+                  <View className='flex flex-row gap-x-2 mt-4'>
                     {!Platform.isTV && (
                       <Button
                         className='flex-1 bg-yellow-500/50 border-yellow-400 ring-yellow-400 text-yellow-100'
@@ -382,13 +382,13 @@ const Page: React.FC = () => {
           onDismiss={handleIssueModalDismiss}
         >
           <BottomSheetView>
-            <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+            <View className='flex flex-col gap-y-4 px-4 pb-8 pt-2'>
               <View>
                 <Text className='font-bold text-2xl text-neutral-100'>
                   {t("jellyseerr.whats_wrong")}
                 </Text>
               </View>
-              <View className='flex flex-col space-y-2 items-start'>
+              <View className='flex flex-col gap-y-2 items-start'>
                 <View className='flex flex-col w-full'>
                   <Text className='opacity-50 mb-1 text-xs'>
                     {t("jellyseerr.issue_type")}

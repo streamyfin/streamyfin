@@ -83,7 +83,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
 
   // Android UI
   return (
-    <View className='flex flex-row justify-end items-center space-x-1'>
+    <View className='flex flex-row justify-end items-center gap-x-1'>
       <FilterButton
         id={searchFilterId}
         queryKey='jellyseerr_search'

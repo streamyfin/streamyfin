@@ -31,7 +31,7 @@ const Discover: React.FC<Props> = ({ sliders }) => {
   if (!hasSliders) return null;
 
   return (
-    <View className='flex flex-col space-y-4 mb-8'>
+    <View className='flex flex-col gap-y-4 mb-8'>
       {sortedSliders.map((slide) => {
         switch (slide.type) {
           case DiscoverSliderType.RECENT_REQUESTS:

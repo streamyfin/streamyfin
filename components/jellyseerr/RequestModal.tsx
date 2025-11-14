@@ -302,7 +302,7 @@ const RequestModal = forwardRef<
         stackBehavior='push'
       >
         <BottomSheetView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+          <View className='flex flex-col gap-y-4 px-4 pb-8 pt-2'>
             <View>
               <Text className='font-bold text-2xl text-neutral-100'>
                 {t("jellyseerr.advanced")}
@@ -311,7 +311,7 @@ const RequestModal = forwardRef<
                 <Text className='text-neutral-300'>{seasonTitle}</Text>
               )}
             </View>
-            <View className='flex flex-col space-y-2'>
+            <View className='flex flex-col gap-y-2'>
               {defaultService && defaultServiceDetails && users && (
                 <>
                   <View className='flex flex-col'>

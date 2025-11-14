@@ -353,7 +353,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         keyboardBlurBehavior='restore'
       >
         <BottomSheetView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+          <View className='flex flex-col gap-y-4 px-4 pb-8 pt-2'>
             <View>
               <Text className='font-bold text-2xl text-neutral-100'>
                 {title}
@@ -365,7 +365,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                   })}
               </Text>
             </View>
-            <View className='flex flex-col space-y-2 w-full'>
+            <View className='flex flex-col gap-y-2 w-full'>
               <View className='items-start'>
                 <BitrateSelector
                   inverted
@@ -404,7 +404,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                     />
                   </View>
                   {selectedOptions?.mediaSource && (
-                    <View className='flex flex-col space-y-2 items-start'>
+                    <View className='flex flex-col gap-y-2 items-start'>
                       <AudioTrackSelector
                         source={selectedOptions.mediaSource}
                         onChange={(val) => {

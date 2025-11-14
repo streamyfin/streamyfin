@@ -105,14 +105,14 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         android_keyboardInputMode='adjustResize'
       >
         <BottomSheetView>
-          <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
+          <View className='flex flex-col gap-y-4 px-4 pb-8 pt-2'>
             <View>
               <Text className='font-bold text-2xl text-neutral-100'>
                 {t("home.settings.quick_connect.quick_connect_title")}
               </Text>
             </View>
-            <View className='flex flex-col space-y-2'>
-              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full space-y-4'>
+            <View className='flex flex-col gap-y-2'>
+              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full gap-y-4'>
                 <Text className='text-neutral-400 text-center'>
                   {t(
                     "home.settings.quick_connect.enter_the_quick_connect_code",

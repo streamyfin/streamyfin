@@ -154,7 +154,7 @@ const DetailFacts: React.FC<
           <Facts
             title={t("jellyseerr.release_dates")}
             facts={filteredReleases?.map?.((r: Release, idx) => (
-              <View key={idx} className='flex flex-row space-x-2 items-center'>
+              <View key={idx} className='flex flex-row gap-x-2 items-center'>
                 {r.type === 3 ? (
                   // Theatrical
                   <Ionicons name='ticket' size={16} color='white' />
@@ -189,7 +189,7 @@ const DetailFacts: React.FC<
           <Facts
             title={t("jellyseerr.production_country")}
             facts={details?.productionCountries?.map((n, idx) => (
-              <View key={idx} className='flex flex-row items-center space-x-2'>
+              <View key={idx} className='flex flex-row items-center gap-x-2'>
                 <CountryFlag isoCode={n.iso_3166_1} size={10} />
                 <Text>{n.name}</Text>
               </View>

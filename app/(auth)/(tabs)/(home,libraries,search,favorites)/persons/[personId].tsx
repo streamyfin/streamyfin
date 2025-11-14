@@ -105,7 +105,7 @@ const page: React.FC = () => {
         />
       }
     >
-      <View className='flex flex-col space-y-4 my-4'>
+      <View className='flex flex-col gap-y-4 my-4'>
         <View className='px-4 mb-4'>
           <MoviesTitleHeader item={item} className='mb-4' />
           <OverviewText text={item.Overview} />
