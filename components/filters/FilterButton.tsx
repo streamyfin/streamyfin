@@ -51,7 +51,7 @@ export const FilterButton = <T,>({
       >
         <View
           className={`
-            px-3 py-1.5 rounded-full flex flex-row items-center space-x-1
+            px-3 py-1.5 rounded-full flex flex-row items-center gap-x-1
             ${
               values.length > 0
                 ? "bg-purple-600  border border-purple-700"

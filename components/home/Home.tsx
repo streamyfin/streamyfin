@@ -77,10 +77,6 @@ export const Home = () => {
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
-    console.log("scrollY", scrollY);
-  }, [scrollY]);
-
-  useEffect(() => {
     if (isConnected && !prevIsConnected.current) {
       invalidateCache();
     }
@@ -101,19 +97,20 @@ export const Home = () => {
     }
     navigation.setOptions({
       headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => {
-            router.push("/(auth)/downloads");
-          }}
-          className='ml-1.5'
-          style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-        >
-          <Feather
-            name='download'
-            color={hasDownloads ? Colors.primary : "white"}
-            size={24}
-          />
-        </TouchableOpacity>
+        <View className='flex flex-row items-center ml-1.5'>
+          <TouchableOpacity
+            onPress={() => {
+              router.push("/(auth)/downloads");
+            }}
+            style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+          >
+            <Feather
+              name='download'
+              color={hasDownloads ? Colors.primary : "white"}
+              size={24}
+            />
+          </TouchableOpacity>
+        </View>
       ),
     });
   }, [navigation, router, hasDownloads]);
@@ -474,8 +471,7 @@ export const Home = () => {
       }}
     >
       <View
-        className='flex flex-col space-y-4'
-        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
+        className={`flex flex-col gap-y-4 ${Platform.OS === "android" ? "pt-4" : ""}`}
       >
         {sections.map((section, index) => {
           if (section.type === "InfiniteScrollingCollectionList") {

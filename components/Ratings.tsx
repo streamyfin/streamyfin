@@ -21,7 +21,7 @@ interface Props extends ViewProps {
 export const Ratings: React.FC<Props> = ({ item, ...props }) => {
   if (!item) return null;
   return (
-    <View className='flex flex-row items-center mt-2 space-x-2' {...props}>
+    <View className='flex flex-row items-center mt-2 gap-x-2' {...props}>
       {item.OfficialRating && (
         <Badge text={item.OfficialRating} variant='gray' />
       )}
@@ -79,7 +79,7 @@ export const JellyserrRatings: React.FC<{
       !!result.voteCount ||
       (data?.criticsRating && !!data?.criticsScore) ||
       (data?.audienceRating && !!data?.audienceScore)) && (
-      <View className='flex flex-row flex-wrap space-x-1'>
+      <View className='flex flex-row flex-wrap gap-x-1'>
         {data?.criticsRating && !!data?.criticsScore && (
           <Badge
             text={`${data.criticsScore}%`}

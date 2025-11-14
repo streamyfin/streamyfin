@@ -15,7 +15,7 @@ export const ItemHeader: React.FC<Props> = ({ item, ...props }) => {
   if (!item)
     return (
       <View
-        className='flex flex-col space-y-1.5 w-full items-start h-32'
+        className='flex flex-col gap-y-1.5 w-full items-start h-32'
         {...props}
       >
         <View className='w-1/3 h-6 bg-neutral-900 rounded' />

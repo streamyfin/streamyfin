@@ -130,7 +130,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
             <Text className='text-xs opacity-50'>{item?.Album}</Text>
           )}
         </View>
-        <View className='flex flex-row space-x-2 shrink-0'>
+        <View className='flex flex-row gap-x-2 shrink-0'>
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}

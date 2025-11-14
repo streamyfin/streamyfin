@@ -34,6 +34,7 @@ import { storage } from "@/utils/mmkv";
 
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
+import "@/global.css";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
 import type { EventSubscription } from "expo-modules-core";

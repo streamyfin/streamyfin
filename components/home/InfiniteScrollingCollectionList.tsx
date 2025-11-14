@@ -84,9 +84,9 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   return (
     <View {...props}>
-      <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
-        {title}
-      </Text>
+      <View className='px-4 mb-2'>
+        <Text className='text-lg font-bold text-neutral-100'>{title}</Text>
+      </View>
       {isLoading === false && allItems.length === 0 && (
         <View className='px-4'>
           <Text className='text-neutral-500'>{t("home.no_items")}</Text>

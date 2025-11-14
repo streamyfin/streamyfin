@@ -94,7 +94,7 @@ const page: React.FC = () => {
         item &&
         allEpisodes &&
         allEpisodes.length > 0 && (
-          <View className='flex flex-row items-center space-x-2'>
+          <View className='flex flex-row items-center gap-x-2'>
             <AddToFavorites item={item} />
             {!Platform.isTV && (
               <DownloadItems

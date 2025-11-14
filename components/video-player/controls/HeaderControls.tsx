@@ -127,7 +127,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
         )}
       </View>
 
-      <View className='flex flex-row items-center space-x-2'>
+      <View className='flex flex-row items-center gap-x-2'>
         {!Platform.isTV &&
           (settings.defaultPlayer === VideoPlayer.VLC_4 ||
             Platform.OS === "android") && (

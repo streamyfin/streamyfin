@@ -80,7 +80,7 @@ const Page: React.FC = () => {
         <View className='h-6 bg-neutral-900 rounded mb-4 w-14' />
         <View className='h-10 bg-neutral-900 rounded-lg mb-2 w-1/2' />
         <View className='h-3 bg-neutral-900 rounded mb-3 w-8' />
-        <View className='flex flex-row space-x-1 mb-8'>
+        <View className='flex flex-row gap-x-1 mb-8'>
           <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
           <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
           <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />

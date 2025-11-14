@@ -128,7 +128,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
           }}
         />
         {episodes?.length ? (
-          <View className='flex flex-row items-center space-x-2'>
+          <View className='flex flex-row items-center gap-x-2'>
             <DownloadItems
               title={t("item_card.download.download_season")}
               className='ml-2'

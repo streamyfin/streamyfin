@@ -26,7 +26,7 @@ export default function page() {
         paddingTop: 8,
       }}
     >
-      <View className='flex flex-col space-y-2'>
+      <View className='flex flex-col gap-y-2'>
         <ScrollingCollectionList
           queryKey={["livetv", "recommended"]}
           title={t("live_tv.on_now")}

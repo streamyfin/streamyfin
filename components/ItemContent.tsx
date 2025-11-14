@@ -124,10 +124,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 )}
               </View>
             ) : (
-              <View className='flex flex-row items-center space-x-2'>
+              <View className='flex flex-row items-center gap-x-2'>
                 <Chromecast.Chromecast width={22} height={22} />
                 {item.Type !== "Program" && (
-                  <View className='flex flex-row items-center space-x-2'>
+                  <View className='flex flex-row items-center gap-x-2'>
                     {!Platform.isTV && (
                       <DownloadSingleItem item={item} size='large' />
                     )}
@@ -201,7 +201,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
           }
         >
           <View className='flex flex-col bg-transparent shrink'>
-            <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
+            <View className='flex flex-col px-4 w-full gap-y-2 pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-2' />
               {item.Type !== "Program" && !Platform.isTV && !isOffline && (
                 <View className='flex flex-row items-center justify-start w-full h-16 mb-2'>

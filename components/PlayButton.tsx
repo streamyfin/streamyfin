@@ -377,7 +377,7 @@ export const PlayButton: React.FC<Props> = ({
   //         color={effectiveColors.primary}
   //         modifiers={[fixedSize()]}
   //       >
-  //         <View className='flex flex-row items-center space-x-2 h-full w-full justify-center -mb-3.5 '>
+  //         <View className='flex flex-row items-center gap-x-2 h-full w-full justify-center -mb-3.5 '>
   //           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
   //             {runtimeTicksToMinutes(
   //               (item?.RunTimeTicks || 0) -
@@ -440,7 +440,7 @@ export const PlayButton: React.FC<Props> = ({
         }}
         className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
       >
-        <View className='flex flex-row items-center space-x-2'>
+        <View className='flex flex-row items-center gap-x-2'>
           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
             {runtimeTicksToMinutes(
               (item?.RunTimeTicks || 0) -

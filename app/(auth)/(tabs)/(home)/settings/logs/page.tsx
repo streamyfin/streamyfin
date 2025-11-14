@@ -82,7 +82,7 @@ export default function Page() {
         paddingTop: insets.top + 48,
       }}
     >
-      <View className='flex flex-row justify-end py-2 px-4 space-x-2'>
+      <View className='flex flex-row justify-end py-2 px-4 gap-x-2'>
         <FilterButton
           id={orderFilterId}
           queryKey='log'
@@ -106,7 +106,7 @@ export default function Page() {
         />
       </View>
       <ScrollView className='pb-4 px-4'>
-        <View className='flex flex-col space-y-2'>
+        <View className='flex flex-col gap-y-2'>
           {filteredLogs?.map((log, index) => (
             <View className='bg-neutral-900 rounded-xl p-3' key={index}>
               <TouchableOpacity
@@ -146,7 +146,7 @@ export default function Page() {
                     </Text>
                   )}
                   <Collapsible collapsed={!state[log.timestamp]}>
-                    <View className='mt-2 flex flex-col space-y-2'>
+                    <View className='mt-2 flex flex-col gap-y-2'>
                       <ScrollView className='rounded-xl' style={codeBlockStyle}>
                         <Text>{JSON.stringify(log.data, null, 2)}</Text>
                       </ScrollView>

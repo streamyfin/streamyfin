@@ -32,7 +32,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
             onPress={() =>
               item?.SeriesId && router.push(`/series/${item.SeriesId}`)
             }
-            className='flex flex-col space-y-2 w-28'
+            className='flex flex-col gap-y-2 w-28'
           >
             <Poster
               id={item?.Id}
