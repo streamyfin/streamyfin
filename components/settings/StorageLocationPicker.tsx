@@ -18,7 +18,10 @@ import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import type { StorageLocation } from "@/modules";
 import { useSettings } from "@/utils/atoms/settings";
-import { getAvailableStorageLocations } from "@/utils/storage";
+import {
+  clearStorageLocationsCache,
+  getAvailableStorageLocations,
+} from "@/utils/storage";
 
 interface StorageLocationPickerProps {
   onClose: () => void;
@@ -47,6 +50,7 @@ export const StorageLocationPicker = forwardRef<
 
   const handleConfirm = () => {
     updateSettings({ downloadStorageLocation: selectedId });
+    clearStorageLocationsCache(); // Clear cache so next download uses new location
     toast.success(
       t("settings.storage.storage_location_updated", {
         defaultValue: "Storage location updated",

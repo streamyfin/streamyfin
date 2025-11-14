@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { Directory, File } from "expo-file-system";
 import { getAllDownloadedItems, getDownloadedItemById } from "./database";
 import type { DownloadedItem } from "./types";
 import { filePathToUri } from "./utils";
@@ -39,13 +39,11 @@ export function deleteAllAssociatedFiles(item: DownloadedItem): void {
           stream.DeliveryUrl
         ) {
           try {
-            const subtitleFilename = stream.DeliveryUrl.split("/").pop();
-            if (subtitleFilename) {
-              const subtitleFile = new File(Paths.document, subtitleFilename);
-              if (subtitleFile.exists) {
-                subtitleFile.delete();
-                console.log(`[DELETE] Subtitle deleted: ${subtitleFilename}`);
-              }
+            // Use the full path from DeliveryUrl (it's already a full file:// URI)
+            const subtitleFile = new File(stream.DeliveryUrl);
+            if (subtitleFile.exists) {
+              subtitleFile.delete();
+              console.log(`[DELETE] Subtitle deleted: ${stream.DeliveryUrl}`);
             }
           } catch (error) {
             console.error("[DELETE] Failed to delete subtitle:", error);
@@ -57,15 +55,13 @@ export function deleteAllAssociatedFiles(item: DownloadedItem): void {
     // Delete trickplay directory
     if (item.trickPlayData?.path) {
       try {
-        const trickplayDirName = item.trickPlayData.path.split("/").pop();
-        if (trickplayDirName) {
-          const trickplayDir = new Directory(Paths.document, trickplayDirName);
-          if (trickplayDir.exists) {
-            trickplayDir.delete();
-            console.log(
-              `[DELETE] Trickplay directory deleted: ${trickplayDirName}`,
-            );
-          }
+        // Use the full path from trickPlayData (it's already a full file:// URI)
+        const trickplayDir = new Directory(item.trickPlayData.path);
+        if (trickplayDir.exists) {
+          trickplayDir.delete();
+          console.log(
+            `[DELETE] Trickplay directory deleted: ${item.trickPlayData.path}`,
+          );
         }
       } catch (error) {
         console.error("[DELETE] Failed to delete trickplay directory:", error);

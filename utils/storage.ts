@@ -1,8 +1,12 @@
-import { Paths } from "expo-file-system";
+import { Directory, Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { BackgroundDownloader, type StorageLocation } from "@/modules";
 
 let cachedStorageLocations: StorageLocation[] | null = null;
+
+// Debug mode: Set to true to simulate an SD card for testing in emulator
+// This creates a real writable directory that mimics SD card behavior
+const DEBUG_SIMULATE_SD_CARD = false;
 
 /**
  * Get all available storage locations (Android only)
@@ -21,6 +25,29 @@ export async function getAvailableStorageLocations(): Promise<
 
   try {
     const locations = await BackgroundDownloader.getAvailableStorageLocations();
+
+    // Debug mode: Add a functional simulated SD card for testing
+    if (DEBUG_SIMULATE_SD_CARD && locations.length === 1) {
+      // Use a real writable path within the app's document directory
+      const sdcardSimDir = new Directory(Paths.document, "sdcard_sim");
+
+      // Create the directory if it doesn't exist
+      if (!sdcardSimDir.exists) {
+        sdcardSimDir.create({ intermediates: true });
+      }
+
+      const mockSdCard: StorageLocation = {
+        id: "sdcard_sim",
+        path: sdcardSimDir.uri.replace("file://", ""),
+        type: "external",
+        label: "SD Card (Simulated)",
+        totalSpace: 64 * 1024 * 1024 * 1024, // 64 GB
+        freeSpace: 32 * 1024 * 1024 * 1024, // 32 GB free
+      };
+      locations.push(mockSdCard);
+      console.log("[DEBUG] Added simulated SD card:", mockSdCard.path);
+    }
+
     cachedStorageLocations = locations;
     return locations;
   } catch (error) {
