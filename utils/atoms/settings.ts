@@ -145,6 +145,7 @@ export type Settings = {
   marlinServerUrl?: string;
   openInVLC?: boolean;
   downloadQuality?: DownloadOption;
+  downloadStorageLocation?: string;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
@@ -203,6 +204,7 @@ export const defaultValues: Settings = {
   marlinServerUrl: "",
   openInVLC: false,
   downloadQuality: DownloadOptions[0],
+  downloadStorageLocation: undefined,
   defaultBitrate: BITRATES[0],
   libraryOptions: {
     display: "list",

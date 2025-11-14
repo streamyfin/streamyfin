@@ -4,11 +4,16 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.os.Build
+import android.os.Environment
 import android.os.IBinder
+import android.os.storage.StorageManager
+import android.os.storage.StorageVolume
 import android.util.Log
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
 
 data class DownloadTaskInfo(
   val url: String,
@@ -140,6 +145,105 @@ class BackgroundDownloaderModule : Module() {
         promise.resolve(activeDownloads)
       } catch (e: Exception) {
         promise.reject("ERROR", "Failed to get active downloads: ${e.message}", e)
+      }
+    }
+
+    AsyncFunction("getAvailableStorageLocations") { promise: Promise ->
+      try {
+        val storageLocations = mutableListOf<Map<String, Any>>()
+        
+        // Use getExternalFilesDirs which works reliably across all Android versions
+        // This returns app-specific directories on both internal and external storage
+        val externalDirs = context.getExternalFilesDirs(null)
+        
+        Log.d(TAG, "getExternalFilesDirs returned ${externalDirs.size} locations")
+        
+        // Also check with StorageManager for additional info
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+          val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+          val volumes = storageManager.storageVolumes
+          Log.d(TAG, "StorageManager reports ${volumes.size} volumes")
+          for ((i, vol) in volumes.withIndex()) {
+            Log.d(TAG, "  Volume $i: isPrimary=${vol.isPrimary}, isRemovable=${vol.isRemovable}, state=${vol.state}, uuid=${vol.uuid}")
+          }
+        }
+        
+        for ((index, dir) in externalDirs.withIndex()) {
+          try {
+            if (dir == null) {
+              Log.w(TAG, "Directory at index $index is null - SD card may not be mounted")
+              continue
+            }
+            
+            if (!dir.exists()) {
+              Log.w(TAG, "Directory at index $index does not exist: ${dir.absolutePath}")
+              continue
+            }
+            
+            val isPrimary = index == 0
+            val isRemovable = !isPrimary && Environment.isExternalStorageRemovable(dir)
+            
+            // Get volume UUID for better identification
+            val volumeId = if (isPrimary) {
+              "internal"
+            } else {
+              // Try to get a stable UUID for the SD card
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+                try {
+                  val storageVolume = storageManager.getStorageVolume(dir)
+                  storageVolume?.uuid ?: "sdcard_$index"
+                } catch (e: Exception) {
+                  "sdcard_$index"
+                }
+              } else {
+                "sdcard_$index"
+              }
+            }
+            
+            // Get human-readable label
+            val label = if (isPrimary) {
+              "Internal Storage"
+            } else {
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+                try {
+                  val storageVolume = storageManager.getStorageVolume(dir)
+                  storageVolume?.getDescription(context) ?: "SD Card"
+                } catch (e: Exception) {
+                  "SD Card"
+                }
+              } else {
+                "SD Card"
+              }
+            }
+            
+            val totalSpace = dir.totalSpace
+            val freeSpace = dir.freeSpace
+            
+            Log.d(TAG, "Storage location: $label (id: $volumeId, path: ${dir.absolutePath}, removable: $isRemovable)")
+            
+            storageLocations.add(
+              mapOf(
+                "id" to volumeId,
+                "path" to dir.absolutePath,
+                "type" to (if (isRemovable || !isPrimary) "external" else "internal"),
+                "label" to label,
+                "totalSpace" to totalSpace,
+                "freeSpace" to freeSpace
+              )
+            )
+          } catch (e: Exception) {
+            Log.e(TAG, "Error processing storage at index $index: ${e.message}", e)
+            continue
+          }
+        }
+        
+        Log.d(TAG, "Returning ${storageLocations.size} storage locations")
+        promise.resolve(storageLocations)
+      } catch (e: Exception) {
+        Log.e(TAG, "Error getting storage locations: ${e.message}", e)
+        promise.reject("ERROR", "Failed to get storage locations: ${e.message}", e)
       }
     }
   }

@@ -18,6 +18,7 @@ export type {
   DownloadErrorEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  StorageLocation,
 } from "./background-downloader";
 // Background Downloader
 export { default as BackgroundDownloader } from "./background-downloader";

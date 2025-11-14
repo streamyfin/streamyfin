@@ -6,16 +6,20 @@ import type {
 import { Directory, File, Paths } from "expo-file-system";
 import { getItemImage } from "@/utils/getItemImage";
 import { fetchAndParseSegments } from "@/utils/segments";
+import { filePathToUri } from "@/utils/storage";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import type { MediaTimeSegment, TrickPlayData } from "./types";
 import { generateFilename } from "./utils";
 
 /**
  * Downloads trickplay images for an item
+ * @param item - The item to download trickplay images for
+ * @param storagePath - Optional custom storage path (for Android SD card support)
  * @returns TrickPlayData with path and size, or undefined if not available
  */
 export async function downloadTrickplayImages(
   item: BaseItemDto,
+  storagePath?: string,
 ): Promise<TrickPlayData | undefined> {
   const trickplayInfo = getTrickplayInfo(item);
   if (!trickplayInfo || !item.Id) {
@@ -23,7 +27,11 @@ export async function downloadTrickplayImages(
   }
 
   const filename = generateFilename(item);
-  const trickplayDir = new Directory(Paths.document, `${filename}_trickplay`);
+
+  // Use custom storage path if provided (Android SD card), otherwise use Paths.document
+  const trickplayDir = storagePath
+    ? new Directory(filePathToUri(storagePath), `${filename}_trickplay`)
+    : new Directory(Paths.document, `${filename}_trickplay`);
 
   // Create directory if it doesn't exist
   if (!trickplayDir.exists) {
@@ -69,12 +77,17 @@ export async function downloadTrickplayImages(
 
 /**
  * Downloads external subtitle files and updates their delivery URLs to local paths
+ * @param mediaSource - The media source containing subtitle information
+ * @param item - The item to download subtitles for
+ * @param apiBasePath - The base path for the API
+ * @param storagePath - Optional custom storage path (for Android SD card support)
  * @returns Updated media source with local subtitle paths
  */
 export async function downloadSubtitles(
   mediaSource: MediaSourceInfo,
   item: BaseItemDto,
   apiBasePath: string,
+  storagePath?: string,
 ): Promise<MediaSourceInfo> {
   const externalSubtitles = mediaSource.MediaStreams?.filter(
     (stream) =>
@@ -91,10 +104,17 @@ export async function downloadSubtitles(
 
     const url = apiBasePath + subtitle.DeliveryUrl;
     const extension = subtitle.Codec || "srt";
-    const destination = new File(
-      Paths.document,
-      `${filename}_subtitle_${subtitle.Index}.${extension}`,
-    );
+
+    // Use custom storage path if provided (Android SD card), otherwise use Paths.document
+    const destination = storagePath
+      ? new File(
+          filePathToUri(storagePath),
+          `${filename}_subtitle_${subtitle.Index}.${extension}`,
+        )
+      : new File(
+          Paths.document,
+          `${filename}_subtitle_${subtitle.Index}.${extension}`,
+        );
 
     // Skip if already exists
     if (destination.exists) {
@@ -208,13 +228,21 @@ export async function downloadAdditionalAssets(params: {
   api: Api;
   saveImageFn: (itemId: string, url?: string) => Promise<void>;
   saveSeriesImageFn: (item: BaseItemDto) => Promise<void>;
+  storagePath?: string;
 }): Promise<{
   trickPlayData?: TrickPlayData;
   updatedMediaSource: MediaSourceInfo;
   introSegments?: MediaTimeSegment[];
   creditSegments?: MediaTimeSegment[];
 }> {
-  const { item, mediaSource, api, saveImageFn, saveSeriesImageFn } = params;
+  const {
+    item,
+    mediaSource,
+    api,
+    saveImageFn,
+    saveSeriesImageFn,
+    storagePath,
+  } = params;
 
   // Run all downloads in parallel for speed
   const [
@@ -223,11 +251,11 @@ export async function downloadAdditionalAssets(params: {
     segments,
     // Cover images (fire and forget, errors are logged)
   ] = await Promise.all([
-    downloadTrickplayImages(item),
+    downloadTrickplayImages(item, storagePath),
     // Only download subtitles for non-transcoded streams
     mediaSource.TranscodingUrl
       ? Promise.resolve(mediaSource)
-      : downloadSubtitles(mediaSource, item, api.basePath || ""),
+      : downloadSubtitles(mediaSource, item, api.basePath || "", storagePath),
     item.Id
       ? fetchSegments(item.Id, api)
       : Promise.resolve({
