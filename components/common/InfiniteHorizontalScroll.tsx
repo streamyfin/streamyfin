@@ -120,7 +120,6 @@ export function InfiniteHorizontalScroll({
         renderItem={({ item, index }) => (
           <View className='mr-2'>{renderItem(item, index)}</View>
         )}
-        estimatedItemSize={height}
         horizontal
         onEndReached={() => {
           if (hasNextPage) {

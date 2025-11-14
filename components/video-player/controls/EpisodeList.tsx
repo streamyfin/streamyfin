@@ -271,7 +271,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
             </View>
           )}
           keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
-          estimatedItemSize={200}
           showsHorizontalScrollIndicator={false}
         />
       )}
