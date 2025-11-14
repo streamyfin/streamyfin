@@ -23,7 +23,7 @@ export default function IntroPage() {
         className='p-4 flex flex-col'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
-        <ListGroup title={"Intro"}>
+        <ListGroup title={t("home.settings.intro.title")}>
           <ListItem
             onPress={() => {
               router.push("/intro/page");
