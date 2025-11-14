@@ -96,7 +96,7 @@
     "react-native-video": "6.16.1",
     "react-native-volume-manager": "^2.0.8",
     "react-native-web": "^0.21.0",
-    "react-native-worklets": "0.5.1",
+    "react-native-worklets": "0.5.2",
     "sonner-native": "^0.21.0",
     "tailwindcss": "3.3.2",
     "use-debounce": "^10.0.4",
