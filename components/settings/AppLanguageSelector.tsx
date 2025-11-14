@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View, type ViewProps } from "react-native";
@@ -50,12 +51,17 @@ export const AppLanguageSelector: React.FC<Props> = () => {
           <PlatformDropdown
             groups={optionGroups}
             trigger={
-              <View className='bg-neutral-800 rounded-lg border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
-                <Text>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-2'>
                   {APP_LANGUAGES.find(
                     (l) => l.value === settings?.preferedLanguage,
                   )?.label || t("home.settings.languages.system")}
                 </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
               </View>
             }
             title={t("home.settings.languages.title")}

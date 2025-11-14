@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { Loader } from "@/components/Loader";
@@ -32,6 +33,7 @@ export default function Page() {
 
   const _orderId = useId();
   const _levelsId = useId();
+  const insets = useSafeAreaInsets();
 
   const filteredLogs = useMemo(
     () =>
@@ -66,7 +68,7 @@ export default function Page() {
         loading ? (
           <Loader />
         ) : (
-          <TouchableOpacity onPress={share}>
+          <TouchableOpacity onPress={share} className='px-2'>
             <Text>{t("home.settings.logs.export_logs")}</Text>
           </TouchableOpacity>
         ),
@@ -74,7 +76,12 @@ export default function Page() {
   }, [share, loading]);
 
   return (
-    <>
+    <View
+      className='flex-1'
+      style={{
+        paddingTop: insets.top + 48,
+      }}
+    >
       <View className='flex flex-row justify-end py-2 px-4 space-x-2'>
         <FilterButton
           id={orderFilterId}
@@ -156,6 +163,6 @@ export default function Page() {
           )}
         </View>
       </ScrollView>
-    </>
+    </View>
   );
 }
