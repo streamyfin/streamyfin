@@ -1,3 +1,4 @@
+import { File, Paths } from "expo-file-system";
 import { useNavigation } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
@@ -48,18 +49,17 @@ export default function Page() {
 
   // Sharing it as txt while its formatted allows us to share it with many more applications
   const share = useCallback(async () => {
-    const uri = `${FileSystem.documentDirectory}logs.txt`;
+    const logsFile = new File(Paths.document, "logs.txt");
 
     setLoading(true);
-    FileSystem.writeAsStringAsync(uri, JSON.stringify(filteredLogs))
-      .then(() => {
-        setLoading(false);
-        Sharing.shareAsync(uri, { mimeType: "txt", UTI: "txt" });
-      })
-      .catch((e) =>
-        writeErrorLog("Something went wrong attempting to export", e),
-      )
-      .finally(() => setLoading(false));
+    try {
+      logsFile.write(JSON.stringify(filteredLogs));
+      await Sharing.shareAsync(logsFile.uri, { mimeType: "txt", UTI: "txt" });
+    } catch (e: any) {
+      writeErrorLog("Something went wrong attempting to export", e);
+    } finally {
+      setLoading(false);
+    }
   }, [filteredLogs]);
 
   useEffect(() => {

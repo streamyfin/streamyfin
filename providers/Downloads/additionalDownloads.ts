@@ -185,10 +185,16 @@ export async function fetchSegments(
 }> {
   try {
     const segments = await fetchAndParseSegments(itemId, api);
-    return segments;
+    return {
+      introSegments: segments.introSegments,
+      creditSegments: segments.creditSegments,
+    };
   } catch (error) {
     console.error(`[SEGMENTS] Failed to fetch segments:`, error);
-    return {};
+    return {
+      introSegments: undefined,
+      creditSegments: undefined,
+    };
   }
 }
 
@@ -222,7 +228,12 @@ export async function downloadAdditionalAssets(params: {
     mediaSource.TranscodingUrl
       ? Promise.resolve(mediaSource)
       : downloadSubtitles(mediaSource, item, api.basePath || ""),
-    item.Id ? fetchSegments(item.Id, api) : Promise.resolve({}),
+    item.Id
+      ? fetchSegments(item.Id, api)
+      : Promise.resolve({
+          introSegments: undefined,
+          creditSegments: undefined,
+        }),
     // Cover image downloads (run but don't wait for results)
     downloadCoverImage(item, api, saveImageFn).catch((err) => {
       console.error("[COVER] Error downloading cover:", err);
