@@ -7,7 +7,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -340,7 +340,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
   const navigateToItem = useCallback(
     (item: BaseItemDto) => {
       const navigation = getItemNavigation(item, "(home)");
-      router.push(navigation as any);
+      router.push(navigation as Href);
     },
     [router],
   );

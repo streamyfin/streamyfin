@@ -31,15 +31,16 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
         className='flex flex-col rounded-xl overflow-hidden pl-0 bg-neutral-900'
       >
         {Children.map(childrenArray, (child, index) => {
-          if (isValidElement<{ style?: ViewStyle }>(child)) {
-            return cloneElement(child as any, {
-              style: StyleSheet.compose(
-                child.props.style,
-                index < childrenArray.length - 1
-                  ? styles.borderBottom
-                  : undefined,
-              ),
-            });
+          if (isValidElement(child)) {
+            const style = StyleSheet.compose(
+              (child.props as { style?: ViewStyle }).style,
+              index < childrenArray.length - 1
+                ? styles.borderBottom
+                : undefined,
+            );
+            return cloneElement(child, { style } as Partial<
+              typeof child.props
+            >);
           }
           return child;
         })}

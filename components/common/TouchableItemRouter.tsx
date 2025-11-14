@@ -1,6 +1,6 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useRouter, useSegments } from "expo-router";
+import { type Href, useRouter, useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import { useFavorite } from "@/hooks/useFavorite";
@@ -146,12 +146,12 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
           if (isOffline) {
             // For offline mode, we still need to use query params
             const url = `${itemRouter(item, from)}&offline=true`;
-            router.push(url as any);
+            router.push(url as Href);
             return;
           }
 
           const navigation = getItemNavigation(item, from);
-          router.push(navigation as any);
+          router.push(navigation as Href);
         }}
         {...props}
       >

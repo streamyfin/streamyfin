@@ -1,4 +1,4 @@
-import { router, useSegments } from "expo-router";
+import { type Href, router, useSegments } from "expo-router";
 import type React from "react";
 import { useCallback } from "react";
 import { TouchableOpacity, type ViewProps } from "react-native";
@@ -21,10 +21,10 @@ const CompanySlide: React.FC<
   const navigate = useCallback(
     ({ id, image, name }: Network | Studio) =>
       router.push({
-        pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}` as any,
+        pathname: `/(auth)/(tabs)/${from}/jellyseerr/company/${id}`,
         params: { id, image, name, type: slide.type },
-      }),
-    [slide],
+      } as Href),
+    [slide, from],
   );
 
   return (

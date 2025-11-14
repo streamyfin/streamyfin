@@ -3,7 +3,18 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "../common/Text";
 
-interface Props extends ViewProps {
+interface Props
+  extends Omit<
+    ViewProps,
+    | "children"
+    | "onPressIn"
+    | "onPressOut"
+    | "nextFocusDown"
+    | "nextFocusForward"
+    | "nextFocusLeft"
+    | "nextFocusRight"
+    | "nextFocusUp"
+  > {
   title?: string | null | undefined;
   subtitle?: string | null | undefined;
   value?: string | null | undefined;
@@ -37,7 +48,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
         className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${
           disabled ? "opacity-50" : ""
         }`}
-        {...(viewProps as any)}
+        {...viewProps}
       >
         <ListItemContent
           title={title}

@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import {
   type Dispatch,
   type FC,
@@ -379,7 +379,7 @@ export const Controls: FC<Props> = ({
 
       console.log("queryParams", queryParams);
 
-      router.replace(`player/direct-player?${queryParams}` as any);
+      router.replace(`player/direct-player?${queryParams}` as Href);
     },
     [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router],
   );

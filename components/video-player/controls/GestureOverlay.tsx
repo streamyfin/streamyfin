@@ -18,7 +18,7 @@ interface Props {
 
 interface FeedbackState {
   visible: boolean;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   text: string;
   side?: "left" | "right";
 }
@@ -36,7 +36,7 @@ export const GestureOverlay = ({
 
   const [feedback, setFeedback] = useState<FeedbackState>({
     visible: false,
-    icon: "",
+    icon: "play",
     text: "",
   });
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -46,7 +46,7 @@ export const GestureOverlay = ({
 
   const showFeedback = useCallback(
     (
-      icon: string,
+      icon: keyof typeof Ionicons.glyphMap,
       text: string,
       side?: "left" | "right",
       isDuringDrag = false,
@@ -320,7 +320,7 @@ export const GestureOverlay = ({
           }}
         >
           <Ionicons
-            name={feedback.icon as any}
+            name={feedback.icon}
             size={24}
             color='white'
             style={{ marginRight: 8 }}

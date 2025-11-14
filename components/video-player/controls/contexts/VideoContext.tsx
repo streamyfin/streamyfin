@@ -1,5 +1,5 @@
 import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
-import { router, useLocalSearchParams } from "expo-router";
+import { type Href, router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
   createContext,
@@ -95,7 +95,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       playbackPosition: playbackPosition,
     }).toString();
 
-    router.replace(`player/direct-player?${queryParams}` as any);
+    router.replace(`player/direct-player?${queryParams}` as Href);
   };
 
   const setTrackParams = (

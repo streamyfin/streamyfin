@@ -108,10 +108,10 @@ export const BitrateSheet: React.FC<Props> = ({
         values={selected ? [selected] : []}
         multiple={false}
         searchFilter={(item, query) => {
-          const label = (item as any).key || "";
+          const label = item.key || "";
           return label.toLowerCase().includes(query.toLowerCase());
         }}
-        renderItemLabel={(item) => <Text>{(item as any).key || ""}</Text>}
+        renderItemLabel={(item) => <Text>{item.key || ""}</Text>}
         set={(vals) => {
           const chosen = vals[0] as Bitrate | undefined;
           if (chosen) onChange(chosen);

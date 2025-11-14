@@ -1,15 +1,16 @@
+import { MMKV } from "react-native-mmkv";
 import { storage } from "@/utils/mmkv";
 
 declare module "react-native-mmkv" {
   interface MMKV {
     get<T>(key: string): T | undefined;
-    setAny(key: string, value: any | undefined): void;
+    setAny(key: string, value: unknown): void;
   }
 }
 
-// Add the augmentation methods directly to the MMKV prototype
-// This follows the recommended pattern while adding the helper methods your app uses
-(storage as any).get = function <T>(key: string): T | undefined {
+// Add the augmentation methods directly to the MMKV instance
+// We need to bind these methods to preserve the 'this' context
+storage.get = function <T>(this: MMKV, key: string): T | undefined {
   try {
     const serializedItem = this.getString(key);
     if (!serializedItem) return undefined;
@@ -20,7 +21,7 @@ declare module "react-native-mmkv" {
   }
 };
 
-(storage as any).setAny = function (key: string, value: any | undefined): void {
+storage.setAny = function (this: MMKV, key: string, value: unknown): void {
   try {
     if (value === undefined) {
       this.remove(key);

@@ -362,10 +362,11 @@ export const useSettings = () => {
           value !== undefined &&
           _settings?.[settingsKey] !== value
         ) {
-          (unlockedPluginDefaults as any)[settingsKey] = value;
+          (unlockedPluginDefaults as Record<string, unknown>)[settingsKey] =
+            value;
         }
 
-        (acc as any)[settingsKey] = locked
+        (acc as Record<string, unknown>)[settingsKey] = locked
           ? value
           : (_settings?.[settingsKey] ?? value);
       }

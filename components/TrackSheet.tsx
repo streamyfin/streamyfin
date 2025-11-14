@@ -81,14 +81,12 @@ export const TrackSheet: React.FC<Props> = ({
         }
         multiple={false}
         searchFilter={(item, query) => {
-          const label = (item as any).DisplayTitle || "";
+          const label = item.DisplayTitle || "";
           return label.toLowerCase().includes(query.toLowerCase());
         }}
-        renderItemLabel={(item) => (
-          <Text>{(item as any).DisplayTitle || ""}</Text>
-        )}
+        renderItemLabel={(item) => <Text>{item.DisplayTitle || ""}</Text>}
         set={(vals) => {
-          const chosen = vals[0] as any;
+          const chosen = vals[0];
           if (chosen && chosen.Index !== null && chosen.Index !== undefined) {
             onChange(chosen.Index);
           }

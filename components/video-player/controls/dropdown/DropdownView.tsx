@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
 import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
@@ -53,7 +53,7 @@ const DropdownView = () => {
         bitrateValue: bitrate.toString(),
         playbackPosition: playbackPositionRef.current,
       }).toString();
-      router.replace(`player/direct-player?${queryParams}` as any);
+      router.replace(`player/direct-player?${queryParams}` as Href);
     },
     [audioIndex, subtitleIndex, router],
   );

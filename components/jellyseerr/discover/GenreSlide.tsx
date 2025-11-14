@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { router, useSegments } from "expo-router";
+import { type Href, router, useSegments } from "expo-router";
 import type React from "react";
 import { useCallback } from "react";
 import { TouchableOpacity, type ViewProps } from "react-native";
@@ -18,10 +18,10 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const navigate = useCallback(
     (genre: GenreSliderItem) =>
       router.push({
-        pathname: `/(auth)/(tabs)/${from}/jellyseerr/genre/${genre.id}` as any,
+        pathname: `/(auth)/(tabs)/${from}/jellyseerr/genre/${genre.id}`,
         params: { type: slide.type, name: genre.name },
-      }),
-    [slide],
+      } as Href),
+    [slide, from],
   );
 
   const { data } = useQuery({

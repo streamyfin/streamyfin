@@ -2,7 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useRouter, useSegments } from "expo-router";
+import { type Href, useRouter, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import { Dimensions, View, type ViewProps } from "react-native";
@@ -156,7 +156,7 @@ const RenderItem: React.FC<{ item: BaseItemDto }> = ({ item }) => {
     if (!from) return;
     lightHapticFeedback();
     const navigation = getItemNavigation(item, from);
-    router.push(navigation as any);
+    router.push(navigation as Href);
   }, [item, from]);
 
   const tap = Gesture.Tap()
