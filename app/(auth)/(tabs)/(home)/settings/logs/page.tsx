@@ -55,9 +55,9 @@ export default function Page() {
     try {
       logsFile.write(JSON.stringify(filteredLogs));
       await Sharing.shareAsync(logsFile.uri, { mimeType: "txt", UTI: "txt" });
-      setLoading(false);
     } catch (e: any) {
       writeErrorLog("Something went wrong attempting to export", e);
+    } finally {
       setLoading(false);
     }
   }, [filteredLogs]);
