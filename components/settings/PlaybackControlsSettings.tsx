@@ -1,10 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { TFunction } from "i18next";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, Switch, View } from "react-native";
+import { Switch, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
@@ -14,18 +13,14 @@ import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
-export const OtherSettings: React.FC = () => {
-  const router = useRouter();
+export const PlaybackControlsSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
-
   const { t } = useTranslation();
 
   const disabled = useMemo(
     () =>
       pluginSettings?.defaultVideoOrientation?.locked === true &&
       pluginSettings?.safeAreaInControlsEnabled?.locked === true &&
-      pluginSettings?.showCustomMenuLinks?.locked === true &&
-      pluginSettings?.hiddenLibraries?.locked === true &&
       pluginSettings?.disableHapticFeedback?.locked === true,
     [pluginSettings],
   );
@@ -79,7 +74,7 @@ export const OtherSettings: React.FC = () => {
         })),
       },
     ],
-    [settings?.defaultBitrate?.key, t, updateSettings],
+    [settings?.defaultBitrate?.key, updateSettings],
   );
 
   const autoPlayEpisodeOptions = useMemo(
@@ -141,66 +136,6 @@ export const OtherSettings: React.FC = () => {
           />
         </ListItem>
 
-        {/* {(Platform.OS === "ios" || Platform.isTVOS)&& (
-          <ListItem
-            title={t("home.settings.other.video_player")}
-            disabled={pluginSettings?.defaultPlayer?.locked}
-          >
-            <Dropdown
-              data={Object.values(VideoPlayer).filter(isNumber)}
-              disabled={pluginSettings?.defaultPlayer?.locked}
-              keyExtractor={String}
-              titleExtractor={(item) => t(`home.settings.other.video_players.${VideoPlayer[item]}`)}
-              title={
-                <TouchableOpacity className="flex flex-row items-center justify-between py-1.5 pl-3">
-                  <Text className="mr-1 text-[#8E8D91]">
-                    {t(`home.settings.other.video_players.${VideoPlayer[settings.defaultPlayer]}`)}
-                  </Text>
-                  <Ionicons
-                    name="chevron-expand-sharp"
-                    size={18}
-                    color="#5A5960"
-                  />
-                </TouchableOpacity>
-              }
-              label={t("home.settings.other.orientation")}
-              onSelected={(defaultPlayer) =>
-                updateSettings({ defaultPlayer })
-              }
-            />
-          </ListItem>
-        )} */}
-
-        <ListItem
-          title={t("home.settings.other.show_custom_menu_links")}
-          disabled={pluginSettings?.showCustomMenuLinks?.locked}
-          onPress={() =>
-            Linking.openURL(
-              "https://jellyfin.org/docs/general/clients/web-config/#custom-menu-links",
-            )
-          }
-        >
-          <Switch
-            value={settings.showCustomMenuLinks}
-            disabled={pluginSettings?.showCustomMenuLinks?.locked}
-            onValueChange={(value) =>
-              updateSettings({ showCustomMenuLinks: value })
-            }
-          />
-        </ListItem>
-        <ListItem title={t("home.settings.other.show_large_home_carousel")}>
-          <Switch
-            value={settings.showLargeHomeCarousel}
-            onValueChange={(value) =>
-              updateSettings({ showLargeHomeCarousel: value })
-            }
-          />
-        </ListItem>
-        <ListItem
-          onPress={() => router.push("/settings/hide-libraries/page")}
-          title={t("home.settings.other.hide_libraries")}
-          showArrow
-        />
         <ListItem
           title={t("home.settings.other.default_quality")}
           disabled={pluginSettings?.defaultBitrate?.locked}
@@ -208,7 +143,7 @@ export const OtherSettings: React.FC = () => {
           <PlatformDropdown
             groups={bitrateOptions}
             trigger={
-              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+              <View className='flex flex-row items-center justify-between pl-3 py-1.5 '>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings.defaultBitrate?.key}
                 </Text>
@@ -222,6 +157,7 @@ export const OtherSettings: React.FC = () => {
             title={t("home.settings.other.default_quality")}
           />
         </ListItem>
+
         <ListItem
           title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
@@ -234,6 +170,7 @@ export const OtherSettings: React.FC = () => {
             }
           />
         </ListItem>
+
         <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}

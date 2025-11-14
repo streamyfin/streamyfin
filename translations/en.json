@@ -69,6 +69,18 @@
     "settings": {
       "settings_title": "Settings",
       "log_out_button": "Log Out",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance"
+      },
       "user_info": {
         "user_info_title": "User Info",
         "user": "User",
@@ -236,6 +248,7 @@
         "delete_all_downloaded_files": "Delete All Downloaded Files"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Show Intro",
         "reset_intro": "Reset Intro"
       },

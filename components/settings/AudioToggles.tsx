@@ -83,7 +83,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={optionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings?.defaultAudioLanguage?.DisplayName ||
                     t("home.settings.audio.none")}
