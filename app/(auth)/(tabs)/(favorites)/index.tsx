@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { Platform, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Favorites } from "@/components/home/Favorites";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
@@ -28,7 +28,7 @@ export default function favorites() {
         paddingBottom: 16,
       }}
     >
-      <View className='my-4'>
+      <View style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}>
         <Favorites />
       </View>
     </ScrollView>

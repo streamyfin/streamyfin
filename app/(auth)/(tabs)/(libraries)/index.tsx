@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -84,11 +84,11 @@ export default function index() {
       extraData={settings}
       contentInsetAdjustmentBehavior='automatic'
       contentContainerStyle={{
-        paddingTop: 17,
+        paddingTop: Platform.OS === "android" ? 17 : 0,
         paddingHorizontal: settings?.libraryOptions?.display === "row" ? 0 : 17,
         paddingBottom: 150,
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
+        paddingLeft: insets.left + 17,
+        paddingRight: insets.right + 17,
       }}
       data={libraries}
       renderItem={({ item }) => <LibraryItemCard library={item} />}
@@ -105,7 +105,6 @@ export default function index() {
           <View className='h-4' />
         )
       }
-      estimatedItemSize={200}
     />
   );
 }

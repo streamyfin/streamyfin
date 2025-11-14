@@ -204,7 +204,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-2' />
               {item.Type !== "Program" && !Platform.isTV && !isOffline && (
-                <View className='flex flex-row items-center justify-start w-full h-16'>
+                <View className='flex flex-row items-center justify-start w-full h-16 mb-2'>
                   <BitrateSheet
                     className='mr-1'
                     onChange={(val) =>

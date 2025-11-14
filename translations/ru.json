@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Другое",
-        "follow_device_orientation": "Авто-поворот",
         "video_orientation": "Ориентация видео",
         "orientation": "Ориентация",
         "orientations": {
@@ -143,9 +142,6 @@
       },
       "downloads": {
         "downloads_title": "Загрузки",
-        "download_method": "способ загрузки",
-        "remux_max_download": "Remux max скачать",
-        "auto_download": "Авто-загрузка",
         "optimized_versions_server": "Оптимизированные версии сервера",
         "save_button": "Сохранить",
         "optimized_server": "Оптимизированный сервер",

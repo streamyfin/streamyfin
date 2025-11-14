@@ -111,7 +111,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       pointerEvents={showControls ? "auto" : "none"}
       className={"flex flex-row w-full pt-2"}
     >
-      <View className='mr-auto'>
+      <View className='mr-auto' pointerEvents='box-none'>
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
           <VideoProvider
             getAudioTracks={getAudioTracks}
@@ -120,7 +120,9 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             setSubtitleTrack={setSubtitleTrack}
             setSubtitleURL={setSubtitleURL}
           >
-            <DropdownView />
+            <View pointerEvents='auto'>
+              <DropdownView />
+            </View>
           </VideoProvider>
         )}
       </View>
