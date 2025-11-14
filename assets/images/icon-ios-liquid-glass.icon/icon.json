@@ -4,7 +4,7 @@
   },
   "groups": [
     {
-      "blur-material": 0.2,
+      "blur-material": 0.3,
       "layers": [
         {
           "fill-specializations": [
@@ -14,14 +14,14 @@
             {
               "appearance": "tinted",
               "value": {
-                "automatic-gradient": "gray:0.80310,1.00000"
+                "automatic-gradient": "display-p3:0.76482,0.76482,0.76482,0.84903"
               }
             }
           ],
           "glass": true,
           "hidden": false,
-          "image-name": "Streamyfin logosw1 3.svg",
-          "name": "Streamyfin logosw1 3"
+          "image-name": "streamyfin_logo_layer1.svg",
+          "name": "streamyfin_logo_layer1"
         }
       ],
       "opacity": 1,
@@ -36,7 +36,7 @@
       "specular": true,
       "translucency": {
         "enabled": true,
-        "value": 0.5
+        "value": 0.6
       }
     },
     {
@@ -45,6 +45,7 @@
       "hidden": false,
       "layers": [
         {
+          "blend-mode": "normal",
           "fill-specializations": [
             {
               "value": "none"
@@ -57,8 +58,8 @@
             }
           ],
           "hidden": false,
-          "image-name": "Streamyfin logosw5.svg",
-          "name": "Streamyfin logosw5",
+          "image-name": "streamyfin_logo_layer2.svg",
+          "name": "streamyfin_logo_layer2",
           "opacity": 1,
           "position": {
             "scale": 1,
@@ -75,7 +76,7 @@
       },
       "shadow": {
         "kind": "layer-color",
-        "opacity": 0.4
+        "opacity": 0.35
       },
       "specular": true,
       "translucency-specializations": [
@@ -109,8 +110,8 @@
           ],
           "glass": true,
           "hidden": false,
-          "image-name": "Streamyfin logosw6 4.svg",
-          "name": "Streamyfin logosw6 4",
+          "image-name": "streamyfin_logo_layer3.svg",
+          "name": "streamyfin_logo_layer3",
           "opacity": 0.9
         }
       ],
@@ -145,8 +146,8 @@
               "value": true
             }
           ],
-          "image-name": "Streamyfin logosw4 4.svg",
-          "name": "Streamyfin logosw4 4",
+          "image-name": "streamyfin_logo_layer4.svg",
+          "name": "streamyfin_logo_layer4",
           "opacity-specializations": [
             {
               "value": 1
