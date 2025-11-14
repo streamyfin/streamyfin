@@ -27,7 +27,7 @@ import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
 
 interface UseDownloadOperationsProps {
-  taskMapRef: MutableRefObject<Map<number, string>>;
+  taskMapRef: MutableRefObject<Map<number | string, string>>;
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
   removeProcess: (id: string) => void;
@@ -139,7 +139,7 @@ export function useDownloadOperations({
         } else {
           // For queued downloads, store a negative mapping using URL hash
           // This allows us to cancel queued downloads by URL
-          taskMapRef.current.set(downloadUrl as any, processId);
+          taskMapRef.current.set(downloadUrl, processId);
         }
 
         toast.success(
@@ -181,7 +181,7 @@ export function useDownloadOperations({
       } else if (downloadUrl !== undefined) {
         // Cancel queued download by URL
         BackgroundDownloader.cancelQueuedDownload(downloadUrl);
-        taskMapRef.current.delete(downloadUrl as any);
+        taskMapRef.current.delete(downloadUrl);
       }
 
       removeProcess(id);

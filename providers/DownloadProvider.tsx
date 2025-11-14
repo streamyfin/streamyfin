@@ -30,7 +30,7 @@ function useDownloadProvider() {
   const successHapticFeedback = useHaptic("success");
 
   // Track task ID to process ID mapping
-  const taskMapRef = useRef<Map<number, string>>(new Map());
+  const taskMapRef = useRef<Map<number | string, string>>(new Map());
 
   // Reactive downloaded items that updates when refreshKey changes
   const downloadedItems = useMemo(() => {
