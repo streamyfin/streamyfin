@@ -264,12 +264,12 @@ const Login: React.FC = () => {
                 onChangeText={(text: string) =>
                   setCredentials({ ...credentials, username: text })
                 }
-                onBlur={(e: any) =>
-                  setCredentials({
-                    ...credentials,
-                    username: e.nativeEvent.text,
-                  })
-                }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.username) {
+                    setCredentials({ ...credentials, username: newValue });
+                  }
+                }}
                 value={credentials.username}
                 keyboardType='default'
                 returnKeyType='done'
@@ -286,12 +286,12 @@ const Login: React.FC = () => {
                 onChangeText={(text: string) =>
                   setCredentials({ ...credentials, password: text })
                 }
-                onBlur={(e: any) =>
-                  setCredentials({
-                    ...credentials,
-                    password: e.nativeEvent.text,
-                  })
-                }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.password) {
+                    setCredentials({ ...credentials, password: newValue });
+                  }
+                }}
                 value={credentials.password}
                 secureTextEntry
                 keyboardType='default'
@@ -411,12 +411,12 @@ const Login: React.FC = () => {
                   onChangeText={(text) =>
                     setCredentials({ ...credentials, username: text })
                   }
-                  onBlur={(e: any) =>
-                    setCredentials({
-                      ...credentials,
-                      username: e.nativeEvent.text,
-                    })
-                  }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.username) {
+                      setCredentials({ ...credentials, username: newValue });
+                    }
+                  }}
                   value={credentials.username}
                   keyboardType='default'
                   returnKeyType='done'
@@ -433,12 +433,12 @@ const Login: React.FC = () => {
                   onChangeText={(text) =>
                     setCredentials({ ...credentials, password: text })
                   }
-                  onBlur={(e: any) =>
-                    setCredentials({
-                      ...credentials,
-                      password: e.nativeEvent.text,
-                    })
-                  }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.password) {
+                      setCredentials({ ...credentials, password: newValue });
+                    }
+                  }}
                   value={credentials.password}
                   secureTextEntry
                   keyboardType='default'
