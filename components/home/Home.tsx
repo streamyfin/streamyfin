@@ -77,10 +77,6 @@ export const Home = () => {
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
-    console.log("scrollY", scrollY);
-  }, [scrollY]);
-
-  useEffect(() => {
     if (isConnected && !prevIsConnected.current) {
       invalidateCache();
     }

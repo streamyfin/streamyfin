@@ -132,13 +132,15 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     return itemsNotDownloaded.length === 0;
   }, [items, itemsNotDownloaded]);
   const itemsProcesses = useMemo(
-    () => processes?.filter((p) => itemIds.includes(p.item.Id)),
+    () =>
+      processes?.filter((p) => p?.item?.Id && itemIds.includes(p.item.Id)) ||
+      [],
     [processes, itemIds],
   );
 
   const progress = useMemo(() => {
     if (itemIds.length === 1)
-      return itemsProcesses.reduce((acc, p) => acc + p.progress, 0);
+      return itemsProcesses.reduce((acc, p) => acc + (p.progress || 0), 0);
     return (
       ((itemIds.length -
         queue.filter((q) => itemIds.includes(q.item.Id)).length) /
@@ -262,9 +264,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       closeModal();
 
       // Wait for modal dismiss animation to complete
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         initiateDownload(...itemsToDownload);
-      });
+      }, 300);
     } else {
       toast.error(
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
