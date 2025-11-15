@@ -32,6 +32,7 @@ module.exports = {
     "expo-haptics": disableForTV("expo-haptics"),
     "expo-brightness": disableForTV("expo-brightness"),
     "expo-sensors": disableForTV("expo-sensors"),
+    "expo-screen-orientation": disableForTV("expo-screen-orientation"),
     "react-native-ios-context-menu": disableForTV(
       "react-native-ios-context-menu",
     ),
