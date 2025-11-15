@@ -264,6 +264,12 @@ const Login: React.FC = () => {
                 onChangeText={(text: string) =>
                   setCredentials({ ...credentials, username: text })
                 }
+                onBlur={(e: any) =>
+                  setCredentials({
+                    ...credentials,
+                    username: e.nativeEvent.text,
+                  })
+                }
                 value={credentials.username}
                 keyboardType='default'
                 returnKeyType='done'
@@ -280,6 +286,12 @@ const Login: React.FC = () => {
                 onChangeText={(text: string) =>
                   setCredentials({ ...credentials, password: text })
                 }
+                onBlur={(e: any) =>
+                  setCredentials({
+                    ...credentials,
+                    password: e.nativeEvent.text,
+                  })
+                }
                 value={credentials.password}
                 secureTextEntry
                 keyboardType='default'
@@ -292,7 +304,12 @@ const Login: React.FC = () => {
               />
 
               <View className='mt-4'>
-                <Button onPress={handleLogin}>{t("login.login_button")}</Button>
+                <Button
+                  onPress={handleLogin}
+                  disabled={!credentials.username.trim()}
+                >
+                  {t("login.login_button")}
+                </Button>
               </View>
               <View className='mt-3'>
                 <Button
@@ -394,6 +411,12 @@ const Login: React.FC = () => {
                   onChangeText={(text) =>
                     setCredentials({ ...credentials, username: text })
                   }
+                  onBlur={(e: any) =>
+                    setCredentials({
+                      ...credentials,
+                      username: e.nativeEvent.text,
+                    })
+                  }
                   value={credentials.username}
                   keyboardType='default'
                   returnKeyType='done'
@@ -410,6 +433,12 @@ const Login: React.FC = () => {
                   onChangeText={(text) =>
                     setCredentials({ ...credentials, password: text })
                   }
+                  onBlur={(e: any) =>
+                    setCredentials({
+                      ...credentials,
+                      password: e.nativeEvent.text,
+                    })
+                  }
                   value={credentials.password}
                   secureTextEntry
                   keyboardType='default'
@@ -423,6 +452,7 @@ const Login: React.FC = () => {
                   <Button
                     onPress={handleLogin}
                     loading={loading}
+                    disabled={!credentials.username.trim()}
                     className='flex-1 mr-2'
                   >
                     {t("login.login_button")}
