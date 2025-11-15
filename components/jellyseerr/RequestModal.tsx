@@ -144,11 +144,14 @@ const RequestModal = forwardRef<
     }, [defaultServiceDetails]);
 
     const seasonTitle = useMemo(() => {
-      if (requestBody?.seasons && requestBody?.seasons?.length > 1) {
+      if (!requestBody?.seasons || requestBody.seasons.length === 0) {
+        return undefined;
+      }
+      if (requestBody.seasons.length > 1) {
         return t("jellyseerr.season_all");
       }
       return t("jellyseerr.season_number", {
-        season_number: requestBody?.seasons,
+        season_number: requestBody.seasons[0],
       });
     }, [requestBody?.seasons]);
 
