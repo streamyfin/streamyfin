@@ -12,6 +12,16 @@ import type {
 } from "./VlcPlayer.types";
 import VlcPlayerView from "./VlcPlayerView";
 
+export type {
+  ActiveDownload,
+  DownloadCompleteEvent,
+  DownloadErrorEvent,
+  DownloadProgressEvent,
+  DownloadStartedEvent,
+} from "./background-downloader";
+// Background Downloader
+export { default as BackgroundDownloader } from "./background-downloader";
+
 // Component
 export { VlcPlayerView };
 

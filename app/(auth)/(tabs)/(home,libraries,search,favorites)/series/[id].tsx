@@ -65,9 +65,11 @@ const page: React.FC = () => {
   const { data: allEpisodes, isLoading } = useQuery({
     queryKey: ["AllEpisodes", item?.Id],
     queryFn: async () => {
-      const res = await getTvShowsApi(api!).getEpisodes({
-        seriesId: item?.Id!,
-        userId: user?.Id!,
+      if (!api || !user?.Id || !item?.Id) return [];
+
+      const res = await getTvShowsApi(api).getEpisodes({
+        seriesId: item.Id,
+        userId: user.Id,
         enableUserData: true,
         // Note: Including trick play is necessary to enable trick play downloads
         fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],

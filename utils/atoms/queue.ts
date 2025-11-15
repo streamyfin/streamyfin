@@ -3,7 +3,6 @@ import { atom, useAtom } from "jotai";
 import { useEffect } from "react";
 import { processesAtom } from "@/providers/DownloadProvider";
 import { JobStatus } from "@/providers/Downloads/types";
-import { useSettings } from "@/utils/atoms/settings";
 
 export interface Job {
   id: string;
@@ -52,21 +51,21 @@ export const queueActions = {
   },
 };
 
+const DEFAULT_CONCURRENT_LIMIT = 2;
+
 export const useJobProcessor = () => {
   const [queue, setQueue] = useAtom(queueAtom);
   const [running, setRunning] = useAtom(runningAtom);
   const [processes] = useAtom<JobStatus[]>(processesAtom);
-  const { settings } = useSettings();
 
   useEffect(() => {
     if (
       !running &&
       queue.length > 0 &&
-      settings &&
-      processes.length < settings?.remuxConcurrentLimit
+      processes.length < DEFAULT_CONCURRENT_LIMIT
     ) {
       console.info("Processing queue", queue);
       queueActions.processJob(queue, setQueue, setRunning);
     }
-  }, [processes, queue, running, setQueue, setRunning, settings]);
+  }, [processes, queue, running, setQueue, setRunning]);
 };

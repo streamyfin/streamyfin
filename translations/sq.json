@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Tjetër",
-        "follow_device_orientation": "Auto rrotullimi",
         "video_orientation": "Orientimi i videos",
         "orientation": "Orientimi",
         "orientations": {
@@ -142,9 +141,6 @@
       },
       "downloads": {
         "downloads_title": "Shkarkime",
-        "download_method": "Metoda e shkarkimit",
-        "remux_max_download": "Remux maks shkarkimi",
-        "auto_download": "Shkarkim automatik",
         "optimized_versions_server": "Serveri i versioneve të optimizuara",
         "save_button": "Ruaj",
         "optimized_server": "Server i optimizuar",

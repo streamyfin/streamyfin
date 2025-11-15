@@ -28,7 +28,7 @@ export default function SearchLayout() {
         options={{
           title: "",
           headerShown: !Platform.isTV,
-          headerBlurEffect: "prominent",
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}

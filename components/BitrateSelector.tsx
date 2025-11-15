@@ -1,10 +1,8 @@
-import { Platform, TouchableOpacity, View } from "react-native";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "./common/Text";
+import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
 export type Bitrate = {
   key: string;
@@ -61,6 +59,8 @@ export const BitrateSelector: React.FC<Props> = ({
   ...props
 }) => {
   const isTv = Platform.isTV;
+  const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
 
   const sorted = useMemo(() => {
     if (inverted)
@@ -76,53 +76,59 @@ export const BitrateSelector: React.FC<Props> = ({
     );
   }, [inverted]);
 
-  const { t } = useTranslation();
+  const optionGroups: OptionGroup[] = useMemo(
+    () => [
+      {
+        options: sorted.map((bitrate) => ({
+          type: "radio" as const,
+          label: bitrate.key,
+          value: bitrate,
+          selected: bitrate.value === selected?.value,
+          onPress: () => onChange(bitrate),
+        })),
+      },
+    ],
+    [sorted, selected, onChange],
+  );
+
+  const handleOptionSelect = (optionId: string) => {
+    const selectedBitrate = sorted.find((b) => b.key === optionId);
+    if (selectedBitrate) {
+      onChange(selectedBitrate);
+    }
+    setOpen(false);
+  };
+
+  const trigger = (
+    <View className='flex flex-col' {...props}>
+      <Text className='opacity-50 mb-1 text-xs'>{t("item_card.quality")}</Text>
+      <TouchableOpacity
+        className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'
+        onPress={() => setOpen(true)}
+      >
+        <Text numberOfLines={1}>
+          {BITRATES.find((b) => b.value === selected?.value)?.key}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (isTv) return null;
 
   return (
-    <View
-      className='flex shrink'
-      style={{
-        minWidth: 60,
-        maxWidth: 200,
+    <PlatformDropdown
+      groups={optionGroups}
+      trigger={trigger}
+      title={t("item_card.quality")}
+      open={open}
+      onOpenChange={setOpen}
+      onOptionSelect={handleOptionSelect}
+      expoUIConfig={{
+        hostStyle: { flex: 1 },
       }}
-    >
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <View className='flex flex-col' {...props}>
-            <Text className='opacity-50 mb-1 text-xs'>
-              {t("item_card.quality")}
-            </Text>
-            <TouchableOpacity className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-              <Text style={{}} className='' numberOfLines={1}>
-                {BITRATES.find((b) => b.value === selected?.value)?.key}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          loop={false}
-          side='bottom'
-          align='center'
-          alignOffset={0}
-          avoidCollisions={true}
-          collisionPadding={0}
-          sideOffset={0}
-        >
-          <DropdownMenu.Label>Bitrates</DropdownMenu.Label>
-          {sorted.map((b) => (
-            <DropdownMenu.Item
-              key={b.key}
-              onSelect={() => {
-                onChange(b);
-              }}
-            >
-              <DropdownMenu.ItemTitle>{b.key}</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </View>
+      bottomSheetConfig={{
+        enablePanDownToClose: true,
+      }}
+    />
   );
 };

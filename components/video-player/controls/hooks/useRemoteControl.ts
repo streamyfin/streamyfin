@@ -1,8 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTVEventHandler } from "react-native";
+import { Platform } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "../constants";
+
+// TV event handler with fallback for non-TV platforms
+let useTVEventHandler: (callback: (evt: any) => void) => void;
+if (Platform.isTV) {
+  try {
+    useTVEventHandler = require("react-native").useTVEventHandler;
+  } catch {
+    // Fallback for non-TV platforms
+    useTVEventHandler = () => {};
+  }
+} else {
+  // No-op hook for non-TV platforms
+  useTVEventHandler = () => {};
+}
 
 interface UseRemoteControlProps {
   progress: SharedValue<number>;
@@ -63,6 +77,7 @@ export function useRemoteControl({
     [isVlc],
   );
 
+  // TV remote control handling (no-op on non-TV platforms)
   useTVEventHandler((evt) => {
     if (!evt) return;
 

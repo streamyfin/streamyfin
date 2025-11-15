@@ -64,9 +64,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const { settings } = useSettings();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
-  const { processes, startBackgroundDownload, getDownloadedItems } =
-    useDownload();
-  const downloadedFiles = getDownloadedItems();
+  const { processes, startBackgroundDownload, downloadedItems } = useDownload();
+  const downloadedFiles = downloadedItems;
 
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
@@ -90,11 +89,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((index: number) => {
-    // Ensure modal is fully dismissed when index is -1
-    if (index === -1) {
-      // Modal is fully closed
-    }
+  const handleSheetChanges = useCallback((_index: number) => {
+    // Modal state tracking handled by BottomSheetModal
   }, []);
 
   const closeModal = useCallback(() => {
@@ -157,6 +153,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       itemsNotDownloaded.every((p) => queue.some((q) => p.Id === q.item.Id))
     );
   }, [queue, itemsNotDownloaded]);
+
+  const itemsInProgressOrQueued = useMemo(() => {
+    const inProgress = itemsProcesses.length;
+    const inQueue = queue.filter((q) => itemIds.includes(q.item.Id)).length;
+    return inProgress + inQueue;
+  }, [itemsProcesses, queue, itemIds]);
+
   const navigateToDownloads = () => router.push("/downloads");
 
   const onDownloadedPress = () => {
@@ -256,13 +259,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         throw new Error("No item id");
       }
 
-      // Ensure modal is dismissed before starting download
-      await closeModal();
+      closeModal();
 
-      // Small delay to ensure modal is fully dismissed
-      setTimeout(() => {
+      // Wait for modal dismiss animation to complete
+      requestAnimationFrame(() => {
         initiateDownload(...itemsToDownload);
-      }, 100);
+      });
     } else {
       toast.error(
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
@@ -282,7 +284,14 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   );
 
   const renderButtonContent = () => {
-    if (processes.length > 0 && itemsProcesses.length > 0) {
+    // For single item downloads, show progress if item is being processed
+    // For multi-item downloads (season/series), show progress only if 2+ items are in progress or queued
+    const shouldShowProgress =
+      itemIds.length === 1
+        ? itemsProcesses.length > 0
+        : itemsInProgressOrQueued > 1;
+
+    if (processes.length > 0 && shouldShowProgress) {
       return progress === 0 ? (
         <Loader />
       ) : (
@@ -336,9 +345,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           backgroundColor: "#171717",
         }}
         onChange={handleSheetChanges}
-        onDismiss={() => {
-          // Ensure any pending state is cleared when modal is dismissed
-        }}
         backdropComponent={renderBackdrop}
         enablePanDownToClose
         enableDismissOnClose
@@ -359,16 +365,18 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                   })}
               </Text>
             </View>
-            <View className='flex flex-col space-y-2 w-full items-start'>
-              <BitrateSelector
-                inverted
-                onChange={(val) =>
-                  setSelectedOptions(
-                    (prev) => prev && { ...prev, bitrate: val },
-                  )
-                }
-                selected={selectedOptions?.bitrate}
-              />
+            <View className='flex flex-col space-y-2 w-full'>
+              <View className='items-start'>
+                <BitrateSelector
+                  inverted
+                  onChange={(val) =>
+                    setSelectedOptions(
+                      (prev) => prev && { ...prev, bitrate: val },
+                    )
+                  }
+                  selected={selectedOptions?.bitrate}
+                />
+              </View>
               {itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
                   <Text>{t("item_card.download.download_unwatched_only")}</Text>
@@ -380,21 +388,23 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
               {itemsNotDownloaded.length === 1 && (
                 <View>
-                  <MediaSourceSelector
-                    item={items[0]}
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            mediaSource: val,
-                          },
-                      )
-                    }
-                    selected={selectedOptions?.mediaSource}
-                  />
+                  <View className='items-start'>
+                    <MediaSourceSelector
+                      item={items[0]}
+                      onChange={(val) =>
+                        setSelectedOptions(
+                          (prev) =>
+                            prev && {
+                              ...prev,
+                              mediaSource: val,
+                            },
+                        )
+                      }
+                      selected={selectedOptions?.mediaSource}
+                    />
+                  </View>
                   {selectedOptions?.mediaSource && (
-                    <View className='flex flex-col space-y-2'>
+                    <View className='flex flex-col space-y-2 items-start'>
                       <AudioTrackSelector
                         source={selectedOptions.mediaSource}
                         onChange={(val) => {
@@ -427,11 +437,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
             </View>
 
-            <Button
-              className='mt-auto'
-              onPress={acceptDownloadOptions}
-              color='purple'
-            >
+            <Button onPress={acceptDownloadOptions} color='purple'>
               {t("item_card.download.download_button")}
             </Button>
           </View>

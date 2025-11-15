@@ -66,8 +66,8 @@ const JELLYSEERR_USER = "JELLYSEERR_USER";
 const JELLYSEERR_COOKIES = "JELLYSEERR_COOKIES";
 
 export const clearJellyseerrStorageData = () => {
-  storage.delete(JELLYSEERR_USER);
-  storage.delete(JELLYSEERR_COOKIES);
+  storage.remove(JELLYSEERR_USER);
+  storage.remove(JELLYSEERR_COOKIES);
 };
 
 export enum Endpoints {

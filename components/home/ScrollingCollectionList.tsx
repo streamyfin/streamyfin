@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { ScrollView, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { useInView } from "@/hooks/useInView";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
@@ -21,6 +22,8 @@ interface Props extends ViewProps {
   queryFn: QueryFunction<BaseItemDto[]>;
   hideIfEmpty?: boolean;
   isOffline?: boolean;
+  scrollY?: number; // For lazy loading
+  enableLazyLoading?: boolean; // Enable/disable lazy loading
 }
 
 export const ScrollingCollectionList: React.FC<Props> = ({
@@ -31,33 +34,44 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   queryKey,
   hideIfEmpty = false,
   isOffline = false,
+  scrollY = 0,
+  enableLazyLoading = false,
   ...props
 }) => {
+  const { ref, isInView, onLayout } = useInView(scrollY, {
+    enabled: enableLazyLoading,
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: queryKey,
     queryFn,
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000, // 1 minute
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    enabled: enableLazyLoading ? isInView : true,
   });
 
   const { t } = useTranslation();
 
-  if (hideIfEmpty === true && data?.length === 0) return null;
+  // Show skeleton if loading OR if lazy loading is enabled and not in view yet
+  const shouldShowSkeleton = isLoading || (enableLazyLoading && !isInView);
+
+  if (hideIfEmpty === true && data?.length === 0 && !shouldShowSkeleton)
+    return null;
   if (disabled || !title) return null;
 
   return (
-    <View {...props}>
+    <View ref={ref} onLayout={onLayout} {...props}>
       <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
         {title}
       </Text>
-      {isLoading === false && data?.length === 0 && (
+      {!shouldShowSkeleton && data?.length === 0 && (
         <View className='px-4'>
           <Text className='text-neutral-500'>{t("home.no_items")}</Text>
         </View>
       )}
-      {isLoading ? (
+      {shouldShowSkeleton ? (
         <View
           className={`
             flex flex-row gap-2 px-4

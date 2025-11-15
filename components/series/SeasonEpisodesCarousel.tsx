@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
-import { TouchableOpacity, type ViewProps } from "react-native";
+import { TouchableOpacity, type ViewStyle } from "react-native";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
@@ -14,22 +14,28 @@ import {
 } from "../common/HorizontalScroll";
 import { ItemCardText } from "../ItemCardText";
 
-interface Props extends ViewProps {
+interface Props {
   item?: BaseItemDto | null;
   loading?: boolean;
   isOffline?: boolean;
+  style?: ViewStyle;
+  containerStyle?: ViewStyle;
 }
 
 export const SeasonEpisodesCarousel: React.FC<Props> = ({
   item,
   loading,
   isOffline,
-  ...props
+  style,
+  containerStyle,
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { getDownloadedItems } = useDownload();
-  const downloadedFiles = getDownloadedItems();
+  const downloadedFiles = useMemo(
+    () => getDownloadedItems(),
+    [getDownloadedItems],
+  );
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
@@ -87,6 +93,8 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
       data={episodes}
       extraData={item}
       loading={loading || isPending}
+      style={style}
+      containerStyle={containerStyle}
       renderItem={(_item, _idx) => (
         <TouchableOpacity
           key={_item.Id}
@@ -101,7 +109,6 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           <ItemCardText item={_item} />
         </TouchableOpacity>
       )}
-      {...props}
     />
   );
 };

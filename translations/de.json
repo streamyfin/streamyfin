@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Sonstiges",
-        "follow_device_orientation": "Automatische Drehung",
         "video_orientation": "Videoausrichtung",
         "orientation": "Ausrichtung",
         "orientations": {
@@ -143,9 +142,6 @@
       },
       "downloads": {
         "downloads_title": "Downloads",
-        "download_method": "Download-Methode",
-        "remux_max_download": "Maximaler Remux-Download",
-        "auto_download": "Automatischer Download",
         "optimized_versions_server": "Optimierter Versions-Server",
         "save_button": "Speichern",
         "optimized_server": "Optimierter Server",

@@ -79,10 +79,6 @@ export type DefaultLanguageOption = {
   label: string;
 };
 
-export enum DownloadMethod {
-  Remux = "remux",
-}
-
 export type Home = {
   sections: Array<HomeSection>;
 };
@@ -142,8 +138,6 @@ export enum VideoPlayer {
 
 export type Settings = {
   home?: Home | null;
-  followDeviceOrientation?: boolean;
-  forceLandscapeInVideoPlayer?: boolean;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
@@ -163,12 +157,9 @@ export type Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock;
   forwardSkipTime: number;
   rewindSkipTime: number;
-  downloadMethod: DownloadMethod;
-  autoDownload: boolean;
   showCustomMenuLinks: boolean;
   disableHapticFeedback: boolean;
   subtitleSize: number;
-  remuxConcurrentLimit: 1 | 2 | 3 | 4;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
@@ -205,8 +196,6 @@ export type StreamyfinPluginConfig = {
 
 export const defaultValues: Settings = {
   home: null,
-  followDeviceOrientation: true,
-  forceLandscapeInVideoPlayer: false,
   deviceProfile: "Expo",
   mediaListCollectionIds: [],
   preferedLanguage: undefined,
@@ -232,12 +221,9 @@ export const defaultValues: Settings = {
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,
   rewindSkipTime: 10,
-  downloadMethod: DownloadMethod.Remux,
-  autoDownload: false,
   showCustomMenuLinks: false,
   disableHapticFeedback: false,
   subtitleSize: Platform.OS === "ios" ? 60 : 100,
-  remuxConcurrentLimit: 1,
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
@@ -257,7 +243,7 @@ export const defaultValues: Settings = {
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
-  showLargeHomeCarousel: true,
+  showLargeHomeCarousel: false,
 };
 
 const loadSettings = (): Partial<Settings> => {
