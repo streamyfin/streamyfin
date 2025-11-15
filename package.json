@@ -68,7 +68,7 @@
     "patch-package": "^8.0.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-i18next": "^15.4.0",
+    "react-i18next": "^16.0.0",
     "react-native": "npm:react-native-tvos@0.81.5-1",
     "react-native-awesome-slider": "^2.9.0",
     "react-native-bottom-tabs": "^1.0.2",
