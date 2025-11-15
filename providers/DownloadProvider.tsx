@@ -58,31 +58,42 @@ function useDownloadProvider() {
         | Partial<JobStatus>
         | ((current: JobStatus) => Partial<JobStatus>),
     ) => {
-      setProcesses((prev) =>
-        prev.map((p) => {
-          if (p.id !== processId) return p;
-          const newStatus =
-            typeof updater === "function" ? updater(p) : updater;
-          return {
-            ...p,
-            ...newStatus,
-          };
-        }),
-      );
+      setProcesses((prev) => {
+        const processIndex = prev.findIndex((p) => p.id === processId);
+        if (processIndex === -1) return prev;
+
+        const currentProcess = prev[processIndex];
+        if (!currentProcess) return prev;
+
+        const newStatus =
+          typeof updater === "function" ? updater(currentProcess) : updater;
+
+        // Create new array with updated process
+        const newProcesses = [...prev];
+        newProcesses[processIndex] = {
+          ...currentProcess,
+          ...newStatus,
+        };
+
+        return newProcesses;
+      });
     },
     [setProcesses],
   );
 
   const removeProcess = useCallback(
     (id: string) => {
-      setProcesses((prev) => prev.filter((process) => process.id !== id));
+      // Use setTimeout to defer removal and avoid race conditions during rendering
+      setTimeout(() => {
+        setProcesses((prev) => prev.filter((process) => process.id !== id));
 
-      // Find and remove from task map
-      taskMapRef.current.forEach((processId, taskId) => {
-        if (processId === id) {
-          taskMapRef.current.delete(taskId);
-        }
-      });
+        // Find and remove from task map
+        taskMapRef.current.forEach((processId, taskId) => {
+          if (processId === id) {
+            taskMapRef.current.delete(taskId);
+          }
+        });
+      }, 0);
     },
     [setProcesses],
   );
