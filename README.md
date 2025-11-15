@@ -1,3 +1,35 @@
+
+<div align="right">
+  <details>
+    <summary >🌐 Language</summary>
+    <div>
+      <div align="center">
+        <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=en">English</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=zh-CN">简体中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=zh-TW">繁體中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=ja">日本語</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=ko">한국어</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=hi">हिन्दी</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=th">ไทย</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=fr">Français</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=de">Deutsch</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=es">Español</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=it">Italiano</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=ru">Русский</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=pt">Português</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=nl">Nederlands</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=pl">Polski</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=ar">العربية</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=fa">فارسی</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=tr">Türkçe</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=vi">Tiếng Việt</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=id">Bahasa Indonesia</a>
+        | <a href="https://openaitx.github.io/view.html?user=streamyfin&project=streamyfin&lang=as">অসমীয়া</
+      </div>
+    </div>
+  </details>
+</div>
+
 <a href="https://www.buymeacoffee.com/fredrikbur3" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
 
