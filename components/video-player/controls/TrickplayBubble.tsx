@@ -63,10 +63,10 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
         <Image
           cachePolicy={"memory-disk"}
           style={{
-            width: tileWidth * trickplayInfo?.data.TileWidth!,
+            width: tileWidth * (trickplayInfo.data.TileWidth ?? 1),
             height:
-              (tileWidth / trickplayInfo.aspectRatio!) *
-              trickplayInfo?.data.TileHeight!,
+              (tileWidth / (trickplayInfo.aspectRatio ?? 1)) *
+              (trickplayInfo.data.TileHeight ?? 1),
             transform: [
               { translateX: -x * tileWidth },
               { translateY: -y * tileHeight },

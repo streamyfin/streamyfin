@@ -143,7 +143,6 @@ const ParallaxSlideShow = <T,>({
               renderItem={({ item, index }) => renderItem(item, index)}
               keyExtractor={keyExtractor}
               numColumns={3}
-              estimatedItemSize={214}
               ItemSeparatorComponent={() => <View className='h-2 w-2' />}
             />
           </View>

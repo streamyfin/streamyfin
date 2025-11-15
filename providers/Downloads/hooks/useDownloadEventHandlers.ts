@@ -24,7 +24,7 @@ import {
 } from "./useDownloadSpeedCalculator";
 
 interface UseDownloadEventHandlersProps {
-  taskMapRef: MutableRefObject<Map<number, string>>;
+  taskMapRef: MutableRefObject<Map<number | string, string>>;
   processes: JobStatus[];
   updateProcess: (
     processId: string,
@@ -59,7 +59,8 @@ export function useDownloadEventHandlers({
         // If no mapping exists, find by URL (for queued downloads)
         if (!processId && event.url) {
           // Check if we have a URL mapping (queued download)
-          processId = taskMapRef.current.get(event.url);
+          const urlKey = event.url;
+          processId = taskMapRef.current.get(urlKey);
 
           if (!processId) {
             // Fallback: search by matching URL in processes
@@ -74,7 +75,7 @@ export function useDownloadEventHandlers({
           if (processId) {
             // Create taskId mapping and remove URL mapping
             taskMapRef.current.set(event.taskId, processId);
-            taskMapRef.current.delete(event.url);
+            taskMapRef.current.delete(urlKey);
             console.log(
               `[DPL] Mapped queued download: taskId=${event.taskId} to processId=${processId.slice(0, 8)}...`,
             );

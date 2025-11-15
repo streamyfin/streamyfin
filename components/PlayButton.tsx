@@ -50,7 +50,6 @@ export const PlayButton: React.FC<Props> = ({
   selectedOptions,
   isOffline,
   colors,
-  ...props
 }: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
