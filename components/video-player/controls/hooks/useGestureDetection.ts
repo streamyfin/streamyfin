@@ -28,6 +28,7 @@ export const useGestureDetection = ({
   onVerticalDragEnd,
   onTap,
   screenWidth = 400,
+  screenHeight = 800,
 }: SwipeGestureOptions = {}) => {
   const touchStartTime = useRef(0);
   const touchStartPosition = useRef({ x: 0, y: 0 });
@@ -36,25 +37,47 @@ export const useGestureDetection = ({
   const dragSide = useRef<"left" | "right" | null>(null);
   const hasMovedEnough = useRef(false);
   const gestureType = useRef<"none" | "horizontal" | "vertical">("none");
+  const shouldIgnoreTouch = useRef(false);
 
-  const handleTouchStart = useCallback((event: GestureResponderEvent) => {
-    touchStartTime.current = Date.now();
-    touchStartPosition.current = {
-      x: event.nativeEvent.pageX,
-      y: event.nativeEvent.pageY,
-    };
-    lastTouchPosition.current = {
-      x: event.nativeEvent.pageX,
-      y: event.nativeEvent.pageY,
-    };
-    isDragging.current = false;
-    dragSide.current = null;
-    hasMovedEnough.current = false;
-    gestureType.current = "none";
-  }, []);
+  const handleTouchStart = useCallback(
+    (event: GestureResponderEvent) => {
+      const startY = event.nativeEvent.pageY;
+
+      // Define exclusion zones (15% from top and bottom)
+      const topExclusionZone = screenHeight * 0.15;
+      const bottomExclusionZone = screenHeight * 0.85;
+
+      // Check if touch started in exclusion zones
+      if (startY < topExclusionZone || startY > bottomExclusionZone) {
+        shouldIgnoreTouch.current = true;
+        return;
+      }
+
+      shouldIgnoreTouch.current = false;
+      touchStartTime.current = Date.now();
+      touchStartPosition.current = {
+        x: event.nativeEvent.pageX,
+        y: startY,
+      };
+      lastTouchPosition.current = {
+        x: event.nativeEvent.pageX,
+        y: startY,
+      };
+      isDragging.current = false;
+      dragSide.current = null;
+      hasMovedEnough.current = false;
+      gestureType.current = "none";
+    },
+    [screenHeight],
+  );
 
   const handleTouchMove = useCallback(
     (event: GestureResponderEvent) => {
+      // Ignore touch if it started in exclusion zone
+      if (shouldIgnoreTouch.current) {
+        return;
+      }
+
       const currentPosition = {
         x: event.nativeEvent.pageX,
         y: event.nativeEvent.pageY,
@@ -106,6 +129,12 @@ export const useGestureDetection = ({
 
   const handleTouchEnd = useCallback(
     (event: GestureResponderEvent) => {
+      // Ignore touch if it started in exclusion zone
+      if (shouldIgnoreTouch.current) {
+        shouldIgnoreTouch.current = false;
+        return;
+      }
+
       const touchEndTime = Date.now();
       const touchEndPosition = {
         x: event.nativeEvent.pageX,
