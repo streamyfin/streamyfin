@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { OrientationLock } from "@/packages/expo-screen-orientation";
-import { Orientation } from "../packages/expo-screen-orientation.tv";
+import {
+  Orientation,
+  OrientationLock,
+} from "../packages/expo-screen-orientation.tv";
 
 const orientationToOrientationLock = (
   orientation: Orientation,
@@ -30,13 +32,15 @@ export const useOrientation = () => {
     if (Platform.isTV) return;
 
     const orientationSubscription =
-      ScreenOrientation.addOrientationChangeListener((event) => {
-        setOrientation(
-          orientationToOrientationLock(event.orientationInfo.orientation),
-        );
-      });
+      ScreenOrientation.addOrientationChangeListener(
+        (event: { orientationInfo: { orientation: Orientation } }) => {
+          setOrientation(
+            orientationToOrientationLock(event.orientationInfo.orientation),
+          );
+        },
+      );
 
-    ScreenOrientation.getOrientationAsync().then((orientation) => {
+    ScreenOrientation.getOrientationAsync().then((orientation: Orientation) => {
       setOrientation(orientationToOrientationLock(orientation));
     });
 

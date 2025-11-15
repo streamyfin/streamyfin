@@ -1,8 +1,8 @@
-# 📦 Pull Request
+# 📦 chore(deps): upgrade deps and fix iOS build
 
 ## 🔖 Summary
 
-Upgrade runtime dependencies (react-i18next, react-native-worklets) and improve TypeScript type safety for screen orientation handling.
+Upgrade runtime dependencies (react-i18next, react-native-worklets), improve TypeScript type safety for screen orientation handling, and fix iOS build error from develop branch.
 
 ## 🏷️ Ticket / Issue
 
@@ -12,13 +12,20 @@ None
 
 - **Type**: chore
 - **Scope**: deps, refactor
-- **Summary**: Upgraded react-i18next and react-native-worklets to latest versions, improved type safety for screen orientation APIs
+- **Summary**: Upgraded react-i18next and react-native-worklets to latest versions, improved type safety for screen orientation APIs, and fixed iOS build error
 
 ## 📋 Details
 
-This PR upgrades key runtime dependencies and improves type safety across orientation-related code.
+This PR upgrades key runtime dependencies, improves type safety across orientation-related code, and fixes an iOS build error present in the develop branch.
 
 ### Changes Made
+
+**iOS Build Fix:**
+
+- Removed root-level `icon` field from `app.json` to resolve Xcode build failure
+- The iOS-specific liquid glass icon format was causing asset catalog compilation errors
+- Build error: "None of the input catalogs contained a matching stickers icon set or app icon set named 'icon-ios-liquid-glass'"
+- Removing the root icon allows the iOS-specific icon to be processed correctly
 
 **Runtime Dependencies Updated:**
 
@@ -67,10 +74,13 @@ None
    - [x] Screen rotation works correctly on mobile
    - [x] Orientation lock/unlock functions work
    - [x] TV platform continues to use landscape orientation
-6. Test i18n functionality:
+6. Test iOS build:
+   - [x] iOS build completes successfully without icon-related errors
+   - [x] App icons display correctly on iOS devices
+7. Test i18n functionality:
    - [x] Language switching works
    - [x] Translations load correctly
-7. Verification steps:
+8. Verification steps:
    - [x] All commands complete successfully
    - [x] No runtime errors
    - [x] Orientation behavior unchanged

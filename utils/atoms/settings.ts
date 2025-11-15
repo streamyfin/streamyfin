@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { OrientationLock } from "@/packages/expo-screen-orientation.tv";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
@@ -25,10 +26,7 @@ export type DownloadOption = {
   value: DownloadQuality;
 };
 
-export const ScreenOrientationEnum: Record<
-  ScreenOrientation.OrientationLock,
-  string
-> = {
+export const ScreenOrientationEnum: Record<number, string> = {
   [ScreenOrientation.OrientationLock.DEFAULT]:
     "home.settings.other.orientations.DEFAULT",
   [ScreenOrientation.OrientationLock.ALL]:
@@ -154,7 +152,7 @@ export type Settings = {
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
   showHomeTitles: boolean;
-  defaultVideoOrientation: ScreenOrientation.OrientationLock;
+  defaultVideoOrientation: OrientationLock;
   forwardSkipTime: number;
   rewindSkipTime: number;
   showCustomMenuLinks: boolean;
@@ -218,7 +216,7 @@ export const defaultValues: Settings = {
   subtitleMode: SubtitlePlaybackMode.Default,
   rememberSubtitleSelections: true,
   showHomeTitles: true,
-  defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
+  defaultVideoOrientation: OrientationLock.DEFAULT,
   forwardSkipTime: 30,
   rewindSkipTime: 10,
   showCustomMenuLinks: false,
