@@ -131,9 +131,11 @@ const Page: React.FC = () => {
       mediaId: Number(result.id!),
       mediaType: mediaType!,
       tvdbId: details?.externalIds?.tvdbId,
-      seasons: (details as TvDetails)?.seasons
-        ?.filter?.((s) => s.seasonNumber !== 0)
-        ?.map?.((s) => s.seasonNumber),
+      ...(mediaType === MediaType.TV && {
+        seasons: (details as TvDetails)?.seasons
+          ?.filter?.((s) => s.seasonNumber !== 0)
+          ?.map?.((s) => s.seasonNumber),
+      }),
     };
 
     if (hasAdvancedRequestPermission) {
