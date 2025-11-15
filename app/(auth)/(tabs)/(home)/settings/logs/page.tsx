@@ -1,15 +1,20 @@
 import { File, Paths } from "expo-file-system";
 import { useNavigation } from "expo-router";
-import * as Sharing from "expo-sharing";
+import type * as SharingType from "expo-sharing";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { Loader } from "@/components/Loader";
 import { LogLevel, useLog, writeErrorLog } from "@/utils/log";
+
+// Conditionally import expo-sharing only on non-TV platforms
+const Sharing = Platform.isTV
+  ? null
+  : (require("expo-sharing") as typeof SharingType);
 
 export default function Page() {
   const navigation = useNavigation();
@@ -49,6 +54,8 @@ export default function Page() {
 
   // Sharing it as txt while its formatted allows us to share it with many more applications
   const share = useCallback(async () => {
+    if (!Sharing) return;
+
     const logsFile = new File(Paths.document, "logs.txt");
 
     setLoading(true);
@@ -60,9 +67,11 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, [filteredLogs]);
+  }, [filteredLogs, Sharing]);
 
   useEffect(() => {
+    if (Platform.isTV) return;
+
     navigation.setOptions({
       headerRight: () =>
         loading ? (

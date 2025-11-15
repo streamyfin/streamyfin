@@ -42,14 +42,14 @@ const Login: React.FC = () => {
 
   const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const [serverURL, setServerURL] = useState<string>(_apiUrl);
+  const [serverURL, setServerURL] = useState<string>(_apiUrl || "");
   const [serverName, setServerName] = useState<string>("");
   const [credentials, setCredentials] = useState<{
     username: string;
     password: string;
   }>({
-    username: _username,
-    password: _password,
+    username: _username || "",
+    password: _password || "",
   });
 
   /**
@@ -278,6 +278,8 @@ const Login: React.FC = () => {
                 clearButtonMode='while-editing'
                 maxLength={500}
                 extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               {/* Password */}
@@ -301,6 +303,8 @@ const Login: React.FC = () => {
                 clearButtonMode='while-editing'
                 maxLength={500}
                 extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               <View className='mt-4'>
@@ -351,6 +355,8 @@ const Login: React.FC = () => {
                 autoCapitalize='none'
                 textContentType='URL'
                 maxLength={500}
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               {/* Full-width primary button */}
