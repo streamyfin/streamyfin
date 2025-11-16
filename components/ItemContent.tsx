@@ -233,7 +233,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             )}
 
             {!isOffline &&
-              selectedOptions.mediaSource?.MediaStreams?.length > 0 && (
+              selectedOptions.mediaSource?.MediaStreams &&
+              selectedOptions.mediaSource.MediaStreams.length > 0 && (
                 <ItemTechnicalDetails source={selectedOptions.mediaSource} />
               )}
 
