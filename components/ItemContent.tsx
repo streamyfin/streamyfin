@@ -24,7 +24,6 @@ import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
-import { useItemQuery } from "@/hooks/useItemQuery";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -68,9 +67,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     const [selectedOptions, setSelectedOptions] = useState<
       SelectedOptions | undefined
     >(undefined);
-
-    // preload media sources
-    useItemQuery(item.Id, false, undefined, []);
 
     const {
       defaultAudioIndex,

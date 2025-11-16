@@ -27,6 +27,9 @@ const Page: React.FC = () => {
     ItemFields.MediaStreams,
   ]);
 
+  // preload media sources in background
+  useItemQuery(id, false, undefined, []);
+
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
     return {
