@@ -28,6 +28,7 @@ class VlcPlayerView: ExpoView {
     private var initialSeekPerformed: Bool = false
     private var nowPlayingMetadata: [String: String]?
     private var artworkImage: UIImage?
+    private var artworkDownloadTask: URLSessionDataTask?
 
     // MARK: - Initialization
 
@@ -163,6 +164,30 @@ class VlcPlayerView: ExpoView {
         }
         
         print("Remote command center configured")
+        #endif
+    }
+    
+    private func cleanupRemoteCommandCenter() {
+        #if !os(tvOS)
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        // Remove all command targets to prevent memory leaks
+        commandCenter.playCommand.removeTarget(nil)
+        commandCenter.pauseCommand.removeTarget(nil)
+        commandCenter.togglePlayPauseCommand.removeTarget(nil)
+        commandCenter.skipForwardCommand.removeTarget(nil)
+        commandCenter.skipBackwardCommand.removeTarget(nil)
+        commandCenter.changePlaybackPositionCommand.removeTarget(nil)
+        
+        // Disable commands
+        commandCenter.playCommand.isEnabled = false
+        commandCenter.pauseCommand.isEnabled = false
+        commandCenter.togglePlayPauseCommand.isEnabled = false
+        commandCenter.skipForwardCommand.isEnabled = false
+        commandCenter.skipBackwardCommand.isEnabled = false
+        commandCenter.changePlaybackPositionCommand.isEnabled = false
+        
+        print("Remote command center cleaned up")
         #endif
     }
 
@@ -409,31 +434,51 @@ class VlcPlayerView: ExpoView {
     }
 
     @objc func setNowPlayingMetadata(_ metadata: [String: String]) {
+        // Cancel any existing artwork download to prevent race conditions
+        artworkDownloadTask?.cancel()
+        artworkDownloadTask = nil
+        
         self.nowPlayingMetadata = metadata
         print("[NowPlaying] Metadata received: \(metadata)")
         
         // Load artwork asynchronously if provided
         if let artworkUri = metadata["artworkUri"], let url = URL(string: artworkUri) {
             print("[NowPlaying] Loading artwork from: \(artworkUri)")
-            URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+            artworkDownloadTask = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+                guard let self = self else { return }
+                
+                if let error = error as NSError?, error.code == NSURLErrorCancelled {
+                    print("[NowPlaying] Artwork download cancelled")
+                    return
+                }
+                
                 if let error = error {
                     print("[NowPlaying] Artwork loading error: \(error)")
+                    DispatchQueue.main.async {
+                        self.updateNowPlayingInfo()
+                    }
                 } else if let data = data, let image = UIImage(data: data) {
                     print("[NowPlaying] Artwork loaded successfully, size: \(image.size)")
-                    self?.artworkImage = image
+                    self.artworkImage = image
                     DispatchQueue.main.async {
-                        self?.updateNowPlayingInfo()
+                        self.updateNowPlayingInfo()
                     }
                 } else {
                     print("[NowPlaying] Failed to create image from data")
+                    // Update Now Playing info without artwork on failure
+                    DispatchQueue.main.async {
+                        self.updateNowPlayingInfo()
+                    }
                 }
-            }.resume()
+            }
+            artworkDownloadTask?.resume()
         } else {
+            // No artwork URI provided - update immediately
             print("[NowPlaying] No artwork URI provided")
-        }
-        
-        DispatchQueue.main.async {
-            self.updateNowPlayingInfo()
+            artworkImage = nil
+            DispatchQueue.main.async {
+                self.updateNowPlayingInfo()
+            }
         }
     }
 
@@ -468,8 +513,24 @@ class VlcPlayerView: ExpoView {
         // Stop the media player
         mediaPlayer?.stop()
 
-        // Clear Now Playing info
+        // Cancel any in-flight artwork downloads
+        artworkDownloadTask?.cancel()
+        artworkDownloadTask = nil
+        artworkImage = nil
+
+        // Cleanup remote command center targets
+        cleanupRemoteCommandCenter()
+
         #if !os(tvOS)
+        // Deactivate audio session to allow other apps to use audio
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            print("Audio session deactivated")
+        } catch {
+            print("Failed to deactivate audio session: \(error)")
+        }
+        
+        // Clear Now Playing info
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         #endif
 
@@ -507,7 +568,8 @@ class VlcPlayerView: ExpoView {
             ])
         }
         
-        // Update Now Playing info as playback progresses (ensure main thread)
+        // Update Now Playing info to sync elapsed playback time
+        // iOS needs periodic updates to keep progress indicator in sync
         DispatchQueue.main.async {
             self.updateNowPlayingInfo()
         }
