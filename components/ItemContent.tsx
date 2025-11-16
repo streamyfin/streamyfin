@@ -32,6 +32,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
 import { ItemHeader } from "./ItemHeader";
+import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
 
@@ -230,6 +231,12 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 isOffline={isOffline}
               />
             )}
+
+            {!isOffline &&
+              selectedOptions.mediaSource?.MediaStreams &&
+              selectedOptions.mediaSource.MediaStreams.length > 0 && (
+                <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+              )}
 
             <OverviewText text={item.Overview} className='px-4 mb-4' />
 
