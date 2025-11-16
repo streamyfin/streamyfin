@@ -51,7 +51,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   };
 
   const eta = useMemo(() => {
-    if (!process.estimatedTotalSizeBytes || !process.bytesDownloaded) {
+    if (!process?.estimatedTotalSizeBytes || !process?.bytesDownloaded) {
       return null;
     }
 
@@ -66,13 +66,14 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
     }
 
     return formatTimeString(secondsRemaining, "s");
-  }, [process.id, process.bytesDownloaded, process.estimatedTotalSizeBytes]);
+  }, [process?.id, process?.bytesDownloaded, process?.estimatedTotalSizeBytes]);
 
   const estimatedSize = useMemo(() => {
-    if (process.estimatedTotalSizeBytes) return process.estimatedTotalSizeBytes;
+    if (process?.estimatedTotalSizeBytes)
+      return process.estimatedTotalSizeBytes;
 
     // Calculate from bitrate + duration (only if bitrate value is defined)
-    if (process.maxBitrate.value) {
+    if (process?.maxBitrate?.value && process?.item?.RunTimeTicks) {
       return estimateDownloadSize(
         process.maxBitrate.value,
         process.item.RunTimeTicks,
@@ -81,32 +82,43 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
     return undefined;
   }, [
-    process.maxBitrate.value,
-    process.item.RunTimeTicks,
-    process.estimatedTotalSizeBytes,
+    process?.maxBitrate?.value,
+    process?.item?.RunTimeTicks,
+    process?.estimatedTotalSizeBytes,
   ]);
 
-  const isTranscoding = process.isTranscoding || false;
+  const isTranscoding = process?.isTranscoding || false;
 
   const downloadedAmount = useMemo(() => {
-    if (!process.bytesDownloaded) return null;
+    if (!process?.bytesDownloaded) return null;
     return formatBytes(process.bytesDownloaded);
-  }, [process.bytesDownloaded]);
+  }, [process?.bytesDownloaded]);
 
   const base64Image = useMemo(() => {
-    return storage.getString(process.item.Id!);
-  }, []);
+    try {
+      const itemId = process?.item?.Id;
+      if (!itemId) return undefined;
+      return storage.getString(itemId);
+    } catch {
+      return undefined;
+    }
+  }, [process?.item?.Id]);
 
   // Sanitize progress to ensure it's within valid bounds
   const sanitizedProgress = useMemo(() => {
     if (
-      typeof process.progress !== "number" ||
+      typeof process?.progress !== "number" ||
       Number.isNaN(process.progress)
     ) {
       return 0;
     }
     return Math.max(0, Math.min(100, process.progress));
-  }, [process.progress]);
+  }, [process?.progress]);
+
+  // Return null after all hooks have been called
+  if (!process || !process.item || !process.item.Id) {
+    return null;
+  }
 
   return (
     <TouchableOpacity

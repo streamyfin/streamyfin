@@ -15,6 +15,7 @@ import {
   getOrSetDeviceId,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
+import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -36,12 +37,11 @@ const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
 import type { EventSubscription } from "expo-modules-core";
-import { getDevicePushTokenAsync } from "expo-notifications";
 import type {
   Notification,
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
-import type { DevicePushToken } from "expo-notifications/build/Tokens.types";
+import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
 import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
@@ -206,24 +206,24 @@ function Layout() {
 
   useNotificationObserver();
 
-  const [pushToken, setPushToken] = useState<DevicePushToken>();
+  const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
   const notificationListener = useRef<EventSubscription>(null);
   const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
-    if (!Platform.isTV && pushToken && api && user) {
+    if (!Platform.isTV && expoPushToken && api && user) {
       api
         ?.post("/Streamyfin/device", {
-          token: pushToken.data,
+          token: expoPushToken.data,
           deviceId: getOrSetDeviceId(),
           userId: user.Id,
         })
-        .then((_) => console.log("Posted device push token"))
+        .then((_) => console.log("Posted expo push token"))
         .catch((_) =>
-          writeErrorLog("Failed to push device push token to plugin"),
+          writeErrorLog("Failed to push expo push token to plugin"),
         );
     } else console.log("No token available");
-  }, [api, pushToken, user]);
+  }, [api, expoPushToken, user]);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
@@ -256,9 +256,19 @@ function Layout() {
 
     // only create push token for real devices (pointless for emulators)
     if (Device.isDevice) {
-      getDevicePushTokenAsync()
-        .then((token: DevicePushToken) => token && setPushToken(token))
-        .catch((reason: any) => console.log("Failed to get token", reason));
+      Notifications?.getExpoPushTokenAsync({
+        projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
+      })
+        .then((token: ExpoPushToken) => {
+          if (token) {
+            console.log("Expo push token obtained:", token.data);
+            setExpoPushToken(token);
+          }
+        })
+        .catch((reason: any) => {
+          console.error("Failed to get push token:", reason);
+          writeErrorLog("Failed to get Expo push token", reason);
+        });
     }
   }, [user]);
 
@@ -329,63 +339,65 @@ function Layout() {
   return (
     <QueryClientProvider client={queryClient}>
       <JellyfinProvider>
-        <PlaySettingsProvider>
-          <LogProvider>
-            <WebSocketProvider>
-              <DownloadProvider>
-                <GlobalModalProvider>
-                  <BottomSheetModalProvider>
-                    <ThemeProvider value={DarkTheme}>
-                      <SystemBars style='light' hidden={false} />
-                      <Stack initialRouteName='(auth)/(tabs)'>
-                        <Stack.Screen
-                          name='(auth)/(tabs)'
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
+        <NetworkStatusProvider>
+          <PlaySettingsProvider>
+            <LogProvider>
+              <WebSocketProvider>
+                <DownloadProvider>
+                  <GlobalModalProvider>
+                    <BottomSheetModalProvider>
+                      <ThemeProvider value={DarkTheme}>
+                        <SystemBars style='light' hidden={false} />
+                        <Stack initialRouteName='(auth)/(tabs)'>
+                          <Stack.Screen
+                            name='(auth)/(tabs)'
+                            options={{
+                              headerShown: false,
+                              title: "",
+                              header: () => null,
+                            }}
+                          />
+                          <Stack.Screen
+                            name='(auth)/player'
+                            options={{
+                              headerShown: false,
+                              title: "",
+                              header: () => null,
+                            }}
+                          />
+                          <Stack.Screen
+                            name='login'
+                            options={{
+                              headerShown: true,
+                              title: "",
+                              headerTransparent: Platform.OS === "ios",
+                            }}
+                          />
+                          <Stack.Screen name='+not-found' />
+                        </Stack>
+                        <Toaster
+                          duration={4000}
+                          toastOptions={{
+                            style: {
+                              backgroundColor: "#262626",
+                              borderColor: "#363639",
+                              borderWidth: 1,
+                            },
+                            titleStyle: {
+                              color: "white",
+                            },
                           }}
+                          closeButton
                         />
-                        <Stack.Screen
-                          name='(auth)/player'
-                          options={{
-                            headerShown: false,
-                            title: "",
-                            header: () => null,
-                          }}
-                        />
-                        <Stack.Screen
-                          name='login'
-                          options={{
-                            headerShown: true,
-                            title: "",
-                            headerTransparent: Platform.OS === "ios",
-                          }}
-                        />
-                        <Stack.Screen name='+not-found' />
-                      </Stack>
-                      <Toaster
-                        duration={4000}
-                        toastOptions={{
-                          style: {
-                            backgroundColor: "#262626",
-                            borderColor: "#363639",
-                            borderWidth: 1,
-                          },
-                          titleStyle: {
-                            color: "white",
-                          },
-                        }}
-                        closeButton
-                      />
-                      <GlobalModal />
-                    </ThemeProvider>
-                  </BottomSheetModalProvider>
-                </GlobalModalProvider>
-              </DownloadProvider>
-            </WebSocketProvider>
-          </LogProvider>
-        </PlaySettingsProvider>
+                        <GlobalModal />
+                      </ThemeProvider>
+                    </BottomSheetModalProvider>
+                  </GlobalModalProvider>
+                </DownloadProvider>
+              </WebSocketProvider>
+            </LogProvider>
+          </PlaySettingsProvider>
+        </NetworkStatusProvider>
       </JellyfinProvider>
     </QueryClientProvider>
   );

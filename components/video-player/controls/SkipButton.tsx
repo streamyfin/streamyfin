@@ -13,12 +13,6 @@ const SkipButton: React.FC<SkipButtonProps> = ({
   buttonText,
   ...props
 }) => {
-  console.log(`[SKIP_BUTTON] Render:`, {
-    buttonText,
-    showButton,
-    className: showButton ? "flex" : "hidden",
-  });
-
   return (
     <View className={showButton ? "flex" : "hidden"} {...props}>
       <TouchableOpacity

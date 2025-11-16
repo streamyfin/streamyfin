@@ -33,7 +33,6 @@ export default function page() {
     <View className='flex flex-1'>
       <FlashList
         data={channels?.Items}
-        estimatedItemSize={76}
         renderItem={({ item }) => (
           <View className='flex flex-row items-center px-4 mb-2'>
             <View className='w-22 mr-4 rounded-lg overflow-hidden'>

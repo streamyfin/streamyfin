@@ -182,6 +182,41 @@ export function removeDownloadedItem(id: string): DownloadedItem | undefined {
 }
 
 /**
+ * Update a downloaded item in the database
+ */
+export function updateDownloadedItem(
+  _id: string,
+  updatedItem: DownloadedItem,
+): void {
+  const db = getDownloadsDatabase();
+  const baseItem = updatedItem.item;
+
+  if (baseItem.Type === "Movie" && baseItem.Id) {
+    db.movies[baseItem.Id] = updatedItem;
+  } else if (
+    baseItem.Type === "Episode" &&
+    baseItem.SeriesId &&
+    baseItem.ParentIndexNumber !== undefined &&
+    baseItem.ParentIndexNumber !== null &&
+    baseItem.IndexNumber !== undefined &&
+    baseItem.IndexNumber !== null
+  ) {
+    const seriesId = baseItem.SeriesId;
+    const seasonNumber = baseItem.ParentIndexNumber;
+    const episodeNumber = baseItem.IndexNumber;
+
+    if (db.series[seriesId]?.seasons[seasonNumber]?.episodes[episodeNumber]) {
+      db.series[seriesId].seasons[seasonNumber].episodes[episodeNumber] =
+        updatedItem;
+    }
+  } else if (baseItem.Id && db.other?.[baseItem.Id]) {
+    db.other[baseItem.Id] = updatedItem;
+  }
+
+  saveDownloadsDatabase(db);
+}
+
+/**
  * Clear all downloaded items from the database
  */
 export function clearAllDownloadedItems(): void {

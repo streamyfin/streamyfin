@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { Colors } from "../../constants/Colors";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
@@ -35,7 +36,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   queryFn,
   queryKey,
   hideIfEmpty = false,
-  pageSize = 20,
+  pageSize = 10,
   ...props
 }) => {
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
@@ -52,9 +53,9 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         return allPages.length * pageSize;
       },
       initialPageParam: 0,
-      staleTime: 0,
-      refetchOnMount: true,
-      refetchOnWindowFocus: true,
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
     });
 
@@ -179,8 +180,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
             ))}
             {/* Loading indicator for next page */}
             {isFetchingNextPage && (
-              <View className='justify-center items-center w-16'>
-                <ActivityIndicator size='small' color='#6366f1' />
+              <View
+                style={{
+                  marginLeft: 8,
+                  marginTop: orientation === "horizontal" ? 37 : 70,
+                }}
+              >
+                <ActivityIndicator size='small' color={Colors.primary} />
               </View>
             )}
           </View>

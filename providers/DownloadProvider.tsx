@@ -8,6 +8,7 @@ import {
   getAllDownloadedItems,
   getDownloadedItemById,
   getDownloadsDatabase,
+  updateDownloadedItem,
 } from "./Downloads/database";
 import { getDownloadedItemSize } from "./Downloads/fileOperations";
 import { useDownloadEventHandlers } from "./Downloads/hooks/useDownloadEventHandlers";
@@ -29,7 +30,7 @@ function useDownloadProvider() {
   const successHapticFeedback = useHaptic("success");
 
   // Track task ID to process ID mapping
-  const taskMapRef = useRef<Map<number, string>>(new Map());
+  const taskMapRef = useRef<Map<number | string, string>>(new Map());
 
   // Reactive downloaded items that updates when refreshKey changes
   const downloadedItems = useMemo(() => {
@@ -57,31 +58,42 @@ function useDownloadProvider() {
         | Partial<JobStatus>
         | ((current: JobStatus) => Partial<JobStatus>),
     ) => {
-      setProcesses((prev) =>
-        prev.map((p) => {
-          if (p.id !== processId) return p;
-          const newStatus =
-            typeof updater === "function" ? updater(p) : updater;
-          return {
-            ...p,
-            ...newStatus,
-          };
-        }),
-      );
+      setProcesses((prev) => {
+        const processIndex = prev.findIndex((p) => p.id === processId);
+        if (processIndex === -1) return prev;
+
+        const currentProcess = prev[processIndex];
+        if (!currentProcess) return prev;
+
+        const newStatus =
+          typeof updater === "function" ? updater(currentProcess) : updater;
+
+        // Create new array with updated process
+        const newProcesses = [...prev];
+        newProcesses[processIndex] = {
+          ...currentProcess,
+          ...newStatus,
+        };
+
+        return newProcesses;
+      });
     },
     [setProcesses],
   );
 
   const removeProcess = useCallback(
     (id: string) => {
-      setProcesses((prev) => prev.filter((process) => process.id !== id));
+      // Use setTimeout to defer removal and avoid race conditions during rendering
+      setTimeout(() => {
+        setProcesses((prev) => prev.filter((process) => process.id !== id));
 
-      // Find and remove from task map
-      taskMapRef.current.forEach((processId, taskId) => {
-        if (processId === id) {
-          taskMapRef.current.delete(taskId);
-        }
-      });
+        // Find and remove from task map
+        taskMapRef.current.forEach((processId, taskId) => {
+          if (processId === id) {
+            taskMapRef.current.delete(taskId);
+          }
+        });
+      }, 0);
     },
     [setProcesses],
   );
@@ -130,13 +142,13 @@ function useDownloadProvider() {
     cancelDownload,
     getDownloadedItemSize,
     getDownloadedItemById,
+    updateDownloadedItem,
     triggerRefresh,
     APP_CACHE_DOWNLOAD_DIRECTORY: APP_CACHE_DOWNLOAD_DIRECTORY.uri,
     appSizeUsage,
     // Deprecated/not implemented in simple version
     startDownload: async () => {},
     cleanCacheDirectory: async () => {},
-    updateDownloadedItem: () => {},
     dumpDownloadDiagnostics: async () => "",
   };
 }
@@ -161,9 +173,9 @@ export function useDownload() {
       startDownload: async () => {},
       getDownloadedItemSize: () => 0,
       getDownloadedItemById: () => undefined,
+      updateDownloadedItem: () => {},
       APP_CACHE_DOWNLOAD_DIRECTORY: "",
       cleanCacheDirectory: async () => {},
-      updateDownloadedItem: () => {},
       appSizeUsage: async () => ({ total: 0, remaining: 0, appSize: 0 }),
       dumpDownloadDiagnostics: async () => "",
     };

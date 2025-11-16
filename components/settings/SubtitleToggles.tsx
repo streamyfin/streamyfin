@@ -187,7 +187,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={subtitleLanguageOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings?.defaultSubtitleLanguage?.DisplayName ||
                     t("home.settings.subtitles.none")}
@@ -210,7 +210,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={subtitleModeOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(subtitleModeKeys[settings?.subtitleMode]) ||
                     t("home.settings.subtitles.loading")}
@@ -256,7 +256,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={textColorOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(
                     `home.settings.subtitles.colors.${settings?.vlcTextColor || "White"}`,
@@ -276,7 +276,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={backgroundColorOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(
                     `home.settings.subtitles.colors.${settings?.vlcBackgroundColor || "Black"}`,
@@ -296,7 +296,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={outlineColorOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(
                     `home.settings.subtitles.colors.${settings?.vlcOutlineColor || "Black"}`,
@@ -316,7 +316,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={outlineThicknessOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(
                     `home.settings.subtitles.thickness.${settings?.vlcOutlineThickness || "Normal"}`,
@@ -336,7 +336,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={backgroundOpacityOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>{`${Math.round(((settings?.vlcBackgroundOpacity ?? 128) / 255) * 100)}%`}</Text>
                 <Ionicons
                   name='chevron-expand-sharp'
@@ -352,7 +352,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <PlatformDropdown
             groups={outlineOpacityOptionGroups}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>{`${Math.round(((settings?.vlcOutlineOpacity ?? 255) / 255) * 100)}%`}</Text>
                 <Ionicons
                   name='chevron-expand-sharp'

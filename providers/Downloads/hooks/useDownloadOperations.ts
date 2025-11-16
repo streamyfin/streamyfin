@@ -6,6 +6,7 @@ import { File, Paths } from "expo-file-system";
 import type { MutableRefObject } from "react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import DeviceInfo from "react-native-device-info";
 import { toast } from "sonner-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import useImageStorage from "@/hooks/useImageStorage";
@@ -26,7 +27,7 @@ import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
 
 interface UseDownloadOperationsProps {
-  taskMapRef: MutableRefObject<Map<number, string>>;
+  taskMapRef: MutableRefObject<Map<number | string, string>>;
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
   removeProcess: (id: string) => void;
@@ -168,7 +169,7 @@ export function useDownloadOperations({
           if (typeof key === "number") {
             taskId = key;
           } else {
-            downloadUrl = key;
+            downloadUrl = key as string;
           }
         }
       });
@@ -286,11 +287,25 @@ export function useDownloadOperations({
   const appSizeUsage = useCallback(async () => {
     const totalSize = calculateTotalDownloadedSize();
 
-    return {
-      total: 0,
-      remaining: 0,
-      appSize: totalSize,
-    };
+    try {
+      const [freeDiskStorage, totalDiskCapacity] = await Promise.all([
+        DeviceInfo.getFreeDiskStorage(),
+        DeviceInfo.getTotalDiskCapacity(),
+      ]);
+
+      return {
+        total: totalDiskCapacity,
+        remaining: freeDiskStorage,
+        appSize: totalSize,
+      };
+    } catch (error) {
+      console.error("Failed to get disk storage info:", error);
+      return {
+        total: 0,
+        remaining: 0,
+        appSize: totalSize,
+      };
+    }
   }, []);
 
   return {

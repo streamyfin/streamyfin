@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.46.2",
+    "version": "0.48.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -29,16 +29,12 @@
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.fredrikburmester.streamyfin",
-      "icon": {
-        "dark": "./assets/images/icon-ios-plain.png",
-        "light": "./assets/images/icon-ios-light.png",
-        "tinted": "./assets/images/icon-ios-tinted.png"
-      },
+      "icon": "./assets/images/icon-ios-liquid-glass.icon",
       "appleTeamId": "MWD5K362T8"
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 81,
+      "versionCode": 85,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
@@ -129,10 +125,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification.png",
-          "color": "#9333EA",
-          "android": {
-            "projectId": "streamyfin-4fec1"
-          }
+          "color": "#9333EA"
         }
       ],
       "expo-web-browser",
