@@ -145,7 +145,7 @@ export const GestureOverlay = ({
   });
 
   const handleSkipForward = useCallback(() => {
-    if (!settings.enableHorizontalSwipeSkip) return;
+    if (!settings.enableDoubleTapSkip) return;
     lightHaptic();
     // Defer all actions to avoid useInsertionEffect warning
     requestAnimationFrame(() => {
@@ -153,7 +153,7 @@ export const GestureOverlay = ({
       showFeedback("play-forward", `+${settings.forwardSkipTime}s`);
     });
   }, [
-    settings.enableHorizontalSwipeSkip,
+    settings.enableDoubleTapSkip,
     settings.forwardSkipTime,
     lightHaptic,
     onSkipForward,
@@ -161,7 +161,7 @@ export const GestureOverlay = ({
   ]);
 
   const handleSkipBackward = useCallback(() => {
-    if (!settings.enableHorizontalSwipeSkip) return;
+    if (!settings.enableDoubleTapSkip) return;
     lightHaptic();
     // Defer all actions to avoid useInsertionEffect warning
     requestAnimationFrame(() => {
@@ -169,7 +169,7 @@ export const GestureOverlay = ({
       showFeedback("play-back", `-${settings.rewindSkipTime}s`);
     });
   }, [
-    settings.enableHorizontalSwipeSkip,
+    settings.enableDoubleTapSkip,
     settings.rewindSkipTime,
     lightHaptic,
     onSkipBackward,
@@ -237,8 +237,8 @@ export const GestureOverlay = ({
 
   const { handleTouchStart, handleTouchMove, handleTouchEnd } =
     useGestureDetection({
-      onSwipeLeft: handleSkipBackward,
-      onSwipeRight: handleSkipForward,
+      onDoubleTapLeft: handleSkipBackward,
+      onDoubleTapRight: handleSkipForward,
       onVerticalDragStart: handleVerticalDragStart,
       onVerticalDragMove: handleVerticalDragMove,
       onVerticalDragEnd: handleVerticalDragEnd,

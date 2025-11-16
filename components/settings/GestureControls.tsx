@@ -17,7 +17,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
 
   const disabled = useMemo(
     () =>
-      pluginSettings?.enableHorizontalSwipeSkip?.locked === true &&
+      pluginSettings?.enableDoubleTapSkip?.locked === true &&
       pluginSettings?.enableLeftSideBrightnessSwipe?.locked === true &&
       pluginSettings?.enableRightSideVolumeSwipe?.locked === true,
     [pluginSettings],
@@ -35,13 +35,13 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           subtitle={t(
             "home.settings.gesture_controls.horizontal_swipe_skip_description",
           )}
-          disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
+          disabled={pluginSettings?.enableDoubleTapSkip?.locked}
         >
           <Switch
-            value={settings.enableHorizontalSwipeSkip}
-            disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
-            onValueChange={(enableHorizontalSwipeSkip) =>
-              updateSettings({ enableHorizontalSwipeSkip })
+            value={settings.enableDoubleTapSkip}
+            disabled={pluginSettings?.enableDoubleTapSkip?.locked}
+            onValueChange={(enableDoubleTapSkip) =>
+              updateSettings({ enableDoubleTapSkip })
             }
           />
         </ListItem>

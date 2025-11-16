@@ -89,8 +89,8 @@
       },
       "gesture_controls": {
         "gesture_controls_title": "التحكم بالإيماءات",
-        "horizontal_swipe_skip": "السحب الأفقي للتخطي",
-        "horizontal_swipe_skip_description": "اسحب لليسار/لليمين عندما تكون عناصر التحكم مخفية للتخطي",
+        "horizontal_swipe_skip": "النقر المزدوج للتخطي",
+        "horizontal_swipe_skip_description": "انقر نقرًا مزدوجًا على الجانب الأيسر/الأيمن عندما تكون عناصر التحكم مخفية للتخطي",
         "left_side_brightness": "التحكم في السطوع من الجانب الأيسر",
         "left_side_brightness_description": "اسحب لأعلى/لأسفل على الجانب الأيسر لضبط السطوع",
         "right_side_volume": "التحكم في مستوى الصوت من الجانب الأيمن",

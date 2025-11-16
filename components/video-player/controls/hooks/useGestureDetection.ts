@@ -6,6 +6,8 @@ export interface SwipeGestureOptions {
   maxDuration?: number;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  onDoubleTapLeft?: () => void;
+  onDoubleTapRight?: () => void;
   onVerticalDragStart?: (side: "left" | "right", initialY: number) => void;
   onVerticalDragMove?: (
     side: "left" | "right",
@@ -23,6 +25,8 @@ export const useGestureDetection = ({
   maxDuration = 800,
   onSwipeLeft,
   onSwipeRight,
+  onDoubleTapLeft,
+  onDoubleTapRight,
   onVerticalDragStart,
   onVerticalDragMove,
   onVerticalDragEnd,
@@ -38,6 +42,11 @@ export const useGestureDetection = ({
   const hasMovedEnough = useRef(false);
   const gestureType = useRef<"none" | "horizontal" | "vertical">("none");
   const shouldIgnoreTouch = useRef(false);
+
+  // Double tap detection refs
+  const lastTapTime = useRef(0);
+  const lastTapPosition = useRef({ x: 0, y: 0 });
+  const doubleTapTimeWindow = 300; // 300ms window for double tap
 
   const handleTouchStart = useCallback(
     (event: GestureResponderEvent) => {
@@ -102,9 +111,6 @@ export const useGestureDetection = ({
           isDragging.current = true;
           dragSide.current = side;
           onVerticalDragStart?.(side, touchStartPosition.current.y);
-        } else if (absX > absY && absX > 10) {
-          // Horizontal gesture - mark for discrete swipe
-          gestureType.current = "horizontal";
         }
       }
 
@@ -144,8 +150,8 @@ export const useGestureDetection = ({
       const touchDuration = touchEndTime - touchStartTime.current;
       const deltaX = touchEndPosition.x - touchStartPosition.current.x;
       const deltaY = touchEndPosition.y - touchStartPosition.current.y;
-      const absX = Math.abs(deltaX);
-      const absY = Math.abs(deltaY);
+      const _absX = Math.abs(deltaX);
+      const _absY = Math.abs(deltaY);
       const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
       // End vertical drag if we were dragging
@@ -169,25 +175,43 @@ export const useGestureDetection = ({
         return;
       }
 
-      // Handle discrete horizontal swipes (for skip) only if it was marked as horizontal
+      // Check if it's a tap (short duration and small movement)
       if (
-        gestureType.current === "horizontal" &&
-        hasMovedEnough.current &&
-        absX > absY &&
-        totalDistance > minDistance
-      ) {
-        if (deltaX > 0) {
-          onSwipeRight?.();
-        } else {
-          onSwipeLeft?.();
-        }
-      } else if (
         !hasMovedEnough.current &&
         touchDuration < 300 &&
         totalDistance < 10
       ) {
-        // It's a tap - short duration and small movement
-        onTap?.();
+        const currentTime = Date.now();
+        const tapX = touchEndPosition.x;
+        const tapY = touchEndPosition.y;
+
+        // Check for double tap
+        const timeSinceLastTap = currentTime - lastTapTime.current;
+        const distanceFromLastTap = Math.sqrt(
+          (tapX - lastTapPosition.current.x) ** 2 +
+            (tapY - lastTapPosition.current.y) ** 2,
+        );
+
+        if (
+          timeSinceLastTap <= doubleTapTimeWindow &&
+          distanceFromLastTap < 50
+        ) {
+          // It's a double tap
+          const isLeftSide = tapX < screenWidth / 2;
+          if (isLeftSide) {
+            onDoubleTapLeft?.();
+          } else {
+            onDoubleTapRight?.();
+          }
+          // Reset last tap to prevent triple tap
+          lastTapTime.current = 0;
+          lastTapPosition.current = { x: 0, y: 0 };
+        } else {
+          // It's a single tap
+          onTap?.();
+          lastTapTime.current = currentTime;
+          lastTapPosition.current = { x: tapX, y: tapY };
+        }
       }
 
       hasMovedEnough.current = false;
@@ -196,10 +220,12 @@ export const useGestureDetection = ({
     [
       maxDuration,
       minDistance,
-      onSwipeLeft,
-      onSwipeRight,
+      onDoubleTapLeft,
+      onDoubleTapRight,
       onVerticalDragEnd,
       onTap,
+      doubleTapTimeWindow,
+      screenWidth,
     ],
   );
 

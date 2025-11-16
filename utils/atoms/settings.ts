@@ -175,7 +175,7 @@ export type Settings = {
   vlcOutlineOpacity?: number;
   vlcIsBold?: boolean;
   // Gesture controls
-  enableHorizontalSwipeSkip: boolean;
+  enableDoubleTapSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
@@ -239,7 +239,7 @@ export const defaultValues: Settings = {
   vlcOutlineOpacity: undefined,
   vlcIsBold: undefined,
   // Gesture controls
-  enableHorizontalSwipeSkip: true,
+  enableDoubleTapSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
