@@ -46,10 +46,11 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   isOffline: boolean;
+  itemWithSources?: BaseItemDto;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
-  ({ item, isOffline }) => {
+  ({ item, isOffline, itemWithSources }) => {
     const [api] = useAtom(apiAtom);
     const { settings } = useSettings();
     const { orientation } = useOrientation();
@@ -98,7 +99,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     ]);
 
     useEffect(() => {
-      if (!Platform.isTV) {
+      if (!Platform.isTV && itemWithSources) {
         navigation.setOptions({
           headerRight: () =>
             item &&
@@ -108,10 +109,13 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center'>
                     {!Platform.isTV && (
-                      <DownloadSingleItem item={item} size='large' />
+                      <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
+                      <PlayInRemoteSessionButton
+                        item={itemWithSources}
+                        size='large'
+                      />
                     )}
 
                     <PlayedStatus items={[item]} size='large' />
@@ -125,10 +129,13 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
-                      <DownloadSingleItem item={item} size='large' />
+                      <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
+                      <PlayInRemoteSessionButton
+                        item={itemWithSources}
+                        size='large'
+                      />
                     )}
 
                     <PlayedStatus items={[item]} size='large' />
@@ -139,7 +146,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             )),
         });
       }
-    }, [item, navigation, user]);
+    }, [item, navigation, user, itemWithSources]);
 
     useEffect(() => {
       if (item) {
@@ -212,7 +219,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                   <MediaSourceButton
                     selectedOptions={selectedOptions}
                     setSelectedOptions={setSelectedOptions}
-                    item={item}
+                    item={itemWithSources}
                     colors={itemColors}
                   />
                 )}
