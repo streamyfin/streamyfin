@@ -1,3 +1,4 @@
+import { ItemFields } from "@jellyfin/sdk/lib/generated-client/models";
 import { useLocalSearchParams } from "expo-router";
 import type React from "react";
 import { useEffect } from "react";
@@ -20,7 +21,11 @@ const Page: React.FC = () => {
   const { offline } = useLocalSearchParams() as { offline?: string };
   const isOffline = offline === "true";
 
-  const { data: item, isError } = useItemQuery(id, isOffline);
+  const { data: item, isError } = useItemQuery(id, false, undefined, [
+    ItemFields.MediaSources,
+    ItemFields.MediaSourceCount,
+    ItemFields.MediaStreams,
+  ]);
 
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {

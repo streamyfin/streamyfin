@@ -337,7 +337,8 @@
     "audio": "Audio",
     "subtitle": "Subtitle",
     "play": "Play",
-    "none": "None"
+    "none": "None",
+    "track": "Track"
   },
   "search": {
     "search": "Search...",
@@ -444,6 +445,7 @@
     "no_similar_items_found": "No Similar Items Found",
     "video": "Video",
     "more_details": "More Details",
+    "media_options": "Media Options",
     "quality": "Quality",
     "audio": "Audio",
     "subtitles": "Subtitle",

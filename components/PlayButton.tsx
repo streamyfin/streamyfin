@@ -358,9 +358,6 @@ export const PlayButton: React.FC<Props> = ({
       [startColor.value.text, endColor.value.text],
     ),
   }));
-  /**
-   * *********************
-   */
 
   // if (Platform.OS === "ios")
   //   return (
@@ -414,7 +411,7 @@ export const PlayButton: React.FC<Props> = ({
       accessibilityLabel='Play button'
       accessibilityHint='Tap to play the media'
       onPress={onPress}
-      className={"relative"}
+      className={"relative flex-1"}
     >
       <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
         <Animated.View
