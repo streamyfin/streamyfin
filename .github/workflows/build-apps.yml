@@ -170,6 +170,11 @@ jobs:
           submodules: recursive
           show-progress: false
 
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
         with:
@@ -237,6 +242,11 @@ jobs:
   #         fetch-depth: 0
   #         submodules: recursive
   #         show-progress: false
+  #
+  #     - name: 🟢 Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
   #
   #     - name: 🍞 Setup Bun
   #       uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
