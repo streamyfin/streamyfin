@@ -191,15 +191,17 @@ jobs:
       - name: 🛠️ Generate project files
         run: bun run prebuild
 
+      - name: 🔧 Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.1"
+
       - name: 🏗️ Setup EAS
         uses: expo/expo-github-action@main
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           eas-cache: true
-
-      - name: 🔧 Select latest Xcode
-        run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
 
       - name: ⚙️ Ensure iOS SDKs installed
         run: xcodebuild -downloadPlatform iOS
@@ -257,15 +259,17 @@ jobs:
   #     - name: 🛠️ Generate project files
   #       run: bun run prebuild:tv
   #
+  #     - name: 🔧 Setup Xcode
+  #       uses: maxim-lobanov/setup-xcode@v1
+  #       with:
+  #         xcode-version: '26.1'
+  #
   #     - name: 🏗️ Setup EAS
   #       uses: expo/expo-github-action@main
   #       with:
   #         eas-version: latest
   #         token: ${{ secrets.EXPO_TOKEN }}
   #         eas-cache: true
-  #
-  #     - name: 🔧 Select latest Xcode
-  #       run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
   #
   #     - name: ⚙️ Ensure tvOS SDKs installed
   #       run: xcodebuild -downloadPlatform tvOS
