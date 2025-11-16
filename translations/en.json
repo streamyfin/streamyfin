@@ -528,5 +528,9 @@
     "library": "Library",
     "custom_links": "Custom Links",
     "favorites": "Favorites"
+  },
+  "metadata": {
+    "refresh_triggered": "Metadata refresh triggered",
+    "refresh_failed": "Failed to refresh metadata"
   }
 }
