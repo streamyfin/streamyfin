@@ -6,7 +6,6 @@ import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
@@ -57,7 +56,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const [user] = useAtom(userAtom);
-    const { t } = useTranslation();
 
     const itemColors = useImageColorsReturn({ item });
 
