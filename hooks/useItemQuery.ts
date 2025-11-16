@@ -46,7 +46,7 @@ export const useItemQuery = (
         ...(finalFields && { fields: finalFields }),
       });
 
-      return response.data.Items[0];
+      return response.data.Items?.[0];
     },
     enabled: !!itemId,
     refetchOnMount: true,
