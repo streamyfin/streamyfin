@@ -24,6 +24,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
@@ -84,11 +85,8 @@ export const PlayButton: React.FC<Props> = ({
     [router, isOffline],
   );
 
-  const onPress = useCallback(async () => {
-    console.log("onPress");
+  const handleNormalPlayFlow = useCallback(async () => {
     if (!item) return;
-
-    lightHapticFeedback();
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
@@ -271,7 +269,56 @@ export const PlayButton: React.FC<Props> = ({
     showActionSheetWithOptions,
     mediaStatus,
     selectedOptions,
+    goToPlayer,
+    isOffline,
+    t,
   ]);
+
+  const onPress = useCallback(async () => {
+    console.log("onPress");
+    if (!item) return;
+
+    lightHapticFeedback();
+
+    // Check if item is downloaded
+    const downloadedItem = item.Id ? getDownloadedItemById(item.Id) : undefined;
+
+    if (downloadedItem) {
+      Alert.alert(
+        t("player.downloaded_file_title"),
+        t("player.downloaded_file_message"),
+        [
+          {
+            text: t("player.downloaded_file_yes"),
+            onPress: () => {
+              const queryParams = new URLSearchParams({
+                itemId: item.Id!,
+                offline: "true",
+                playbackPosition:
+                  item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+              });
+              goToPlayer(queryParams.toString());
+            },
+            isPreferred: true,
+          },
+          {
+            text: t("player.downloaded_file_no"),
+            onPress: () => {
+              handleNormalPlayFlow();
+            },
+          },
+          {
+            text: t("player.downloaded_file_cancel"),
+            style: "cancel",
+          },
+        ],
+      );
+      return;
+    }
+
+    // If not downloaded, proceed with normal flow
+    handleNormalPlayFlow();
+  }, [item, lightHapticFeedback, handleNormalPlayFlow, goToPlayer]);
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item || !item.RunTimeTicks) return 0;

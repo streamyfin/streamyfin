@@ -429,7 +429,12 @@
     "playback_state": "Playback State:",
     "index": "Index:",
     "continue_watching": "Continue Watching",
-    "go_back": "Go Back"
+    "go_back": "Go Back",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "Next Up",
