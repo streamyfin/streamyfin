@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
@@ -33,8 +34,16 @@ import {
   type IssueType,
   IssueTypeName,
 } from "@/utils/jellyseerr/server/constants/issue";
-import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import {
+  MediaRequestStatus,
+  MediaType,
+} from "@/utils/jellyseerr/server/constants/media";
+import type MediaRequest from "@/utils/jellyseerr/server/entity/MediaRequest";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import {
+  hasPermission,
+  Permission,
+} from "@/utils/jellyseerr/server/lib/permissions";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
   MovieResult,
@@ -58,7 +67,7 @@ const Page: React.FC = () => {
     } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
-  const { jellyseerrApi, requestMedia } = useJellyseerr();
+  const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
@@ -90,6 +99,46 @@ const Page: React.FC = () => {
 
   const [canRequest, hasAdvancedRequestPermission] =
     useJellyseerrCanRequest(details);
+
+  const canManageRequests = useMemo(() => {
+    if (!jellyseerrUser) return false;
+    return hasPermission(
+      Permission.MANAGE_REQUESTS,
+      jellyseerrUser.permissions,
+    );
+  }, [jellyseerrUser]);
+
+  const pendingRequest = useMemo(() => {
+    return details?.mediaInfo?.requests?.find(
+      (r: MediaRequest) => r.status === MediaRequestStatus.PENDING,
+    );
+  }, [details]);
+
+  const handleApproveRequest = useCallback(async () => {
+    if (!pendingRequest?.id) return;
+
+    try {
+      await jellyseerrApi?.approveRequest(pendingRequest.id);
+      toast.success(t("jellyseerr.toasts.request_approved"));
+      refetch();
+    } catch (error) {
+      toast.error(t("jellyseerr.toasts.failed_to_approve_request"));
+      console.error("Failed to approve request:", error);
+    }
+  }, [jellyseerrApi, pendingRequest, refetch, t]);
+
+  const handleDeclineRequest = useCallback(async () => {
+    if (!pendingRequest?.id) return;
+
+    try {
+      await jellyseerrApi?.declineRequest(pendingRequest.id);
+      toast.success(t("jellyseerr.toasts.request_declined"));
+      refetch();
+    } catch (error) {
+      toast.error(t("jellyseerr.toasts.failed_to_decline_request"));
+      console.error("Failed to decline request:", error);
+    }
+  }, [jellyseerrApi, pendingRequest, refetch, t]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -333,6 +382,60 @@ const Page: React.FC = () => {
                     </Button>
                   </View>
                 )
+              )}
+              {canManageRequests && pendingRequest && (
+                <View className='flex flex-col space-y-2 mt-4'>
+                  <View className='flex flex-row items-center space-x-2'>
+                    <Ionicons name='person-outline' size={16} color='#9CA3AF' />
+                    <Text className='text-sm text-neutral-400'>
+                      {t("jellyseerr.requested_by", {
+                        user:
+                          pendingRequest.requestedBy?.displayName ||
+                          pendingRequest.requestedBy?.username ||
+                          pendingRequest.requestedBy?.jellyfinUsername ||
+                          t("jellyseerr.unknown_user"),
+                      })}
+                    </Text>
+                  </View>
+                  <View className='flex flex-row space-x-2'>
+                    <Button
+                      className='flex-1 bg-green-600/50 border-green-400 ring-green-400 text-green-100'
+                      color='transparent'
+                      onPress={handleApproveRequest}
+                      iconLeft={
+                        <Ionicons
+                          name='checkmark-outline'
+                          size={20}
+                          color='white'
+                        />
+                      }
+                      style={{
+                        borderWidth: 1,
+                        borderStyle: "solid",
+                      }}
+                    >
+                      <Text className='text-sm'>{t("jellyseerr.approve")}</Text>
+                    </Button>
+                    <Button
+                      className='flex-1 bg-red-600/50 border-red-400 ring-red-400 text-red-100'
+                      color='transparent'
+                      onPress={handleDeclineRequest}
+                      iconLeft={
+                        <Ionicons
+                          name='close-outline'
+                          size={20}
+                          color='white'
+                        />
+                      }
+                      style={{
+                        borderWidth: 1,
+                        borderStyle: "solid",
+                      }}
+                    >
+                      <Text className='text-sm'>{t("jellyseerr.decline")}</Text>
+                    </Button>
+                  </View>
+                </View>
               )}
               <OverviewText text={result.overview} className='mt-4' />
             </View>
