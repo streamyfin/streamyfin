@@ -130,7 +130,13 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   useEffect(() => {
     const fetchTracks = async () => {
       if (getSubtitleTracks) {
-        let subtitleData = await getSubtitleTracks();
+        let subtitleData: TrackInfo[] | null = null;
+        try {
+          subtitleData = await getSubtitleTracks();
+        } catch (error) {
+          console.log("[VideoContext] Failed to get subtitle tracks:", error);
+          return;
+        }
         // Only FOR VLC 3, If we're transcoding, we need to reverse the subtitle data, because VLC reverses the HLS subtitles.
         if (
           mediaSource?.TranscodingUrl &&
@@ -179,7 +185,13 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         setSubtitleTracks(subtitles);
       }
       if (getAudioTracks) {
-        const audioData = await getAudioTracks();
+        let audioData: TrackInfo[] | null = null;
+        try {
+          audioData = await getAudioTracks();
+        } catch (error) {
+          console.log("[VideoContext] Failed to get audio tracks:", error);
+          return;
+        }
         const allAudio =
           mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
         const audioTracks: Track[] = allAudio?.map((audio, idx) => {

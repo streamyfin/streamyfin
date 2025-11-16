@@ -43,6 +43,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { writeToLog } from "@/utils/log";
 import { generateDeviceProfile } from "@/utils/profiles/native";
@@ -673,7 +674,30 @@ export default function page() {
     );
   }, []);
 
-  console.log("Debug: component render"); // Uncomment to debug re-renders
+  // Prepare metadata for iOS native media controls
+  const nowPlayingMetadata = useMemo(() => {
+    if (!item || !api) return undefined;
+
+    const artworkUri = getPrimaryImageUrl({
+      api,
+      item,
+      quality: 90,
+      width: 500,
+    });
+
+    return {
+      title: item.Name || "",
+      artist:
+        item.Type === "Episode"
+          ? item.SeriesName || ""
+          : item.AlbumArtist || "",
+      albumTitle:
+        item.Type === "Episode" && item.SeasonName
+          ? item.SeasonName
+          : undefined,
+      artworkUri: artworkUri || undefined,
+    };
+  }, [item, api]);
 
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
@@ -731,6 +755,7 @@ export default function page() {
             initOptions,
           }}
           style={{ width: "100%", height: "100%" }}
+          nowPlayingMetadata={nowPlayingMetadata}
           onVideoProgress={onProgress}
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}

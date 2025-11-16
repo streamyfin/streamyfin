@@ -43,37 +43,14 @@ export const useIntroSkipper = (
   const introTimestamps = segments?.introSegments?.[0];
 
   useEffect(() => {
-    console.log(`[INTRO_SKIPPER] Hook state:`, {
-      itemId,
-      currentTime,
-      hasSegments: !!segments,
-      segments: segments,
-      introSegmentsCount: segments?.introSegments?.length || 0,
-      introSegments: segments?.introSegments,
-      hasIntroTimestamps: !!introTimestamps,
-      introTimestamps,
-      isVlc,
-      isOffline,
-    });
-
     if (introTimestamps) {
       const shouldShow =
         currentTime > introTimestamps.startTime &&
         currentTime < introTimestamps.endTime;
 
-      console.log(`[INTRO_SKIPPER] Button visibility check:`, {
-        currentTime,
-        introStart: introTimestamps.startTime,
-        introEnd: introTimestamps.endTime,
-        afterStart: currentTime > introTimestamps.startTime,
-        beforeEnd: currentTime < introTimestamps.endTime,
-        shouldShow,
-      });
-
       setShowSkipButton(shouldShow);
     } else {
       if (showSkipButton) {
-        console.log(`[INTRO_SKIPPER] No intro timestamps, hiding button`);
         setShowSkipButton(false);
       }
     }
@@ -82,10 +59,6 @@ export const useIntroSkipper = (
   const skipIntro = useCallback(() => {
     if (!introTimestamps) return;
     try {
-      console.log(
-        `[INTRO_SKIPPER] Skipping intro to:`,
-        introTimestamps.endTime,
-      );
       lightHapticFeedback();
       wrappedSeek(introTimestamps.endTime);
       setTimeout(() => {
@@ -95,8 +68,6 @@ export const useIntroSkipper = (
       console.error("[INTRO_SKIPPER] Error skipping intro", error);
     }
   }, [introTimestamps, lightHapticFeedback, wrappedSeek, play]);
-
-  console.log(`[INTRO_SKIPPER] Returning state:`, { showSkipButton });
 
   return { showSkipButton, skipIntro };
 };
