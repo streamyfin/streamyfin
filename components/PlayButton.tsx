@@ -318,7 +318,7 @@ export const PlayButton: React.FC<Props> = ({
 
     // If not downloaded, proceed with normal flow
     handleNormalPlayFlow();
-  }, [item, lightHapticFeedback, handleNormalPlayFlow, goToPlayer]);
+  }, [item, lightHapticFeedback, handleNormalPlayFlow, goToPlayer, t]);
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item || !item.RunTimeTicks) return 0;
