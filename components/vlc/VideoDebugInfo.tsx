@@ -19,10 +19,14 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
   useEffect(() => {
     const fetchTracks = async () => {
       if (playerRef.current) {
-        const audio = await playerRef.current.getAudioTracks();
-        const subtitles = await playerRef.current.getSubtitleTracks();
-        setAudioTracks(audio);
-        setSubtitleTracks(subtitles);
+        try {
+          const audio = await playerRef.current.getAudioTracks();
+          const subtitles = await playerRef.current.getSubtitleTracks();
+          setAudioTracks(audio);
+          setSubtitleTracks(subtitles);
+        } catch (error) {
+          console.log("[VideoDebugInfo] Failed to fetch tracks:", error);
+        }
       }
     };
 
@@ -60,8 +64,24 @@ export const VideoDebugInfo: React.FC<Props> = ({ playerRef, ...props }) => {
         className='mt-2.5 bg-blue-500 p-2 rounded'
         onPress={() => {
           if (playerRef.current) {
-            playerRef.current.getAudioTracks().then(setAudioTracks);
-            playerRef.current.getSubtitleTracks().then(setSubtitleTracks);
+            playerRef.current
+              .getAudioTracks()
+              .then(setAudioTracks)
+              .catch((err) => {
+                console.log(
+                  "[VideoDebugInfo] Failed to get audio tracks:",
+                  err,
+                );
+              });
+            playerRef.current
+              .getSubtitleTracks()
+              .then(setSubtitleTracks)
+              .catch((err) => {
+                console.log(
+                  "[VideoDebugInfo] Failed to get subtitle tracks:",
+                  err,
+                );
+              });
           }
         }}
       >

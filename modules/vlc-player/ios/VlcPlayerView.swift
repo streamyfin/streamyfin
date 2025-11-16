@@ -1,4 +1,6 @@
 import ExpoModulesCore
+import MediaPlayer
+import AVFoundation
 
 #if os(tvOS)
     import TVVLCKit
@@ -24,6 +26,8 @@ class VlcPlayerView: ExpoView {
     var hasSource = false
     var isTranscoding = false
     private var initialSeekPerformed: Bool = false
+    private var nowPlayingMetadata: [String: String]?
+    private var artworkImage: UIImage?
 
     // MARK: - Initialization
 
@@ -31,6 +35,8 @@ class VlcPlayerView: ExpoView {
         super.init(appContext: appContext)
         setupView()
         setupNotifications()
+        setupRemoteCommandCenter()
+        setupAudioSession()
     }
 
     // MARK: - Setup
@@ -60,42 +66,181 @@ class VlcPlayerView: ExpoView {
         NotificationCenter.default.addObserver(
             self, selector: #selector(applicationDidBecomeActive),
             name: UIApplication.didBecomeActiveNotification, object: nil)
+        
+        #if !os(tvOS)
+        // Handle audio session interruptions (e.g., incoming calls, other apps playing audio)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleAudioSessionInterruption),
+            name: AVAudioSession.interruptionNotification, object: nil)
+        #endif
+    }
+
+    private func setupAudioSession() {
+        #if !os(tvOS)
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .moviePlayback, options: [])
+            try audioSession.setActive(true)
+            print("Audio session configured for media controls")
+        } catch {
+            print("Failed to setup audio session: \(error)")
+        }
+        #endif
+    }
+
+    private func setupRemoteCommandCenter() {
+        #if !os(tvOS)
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        // Play command
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            self?.play()
+            return .success
+        }
+        
+        // Pause command
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            self?.pause()
+            return .success
+        }
+        
+        // Toggle play/pause command
+        commandCenter.togglePlayPauseCommand.isEnabled = true
+        commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+            guard let self = self, let player = self.mediaPlayer else {
+                return .commandFailed
+            }
+            
+            if player.isPlaying {
+                self.pause()
+            } else {
+                self.play()
+            }
+            return .success
+        }
+        
+        // Seek forward command
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.skipForwardCommand.preferredIntervals = [15]
+        commandCenter.skipForwardCommand.addTarget { [weak self] event in
+            guard let self = self, let player = self.mediaPlayer else {
+                return .commandFailed
+            }
+            
+            let skipInterval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 15
+            let currentTime = player.time.intValue
+            self.seekTo(currentTime + Int32(skipInterval * 1000))
+            return .success
+        }
+        
+        // Seek backward command
+        commandCenter.skipBackwardCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.preferredIntervals = [15]
+        commandCenter.skipBackwardCommand.addTarget { [weak self] event in
+            guard let self = self, let player = self.mediaPlayer else {
+                return .commandFailed
+            }
+            
+            let skipInterval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 15
+            let currentTime = player.time.intValue
+            self.seekTo(max(0, currentTime - Int32(skipInterval * 1000)))
+            return .success
+        }
+        
+        // Change playback position command (scrubbing)
+        commandCenter.changePlaybackPositionCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let self = self,
+                  let event = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            
+            let positionTime = event.positionTime
+            self.seekTo(Int32(positionTime * 1000))
+            return .success
+        }
+        
+        print("Remote command center configured")
+        #endif
     }
 
     // MARK: - Public Methods
     func startPictureInPicture() {}
 
     @objc func play() {
-        self.mediaPlayer?.play()
-        self.isPaused = false
-        print("Play")
+        DispatchQueue.main.async {
+            self.mediaPlayer?.play()
+            self.isPaused = false
+            self.updateNowPlayingInfo()
+            print("Play")
+        }
     }
 
     @objc func pause() {
-        self.mediaPlayer?.pause()
-        self.isPaused = true
+        DispatchQueue.main.async {
+            self.mediaPlayer?.pause()
+            self.isPaused = true
+            self.updateNowPlayingInfo()
+        }
+    }
+    
+    @objc func handleAudioSessionInterruption(_ notification: Notification) {
+        #if !os(tvOS)
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            // Interruption began - pause the video
+            print("Audio session interrupted - pausing video")
+            self.pause()
+            
+        case .ended:
+            // Interruption ended - check if we should resume
+            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                if options.contains(.shouldResume) {
+                    print("Audio session interruption ended - can resume")
+                    // Don't auto-resume - let user manually resume playback
+                } else {
+                    print("Audio session interruption ended - should not resume")
+                }
+            }
+            
+        @unknown default:
+            break
+        }
+        #endif
     }
 
     @objc func seekTo(_ time: Int32) {
-        guard let player = self.mediaPlayer else { return }
+        DispatchQueue.main.async {
+            guard let player = self.mediaPlayer else { return }
 
-        let wasPlaying = player.isPlaying
-        if wasPlaying {
-            self.pause()
-        }
-
-        if let duration = player.media?.length.intValue {
-            print("Seeking to time: \(time) Video Duration \(duration)")
-
-            // If the specified time is greater than the duration, seek to the end
-            let seekTime = time > duration ? duration - 1000 : time
-            player.time = VLCTime(int: seekTime)
+            let wasPlaying = player.isPlaying
             if wasPlaying {
-                self.play()
+                player.pause()
             }
-            self.updatePlayerState()
-        } else {
-            print("Error: Unable to retrieve video duration")
+
+            if let duration = player.media?.length.intValue {
+                print("Seeking to time: \(time) Video Duration \(duration)")
+
+                // If the specified time is greater than the duration, seek to the end
+                let seekTime = time > duration ? duration - 1000 : time
+                player.time = VLCTime(int: seekTime)
+                if wasPlaying {
+                    player.play()
+                }
+                self.updatePlayerState()
+                self.updateNowPlayingInfo()
+            } else {
+                print("Error: Unable to retrieve video duration")
+            }
         }
     }
 
@@ -263,6 +408,35 @@ class VlcPlayerView: ExpoView {
         }
     }
 
+    @objc func setNowPlayingMetadata(_ metadata: [String: String]) {
+        self.nowPlayingMetadata = metadata
+        print("[NowPlaying] Metadata received: \(metadata)")
+        
+        // Load artwork asynchronously if provided
+        if let artworkUri = metadata["artworkUri"], let url = URL(string: artworkUri) {
+            print("[NowPlaying] Loading artwork from: \(artworkUri)")
+            URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+                if let error = error {
+                    print("[NowPlaying] Artwork loading error: \(error)")
+                } else if let data = data, let image = UIImage(data: data) {
+                    print("[NowPlaying] Artwork loaded successfully, size: \(image.size)")
+                    self?.artworkImage = image
+                    DispatchQueue.main.async {
+                        self?.updateNowPlayingInfo()
+                    }
+                } else {
+                    print("[NowPlaying] Failed to create image from data")
+                }
+            }.resume()
+        } else {
+            print("[NowPlaying] No artwork URI provided")
+        }
+        
+        DispatchQueue.main.async {
+            self.updateNowPlayingInfo()
+        }
+    }
+
     @objc func stop(completion: (() -> Void)? = nil) {
         guard !isStopping else {
             completion?()
@@ -293,6 +467,11 @@ class VlcPlayerView: ExpoView {
     private func performStop(completion: (() -> Void)? = nil) {
         // Stop the media player
         mediaPlayer?.stop()
+
+        // Clear Now Playing info
+        #if !os(tvOS)
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        #endif
 
         // Remove observer
         NotificationCenter.default.removeObserver(self)
@@ -327,6 +506,59 @@ class VlcPlayerView: ExpoView {
                 "duration": durationMs,
             ])
         }
+        
+        // Update Now Playing info as playback progresses (ensure main thread)
+        DispatchQueue.main.async {
+            self.updateNowPlayingInfo()
+        }
+    }
+
+    private func updateNowPlayingInfo() {
+        #if !os(tvOS)
+        guard let player = self.mediaPlayer else { return }
+        
+        var nowPlayingInfo = [String: Any]()
+        
+        // Playback rate (0.0 = paused, 1.0 = playing at normal speed)
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = player.isPlaying ? player.rate : 0.0
+        
+        // Current playback time in seconds
+        let currentTimeSeconds = Double(player.time.intValue) / 1000.0
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTimeSeconds
+        
+        // Total duration in seconds
+        if let duration = player.media?.length.intValue {
+            let durationSeconds = Double(duration) / 1000.0
+            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = durationSeconds
+        }
+        
+        // Add metadata if available
+        if let metadata = self.nowPlayingMetadata {
+            if let title = metadata["title"] {
+                nowPlayingInfo[MPMediaItemPropertyTitle] = title
+                print("[NowPlaying] Setting title: \(title)")
+            }
+            if let artist = metadata["artist"] {
+                nowPlayingInfo[MPMediaItemPropertyArtist] = artist
+                print("[NowPlaying] Setting artist: \(artist)")
+            }
+            if let albumTitle = metadata["albumTitle"] {
+                nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = albumTitle
+                print("[NowPlaying] Setting album: \(albumTitle)")
+            }
+        }
+        
+        // Add artwork if available
+        if let artwork = self.artworkImage {
+            print("[NowPlaying] Setting artwork with size: \(artwork.size)")
+            let artworkItem = MPMediaItemArtwork(boundsSize: artwork.size) { _ in
+                return artwork
+            }
+            nowPlayingInfo[MPMediaItemPropertyArtwork] = artworkItem
+        }
+        
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        #endif
     }
 
     // MARK: - Expo Events
