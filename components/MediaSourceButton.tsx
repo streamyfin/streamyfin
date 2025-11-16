@@ -12,7 +12,7 @@ import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
 interface Props extends React.ComponentProps<typeof TouchableOpacity> {
-  item?: BaseItemDto;
+  item?: BaseItemDto | null;
   selectedOptions: SelectedOptions;
   setSelectedOptions: React.Dispatch<
     React.SetStateAction<SelectedOptions | undefined>

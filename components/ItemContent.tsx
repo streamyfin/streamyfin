@@ -46,7 +46,7 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   isOffline: boolean;
-  itemWithSources?: BaseItemDto;
+  itemWithSources?: BaseItemDto | null;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
