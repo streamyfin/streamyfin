@@ -1,178 +1,25 @@
 {
-  // ==========================================
-  // FORMATTING & LINTING
-  // ==========================================
-
-  // Biome as default formatter
   "editor.defaultFormatter": "biomejs.biome",
   "editor.formatOnSave": true,
-  "editor.formatOnPaste": true,
-  "editor.formatOnType": false,
-
-  // Language-specific formatters
-  "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome",
-    "editor.formatOnSave": true
+  "editor.codeActionsOnSave": {
+    "source.fixAll.biome": "explicit"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome",
-    "editor.formatOnSave": true
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome",
-    "editor.formatOnSave": true
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "[javascriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome",
-    "editor.formatOnSave": true
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "[json]": {
-    "editor.defaultFormatter": "biomejs.biome",
-    "editor.formatOnSave": true
+    "editor.defaultFormatter": "biomejs.biome"
   },
-  "[jsonc]": {
-    "editor.defaultFormatter": "biomejs.biome",
-    "editor.formatOnSave": true
-  },
-  "[swift]": {
-    "editor.insertSpaces": true,
-    "editor.tabSize": 2
-  },
-
-  // ==========================================
-  // TYPESCRIPT & JAVASCRIPT
-  // ==========================================
-
-  // TypeScript performance optimizations
-  "typescript.preferences.includePackageJsonAutoImports": "auto",
-  "typescript.suggest.autoImports": true,
-  "typescript.updateImportsOnFileMove.enabled": "always",
-  "typescript.preferences.preferTypeOnlyAutoImports": true,
-  "typescript.preferences.importModuleSpecifier": "relative",
-  "typescript.preferences.includeCompletionsForImportStatements": true,
-  "typescript.preferences.includeCompletionsWithSnippetText": true,
-
-  // JavaScript settings
-  "javascript.preferences.importModuleSpecifier": "relative",
-  "javascript.suggest.autoImports": true,
-  "javascript.updateImportsOnFileMove.enabled": "always",
-
-  // ==========================================
-  // REACT NATIVE & EXPO
-  // ==========================================
-
-  // File associations for React Native
-  "files.associations": {
-    "*.expo.ts": "typescript",
-    "*.expo.tsx": "typescriptreact",
-    "*.expo.js": "javascript",
-    "*.expo.jsx": "javascriptreact",
-    "metro.config.js": "javascript",
-    "babel.config.js": "javascript",
-    "app.config.js": "javascript",
-    "eas.json": "jsonc"
-  },
-
-  // React Native specific settings
-  "emmet.includeLanguages": {
-    "typescriptreact": "html",
-    "javascriptreact": "html"
-  },
-  "emmet.triggerExpansionOnTab": true,
-
-  // Exclude build directories from search
-  "search.exclude": {
-    "**/node_modules": true
-  },
-
-  // ==========================================
-  // EDITOR PERFORMANCE & UX
-  // ==========================================
-
-  // Performance optimizations
-  "editor.largeFileOptimizations": true,
-  "files.watcherExclude": {
-    "**/.git/objects/**": true,
-    "**/.git/subtree-cache/**": true,
-    "**/node_modules/**": true,
-    "**/.expo/**": true,
-    "**/ios/**": true,
-    "**/android/**": true,
-    "**/build/**": true,
-    "**/dist/**": true
-  },
-
-  // Better editor behavior
-  "editor.suggestSelection": "first",
-  "editor.quickSuggestions": {
-    "strings": true,
-    "comments": true,
-    "other": true
-  },
-  "editor.snippetSuggestions": "top",
-  "editor.tabCompletion": "on",
-  "editor.wordBasedSuggestions": "off",
-
-  // ==========================================
-  // TERMINAL & DEVELOPMENT
-  // ==========================================
-
-  // Terminal settings for Bun (Windows-specific)
-  "terminal.integrated.profiles.windows": {
-    "Command Prompt": {
-      "path": "C:\\Windows\\System32\\cmd.exe",
-      "env": {
-        "PATH": "${env:PATH};./node_modules/.bin"
-      }
-    }
-  },
-
-  // ==========================================
-  // WORKSPACE & NAVIGATION
-  // ==========================================
-
-  // Better workspace navigation
-  "explorer.fileNesting.enabled": true,
-  "explorer.fileNesting.expand": false,
-  "explorer.fileNesting.patterns": {
-    "*.ts": "${capture}.js",
-    "*.tsx": "${capture}.js",
-    "*.js": "${capture}.js,${capture}.js.map,${capture}.min.js,${capture}.d.ts",
-    "*.jsx": "${capture}.js",
-    "package.json": "package-lock.json,yarn.lock,bun.lock,bun.lockb,.yarnrc,.yarnrc.yml",
-    "tsconfig.json": "tsconfig.*.json",
-    ".env": ".env.*",
-    "app.json": "app.config.js,eas.json,expo-env.d.ts",
-    "README.md": "LICENSE.txt,SECURITY.md,CODE_OF_CONDUCT.md,CONTRIBUTING.md"
-  },
-
-  // Better breadcrumbs and navigation
-  "breadcrumbs.enabled": true,
-  "outline.showVariables": true,
-  "outline.showConstants": true,
-
-  // ==========================================
-  // GIT & VERSION CONTROL
-  // ==========================================
-
-  // Git integration
-  "git.autofetch": true,
-  "git.enableSmartCommit": true,
-  "git.confirmSync": false,
-  "git.ignoreLimitWarning": true,
-
-  // ==========================================
-  // CODE QUALITY & ERRORS
-  // ==========================================
-
-  // Better error detection
-  "typescript.validate.enable": true,
-  "javascript.validate.enable": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
-    "source.organizeImports": "explicit"
-  },
-
-  // Problem matcher for better error display
-  "typescript.tsc.autoDetect": "on"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "editor.formatOnSaveMode": "file"
 }
