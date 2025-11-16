@@ -40,7 +40,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
   const scrollToIndex = (index: number) => {
-    scrollRef.current?.scrollToIndex(index, 16);
+    scrollRef.current?.scrollToIndex(index, -16);
   };
 
   const seasonId = useMemo(() => {
@@ -87,6 +87,11 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     }
   }, [episodes, item]);
 
+  const snapOffsets = useMemo(() => {
+    const itemWidth = 184; // w-44 (176px) + mr-2 (8px)
+    return episodes?.map((_, index) => index * itemWidth) || [];
+  }, [episodes]);
+
   return (
     <HorizontalScroll
       ref={scrollRef}
@@ -109,6 +114,8 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           <ItemCardText item={_item} />
         </TouchableOpacity>
       )}
+      snapToOffsets={snapOffsets}
+      decelerationRate='fast'
     />
   );
 };
