@@ -205,20 +205,19 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             <View className='flex flex-col px-4 w-full pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-2' />
 
-              <View className='flex flex-row px-0 w-full mb-2 shrink'>
+              <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
                 <PlayButton
-                  className='grow'
                   selectedOptions={selectedOptions}
                   item={item}
                   isOffline={isOffline}
                   colors={itemColors}
                 />
+                <View className='w-1' />
                 {!isOffline && (
                   <MediaSourceButton
                     selectedOptions={selectedOptions}
                     setSelectedOptions={setSelectedOptions}
                     item={item}
-                    isOffline={isOffline}
                     colors={itemColors}
                   />
                 )}
