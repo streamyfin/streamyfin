@@ -64,7 +64,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.47.1" },
+            clientInfo: { name: "Streamyfin", version: "0.48.0" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -87,7 +87,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.47.1"`,
+      }, DeviceId="${deviceId}", Version="0.48.0"`,
     };
   }, [deviceId]);
 
