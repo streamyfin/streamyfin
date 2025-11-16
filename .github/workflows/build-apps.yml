@@ -156,7 +156,7 @@ jobs:
 
   build-ios-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
-    runs-on: macos-latest
+    runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
@@ -222,7 +222,7 @@ jobs:
   # Disabled for now - uncomment when ready to build iOS TV
   # build-ios-tv:
   #   if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
-  #   runs-on: macos-latest
+  #   runs-on: macos-26
   #   name: 🍎 Build iOS IPA (TV)
   #   permissions:
   #     contents: read
