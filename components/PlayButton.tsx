@@ -360,9 +360,6 @@ export const PlayButton: React.FC<Props> = ({
       [startColor.value.text, endColor.value.text],
     ),
   }));
-  /**
-   * *********************
-   */
 
   if (Platform.OS === "ios")
     return (
