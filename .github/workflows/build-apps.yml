@@ -156,7 +156,7 @@ jobs:
 
   build-ios-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
-    runs-on: macos-15
+    runs-on: macos-latest
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
@@ -198,6 +198,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
           eas-cache: true
 
+      - name: 🔧 Select latest Xcode
+        run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
       - name: ⚙️ Ensure iOS SDKs installed
         run: xcodebuild -downloadPlatform iOS
 
@@ -219,7 +222,7 @@ jobs:
   # Disabled for now - uncomment when ready to build iOS TV
   # build-ios-tv:
   #   if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
-  #   runs-on: macos-15
+  #   runs-on: macos-latest
   #   name: 🍎 Build iOS IPA (TV)
   #   permissions:
   #     contents: read
@@ -260,6 +263,9 @@ jobs:
   #         eas-version: latest
   #         token: ${{ secrets.EXPO_TOKEN }}
   #         eas-cache: true
+  #
+  #     - name: 🔧 Select latest Xcode
+  #       run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
   #
   #     - name: ⚙️ Ensure tvOS SDKs installed
   #       run: xcodebuild -downloadPlatform tvOS
