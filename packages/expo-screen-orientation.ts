@@ -1,24 +1,26 @@
 import { Platform } from "react-native";
 
 // Dummy exports for TV
-const DummyOrientationLock = {
-  DEFAULT: 0,
-  ALL: 1,
-  PORTRAIT: 2,
-  PORTRAIT_UP: 3,
-  PORTRAIT_DOWN: 4,
-  LANDSCAPE: 5,
-  LANDSCAPE_LEFT: 6,
-  LANDSCAPE_RIGHT: 7,
-};
+enum DummyOrientationLock {
+  DEFAULT = 0,
+  ALL = 1,
+  PORTRAIT = 2,
+  PORTRAIT_UP = 3,
+  PORTRAIT_DOWN = 4,
+  LANDSCAPE = 5,
+  LANDSCAPE_LEFT = 6,
+  LANDSCAPE_RIGHT = 7,
+  OTHER = 8,
+  UNKNOWN = 9,
+}
 
-const DummyOrientation = {
-  UNKNOWN: 0,
-  PORTRAIT_UP: 1,
-  PORTRAIT_DOWN: 2,
-  LANDSCAPE_LEFT: 3,
-  LANDSCAPE_RIGHT: 4,
-};
+enum DummyOrientation {
+  UNKNOWN = 0,
+  PORTRAIT_UP = 1,
+  PORTRAIT_DOWN = 2,
+  LANDSCAPE_LEFT = 3,
+  LANDSCAPE_RIGHT = 4,
+}
 
 const dummyLockAsync = async () => {};
 const dummyUnlockAsync = async () => {};
@@ -38,6 +40,10 @@ export const OrientationLock = Platform.isTV
 export const Orientation = Platform.isTV
   ? DummyOrientation
   : ScreenOrientation?.Orientation;
+
+// Export types
+export type OrientationLockType = typeof OrientationLock;
+export type OrientationType = typeof Orientation;
 export const lockAsync = Platform.isTV
   ? dummyLockAsync
   : ScreenOrientation?.lockAsync;
