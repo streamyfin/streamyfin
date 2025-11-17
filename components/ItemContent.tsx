@@ -113,7 +113,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     )}
                     {user?.Policy?.IsAdministrator && (
                       <PlayInRemoteSessionButton
-                        item={itemWithSources}
+                        item={item}
                         size='large'
                       />
                     )}
@@ -133,7 +133,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     )}
                     {user?.Policy?.IsAdministrator && (
                       <PlayInRemoteSessionButton
-                        item={itemWithSources}
+                        item={item}
                         size='large'
                       />
                     )}
