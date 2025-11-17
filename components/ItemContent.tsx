@@ -112,9 +112,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                       <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton
-                        item={item}
-                        size='large'
+                      <PlayInRemoteSessionButton item={item} size='large'
                       />
                     )}
 
@@ -132,9 +130,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                       <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton
-                        item={item}
-                        size='large'
+                      <PlayInRemoteSessionButton item={item} size='large'
                       />
                     )}
 
