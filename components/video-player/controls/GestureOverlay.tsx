@@ -247,29 +247,30 @@ export const GestureOverlay = ({
       screenHeight,
     });
 
-  // If controls are visible, act like the old tap overlay
-  if (showControls) {
-    return (
-      <Pressable
-        onPress={onToggleControls}
-        style={{
-          position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
-          backgroundColor: "black",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          opacity: 0.75,
-        }}
-      />
-    );
-  }
+  // Background overlay when controls are visible
+  const controlsOverlay = showControls && (
+    <Pressable
+      onPress={onToggleControls}
+      style={{
+        position: "absolute",
+        width: screenWidth,
+        height: screenHeight,
+        backgroundColor: "black",
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        opacity: 0.75,
+      }}
+    />
+  );
 
   return (
     <>
-      {/* Gesture detection area */}
+      {/* Controls overlay when visible */}
+      {controlsOverlay}
+
+      {/* Gesture detection area - always present */}
       <Pressable
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

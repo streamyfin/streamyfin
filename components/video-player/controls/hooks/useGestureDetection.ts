@@ -4,8 +4,6 @@ import type { GestureResponderEvent } from "react-native";
 export interface SwipeGestureOptions {
   minDistance?: number;
   maxDuration?: number;
-  onSwipeLeft?: () => void;
-  onSwipeRight?: () => void;
   onDoubleTapLeft?: () => void;
   onDoubleTapRight?: () => void;
   onVerticalDragStart?: (side: "left" | "right", initialY: number) => void;
@@ -23,8 +21,6 @@ export interface SwipeGestureOptions {
 export const useGestureDetection = ({
   minDistance = 50,
   maxDuration = 800,
-  onSwipeLeft,
-  onSwipeRight,
   onDoubleTapLeft,
   onDoubleTapRight,
   onVerticalDragStart,
@@ -207,7 +203,7 @@ export const useGestureDetection = ({
           lastTapTime.current = 0;
           lastTapPosition.current = { x: 0, y: 0 };
         } else {
-          // It's a single tap
+          // It's a single tap - execute immediately
           onTap?.();
           lastTapTime.current = currentTime;
           lastTapPosition.current = { x: tapX, y: tapY };
