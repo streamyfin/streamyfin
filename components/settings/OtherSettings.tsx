@@ -109,7 +109,7 @@ export const OtherSettings: React.FC = () => {
           <PlatformDropdown
             groups={orientationOptions}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(
                     orientationTranslations[
@@ -152,7 +152,7 @@ export const OtherSettings: React.FC = () => {
               keyExtractor={String}
               titleExtractor={(item) => t(`home.settings.other.video_players.${VideoPlayer[item]}`)}
               title={
-                <TouchableOpacity className="flex flex-row items-center justify-between py-3 pl-3">
+                <TouchableOpacity className="flex flex-row items-center justify-between py-1.5 pl-3">
                   <Text className="mr-1 text-[#8E8D91]">
                     {t(`home.settings.other.video_players.${VideoPlayer[settings.defaultPlayer]}`)}
                   </Text>
@@ -208,7 +208,7 @@ export const OtherSettings: React.FC = () => {
           <PlatformDropdown
             groups={bitrateOptions}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings.defaultBitrate?.key}
                 </Text>
@@ -238,7 +238,7 @@ export const OtherSettings: React.FC = () => {
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}
             trigger={
-              <View className='flex flex-row items-center justify-between py-3 pl-3'>
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(settings?.maxAutoPlayEpisodeCount.key)}
                 </Text>

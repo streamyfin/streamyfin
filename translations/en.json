@@ -69,6 +69,18 @@
     "settings": {
       "settings_title": "Settings",
       "log_out_button": "Log Out",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance"
+      },
       "user_info": {
         "user_info_title": "User Info",
         "user": "User",
@@ -236,6 +248,7 @@
         "delete_all_downloaded_files": "Delete All Downloaded Files"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Show Intro",
         "reset_intro": "Reset Intro"
       },
@@ -324,7 +337,8 @@
     "audio": "Audio",
     "subtitle": "Subtitle",
     "play": "Play",
-    "none": "None"
+    "none": "None",
+    "track": "Track"
   },
   "search": {
     "search": "Search...",
@@ -415,7 +429,12 @@
     "playback_state": "Playback State:",
     "index": "Index:",
     "continue_watching": "Continue Watching",
-    "go_back": "Go Back"
+    "go_back": "Go Back",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "Next Up",
@@ -431,6 +450,7 @@
     "no_similar_items_found": "No Similar Items Found",
     "video": "Video",
     "more_details": "More Details",
+    "media_options": "Media Options",
     "quality": "Quality",
     "audio": "Audio",
     "playback_speed": "Playback Speed",
@@ -500,6 +520,10 @@
     "number_episodes": "{{episode_number}} Episodes",
     "born": "Born",
     "appearances": "Appearances",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",
@@ -507,7 +531,11 @@
       "issue_submitted": "Issue Submitted!",
       "requested_item": "Requested {{item}}!",
       "you_dont_have_permission_to_request": "You don't have permission to request!",
-      "something_went_wrong_requesting_media": "Something went wrong requesting media!"
+      "something_went_wrong_requesting_media": "Something went wrong requesting media!",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {

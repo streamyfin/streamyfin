@@ -6,12 +6,12 @@ import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
+import { MediaSourceButton } from "@/components/MediaSourceButton";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 // const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
@@ -30,13 +30,10 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
-import { BitrateSheet } from "./BitRateSheet";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
-import { MediaSourceSheet } from "./MediaSourceSheet";
 import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
-import { TrackSheet } from "./TrackSheet";
 
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
@@ -61,7 +58,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const [user] = useAtom(userAtom);
-    const { t } = useTranslation();
 
     const itemColors = useImageColorsReturn({ item });
 
@@ -210,76 +206,27 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
           }
         >
           <View className='flex flex-col bg-transparent shrink'>
-            <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
+            <View className='flex flex-col px-4 w-full pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-2' />
-              {item.Type !== "Program" && !Platform.isTV && !isOffline && (
-                <View className='flex flex-row items-center justify-start w-full h-16 mb-2'>
-                  <BitrateSheet
-                    className='mr-1'
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) => prev && { ...prev, bitrate: val },
-                      )
-                    }
-                    selected={selectedOptions.bitrate}
-                  />
-                  <MediaSourceSheet
-                    className='mr-1'
+
+              <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
+                <PlayButton
+                  selectedOptions={selectedOptions}
+                  item={item}
+                  isOffline={isOffline}
+                  colors={itemColors}
+                />
+                <View className='w-1' />
+                {!isOffline && (
+                  <MediaSourceButton
+                    selectedOptions={selectedOptions}
+                    setSelectedOptions={setSelectedOptions}
                     item={item}
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            mediaSource: val,
-                          },
-                      )
-                    }
-                    selected={selectedOptions.mediaSource}
+                    colors={itemColors}
                   />
-                  <TrackSheet
-                    className='mr-1'
-                    streamType='Audio'
-                    title={t("item_card.audio")}
-                    source={selectedOptions.mediaSource}
-                    onChange={(val) => {
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            audioIndex: val,
-                          },
-                      );
-                    }}
-                    selected={selectedOptions.audioIndex}
-                  />
-                  <TrackSheet
-                    source={selectedOptions.mediaSource}
-                    streamType='Subtitle'
-                    title={t("item_card.subtitles")}
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            subtitleIndex: val,
-                          },
-                      )
-                    }
-                    selected={selectedOptions.subtitleIndex}
-                  />
-                </View>
-              )}
-
-              <PlayButton
-                className='grow'
-                selectedOptions={selectedOptions}
-                item={item}
-                isOffline={isOffline}
-                colors={itemColors}
-              />
+                )}
+              </View>
             </View>
-
             {item.Type === "Episode" && (
               <SeasonEpisodesCarousel
                 item={item}
@@ -288,9 +235,12 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
               />
             )}
 
-            {!isOffline && (
-              <ItemTechnicalDetails source={selectedOptions.mediaSource} />
-            )}
+            {!isOffline &&
+              selectedOptions.mediaSource?.MediaStreams &&
+              selectedOptions.mediaSource.MediaStreams.length > 0 && (
+                <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+              )}
+
             <OverviewText text={item.Overview} className='px-4 mb-4' />
 
             {item.Type !== "Program" && (

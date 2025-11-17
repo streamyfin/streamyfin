@@ -735,6 +735,7 @@ export default function page() {
             initOptions,
           }}
           style={{ width: "100%", height: "100%" }}
+          nowPlayingMetadata={nowPlayingMetadata}
           onVideoProgress={onProgress}
           progressUpdateInterval={1000}
           onVideoStateChange={onPlaybackStateChanged}

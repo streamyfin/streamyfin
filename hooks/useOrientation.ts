@@ -1,12 +1,19 @@
+import type { OrientationChangeEvent } from "expo-screen-orientation";
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-import { OrientationLock } from "@/packages/expo-screen-orientation";
+import {
+  addOrientationChangeListener,
+  getOrientationAsync,
+  lockAsync,
+  Orientation as OrientationEnum,
+  OrientationLock,
+  unlockAsync,
+} from "@/packages/expo-screen-orientation";
 import { Orientation } from "../packages/expo-screen-orientation.tv";
 
 const orientationToOrientationLock = (
-  orientation: Orientation,
-): OrientationLock => {
+  orientation: (typeof OrientationEnum)[keyof typeof OrientationEnum],
+): (typeof OrientationLock)[keyof typeof OrientationLock] => {
   switch (orientation) {
     case Orientation.LANDSCAPE_LEFT:
       return OrientationLock.LANDSCAPE_LEFT;
@@ -21,44 +28,52 @@ const orientationToOrientationLock = (
 
 export const useOrientation = () => {
   const [orientation, setOrientation] = useState(
-    Platform.isTV
-      ? ScreenOrientation.OrientationLock.LANDSCAPE
-      : ScreenOrientation.OrientationLock.UNKNOWN,
+    Platform.isTV ? OrientationLock.LANDSCAPE : OrientationLock.UNKNOWN,
   );
 
   useEffect(() => {
     if (Platform.isTV) return;
 
-    const orientationSubscription =
-      ScreenOrientation.addOrientationChangeListener((event) => {
+    const orientationSubscription = addOrientationChangeListener(
+      (event: OrientationChangeEvent) => {
         setOrientation(
           orientationToOrientationLock(event.orientationInfo.orientation),
         );
-      });
+      },
+    );
 
-    ScreenOrientation.getOrientationAsync().then((orientation) => {
-      setOrientation(orientationToOrientationLock(orientation));
-    });
+    getOrientationAsync().then(
+      (orientation: (typeof OrientationEnum)[keyof typeof OrientationEnum]) => {
+        setOrientation(orientationToOrientationLock(orientation));
+      },
+    );
 
     return () => {
       orientationSubscription.remove();
     };
   }, []);
 
-  const lockOrientation = async (lock: OrientationLock) => {
+  const lockOrientation = async (
+    lock: (typeof OrientationLock)[keyof typeof OrientationLock],
+  ) => {
     if (Platform.isTV) return;
 
-    if (lock === ScreenOrientation.OrientationLock.DEFAULT) {
-      await ScreenOrientation.unlockAsync();
+    if (lock === OrientationLock.DEFAULT) {
+      await unlockAsync();
     } else {
-      await ScreenOrientation.lockAsync(lock);
+      await lockAsync(lock);
     }
   };
 
-  const unlockOrientation = async () => {
+  const unlockOrientationFn = async () => {
     if (Platform.isTV) return;
-    await ScreenOrientation.unlockAsync();
+    await unlockAsync();
   };
 
-  return { orientation, setOrientation, lockOrientation, unlockOrientation };
+  return {
+    orientation,
+    setOrientation,
+    lockOrientation,
+    unlockOrientation: unlockOrientationFn,
+  };
 };

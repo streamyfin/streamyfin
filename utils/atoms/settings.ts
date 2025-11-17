@@ -26,7 +26,7 @@ export type DownloadOption = {
 };
 
 export const ScreenOrientationEnum: Record<
-  ScreenOrientation.OrientationLock,
+  (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock],
   string
 > = {
   [ScreenOrientation.OrientationLock.DEFAULT]:
@@ -154,7 +154,7 @@ export type Settings = {
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
   showHomeTitles: boolean;
-  defaultVideoOrientation: ScreenOrientation.OrientationLock;
+  defaultVideoOrientation: (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock];
   forwardSkipTime: number;
   rewindSkipTime: number;
   showCustomMenuLinks: boolean;

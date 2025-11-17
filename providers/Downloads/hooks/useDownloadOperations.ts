@@ -27,7 +27,7 @@ import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
 
 interface UseDownloadOperationsProps {
-  taskMapRef: MutableRefObject<Map<number, string>>;
+  taskMapRef: MutableRefObject<Map<number | string, string>>;
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
   removeProcess: (id: string) => void;
@@ -169,7 +169,7 @@ export function useDownloadOperations({
           if (typeof key === "number") {
             taskId = key;
           } else {
-            downloadUrl = key;
+            downloadUrl = key as string;
           }
         }
       });

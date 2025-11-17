@@ -4,6 +4,7 @@ import {
   type QueryKey,
   useInfiniteQuery,
 } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -63,6 +64,11 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   // Flatten all pages into a single array
   const allItems = data?.pages.flat() || [];
+
+  const snapOffsets = useMemo(() => {
+    const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)
+    return allItems.map((_, index) => index * itemWidth);
+  }, [allItems, orientation]);
 
   if (hideIfEmpty === true && allItems.length === 0 && !isLoading) return null;
   if (disabled || !title) return null;
@@ -126,6 +132,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           showsHorizontalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          snapToOffsets={snapOffsets}
+          decelerationRate='fast'
         >
           <View className='px-4 flex flex-row'>
             {allItems.map((item) => (
