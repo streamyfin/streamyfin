@@ -88,14 +88,11 @@ export default function page() {
           <Text className='opacity-50'>
             {t("jellyseerr.born")}{" "}
             {data?.details?.birthday &&
-              new Date(data.details.birthday).toLocaleDateString(
-                `${locale}-${region}`,
-                {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                },
-              )}{" "}
+              new Date(data.details.birthday).toLocaleDateString(locale, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}{" "}
             | {data?.details?.placeOfBirth}
           </Text>
         </>

@@ -69,7 +69,7 @@ const RenderItem = ({ item }: any) => {
     if (airDate) {
       const airDateObj = new Date(airDate);
       if (new Date() < airDateObj) {
-        return airDateObj.toLocaleDateString(`${locale}-${region}`, dateOpts);
+        return airDateObj.toLocaleDateString(locale, dateOpts);
       }
     }
   }, [item, locale, region]);

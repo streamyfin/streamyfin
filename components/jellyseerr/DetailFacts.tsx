@@ -81,10 +81,7 @@ const DetailFacts: React.FC<
   const firstAirDate = useMemo(() => {
     const firstAirDate = (details as TvDetails)?.firstAirDate;
     if (firstAirDate) {
-      return new Date(firstAirDate).toLocaleDateString(
-        `${locale}-${region}`,
-        dateOpts,
-      );
+      return new Date(firstAirDate).toLocaleDateString(locale, dateOpts);
     }
   }, [details]);
 
@@ -92,28 +89,25 @@ const DetailFacts: React.FC<
     const firstAirDate = (details as TvDetails)?.firstAirDate;
     const nextAirDate = (details as TvDetails)?.nextEpisodeToAir?.airDate;
     if (nextAirDate && firstAirDate !== nextAirDate) {
-      return new Date(nextAirDate).toLocaleDateString(
-        `${locale}-${region}`,
-        dateOpts,
-      );
+      return new Date(nextAirDate).toLocaleDateString(locale, dateOpts);
     }
   }, [details]);
 
   const revenue = useMemo(
     () =>
-      (details as MovieDetails)?.revenue?.toLocaleString?.(
-        `${locale}-${region}`,
-        { style: "currency", currency: "USD" },
-      ),
+      (details as MovieDetails)?.revenue?.toLocaleString?.(locale, {
+        style: "currency",
+        currency: "USD",
+      }),
     [details],
   );
 
   const budget = useMemo(
     () =>
-      (details as MovieDetails)?.budget?.toLocaleString?.(
-        `${locale}-${region}`,
-        { style: "currency", currency: "USD" },
-      ),
+      (details as MovieDetails)?.budget?.toLocaleString?.(locale, {
+        style: "currency",
+        currency: "USD",
+      }),
     [details],
   );
 
@@ -171,7 +165,7 @@ const DetailFacts: React.FC<
                 )}
                 <Text>
                   {new Date(r.release_date).toLocaleDateString(
-                    `${locale}-${region}`,
+                    locale,
                     dateOpts,
                   )}
                 </Text>
