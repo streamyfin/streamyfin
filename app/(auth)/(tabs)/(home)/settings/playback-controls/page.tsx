@@ -1,5 +1,6 @@
 import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ControlsSettings } from "@/components/settings/ControlsSettings";
 import { GestureControls } from "@/components/settings/GestureControls";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
@@ -25,6 +26,7 @@ export default function PlaybackControlsPage() {
           <MediaProvider>
             <MediaToggles className='mb-4' />
             <GestureControls className='mb-4' />
+            <ControlsSettings className='mb-4' />
             <PlaybackControlsSettings />
           </MediaProvider>
         </View>

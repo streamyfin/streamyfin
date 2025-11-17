@@ -180,6 +180,10 @@ export type Settings = {
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
+  // Controls
+  showVolumeSlider: boolean;
+  showBrightnessSlider: boolean;
+  showSeekButtons: boolean;
 };
 
 export interface Lockable<T> {
@@ -244,6 +248,10 @@ export const defaultValues: Settings = {
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
+  // Controls
+  showVolumeSlider: true,
+  showBrightnessSlider: true,
+  showSeekButtons: true,
 };
 
 const loadSettings = (): Partial<Settings> => {

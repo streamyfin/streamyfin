@@ -48,49 +48,57 @@ export const CenterControls: FC<CenterControlsProps> = ({
       }}
       pointerEvents={showControls ? "box-none" : "none"}
     >
-      <View
-        style={{
-          position: "absolute",
-          alignItems: "center",
-          transform: [{ rotate: "270deg" }],
-          left: 0,
-          bottom: 30,
-        }}
-      >
-        <BrightnessSlider />
-      </View>
+      {settings?.showBrightnessSlider && (
+        <View
+          style={{
+            position: "absolute",
+            alignItems: "center",
+            transform: [{ rotate: "270deg" }],
+            left: 0,
+            bottom: 30,
+          }}
+        >
+          <BrightnessSlider />
+        </View>
+      )}
 
-      {!Platform.isTV && (
-        <TouchableOpacity onPress={handleSkipBackward}>
-          <View
-            style={{
-              position: "relative",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons
-              name='refresh-outline'
-              size={ICON_SIZES.CENTER}
-              color='white'
+      {!Platform.isTV ? (
+        settings?.showSeekButtons ? (
+          <TouchableOpacity onPress={handleSkipBackward}>
+            <View
               style={{
-                transform: [{ scaleY: -1 }, { rotate: "180deg" }],
-              }}
-            />
-            <Text
-              style={{
-                position: "absolute",
-                color: "white",
-                fontSize: 16,
-                fontWeight: "bold",
-                bottom: 10,
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              {settings?.rewindSkipTime}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
+              <Ionicons
+                name='refresh-outline'
+                size={ICON_SIZES.CENTER}
+                color='white'
+                style={{
+                  transform: [{ scaleY: -1 }, { rotate: "180deg" }],
+                }}
+              />
+              <Text
+                style={{
+                  position: "absolute",
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  bottom: 10,
+                }}
+              >
+                {settings?.rewindSkipTime}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View
+            style={{ width: ICON_SIZES.CENTER, height: ICON_SIZES.CENTER }}
+          />
+        )
+      ) : null}
 
       <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
         <TouchableOpacity onPress={togglePlay}>
@@ -106,47 +114,55 @@ export const CenterControls: FC<CenterControlsProps> = ({
         </TouchableOpacity>
       </View>
 
-      {!Platform.isTV && (
-        <TouchableOpacity onPress={handleSkipForward}>
-          <View
-            style={{
-              position: "relative",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons
-              name='refresh-outline'
-              size={ICON_SIZES.CENTER}
-              color='white'
-            />
-            <Text
+      {!Platform.isTV ? (
+        settings?.showSeekButtons ? (
+          <TouchableOpacity onPress={handleSkipForward}>
+            <View
               style={{
-                position: "absolute",
-                color: "white",
-                fontSize: 16,
-                fontWeight: "bold",
-                bottom: 10,
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              {settings?.forwardSkipTime}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
+              <Ionicons
+                name='refresh-outline'
+                size={ICON_SIZES.CENTER}
+                color='white'
+              />
+              <Text
+                style={{
+                  position: "absolute",
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  bottom: 10,
+                }}
+              >
+                {settings?.forwardSkipTime}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View
+            style={{ width: ICON_SIZES.CENTER, height: ICON_SIZES.CENTER }}
+          />
+        )
+      ) : null}
 
-      <View
-        style={{
-          position: "absolute",
-          alignItems: "center",
-          transform: [{ rotate: "270deg" }],
-          bottom: 30,
-          right: 0,
-          opacity: showAudioSlider || showControls ? 1 : 0,
-        }}
-      >
-        <AudioSlider setVisibility={setShowAudioSlider} />
-      </View>
+      {settings?.showVolumeSlider && (
+        <View
+          style={{
+            position: "absolute",
+            alignItems: "center",
+            transform: [{ rotate: "270deg" }],
+            bottom: 30,
+            right: 0,
+            opacity: showAudioSlider || showControls ? 1 : 0,
+          }}
+        >
+          <AudioSlider setVisibility={setShowAudioSlider} />
+        </View>
+      )}
     </View>
   );
 };
