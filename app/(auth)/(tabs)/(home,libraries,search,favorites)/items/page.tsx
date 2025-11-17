@@ -27,8 +27,8 @@ const Page: React.FC = () => {
     ItemFields.MediaStreams,
   ]);
 
-  // preload media sources in background
-  useItemQuery(id, false, undefined, []);
+  // preload media sources
+  const { data: itemWithSources } = useItemQuery(id, false, undefined, []);
 
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
@@ -98,7 +98,13 @@ const Page: React.FC = () => {
         <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
         <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
       </Animated.View>
-      {item && <ItemContent item={item} isOffline={isOffline} />}
+      {item && (
+        <ItemContent
+          item={item}
+          isOffline={isOffline}
+          itemWithSources={itemWithSources}
+        />
+      )}
     </View>
   );
 };

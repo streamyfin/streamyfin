@@ -7,13 +7,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
-import { useItemQuery } from "@/hooks/useItemQuery";
 import { BITRATES } from "./BitRateSheet";
 import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
 interface Props extends React.ComponentProps<typeof TouchableOpacity> {
-  item: BaseItemDto;
+  item?: BaseItemDto | null;
   selectedOptions: SelectedOptions;
   setSelectedOptions: React.Dispatch<
     React.SetStateAction<SelectedOptions | undefined>
@@ -29,12 +28,6 @@ export const MediaSourceButton: React.FC<Props> = ({
 }: Props) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { data: itemWithSources, isLoading } = useItemQuery(
-    item.Id,
-    false,
-    undefined,
-    [],
-  );
 
   const effectiveColors = colors || {
     primary: "#7c3aed",
@@ -42,7 +35,7 @@ export const MediaSourceButton: React.FC<Props> = ({
   };
 
   useEffect(() => {
-    const firstMediaSource = itemWithSources?.MediaSources?.[0];
+    const firstMediaSource = item?.MediaSources?.[0];
     if (!firstMediaSource) return;
     setSelectedOptions((prev) => {
       if (!prev) return prev;
@@ -51,7 +44,7 @@ export const MediaSourceButton: React.FC<Props> = ({
         mediaSource: firstMediaSource,
       };
     });
-  }, [itemWithSources, setSelectedOptions]);
+  }, [item, setSelectedOptions]);
 
   const getMediaSourceDisplayName = useCallback((source: MediaSourceInfo) => {
     const videoStream = source.MediaStreams?.find((x) => x.Type === "Video");
@@ -93,13 +86,10 @@ export const MediaSourceButton: React.FC<Props> = ({
     });
 
     // Media Source group (only if multiple sources)
-    if (
-      itemWithSources?.MediaSources &&
-      itemWithSources.MediaSources.length > 1
-    ) {
+    if (item?.MediaSources && item.MediaSources.length > 1) {
       groups.push({
         title: t("item_card.video"),
-        options: itemWithSources.MediaSources.map((source) => ({
+        options: item.MediaSources.map((source) => ({
           type: "radio" as const,
           label: getMediaSourceDisplayName(source),
           value: source,
@@ -159,7 +149,7 @@ export const MediaSourceButton: React.FC<Props> = ({
 
     return groups;
   }, [
-    itemWithSources,
+    item,
     selectedOptions,
     audioStreams,
     subtitleStreams,
@@ -170,7 +160,7 @@ export const MediaSourceButton: React.FC<Props> = ({
 
   const trigger = (
     <TouchableOpacity
-      disabled={!item || isLoading}
+      disabled={!item}
       onPress={() => setOpen(true)}
       className='relative'
     >
@@ -179,7 +169,7 @@ export const MediaSourceButton: React.FC<Props> = ({
         className='absolute w-12 h-12 rounded-full'
       />
       <View className='w-12 h-12 rounded-full z-10 items-center justify-center'>
-        {isLoading ? (
+        {!item ? (
           <ActivityIndicator size='small' color={effectiveColors.text} />
         ) : (
           <Ionicons name='list' size={24} color={effectiveColors.text} />
