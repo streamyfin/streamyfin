@@ -254,8 +254,6 @@ export const GestureOverlay = ({
         onPress={onToggleControls}
         style={{
           position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
           backgroundColor: "black",
           left: 0,
           right: 0,
@@ -276,8 +274,6 @@ export const GestureOverlay = ({
         onTouchEnd={handleTouchEnd}
         style={{
           position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
           backgroundColor: "transparent",
           left: 0,
           right: 0,
