@@ -533,8 +533,13 @@ export const useJellyseerr = () => {
   );
 
   const jellyseerrLocale = useMemo(() => {
-    return jellyseerrUser?.settings?.locale || "en";
-  }, [jellyseerrUser]);
+    const locale = jellyseerrUser?.settings?.locale || "en";
+    // Use regex to check if locale already contains region code (e.g., zh-CN, pt-BR)
+    // If not, append the region to create a valid BCP 47 locale string
+    return /^[a-z]{2,3}-/i.test(locale)
+      ? locale
+      : `${locale}-${jellyseerrRegion}`;
+  }, [jellyseerrUser, jellyseerrRegion]);
 
   return {
     jellyseerrApi,
