@@ -42,14 +42,14 @@ const Login: React.FC = () => {
 
   const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const [serverURL, setServerURL] = useState<string>(_apiUrl);
+  const [serverURL, setServerURL] = useState<string>(_apiUrl || "");
   const [serverName, setServerName] = useState<string>("");
   const [credentials, setCredentials] = useState<{
     username: string;
     password: string;
   }>({
-    username: _username,
-    password: _password,
+    username: _username || "",
+    password: _password || "",
   });
 
   /**
@@ -264,6 +264,12 @@ const Login: React.FC = () => {
                 onChangeText={(text: string) =>
                   setCredentials({ ...credentials, username: text })
                 }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.username) {
+                    setCredentials({ ...credentials, username: newValue });
+                  }
+                }}
                 value={credentials.username}
                 keyboardType='default'
                 returnKeyType='done'
@@ -272,6 +278,8 @@ const Login: React.FC = () => {
                 clearButtonMode='while-editing'
                 maxLength={500}
                 extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               {/* Password */}
@@ -280,6 +288,12 @@ const Login: React.FC = () => {
                 onChangeText={(text: string) =>
                   setCredentials({ ...credentials, password: text })
                 }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.password) {
+                    setCredentials({ ...credentials, password: newValue });
+                  }
+                }}
                 value={credentials.password}
                 secureTextEntry
                 keyboardType='default'
@@ -289,10 +303,17 @@ const Login: React.FC = () => {
                 clearButtonMode='while-editing'
                 maxLength={500}
                 extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               <View className='mt-4'>
-                <Button onPress={handleLogin}>{t("login.login_button")}</Button>
+                <Button
+                  onPress={handleLogin}
+                  disabled={!credentials.username.trim()}
+                >
+                  {t("login.login_button")}
+                </Button>
               </View>
               <View className='mt-3'>
                 <Button
@@ -334,6 +355,8 @@ const Login: React.FC = () => {
                 autoCapitalize='none'
                 textContentType='URL'
                 maxLength={500}
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               {/* Full-width primary button */}
@@ -394,6 +417,12 @@ const Login: React.FC = () => {
                   onChangeText={(text) =>
                     setCredentials({ ...credentials, username: text })
                   }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.username) {
+                      setCredentials({ ...credentials, username: newValue });
+                    }
+                  }}
                   value={credentials.username}
                   keyboardType='default'
                   returnKeyType='done'
@@ -410,6 +439,12 @@ const Login: React.FC = () => {
                   onChangeText={(text) =>
                     setCredentials({ ...credentials, password: text })
                   }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.password) {
+                      setCredentials({ ...credentials, password: newValue });
+                    }
+                  }}
                   value={credentials.password}
                   secureTextEntry
                   keyboardType='default'
@@ -423,6 +458,7 @@ const Login: React.FC = () => {
                   <Button
                     onPress={handleLogin}
                     loading={loading}
+                    disabled={!credentials.username.trim()}
                     className='flex-1 mr-2'
                   >
                     {t("login.login_button")}

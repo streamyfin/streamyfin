@@ -4,6 +4,7 @@ import {
   type QueryKey,
   useInfiniteQuery,
 } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { Colors } from "../../constants/Colors";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
@@ -35,7 +37,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   queryFn,
   queryKey,
   hideIfEmpty = false,
-  pageSize = 20,
+  pageSize = 10,
   ...props
 }) => {
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
@@ -52,9 +54,9 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         return allPages.length * pageSize;
       },
       initialPageParam: 0,
-      staleTime: 0,
-      refetchOnMount: true,
-      refetchOnWindowFocus: true,
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
     });
 
@@ -62,6 +64,11 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   // Flatten all pages into a single array
   const allItems = data?.pages.flat() || [];
+
+  const snapOffsets = useMemo(() => {
+    const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)
+    return allItems.map((_, index) => index * itemWidth);
+  }, [allItems, orientation]);
 
   if (hideIfEmpty === true && allItems.length === 0 && !isLoading) return null;
   if (disabled || !title) return null;
@@ -125,6 +132,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           showsHorizontalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          snapToOffsets={snapOffsets}
+          decelerationRate='fast'
         >
           <View className='px-4 flex flex-row'>
             {allItems.map((item) => (
@@ -179,8 +188,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
             ))}
             {/* Loading indicator for next page */}
             {isFetchingNextPage && (
-              <View className='justify-center items-center w-16'>
-                <ActivityIndicator size='small' color='#6366f1' />
+              <View
+                style={{
+                  marginLeft: 8,
+                  marginTop: orientation === "horizontal" ? 37 : 70,
+                }}
+              >
+                <ActivityIndicator size='small' color={Colors.primary} />
               </View>
             )}
           </View>

@@ -184,7 +184,7 @@ const PlatformDropdownComponent = ({
   expoUIConfig,
   bottomSheetConfig,
 }: PlatformDropdownProps) => {
-  const { showModal, hideModal } = useGlobalModal();
+  const { showModal, hideModal, isVisible } = useGlobalModal();
 
   // Handle controlled open state for Android
   useEffect(() => {
@@ -206,6 +206,14 @@ const PlatformDropdownComponent = ({
       );
     }
   }, [controlledOpen]);
+
+  // Watch for modal dismissal on Android (e.g., swipe down, backdrop tap)
+  // and sync the controlled open state
+  useEffect(() => {
+    if (Platform.OS === "android" && controlledOpen === true && !isVisible) {
+      controlledOnOpenChange?.(false);
+    }
+  }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
   if (Platform.OS === "ios") {
     return (

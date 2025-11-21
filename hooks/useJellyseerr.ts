@@ -244,6 +244,22 @@ export class JellyseerrApi {
       .then(({ data }) => data);
   }
 
+  async approveRequest(requestId: number): Promise<MediaRequest> {
+    return this.axios
+      ?.post<MediaRequest>(
+        `${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}/approve`,
+      )
+      .then(({ data }) => data);
+  }
+
+  async declineRequest(requestId: number): Promise<MediaRequest> {
+    return this.axios
+      ?.post<MediaRequest>(
+        `${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}/decline`,
+      )
+      .then(({ data }) => data);
+  }
+
   async requests(
     params = {
       filter: "all",
@@ -512,7 +528,7 @@ export const useJellyseerr = () => {
   };
 
   const jellyseerrRegion = useMemo(
-    () => jellyseerrUser?.settings?.discoverRegion || "US",
+    () => jellyseerrUser?.settings?.region || "US",
     [jellyseerrUser],
   );
 

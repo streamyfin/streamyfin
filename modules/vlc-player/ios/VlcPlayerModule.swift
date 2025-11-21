@@ -16,6 +16,12 @@ public class VlcPlayerModule: Module {
                 }
             }
 
+            Prop("nowPlayingMetadata") { (view: VlcPlayerView, metadata: [String: String]?) in
+                if let metadata = metadata {
+                    view.setNowPlayingMetadata(metadata)
+                }
+            }
+
             Events(
                 "onPlaybackStateChanged",
                 "onVideoStateChange",

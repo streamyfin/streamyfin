@@ -113,33 +113,144 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name='settings/marlin-search/page'
+        name='settings/playback-controls/page'
         options={{
-          title: "",
+          title: t("home.settings.playback_controls.title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
             </TouchableOpacity>
           ),
         }}
       />
       <Stack.Screen
-        name='settings/jellyseerr/page'
+        name='settings/audio-subtitles/page'
         options={{
-          title: "",
+          title: t("home.settings.audio_subtitles.title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
             </TouchableOpacity>
           ),
         }}
       />
       <Stack.Screen
-        name='settings/hide-libraries/page'
+        name='settings/appearance/page'
         options={{
-          title: "",
+          title: t("home.settings.appearance.title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/appearance/hide-libraries/page'
+        options={{
+          title: t("home.settings.other.hide_libraries"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/plugins/page'
+        options={{
+          title: t("home.settings.plugins.plugins_title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/plugins/marlin-search/page'
+        options={{
+          title: "Marlin Search",
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/plugins/jellyseerr/page'
+        options={{
+          title: "Jellyseerr",
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/intro/page'
+        options={{
+          title: t("home.settings.intro.title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
             </TouchableOpacity>
           ),
@@ -148,9 +259,16 @@ export default function IndexLayout() {
       <Stack.Screen
         name='settings/logs/page'
         options={{
-          title: "",
+          title: t("home.settings.logs.logs_title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
             </TouchableOpacity>
           ),

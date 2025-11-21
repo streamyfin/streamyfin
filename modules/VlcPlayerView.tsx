@@ -102,6 +102,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
       muted,
       volume,
       videoAspectRatio,
+      nowPlayingMetadata,
       onVideoLoadStart,
       onVideoStateChange,
       onVideoProgress,
@@ -131,6 +132,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
         muted={muted}
         volume={volume}
         videoAspectRatio={videoAspectRatio}
+        nowPlayingMetadata={nowPlayingMetadata}
         onVideoLoadStart={onVideoLoadStart}
         onVideoLoadEnd={onVideoLoadEnd}
         onVideoStateChange={onVideoStateChange}
