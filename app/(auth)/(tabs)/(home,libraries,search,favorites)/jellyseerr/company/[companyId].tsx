@@ -21,19 +21,18 @@ export default function page() {
     companyId: string;
     name: string;
     image: string;
-    type: DiscoverSliderType;
+    type: DiscoverSliderType; //This gets converted to a string because it's a url param
   };
 
-  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
     queryKey: ["jellyseerr", "company", type, companyId],
     queryFn: async ({ pageParam }) => {
       const params: any = {
         page: Number(pageParam),
       };
-
       return jellyseerrApi?.discover(
         `${
-          type === DiscoverSliderType.NETWORKS
+          Number(type) === DiscoverSliderType.NETWORKS
             ? Endpoints.DISCOVER_TV_NETWORK
             : Endpoints.DISCOVER_MOVIES_STUDIO
         }/${companyId}`,
@@ -86,6 +85,7 @@ export default function page() {
           fetchNextPage();
         }
       }}
+      isLoading={isLoading}
       logo={
         <Image
           id={companyId}
