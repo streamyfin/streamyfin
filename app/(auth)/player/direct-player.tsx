@@ -3,7 +3,6 @@ import {
   type MediaSourceInfo,
   PlaybackOrder,
   PlaybackProgressInfo,
-  PlaybackStartInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -275,9 +274,12 @@ export default function page() {
   useEffect(() => {
     if (!stream || !api) return;
     const reportPlaybackStart = async () => {
-      await getPlaystateApi(api).reportPlaybackStart({
-        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
-      });
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        await getPlaystateApi(api).reportPlaybackStart({
+          playbackStartInfo: progressInfo,
+        });
+      }
     };
     reportPlaybackStart();
   }, [stream, api]);
@@ -287,14 +289,18 @@ export default function page() {
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
-      playbackManager.reportPlaybackProgress(
-        currentPlayStateInfo() as PlaybackProgressInfo,
-      );
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        playbackManager.reportPlaybackProgress(progressInfo);
+      }
     } else {
       videoRef.current?.play();
-      await getPlaystateApi(api!).reportPlaybackStart({
-        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
-      });
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        await getPlaystateApi(api!).reportPlaybackStart({
+          playbackStartInfo: progressInfo,
+        });
+      }
     }
   };
 
@@ -336,21 +342,23 @@ export default function page() {
     };
   }, [navigation, stop]);
 
-  const currentPlayStateInfo = useCallback(() => {
+  const currentPlayStateInfo = useCallback(():
+    | PlaybackProgressInfo
+    | undefined => {
     if (!stream || !item?.Id) return;
     return {
-      itemId: item.Id,
-      audioStreamIndex: audioIndex ? audioIndex : undefined,
-      subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-      mediaSourceId: mediaSourceId,
-      positionTicks: msToTicks(progress.get()),
-      isPaused: !isPlaying,
-      playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
-      playSessionId: stream.sessionId,
-      isMuted: isMuted,
-      canSeek: true,
-      repeatMode: RepeatMode.RepeatNone,
-      playbackOrder: PlaybackOrder.Default,
+      ItemId: item.Id,
+      AudioStreamIndex: audioIndex ? audioIndex : undefined,
+      SubtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      MediaSourceId: mediaSourceId,
+      PositionTicks: msToTicks(progress.get()),
+      IsPaused: !isPlaying,
+      PlayMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+      PlaySessionId: stream.sessionId,
+      IsMuted: isMuted,
+      CanSeek: true,
+      RepeatMode: RepeatMode.RepeatNone,
+      PlaybackOrder: PlaybackOrder.Default,
     };
   }, [
     stream,
@@ -407,9 +415,10 @@ export default function page() {
 
       if (!item?.Id) return;
 
-      playbackManager.reportPlaybackProgress(
-        currentPlayStateInfo() as PlaybackProgressInfo,
-      );
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        playbackManager.reportPlaybackProgress(progressInfo);
+      }
     },
     [
       item?.Id,
@@ -514,9 +523,10 @@ export default function page() {
       if (state === "Playing") {
         setIsPlaying(true);
         if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
+          const progressInfo = currentPlayStateInfo();
+          if (progressInfo) {
+            playbackManager.reportPlaybackProgress(progressInfo);
+          }
         }
         if (!Platform.isTV) await activateKeepAwakeAsync();
         return;
@@ -525,9 +535,10 @@ export default function page() {
       if (state === "Paused") {
         setIsPlaying(false);
         if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
+          const progressInfo = currentPlayStateInfo();
+          if (progressInfo) {
+            playbackManager.reportPlaybackProgress(progressInfo);
+          }
         }
         if (!Platform.isTV) await deactivateKeepAwake();
         return;
