@@ -4,7 +4,7 @@ import { storage } from "@/utils/mmkv";
 declare module "react-native-mmkv" {
   interface MMKV {
     get<T>(key: string): T | undefined;
-    setAny(key: string, value: unknown): void;
+    setAny(key: string, value: any | undefined): void;
   }
 }
 
@@ -21,7 +21,11 @@ storage.get = function <T>(this: MMKV, key: string): T | undefined {
   }
 };
 
-storage.setAny = function (this: MMKV, key: string, value: unknown): void {
+storage.setAny = function (
+  this: MMKV,
+  key: string,
+  value: any | undefined,
+): void {
   try {
     if (value === undefined) {
       this.remove(key);
