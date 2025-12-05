@@ -130,10 +130,9 @@ export type HomeSectionLatestResolver = {
   includeItemTypes?: Array<BaseItemKind>;
 };
 
+// Video player enum - currently only MPV is supported
 export enum VideoPlayer {
-  // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
-  VLC_3 = 0,
-  VLC_4 = 1,
+  MPV = 0,
 }
 
 export type Settings = {
@@ -143,7 +142,6 @@ export type Settings = {
   preferedLanguage?: string;
   searchEngine: "Marlin" | "Jellyfin";
   marlinServerUrl?: string;
-  openInVLC?: boolean;
   downloadQuality?: DownloadOption;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
@@ -164,16 +162,14 @@ export type Settings = {
   jellyseerrServerUrl?: string;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
-  defaultPlayer: VideoPlayer;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
-  vlcTextColor?: string;
-  vlcBackgroundColor?: string;
-  vlcOutlineColor?: string;
-  vlcOutlineThickness?: string;
-  vlcBackgroundOpacity?: number;
-  vlcOutlineOpacity?: number;
-  vlcIsBold?: boolean;
+  // MPV subtitle settings
+  mpvSubtitleScale?: number;
+  mpvSubtitleMarginY?: number;
+  mpvSubtitleAlignX?: "left" | "center" | "right";
+  mpvSubtitleAlignY?: "top" | "center" | "bottom";
+  mpvSubtitleFontSize?: number;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -201,7 +197,6 @@ export const defaultValues: Settings = {
   preferedLanguage: undefined,
   searchEngine: "Jellyfin",
   marlinServerUrl: "",
-  openInVLC: false,
   downloadQuality: DownloadOptions[0],
   defaultBitrate: BITRATES[0],
   libraryOptions: {
@@ -228,16 +223,14 @@ export const defaultValues: Settings = {
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
-  vlcTextColor: undefined,
-  vlcBackgroundColor: undefined,
-  vlcOutlineColor: undefined,
-  vlcOutlineThickness: undefined,
-  vlcBackgroundOpacity: undefined,
-  vlcOutlineOpacity: undefined,
-  vlcIsBold: undefined,
+  // MPV subtitle defaults
+  mpvSubtitleScale: undefined,
+  mpvSubtitleMarginY: undefined,
+  mpvSubtitleAlignX: undefined,
+  mpvSubtitleAlignY: undefined,
+  mpvSubtitleFontSize: undefined,
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,

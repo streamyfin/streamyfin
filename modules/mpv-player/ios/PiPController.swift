@@ -1,10 +1,3 @@
-//
-//  PiPController.swift
-//  test
-//
-//  Created by Francesco on 30/09/25.
-//
-
 import AVKit
 import AVFoundation
 
@@ -46,7 +39,8 @@ final class PiPController: NSObject {
     }
     
     private func setupPictureInPicture() {
-        guard isPictureInPictureSupported, let displayLayer = sampleBufferDisplayLayer else {
+        guard isPictureInPictureSupported,
+              let displayLayer = sampleBufferDisplayLayer else {
             return
         }
         
@@ -58,7 +52,9 @@ final class PiPController: NSObject {
         pipController = AVPictureInPictureController(contentSource: contentSource)
         pipController?.delegate = self
         pipController?.requiresLinearPlayback = false
+        #if !os(tvOS)
         pipController?.canStartPictureInPictureAutomaticallyFromInline = true
+        #endif
     }
     
     func startPictureInPicture() {
@@ -75,11 +71,23 @@ final class PiPController: NSObject {
     }
     
     func invalidate() {
-        pipController?.invalidatePlaybackState()
+        if Thread.isMainThread {
+            pipController?.invalidatePlaybackState()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.pipController?.invalidatePlaybackState()
+            }
+        }
     }
     
     func updatePlaybackState() {
-        pipController?.invalidatePlaybackState()
+        if Thread.isMainThread {
+            pipController?.invalidatePlaybackState()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.pipController?.invalidatePlaybackState()
+            }
+        }
     }
 }
 

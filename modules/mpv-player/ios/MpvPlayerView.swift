@@ -208,37 +208,49 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		cachedPosition = position
 		cachedDuration = duration
 		
-		// Only update PiP state when PiP is active (like the working code does)
-		if pipController?.isPictureInPictureActive == true {
-			pipController?.updatePlaybackState()
+		DispatchQueue.main.async { [weak self] in
+			guard let self else { return }
+			// Only update PiP state when PiP is active
+			if self.pipController?.isPictureInPictureActive == true {
+				self.pipController?.updatePlaybackState()
+			}
+			
+			self.onProgress([
+				"position": position,
+				"duration": duration,
+				"progress": duration > 0 ? position / duration : 0,
+			])
 		}
-		
-		onProgress([
-			"position": position,
-			"duration": duration,
-			"progress": duration > 0 ? position / duration : 0,
-		])
 	}
 
 	func renderer(_: MPVSoftwareRenderer, didChangePause isPaused: Bool) {
-		onPlaybackStateChange([
-			"isPaused": isPaused,
-			"isPlaying": !isPaused,
-		])
-		// Update PiP state when playback changes (direct call, like working code)
-		pipController?.updatePlaybackState()
+		DispatchQueue.main.async { [weak self] in
+			guard let self else { return }
+			self.onPlaybackStateChange([
+				"isPaused": isPaused,
+				"isPlaying": !isPaused,
+			])
+			// Update PiP state when playback changes
+			self.pipController?.updatePlaybackState()
+		}
 	}
 
 	func renderer(_: MPVSoftwareRenderer, didChangeLoading isLoading: Bool) {
-		onPlaybackStateChange([
-			"isLoading": isLoading,
-		])
+		DispatchQueue.main.async { [weak self] in
+			guard let self else { return }
+			self.onPlaybackStateChange([
+				"isLoading": isLoading,
+			])
+		}
 	}
 
 	func renderer(_: MPVSoftwareRenderer, didBecomeReadyToSeek: Bool) {
-		onPlaybackStateChange([
-			"isReadyToSeek": didBecomeReadyToSeek,
-		])
+		DispatchQueue.main.async { [weak self] in
+			guard let self else { return }
+			self.onPlaybackStateChange([
+				"isReadyToSeek": didBecomeReadyToSeek,
+			])
+		}
 	}
 }
 

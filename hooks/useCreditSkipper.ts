@@ -5,12 +5,15 @@ import { useSegments } from "@/utils/segments";
 import { msToSeconds, secondsToMs } from "@/utils/time";
 import { useHaptic } from "./useHaptic";
 
+/**
+ * Custom hook to handle skipping credits in a media player.
+ * MPV player uses milliseconds for time.
+ */
 export const useCreditSkipper = (
   itemId: string,
   currentTime: number,
-  seek: (time: number) => void,
+  seek: (ms: number) => void,
   play: () => void,
-  isVlc = false,
   isOffline = false,
   api: Api | null = null,
   downloadedFiles: DownloadedItem[] | undefined = undefined,
@@ -18,16 +21,11 @@ export const useCreditSkipper = (
   const [showSkipCreditButton, setShowSkipCreditButton] = useState(false);
   const lightHapticFeedback = useHaptic("light");
 
-  if (isVlc) {
-    currentTime = msToSeconds(currentTime);
-  }
+  // Convert ms to seconds for comparison with timestamps
+  const currentTimeSeconds = msToSeconds(currentTime);
 
   const wrappedSeek = (seconds: number) => {
-    if (isVlc) {
-      seek(secondsToMs(seconds));
-      return;
-    }
-    seek(seconds);
+    seek(secondsToMs(seconds));
   };
 
   const { data: segments } = useSegments(
@@ -41,11 +39,11 @@ export const useCreditSkipper = (
   useEffect(() => {
     if (creditTimestamps) {
       setShowSkipCreditButton(
-        currentTime > creditTimestamps.startTime &&
-          currentTime < creditTimestamps.endTime,
+        currentTimeSeconds > creditTimestamps.startTime &&
+          currentTimeSeconds < creditTimestamps.endTime,
       );
     }
-  }, [creditTimestamps, currentTime]);
+  }, [creditTimestamps, currentTimeSeconds]);
 
   const skipCredit = useCallback(() => {
     if (!creditTimestamps) return;

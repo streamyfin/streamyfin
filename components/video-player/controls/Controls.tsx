@@ -28,7 +28,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import type { MpvPlayerViewRef, SubtitleTrack } from "@/modules";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -50,7 +50,7 @@ import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
+  videoRef: MutableRefObject<MpvPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
@@ -68,18 +68,17 @@ interface Props {
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
-  getAudioTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
-  getSubtitleTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
+  getSubtitleTracks?:
+    | (() => Promise<SubtitleTrack[] | null>)
+    | (() => SubtitleTrack[]);
   setSubtitleURL?: (url: string, customName: string) => void;
   setSubtitleTrack?: (index: number) => void;
-  setAudioTrack?: (index: number) => void;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
   aspectRatio?: AspectRatio;
   scaleFactor?: ScaleFactor;
   setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
   setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
-  isVlc?: boolean;
   api?: Api | null;
   downloadedFiles?: DownloadedItem[];
 }
@@ -100,11 +99,9 @@ export const Controls: FC<Props> = ({
   setShowControls,
   mediaSource,
   isVideoLoaded,
-  getAudioTracks,
   getSubtitleTracks,
   setSubtitleURL,
   setSubtitleTrack,
-  setAudioTrack,
   setVideoAspectRatio,
   setVideoScaleFactor,
   aspectRatio = "default",
@@ -112,7 +109,6 @@ export const Controls: FC<Props> = ({
   setAspectRatio,
   setScaleFactor,
   offline = false,
-  isVlc = false,
   api = null,
   downloadedFiles = undefined,
 }) => {
@@ -194,17 +190,13 @@ export const Controls: FC<Props> = ({
     zIndex: 10,
   }));
 
-  // Initialize progress values
+  // Initialize progress values - MPV uses milliseconds
   useEffect(() => {
     if (item) {
-      progress.value = isVlc
-        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
-        : item?.UserData?.PlaybackPositionTicks || 0;
-      max.value = isVlc
-        ? ticksToMs(item.RunTimeTicks || 0)
-        : item.RunTimeTicks || 0;
+      progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
+      max.value = ticksToMs(item.RunTimeTicks || 0);
     }
-  }, [item, isVlc, progress, max]);
+  }, [item, progress, max]);
 
   // Navigation hooks
   const {
@@ -215,7 +207,6 @@ export const Controls: FC<Props> = ({
   } = useVideoNavigation({
     progress,
     isPlaying,
-    isVlc,
     seek,
     play,
   });
@@ -225,7 +216,6 @@ export const Controls: FC<Props> = ({
     progress,
     max,
     isSeeking,
-    isVlc,
   });
 
   const toggleControls = useCallback(() => {
@@ -248,7 +238,6 @@ export const Controls: FC<Props> = ({
     progress,
     min,
     max,
-    isVlc,
     showControls,
     isPlaying,
     seek,
@@ -273,7 +262,6 @@ export const Controls: FC<Props> = ({
     progress,
     isSeeking,
     isPlaying,
-    isVlc,
     seek,
     play,
     pause,
@@ -302,9 +290,8 @@ export const Controls: FC<Props> = ({
             : current.actual;
       } else {
         // When not scrubbing, only update if progress changed significantly (1 second)
-        const progressUnit = isVlc
-          ? CONTROLS_CONSTANTS.PROGRESS_UNIT_MS
-          : CONTROLS_CONSTANTS.PROGRESS_UNIT_TICKS;
+        // MPV uses milliseconds
+        const progressUnit = CONTROLS_CONSTANTS.PROGRESS_UNIT_MS;
         const progressDiff = Math.abs(current.actual - effectiveProgress.value);
         if (progressDiff >= progressUnit) {
           effectiveProgress.value = current.actual;
@@ -325,7 +312,6 @@ export const Controls: FC<Props> = ({
     currentTime,
     seek,
     play,
-    isVlc,
     offline,
     api,
     downloadedFiles,
@@ -336,7 +322,6 @@ export const Controls: FC<Props> = ({
     currentTime,
     seek,
     play,
-    isVlc,
     offline,
     api,
     downloadedFiles,
@@ -515,9 +500,7 @@ export const Controls: FC<Props> = ({
               goToNextItem={goToNextItem}
               previousItem={previousItem}
               nextItem={nextItem}
-              getAudioTracks={getAudioTracks}
               getSubtitleTracks={getSubtitleTracks}
-              setAudioTrack={setAudioTrack}
               setSubtitleTrack={setSubtitleTrack}
               setSubtitleURL={setSubtitleURL}
               aspectRatio={aspectRatio}
@@ -554,7 +537,6 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              isVlc={isVlc}
               showSkipButton={showSkipButton}
               showSkipCreditButton={showSkipCreditButton}
               skipIntro={skipIntro}

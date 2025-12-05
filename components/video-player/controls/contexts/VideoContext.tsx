@@ -9,14 +9,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { TrackInfo } from "@/modules/VlcPlayer.types";
+import type { SubtitleTrack } from "@/modules";
 import type { Track } from "../types";
 import { useControlContext } from "./ControlContext";
 
 interface VideoContextProps {
-  audioTracks: Track[] | null;
   subtitleTracks: Track[] | null;
-  setAudioTrack: ((index: number) => void) | undefined;
   setSubtitleTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
 }
@@ -25,28 +23,24 @@ const VideoContext = createContext<VideoContextProps | undefined>(undefined);
 
 interface VideoProviderProps {
   children: ReactNode;
-  getAudioTracks:
-    | (() => Promise<TrackInfo[] | null>)
-    | (() => TrackInfo[])
-    | undefined;
   getSubtitleTracks:
-    | (() => Promise<TrackInfo[] | null>)
-    | (() => TrackInfo[])
+    | (() => Promise<SubtitleTrack[] | null>)
+    | (() => SubtitleTrack[])
     | undefined;
-  setAudioTrack: ((index: number) => void) | undefined;
   setSubtitleTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
 }
 
+/**
+ * Video context provider for managing subtitle tracks.
+ * MPV player is used for all playback.
+ */
 export const VideoProvider: React.FC<VideoProviderProps> = ({
   children,
   getSubtitleTracks,
-  getAudioTracks,
   setSubtitleTrack,
   setSubtitleURL,
-  setAudioTrack,
 }) => {
-  const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
 
   const ControlContext = useControlContext();
@@ -99,20 +93,15 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
   };
 
   const setTrackParams = (
-    type: "audio" | "subtitle",
+    _type: "subtitle",
     index: number,
     serverIndex: number,
   ) => {
-    const setTrack = type === "audio" ? setAudioTrack : setSubtitleTrack;
-    const paramKey = type === "audio" ? "audioIndex" : "subtitleIndex";
-
     // If we're transcoding and we're going from a image based subtitle
     // to a text based subtitle, we need to change the player params.
 
     const shouldChangePlayerParams =
-      type === "subtitle" &&
-      mediaSource?.TranscodingUrl &&
-      !onTextBasedSubtitle;
+      mediaSource?.TranscodingUrl && !onTextBasedSubtitle;
 
     console.log("Set player params", index, serverIndex);
     if (shouldChangePlayerParams) {
@@ -121,47 +110,39 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       });
       return;
     }
-    setTrack?.(serverIndex);
+    setSubtitleTrack?.(serverIndex);
     router.setParams({
-      [paramKey]: serverIndex.toString(),
+      subtitleIndex: serverIndex.toString(),
     });
   };
 
   useEffect(() => {
     const fetchTracks = async () => {
       if (getSubtitleTracks) {
-        let subtitleData: TrackInfo[] | null = null;
+        let subtitleData: SubtitleTrack[] | null = null;
         try {
           subtitleData = await getSubtitleTracks();
         } catch (error) {
           console.log("[VideoContext] Failed to get subtitle tracks:", error);
           return;
         }
-        // Only FOR VLC 3, If we're transcoding, we need to reverse the subtitle data, because VLC reverses the HLS subtitles.
-        if (
-          mediaSource?.TranscodingUrl &&
-          subtitleData &&
-          subtitleData.length > 1
-        ) {
-          subtitleData = [subtitleData[0], ...subtitleData.slice(1).reverse()];
-        }
 
         let embedSubIndex = 1;
         const processedSubs: Track[] = allSubs?.map((sub) => {
-          /** A boolean value determining if we should increment the embedSubIndex, currently only Embed and Hls subtitles are automatically added into VLC Player */
+          /** A boolean value determining if we should increment the embedSubIndex */
           const shouldIncrement =
             sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
             sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
             sub.DeliveryMethod === SubtitleDeliveryMethod.External;
-          /** The index of subtitle inside VLC Player Itself */
-          const vlcIndex = subtitleData?.at(embedSubIndex)?.index ?? -1;
+          /** The index of subtitle inside MPV Player itself */
+          const mpvIndex = subtitleData?.at(embedSubIndex)?.id ?? -1;
           if (shouldIncrement) embedSubIndex++;
           return {
             name: sub.DisplayTitle || "Undefined Subtitle",
             index: sub.Index ?? -1,
             setTrack: () =>
               shouldIncrement
-                ? setTrackParams("subtitle", vlcIndex, sub.Index ?? -1)
+                ? setTrackParams("subtitle", mpvIndex, sub.Index ?? -1)
                 : setPlayerParams({
                     chosenSubtitleIndex: sub.Index?.toString(),
                   }),
@@ -184,56 +165,16 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         });
         setSubtitleTracks(subtitles);
       }
-      if (getAudioTracks) {
-        let audioData: TrackInfo[] | null = null;
-        try {
-          audioData = await getAudioTracks();
-        } catch (error) {
-          console.log("[VideoContext] Failed to get audio tracks:", error);
-          return;
-        }
-        const allAudio =
-          mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
-        const audioTracks: Track[] = allAudio?.map((audio, idx) => {
-          if (!mediaSource?.TranscodingUrl) {
-            const vlcIndex = audioData?.at(idx + 1)?.index ?? -1;
-            return {
-              name: audio.DisplayTitle ?? "Undefined Audio",
-              index: audio.Index ?? -1,
-              setTrack: () =>
-                setTrackParams("audio", vlcIndex, audio.Index ?? -1),
-            };
-          }
-          return {
-            name: audio.DisplayTitle ?? "Undefined Audio",
-            index: audio.Index ?? -1,
-            setTrack: () =>
-              setPlayerParams({ chosenAudioIndex: audio.Index?.toString() }),
-          };
-        });
-
-        // Add a "Disable Audio" option if its not transcoding.
-        if (!mediaSource?.TranscodingUrl) {
-          audioTracks.unshift({
-            name: "Disable",
-            index: -1,
-            setTrack: () => setTrackParams("audio", -1, -1),
-          });
-        }
-        setAudioTracks(audioTracks);
-      }
     };
     fetchTracks();
-  }, [isVideoLoaded, getAudioTracks, getSubtitleTracks]);
+  }, [isVideoLoaded, getSubtitleTracks]);
 
   return (
     <VideoContext.Provider
       value={{
-        audioTracks,
         subtitleTracks,
         setSubtitleTrack,
         setSubtitleURL,
-        setAudioTrack,
       }}
     >
       {children}

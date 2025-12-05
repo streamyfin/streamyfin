@@ -1,10 +1,3 @@
-//
-//  Logging.swift
-//  Sora
-//
-//  Created by seiike on 16/01/2025.
-//
-
 import Foundation
 
 class Logger {

@@ -1,17 +1,4 @@
-import type {
-  ChapterInfo,
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  TrackInfo,
-  VideoLoadStartPayload,
-  VideoProgressPayload,
-  VideoStateChangePayload,
-  VlcPlayerSource,
-  VlcPlayerViewProps,
-  VlcPlayerViewRef,
-} from "./VlcPlayer.types";
-import VlcPlayerView from "./VlcPlayerView";
-
+// Background Downloader
 export type {
   ActiveDownload,
   DownloadCompleteEvent,
@@ -19,23 +6,18 @@ export type {
   DownloadProgressEvent,
   DownloadStartedEvent,
 } from "./background-downloader";
-// Background Downloader
 export { default as BackgroundDownloader } from "./background-downloader";
-
-// Component
-export { VlcPlayerView };
-
-// Component Types
-export type { VlcPlayerViewProps, VlcPlayerViewRef };
-
-// Media Types
-export type { ChapterInfo, TrackInfo, VlcPlayerSource };
-
-// Playback Events (alphabetically sorted)
+// Type aliases for backward compatibility during migration
+// These map old VLC type names to new MPV equivalents
 export type {
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  VideoLoadStartPayload,
-  VideoProgressPayload,
-  VideoStateChangePayload,
-};
+  MpvPlayerViewProps,
+  MpvPlayerViewRef,
+  OnErrorEventPayload,
+  OnLoadEventPayload,
+  OnPlaybackStateChangePayload,
+  OnProgressEventPayload,
+  SubtitleTrack,
+  SubtitleTrack as TrackInfo,
+} from "./mpv-player";
+// MPV Player - Main exports
+export { MpvPlayerView } from "./mpv-player";

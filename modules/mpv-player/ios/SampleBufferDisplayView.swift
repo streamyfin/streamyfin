@@ -1,10 +1,3 @@
-//
-//  SampleBufferDisplayView.swift
-//  test
-//
-//  Created by Francesco on 28/09/25.
-//
-
 import UIKit
 import AVFoundation
 
@@ -36,9 +29,18 @@ final class SampleBufferDisplayView: UIView {
     private func commonInit() {
         backgroundColor = .black
         displayLayer.videoGravity = .resizeAspect
-        if #available(iOS 17.0, *) {
-            displayLayer.wantsExtendedDynamicRangeContent = true
-        }
+        #if !os(tvOS)
+        #if compiler(>=6.0)
+            if #available(iOS 26.0, *) {
+                displayLayer.preferredDynamicRange = .automatic
+            } else if #available(iOS 17.0, *) {
+                displayLayer.wantsExtendedDynamicRangeContent = true
+            }
+        #endif
+            if #available(iOS 17.0, *) {
+                displayLayer.wantsExtendedDynamicRangeContent = true
+            }
+        #endif
         setupPictureInPicture()
     }
     

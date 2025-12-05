@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
 import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
@@ -34,9 +34,7 @@ interface HeaderControlsProps {
   goToNextItem: (options: { isAutoPlay?: boolean }) => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
-  getAudioTracks?: (() => Promise<any[] | null>) | (() => any[]);
   getSubtitleTracks?: (() => Promise<any[] | null>) | (() => any[]);
-  setAudioTrack?: (index: number) => void;
   setSubtitleTrack?: (index: number) => void;
   setSubtitleURL?: (url: string, customName: string) => void;
   aspectRatio?: AspectRatio;
@@ -58,9 +56,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   goToNextItem,
   previousItem,
   nextItem,
-  getAudioTracks,
   getSubtitleTracks,
-  setAudioTrack,
   setSubtitleTrack,
   setSubtitleURL,
   aspectRatio = "default",
@@ -114,9 +110,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       <View className='mr-auto' pointerEvents='box-none'>
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
           <VideoProvider
-            getAudioTracks={getAudioTracks}
             getSubtitleTracks={getSubtitleTracks}
-            setAudioTrack={setAudioTrack}
             setSubtitleTrack={setSubtitleTrack}
             setSubtitleURL={setSubtitleURL}
           >
@@ -128,20 +122,18 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       </View>
 
       <View className='flex flex-row items-center space-x-2'>
-        {!Platform.isTV &&
-          (settings.defaultPlayer === VideoPlayer.VLC_4 ||
-            Platform.OS === "android") && (
-            <TouchableOpacity
-              onPress={startPictureInPicture}
-              className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-            >
-              <MaterialIcons
-                name='picture-in-picture'
-                size={ICON_SIZES.HEADER}
-                color='white'
-              />
-            </TouchableOpacity>
-          )}
+        {!Platform.isTV && startPictureInPicture && (
+          <TouchableOpacity
+            onPress={startPictureInPicture}
+            className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+          >
+            <MaterialIcons
+              name='picture-in-picture'
+              size={ICON_SIZES.HEADER}
+              color='white'
+            />
+          </TouchableOpacity>
+        )}
         {item?.Type === "Episode" && (
           <TouchableOpacity
             onPress={switchOnEpisodeMode}

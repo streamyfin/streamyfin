@@ -18,7 +18,6 @@ interface BottomControlsProps {
   showRemoteBubble: boolean;
   currentTime: number;
   remainingTime: number;
-  isVlc: boolean;
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
   skipIntro: () => void;
@@ -66,7 +65,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showRemoteBubble,
   currentTime,
   remainingTime,
-  isVlc,
   showSkipButton,
   showSkipCreditButton,
   skipIntro,
@@ -145,13 +143,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
             settings.autoPlayEpisodeCount <
               settings.maxAutoPlayEpisodeCount.value) && (
             <NextEpisodeCountDownButton
-              show={
-                !nextItem
-                  ? false
-                  : isVlc
-                    ? remainingTime < 10000
-                    : remainingTime < 10
-              }
+              show={!nextItem ? false : remainingTime < 10000}
               onFinish={handleNextEpisodeAutoPlay}
               onPress={handleNextEpisodeManual}
             />
@@ -208,7 +200,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <TimeDisplay
             currentTime={currentTime}
             remainingTime={remainingTime}
-            isVlc={isVlc}
           />
         </View>
       </View>

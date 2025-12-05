@@ -18,6 +18,10 @@ Pod::Spec.new do |s|
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
+    # Strip debug symbols to avoid DWARF errors from MPVKit
+    'DEBUG_INFORMATION_FORMAT' => 'dwarf',
+    'STRIP_INSTALLED_PRODUCT' => 'YES',
+    'DEPLOYMENT_POSTPROCESSING' => 'YES',
   }
 
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"

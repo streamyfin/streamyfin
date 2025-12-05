@@ -5,6 +5,7 @@
 //  Created by Francesco on 28/09/25.
 //
 
+import UIKit
 import Libmpv
 import CoreMedia
 import CoreVideo
@@ -44,7 +45,7 @@ final class MPVSoftwareRenderer {
     private var poolWidth: Int = 0
     private var poolHeight: Int = 0
     private var preAllocatedBuffers: [CVPixelBuffer] = []
-    private let maxPreAllocatedBuffers = 6
+    private let maxPreAllocatedBuffers = 12
     
     private var currentPreset: PlayerPreset?
     private var currentURL: URL?
@@ -64,15 +65,26 @@ final class MPVSoftwareRenderer {
     private var isLoading: Bool = false
     private var isRenderScheduled = false
     private var lastRenderTime: CFTimeInterval = 0
-    private let minRenderInterval: CFTimeInterval = 1.0 / 120.0
+    private var minRenderInterval: CFTimeInterval
     private var isReadyToSeek: Bool = false
+    private var lastRenderDimensions: CGSize = .zero
     
     var isPausedState: Bool {
         return isPaused
     }
     
     init(displayLayer: AVSampleBufferDisplayLayer) {
+        guard
+            let screen = UIApplication.shared.connectedScenes
+                .compactMap({ ($0 as? UIWindowScene)?.screen })
+                .first
+        else {
+            fatalError("⚠️ No active screen found — app may not have a visible window yet.")
+        }
         self.displayLayer = displayLayer
+        let maxFPS = screen.maximumFramesPerSecond
+        let cappedFPS = min(maxFPS, 60)
+        self.minRenderInterval = 1.0 / CFTimeInterval(cappedFPS)
         renderQueue.setSpecific(key: renderQueueKey, value: ())
     }
     
@@ -96,11 +108,16 @@ final class MPVSoftwareRenderer {
         setOption(name: "gpu-context", value: "metal")
         setOption(name: "demuxer-thread", value: "yes")
         setOption(name: "ytdl", value: "yes")
+        setOption(name: "profile", value: "fast")
+        setOption(name: "vd-lavc-threads", value: "8")
+        setOption(name: "cache", value: "yes")
+        setOption(name: "demuxer-max-bytes", value: "150M")
+        setOption(name: "demuxer-readahead-secs", value: "20")
         
-        // Subtitle rendering options
-       setOption(name: "subs-match-os-language", value: "yes")
-        setOption(name: "subs-fallback", value: "yes")
-        setOption(name: "sub-auto", value: "no")
+        // Subtitle options - blend into video for software renderer
+        setOption(name: "blend-subtitles", value: "video")
+        setOption(name: "sub-visibility", value: "yes")
+        setOption(name: "osd-level", value: "0")
         
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
@@ -144,6 +161,7 @@ final class MPVSoftwareRenderer {
             self.pixelBufferPool = nil
             self.poolWidth = 0
             self.poolHeight = 0
+            self.lastRenderDimensions = .zero
         }
         
         eventQueueGroup.wait()
@@ -162,6 +180,7 @@ final class MPVSoftwareRenderer {
             self.formatDescription = nil
             self.poolWidth = 0
             self.poolHeight = 0
+            self.lastRenderDimensions = .zero
             
             self.disposeBag.forEach { $0() }
             self.disposeBag.removeAll()
@@ -169,7 +188,11 @@ final class MPVSoftwareRenderer {
         
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.displayLayer.flushAndRemoveImage()
+            if #available(iOS 18.0, *) {
+                self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
+            } else {
+                self.displayLayer.flushAndRemoveImage()
+            }
         }
         
         isStopping = false
@@ -198,18 +221,12 @@ final class MPVSoftwareRenderer {
             self.command(handle, ["stop"])
             self.updateHTTPHeaders(headers)
             
-            // Handle file URLs - use path, otherwise use absolute string
-            let target: String
-            if url.isFileURL {
-                // For file URLs, use the path (removes file:// prefix)
-                target = url.path
-                Logger.shared.log("Loading file: \(target)", type: "Info")
-            } else {
-                // For network URLs, use absolute string
-                target = url.absoluteString
-                Logger.shared.log("Loading URL: \(target)", type: "Info")
+            var finalURL = url
+            if !url.isFileURL {
+                finalURL = url
             }
             
+            let target = finalURL.isFileURL ? finalURL.path : finalURL.absoluteString
             self.command(handle, ["loadfile", target, "replace"])
         }
     }
@@ -339,7 +356,18 @@ final class MPVSoftwareRenderer {
             guard let self, self.isRunning, !self.isStopping else { return }
             
             let currentTime = CACurrentMediaTime()
-            if self.isRenderScheduled && (currentTime - self.lastRenderTime) < self.minRenderInterval {
+            let timeSinceLastRender = currentTime - self.lastRenderTime
+            if timeSinceLastRender < self.minRenderInterval {
+                let remaining = self.minRenderInterval - timeSinceLastRender
+                if self.isRenderScheduled { return }
+                self.isRenderScheduled = true
+                
+                self.renderQueue.asyncAfter(deadline: .now() + remaining) { [weak self] in
+                    guard let self else { return }
+                    self.lastRenderTime = CACurrentMediaTime()
+                    self.performRenderUpdate()
+                    self.isRenderScheduled = false
+                }
                 return
             }
             
@@ -367,11 +395,21 @@ final class MPVSoftwareRenderer {
     
     private func renderFrame() {
         guard let context = renderContext else { return }
-        let size = currentVideoSize()
-        guard size.width > 0, size.height > 0 else { return }
+        let videoSize = currentVideoSize()
+        guard videoSize.width > 0, videoSize.height > 0 else { return }
         
-        let width = Int(size.width)
-        let height = Int(size.height)
+        let targetSize = targetRenderSize(for: videoSize)
+        let width = Int(targetSize.width)
+        let height = Int(targetSize.height)
+        guard width > 0, height > 0 else { return }
+        if lastRenderDimensions != targetSize {
+            lastRenderDimensions = targetSize
+            if targetSize != videoSize {
+                Logger.shared.log("Rendering scaled output at \(width)x\(height) (source \(Int(videoSize.width))x\(Int(videoSize.height)))", type: "Info")
+            } else {
+                Logger.shared.log("Rendering output at native size \(width)x\(height)", type: "Info")
+            }
+        }
         
         if poolWidth != width || poolHeight != height {
             recreatePixelBufferPool(width: width, height: height)
@@ -451,13 +489,38 @@ final class MPVSoftwareRenderer {
         }
         
         CVPixelBufferUnlockBaseAddress(buffer, [])
+        
         enqueue(buffer: buffer)
         
-        if preAllocatedBuffers.count < 2 {
+        if preAllocatedBuffers.count < 4 {
             renderQueue.async { [weak self] in
                 self?.preAllocateBuffers()
             }
         }
+    }
+    
+    private func targetRenderSize(for videoSize: CGSize) -> CGSize {
+        guard videoSize.width > 0, videoSize.height > 0 else { return videoSize }
+        guard
+            let screen = UIApplication.shared.connectedScenes
+                .compactMap({ ($0 as? UIWindowScene)?.screen })
+                .first
+        else {
+            fatalError("⚠️ No active screen found — app may not have a visible window yet.")
+        }
+        var scale = screen.scale
+        if scale <= 0 { scale = 1 }
+        let maxWidth = max(screen.bounds.width * scale, 1.0)
+        let maxHeight = max(screen.bounds.height * scale, 1.0)
+        if maxWidth <= 0 || maxHeight <= 0 {
+            return videoSize
+        }
+        let widthRatio = videoSize.width / maxWidth
+        let heightRatio = videoSize.height / maxHeight
+        let ratio = max(widthRatio, heightRatio, 1)
+        let targetWidth = max(1, Int(videoSize.width / ratio))
+        let targetHeight = max(1, Int(videoSize.height / ratio))
+        return CGSize(width: CGFloat(targetWidth), height: CGFloat(targetHeight))
     }
     
     private func createPixelBufferPool(width: Int, height: Int) {
@@ -479,7 +542,7 @@ final class MPVSoftwareRenderer {
         ]
         
         let auxAttrs: [CFString: Any] = [
-            kCVPixelBufferPoolAllocationThresholdKey: 4
+            kCVPixelBufferPoolAllocationThresholdKey: 8
         ]
         
         var pool: CVPixelBufferPool?
@@ -522,7 +585,7 @@ final class MPVSoftwareRenderer {
         
         guard let pool = pixelBufferPool else { return }
         
-        let targetCount = min(maxPreAllocatedBuffers, 4)
+        let targetCount = min(maxPreAllocatedBuffers, 8)
         let currentCount = preAllocatedBuffers.count
         
         guard currentCount < targetCount else { return }
@@ -597,19 +660,43 @@ final class MPVSoftwareRenderer {
         
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            
-            if self.displayLayer.status == .failed {
-                if let error = self.displayLayer.error {
+            let (status, error): (AVQueuedSampleBufferRenderingStatus?, Error?) = {
+                if #available(iOS 18.0, *) {
+                    return (
+                        self.displayLayer.sampleBufferRenderer.status,
+                        self.displayLayer.sampleBufferRenderer.error
+                    )
+                } else {
+                    return (
+                        self.displayLayer.status,
+                        self.displayLayer.error
+                    )
+                }
+            }()
+            if status == .failed {
+                if let error = error {
                     Logger.shared.log("Display layer in failed state: \(error.localizedDescription)", type: "Error")
                 }
-                self.displayLayer.flushAndRemoveImage()
+                if #available(iOS 18.0, *) {
+                    self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
+                } else {
+                    self.displayLayer.flushAndRemoveImage()
+                }
             }
             
             if needsFlush {
-                self.displayLayer.flushAndRemoveImage()
+                if #available(iOS 18.0, *) {
+                    self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
+                } else {
+                    self.displayLayer.flushAndRemoveImage()
+                }
                 self.didFlushForFormatChange = true
             } else if self.didFlushForFormatChange {
-                self.displayLayer.flush()
+                if #available(iOS 18.0, *) {
+                    self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: false, completionHandler: nil)
+                } else {
+                    self.displayLayer.flush()
+                }
                 self.didFlushForFormatChange = false
             }
             
@@ -624,14 +711,14 @@ final class MPVSoftwareRenderer {
                 }
             }
             
-            if !self.displayLayer.isReadyForMoreMediaData {
-                Logger.shared.log("Display layer not ready for more media data", type: "Warn")
-            }
             if shouldNotifyLoadingEnd {
                 self.delegate?.renderer(self, didChangeLoading: false)
             }
-            
-            self.displayLayer.enqueue(sample)
+            if #available(iOS 18.0, *) {
+                self.displayLayer.sampleBufferRenderer.enqueue(sample)
+            } else {
+                self.displayLayer.enqueue(sample)
+            }
         }
     }
     
@@ -890,70 +977,40 @@ final class MPVSoftwareRenderer {
     }
     
     // MARK: - Subtitle Controls
+    
     func getSubtitleTracks() -> [[String: Any]] {
         guard let handle = mpv else { return [] }
-        
-        var node = mpv_node()
-        let status = "track-list".withCString { pointer in
-            mpv_get_property(handle, pointer, MPV_FORMAT_NODE, &node)
-        }
-        
-        guard status >= 0 else { return [] }
-        defer { mpv_free_node_contents(&node) }
-        
         var tracks: [[String: Any]] = []
         
-        if node.format == MPV_FORMAT_NODE_ARRAY {
-            let array = node.u.list.pointee
-            for i in 0..<Int(array.num) {
-                guard let values = array.values else { continue }
-                let trackNode = values[i]
-                
-                if trackNode.format == MPV_FORMAT_NODE_MAP {
-                    let map = trackNode.u.list.pointee
-                    var trackInfo: [String: Any] = [:]
-                    
-                    for j in 0..<Int(map.num) {
-                        guard let keys = map.keys, let vals = map.values else { continue }
-                        let key = String(cString: keys[j]!)
-                        let val = vals[j]
-                        
-                        switch key {
-                        case "id":
-                            if val.format == MPV_FORMAT_INT64 {
-                                trackInfo["id"] = Int(val.u.int64)
-                            }
-                        case "type":
-                            if val.format == MPV_FORMAT_STRING, let str = val.u.string {
-                                trackInfo["type"] = String(cString: str)
-                            }
-                        case "title":
-                            if val.format == MPV_FORMAT_STRING, let str = val.u.string {
-                                trackInfo["title"] = String(cString: str)
-                            }
-                        case "lang":
-                            if val.format == MPV_FORMAT_STRING, let str = val.u.string {
-                                trackInfo["lang"] = String(cString: str)
-                            }
-                        case "selected":
-                            if val.format == MPV_FORMAT_FLAG {
-                                trackInfo["selected"] = val.u.flag == 1
-                            }
-                        default:
-                            break
-                        }
-                    }
-                    
-                    if trackInfo["type"] as? String == "sub" {
-                        tracks.append(trackInfo)
-                    }
-                }
-            }
-        }
+        var trackCount: Int64 = 0
+        getProperty(handle: handle, name: "track-list/count", format: MPV_FORMAT_INT64, value: &trackCount)
         
-        print("MPV: Found \(tracks.count) subtitle tracks")
-        for track in tracks {
-            print("MPV: Subtitle track - ID: \(track["id"] ?? "?"), Title: \(track["title"] ?? "?"), Lang: \(track["lang"] ?? "?"), Selected: \(track["selected"] ?? false)")
+        for i in 0..<trackCount {
+            var trackType: String?
+            if let typeStr = getStringProperty(handle: handle, name: "track-list/\(i)/type") {
+                trackType = typeStr
+            }
+            
+            guard trackType == "sub" else { continue }
+            
+            var trackId: Int64 = 0
+            getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId)
+            
+            var track: [String: Any] = ["id": Int(trackId)]
+            
+            if let title = getStringProperty(handle: handle, name: "track-list/\(i)/title") {
+                track["title"] = title
+            }
+            
+            if let lang = getStringProperty(handle: handle, name: "track-list/\(i)/lang") {
+                track["lang"] = lang
+            }
+            
+            var selected: Int32 = 0
+            getProperty(handle: handle, name: "track-list/\(i)/selected", format: MPV_FORMAT_FLAG, value: &selected)
+            track["selected"] = selected != 0
+            
+            tracks.append(track)
         }
         
         return tracks
@@ -961,20 +1018,17 @@ final class MPVSoftwareRenderer {
     
     func setSubtitleTrack(_ trackId: Int) {
         setProperty(name: "sid", value: String(trackId))
-        print("MPV: Set subtitle track to \(trackId)")
     }
     
     func disableSubtitles() {
         setProperty(name: "sid", value: "no")
-        print("MPV: Disabled subtitles")
     }
     
     func getCurrentSubtitleTrack() -> Int {
         guard let handle = mpv else { return 0 }
-        var trackId: Int64 = 0
-        let status = getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &trackId)
-        print("MPV: Current subtitle track is \(trackId), status: \(status)")
-        return status >= 0 ? Int(trackId) : 0
+        var sid: Int64 = 0
+        getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
+        return Int(sid)
     }
     
     func addSubtitleFile(url: String) {
@@ -984,36 +1038,27 @@ final class MPVSoftwareRenderer {
     
     // MARK: - Subtitle Positioning
     
-    /// Set subtitle vertical position (0-100, where 100 is bottom)
     func setSubtitlePosition(_ position: Int) {
-        let clampedPosition = max(0, min(100, position))
-        setProperty(name: "sub-pos", value: String(clampedPosition))
+        setProperty(name: "sub-pos", value: String(position))
     }
     
-    /// Set subtitle scale (1.0 is normal size)
     func setSubtitleScale(_ scale: Double) {
-        let clampedScale = max(0.1, min(10.0, scale))
-        setProperty(name: "sub-scale", value: String(clampedScale))
+        setProperty(name: "sub-scale", value: String(scale))
     }
     
-    /// Set subtitle vertical margin in pixels
     func setSubtitleMarginY(_ margin: Int) {
         setProperty(name: "sub-margin-y", value: String(margin))
     }
     
-    /// Set subtitle horizontal alignment: "left", "center", "right"
     func setSubtitleAlignX(_ alignment: String) {
         setProperty(name: "sub-align-x", value: alignment)
     }
     
-    /// Set subtitle vertical alignment: "top", "center", "bottom"
     func setSubtitleAlignY(_ alignment: String) {
         setProperty(name: "sub-align-y", value: alignment)
     }
     
-    /// Set subtitle font size
     func setSubtitleFontSize(_ size: Int) {
-        let clampedSize = max(10, min(200, size))
-        setProperty(name: "sub-font-size", value: String(clampedSize))
+        setProperty(name: "sub-font-size", value: String(size))
     }
 }

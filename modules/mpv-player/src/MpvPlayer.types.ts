@@ -69,7 +69,6 @@ export interface MpvPlayerViewRef {
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
   setSubtitleFontSize: (size: number) => Promise<void>;
 }
-
 export type SubtitleTrack = {
   id: number;
   title?: string;
