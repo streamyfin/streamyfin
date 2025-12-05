@@ -9,12 +9,13 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { SubtitleTrack } from "@/modules";
+import type { AudioTrack, SubtitleTrack } from "@/modules";
 import type { Track } from "../types";
 import { useControlContext } from "./ControlContext";
 
 interface VideoContextProps {
   subtitleTracks: Track[] | null;
+  audioTracks: Track[] | null;
   setSubtitleTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
 }
@@ -27,21 +28,29 @@ interface VideoProviderProps {
     | (() => Promise<SubtitleTrack[] | null>)
     | (() => SubtitleTrack[])
     | undefined;
+  getAudioTracks:
+    | (() => Promise<AudioTrack[] | null>)
+    | (() => AudioTrack[])
+    | undefined;
   setSubtitleTrack: ((index: number) => void) | undefined;
+  setAudioTrack: ((index: number) => void) | undefined;
   setSubtitleURL: ((url: string, customName: string) => void) | undefined;
 }
 
 /**
- * Video context provider for managing subtitle tracks.
+s * Video context provider for managing subtitle and audio tracks.
  * MPV player is used for all playback.
  */
 export const VideoProvider: React.FC<VideoProviderProps> = ({
   children,
   getSubtitleTracks,
+  getAudioTracks,
   setSubtitleTrack,
+  setAudioTrack,
   setSubtitleURL,
 }) => {
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
+  const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
   const ControlContext = useControlContext();
   const isVideoLoaded = ControlContext?.isVideoLoaded;
@@ -122,6 +131,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
         let subtitleData: SubtitleTrack[] | null = null;
         try {
           subtitleData = await getSubtitleTracks();
+          console.log("subtitleData", subtitleData);
         } catch (error) {
           console.log("[VideoContext] Failed to get subtitle tracks:", error);
           return;
@@ -169,10 +179,49 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
     fetchTracks();
   }, [isVideoLoaded, getSubtitleTracks]);
 
+  // Fetch audio tracks
+  useEffect(() => {
+    const fetchAudioTracks = async () => {
+      if (getAudioTracks) {
+        let audioData: AudioTrack[] | null = null;
+        try {
+          audioData = await getAudioTracks();
+          console.log("audioData", audioData);
+        } catch (error) {
+          console.log("[VideoContext] Failed to get audio tracks:", error);
+          return;
+        }
+
+        const allAudio =
+          mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
+
+        let embedAudioIndex = 0;
+        const processedAudio: Track[] = allAudio?.map((audio) => {
+          const mpvIndex = audioData?.at(embedAudioIndex)?.id ?? 1;
+          embedAudioIndex++;
+          return {
+            name: audio.DisplayTitle || "Undefined Audio",
+            index: audio.Index ?? -1,
+            setTrack: () => {
+              setAudioTrack?.(mpvIndex);
+              router.setParams({
+                audioIndex: audio.Index?.toString() ?? "0",
+              });
+            },
+          };
+        });
+
+        setAudioTracks(processedAudio);
+      }
+    };
+    fetchAudioTracks();
+  }, [isVideoLoaded, getAudioTracks]);
+
   return (
     <VideoContext.Provider
       value={{
         subtitleTracks,
+        audioTracks,
         setSubtitleTrack,
         setSubtitleURL,
       }}

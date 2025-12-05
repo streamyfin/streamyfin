@@ -150,6 +150,19 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleFontSize") { (view: MpvPlayerView, size: Int) in
         view.setSubtitleFontSize(size)
       }
+      
+      // Audio track functions
+      AsyncFunction("getAudioTracks") { (view: MpvPlayerView) -> [[String: Any]] in
+        return view.getAudioTracks()
+      }
+      
+      AsyncFunction("setAudioTrack") { (view: MpvPlayerView, trackId: Int) in
+        view.setAudioTrack(trackId)
+      }
+      
+      AsyncFunction("getCurrentAudioTrack") { (view: MpvPlayerView) -> Int in
+        return view.getCurrentAudioTrack()
+      }
 
       // Defines events that the view can send to JavaScript
       Events("onLoad", "onPlaybackStateChange", "onProgress", "onError")

@@ -539,11 +539,6 @@ export default function page() {
     [playbackManager, item?.Id, progress],
   );
 
-  const _allSubs =
-    stream?.mediaSource.MediaStreams?.filter(
-      (sub) => sub.Type === "Subtitle",
-    ).sort((a, b) => Number(a.IsExternal) - Number(b.IsExternal)) || [];
-
   const [isMounted, setIsMounted] = useState(false);
 
   // Add useEffect to handle mounting
@@ -580,6 +575,14 @@ export default function page() {
 
   const setSubtitleURL = useCallback((url: string, _customName?: string) => {
     videoRef.current?.addSubtitleFile?.(url);
+  }, []);
+
+  const getAudioTracks = useCallback(async () => {
+    return videoRef.current?.getAudioTracks?.() || null;
+  }, []);
+
+  const setAudioTrack = useCallback((index: number) => {
+    videoRef.current?.setAudioTrack?.(index);
   }, []);
 
   // Apply MPV subtitle settings when video loads
@@ -702,8 +705,10 @@ export default function page() {
           seek={seek}
           enableTrickplay={true}
           getSubtitleTracks={getSubtitleTracks}
+          getAudioTracks={getAudioTracks}
           offline={offline}
           setSubtitleTrack={setSubtitleTrack}
+          setAudioTrack={setAudioTrack}
           setSubtitleURL={setSubtitleURL}
           aspectRatio={aspectRatio}
           scaleFactor={scaleFactor}

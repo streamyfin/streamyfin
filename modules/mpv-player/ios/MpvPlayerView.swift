@@ -168,6 +168,20 @@ class MpvPlayerView: ExpoView {
 		renderer?.addSubtitleFile(url: url)
 	}
 	
+	// MARK: - Audio Track Controls
+	
+	func getAudioTracks() -> [[String: Any]] {
+		return renderer?.getAudioTracks() ?? []
+	}
+	
+	func setAudioTrack(_ trackId: Int) {
+		renderer?.setAudioTrack(trackId)
+	}
+	
+	func getCurrentAudioTrack() -> Int {
+		return renderer?.getCurrentAudioTrack() ?? 0
+	}
+	
 	// MARK: - Subtitle Positioning
 	
 	func setSubtitlePosition(_ position: Int) {

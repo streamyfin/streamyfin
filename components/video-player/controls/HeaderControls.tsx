@@ -35,7 +35,9 @@ interface HeaderControlsProps {
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
   getSubtitleTracks?: (() => Promise<any[] | null>) | (() => any[]);
+  getAudioTracks?: (() => Promise<any[] | null>) | (() => any[]);
   setSubtitleTrack?: (index: number) => void;
+  setAudioTrack?: (index: number) => void;
   setSubtitleURL?: (url: string, customName: string) => void;
   aspectRatio?: AspectRatio;
   scaleFactor?: ScaleFactor;
@@ -57,7 +59,9 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   previousItem,
   nextItem,
   getSubtitleTracks,
+  getAudioTracks,
   setSubtitleTrack,
+  setAudioTrack,
   setSubtitleURL,
   aspectRatio = "default",
   scaleFactor = 1.0,
@@ -111,7 +115,9 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
           <VideoProvider
             getSubtitleTracks={getSubtitleTracks}
+            getAudioTracks={getAudioTracks}
             setSubtitleTrack={setSubtitleTrack}
+            setAudioTrack={setAudioTrack}
             setSubtitleURL={setSubtitleURL}
           >
             <View pointerEvents='auto'>

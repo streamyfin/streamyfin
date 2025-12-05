@@ -1,10 +1,3 @@
-//
-//  MPVSoftwareRenderer.swift
-//  test
-//
-//  Created by Francesco on 28/09/25.
-//
-
 import UIKit
 import Libmpv
 import CoreMedia
@@ -115,9 +108,8 @@ final class MPVSoftwareRenderer {
         setOption(name: "demuxer-readahead-secs", value: "20")
         
         // Subtitle options - blend into video for software renderer
-        setOption(name: "blend-subtitles", value: "video")
-        setOption(name: "sub-visibility", value: "yes")
-        setOption(name: "osd-level", value: "0")
+        setOption(name: "sub-auto", value: "yes")
+        setOption(name: "subs-fallback", value: "yes")
         
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
@@ -979,11 +971,15 @@ final class MPVSoftwareRenderer {
     // MARK: - Subtitle Controls
     
     func getSubtitleTracks() -> [[String: Any]] {
-        guard let handle = mpv else { return [] }
+        guard let handle = mpv else { 
+            Logger.shared.log("getSubtitleTracks: mpv handle is nil", type: "Warn")
+            return [] 
+        }
         var tracks: [[String: Any]] = []
         
         var trackCount: Int64 = 0
         getProperty(handle: handle, name: "track-list/count", format: MPV_FORMAT_INT64, value: &trackCount)
+        Logger.shared.log("getSubtitleTracks: total track count = \(trackCount)", type: "Info")
         
         for i in 0..<trackCount {
             var trackType: String?
@@ -1010,13 +1006,16 @@ final class MPVSoftwareRenderer {
             getProperty(handle: handle, name: "track-list/\(i)/selected", format: MPV_FORMAT_FLAG, value: &selected)
             track["selected"] = selected != 0
             
+            Logger.shared.log("getSubtitleTracks: found sub track id=\(trackId), title=\(track["title"] ?? "none"), lang=\(track["lang"] ?? "none")", type: "Info")
             tracks.append(track)
         }
         
+        Logger.shared.log("getSubtitleTracks: returning \(tracks.count) subtitle tracks", type: "Info")
         return tracks
     }
     
     func setSubtitleTrack(_ trackId: Int) {
+        Logger.shared.log("setSubtitleTrack: setting sid to \(trackId)", type: "Info")
         setProperty(name: "sid", value: String(trackId))
     }
     
@@ -1060,5 +1059,72 @@ final class MPVSoftwareRenderer {
     
     func setSubtitleFontSize(_ size: Int) {
         setProperty(name: "sub-font-size", value: String(size))
+    }
+    
+    // MARK: - Audio Track Controls
+    
+    func getAudioTracks() -> [[String: Any]] {
+        guard let handle = mpv else { 
+            Logger.shared.log("getAudioTracks: mpv handle is nil", type: "Warn")
+            return [] 
+        }
+        var tracks: [[String: Any]] = []
+        
+        var trackCount: Int64 = 0
+        getProperty(handle: handle, name: "track-list/count", format: MPV_FORMAT_INT64, value: &trackCount)
+        
+        for i in 0..<trackCount {
+            var trackType: String?
+            if let typeStr = getStringProperty(handle: handle, name: "track-list/\(i)/type") {
+                trackType = typeStr
+            }
+            
+            guard trackType == "audio" else { continue }
+            
+            var trackId: Int64 = 0
+            getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId)
+            
+            var track: [String: Any] = ["id": Int(trackId)]
+            
+            if let title = getStringProperty(handle: handle, name: "track-list/\(i)/title") {
+                track["title"] = title
+            }
+            
+            if let lang = getStringProperty(handle: handle, name: "track-list/\(i)/lang") {
+                track["lang"] = lang
+            }
+            
+            if let codec = getStringProperty(handle: handle, name: "track-list/\(i)/codec") {
+                track["codec"] = codec
+            }
+            
+            var channels: Int64 = 0
+            getProperty(handle: handle, name: "track-list/\(i)/audio-channels", format: MPV_FORMAT_INT64, value: &channels)
+            if channels > 0 {
+                track["channels"] = Int(channels)
+            }
+            
+            var selected: Int32 = 0
+            getProperty(handle: handle, name: "track-list/\(i)/selected", format: MPV_FORMAT_FLAG, value: &selected)
+            track["selected"] = selected != 0
+            
+            Logger.shared.log("getAudioTracks: found audio track id=\(trackId), title=\(track["title"] ?? "none"), lang=\(track["lang"] ?? "none")", type: "Info")
+            tracks.append(track)
+        }
+        
+        Logger.shared.log("getAudioTracks: returning \(tracks.count) audio tracks", type: "Info")
+        return tracks
+    }
+    
+    func setAudioTrack(_ trackId: Int) {
+        Logger.shared.log("setAudioTrack: setting aid to \(trackId)", type: "Info")
+        setProperty(name: "aid", value: String(trackId))
+    }
+    
+    func getCurrentAudioTrack() -> Int {
+        guard let handle = mpv else { return 0 }
+        var aid: Int64 = 0
+        getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
+        return Int(aid)
     }
 }

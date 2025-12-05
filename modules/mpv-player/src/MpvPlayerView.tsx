@@ -84,6 +84,16 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       setSubtitleFontSize: async (size: number) => {
         await nativeRef.current?.setSubtitleFontSize(size);
       },
+      // Audio controls
+      getAudioTracks: async () => {
+        return await nativeRef.current?.getAudioTracks();
+      },
+      setAudioTrack: async (trackId: number) => {
+        await nativeRef.current?.setAudioTrack(trackId);
+      },
+      getCurrentAudioTrack: async () => {
+        return await nativeRef.current?.getCurrentAudioTrack();
+      },
     }));
 
     return <NativeView ref={nativeRef} {...props} />;

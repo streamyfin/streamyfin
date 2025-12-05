@@ -56,6 +56,7 @@ export interface MpvPlayerViewRef {
   stopPictureInPicture: () => Promise<void>;
   isPictureInPictureSupported: () => Promise<boolean>;
   isPictureInPictureActive: () => Promise<boolean>;
+  // Subtitle controls
   getSubtitleTracks: () => Promise<SubtitleTrack[]>;
   setSubtitleTrack: (trackId: number) => Promise<void>;
   disableSubtitles: () => Promise<void>;
@@ -68,10 +69,24 @@ export interface MpvPlayerViewRef {
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
   setSubtitleFontSize: (size: number) => Promise<void>;
+  // Audio controls
+  getAudioTracks: () => Promise<AudioTrack[]>;
+  setAudioTrack: (trackId: number) => Promise<void>;
+  getCurrentAudioTrack: () => Promise<number>;
 }
+
 export type SubtitleTrack = {
   id: number;
   title?: string;
   lang?: string;
+  selected?: boolean;
+};
+
+export type AudioTrack = {
+  id: number;
+  title?: string;
+  lang?: string;
+  codec?: string;
+  channels?: number;
   selected?: boolean;
 };

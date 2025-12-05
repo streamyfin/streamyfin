@@ -28,7 +28,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import type { MpvPlayerViewRef, SubtitleTrack } from "@/modules";
+import type { AudioTrack, MpvPlayerViewRef, SubtitleTrack } from "@/modules";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -71,8 +71,10 @@ interface Props {
   getSubtitleTracks?:
     | (() => Promise<SubtitleTrack[] | null>)
     | (() => SubtitleTrack[]);
+  getAudioTracks?: (() => Promise<AudioTrack[] | null>) | (() => AudioTrack[]);
   setSubtitleURL?: (url: string, customName: string) => void;
   setSubtitleTrack?: (index: number) => void;
+  setAudioTrack?: (index: number) => void;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
   aspectRatio?: AspectRatio;
@@ -100,8 +102,10 @@ export const Controls: FC<Props> = ({
   mediaSource,
   isVideoLoaded,
   getSubtitleTracks,
+  getAudioTracks,
   setSubtitleURL,
   setSubtitleTrack,
+  setAudioTrack,
   setVideoAspectRatio,
   setVideoScaleFactor,
   aspectRatio = "default",
@@ -501,7 +505,9 @@ export const Controls: FC<Props> = ({
               previousItem={previousItem}
               nextItem={nextItem}
               getSubtitleTracks={getSubtitleTracks}
+              getAudioTracks={getAudioTracks}
               setSubtitleTrack={setSubtitleTrack}
+              setAudioTrack={setAudioTrack}
               setSubtitleURL={setSubtitleURL}
               aspectRatio={aspectRatio}
               scaleFactor={scaleFactor}
