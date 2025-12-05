@@ -1,0 +1,299 @@
+import AVFoundation
+import CoreMedia
+import ExpoModulesCore
+import UIKit
+
+// This view will be used as a native component. Make sure to inherit from `ExpoView`
+// to apply the proper styling (e.g. border radius and shadows).
+class MpvPlayerView: ExpoView {
+	private let displayLayer = AVSampleBufferDisplayLayer()
+	private var renderer: MPVSoftwareRenderer?
+	private var videoContainer: UIView!
+	private var pipController: PiPController?
+
+	let onLoad = EventDispatcher()
+	let onPlaybackStateChange = EventDispatcher()
+	let onProgress = EventDispatcher()
+	let onError = EventDispatcher()
+
+	private var currentURL: URL?
+	private var cachedPosition: Double = 0
+	private var cachedDuration: Double = 0
+
+	required init(appContext: AppContext? = nil) {
+		super.init(appContext: appContext)
+		setupView()
+	}
+
+	private func setupView() {
+		clipsToBounds = true
+		backgroundColor = .black
+
+		videoContainer = UIView()
+		videoContainer.translatesAutoresizingMaskIntoConstraints = false
+		videoContainer.backgroundColor = .black
+		videoContainer.clipsToBounds = true
+		addSubview(videoContainer)
+
+		displayLayer.frame = bounds
+		displayLayer.videoGravity = .resizeAspect
+		if #available(iOS 17.0, *) {
+			displayLayer.wantsExtendedDynamicRangeContent = true
+		}
+		displayLayer.backgroundColor = UIColor.black.cgColor
+		videoContainer.layer.addSublayer(displayLayer)
+
+		NSLayoutConstraint.activate([
+			videoContainer.topAnchor.constraint(equalTo: topAnchor),
+			videoContainer.leadingAnchor.constraint(equalTo: leadingAnchor),
+			videoContainer.trailingAnchor.constraint(equalTo: trailingAnchor),
+			videoContainer.bottomAnchor.constraint(equalTo: bottomAnchor)
+		])
+
+		renderer = MPVSoftwareRenderer(displayLayer: displayLayer)
+		renderer?.delegate = self
+
+		// Setup PiP
+		pipController = PiPController(sampleBufferDisplayLayer: displayLayer)
+		pipController?.delegate = self
+
+		do {
+			try renderer?.start()
+		} catch {
+			onError(["error": "Failed to start renderer: \(error.localizedDescription)"])
+		}
+	}
+
+	override func layoutSubviews() {
+		super.layoutSubviews()
+		CATransaction.begin()
+		CATransaction.setDisableActions(true)
+		displayLayer.frame = videoContainer.bounds
+		displayLayer.isHidden = false
+		displayLayer.opacity = 1.0
+		CATransaction.commit()
+	}
+
+	func loadVideo(url: URL, headers: [String: String]?) {
+		currentURL = url
+
+		// Create a simple preset with default commands
+		let preset = PlayerPreset(
+			id: .sdrRec709,
+			title: "Default",
+			summary: "Default playback preset",
+			stream: nil,
+			commands: []
+		)
+
+		renderer?.load(url: url, with: preset, headers: headers)
+		onLoad(["url": url.absoluteString])
+	}
+
+	func play() {
+		renderer?.play()
+	}
+
+	func pause() {
+		renderer?.pausePlayback()
+	}
+
+	func seekTo(position: Double) {
+		renderer?.seek(to: position)
+	}
+
+	func seekBy(offset: Double) {
+		renderer?.seek(by: offset)
+	}
+
+	func setSpeed(speed: Double) {
+		renderer?.setSpeed(speed)
+	}
+
+	func getSpeed() -> Double {
+		return renderer?.getSpeed() ?? 1.0
+	}
+
+	func isPaused() -> Bool {
+		return renderer?.isPausedState ?? true
+	}
+
+	func getCurrentPosition() -> Double {
+		return cachedPosition
+	}
+
+	func getDuration() -> Double {
+		return cachedDuration
+	}
+
+	// MARK: - Picture in Picture
+
+	func startPictureInPicture() {
+		print("🎬 MpvPlayerView: startPictureInPicture called")
+		print("🎬 Duration: \(getDuration()), IsPlaying: \(!isPaused())")
+		pipController?.startPictureInPicture()
+	}
+
+	func stopPictureInPicture() {
+		pipController?.stopPictureInPicture()
+	}
+
+	func isPictureInPictureSupported() -> Bool {
+		return pipController?.isPictureInPictureSupported ?? false
+	}
+
+	func isPictureInPictureActive() -> Bool {
+		return pipController?.isPictureInPictureActive ?? false
+	}
+	
+	// MARK: - Subtitle Controls
+	
+	func getSubtitleTracks() -> [[String: Any]] {
+		return renderer?.getSubtitleTracks() ?? []
+	}
+	
+	func setSubtitleTrack(_ trackId: Int) {
+		renderer?.setSubtitleTrack(trackId)
+	}
+	
+	func disableSubtitles() {
+		renderer?.disableSubtitles()
+	}
+	
+	func getCurrentSubtitleTrack() -> Int {
+		return renderer?.getCurrentSubtitleTrack() ?? 0
+	}
+	
+	func addSubtitleFile(url: String) {
+		renderer?.addSubtitleFile(url: url)
+	}
+	
+	// MARK: - Subtitle Positioning
+	
+	func setSubtitlePosition(_ position: Int) {
+		renderer?.setSubtitlePosition(position)
+	}
+	
+	func setSubtitleScale(_ scale: Double) {
+		renderer?.setSubtitleScale(scale)
+	}
+	
+	func setSubtitleMarginY(_ margin: Int) {
+		renderer?.setSubtitleMarginY(margin)
+	}
+	
+	func setSubtitleAlignX(_ alignment: String) {
+		renderer?.setSubtitleAlignX(alignment)
+	}
+	
+	func setSubtitleAlignY(_ alignment: String) {
+		renderer?.setSubtitleAlignY(alignment)
+	}
+	
+	func setSubtitleFontSize(_ size: Int) {
+		renderer?.setSubtitleFontSize(size)
+	}
+
+	deinit {
+		pipController?.stopPictureInPicture()
+		renderer?.stop()
+		displayLayer.removeFromSuperlayer()
+	}
+}
+
+// MARK: - MPVSoftwareRendererDelegate
+
+extension MpvPlayerView: MPVSoftwareRendererDelegate {
+	func renderer(_: MPVSoftwareRenderer, didUpdatePosition position: Double, duration: Double) {
+		cachedPosition = position
+		cachedDuration = duration
+		
+		// Only update PiP state when PiP is active (like the working code does)
+		if pipController?.isPictureInPictureActive == true {
+			pipController?.updatePlaybackState()
+		}
+		
+		onProgress([
+			"position": position,
+			"duration": duration,
+			"progress": duration > 0 ? position / duration : 0,
+		])
+	}
+
+	func renderer(_: MPVSoftwareRenderer, didChangePause isPaused: Bool) {
+		onPlaybackStateChange([
+			"isPaused": isPaused,
+			"isPlaying": !isPaused,
+		])
+		// Update PiP state when playback changes (direct call, like working code)
+		pipController?.updatePlaybackState()
+	}
+
+	func renderer(_: MPVSoftwareRenderer, didChangeLoading isLoading: Bool) {
+		onPlaybackStateChange([
+			"isLoading": isLoading,
+		])
+	}
+
+	func renderer(_: MPVSoftwareRenderer, didBecomeReadyToSeek: Bool) {
+		onPlaybackStateChange([
+			"isReadyToSeek": didBecomeReadyToSeek,
+		])
+	}
+}
+
+// MARK: - PiPControllerDelegate
+
+extension MpvPlayerView: PiPControllerDelegate {
+	func pipController(_ controller: PiPController, willStartPictureInPicture: Bool) {
+		print("PiP will start")
+		DispatchQueue.main.async { [weak self] in
+			self?.pipController?.updatePlaybackState()
+		}
+	}
+	
+	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
+		print("PiP did start: \(didStartPictureInPicture)")
+		DispatchQueue.main.async { [weak self] in
+			self?.pipController?.updatePlaybackState()
+		}
+	}
+	
+	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
+		print("PiP will stop")
+	}
+	
+	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
+		print("PiP did stop")
+	}
+	
+	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
+		print("PiP restore user interface")
+		completionHandler(true)
+	}
+	
+	func pipControllerPlay(_ controller: PiPController) {
+		print("PiP play requested")
+		play()
+	}
+	
+	func pipControllerPause(_ controller: PiPController) {
+		print("PiP pause requested")
+		pause()
+	}
+	
+	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {
+		let seconds = CMTimeGetSeconds(interval)
+		print("PiP skip by interval: \(seconds)")
+		let target = max(0, cachedPosition + seconds)
+		seekTo(position: target)
+	}
+	
+	func pipControllerIsPlaying(_ controller: PiPController) -> Bool {
+		return !isPaused()
+	}
+	
+	func pipControllerDuration(_ controller: PiPController) -> Double {
+		return getDuration()
+	}
+}
