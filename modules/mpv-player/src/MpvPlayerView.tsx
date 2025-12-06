@@ -63,8 +63,8 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       getCurrentSubtitleTrack: async () => {
         return await nativeRef.current?.getCurrentSubtitleTrack();
       },
-      addSubtitleFile: async (url: string) => {
-        await nativeRef.current?.addSubtitleFile(url);
+      addSubtitleFile: async (url: string, select = true) => {
+        await nativeRef.current?.addSubtitleFile(url, select);
       },
       setSubtitlePosition: async (position: number) => {
         await nativeRef.current?.setSubtitlePosition(position);

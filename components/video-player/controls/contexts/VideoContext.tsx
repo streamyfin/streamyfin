@@ -1,4 +1,73 @@
-import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
+/**
+ * VideoContext.tsx
+ *
+ * Manages subtitle and audio track state for the video player UI.
+ *
+ * ============================================================================
+ * INDEX TYPES
+ * ============================================================================
+ *
+ * We track two different indices for each track:
+ *
+ * 1. SERVER INDEX (sub.Index / track.index)
+ *    - Jellyfin's server-side stream index
+ *    - Used to report playback state to Jellyfin server
+ *    - Allows Jellyfin to remember user's last selected tracks
+ *    - Passed via router params (subtitleIndex, audioIndex)
+ *    - Value of -1 means disabled/none
+ *
+ * 2. MPV INDEX (track.mpvIndex)
+ *    - MPV's internal track ID for the loaded track
+ *    - Used to actually switch tracks in the player
+ *    - Only assigned to tracks that are loaded into MPV
+ *    - Value of -1 means track is not in MPV (e.g., burned-in image sub)
+ *
+ * ============================================================================
+ * SUBTITLE DELIVERY METHODS
+ * ============================================================================
+ *
+ * Jellyfin provides subtitles via different delivery methods:
+ * - Embed: Subtitle is embedded in the container (MKV, MP4, etc.)
+ * - Hls: Subtitle is delivered via HLS segments (during transcoding)
+ * - External: Subtitle is delivered as a separate file URL
+ * - Encode: Subtitle is burned into the video (image-based subs during transcode)
+ *
+ * Jellyfin also provides `IsTextSubtitleStream` boolean:
+ * - true:  Text-based subtitle (SRT, ASS, VTT, etc.)
+ * - false: Image-based subtitle (PGS, VOBSUB, DVDSUB, etc.)
+ *
+ * ============================================================================
+ * SUBTITLE TYPES AND HOW THEY'RE HANDLED
+ * ============================================================================
+ *
+ * 1. TEXT-BASED SUBTITLES (IsTextSubtitleStream = true)
+ *    - Direct Play: Loaded into MPV (embedded or via sub-add for external)
+ *    - Transcoding: Delivered via HLS, loaded into MPV
+ *    - Action: Use playerControls.setSubtitleTrack(mpvId)
+ *
+ * 2. IMAGE-BASED SUBTITLES (IsTextSubtitleStream = false)
+ *    - Direct Play: Embedded ones are in MPV, external ones are filtered out
+ *    - Transcoding: BURNED INTO VIDEO by Jellyfin (not in MPV track list)
+ *    - Action: When transcoding, use replacePlayer() to request burn-in
+ *
+ * ============================================================================
+ * MPV INDEX CALCULATION
+ * ============================================================================
+ *
+ * We iterate through Jellyfin's subtitle list and assign MPV indices only to
+ * subtitles that are actually loaded into MPV:
+ *
+ * - isSubtitleInMpv = true:  Subtitle is in MPV's track list, increment index
+ * - isSubtitleInMpv = false: Subtitle is NOT in MPV (e.g., image sub during
+ *                            transcode), do NOT increment index
+ *
+ * The order of subtitles in Jellyfin's MediaStreams matches the order in MPV.
+ */
+
+import {
+  type MediaStream,
+  SubtitleDeliveryMethod,
+} from "@jellyfin/sdk/lib/generated-client";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
@@ -11,53 +80,23 @@ import {
 } from "react";
 import type { AudioTrack, SubtitleTrack } from "@/modules";
 import type { Track } from "../types";
-import { useControlContext } from "./ControlContext";
+import { usePlayerContext, usePlayerControls } from "./PlayerContext";
 
 interface VideoContextProps {
   subtitleTracks: Track[] | null;
   audioTracks: Track[] | null;
-  setSubtitleTrack: ((index: number) => void) | undefined;
-  setSubtitleURL: ((url: string, customName: string) => void) | undefined;
 }
 
 const VideoContext = createContext<VideoContextProps | undefined>(undefined);
 
-interface VideoProviderProps {
-  children: ReactNode;
-  getSubtitleTracks:
-    | (() => Promise<SubtitleTrack[] | null>)
-    | (() => SubtitleTrack[])
-    | undefined;
-  getAudioTracks:
-    | (() => Promise<AudioTrack[] | null>)
-    | (() => AudioTrack[])
-    | undefined;
-  setSubtitleTrack: ((index: number) => void) | undefined;
-  setAudioTrack: ((index: number) => void) | undefined;
-  setSubtitleURL: ((url: string, customName: string) => void) | undefined;
-}
-
-/**
-s * Video context provider for managing subtitle and audio tracks.
- * MPV player is used for all playback.
- */
-export const VideoProvider: React.FC<VideoProviderProps> = ({
+export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   children,
-  getSubtitleTracks,
-  getAudioTracks,
-  setSubtitleTrack,
-  setAudioTrack,
-  setSubtitleURL,
 }) => {
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const ControlContext = useControlContext();
-  const isVideoLoaded = ControlContext?.isVideoLoaded;
-  const mediaSource = ControlContext?.mediaSource;
-
-  const allSubs =
-    mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
+  const { trackCount, mediaSource } = usePlayerContext();
+  const playerControls = usePlayerControls();
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
@@ -69,172 +108,167 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       playbackPosition: string;
     }>();
 
-  const onTextBasedSubtitle = useMemo(() => {
-    return (
-      allSubs.find(
-        (s) =>
-          s.Index?.toString() === subtitleIndex &&
-          (s.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-            s.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-            s.DeliveryMethod === SubtitleDeliveryMethod.External),
-      ) || subtitleIndex === "-1"
+  const allSubs =
+    mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
+  const allAudio =
+    mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
+
+  const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
+
+  /** Check if subtitle is image-based (PGS, VOBSUB, etc.) */
+  const isImageBased = (sub: MediaStream): boolean =>
+    sub.IsTextSubtitleStream === false;
+
+  /**
+   * Check if the currently selected subtitle is image-based.
+   * Used to determine if we need to refresh the player when changing subs.
+   */
+  const isCurrentSubImageBased = useMemo(() => {
+    if (subtitleIndex === "-1") return false;
+    const currentSub = allSubs.find(
+      (s) => s.Index?.toString() === subtitleIndex,
     );
+    return currentSub ? isImageBased(currentSub) : false;
   }, [allSubs, subtitleIndex]);
 
-  const setPlayerParams = ({
-    chosenAudioIndex = audioIndex,
-    chosenSubtitleIndex = subtitleIndex,
-  }: {
-    chosenAudioIndex?: string;
-    chosenSubtitleIndex?: string;
+  /**
+   * Refresh the player with new parameters.
+   * This triggers Jellyfin to re-process the stream (e.g., burn in image subs).
+   */
+  const replacePlayer = (params: {
+    audioIndex?: string;
+    subtitleIndex?: string;
   }) => {
-    console.log("chosenSubtitleIndex", chosenSubtitleIndex);
     const queryParams = new URLSearchParams({
       itemId: itemId ?? "",
-      audioIndex: chosenAudioIndex,
-      subtitleIndex: chosenSubtitleIndex,
+      audioIndex: params.audioIndex ?? audioIndex,
+      subtitleIndex: params.subtitleIndex ?? subtitleIndex,
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
       playbackPosition: playbackPosition,
     }).toString();
-
     router.replace(`player/direct-player?${queryParams}` as any);
   };
 
-  const setTrackParams = (
-    _type: "subtitle",
-    index: number,
-    serverIndex: number,
-  ) => {
-    // If we're transcoding and we're going from a image based subtitle
-    // to a text based subtitle, we need to change the player params.
-
-    const shouldChangePlayerParams =
-      mediaSource?.TranscodingUrl && !onTextBasedSubtitle;
-
-    console.log("Set player params", index, serverIndex);
-    if (shouldChangePlayerParams) {
-      setPlayerParams({
-        chosenSubtitleIndex: serverIndex.toString(),
-      });
-      return;
+  /**
+   * Determine if a subtitle is available in MPV's track list.
+   *
+   * A subtitle is in MPV if:
+   * - Delivery is Embed/Hls/External AND not an image-based sub during transcode
+   */
+  const isSubtitleInMpv = (sub: MediaStream): boolean => {
+    // During transcoding, image-based subs are burned in, not in MPV
+    if (isTranscoding && isImageBased(sub)) {
+      return false;
     }
-    setSubtitleTrack?.(serverIndex);
-    router.setParams({
-      subtitleIndex: serverIndex.toString(),
-    });
+
+    // Embed/Hls/External methods mean the sub is loaded into MPV
+    return (
+      sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
+      sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
+      sub.DeliveryMethod === SubtitleDeliveryMethod.External
+    );
   };
 
+  // Fetch tracks when track count changes
   useEffect(() => {
+    if (trackCount === 0) return;
+
     const fetchTracks = async () => {
-      if (getSubtitleTracks) {
-        let subtitleData: SubtitleTrack[] | null = null;
-        try {
-          subtitleData = await getSubtitleTracks();
-          console.log("subtitleData", subtitleData);
-        } catch (error) {
-          console.log("[VideoContext] Failed to get subtitle tracks:", error);
-          return;
-        }
+      const [subtitleData, audioData] = await Promise.all([
+        playerControls.getSubtitleTracks().catch(() => null),
+        playerControls.getAudioTracks().catch(() => null),
+      ]);
 
-        let embedSubIndex = 1;
-        const processedSubs: Track[] = allSubs?.map((sub) => {
-          /** A boolean value determining if we should increment the embedSubIndex */
-          const shouldIncrement =
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.External;
-          /** The index of subtitle inside MPV Player itself */
-          const mpvIndex = subtitleData?.at(embedSubIndex)?.id ?? -1;
-          if (shouldIncrement) embedSubIndex++;
-          return {
-            name: sub.DisplayTitle || "Undefined Subtitle",
-            index: sub.Index ?? -1,
-            setTrack: () =>
-              shouldIncrement
-                ? setTrackParams("subtitle", mpvIndex, sub.Index ?? -1)
-                : setPlayerParams({
-                    chosenSubtitleIndex: sub.Index?.toString(),
-                  }),
-          };
-        });
+      // Process subtitles - map Jellyfin indices to MPV track IDs
+      let mpvIndex = 0; // MPV track index counter (only incremented for subs in MPV)
 
-        // Step 3: Restore the original order
-        const subtitles: Track[] = processedSubs.sort(
-          (a, b) => a.index - b.index,
-        );
+      const subs: Track[] = allSubs.map((sub) => {
+        const inMpv = isSubtitleInMpv(sub);
 
-        // Add a "Disable Subtitles" option
-        subtitles.unshift({
-          name: "Disable",
-          index: -1,
-          setTrack: () =>
-            !mediaSource?.TranscodingUrl || onTextBasedSubtitle
-              ? setTrackParams("subtitle", -1, -1)
-              : setPlayerParams({ chosenSubtitleIndex: "-1" }),
-        });
-        setSubtitleTracks(subtitles);
-      }
+        // Get MPV track ID: only if this sub is actually in MPV's track list
+        const mpvId = inMpv
+          ? ((subtitleData as SubtitleTrack[])?.[mpvIndex++]?.id ?? -1)
+          : -1;
+
+        return {
+          name: sub.DisplayTitle || "Unknown",
+          index: sub.Index ?? -1, // Jellyfin server-side index
+          mpvIndex: mpvId, // MPV track ID (-1 if not in MPV)
+          setTrack: () => {
+            // Case 1: Transcoding + switching to/from image-based sub
+            // Need to refresh player so Jellyfin burns in the new sub
+            if (
+              isTranscoding &&
+              (isImageBased(sub) || isCurrentSubImageBased)
+            ) {
+              replacePlayer({ subtitleIndex: String(sub.Index) });
+              return;
+            }
+
+            // Case 2: Subtitle is in MPV - just switch tracks
+            if (inMpv && mpvId !== -1) {
+              playerControls.setSubtitleTrack(mpvId);
+              router.setParams({ subtitleIndex: String(sub.Index) });
+              return;
+            }
+
+            // Case 3: Fallback - refresh player
+            replacePlayer({ subtitleIndex: String(sub.Index) });
+          },
+        };
+      });
+
+      // Add "Disable" option at the beginning
+      subs.unshift({
+        name: "Disable",
+        index: -1,
+        setTrack: () => {
+          // If currently using image-based sub during transcode, need to refresh
+          if (isTranscoding && isCurrentSubImageBased) {
+            replacePlayer({ subtitleIndex: "-1" });
+          } else {
+            playerControls.setSubtitleTrack(-1);
+            router.setParams({ subtitleIndex: "-1" });
+          }
+        },
+      });
+
+      // Process audio tracks
+      const audio: Track[] = allAudio.map((a, idx) => ({
+        name: a.DisplayTitle || "Unknown",
+        index: a.Index ?? -1,
+        setTrack: () => {
+          // Transcoding: need full player refresh to change audio stream
+          if (isTranscoding) {
+            replacePlayer({ audioIndex: String(a.Index) });
+            return;
+          }
+
+          // Direct play: just switch audio track in MPV
+          const mpvId = (audioData as AudioTrack[])?.[idx]?.id ?? idx + 1;
+          playerControls.setAudioTrack(mpvId);
+          router.setParams({ audioIndex: String(a.Index) });
+        },
+      }));
+
+      setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
+      setAudioTracks(audio);
     };
+
     fetchTracks();
-  }, [isVideoLoaded, getSubtitleTracks]);
-
-  // Fetch audio tracks
-  useEffect(() => {
-    const fetchAudioTracks = async () => {
-      if (getAudioTracks) {
-        let audioData: AudioTrack[] | null = null;
-        try {
-          audioData = await getAudioTracks();
-          console.log("audioData", audioData);
-        } catch (error) {
-          console.log("[VideoContext] Failed to get audio tracks:", error);
-          return;
-        }
-
-        const allAudio =
-          mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
-
-        let embedAudioIndex = 0;
-        const processedAudio: Track[] = allAudio?.map((audio) => {
-          const mpvIndex = audioData?.at(embedAudioIndex)?.id ?? 1;
-          embedAudioIndex++;
-          return {
-            name: audio.DisplayTitle || "Undefined Audio",
-            index: audio.Index ?? -1,
-            setTrack: () => {
-              setAudioTrack?.(mpvIndex);
-              router.setParams({
-                audioIndex: audio.Index?.toString() ?? "0",
-              });
-            },
-          };
-        });
-
-        setAudioTracks(processedAudio);
-      }
-    };
-    fetchAudioTracks();
-  }, [isVideoLoaded, getAudioTracks]);
+  }, [trackCount, mediaSource]);
 
   return (
-    <VideoContext.Provider
-      value={{
-        subtitleTracks,
-        audioTracks,
-        setSubtitleTrack,
-        setSubtitleURL,
-      }}
-    >
+    <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>
       {children}
     </VideoContext.Provider>
   );
 };
 
 export const useVideoContext = () => {
-  const context = useContext(VideoContext);
-  if (context === undefined) {
-    throw new Error("useVideoContext must be used within a VideoProvider");
-  }
-  return context;
+  const ctx = useContext(VideoContext);
+  if (!ctx)
+    throw new Error("useVideoContext must be used within VideoProvider");
+  return ctx;
 };

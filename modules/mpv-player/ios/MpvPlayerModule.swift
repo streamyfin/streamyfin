@@ -24,23 +24,23 @@ public class MpvPlayerModule: Module {
     // Enables the module to be used as a native view. Definition components that are accepted as part of the
     // view definition: Prop, Events.
     View(MpvPlayerView.self) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { (view: MpvPlayerView, url: String) in
-        if let videoURL = URL(string: url) {
-          view.loadVideo(url: videoURL, headers: nil)
-        }
-      }
-      
-      // Defines a setter for headers
-      Prop("headers") { (view: MpvPlayerView, headers: [String: String]?) in
-        // Headers will be used when loading the video
-      }
-      
-      // Defines a setter for autoplay
-      Prop("autoplay") { (view: MpvPlayerView, autoplay: Bool) in
-        if autoplay {
-          view.play()
-        }
+      // All video load options are passed via a single "source" prop
+      Prop("source") { (view: MpvPlayerView, source: [String: Any]?) in
+        guard let source = source,
+              let urlString = source["url"] as? String,
+              let videoURL = URL(string: urlString) else { return }
+        
+        let config = VideoLoadConfig(
+          url: videoURL,
+          headers: source["headers"] as? [String: String],
+          externalSubtitles: source["externalSubtitles"] as? [String],
+          startPosition: source["startPosition"] as? Double,
+          autoplay: (source["autoplay"] as? Bool) ?? true,
+          initialSubtitleId: source["initialSubtitleId"] as? Int,
+          initialAudioId: source["initialAudioId"] as? Int
+        )
+        
+        view.loadVideo(config: config)
       }
 
       // Async function to play video
@@ -122,8 +122,8 @@ public class MpvPlayerModule: Module {
         return view.getCurrentSubtitleTrack()
       }
       
-      AsyncFunction("addSubtitleFile") { (view: MpvPlayerView, url: String) in
-        view.addSubtitleFile(url: url)
+      AsyncFunction("addSubtitleFile") { (view: MpvPlayerView, url: String, select: Bool) in
+        view.addSubtitleFile(url: url, select: select)
       }
       
       // Subtitle positioning functions
@@ -165,7 +165,7 @@ public class MpvPlayerModule: Module {
       }
 
       // Defines events that the view can send to JavaScript
-      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError")
+      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
     }
   }
 }

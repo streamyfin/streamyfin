@@ -21,6 +21,10 @@ export type OnErrorEventPayload = {
   error: string;
 };
 
+export type OnTracksReadyEventPayload = {
+  trackCount: number;
+};
+
 export type MpvPlayerModuleEvents = {
   onChange: (params: ChangeEventPayload) => void;
 };
@@ -29,10 +33,20 @@ export type ChangeEventPayload = {
   value: string;
 };
 
-export type MpvPlayerViewProps = {
-  url?: string;
+export type VideoSource = {
+  url: string;
   headers?: Record<string, string>;
+  externalSubtitles?: string[];
+  startPosition?: number;
   autoplay?: boolean;
+  /** MPV subtitle track ID to select on start (1-based, -1 to disable) */
+  initialSubtitleId?: number;
+  /** MPV audio track ID to select on start (1-based) */
+  initialAudioId?: number;
+};
+
+export type MpvPlayerViewProps = {
+  source?: VideoSource;
   style?: StyleProp<ViewStyle>;
   onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
   onPlaybackStateChange?: (event: {
@@ -40,6 +54,7 @@ export type MpvPlayerViewProps = {
   }) => void;
   onProgress?: (event: { nativeEvent: OnProgressEventPayload }) => void;
   onError?: (event: { nativeEvent: OnErrorEventPayload }) => void;
+  onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;
 };
 
 export interface MpvPlayerViewRef {
@@ -61,7 +76,7 @@ export interface MpvPlayerViewRef {
   setSubtitleTrack: (trackId: number) => Promise<void>;
   disableSubtitles: () => Promise<void>;
   getCurrentSubtitleTrack: () => Promise<number>;
-  addSubtitleFile: (url: string) => Promise<void>;
+  addSubtitleFile: (url: string, select?: boolean) => Promise<void>;
   // Subtitle positioning
   setSubtitlePosition: (position: number) => Promise<void>;
   setSubtitleScale: (scale: number) => Promise<void>;

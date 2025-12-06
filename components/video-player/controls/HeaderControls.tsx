@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
-import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
 import { type ScaleFactor, ScaleFactorSelector } from "./ScaleFactorSelector";
 import {
@@ -34,11 +33,6 @@ interface HeaderControlsProps {
   goToNextItem: (options: { isAutoPlay?: boolean }) => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
-  getSubtitleTracks?: (() => Promise<any[] | null>) | (() => any[]);
-  getAudioTracks?: (() => Promise<any[] | null>) | (() => any[]);
-  setSubtitleTrack?: (index: number) => void;
-  setAudioTrack?: (index: number) => void;
-  setSubtitleURL?: (url: string, customName: string) => void;
   aspectRatio?: AspectRatio;
   scaleFactor?: ScaleFactor;
   setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
@@ -58,11 +52,6 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   goToNextItem,
   previousItem,
   nextItem,
-  getSubtitleTracks,
-  getAudioTracks,
-  setSubtitleTrack,
-  setAudioTrack,
-  setSubtitleURL,
   aspectRatio = "default",
   scaleFactor = 1.0,
   setAspectRatio,
@@ -113,17 +102,9 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
     >
       <View className='mr-auto' pointerEvents='box-none'>
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
-          <VideoProvider
-            getSubtitleTracks={getSubtitleTracks}
-            getAudioTracks={getAudioTracks}
-            setSubtitleTrack={setSubtitleTrack}
-            setAudioTrack={setAudioTrack}
-            setSubtitleURL={setSubtitleURL}
-          >
-            <View pointerEvents='auto'>
-              <DropdownView />
-            </View>
-          </VideoProvider>
+          <View pointerEvents='auto'>
+            <DropdownView />
+          </View>
         )}
       </View>
 

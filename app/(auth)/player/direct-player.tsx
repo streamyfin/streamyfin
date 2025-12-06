@@ -22,6 +22,8 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
+import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
+import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -32,12 +34,17 @@ import {
   type MpvPlayerViewRef,
   type OnPlaybackStateChangePayload,
   type OnProgressEventPayload,
+  type VideoSource,
 } from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import {
+  getMpvAudioId,
+  getMpvSubtitleId,
+} from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
@@ -62,6 +69,7 @@ export default function page() {
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [trackCount, setTrackCount] = useState(0);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -223,8 +231,6 @@ export default function page() {
             return;
           }
 
-          const native = generateDeviceProfile();
-          const transcoding = generateDeviceProfile({ transcode: true });
           const res = await getStreamUrl({
             api,
             item,
@@ -234,7 +240,7 @@ export default function page() {
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: bitrateValue ? transcoding : native,
+            deviceProfile: generateDeviceProfile(),
           });
           if (!res) return;
           const { mediaSource, sessionId, url } = res;
@@ -426,6 +432,46 @@ export default function page() {
     return ticksToSeconds(getInitialPlaybackTicks());
   }, [getInitialPlaybackTicks]);
 
+  /** Build video source config for the native player */
+  const videoSource = useMemo<VideoSource | undefined>(() => {
+    if (!stream?.url) return undefined;
+
+    const mediaSource = stream.mediaSource;
+    const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
+
+    // Get external subtitle URLs
+    const externalSubs = mediaSource?.MediaStreams?.filter(
+      (s) =>
+        s.Type === "Subtitle" &&
+        s.DeliveryMethod === "External" &&
+        s.DeliveryUrl,
+    ).map((s) => `${api?.basePath}${s.DeliveryUrl}`);
+
+    // Calculate MPV track IDs for initial selection
+    const initialSubtitleId = getMpvSubtitleId(
+      mediaSource,
+      subtitleIndex,
+      isTranscoding,
+    );
+    const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
+
+    return {
+      url: stream.url,
+      startPosition,
+      autoplay: true,
+      externalSubtitles: externalSubs,
+      initialSubtitleId,
+      initialAudioId,
+    };
+  }, [
+    stream?.url,
+    stream?.mediaSource,
+    startPosition,
+    api?.basePath,
+    subtitleIndex,
+    audioIndex,
+  ]);
+
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
 
@@ -565,26 +611,6 @@ export default function page() {
     videoRef.current?.seekTo?.(position / 1000);
   }, []);
 
-  const getSubtitleTracks = useCallback(async () => {
-    return videoRef.current?.getSubtitleTracks?.() || null;
-  }, []);
-
-  const setSubtitleTrack = useCallback((index: number) => {
-    videoRef.current?.setSubtitleTrack?.(index);
-  }, []);
-
-  const setSubtitleURL = useCallback((url: string, _customName?: string) => {
-    videoRef.current?.addSubtitleFile?.(url);
-  }, []);
-
-  const getAudioTracks = useCallback(async () => {
-    return videoRef.current?.getAudioTracks?.() || null;
-  }, []);
-
-  const setAudioTrack = useCallback((index: number) => {
-    videoRef.current?.setAudioTrack?.(index);
-  }, []);
-
   // Apply MPV subtitle settings when video loads
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
@@ -643,81 +669,81 @@ export default function page() {
     );
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "black",
-        height: "100%",
-        width: "100%",
-      }}
+    <PlayerProvider
+      playerRef={videoRef}
+      item={item}
+      mediaSource={stream?.mediaSource}
+      isVideoLoaded={isVideoLoaded}
+      trackCount={trackCount}
     >
-      <View
-        style={{
-          display: "flex",
-          width: "100%",
-          height: "100%",
-          position: "relative",
-          flexDirection: "column",
-          justifyContent: "center",
-        }}
-      >
-        <MpvPlayerView
-          ref={videoRef}
-          url={stream?.url || ""}
-          autoplay={true}
-          style={{ width: "100%", height: "100%" }}
-          onProgress={onProgress}
-          onPlaybackStateChange={onPlaybackStateChanged}
-          onLoad={() => {
-            setIsVideoLoaded(true);
-            // Seek to start position after load
-            if (startPosition > 0) {
-              videoRef.current?.seekTo(startPosition);
-            }
+      <VideoProvider>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "black",
+            height: "100%",
+            width: "100%",
           }}
-          onError={(e) => {
-            console.error("Video Error:", e.nativeEvent);
-            Alert.alert(
-              t("player.error"),
-              t("player.an_error_occured_while_playing_the_video"),
-            );
-            writeToLog("ERROR", "Video Error", e.nativeEvent);
-          }}
-        />
-      </View>
-      {isMounted === true && item && !isPipMode && (
-        <Controls
-          mediaSource={stream?.mediaSource}
-          item={item}
-          videoRef={videoRef}
-          togglePlay={togglePlay}
-          isPlaying={isPlaying}
-          isSeeking={isSeeking}
-          progress={progress}
-          cacheProgress={cacheProgress}
-          isBuffering={isBuffering}
-          showControls={showControls}
-          setShowControls={setShowControls}
-          isVideoLoaded={isVideoLoaded}
-          startPictureInPicture={startPictureInPicture}
-          play={play}
-          pause={pause}
-          seek={seek}
-          enableTrickplay={true}
-          getSubtitleTracks={getSubtitleTracks}
-          getAudioTracks={getAudioTracks}
-          offline={offline}
-          setSubtitleTrack={setSubtitleTrack}
-          setAudioTrack={setAudioTrack}
-          setSubtitleURL={setSubtitleURL}
-          aspectRatio={aspectRatio}
-          scaleFactor={scaleFactor}
-          setAspectRatio={setAspectRatio}
-          setScaleFactor={setScaleFactor}
-          api={api}
-          downloadedFiles={downloadedFiles}
-        />
-      )}
-    </View>
+        >
+          <View
+            style={{
+              display: "flex",
+              width: "100%",
+              height: "100%",
+              position: "relative",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
+            <MpvPlayerView
+              ref={videoRef}
+              source={videoSource}
+              style={{ width: "100%", height: "100%" }}
+              onProgress={onProgress}
+              onPlaybackStateChange={onPlaybackStateChanged}
+              onLoad={() => setIsVideoLoaded(true)}
+              onError={(e) => {
+                console.error("Video Error:", e.nativeEvent);
+                Alert.alert(
+                  t("player.error"),
+                  t("player.an_error_occured_while_playing_the_video"),
+                );
+                writeToLog("ERROR", "Video Error", e.nativeEvent);
+              }}
+              onTracksReady={(e) => {
+                console.log("[Player] Tracks ready:", e.nativeEvent.trackCount);
+                setTrackCount(e.nativeEvent.trackCount);
+              }}
+            />
+          </View>
+          {isMounted === true && item && !isPipMode && (
+            <Controls
+              mediaSource={stream?.mediaSource}
+              item={item}
+              togglePlay={togglePlay}
+              isPlaying={isPlaying}
+              isSeeking={isSeeking}
+              progress={progress}
+              cacheProgress={cacheProgress}
+              isBuffering={isBuffering}
+              showControls={showControls}
+              setShowControls={setShowControls}
+              startPictureInPicture={startPictureInPicture}
+              play={play}
+              pause={pause}
+              seek={seek}
+              enableTrickplay={true}
+              offline={offline}
+              aspectRatio={aspectRatio}
+              scaleFactor={scaleFactor}
+              setAspectRatio={setAspectRatio}
+              setScaleFactor={setScaleFactor}
+              api={api}
+              downloadedFiles={downloadedFiles}
+            />
+          )}
+        </View>
+      </VideoProvider>
+    </PlayerProvider>
   );
 }

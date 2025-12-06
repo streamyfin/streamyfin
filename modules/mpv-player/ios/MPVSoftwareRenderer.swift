@@ -9,6 +9,7 @@ protocol MPVSoftwareRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVSoftwareRenderer, didChangePause isPaused: Bool)
     func renderer(_ renderer: MPVSoftwareRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVSoftwareRenderer, didBecomeReadyToSeek: Bool)
+    func renderer(_ renderer: MPVSoftwareRenderer, didUpdateTrackList trackCount: Int)
 }
 
 final class MPVSoftwareRenderer {
@@ -43,6 +44,9 @@ final class MPVSoftwareRenderer {
     private var currentPreset: PlayerPreset?
     private var currentURL: URL?
     private var currentHeaders: [String: String]?
+    private var pendingExternalSubtitles: [String] = []
+    private var initialSubtitleId: Int?
+    private var initialAudioId: Int?
     
     private var disposeBag: [() -> Void] = []
     
@@ -50,6 +54,9 @@ final class MPVSoftwareRenderer {
     private var isStopping = false
     private var shouldClearPixelBuffer = false
     private let bgraFormatCString: [CChar] = Array("bgra\0".utf8CString)
+    private let maxInFlightBuffers = 3
+    private var inFlightBufferCount = 0
+    private let inFlightLock = NSLock()
     
     weak var delegate: MPVSoftwareRendererDelegate?
     private var cachedDuration: Double = 0
@@ -107,10 +114,11 @@ final class MPVSoftwareRenderer {
         setOption(name: "demuxer-max-bytes", value: "150M")
         setOption(name: "demuxer-readahead-secs", value: "20")
         
-        // Subtitle options - blend into video for software renderer
-        setOption(name: "sub-auto", value: "yes")
-        setOption(name: "subs-fallback", value: "yes")
-        
+        // Subtitle options - use vf=sub to burn subtitles into video frames
+        // This happens at the filter level, BEFORE the software renderer
+        setOption(name: "vf", value: "sub")
+        setOption(name: "sub-visibility", value: "yes")
+
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
             throw RendererError.mpvInitialization(initStatus)
@@ -190,10 +198,21 @@ final class MPVSoftwareRenderer {
         isStopping = false
     }
     
-    func load(url: URL, with preset: PlayerPreset, headers: [String: String]? = nil) {
+    func load(
+        url: URL,
+        with preset: PlayerPreset,
+        headers: [String: String]? = nil,
+        startPosition: Double? = nil,
+        externalSubtitles: [String]? = nil,
+        initialSubtitleId: Int? = nil,
+        initialAudioId: Int? = nil
+    ) {
         currentPreset = preset
         currentURL = url
         currentHeaders = headers
+        pendingExternalSubtitles = externalSubtitles ?? []
+        self.initialSubtitleId = initialSubtitleId
+        self.initialAudioId = initialAudioId
         
         renderQueue.async { [weak self] in
             guard let self else { return }
@@ -203,15 +222,37 @@ final class MPVSoftwareRenderer {
                 guard let self else { return }
                 self.delegate?.renderer(self, didChangeLoading: true)
             }
-        }
-        
-        guard let handle = mpv else { return }
-        
-        renderQueue.async { [weak self] in
-            guard let self else { return }
+            
+            guard let handle = self.mpv else { return }
+            
             self.apply(commands: preset.commands, on: handle)
-            self.command(handle, ["stop"])
+            // Sync stop to ensure previous playback is stopped before loading new file
+            self.commandSync(handle, ["stop"])
             self.updateHTTPHeaders(headers)
+            
+            // Set start position using property (setOption only works before mpv_initialize)
+            if let startPos = startPosition, startPos > 0 {
+                self.setProperty(name: "start", value: String(format: "%.2f", startPos))
+            } else {
+                self.setProperty(name: "start", value: "0")
+            }
+            
+            // Set initial audio track if specified
+            if let audioId = self.initialAudioId, audioId > 0 {
+                self.setAudioTrack(audioId)
+            }
+            
+            // Set initial subtitle track if no external subs (external subs change track IDs)
+            if self.pendingExternalSubtitles.isEmpty {
+                if let subId = self.initialSubtitleId {
+                    self.setSubtitleTrack(subId)
+                } else {
+                    self.disableSubtitles()
+                }
+            } else {
+                // External subs will be added after file loads, set sid then
+                self.disableSubtitles()
+            }
             
             var finalURL = url
             if !url.isFileURL {
@@ -317,7 +358,8 @@ final class MPVSoftwareRenderer {
             ("dheight", MPV_FORMAT_INT64),
             ("duration", MPV_FORMAT_DOUBLE),
             ("time-pos", MPV_FORMAT_DOUBLE),
-            ("pause", MPV_FORMAT_FLAG)
+            ("pause", MPV_FORMAT_FLAG),
+            ("track-list/count", MPV_FORMAT_INT64)  // Notify when tracks are available
         ]
         
         for (name, format) in properties {
@@ -792,10 +834,19 @@ final class MPVSoftwareRenderer {
         }
     }
     
+    /// Async command - returns immediately, mpv processes later
     private func command(_ handle: OpaquePointer, _ args: [String]) {
         guard !args.isEmpty else { return }
         _ = withCStringArray(args) { pointer in
             mpv_command_async(handle, 0, pointer)
+        }
+    }
+    
+    /// Sync command - waits for mpv to process before returning
+    private func commandSync(_ handle: OpaquePointer, _ args: [String]) -> Int32 {
+        guard !args.isEmpty else { return -1 }
+        return withCStringArray(args) { pointer in
+            mpv_command(handle, pointer)
         }
     }
     
@@ -821,6 +872,22 @@ final class MPVSoftwareRenderer {
         case MPV_EVENT_VIDEO_RECONFIG:
             refreshVideoState()
         case MPV_EVENT_FILE_LOADED:
+            // Add external subtitles now that the file is loaded
+            let hadExternalSubs = !pendingExternalSubtitles.isEmpty
+            if hadExternalSubs, let handle = mpv {
+                for subUrl in pendingExternalSubtitles {
+                    command(handle, ["sub-add", subUrl])
+                }
+                pendingExternalSubtitles = []
+                
+                // Set subtitle after external subs are added (track IDs have changed)
+                if let subId = initialSubtitleId {
+                    setSubtitleTrack(subId)
+                } else {
+                    disableSubtitles()
+                }
+            }
+            
             if !isReadyToSeek {
                 isReadyToSeek = true
                 DispatchQueue.main.async { [weak self] in
@@ -887,6 +954,16 @@ final class MPVSoftwareRenderer {
                     delegate?.renderer(self, didChangePause: isPaused)
                 }
             }
+        case "track-list/count":
+            var trackCount: Int64 = 0
+            let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_INT64, value: &trackCount)
+            if status >= 0 && trackCount > 0 {
+                Logger.shared.log("Track list updated: \(trackCount) tracks available", type: "Info")
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    self.delegate?.renderer(self, didUpdateTrackList: Int(trackCount))
+                }
+            }
         default:
             break
         }
@@ -949,12 +1026,14 @@ final class MPVSoftwareRenderer {
     func seek(to seconds: Double) {
         guard let handle = mpv else { return }
         let clamped = max(0, seconds)
-        command(handle, ["seek", String(clamped), "absolute"])
+        // Sync seek for accurate positioning
+        commandSync(handle, ["seek", String(clamped), "absolute"])
     }
     
     func seek(by seconds: Double) {
         guard let handle = mpv else { return }
-        command(handle, ["seek", String(seconds), "relative"])
+        // Sync seek for accurate positioning
+        commandSync(handle, ["seek", String(seconds), "relative"])
     }
     
     func setSpeed(_ speed: Double) {
@@ -979,7 +1058,6 @@ final class MPVSoftwareRenderer {
         
         var trackCount: Int64 = 0
         getProperty(handle: handle, name: "track-list/count", format: MPV_FORMAT_INT64, value: &trackCount)
-        Logger.shared.log("getSubtitleTracks: total track count = \(trackCount)", type: "Info")
         
         for i in 0..<trackCount {
             var trackType: String?
@@ -1016,7 +1094,18 @@ final class MPVSoftwareRenderer {
     
     func setSubtitleTrack(_ trackId: Int) {
         Logger.shared.log("setSubtitleTrack: setting sid to \(trackId)", type: "Info")
-        setProperty(name: "sid", value: String(trackId))
+        guard let handle = mpv else { 
+            Logger.shared.log("setSubtitleTrack: mpv handle is nil!", type: "Error")
+            return 
+        }
+        
+        // Use setProperty for synchronous behavior (command is async)
+        if trackId < 0 {
+            // Disable subtitles
+            setProperty(name: "sid", value: "no")
+        } else {
+            setProperty(name: "sid", value: String(trackId))
+        }
     }
     
     func disableSubtitles() {
@@ -1030,9 +1119,11 @@ final class MPVSoftwareRenderer {
         return Int(sid)
     }
     
-    func addSubtitleFile(url: String) {
+    func addSubtitleFile(url: String, select: Bool = true) {
         guard let handle = mpv else { return }
-        command(handle, ["sub-add", url])
+        // "cached" adds without selecting, "select" adds and selects
+        let flag = select ? "select" : "cached"
+        commandSync(handle, ["sub-add", url, flag])
     }
     
     // MARK: - Subtitle Positioning
@@ -1117,7 +1208,13 @@ final class MPVSoftwareRenderer {
     }
     
     func setAudioTrack(_ trackId: Int) {
+        guard let handle = mpv else { 
+            Logger.shared.log("setAudioTrack: mpv handle is nil", type: "Warn")
+            return 
+        }
         Logger.shared.log("setAudioTrack: setting aid to \(trackId)", type: "Info")
+        
+        // Use setProperty for synchronous behavior
         setProperty(name: "aid", value: String(trackId))
     }
     

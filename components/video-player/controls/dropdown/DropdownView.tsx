@@ -7,17 +7,12 @@ import {
   type OptionGroup,
   PlatformDropdown,
 } from "@/components/PlatformDropdown";
-import { useControlContext } from "../contexts/ControlContext";
+import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 
 const DropdownView = () => {
-  const videoContext = useVideoContext();
-  const { subtitleTracks, audioTracks } = videoContext;
-  const ControlContext = useControlContext();
-  const [item, mediaSource] = [
-    ControlContext?.item,
-    ControlContext?.mediaSource,
-  ];
+  const { subtitleTracks, audioTracks } = useVideoContext();
+  const { item, mediaSource } = usePlayerContext();
   const router = useRouter();
 
   const { subtitleIndex, audioIndex, bitrateValue, playbackPosition, offline } =

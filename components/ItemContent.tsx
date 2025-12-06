@@ -46,11 +46,10 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   isOffline: boolean;
-  itemWithSources?: BaseItemDto | null;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
-  ({ item, isOffline, itemWithSources }) => {
+  ({ item, isOffline }) => {
     const [api] = useAtom(apiAtom);
     const { settings } = useSettings();
     const { orientation } = useOrientation();
@@ -72,7 +71,13 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(item!, settings);
+    } = useDefaultPlaySettings(item, settings);
+
+    console.log("defaultMediaSource", {
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultSubtitleIndex,
+    });
 
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
@@ -87,7 +92,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     useEffect(() => {
       setSelectedOptions(() => ({
         bitrate: defaultBitrate,
-        mediaSource: defaultMediaSource,
+        mediaSource: defaultMediaSource ?? undefined,
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
       }));
@@ -99,7 +104,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     ]);
 
     useEffect(() => {
-      if (!Platform.isTV && itemWithSources) {
+      if (!Platform.isTV && item) {
         navigation.setOptions({
           headerRight: () =>
             item &&
@@ -109,7 +114,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center'>
                     {!Platform.isTV && (
-                      <DownloadSingleItem item={itemWithSources} size='large' />
+                      <DownloadSingleItem item={item} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
                       <PlayInRemoteSessionButton item={item} size='large' />
@@ -126,7 +131,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
-                      <DownloadSingleItem item={itemWithSources} size='large' />
+                      <DownloadSingleItem item={item} size='large' />
                     )}
                     {user?.Policy?.IsAdministrator && (
                       <PlayInRemoteSessionButton item={item} size='large' />
@@ -140,7 +145,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             )),
         });
       }
-    }, [item, navigation, user, itemWithSources]);
+    }, [item, navigation, user, item]);
 
     useEffect(() => {
       if (item) {
@@ -213,7 +218,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                   <MediaSourceButton
                     selectedOptions={selectedOptions}
                     setSelectedOptions={setSelectedOptions}
-                    item={itemWithSources}
+                    item={item}
                     colors={itemColors}
                   />
                 )}

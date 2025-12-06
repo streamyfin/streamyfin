@@ -7,7 +7,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   type Dispatch,
   type FC,
-  type MutableRefObject,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -28,7 +27,6 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import type { AudioTrack, MpvPlayerViewRef, SubtitleTrack } from "@/modules";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -36,7 +34,6 @@ import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
-import { ControlProvider } from "./contexts/ControlContext";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -50,31 +47,21 @@ import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: MutableRefObject<MpvPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
   progress: SharedValue<number>;
   isBuffering: boolean;
   showControls: boolean;
-
   enableTrickplay?: boolean;
   togglePlay: () => void;
   setShowControls: (shown: boolean) => void;
   offline?: boolean;
-  isVideoLoaded?: boolean;
   mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
-  getSubtitleTracks?:
-    | (() => Promise<SubtitleTrack[] | null>)
-    | (() => SubtitleTrack[]);
-  getAudioTracks?: (() => Promise<AudioTrack[] | null>) | (() => AudioTrack[]);
-  setSubtitleURL?: (url: string, customName: string) => void;
-  setSubtitleTrack?: (index: number) => void;
-  setAudioTrack?: (index: number) => void;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
   aspectRatio?: AspectRatio;
@@ -100,12 +87,6 @@ export const Controls: FC<Props> = ({
   showControls,
   setShowControls,
   mediaSource,
-  isVideoLoaded,
-  getSubtitleTracks,
-  getAudioTracks,
-  setSubtitleURL,
-  setSubtitleTrack,
-  setAudioTrack,
   setVideoAspectRatio,
   setVideoScaleFactor,
   aspectRatio = "default",
@@ -348,12 +329,10 @@ export const Controls: FC<Props> = ({
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(
-        item,
-        settings,
-        previousIndexes,
-        mediaSource ?? undefined,
-      );
+      } = getDefaultPlaySettings(item, settings, {
+        indexes: previousIndexes,
+        source: mediaSource ?? undefined,
+      });
 
       const queryParams = new URLSearchParams({
         ...(offline && { offline: "true" }),
@@ -468,11 +447,7 @@ export const Controls: FC<Props> = ({
   }, [isPlaying, togglePlay]);
 
   return (
-    <ControlProvider
-      item={item}
-      mediaSource={mediaSource}
-      isVideoLoaded={isVideoLoaded}
-    >
+    <>
       {episodeView ? (
         <EpisodeList
           item={item}
@@ -504,11 +479,6 @@ export const Controls: FC<Props> = ({
               goToNextItem={goToNextItem}
               previousItem={previousItem}
               nextItem={nextItem}
-              getSubtitleTracks={getSubtitleTracks}
-              getAudioTracks={getAudioTracks}
-              setSubtitleTrack={setSubtitleTrack}
-              setAudioTrack={setAudioTrack}
-              setSubtitleURL={setSubtitleURL}
               aspectRatio={aspectRatio}
               scaleFactor={scaleFactor}
               setAspectRatio={setAspectRatio}
@@ -570,6 +540,6 @@ export const Controls: FC<Props> = ({
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (
         <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
       )}
-    </ControlProvider>
+    </>
   );
 };

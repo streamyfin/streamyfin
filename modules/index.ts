@@ -17,8 +17,10 @@ export type {
   OnLoadEventPayload,
   OnPlaybackStateChangePayload,
   OnProgressEventPayload,
+  OnTracksReadyEventPayload,
   SubtitleTrack,
   SubtitleTrack as TrackInfo,
+  VideoSource,
 } from "./mpv-player";
 // MPV Player - Main exports
 export { MpvPlayerView } from "./mpv-player";

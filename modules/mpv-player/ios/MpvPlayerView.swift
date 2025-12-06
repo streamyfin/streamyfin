@@ -3,6 +3,37 @@ import CoreMedia
 import ExpoModulesCore
 import UIKit
 
+/// Configuration for loading a video
+struct VideoLoadConfig {
+	let url: URL
+	var headers: [String: String]?
+	var externalSubtitles: [String]?
+	var startPosition: Double?
+	var autoplay: Bool
+	/// MPV subtitle track ID to select on start (1-based, -1 to disable, nil to use default)
+	var initialSubtitleId: Int?
+	/// MPV audio track ID to select on start (1-based, nil to use default)
+	var initialAudioId: Int?
+	
+	init(
+		url: URL,
+		headers: [String: String]? = nil,
+		externalSubtitles: [String]? = nil,
+		startPosition: Double? = nil,
+		autoplay: Bool = true,
+		initialSubtitleId: Int? = nil,
+		initialAudioId: Int? = nil
+	) {
+		self.url = url
+		self.headers = headers
+		self.externalSubtitles = externalSubtitles
+		self.startPosition = startPosition
+		self.autoplay = autoplay
+		self.initialSubtitleId = initialSubtitleId
+		self.initialAudioId = initialAudioId
+	}
+}
+
 // This view will be used as a native component. Make sure to inherit from `ExpoView`
 // to apply the proper styling (e.g. border radius and shadows).
 class MpvPlayerView: ExpoView {
@@ -15,6 +46,7 @@ class MpvPlayerView: ExpoView {
 	let onPlaybackStateChange = EventDispatcher()
 	let onProgress = EventDispatcher()
 	let onError = EventDispatcher()
+	let onTracksReady = EventDispatcher()
 
 	private var currentURL: URL?
 	private var cachedPosition: Double = 0
@@ -74,10 +106,9 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
-	func loadVideo(url: URL, headers: [String: String]?) {
-		currentURL = url
+	func loadVideo(config: VideoLoadConfig) {
+		currentURL = config.url
 
-		// Create a simple preset with default commands
 		let preset = PlayerPreset(
 			id: .sdrRec709,
 			title: "Default",
@@ -86,8 +117,27 @@ class MpvPlayerView: ExpoView {
 			commands: []
 		)
 
-		renderer?.load(url: url, with: preset, headers: headers)
-		onLoad(["url": url.absoluteString])
+		// Pass everything to the renderer - it handles start position and external subs
+		renderer?.load(
+			url: config.url,
+			with: preset,
+			headers: config.headers,
+			startPosition: config.startPosition,
+			externalSubtitles: config.externalSubtitles,
+			initialSubtitleId: config.initialSubtitleId,
+			initialAudioId: config.initialAudioId
+		)
+		
+		if config.autoplay {
+			play()
+		}
+		
+		onLoad(["url": config.url.absoluteString])
+	}
+	
+	// Convenience method for simple loads
+	func loadVideo(url: URL, headers: [String: String]? = nil) {
+		loadVideo(config: VideoLoadConfig(url: url, headers: headers))
 	}
 
 	func play() {
@@ -164,8 +214,8 @@ class MpvPlayerView: ExpoView {
 		return renderer?.getCurrentSubtitleTrack() ?? 0
 	}
 	
-	func addSubtitleFile(url: String) {
-		renderer?.addSubtitleFile(url: url)
+	func addSubtitleFile(url: String, select: Bool = true) {
+		renderer?.addSubtitleFile(url: url, select: select)
 	}
 	
 	// MARK: - Audio Track Controls
@@ -264,6 +314,13 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 			self.onPlaybackStateChange([
 				"isReadyToSeek": didBecomeReadyToSeek,
 			])
+		}
+	}
+	
+	func renderer(_: MPVSoftwareRenderer, didUpdateTrackList trackCount: Int) {
+		DispatchQueue.main.async { [weak self] in
+			guard let self else { return }
+			self.onTracksReady(["trackCount": trackCount])
 		}
 	}
 }
