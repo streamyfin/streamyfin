@@ -51,6 +51,7 @@ class MpvPlayerView: ExpoView {
 	private var currentURL: URL?
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
+	private var intendedPlayState: Bool = false  // For PiP - ignores transient states during seek
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -145,11 +146,15 @@ class MpvPlayerView: ExpoView {
 	}
 
 	func play() {
+		intendedPlayState = true
 		renderer?.play()
+		pipController?.updatePlaybackState()
 	}
 
 	func pause() {
+		intendedPlayState = false
 		renderer?.pausePlayback()
+		pipController?.updatePlaybackState()
 	}
 
 	func seekTo(position: Double) {
@@ -294,12 +299,14 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 	func renderer(_: MPVSoftwareRenderer, didChangePause isPaused: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
+			// Don't update intendedPlayState here - it's only set by user actions (play/pause)
+			// This prevents PiP UI flicker during seeking
 			self.onPlaybackStateChange([
 				"isPaused": isPaused,
 				"isPlaying": !isPaused,
 			])
-			// Update PiP state when playback changes
-			self.pipController?.updatePlaybackState()
+			// Note: Don't call updatePlaybackState() here to avoid flicker
+			// PiP queries pipControllerIsPlaying when it needs the state
 		}
 	}
 
@@ -334,24 +341,27 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 extension MpvPlayerView: PiPControllerDelegate {
 	func pipController(_ controller: PiPController, willStartPictureInPicture: Bool) {
 		print("PiP will start")
-		DispatchQueue.main.async { [weak self] in
-			self?.pipController?.updatePlaybackState()
-		}
+		// Sync timebase before PiP starts for smooth transition
+		renderer?.syncTimebase()
+		pipController?.updatePlaybackState()
 	}
 	
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		print("PiP did start: \(didStartPictureInPicture)")
-		DispatchQueue.main.async { [weak self] in
-			self?.pipController?.updatePlaybackState()
-		}
+		pipController?.updatePlaybackState()
 	}
 	
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
 		print("PiP will stop")
+		// Sync timebase before returning from PiP
+		renderer?.syncTimebase()
 	}
 	
 	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
 		print("PiP did stop")
+		// Ensure timebase is synced after PiP ends
+		renderer?.syncTimebase()
+		pipController?.updatePlaybackState()
 	}
 	
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
@@ -377,7 +387,8 @@ extension MpvPlayerView: PiPControllerDelegate {
 	}
 	
 	func pipControllerIsPlaying(_ controller: PiPController) -> Bool {
-		return !isPaused()
+		// Use intended state to ignore transient pauses during seeking
+		return intendedPlayState
 	}
 	
 	func pipControllerDuration(_ controller: PiPController) -> Double {

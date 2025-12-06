@@ -59,9 +59,73 @@ final class MPVSoftwareRenderer {
     private let inFlightLock = NSLock()
     
     weak var delegate: MPVSoftwareRendererDelegate?
-    private var cachedDuration: Double = 0
-    private var cachedPosition: Double = 0
-    private var isPaused: Bool = true
+    
+    // Thread-safe state for playback (uses existing stateQueue to prevent races causing stutter)
+    private var _cachedDuration: Double = 0
+    private var _cachedPosition: Double = 0
+    private var _isPaused: Bool = true
+    private var _playbackSpeed: Double = 1.0
+    private var _isSeeking: Bool = false
+    private var _positionUpdateTime: CFTimeInterval = 0  // Host time when position was last updated
+    private var _lastPTS: Double = 0  // Last presentation timestamp (ensures monotonic increase)
+    
+    // Thread-safe accessors
+    private var cachedDuration: Double {
+        get { stateQueue.sync { _cachedDuration } }
+        set { stateQueue.async(flags: .barrier) { self._cachedDuration = newValue } }
+    }
+    private var cachedPosition: Double {
+        get { stateQueue.sync { _cachedPosition } }
+        set { stateQueue.async(flags: .barrier) { self._cachedPosition = newValue } }
+    }
+    private var isPaused: Bool {
+        get { stateQueue.sync { _isPaused } }
+        set { stateQueue.async(flags: .barrier) { self._isPaused = newValue } }
+    }
+    private var playbackSpeed: Double {
+        get { stateQueue.sync { _playbackSpeed } }
+        set { stateQueue.async(flags: .barrier) { self._playbackSpeed = newValue } }
+    }
+    private var isSeeking: Bool {
+        get { stateQueue.sync { _isSeeking } }
+        set { stateQueue.async(flags: .barrier) { self._isSeeking = newValue } }
+    }
+    private var positionUpdateTime: CFTimeInterval {
+        get { stateQueue.sync { _positionUpdateTime } }
+        set { stateQueue.async(flags: .barrier) { self._positionUpdateTime = newValue } }
+    }
+    private var lastPTS: Double {
+        get { stateQueue.sync { _lastPTS } }
+        set { stateQueue.async(flags: .barrier) { self._lastPTS = newValue } }
+    }
+    
+    /// Get next monotonically increasing PTS based on video position
+    /// This ensures frames always have increasing timestamps (prevents stutter from drops)
+    private func nextMonotonicPTS() -> Double {
+        let currentPos = interpolatedPosition()
+        let last = lastPTS
+        
+        // Ensure PTS always increases (by at least 1ms) to prevent frame drops
+        let pts = max(currentPos, last + 0.001)
+        lastPTS = pts
+        return pts
+    }
+    
+    /// Calculate smooth interpolated position based on last known position + elapsed time
+    private func interpolatedPosition() -> Double {
+        let basePosition = cachedPosition
+        let lastUpdate = positionUpdateTime
+        let paused = isPaused
+        let speed = playbackSpeed
+        
+        guard !paused, lastUpdate > 0 else {
+            return basePosition
+        }
+        
+        let elapsed = CACurrentMediaTime() - lastUpdate
+        return basePosition + (elapsed * speed)
+    }
+    
     private var isLoading: Bool = false
     private var isRenderScheduled = false
     private var lastRenderTime: CFTimeInterval = 0
@@ -669,7 +733,9 @@ final class MPVSoftwareRenderer {
             return
         }
         
-        let presentationTime = CMClockGetTime(CMClockGetHostTimeClock())
+        // Use interpolated position for smooth PTS (prevents jitter from discrete time-pos updates)
+        // Use monotonically increasing video position for smooth PTS + working PiP progress
+        let presentationTime = CMTime(seconds: nextMonotonicPTS(), preferredTimescale: 1000)
         var timing = CMSampleTimingInfo(duration: .invalid, presentationTimeStamp: presentationTime, decodeTimeStamp: .invalid)
         
         var sampleBuffer: CMSampleBuffer?
@@ -739,7 +805,8 @@ final class MPVSoftwareRenderer {
             if self.displayLayer.controlTimebase == nil {
                 var timebase: CMTimebase?
                 if CMTimebaseCreateWithSourceClock(allocator: kCFAllocatorDefault, sourceClock: CMClockGetHostTimeClock(), timebaseOut: &timebase) == noErr, let timebase {
-                    CMTimebaseSetRate(timebase, rate: 1.0)
+                    // Set rate based on current pause state and playback speed
+                    CMTimebaseSetRate(timebase, rate: self.isPaused ? 0 : self.playbackSpeed)
                     CMTimebaseSetTime(timebase, time: presentationTime)
                     self.displayLayer.controlTimebase = timebase
                 } else {
@@ -940,10 +1007,13 @@ final class MPVSoftwareRenderer {
                 delegate?.renderer(self, didUpdatePosition: cachedPosition, duration: cachedDuration)
             }
         case "time-pos":
+            // Skip updates while seeking to prevent race condition
+            guard !isSeeking else { return }
             var value = Double(0)
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
             if status >= 0 {
                 cachedPosition = value
+                positionUpdateTime = CACurrentMediaTime()  // Record when we got this update
                 delegate?.renderer(self, didUpdatePosition: cachedPosition, duration: cachedDuration)
             }
         case "pause":
@@ -953,6 +1023,13 @@ final class MPVSoftwareRenderer {
                 let newPaused = flag != 0
                 if newPaused != isPaused {
                     isPaused = newPaused
+                    // Update timebase rate - use playbackSpeed when playing, 0 when paused
+                    let speed = self.playbackSpeed
+                    DispatchQueue.main.async { [weak self] in
+                        if let timebase = self?.displayLayer.controlTimebase {
+                            CMTimebaseSetRate(timebase, rate: newPaused ? 0 : speed)
+                        }
+                    }
                     delegate?.renderer(self, didChangePause: isPaused)
                 }
             }
@@ -1028,18 +1105,101 @@ final class MPVSoftwareRenderer {
     func seek(to seconds: Double) {
         guard let handle = mpv else { return }
         let clamped = max(0, seconds)
+        let wasPaused = isPaused
+        // Prevent time-pos updates from overwriting during seek
+        isSeeking = true
+        // Update cached position BEFORE seek so new frames get correct timestamp
+        cachedPosition = clamped
+        positionUpdateTime = CACurrentMediaTime()  // Reset interpolation base
+        lastPTS = clamped  // Reset monotonic PTS to new position
+        // Update timebase to match new position (sets rate to 1 for frame display)
+        syncTimebase(to: clamped)
         // Sync seek for accurate positioning
         commandSync(handle, ["seek", String(clamped), "absolute"])
+        isSeeking = false
+        // Restore paused rate after seek completes
+        if wasPaused {
+            restoreTimebaseRate()
+        }
     }
     
     func seek(by seconds: Double) {
         guard let handle = mpv else { return }
+        let wasPaused = isPaused
+        // Prevent time-pos updates from overwriting during seek
+        isSeeking = true
+        // Update cached position BEFORE seek
+        let newPosition = max(0, cachedPosition + seconds)
+        cachedPosition = newPosition
+        positionUpdateTime = CACurrentMediaTime()  // Reset interpolation base
+        lastPTS = newPosition  // Reset monotonic PTS to new position
+        // Update timebase to match new position (sets rate to 1 for frame display)
+        syncTimebase(to: newPosition)
         // Sync seek for accurate positioning
         commandSync(handle, ["seek", String(seconds), "relative"])
+        isSeeking = false
+        // Restore paused rate after seek completes
+        if wasPaused {
+            restoreTimebaseRate()
+        }
+    }
+    
+    private func restoreTimebaseRate() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self = self, self.isPaused else { return }
+            if let timebase = self.displayLayer.controlTimebase {
+                CMTimebaseSetRate(timebase, rate: 0)
+            }
+        }
+    }
+    
+    private func syncTimebase(to position: Double) {
+        let speed = playbackSpeed
+        let doWork = { [weak self] in
+            guard let self = self else { return }
+            // Flush old frames to avoid "old frames with new clock" mismatches
+            if #available(iOS 17.0, *) {
+                self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: false, completionHandler: nil)
+            } else {
+                self.displayLayer.flush()
+            }
+            if let timebase = self.displayLayer.controlTimebase {
+                // Update timebase to new position
+                CMTimebaseSetTime(timebase, time: CMTime(seconds: position, preferredTimescale: 1000))
+                // Set rate to playback speed during seek to ensure frame displays
+                // restoreTimebaseRate() will set it back to 0 if paused
+                CMTimebaseSetRate(timebase, rate: speed)
+            }
+        }
+        
+        if Thread.isMainThread {
+            doWork()
+        } else {
+            DispatchQueue.main.sync { doWork() }
+        }
+    }
+    
+    /// Sync timebase with current position without flushing (for smooth PiP transitions)
+    func syncTimebase() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let timebase = self.displayLayer.controlTimebase {
+                CMTimebaseSetTime(timebase, time: CMTime(seconds: self.cachedPosition, preferredTimescale: 1000))
+                CMTimebaseSetRate(timebase, rate: self.isPaused ? 0 : self.playbackSpeed)
+            }
+        }
     }
     
     func setSpeed(_ speed: Double) {
+        playbackSpeed = speed
         setProperty(name: "speed", value: String(speed))
+        // Sync timebase rate with playback speed
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self,
+                  let timebase = self.displayLayer.controlTimebase else { return }
+            let rate = self.isPaused ? 0.0 : speed
+            CMTimebaseSetRate(timebase, rate: rate)
+        }
     }
     
     func getSpeed() -> Double {
