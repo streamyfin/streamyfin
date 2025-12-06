@@ -16,7 +16,7 @@ interface PlayerContextProps {
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
-  trackCount: number;
+  tracksReady: boolean;
 }
 
 const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
@@ -27,7 +27,7 @@ interface PlayerProviderProps {
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
-  trackCount: number;
+  tracksReady: boolean;
 }
 
 export const PlayerProvider: React.FC<PlayerProviderProps> = ({
@@ -36,11 +36,11 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   item,
   mediaSource,
   isVideoLoaded,
-  trackCount,
+  tracksReady,
 }) => {
   const value = useMemo(
-    () => ({ playerRef, item, mediaSource, isVideoLoaded, trackCount }),
-    [playerRef, item, mediaSource, isVideoLoaded, trackCount],
+    () => ({ playerRef, item, mediaSource, isVideoLoaded, tracksReady }),
+    [playerRef, item, mediaSource, isVideoLoaded, tracksReady],
   );
 
   return (

@@ -64,10 +64,6 @@
  * The order of subtitles in Jellyfin's MediaStreams matches the order in MPV.
  */
 
-import {
-  type MediaStream,
-  SubtitleDeliveryMethod,
-} from "@jellyfin/sdk/lib/generated-client";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
@@ -79,6 +75,10 @@ import {
   useState,
 } from "react";
 import type { AudioTrack, SubtitleTrack } from "@/modules";
+import {
+  isImageBasedSubtitle,
+  isSubtitleInMpv,
+} from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
 
@@ -95,7 +95,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { trackCount, mediaSource } = usePlayerContext();
+  const { tracksReady, mediaSource } = usePlayerContext();
   const playerControls = usePlayerControls();
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
@@ -115,10 +115,6 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
 
   const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
-  /** Check if subtitle is image-based (PGS, VOBSUB, etc.) */
-  const isImageBased = (sub: MediaStream): boolean =>
-    sub.IsTextSubtitleStream === false;
-
   /**
    * Check if the currently selected subtitle is image-based.
    * Used to determine if we need to refresh the player when changing subs.
@@ -128,7 +124,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     const currentSub = allSubs.find(
       (s) => s.Index?.toString() === subtitleIndex,
     );
-    return currentSub ? isImageBased(currentSub) : false;
+    return currentSub ? isImageBasedSubtitle(currentSub) : false;
   }, [allSubs, subtitleIndex]);
 
   /**
@@ -150,29 +146,9 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     router.replace(`player/direct-player?${queryParams}` as any);
   };
 
-  /**
-   * Determine if a subtitle is available in MPV's track list.
-   *
-   * A subtitle is in MPV if:
-   * - Delivery is Embed/Hls/External AND not an image-based sub during transcode
-   */
-  const isSubtitleInMpv = (sub: MediaStream): boolean => {
-    // During transcoding, image-based subs are burned in, not in MPV
-    if (isTranscoding && isImageBased(sub)) {
-      return false;
-    }
-
-    // Embed/Hls/External methods mean the sub is loaded into MPV
-    return (
-      sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-      sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-      sub.DeliveryMethod === SubtitleDeliveryMethod.External
-    );
-  };
-
-  // Fetch tracks when track count changes
+  // Fetch tracks when ready
   useEffect(() => {
-    if (trackCount === 0) return;
+    if (!tracksReady) return;
 
     const fetchTracks = async () => {
       const [subtitleData, audioData] = await Promise.all([
@@ -184,7 +160,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
       let mpvIndex = 0; // MPV track index counter (only incremented for subs in MPV)
 
       const subs: Track[] = allSubs.map((sub) => {
-        const inMpv = isSubtitleInMpv(sub);
+        const inMpv = isSubtitleInMpv(sub, isTranscoding);
 
         // Get MPV track ID: only if this sub is actually in MPV's track list
         const mpvId = inMpv
@@ -200,7 +176,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
             // Need to refresh player so Jellyfin burns in the new sub
             if (
               isTranscoding &&
-              (isImageBased(sub) || isCurrentSubImageBased)
+              (isImageBasedSubtitle(sub) || isCurrentSubImageBased)
             ) {
               replacePlayer({ subtitleIndex: String(sub.Index) });
               return;
@@ -257,7 +233,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     fetchTracks();
-  }, [trackCount, mediaSource]);
+  }, [tracksReady, mediaSource]);
 
   return (
     <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>

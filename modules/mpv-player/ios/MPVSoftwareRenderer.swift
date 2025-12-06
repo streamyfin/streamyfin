@@ -9,7 +9,7 @@ protocol MPVSoftwareRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVSoftwareRenderer, didChangePause isPaused: Bool)
     func renderer(_ renderer: MPVSoftwareRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVSoftwareRenderer, didBecomeReadyToSeek: Bool)
-    func renderer(_ renderer: MPVSoftwareRenderer, didUpdateTrackList trackCount: Int)
+    func renderer(_ renderer: MPVSoftwareRenderer, didBecomeTracksReady: Bool)
 }
 
 final class MPVSoftwareRenderer {
@@ -961,7 +961,7 @@ final class MPVSoftwareRenderer {
                 Logger.shared.log("Track list updated: \(trackCount) tracks available", type: "Info")
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
-                    self.delegate?.renderer(self, didUpdateTrackList: Int(trackCount))
+                    self.delegate?.renderer(self, didBecomeTracksReady: true)
                 }
             }
         default:

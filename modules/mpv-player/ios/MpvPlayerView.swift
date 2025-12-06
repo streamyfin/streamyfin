@@ -317,10 +317,10 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 	
-	func renderer(_: MPVSoftwareRenderer, didUpdateTrackList trackCount: Int) {
+	func renderer(_: MPVSoftwareRenderer, didBecomeTracksReady: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
-			self.onTracksReady(["trackCount": trackCount])
+			self.onTracksReady([:])
 		}
 	}
 }

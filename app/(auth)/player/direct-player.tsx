@@ -69,7 +69,7 @@ export default function page() {
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
-  const [trackCount, setTrackCount] = useState(0);
+  const [tracksReady, setTracksReady] = useState(false);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -338,6 +338,7 @@ export default function page() {
 
   const currentPlayStateInfo = useCallback(() => {
     if (!stream || !item?.Id) return;
+    console.log("subtitle");
     return {
       itemId: item.Id,
       audioStreamIndex: audioIndex ? audioIndex : undefined,
@@ -674,7 +675,7 @@ export default function page() {
       item={item}
       mediaSource={stream?.mediaSource}
       isVideoLoaded={isVideoLoaded}
-      trackCount={trackCount}
+      tracksReady={tracksReady}
     >
       <VideoProvider>
         <View
@@ -710,9 +711,8 @@ export default function page() {
                 );
                 writeToLog("ERROR", "Video Error", e.nativeEvent);
               }}
-              onTracksReady={(e) => {
-                console.log("[Player] Tracks ready:", e.nativeEvent.trackCount);
-                setTrackCount(e.nativeEvent.trackCount);
+              onTracksReady={() => {
+                setTracksReady(true);
               }}
             />
           </View>

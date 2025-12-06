@@ -21,9 +21,7 @@ export type OnErrorEventPayload = {
   error: string;
 };
 
-export type OnTracksReadyEventPayload = {
-  trackCount: number;
-};
+export type OnTracksReadyEventPayload = Record<string, never>;
 
 export type MpvPlayerModuleEvents = {
   onChange: (params: ChangeEventPayload) => void;
