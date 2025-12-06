@@ -107,6 +107,10 @@ class MpvPlayerView: ExpoView {
 	}
 
 	func loadVideo(config: VideoLoadConfig) {
+		// Skip reload if same URL is already playing
+		if currentURL == config.url {
+			return
+		}
 		currentURL = config.url
 
 		let preset = PlayerPreset(

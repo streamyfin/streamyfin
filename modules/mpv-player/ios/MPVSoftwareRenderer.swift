@@ -558,6 +558,8 @@ final class MPVSoftwareRenderer {
     }
     
     private func createPixelBufferPool(width: Int, height: Int) {
+        guard width > 0, height > 0 else { return }
+        
         let pixelFormat = kCVPixelFormatType_32BGRA
         
         let attrs: [CFString: Any] = [
