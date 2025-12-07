@@ -28,16 +28,16 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         await nativeRef.current?.setSpeed(speed);
       },
       getSpeed: async () => {
-        return await nativeRef.current?.getSpeed();
+        return (await nativeRef.current?.getSpeed()) ?? 1.0;
       },
       isPaused: async () => {
-        return await nativeRef.current?.isPaused();
+        return (await nativeRef.current?.isPaused()) ?? true;
       },
       getCurrentPosition: async () => {
-        return await nativeRef.current?.getCurrentPosition();
+        return (await nativeRef.current?.getCurrentPosition()) ?? 0;
       },
       getDuration: async () => {
-        return await nativeRef.current?.getDuration();
+        return (await nativeRef.current?.getDuration()) ?? 0;
       },
       startPictureInPicture: async () => {
         await nativeRef.current?.startPictureInPicture();
@@ -46,13 +46,15 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         await nativeRef.current?.stopPictureInPicture();
       },
       isPictureInPictureSupported: async () => {
-        return await nativeRef.current?.isPictureInPictureSupported();
+        return (
+          (await nativeRef.current?.isPictureInPictureSupported()) ?? false
+        );
       },
       isPictureInPictureActive: async () => {
-        return await nativeRef.current?.isPictureInPictureActive();
+        return (await nativeRef.current?.isPictureInPictureActive()) ?? false;
       },
       getSubtitleTracks: async () => {
-        return await nativeRef.current?.getSubtitleTracks();
+        return (await nativeRef.current?.getSubtitleTracks()) ?? [];
       },
       setSubtitleTrack: async (trackId: number) => {
         await nativeRef.current?.setSubtitleTrack(trackId);
@@ -61,7 +63,7 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         await nativeRef.current?.disableSubtitles();
       },
       getCurrentSubtitleTrack: async () => {
-        return await nativeRef.current?.getCurrentSubtitleTrack();
+        return (await nativeRef.current?.getCurrentSubtitleTrack()) ?? 0;
       },
       addSubtitleFile: async (url: string, select = true) => {
         await nativeRef.current?.addSubtitleFile(url, select);
@@ -84,15 +86,14 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       setSubtitleFontSize: async (size: number) => {
         await nativeRef.current?.setSubtitleFontSize(size);
       },
-      // Audio controls
       getAudioTracks: async () => {
-        return await nativeRef.current?.getAudioTracks();
+        return (await nativeRef.current?.getAudioTracks()) ?? [];
       },
       setAudioTrack: async (trackId: number) => {
         await nativeRef.current?.setAudioTrack(trackId);
       },
       getCurrentAudioTrack: async () => {
-        return await nativeRef.current?.getCurrentAudioTrack();
+        return (await nativeRef.current?.getCurrentAudioTrack()) ?? 0;
       },
     }));
 

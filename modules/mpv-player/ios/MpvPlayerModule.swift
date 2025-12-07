@@ -4,25 +4,7 @@ public class MpvPlayerModule: Module {
   public func definition() -> ModuleDefinition {
     Name("MpvPlayer")
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      return "Hello from MPV Player! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { (value: String) in
-      // Send an event to JavaScript.
-      self.sendEvent("onChange", [
-        "value": value
-      ])
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of the
-    // view definition: Prop, Events.
+    // Enables the module to be used as a native view
     View(MpvPlayerView.self) {
       // All video load options are passed via a single "source" prop
       Prop("source") { (view: MpvPlayerView, source: [String: Any]?) in
@@ -43,52 +25,44 @@ public class MpvPlayerModule: Module {
         view.loadVideo(config: config)
       }
 
-      // Async function to play video
+      // Playback controls
       AsyncFunction("play") { (view: MpvPlayerView) in
         view.play()
       }
       
-      // Async function to pause video
       AsyncFunction("pause") { (view: MpvPlayerView) in
         view.pause()
       }
       
-      // Async function to seek to position
       AsyncFunction("seekTo") { (view: MpvPlayerView, position: Double) in
         view.seekTo(position: position)
       }
       
-      // Async function to seek by offset
       AsyncFunction("seekBy") { (view: MpvPlayerView, offset: Double) in
         view.seekBy(offset: offset)
       }
       
-      // Async function to set playback speed
       AsyncFunction("setSpeed") { (view: MpvPlayerView, speed: Double) in
         view.setSpeed(speed: speed)
       }
       
-      // Function to get current speed
       AsyncFunction("getSpeed") { (view: MpvPlayerView) -> Double in
         return view.getSpeed()
       }
       
-      // Function to check if paused
       AsyncFunction("isPaused") { (view: MpvPlayerView) -> Bool in
         return view.isPaused()
       }
       
-      // Function to get current position
       AsyncFunction("getCurrentPosition") { (view: MpvPlayerView) -> Double in
         return view.getCurrentPosition()
       }
       
-      // Function to get duration
       AsyncFunction("getDuration") { (view: MpvPlayerView) -> Double in
         return view.getDuration()
       }
 
-      // Picture in Picture functions
+      // Picture in Picture
       AsyncFunction("startPictureInPicture") { (view: MpvPlayerView) in
         view.startPictureInPicture()
       }
@@ -126,7 +100,7 @@ public class MpvPlayerModule: Module {
         view.addSubtitleFile(url: url, select: select)
       }
       
-      // Subtitle positioning functions
+      // Subtitle positioning
       AsyncFunction("setSubtitlePosition") { (view: MpvPlayerView, position: Int) in
         view.setSubtitlePosition(position)
       }
@@ -164,7 +138,7 @@ public class MpvPlayerModule: Module {
         return view.getCurrentAudioTrack()
       }
 
-      // Defines events that the view can send to JavaScript
+      // Events that the view can send to JavaScript
       Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
     }
   }

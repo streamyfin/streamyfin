@@ -1,6 +1,6 @@
 import Foundation
 
-class Logger {
+final class Logger {
     static let shared = Logger()
     
     struct LogEntry {
@@ -12,6 +12,7 @@ class Logger {
     private let queue = DispatchQueue(label: "mpvkit.logger", attributes: .concurrent)
     private var logs: [LogEntry] = []
     private let logFileURL: URL
+    private let dateFormatter: DateFormatter
     
     private let maxFileSize = 1024 * 512
     private let maxLogEntries = 1000
@@ -19,12 +20,17 @@ class Logger {
     private init() {
         let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         logFileURL = tmpDir.appendingPathComponent("logs.txt")
+        
+        dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd-MM HH:mm:ss"
     }
     
     func log(_ message: String, type: String = "General") {
         let entry = LogEntry(message: message, type: type, timestamp: Date())
         
-        queue.async(flags: .barrier) {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self else { return }
+            
             self.logs.append(entry)
             
             if self.logs.count > self.maxLogEntries {
@@ -32,15 +38,20 @@ class Logger {
             }
             
             self.saveLogToFile(entry)
+            
+            #if DEBUG
             self.debugLog(entry)
+            #endif
             
             DispatchQueue.main.async {
-                NotificationCenter.default.post(name: NSNotification.Name("LoggerNotification"), object: nil,
-                                                userInfo: [
-                                                    "message": message,
-                                                    "type": type,
-                                                    "timestamp": entry.timestamp
-                                                ]
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("LoggerNotification"),
+                    object: nil,
+                    userInfo: [
+                        "message": message,
+                        "type": type,
+                        "timestamp": entry.timestamp
+                    ]
                 )
             }
         }
@@ -49,8 +60,6 @@ class Logger {
     func getLogs() -> String {
         var result = ""
         queue.sync {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "dd-MM HH:mm:ss"
             result = logs.map { "[\(dateFormatter.string(from: $0.timestamp))] [\($0.type)] \($0.message)" }
                 .joined(separator: "\n----\n")
         }
@@ -59,10 +68,12 @@ class Logger {
     
     func getLogsAsync() async -> String {
         return await withCheckedContinuation { continuation in
-            queue.async {
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "dd-MM HH:mm:ss"
-                let result = self.logs.map { "[\(dateFormatter.string(from: $0.timestamp))] [\($0.type)] \($0.message)" }
+            queue.async { [weak self] in
+                guard let self else {
+                    continuation.resume(returning: "")
+                    return
+                }
+                let result = self.logs.map { "[\(self.dateFormatter.string(from: $0.timestamp))] [\($0.type)] \($0.message)" }
                     .joined(separator: "\n----\n")
                 continuation.resume(returning: result)
             }
@@ -70,7 +81,8 @@ class Logger {
     }
     
     func clearLogs() {
-        queue.async(flags: .barrier) {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self else { return }
             self.logs.removeAll()
             try? FileManager.default.removeItem(at: self.logFileURL)
         }
@@ -78,7 +90,11 @@ class Logger {
     
     func clearLogsAsync() async {
         await withCheckedContinuation { continuation in
-            queue.async(flags: .barrier) {
+            queue.async(flags: .barrier) { [weak self] in
+                guard let self else {
+                    continuation.resume()
+                    return
+                }
                 self.logs.removeAll()
                 try? FileManager.default.removeItem(at: self.logFileURL)
                 continuation.resume()
@@ -87,13 +103,9 @@ class Logger {
     }
     
     private func saveLogToFile(_ log: LogEntry) {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "dd-MM HH:mm:ss"
-        
         let logString = "[\(dateFormatter.string(from: log.timestamp))] [\(log.type)] \(log.message)\n---\n"
         
         guard let data = logString.data(using: .utf8) else {
-            print("Failed to encode log string to UTF-8")
             return
         }
         
@@ -115,7 +127,6 @@ class Logger {
                 try data.write(to: logFileURL)
             }
         } catch {
-            print("Error managing log file: \(error)")
             try? data.write(to: logFileURL)
         }
     }
@@ -138,17 +149,14 @@ class Logger {
                 try truncatedData.write(to: logFileURL)
             }
         } catch {
-            print("Error truncating log file: \(error)")
             try? FileManager.default.removeItem(at: logFileURL)
         }
     }
     
+    #if DEBUG
     private func debugLog(_ entry: LogEntry) {
-#if DEBUG
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "dd-MM HH:mm:ss"
         let formattedMessage = "[\(dateFormatter.string(from: entry.timestamp))] [\(entry.type)] \(entry.message)"
-        print(formattedMessage)
-#endif
+        NSLog("%@", formattedMessage)
     }
+    #endif
 }

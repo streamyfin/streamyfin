@@ -23,14 +23,6 @@ export type OnErrorEventPayload = {
 
 export type OnTracksReadyEventPayload = Record<string, never>;
 
-export type MpvPlayerModuleEvents = {
-  onChange: (params: ChangeEventPayload) => void;
-};
-
-export type ChangeEventPayload = {
-  value: string;
-};
-
 export type VideoSource = {
   url: string;
   headers?: Record<string, string>;
