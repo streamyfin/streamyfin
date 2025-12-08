@@ -35,6 +35,7 @@ export const OtherSettings: React.FC = () => {
     ScreenOrientation.OrientationLock.PORTRAIT_UP,
     ScreenOrientation.OrientationLock.LANDSCAPE_LEFT,
     ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT,
+    ScreenOrientation.OrientationLock.UNKNOWN,
   ];
 
   const orientationTranslations = useMemo(
@@ -47,6 +48,8 @@ export const OtherSettings: React.FC = () => {
         "home.settings.other.orientations.LANDSCAPE_LEFT",
       [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]:
         "home.settings.other.orientations.LANDSCAPE_RIGHT",
+      [ScreenOrientation.OrientationLock.UNKNOWN]:
+        "home.settings.other.orientations.LANDSCAPE_AUTO",
     }),
     [],
   );
