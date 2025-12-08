@@ -25,10 +25,6 @@ jobs:
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          show-progress: false
-          fetch-depth: 0
 
       - name: 🏁 Initialize CodeQL
         uses: github/codeql-action/init@014f16e7ab1402f30e7c3329d33797e7948572db # v4.31.3
