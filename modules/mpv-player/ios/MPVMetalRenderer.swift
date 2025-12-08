@@ -108,7 +108,7 @@ final class MPVMetalRenderer {
         self.device = device
         self.commandQueue = device.makeCommandQueue()
         self.displayLayer = displayLayer
-        self.bufferPool = IOSurfaceBufferPool(device: device, maxBufferCount: 3)
+        self.bufferPool = IOSurfaceBufferPool(device: device, maxBufferCount: 6)
         
         guard let screen = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.screen })
@@ -147,10 +147,18 @@ final class MPVMetalRenderer {
         // Performance options
         setOption(name: "demuxer-thread", value: "yes")
         setOption(name: "profile", value: "fast")
-        setOption(name: "vd-lavc-threads", value: "0") // Auto-detect
+        setOption(name: "vd-lavc-threads", value: "0")
         setOption(name: "cache", value: "yes")
-        setOption(name: "demuxer-max-bytes", value: "150M")
-        setOption(name: "demuxer-readahead-secs", value: "20")
+        setOption(name: "demuxer-max-bytes", value: "50M")
+        setOption(name: "demuxer-readahead-secs", value: "10")
+        
+        // A/V sync options - prioritize audio sync and allow frame drops
+        setOption(name: "video-sync", value: "audio")
+        setOption(name: "framedrop", value: "vo")
+        setOption(name: "video-latency-hacks", value: "yes")
+        
+        // Audio buffer to prevent underruns during heavy video load
+        setOption(name: "audio-buffer", value: "0.2")
         
         // Subtitle options - burn into video frames
         setOption(name: "vf", value: "sub")
@@ -218,6 +226,7 @@ final class MPVMetalRenderer {
             } else {
                 self.displayLayer.flushAndRemoveImage()
             }
+            self.displayLayer.controlTimebase = nil
         }
         
         isStopping = false
@@ -622,9 +631,8 @@ final class MPVMetalRenderer {
                 self.displayLayer.enqueue(sampleBuffer)
             }
             
-            // Return buffer to pool after a short delay to ensure it's been displayed
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                self?.bufferPool?.enqueueBuffer(buffer)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.032) { [weak self, weak bufferPool] in
+                bufferPool?.enqueueBuffer(buffer)
             }
         }
     }

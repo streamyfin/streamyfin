@@ -94,7 +94,6 @@ final class IOSurfaceBufferPool {
             }
         }
         
-        Logger.shared.log("IOSurfaceBufferPool configured: \(width)x\(height), \(buffers.count) buffers", type: "Info")
         return true
     }
     
@@ -122,7 +121,6 @@ final class IOSurfaceBufferPool {
         lock.lock()
         defer { lock.unlock() }
         
-        // Only return to available pool if it's one of our managed buffers
         if buffers.contains(where: { $0.pixelBuffer == buffer.pixelBuffer }) {
             availableBuffers.append(buffer)
         }

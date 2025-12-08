@@ -104,11 +104,6 @@ export const MediaSourceButton: React.FC<Props> = ({
 
     // Audio track group
     if (audioStreams.length > 0) {
-      console.log("Audio comparison:", {
-        selectedAudioIndex: selectedOptions.audioIndex,
-        streamIndices: audioStreams.map((s) => s.Index),
-      });
-
       groups.push({
         title: t("item_card.audio"),
         options: audioStreams.map((stream) => ({

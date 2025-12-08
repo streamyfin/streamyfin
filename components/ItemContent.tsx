@@ -73,12 +73,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       defaultSubtitleIndex,
     } = useDefaultPlaySettings(item, settings);
 
-    console.log("defaultMediaSource", {
-      defaultAudioIndex,
-      defaultBitrate,
-      defaultSubtitleIndex,
-    });
-
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
       [api, item],

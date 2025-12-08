@@ -12,12 +12,6 @@ const useDefaultPlaySettings = (item: BaseItemDto, settings: Settings | null) =>
     const { mediaSource, audioIndex, subtitleIndex, bitrate } =
       getDefaultPlaySettings(item, settings);
 
-    console.log("defaultPlaySettings", {
-      audioIndex,
-      subtitleIndex,
-      bitrate,
-    });
-
     return {
       defaultMediaSource: mediaSource,
       defaultAudioIndex: audioIndex,

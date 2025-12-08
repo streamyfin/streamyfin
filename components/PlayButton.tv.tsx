@@ -59,7 +59,6 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   const onPress = () => {
-    console.log("onpress");
     if (!item) return;
 
     lightHapticFeedback();

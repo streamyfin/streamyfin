@@ -280,7 +280,6 @@ export const PlayButton: React.FC<Props> = ({
   ]);
 
   const onPress = useCallback(async () => {
-    console.log("onPress");
     if (!item) return;
 
     lightHapticFeedback();

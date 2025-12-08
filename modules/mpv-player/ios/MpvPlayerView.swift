@@ -269,6 +269,7 @@ class MpvPlayerView: ExpoView {
     deinit {
         pipController?.stopPictureInPicture()
         renderer?.stop()
+        displayLayer.controlTimebase = nil
         displayLayer.removeFromSuperlayer()
     }
 }
