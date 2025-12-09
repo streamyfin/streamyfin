@@ -61,6 +61,10 @@ final class SfPlayerWrapper: NSObject {
     private var progressTimer: Timer?
     private var pipController: AVPictureInPictureController?
     
+    /// Scale factor for image-based subtitles (PGS, VOBSUB)
+    /// Default 0.5 scales 1080p subtitle images to fit mobile screens
+    private var subtitleScale: CGFloat = 0.5
+    
     weak var delegate: SfPlayerWrapperDelegate?
     
     var view: UIView? { containerView }
@@ -105,14 +109,16 @@ final class SfPlayerWrapper: NSObject {
         player.navigationBar.isHidden = true
         player.topMaskView.isHidden = true
         player.bottomMaskView.isHidden = true
-        player.loadingIndector.isHidden = true
+        player.loadingIndector.isHidden = false
         player.seekToView.isHidden = true
         player.replayButton.isHidden = true
         player.lockButton.isHidden = true
         player.controllerView.isHidden = true
         player.titleLabel.isHidden = true
-        player.subtitleBackView.isHidden = true
-        player.subtitleLabel.isHidden = true
+        
+        // Ensure subtitle views are visible for rendering
+        player.subtitleBackView.isHidden = false
+        player.subtitleLabel.isHidden = false
         
         // Disable all gestures - handled in JS
         player.tapGesture.isEnabled = false
@@ -294,61 +300,150 @@ final class SfPlayerWrapper: NSObject {
     // MARK: - Subtitle Controls
     
     func getSubtitleTracks() -> [[String: Any]] {
-        guard let player = playerView?.playerLayer?.player else { return [] }
-        
         var tracks: [[String: Any]] = []
-        let subtitleTracks = player.tracks(mediaType: .subtitle)
         
-        for (index, track) in subtitleTracks.enumerated() {
-            let trackInfo: [String: Any] = [
-                "id": index + 1,
-                "selected": track.isEnabled,
-                "title": track.name,
-                "lang": track.language ?? ""
-            ]
-            tracks.append(trackInfo)
+        // srtControl.subtitleInfos should contain ALL subtitles KSPlayer knows about
+        // (both embedded that were auto-detected and external that were added)
+        if let srtControl = playerView?.srtControl {
+            let allSubtitles = srtControl.subtitleInfos
+            let selectedInfo = srtControl.selectedSubtitleInfo
+            
+            print("[SfPlayer] getSubtitleTracks - srtControl has \(allSubtitles.count) subtitles")
+            
+            for (index, info) in allSubtitles.enumerated() {
+                let isSelected = selectedInfo?.subtitleID == info.subtitleID
+                let trackInfo: [String: Any] = [
+                    "id": index + 1,  // 1-based ID
+                    "selected": isSelected,
+                    "title": info.name,
+                    "lang": "",
+                    "source": "srtControl"
+                ]
+                tracks.append(trackInfo)
+                print("[SfPlayer]   [\(index + 1)]: \(info.name) (selected: \(isSelected))")
+            }
+        }
+        
+        // Also log embedded tracks from player for debugging
+        if let player = playerView?.playerLayer?.player {
+            let embeddedTracks = player.tracks(mediaType: .subtitle)
+            print("[SfPlayer] getSubtitleTracks - player.tracks has \(embeddedTracks.count) embedded tracks")
+            for (i, track) in embeddedTracks.enumerated() {
+                print("[SfPlayer]   embedded[\(i)]: \(track.name) (enabled: \(track.isEnabled))")
+            }
         }
         
         return tracks
     }
     
     func setSubtitleTrack(_ trackId: Int) {
-        guard let player = playerView?.playerLayer?.player else { return }
+        print("[SfPlayer] setSubtitleTrack called with trackId: \(trackId)")
         
-        let subtitleTracks = player.tracks(mediaType: .subtitle)
-        let index = trackId - 1
-        
-        if index >= 0 && index < subtitleTracks.count {
-            let track = subtitleTracks[index]
-            player.select(track: track)
+        // Handle disable case
+        if trackId < 0 {
+            print("[SfPlayer] Disabling subtitles (trackId < 0)")
+            disableSubtitles()
+            return
         }
+        
+        guard let player = playerView?.playerLayer?.player,
+              let srtControl = playerView?.srtControl else {
+            print("[SfPlayer] setSubtitleTrack - player or srtControl not available")
+            return
+        }
+        
+        let embeddedTracks = player.tracks(mediaType: .subtitle)
+        let index = trackId - 1  // Convert to 0-based
+        
+        print("[SfPlayer] setSubtitleTrack - embedded tracks: \(embeddedTracks.count), srtControl.subtitleInfos: \(srtControl.subtitleInfos.count), index: \(index)")
+        
+        // Log all available subtitles for debugging
+        print("[SfPlayer] Available in srtControl:")
+        for (i, info) in srtControl.subtitleInfos.enumerated() {
+            print("[SfPlayer]   [\(i)]: \(info.name)")
+        }
+        
+        // KSPlayer's srtControl might contain all subtitles (embedded + external)
+        // Try to find and select the subtitle at the given index in srtControl
+        let allSubtitles = srtControl.subtitleInfos
+        if index >= 0 && index < allSubtitles.count {
+            let subtitleInfo = allSubtitles[index]
+            srtControl.selectedSubtitleInfo = subtitleInfo
+            playerView?.updateSrt()
+            print("[SfPlayer] Selected subtitle from srtControl: \(subtitleInfo.name)")
+            return
+        }
+        
+        // Fallback: try selecting embedded track directly via player.select()
+        // This handles cases where srtControl doesn't have all embedded tracks
+        if index >= 0 && index < embeddedTracks.count {
+            let track = embeddedTracks[index]
+            player.select(track: track)
+            print("[SfPlayer] Fallback: Selected embedded track via player.select(): \(track.name)")
+            return
+        }
+        
+        print("[SfPlayer] WARNING: index \(index) out of range")
     }
     
     func disableSubtitles() {
-        guard let player = playerView?.playerLayer?.player else { return }
+        print("[SfPlayer] disableSubtitles called")
         
-        let subtitleTracks = player.tracks(mediaType: .subtitle)
-        for track in subtitleTracks {
-            if track.isEnabled {
-                player.select(track: track)
+        // Clear srtControl selection (handles both embedded and external via srtControl)
+        playerView?.srtControl.selectedSubtitleInfo = nil
+        playerView?.updateSrt()
+        
+        // Also disable any embedded tracks selected via player.select()
+        if let player = playerView?.playerLayer?.player {
+            let subtitleTracks = player.tracks(mediaType: .subtitle)
+            for track in subtitleTracks {
+                if track.isEnabled {
+                    // KSPlayer doesn't have a direct "disable" - selecting a different track would disable this one
+                    print("[SfPlayer] Note: embedded track '\(track.name)' is still enabled at decoder level")
+                }
             }
         }
     }
     
     func getCurrentSubtitleTrack() -> Int {
-        guard let player = playerView?.playerLayer?.player else { return 0 }
+        guard let srtControl = playerView?.srtControl,
+              let selectedInfo = srtControl.selectedSubtitleInfo else {
+            return 0  // No subtitle selected
+        }
         
-        let subtitleTracks = player.tracks(mediaType: .subtitle)
-        for (index, track) in subtitleTracks.enumerated() {
-            if track.isEnabled {
-                return index + 1
+        // Find the selected subtitle in srtControl.subtitleInfos
+        let allSubtitles = srtControl.subtitleInfos
+        for (index, info) in allSubtitles.enumerated() {
+            if info.subtitleID == selectedInfo.subtitleID {
+                return index + 1  // 1-based ID
             }
         }
+        
         return 0
     }
     
     func addSubtitleFile(url: String, select: Bool) {
-        pendingExternalSubtitles.append(url)
+        print("[SfPlayer] addSubtitleFile called with url: \(url), select: \(select)")
+        guard let subUrl = URL(string: url) else {
+            print("[SfPlayer] Failed to create URL from string")
+            return
+        }
+        
+        // If player is ready, add directly via srtControl
+        if let srtControl = playerView?.srtControl {
+            let subtitleInfo = URLSubtitleInfo(url: subUrl)
+            srtControl.addSubtitle(info: subtitleInfo)
+            print("[SfPlayer] Added subtitle via srtControl: \(subtitleInfo.name)")
+            if select {
+                srtControl.selectedSubtitleInfo = subtitleInfo
+                playerView?.updateSrt()
+                print("[SfPlayer] Selected subtitle: \(subtitleInfo.name)")
+            }
+        } else {
+            // Player not ready yet, queue for later
+            print("[SfPlayer] Player not ready, queuing subtitle")
+            pendingExternalSubtitles.append(url)
+        }
     }
     
     // MARK: - Subtitle Positioning
@@ -358,7 +453,16 @@ final class SfPlayerWrapper: NSObject {
     }
     
     func setSubtitleScale(_ scale: Double) {
-        // Adjust subtitle font scale
+        subtitleScale = CGFloat(scale)
+        applySubtitleScale()
+    }
+    
+    private func applySubtitleScale() {
+        guard let subtitleBackView = playerView?.subtitleBackView else { return }
+        
+        // Apply scale transform to subtitle view
+        // This scales both text and image-based subtitles (PGS, VOBSUB)
+        subtitleBackView.transform = CGAffineTransform(scaleX: subtitleScale, y: subtitleScale)
     }
     
     func setSubtitleMarginY(_ margin: Int) {
@@ -462,19 +566,66 @@ extension SfPlayerWrapper: PlayerControllerDelegate {
             // Center video content - KSAVPlayerView maps contentMode to videoGravity
             playerView?.playerLayer?.player.view?.contentMode = .scaleAspectFit
             
+            // Apply subtitle scale for image-based subtitles (PGS, VOBSUB)
+            applySubtitleScale()
+            
             // Setup PiP controller with delegate
             setupPictureInPicture()
             
-            // Apply initial track selections
+            // Add embedded subtitles from player to srtControl
+            // This makes them available for selection and rendering via srtControl
+            if let player = playerView?.playerLayer?.player,
+               let subtitleDataSource = player.subtitleDataSouce {
+                print("[SfPlayer] Adding embedded subtitles from player.subtitleDataSouce")
+                playerView?.srtControl.addSubtitle(dataSouce: subtitleDataSource)
+            }
+            
+            // Load pending external subtitles via srtControl
+            print("[SfPlayer] readyToPlay - Loading \(pendingExternalSubtitles.count) external subtitles")
+            for subUrlString in pendingExternalSubtitles {
+                print("[SfPlayer] Adding external subtitle: \(subUrlString)")
+                if let subUrl = URL(string: subUrlString) {
+                    let subtitleInfo = URLSubtitleInfo(url: subUrl)
+                    playerView?.srtControl.addSubtitle(info: subtitleInfo)
+                    print("[SfPlayer] Added subtitle info: \(subtitleInfo.name)")
+                } else {
+                    print("[SfPlayer] Failed to create URL from: \(subUrlString)")
+                }
+            }
+            pendingExternalSubtitles.removeAll()
+            
+            // Log all available subtitles in srtControl
+            let allSubtitles = playerView?.srtControl.subtitleInfos ?? []
+            print("[SfPlayer] srtControl now has \(allSubtitles.count) subtitles:")
+            for (i, info) in allSubtitles.enumerated() {
+                print("[SfPlayer]   [\(i)]: \(info.name)")
+            }
+            
+            // Also log embedded tracks from player for reference
+            let embeddedTracks = playerView?.playerLayer?.player.tracks(mediaType: .subtitle) ?? []
+            print("[SfPlayer] player.tracks has \(embeddedTracks.count) embedded tracks")
+            
+            // Apply initial track selection
+            print("[SfPlayer] Applying initial track selections - subId: \(String(describing: initialSubtitleId)), audioId: \(String(describing: initialAudioId))")
             if let subId = initialSubtitleId {
                 if subId < 0 {
+                    print("[SfPlayer] Disabling subtitles (subId < 0)")
                     disableSubtitles()
                 } else {
+                    print("[SfPlayer] Setting subtitle track to: \(subId)")
                     setSubtitleTrack(subId)
                 }
             }
             if let audioId = initialAudioId {
+                print("[SfPlayer] Setting audio track to: \(audioId)")
                 setAudioTrack(audioId)
+            }
+            
+            // Debug: Check selected subtitle after applying
+            if let selectedSub = playerView?.srtControl.selectedSubtitleInfo {
+                print("[SfPlayer] Currently selected subtitle: \(selectedSub.name)")
+            } else {
+                print("[SfPlayer] No subtitle currently selected in srtControl")
             }
             
         case .buffering:

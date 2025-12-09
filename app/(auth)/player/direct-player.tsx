@@ -232,6 +232,27 @@ export default function page() {
           });
           if (!res) return;
           const { mediaSource, sessionId, url } = res;
+
+          // Debug: Log mediaSource to see if it has MediaStreams
+          console.log(
+            "[Stream] Got mediaSource with MediaStreams count:",
+            mediaSource?.MediaStreams?.length ?? 0,
+          );
+          console.log(
+            "[Stream] Subtitle streams in mediaSource:",
+            JSON.stringify(
+              mediaSource?.MediaStreams?.filter(
+                (s) => s.Type === "Subtitle",
+              )?.map((s) => ({
+                index: s.Index,
+                title: s.DisplayTitle,
+                deliveryMethod: s.DeliveryMethod,
+                deliveryUrl: s.DeliveryUrl,
+                isExternal: s.IsExternal,
+              })),
+            ),
+          );
+
           if (!sessionId || !mediaSource || !url) {
             Alert.alert(
               t("player.error"),
@@ -428,6 +449,30 @@ export default function page() {
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
+    // Debug: Log all subtitle streams
+    const allSubtitles = mediaSource?.MediaStreams?.filter(
+      (s) => s.Type === "Subtitle",
+    );
+    console.log(
+      "[Subtitles] MediaStreams count:",
+      mediaSource?.MediaStreams?.length ?? 0,
+    );
+    console.log(
+      "[Subtitles] All subtitle streams:",
+      JSON.stringify(
+        allSubtitles?.map((s) => ({
+          index: s.Index,
+          title: s.DisplayTitle,
+          deliveryMethod: s.DeliveryMethod,
+          deliveryUrl: s.DeliveryUrl,
+          codec: s.Codec,
+          isExternal: s.IsExternal,
+        })),
+        null,
+        2,
+      ),
+    );
+
     // Get external subtitle URLs
     const externalSubs = mediaSource?.MediaStreams?.filter(
       (s) =>
@@ -436,6 +481,17 @@ export default function page() {
         s.DeliveryUrl,
     ).map((s) => `${api?.basePath}${s.DeliveryUrl}`);
 
+    console.log(
+      "[Subtitles] External subtitle URLs:",
+      JSON.stringify(externalSubs),
+    );
+    console.log(
+      "[Subtitles] subtitleIndex:",
+      subtitleIndex,
+      "isTranscoding:",
+      isTranscoding,
+    );
+
     // Calculate track IDs for initial selection
     const initialSubtitleId = getMpvSubtitleId(
       mediaSource,
@@ -443,6 +499,13 @@ export default function page() {
       isTranscoding,
     );
     const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
+
+    console.log(
+      "[Subtitles] Track IDs - initialSubtitleId:",
+      initialSubtitleId,
+      "initialAudioId:",
+      initialAudioId,
+    );
 
     return {
       url: stream.url,

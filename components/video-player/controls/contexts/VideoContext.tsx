@@ -4,66 +4,49 @@
  * Manages subtitle and audio track state for the video player UI.
  *
  * ============================================================================
- * INDEX TYPES
+ * ARCHITECTURE
  * ============================================================================
  *
- * We track two different indices for each track:
+ * - Jellyfin is source of truth for subtitle list (embedded + external)
+ * - KSPlayer only knows about:
+ *   - Embedded subs it finds in the video stream
+ *   - External subs we explicitly add via addSubtitleFile()
+ * - UI shows Jellyfin's complete list
+ * - On selection: either select embedded track or load external URL
+ *
+ * ============================================================================
+ * INDEX TYPES
+ * ============================================================================
  *
  * 1. SERVER INDEX (sub.Index / track.index)
  *    - Jellyfin's server-side stream index
  *    - Used to report playback state to Jellyfin server
- *    - Allows Jellyfin to remember user's last selected tracks
- *    - Passed via router params (subtitleIndex, audioIndex)
  *    - Value of -1 means disabled/none
  *
  * 2. MPV INDEX (track.mpvIndex)
- *    - MPV's internal track ID for the loaded track
- *    - Used to actually switch tracks in the player
- *    - Only assigned to tracks that are loaded into MPV
- *    - Value of -1 means track is not in MPV (e.g., burned-in image sub)
+ *    - KSPlayer's internal track ID
+ *    - KSPlayer orders tracks as: [all embedded, then all external]
+ *    - IDs: 1..embeddedCount for embedded, embeddedCount+1.. for external
+ *    - Value of -1 means track needs replacePlayer() (e.g., burned-in sub)
  *
  * ============================================================================
- * SUBTITLE DELIVERY METHODS
+ * SUBTITLE HANDLING
  * ============================================================================
  *
- * Jellyfin provides subtitles via different delivery methods:
- * - Embed: Subtitle is embedded in the container (MKV, MP4, etc.)
- * - Hls: Subtitle is delivered via HLS segments (during transcoding)
- * - External: Subtitle is delivered as a separate file URL
- * - Encode: Subtitle is burned into the video (image-based subs during transcode)
+ * Embedded (DeliveryMethod.Embed):
+ *   - Already in KSPlayer's track list
+ *   - Select via setSubtitleTrack(mpvId)
  *
- * Jellyfin also provides `IsTextSubtitleStream` boolean:
- * - true:  Text-based subtitle (SRT, ASS, VTT, etc.)
- * - false: Image-based subtitle (PGS, VOBSUB, DVDSUB, etc.)
+ * External (DeliveryMethod.External):
+ *   - Loaded into KSPlayer's srtControl on video start
+ *   - Select via setSubtitleTrack(embeddedCount + externalPosition + 1)
  *
- * ============================================================================
- * SUBTITLE TYPES AND HOW THEY'RE HANDLED
- * ============================================================================
- *
- * 1. TEXT-BASED SUBTITLES (IsTextSubtitleStream = true)
- *    - Direct Play: Loaded into MPV (embedded or via sub-add for external)
- *    - Transcoding: Delivered via HLS, loaded into MPV
- *    - Action: Use playerControls.setSubtitleTrack(mpvId)
- *
- * 2. IMAGE-BASED SUBTITLES (IsTextSubtitleStream = false)
- *    - Direct Play: Embedded ones are in MPV, external ones are filtered out
- *    - Transcoding: BURNED INTO VIDEO by Jellyfin (not in MPV track list)
- *    - Action: When transcoding, use replacePlayer() to request burn-in
- *
- * ============================================================================
- * MPV INDEX CALCULATION
- * ============================================================================
- *
- * We iterate through Jellyfin's subtitle list and assign MPV indices only to
- * subtitles that are actually loaded into MPV:
- *
- * - isSubtitleInMpv = true:  Subtitle is in MPV's track list, increment index
- * - isSubtitleInMpv = false: Subtitle is NOT in MPV (e.g., image sub during
- *                            transcode), do NOT increment index
- *
- * The order of subtitles in Jellyfin's MediaStreams matches the order in MPV.
+ * Image-based during transcoding:
+ *   - Burned into video by Jellyfin, not in KSPlayer
+ *   - Requires replacePlayer() to change
  */
 
+import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
@@ -74,11 +57,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { AudioTrack, SubtitleTrack } from "@/modules";
-import {
-  isImageBasedSubtitle,
-  isSubtitleInMpv,
-} from "@/utils/jellyfin/subtitleUtils";
+import type { SfAudioTrack } from "@/modules";
+import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
 
@@ -151,29 +131,73 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     if (!tracksReady) return;
 
     const fetchTracks = async () => {
-      const [subtitleData, audioData] = await Promise.all([
-        playerControls.getSubtitleTracks().catch(() => null),
-        playerControls.getAudioTracks().catch(() => null),
-      ]);
+      const audioData = await playerControls.getAudioTracks().catch(() => null);
+      const playerAudio = (audioData as SfAudioTrack[]) ?? [];
 
-      // Process subtitles - map Jellyfin indices to MPV track IDs
-      let mpvIndex = 0; // MPV track index counter (only incremented for subs in MPV)
+      // Separate embedded vs external subtitles from Jellyfin's list
+      // KSPlayer orders tracks as: [all embedded, then all external]
+      const embeddedSubs = allSubs.filter(
+        (s) => s.DeliveryMethod === SubtitleDeliveryMethod.Embed,
+      );
+      const externalSubs = allSubs.filter(
+        (s) => s.DeliveryMethod === SubtitleDeliveryMethod.External,
+      );
 
-      const subs: Track[] = allSubs.map((sub) => {
-        const inMpv = isSubtitleInMpv(sub, isTranscoding);
+      // Count embedded subs that will be in KSPlayer
+      // (excludes image-based subs during transcoding as they're burned in)
+      const embeddedInPlayer = embeddedSubs.filter(
+        (s) => !isTranscoding || !isImageBasedSubtitle(s),
+      );
 
-        // Get MPV track ID: only if this sub is actually in MPV's track list
-        const mpvId = inMpv
-          ? ((subtitleData as SubtitleTrack[])?.[mpvIndex++]?.id ?? -1)
-          : -1;
+      const subs: Track[] = [];
 
-        return {
+      // Process all Jellyfin subtitles
+      for (const sub of allSubs) {
+        const isEmbedded = sub.DeliveryMethod === SubtitleDeliveryMethod.Embed;
+        const isExternal =
+          sub.DeliveryMethod === SubtitleDeliveryMethod.External;
+
+        // For image-based subs during transcoding, need to refresh player
+        if (isTranscoding && isImageBasedSubtitle(sub)) {
+          subs.push({
+            name: sub.DisplayTitle || "Unknown",
+            index: sub.Index ?? -1,
+            mpvIndex: -1,
+            setTrack: () => {
+              replacePlayer({ subtitleIndex: String(sub.Index) });
+            },
+          });
+          continue;
+        }
+
+        // Calculate KSPlayer track ID based on type
+        // KSPlayer IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
+        let mpvId = -1;
+
+        if (isEmbedded) {
+          // Find position among embedded subs that are in player
+          const embeddedPosition = embeddedInPlayer.findIndex(
+            (s) => s.Index === sub.Index,
+          );
+          if (embeddedPosition !== -1) {
+            mpvId = embeddedPosition + 1; // 1-based ID
+          }
+        } else if (isExternal) {
+          // Find position among external subs, offset by embedded count
+          const externalPosition = externalSubs.findIndex(
+            (s) => s.Index === sub.Index,
+          );
+          if (externalPosition !== -1) {
+            mpvId = embeddedInPlayer.length + externalPosition + 1;
+          }
+        }
+
+        subs.push({
           name: sub.DisplayTitle || "Unknown",
-          index: sub.Index ?? -1, // Jellyfin server-side index
-          mpvIndex: mpvId, // MPV track ID (-1 if not in MPV)
+          index: sub.Index ?? -1,
+          mpvIndex: mpvId,
           setTrack: () => {
-            // Case 1: Transcoding + switching to/from image-based sub
-            // Need to refresh player so Jellyfin burns in the new sub
+            // Transcoding + switching to/from image-based sub
             if (
               isTranscoding &&
               (isImageBasedSubtitle(sub) || isCurrentSubImageBased)
@@ -182,25 +206,25 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
               return;
             }
 
-            // Case 2: Subtitle is in MPV - just switch tracks
-            if (inMpv && mpvId !== -1) {
+            // Direct switch in player
+            if (mpvId !== -1) {
               playerControls.setSubtitleTrack(mpvId);
               router.setParams({ subtitleIndex: String(sub.Index) });
               return;
             }
 
-            // Case 3: Fallback - refresh player
+            // Fallback - refresh player
             replacePlayer({ subtitleIndex: String(sub.Index) });
           },
-        };
-      });
+        });
+      }
 
       // Add "Disable" option at the beginning
       subs.unshift({
         name: "Disable",
         index: -1,
+        mpvIndex: -1,
         setTrack: () => {
-          // If currently using image-based sub during transcode, need to refresh
           if (isTranscoding && isCurrentSubImageBased) {
             replacePlayer({ subtitleIndex: "-1" });
           } else {
@@ -211,22 +235,24 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
       });
 
       // Process audio tracks
-      const audio: Track[] = allAudio.map((a, idx) => ({
-        name: a.DisplayTitle || "Unknown",
-        index: a.Index ?? -1,
-        setTrack: () => {
-          // Transcoding: need full player refresh to change audio stream
-          if (isTranscoding) {
-            replacePlayer({ audioIndex: String(a.Index) });
-            return;
-          }
+      const audio: Track[] = allAudio.map((a, idx) => {
+        const playerTrack = playerAudio[idx];
+        const mpvId = playerTrack?.id ?? idx + 1;
 
-          // Direct play: just switch audio track in MPV
-          const mpvId = (audioData as AudioTrack[])?.[idx]?.id ?? idx + 1;
-          playerControls.setAudioTrack(mpvId);
-          router.setParams({ audioIndex: String(a.Index) });
-        },
-      }));
+        return {
+          name: a.DisplayTitle || "Unknown",
+          index: a.Index ?? -1,
+          mpvIndex: mpvId,
+          setTrack: () => {
+            if (isTranscoding) {
+              replacePlayer({ audioIndex: String(a.Index) });
+              return;
+            }
+            playerControls.setAudioTrack(mpvId);
+            router.setParams({ audioIndex: String(a.Index) });
+          },
+        };
+      });
 
       setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
       setAudioTracks(audio);
