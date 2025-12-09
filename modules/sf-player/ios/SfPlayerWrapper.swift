@@ -62,8 +62,10 @@ final class SfPlayerWrapper: NSObject {
     private var pipController: AVPictureInPictureController?
     
     /// Scale factor for image-based subtitles (PGS, VOBSUB)
-    /// Default 0.5 scales 1080p subtitle images to fit mobile screens
-    private var subtitleScale: CGFloat = 0.5
+    /// Default 1.0 = no scaling; setSubtitleFontSize derives scale from font size
+    private var subtitleScale: CGFloat = 1.0
+    /// When true, setSubtitleFontSize won't override the scale (user set explicit value)
+    private var isScaleExplicitlySet: Bool = false
     
     weak var delegate: SfPlayerWrapperDelegate?
     
@@ -454,6 +456,7 @@ final class SfPlayerWrapper: NSObject {
     
     func setSubtitleScale(_ scale: Double) {
         subtitleScale = CGFloat(scale)
+        isScaleExplicitlySet = true
         applySubtitleScale()
     }
     
@@ -466,19 +469,54 @@ final class SfPlayerWrapper: NSObject {
     }
     
     func setSubtitleMarginY(_ margin: Int) {
-        // Adjust vertical margin
+        var position = SubtitleModel.textPosition
+        position.verticalMargin = CGFloat(margin)
+        SubtitleModel.textPosition = position
+        playerView?.updateSrt()
     }
     
     func setSubtitleAlignX(_ alignment: String) {
-        // Horizontal alignment
+        var position = SubtitleModel.textPosition
+        switch alignment.lowercased() {
+        case "left":
+            position.horizontalAlign = .leading
+        case "right":
+            position.horizontalAlign = .trailing
+        default:
+            position.horizontalAlign = .center
+        }
+        SubtitleModel.textPosition = position
+        playerView?.updateSrt()
     }
     
     func setSubtitleAlignY(_ alignment: String) {
-        // Vertical alignment
+        var position = SubtitleModel.textPosition
+        switch alignment.lowercased() {
+        case "top":
+            position.verticalAlign = .top
+        case "center":
+            position.verticalAlign = .center
+        default:
+            position.verticalAlign = .bottom
+        }
+        SubtitleModel.textPosition = position
+        playerView?.updateSrt()
     }
     
     func setSubtitleFontSize(_ size: Int) {
-        // Font size adjustment
+        // Set font size for text-based subtitles (SRT, ASS, VTT)
+        SubtitleModel.textFontSize = CGFloat(size)
+        
+        // Derive scale for image-based subtitles (PGS, VOBSUB)
+        // Only if scale wasn't explicitly set via setSubtitleScale
+        // Scale = size / 100, so size 60 → 0.6, size 100 → 1.0
+        if !isScaleExplicitlySet {
+            let derivedScale = CGFloat(size) / 100.0
+            subtitleScale = min(max(derivedScale, 0.3), 1.5)  // Clamp to 0.3-1.5
+            applySubtitleScale()
+        }
+        
+        playerView?.updateSrt()
     }
     
     // MARK: - Audio Controls
@@ -565,9 +603,6 @@ extension SfPlayerWrapper: PlayerControllerDelegate {
             
             // Center video content - KSAVPlayerView maps contentMode to videoGravity
             playerView?.playerLayer?.player.view?.contentMode = .scaleAspectFit
-            
-            // Apply subtitle scale for image-based subtitles (PGS, VOBSUB)
-            applySubtitleScale()
             
             // Setup PiP controller with delegate
             setupPictureInPicture()
