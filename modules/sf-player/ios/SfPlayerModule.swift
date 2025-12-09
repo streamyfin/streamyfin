@@ -142,6 +142,15 @@ public class SfPlayerModule: Module {
                 return view.getCurrentAudioTrack()
             }
             
+            // Video zoom
+            AsyncFunction("setVideoZoomToFill") { (view: SfPlayerView, enabled: Bool) in
+                view.setVideoZoomToFill(enabled)
+            }
+            
+            AsyncFunction("getVideoZoomToFill") { (view: SfPlayerView) -> Bool in
+                return view.getVideoZoomToFill()
+            }
+            
             // Events that the view can send to JavaScript
             Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
         }

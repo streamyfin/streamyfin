@@ -4,7 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
-import { type Dispatch, type FC, type SetStateAction } from "react";
+import type { FC } from "react";
 import {
   Platform,
   TouchableOpacity,
@@ -16,11 +16,11 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
-import { type ScaleFactor, ScaleFactorSelector } from "./ScaleFactorSelector";
 import {
   type AspectRatio,
   AspectRatioSelector,
 } from "./VideoScalingModeSelector";
+import { ZoomToggle } from "./ZoomToggle";
 
 interface HeaderControlsProps {
   item: BaseItemDto;
@@ -34,11 +34,9 @@ interface HeaderControlsProps {
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
   aspectRatio?: AspectRatio;
-  scaleFactor?: ScaleFactor;
-  setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
-  setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
-  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  isZoomedToFill?: boolean;
+  onZoomToggle?: () => void;
 }
 
 export const HeaderControls: FC<HeaderControlsProps> = ({
@@ -53,32 +51,15 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   previousItem,
   nextItem,
   aspectRatio = "default",
-  scaleFactor = 1.0,
-  setAspectRatio,
-  setScaleFactor,
   setVideoAspectRatio,
-  setVideoScaleFactor,
+  isZoomedToFill = false,
+  onZoomToggle,
 }) => {
   const { settings } = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const lightHapticFeedback = useHaptic("light");
-
-  const handleAspectRatioChange = async (newRatio: AspectRatio) => {
-    if (!setAspectRatio || !setVideoAspectRatio) return;
-
-    setAspectRatio(newRatio);
-    const aspectRatioString = newRatio === "default" ? null : newRatio;
-    await setVideoAspectRatio(aspectRatioString);
-  };
-
-  const handleScaleFactorChange = async (newScale: ScaleFactor) => {
-    if (!setScaleFactor || !setVideoScaleFactor) return;
-
-    setScaleFactor(newScale);
-    await setVideoScaleFactor(newScale);
-  };
 
   const onClose = async () => {
     lightHapticFeedback();
@@ -155,13 +136,19 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
         )}
         <AspectRatioSelector
           currentRatio={aspectRatio}
-          onRatioChange={handleAspectRatioChange}
+          onRatioChange={async (newRatio) => {
+            if (setVideoAspectRatio) {
+              const aspectRatioString =
+                newRatio === "default" ? null : newRatio;
+              await setVideoAspectRatio(aspectRatioString);
+            }
+          }}
           disabled={!setVideoAspectRatio}
         />
-        <ScaleFactorSelector
-          currentScale={scaleFactor}
-          onScaleChange={handleScaleFactorChange}
-          disabled={!setVideoScaleFactor}
+        <ZoomToggle
+          isZoomedToFill={isZoomedToFill}
+          onToggle={onZoomToggle ?? (() => {})}
+          disabled={!onZoomToggle}
         />
         <TouchableOpacity
           onPress={onClose}

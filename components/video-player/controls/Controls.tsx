@@ -4,14 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  type Dispatch,
-  type FC,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { type FC, useCallback, useEffect, useState } from "react";
 import { useWindowDimensions } from "react-native";
 import Animated, {
   Easing,
@@ -41,7 +34,6 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
-import { type ScaleFactor } from "./ScaleFactorSelector";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { type AspectRatio } from "./VideoScalingModeSelector";
 
@@ -63,11 +55,9 @@ interface Props {
   play: () => void;
   pause: () => void;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
-  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
   aspectRatio?: AspectRatio;
-  scaleFactor?: ScaleFactor;
-  setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
-  setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
+  isZoomedToFill?: boolean;
+  onZoomToggle?: () => void;
   api?: Api | null;
   downloadedFiles?: DownloadedItem[];
 }
@@ -88,11 +78,9 @@ export const Controls: FC<Props> = ({
   setShowControls,
   mediaSource,
   setVideoAspectRatio,
-  setVideoScaleFactor,
   aspectRatio = "default",
-  scaleFactor = 1.0,
-  setAspectRatio,
-  setScaleFactor,
+  isZoomedToFill = false,
+  onZoomToggle,
   offline = false,
   api = null,
   downloadedFiles = undefined,
@@ -345,8 +333,6 @@ export const Controls: FC<Props> = ({
           item.UserData?.PlaybackPositionTicks?.toString() ?? "",
       }).toString();
 
-      console.log("queryParams", queryParams);
-
       router.replace(`player/direct-player?${queryParams}` as any);
     },
     [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router],
@@ -480,11 +466,9 @@ export const Controls: FC<Props> = ({
               previousItem={previousItem}
               nextItem={nextItem}
               aspectRatio={aspectRatio}
-              scaleFactor={scaleFactor}
-              setAspectRatio={setAspectRatio}
-              setScaleFactor={setScaleFactor}
               setVideoAspectRatio={setVideoAspectRatio}
-              setVideoScaleFactor={setVideoScaleFactor}
+              isZoomedToFill={isZoomedToFill}
+              onZoomToggle={onZoomToggle}
             />
           </Animated.View>
           <Animated.View

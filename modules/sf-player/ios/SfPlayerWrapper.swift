@@ -422,6 +422,18 @@ final class SfPlayerWrapper: NSObject {
         return 0
     }
     
+    // MARK: - Video Zoom
+    
+    func setVideoZoomToFill(_ enabled: Bool) {
+        // Toggle between fit (black bars) and fill (crop to fill screen)
+        let contentMode: UIView.ContentMode = enabled ? .scaleAspectFill : .scaleAspectFit
+        playerView?.playerLayer?.player.view?.contentMode = contentMode
+    }
+    
+    func getVideoZoomToFill() -> Bool {
+        return playerView?.playerLayer?.player.view?.contentMode == .scaleAspectFill
+    }
+    
     // MARK: - Layout
     
     func updateLayout(bounds: CGRect) {

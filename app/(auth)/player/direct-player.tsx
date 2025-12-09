@@ -60,12 +60,10 @@ export default function page() {
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<
-    "default" | "16:9" | "4:3" | "1:1" | "21:9"
-  >("default");
-  const [scaleFactor, setScaleFactor] = useState<
-    1.0 | 1.1 | 1.2 | 1.3 | 1.4 | 1.5 | 1.6 | 1.7 | 1.8 | 1.9 | 2.0
-  >(1.0);
+  const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
+    "default",
+  );
+  const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -614,6 +612,12 @@ export default function page() {
     videoRef.current?.seekTo?.(position / 1000);
   }, []);
 
+  const handleZoomToggle = useCallback(async () => {
+    const newZoomState = !isZoomedToFill;
+    setIsZoomedToFill(newZoomState);
+    await videoRef.current?.setVideoZoomToFill(newZoomState);
+  }, [isZoomedToFill]);
+
   // Apply subtitle settings when video loads
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
@@ -738,9 +742,8 @@ export default function page() {
               enableTrickplay={true}
               offline={offline}
               aspectRatio={aspectRatio}
-              scaleFactor={scaleFactor}
-              setAspectRatio={setAspectRatio}
-              setScaleFactor={setScaleFactor}
+              isZoomedToFill={isZoomedToFill}
+              onZoomToggle={handleZoomToggle}
               api={api}
               downloadedFiles={downloadedFiles}
             />

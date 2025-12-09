@@ -98,6 +98,12 @@ export default React.forwardRef<SfPlayerViewRef, SfPlayerViewProps>(
       getCurrentAudioTrack: async () => {
         return (await nativeRef.current?.getCurrentAudioTrack()) ?? 0;
       },
+      setVideoZoomToFill: async (enabled: boolean) => {
+        await nativeRef.current?.setVideoZoomToFill(enabled);
+      },
+      getVideoZoomToFill: async () => {
+        return (await nativeRef.current?.getVideoZoomToFill()) ?? false;
+      },
     }));
 
     return <NativeView ref={nativeRef} {...props} />;

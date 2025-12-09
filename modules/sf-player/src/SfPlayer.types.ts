@@ -86,6 +86,9 @@ export interface SfPlayerViewRef {
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;
   getCurrentAudioTrack: () => Promise<number>;
+  // Video zoom
+  setVideoZoomToFill: (enabled: boolean) => Promise<void>;
+  getVideoZoomToFill: () => Promise<boolean>;
 }
 
 export type SubtitleTrack = {

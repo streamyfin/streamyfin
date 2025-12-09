@@ -212,6 +212,16 @@ class SfPlayerView: ExpoView {
         return player?.getCurrentAudioTrack() ?? 0
     }
     
+    // MARK: - Video Zoom
+    
+    func setVideoZoomToFill(_ enabled: Bool) {
+        player?.setVideoZoomToFill(enabled)
+    }
+    
+    func getVideoZoomToFill() -> Bool {
+        return player?.getVideoZoomToFill() ?? false
+    }
+    
     deinit {
         player?.stopPictureInPicture()
     }

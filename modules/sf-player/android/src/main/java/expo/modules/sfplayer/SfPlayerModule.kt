@@ -103,7 +103,17 @@ class SfPlayerModule : Module() {
                 0
             }
 
-            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
+            AsyncFunction("setVideoZoomToFill") { view: SfPlayerView, enabled: Boolean ->
+            }
+
+            AsyncFunction("getVideoZoomToFill") { view: SfPlayerView ->
+                false
+            }
+
+            AsyncFunction("setAutoPipEnabled") { view: SfPlayerView, enabled: Boolean ->
+            }
+
+            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
         }
     }
 }
