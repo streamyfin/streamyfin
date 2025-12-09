@@ -160,12 +160,14 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           disabled={pluginSettings?.subtitleSize?.locked}
         >
           <Stepper
-            value={settings.subtitleSize}
+            value={settings.subtitleSize / 100}
             disabled={pluginSettings?.subtitleSize?.locked}
-            step={5}
-            min={0}
-            max={120}
-            onUpdate={(subtitleSize) => updateSettings({ subtitleSize })}
+            step={0.1}
+            min={0.3}
+            max={1.5}
+            onUpdate={(value) =>
+              updateSettings({ subtitleSize: Math.round(value * 100) })
+            }
           />
         </ListItem>
       </ListGroup>

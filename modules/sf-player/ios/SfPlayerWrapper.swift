@@ -504,15 +504,18 @@ final class SfPlayerWrapper: NSObject {
     }
     
     func setSubtitleFontSize(_ size: Int) {
-        // Set font size for text-based subtitles (SRT, ASS, VTT)
-        SubtitleModel.textFontSize = CGFloat(size)
+        // Size is now a scale value * 100 (e.g., 100 = 1.0, 60 = 0.6)
+        // Convert to actual scale for both text and image subtitles
+        let scale = CGFloat(size) / 100.0
         
-        // Derive scale for image-based subtitles (PGS, VOBSUB)
+        // Set font size for text-based subtitles (SRT, ASS, VTT)
+        // Base font size ~50pt, scaled by user preference
+        SubtitleModel.textFontSize = 50.0 * scale
+        
+        // Apply scale for image-based subtitles (PGS, VOBSUB)
         // Only if scale wasn't explicitly set via setSubtitleScale
-        // Scale = size / 100, so size 60 → 0.6, size 100 → 1.0
         if !isScaleExplicitlySet {
-            let derivedScale = CGFloat(size) / 100.0
-            subtitleScale = min(max(derivedScale, 0.3), 1.5)  // Clamp to 0.3-1.5
+            subtitleScale = min(max(scale, 0.3), 1.5)  // Clamp to 0.3-1.5
             applySubtitleScale()
         }
         

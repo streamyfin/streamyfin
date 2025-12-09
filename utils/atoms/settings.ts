@@ -8,7 +8,6 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
-import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -218,7 +217,7 @@ export const defaultValues: Settings = {
   rewindSkipTime: 10,
   showCustomMenuLinks: false,
   disableHapticFeedback: false,
-  subtitleSize: Platform.OS === "ios" ? 60 : 100,
+  subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   hiddenLibraries: [],
