@@ -29,13 +29,13 @@ export type VideoSource = {
   externalSubtitles?: string[];
   startPosition?: number;
   autoplay?: boolean;
-  /** MPV subtitle track ID to select on start (1-based, -1 to disable) */
+  /** Subtitle track ID to select on start (1-based, -1 to disable) */
   initialSubtitleId?: number;
-  /** MPV audio track ID to select on start (1-based) */
+  /** Audio track ID to select on start (1-based) */
   initialAudioId?: number;
 };
 
-export type MpvPlayerViewProps = {
+export type SfPlayerViewProps = {
   source?: VideoSource;
   style?: StyleProp<ViewStyle>;
   onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
@@ -47,7 +47,7 @@ export type MpvPlayerViewProps = {
   onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;
 };
 
-export interface MpvPlayerViewRef {
+export interface SfPlayerViewRef {
   play: () => Promise<void>;
   pause: () => Promise<void>;
   seekTo: (position: number) => Promise<void>;

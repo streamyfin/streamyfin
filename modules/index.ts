@@ -7,20 +7,18 @@ export type {
   DownloadStartedEvent,
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
-// Type aliases for backward compatibility during migration
-// These map old VLC type names to new MPV equivalents
+
+// Streamyfin Player (KSPlayer-based) - GPU acceleration + native PiP
 export type {
-  AudioTrack,
-  MpvPlayerViewProps,
-  MpvPlayerViewRef,
-  OnErrorEventPayload,
-  OnLoadEventPayload,
-  OnPlaybackStateChangePayload,
-  OnProgressEventPayload,
-  OnTracksReadyEventPayload,
-  SubtitleTrack,
-  SubtitleTrack as TrackInfo,
-  VideoSource,
-} from "./mpv-player";
-// MPV Player - Main exports
-export { MpvPlayerView } from "./mpv-player";
+  AudioTrack as SfAudioTrack,
+  OnErrorEventPayload as SfOnErrorEventPayload,
+  OnLoadEventPayload as SfOnLoadEventPayload,
+  OnPlaybackStateChangePayload as SfOnPlaybackStateChangePayload,
+  OnProgressEventPayload as SfOnProgressEventPayload,
+  OnTracksReadyEventPayload as SfOnTracksReadyEventPayload,
+  SfPlayerViewProps,
+  SfPlayerViewRef,
+  SubtitleTrack as SfSubtitleTrack,
+  VideoSource as SfVideoSource,
+} from "./sf-player";
+export { SfPlayerView } from "./sf-player";

@@ -9,10 +9,10 @@ import React, {
   useContext,
   useMemo,
 } from "react";
-import type { MpvPlayerViewRef } from "@/modules";
+import type { SfPlayerViewRef } from "@/modules";
 
 interface PlayerContextProps {
-  playerRef: MutableRefObject<MpvPlayerViewRef | null>;
+  playerRef: MutableRefObject<SfPlayerViewRef | null>;
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
@@ -23,7 +23,7 @@ const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
 
 interface PlayerProviderProps {
   children: ReactNode;
-  playerRef: MutableRefObject<MpvPlayerViewRef | null>;
+  playerRef: MutableRefObject<SfPlayerViewRef | null>;
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;

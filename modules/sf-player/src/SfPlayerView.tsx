@@ -2,13 +2,13 @@ import { requireNativeView } from "expo";
 import * as React from "react";
 import { useImperativeHandle, useRef } from "react";
 
-import { MpvPlayerViewProps, MpvPlayerViewRef } from "./MpvPlayer.types";
+import { SfPlayerViewProps, SfPlayerViewRef } from "./SfPlayer.types";
 
-const NativeView: React.ComponentType<MpvPlayerViewProps & { ref?: any }> =
-  requireNativeView("MpvPlayer");
+const NativeView: React.ComponentType<SfPlayerViewProps & { ref?: any }> =
+  requireNativeView("SfPlayer");
 
-export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
-  function MpvPlayerView(props, ref) {
+export default React.forwardRef<SfPlayerViewRef, SfPlayerViewProps>(
+  function SfPlayerView(props, ref) {
     const nativeRef = useRef<any>(null);
 
     useImperativeHandle(ref, () => ({

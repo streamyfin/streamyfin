@@ -29,11 +29,12 @@ import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
-  MpvPlayerView,
-  type MpvPlayerViewRef,
-  type OnPlaybackStateChangePayload,
-  type OnProgressEventPayload,
-  type VideoSource,
+  type SfOnErrorEventPayload,
+  type SfOnPlaybackStateChangePayload,
+  type SfOnProgressEventPayload,
+  SfPlayerView,
+  type SfPlayerViewRef,
+  type SfVideoSource,
 } from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
@@ -49,7 +50,7 @@ import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function page() {
-  const videoRef = useRef<MpvPlayerViewRef>(null);
+  const videoRef = useRef<SfPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
@@ -312,7 +313,7 @@ export default function page() {
     });
     reportPlaybackStopped();
     setIsPlaybackStopped(true);
-    // MPV doesn't have a stop method, use pause instead
+    // KSPlayer doesn't have a stop method, use pause instead
     videoRef.current?.pause();
     revalidateProgressCache();
   }, [videoRef, reportPlaybackStopped, progress]);
@@ -369,11 +370,11 @@ export default function page() {
   );
 
   const onProgress = useCallback(
-    async (data: { nativeEvent: OnProgressEventPayload }) => {
+    async (data: { nativeEvent: SfOnProgressEventPayload }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
       const { position } = data.nativeEvent;
-      // MPV reports position in seconds, convert to ms
+      // KSPlayer reports position in seconds, convert to ms
       const currentTime = position * 1000;
 
       if (isBuffering) {
@@ -422,7 +423,7 @@ export default function page() {
   }, [getInitialPlaybackTicks]);
 
   /** Build video source config for the native player */
-  const videoSource = useMemo<VideoSource | undefined>(() => {
+  const videoSource = useMemo<SfVideoSource | undefined>(() => {
     if (!stream?.url) return undefined;
 
     const mediaSource = stream.mediaSource;
@@ -436,7 +437,7 @@ export default function page() {
         s.DeliveryUrl,
     ).map((s) => `${api?.basePath}${s.DeliveryUrl}`);
 
-    // Calculate MPV track IDs for initial selection
+    // Calculate track IDs for initial selection
     const initialSubtitleId = getMpvSubtitleId(
       mediaSource,
       subtitleIndex,
@@ -541,7 +542,7 @@ export default function page() {
   });
 
   const onPlaybackStateChanged = useCallback(
-    async (e: { nativeEvent: OnPlaybackStateChangePayload }) => {
+    async (e: { nativeEvent: SfOnPlaybackStateChangePayload }) => {
       const { isPaused, isPlaying: playing, isLoading } = e.nativeEvent;
 
       if (playing) {
@@ -596,11 +597,11 @@ export default function page() {
   }, []);
 
   const seek = useCallback((position: number) => {
-    // MPV expects seconds, convert from ms
+    // KSPlayer expects seconds, convert from ms
     videoRef.current?.seekTo?.(position / 1000);
   }, []);
 
-  // Apply MPV subtitle settings when video loads
+  // Apply subtitle settings when video loads
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
 
@@ -684,14 +685,14 @@ export default function page() {
               justifyContent: "center",
             }}
           >
-            <MpvPlayerView
+            <SfPlayerView
               ref={videoRef}
               source={videoSource}
               style={{ width: "100%", height: "100%" }}
               onProgress={onProgress}
               onPlaybackStateChange={onPlaybackStateChanged}
               onLoad={() => setIsVideoLoaded(true)}
-              onError={(e) => {
+              onError={(e: { nativeEvent: SfOnErrorEventPayload }) => {
                 console.error("Video Error:", e.nativeEvent);
                 Alert.alert(
                   t("player.error"),
