@@ -113,7 +113,7 @@ export default function page() {
   const { settings } = useSettings();
 
   const offline = offlineStr === "true";
-  const playbackManager = usePlaybackManager();
+  const playbackManager = usePlaybackManager({ isOffline: offline });
 
   const audioIndex = audioIndexStr
     ? Number.parseInt(audioIndexStr, 10)
@@ -281,14 +281,14 @@ export default function page() {
   ]);
 
   useEffect(() => {
-    if (!stream || !api) return;
+    if (!stream || !api || offline) return;
     const reportPlaybackStart = async () => {
       await getPlaystateApi(api).reportPlaybackStart({
         playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
       });
     };
     reportPlaybackStart();
-  }, [stream, api]);
+  }, [stream, api, offline]);
 
   const togglePlay = async () => {
     lightHapticFeedback();
@@ -300,17 +300,19 @@ export default function page() {
       );
     } else {
       videoRef.current?.play();
-      await getPlaystateApi(api!).reportPlaybackStart({
-        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
-      });
+      if (!offline && api) {
+        await getPlaystateApi(api).reportPlaybackStart({
+          playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
+        });
+      }
     }
   };
 
   const reportPlaybackStopped = useCallback(async () => {
-    if (!item?.Id || !stream?.sessionId) return;
+    if (!item?.Id || !stream?.sessionId || offline || !api) return;
 
     const currentTimeInTicks = msToTicks(progress.get());
-    await getPlaystateApi(api!).onPlaybackStopped({
+    await getPlaystateApi(api).onPlaybackStopped({
       itemId: item.Id,
       mediaSourceId: mediaSourceId,
       positionTicks: currentTimeInTicks,
@@ -449,48 +451,17 @@ export default function page() {
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
-    // Debug: Log all subtitle streams
-    const allSubtitles = mediaSource?.MediaStreams?.filter(
-      (s) => s.Type === "Subtitle",
-    );
-    console.log(
-      "[Subtitles] MediaStreams count:",
-      mediaSource?.MediaStreams?.length ?? 0,
-    );
-    console.log(
-      "[Subtitles] All subtitle streams:",
-      JSON.stringify(
-        allSubtitles?.map((s) => ({
-          index: s.Index,
-          title: s.DisplayTitle,
-          deliveryMethod: s.DeliveryMethod,
-          deliveryUrl: s.DeliveryUrl,
-          codec: s.Codec,
-          isExternal: s.IsExternal,
-        })),
-        null,
-        2,
-      ),
-    );
-
-    // Get external subtitle URLs
-    const externalSubs = mediaSource?.MediaStreams?.filter(
-      (s) =>
-        s.Type === "Subtitle" &&
-        s.DeliveryMethod === "External" &&
-        s.DeliveryUrl,
-    ).map((s) => `${api?.basePath}${s.DeliveryUrl}`);
-
-    console.log(
-      "[Subtitles] External subtitle URLs:",
-      JSON.stringify(externalSubs),
-    );
-    console.log(
-      "[Subtitles] subtitleIndex:",
-      subtitleIndex,
-      "isTranscoding:",
-      isTranscoding,
-    );
+    // For offline playback, subtitles are embedded in the downloaded file
+    // For online playback, get external subtitle URLs from server
+    let externalSubs: string[] | undefined;
+    if (!offline && api?.basePath) {
+      externalSubs = mediaSource?.MediaStreams?.filter(
+        (s) =>
+          s.Type === "Subtitle" &&
+          s.DeliveryMethod === "External" &&
+          s.DeliveryUrl,
+      ).map((s) => `${api.basePath}${s.DeliveryUrl}`);
+    }
 
     // Calculate track IDs for initial selection
     const initialSubtitleId = getMpvSubtitleId(
@@ -500,28 +471,37 @@ export default function page() {
     );
     const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
 
-    console.log(
-      "[Subtitles] Track IDs - initialSubtitleId:",
-      initialSubtitleId,
-      "initialAudioId:",
-      initialAudioId,
-    );
-
-    return {
+    // Build source config - headers only needed for online streaming
+    const source: SfVideoSource = {
       url: stream.url,
       startPosition,
       autoplay: true,
-      externalSubtitles: externalSubs,
       initialSubtitleId,
       initialAudioId,
     };
+
+    // Add external subtitles only for online playback
+    if (externalSubs && externalSubs.length > 0) {
+      source.externalSubtitles = externalSubs;
+    }
+
+    // Add auth headers only for online streaming (not for local file:// URLs)
+    if (!offline && api?.accessToken) {
+      source.headers = {
+        Authorization: `MediaBrowser Token="${api.accessToken}"`,
+      };
+    }
+
+    return source;
   }, [
     stream?.url,
     stream?.mediaSource,
     startPosition,
     api?.basePath,
+    api?.accessToken,
     subtitleIndex,
     audioIndex,
+    offline,
   ]);
 
   const volumeUpCb = useCallback(async () => {
