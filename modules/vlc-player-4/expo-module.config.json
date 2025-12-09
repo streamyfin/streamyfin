@@ -1,0 +1,7 @@
+{
+  "platforms": ["ios", "tvos"],
+  "ios": {
+    "modules": ["VlcPlayer4Module"],
+    "appDelegateSubscribers": ["AppLifecycleDelegate"]
+  }
+}

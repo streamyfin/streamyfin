@@ -1,0 +1,47 @@
+plugins {
+  id 'com.android.library'
+  id 'kotlin-android'
+  id 'kotlin-kapt'
+}
+
+group = 'expo.modules.vlcplayer'
+version = '0.6.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+def kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
+
+apply from: expoModulesCorePlugin
+
+applyKotlinExpoModulesCorePlugin()
+useDefaultAndroidSdkVersions()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace "expo.modules.vlcplayer"
+  
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+  
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+  
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  implementation 'org.videolan.android:libvlc-all:3.6.0'
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+  kotlinOptions {
+    freeCompilerArgs += ["-Xshow-kotlin-compiler-errors"]
+    jvmTarget = "17"
+  }
+}
