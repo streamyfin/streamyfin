@@ -79,6 +79,10 @@ public class SfPlayerModule: Module {
                 return view.isPictureInPictureActive()
             }
             
+            AsyncFunction("setAutoPipEnabled") { (view: SfPlayerView, enabled: Bool) in
+                view.setAutoPipEnabled(enabled)
+            }
+            
             // Subtitle functions
             AsyncFunction("getSubtitleTracks") { (view: SfPlayerView) -> [[String: Any]] in
                 return view.getSubtitleTracks()
@@ -139,7 +143,7 @@ public class SfPlayerModule: Module {
             }
             
             // Events that the view can send to JavaScript
-            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
+            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
         }
     }
 }

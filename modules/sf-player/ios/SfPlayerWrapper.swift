@@ -10,6 +10,7 @@ protocol SfPlayerWrapperDelegate: AnyObject {
     func player(_ player: SfPlayerWrapper, didBecomeReadyToSeek: Bool)
     func player(_ player: SfPlayerWrapper, didBecomeTracksReady: Bool)
     func player(_ player: SfPlayerWrapper, didEncounterError error: String)
+    func player(_ player: SfPlayerWrapper, didChangePictureInPicture isActive: Bool)
 }
 
 /// Configuration for loading a video
@@ -58,6 +59,7 @@ final class SfPlayerWrapper: NSObject {
     private var initialAudioId: Int?
     
     private var progressTimer: Timer?
+    private var pipController: AVPictureInPictureController?
     
     weak var delegate: SfPlayerWrapperDelegate?
     
@@ -98,9 +100,27 @@ final class SfPlayerWrapper: NSObject {
         player.frame = frame
         player.delegate = self
         
-        // Hide default controls - we use our own
+        // Hide ALL KSPlayer UI elements - we use our own JS controls
         player.toolBar.isHidden = true
         player.navigationBar.isHidden = true
+        player.topMaskView.isHidden = true
+        player.bottomMaskView.isHidden = true
+        player.loadingIndector.isHidden = true
+        player.seekToView.isHidden = true
+        player.replayButton.isHidden = true
+        player.lockButton.isHidden = true
+        player.controllerView.isHidden = true
+        player.titleLabel.isHidden = true
+        player.subtitleBackView.isHidden = true
+        player.subtitleLabel.isHidden = true
+        
+        // Disable all gestures - handled in JS
+        player.tapGesture.isEnabled = false
+        player.doubleTapGesture.isEnabled = false
+        player.panGesture.isEnabled = false
+        
+        // Disable interaction on hidden elements
+        player.controllerView.isUserInteractionEnabled = false
         
         return player
     }
@@ -148,8 +168,17 @@ final class SfPlayerWrapper: NSObject {
         // Create or reset player view
         if playerView == nil, let container = containerView {
             let player = createPlayerView(frame: container.bounds)
-            player.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            player.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(player)
+            
+            // Pin player to all edges of container
+            NSLayoutConstraint.activate([
+                player.topAnchor.constraint(equalTo: container.topAnchor),
+                player.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                player.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                player.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+            ])
+            
             playerView = player
         }
         
@@ -225,12 +254,27 @@ final class SfPlayerWrapper: NSObject {
     
     // MARK: - Picture in Picture
     
+    private func setupPictureInPicture() {
+        guard AVPictureInPictureController.isPictureInPictureSupported() else { return }
+        
+        // Get the PiP controller from KSPlayer
+        guard let pip = playerView?.playerLayer?.player.pipController else { return }
+        
+        pipController = pip
+        pip.delegate = self
+        
+        // Enable automatic PiP when app goes to background (swipe up to home)
+        if #available(iOS 14.2, *) {
+            pip.canStartPictureInPictureAutomaticallyFromInline = true
+        }
+    }
+    
     func startPictureInPicture() {
-        playerView?.playerLayer?.player.pipController?.startPictureInPicture()
+        pipController?.startPictureInPicture()
     }
     
     func stopPictureInPicture() {
-        playerView?.playerLayer?.player.pipController?.stopPictureInPicture()
+        pipController?.stopPictureInPicture()
     }
     
     func isPictureInPictureSupported() -> Bool {
@@ -238,7 +282,13 @@ final class SfPlayerWrapper: NSObject {
     }
     
     func isPictureInPictureActive() -> Bool {
-        return playerView?.playerLayer?.player.pipController?.isPictureInPictureActive ?? false
+        return pipController?.isPictureInPictureActive ?? false
+    }
+    
+    func setAutoPipEnabled(_ enabled: Bool) {
+        if #available(iOS 14.2, *) {
+            pipController?.canStartPictureInPictureAutomaticallyFromInline = enabled
+        }
     }
     
     // MARK: - Subtitle Controls
@@ -375,7 +425,7 @@ final class SfPlayerWrapper: NSObject {
     // MARK: - Layout
     
     func updateLayout(bounds: CGRect) {
-        playerView?.frame = bounds
+        containerView?.layoutIfNeeded()
     }
 }
 
@@ -396,6 +446,12 @@ extension SfPlayerWrapper: PlayerControllerDelegate {
             delegate?.player(self, didChangeLoading: false)
             delegate?.player(self, didBecomeReadyToSeek: true)
             delegate?.player(self, didBecomeTracksReady: true)
+            
+            // Center video content - KSAVPlayerView maps contentMode to videoGravity
+            playerView?.playerLayer?.player.view?.contentMode = .scaleAspectFit
+            
+            // Setup PiP controller with delegate
+            setupPictureInPicture()
             
             // Apply initial track selections
             if let subId = initialSubtitleId {
@@ -461,5 +517,26 @@ extension SfPlayerWrapper: PlayerControllerDelegate {
     
     func playerController(seek: TimeInterval) {
         // Seek completed
+    }
+}
+
+// MARK: - AVPictureInPictureControllerDelegate
+
+extension SfPlayerWrapper: AVPictureInPictureControllerDelegate {
+    func pictureInPictureControllerWillStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        delegate?.player(self, didChangePictureInPicture: true)
+    }
+    
+    func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        delegate?.player(self, didChangePictureInPicture: false)
+    }
+    
+    func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
+        delegate?.player(self, didEncounterError: "PiP failed: \(error.localizedDescription)")
+    }
+    
+    func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
+        // Called when user taps to restore from PiP - return true to allow restoration
+        completionHandler(true)
     }
 }

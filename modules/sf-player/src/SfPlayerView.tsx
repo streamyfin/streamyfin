@@ -53,6 +53,9 @@ export default React.forwardRef<SfPlayerViewRef, SfPlayerViewProps>(
       isPictureInPictureActive: async () => {
         return (await nativeRef.current?.isPictureInPictureActive()) ?? false;
       },
+      setAutoPipEnabled: async (enabled: boolean) => {
+        await nativeRef.current?.setAutoPipEnabled(enabled);
+      },
       getSubtitleTracks: async () => {
         return (await nativeRef.current?.getSubtitleTracks()) ?? [];
       },

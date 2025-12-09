@@ -11,6 +11,7 @@ class SfPlayerView: ExpoView {
     let onProgress = EventDispatcher()
     let onError = EventDispatcher()
     let onTracksReady = EventDispatcher()
+    let onPictureInPictureChange = EventDispatcher()
     
     private var currentURL: URL?
     private var cachedPosition: Double = 0
@@ -145,6 +146,10 @@ class SfPlayerView: ExpoView {
         return player?.isPictureInPictureActive() ?? false
     }
     
+    func setAutoPipEnabled(_ enabled: Bool) {
+        player?.setAutoPipEnabled(enabled)
+    }
+    
     // MARK: - Subtitle Controls
     
     func getSubtitleTracks() -> [[String: Any]] {
@@ -268,6 +273,13 @@ extension SfPlayerView: SfPlayerWrapperDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.onError(["error": error])
+        }
+    }
+    
+    func player(_ player: SfPlayerWrapper, didChangePictureInPicture isActive: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.onPictureInPictureChange(["isActive": isActive])
         }
     }
 }

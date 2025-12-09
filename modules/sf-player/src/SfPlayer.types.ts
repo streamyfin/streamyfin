@@ -23,6 +23,10 @@ export type OnErrorEventPayload = {
 
 export type OnTracksReadyEventPayload = Record<string, never>;
 
+export type OnPictureInPictureChangePayload = {
+  isActive: boolean;
+};
+
 export type VideoSource = {
   url: string;
   headers?: Record<string, string>;
@@ -45,6 +49,9 @@ export type SfPlayerViewProps = {
   onProgress?: (event: { nativeEvent: OnProgressEventPayload }) => void;
   onError?: (event: { nativeEvent: OnErrorEventPayload }) => void;
   onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;
+  onPictureInPictureChange?: (event: {
+    nativeEvent: OnPictureInPictureChangePayload;
+  }) => void;
 };
 
 export interface SfPlayerViewRef {
@@ -61,6 +68,7 @@ export interface SfPlayerViewRef {
   stopPictureInPicture: () => Promise<void>;
   isPictureInPictureSupported: () => Promise<boolean>;
   isPictureInPictureActive: () => Promise<boolean>;
+  setAutoPipEnabled: (enabled: boolean) => Promise<void>;
   // Subtitle controls
   getSubtitleTracks: () => Promise<SubtitleTrack[]>;
   setSubtitleTrack: (trackId: number) => Promise<void>;

@@ -30,6 +30,7 @@ import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybac
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
   type SfOnErrorEventPayload,
+  type SfOnPictureInPictureChangePayload,
   type SfOnPlaybackStateChangePayload,
   type SfOnProgressEventPayload,
   SfPlayerView,
@@ -58,7 +59,7 @@ export default function page() {
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
-  const [isPipMode, _setIsPipMode] = useState(false);
+  const [isPipMode, setIsPipMode] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<
     "default" | "16:9" | "4:3" | "1:1" | "21:9"
   >("default");
@@ -575,6 +576,18 @@ export default function page() {
     [playbackManager, item?.Id, progress],
   );
 
+  const onPictureInPictureChange = useCallback(
+    (e: { nativeEvent: SfOnPictureInPictureChangePayload }) => {
+      const { isActive } = e.nativeEvent;
+      setIsPipMode(isActive);
+      // Hide controls when entering PiP
+      if (isActive) {
+        _setShowControls(false);
+      }
+    },
+    [],
+  );
+
   const [isMounted, setIsMounted] = useState(false);
 
   // Add useEffect to handle mounting
@@ -691,6 +704,7 @@ export default function page() {
               style={{ width: "100%", height: "100%" }}
               onProgress={onProgress}
               onPlaybackStateChange={onPlaybackStateChanged}
+              onPictureInPictureChange={onPictureInPictureChange}
               onLoad={() => setIsVideoLoaded(true)}
               onError={(e: { nativeEvent: SfOnErrorEventPayload }) => {
                 console.error("Video Error:", e.nativeEvent);

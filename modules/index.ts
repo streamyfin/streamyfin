@@ -13,6 +13,7 @@ export type {
   AudioTrack as SfAudioTrack,
   OnErrorEventPayload as SfOnErrorEventPayload,
   OnLoadEventPayload as SfOnLoadEventPayload,
+  OnPictureInPictureChangePayload as SfOnPictureInPictureChangePayload,
   OnPlaybackStateChangePayload as SfOnPlaybackStateChangePayload,
   OnProgressEventPayload as SfOnProgressEventPayload,
   OnTracksReadyEventPayload as SfOnTracksReadyEventPayload,
