@@ -198,6 +198,24 @@ class SfPlayerView: ExpoView {
         player?.setSubtitleFontSize(size)
     }
     
+    func setSubtitleColor(_ hexColor: String) {
+        player?.setSubtitleColor(hexColor)
+    }
+    
+    func setSubtitleBackgroundColor(_ hexColor: String) {
+        player?.setSubtitleBackgroundColor(hexColor)
+    }
+    
+    // MARK: - Hardware Decode (static, affects all players)
+    
+    static func setHardwareDecode(_ enabled: Bool) {
+        SfPlayerWrapper.setHardwareDecode(enabled)
+    }
+    
+    static func getHardwareDecode() -> Bool {
+        return SfPlayerWrapper.getHardwareDecode()
+    }
+    
     // MARK: - Audio Track Controls
     
     func getAudioTracks() -> [[String: Any]] {

@@ -36,6 +36,7 @@ import {
   SfPlayerView,
   type SfPlayerViewRef,
   type SfVideoSource,
+  setHardwareDecode,
 } from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
@@ -661,6 +662,13 @@ export default function page() {
     await videoRef.current?.setVideoZoomToFill(newZoomState);
   }, [isZoomedToFill]);
 
+  // Apply KSPlayer global settings before video loads
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      setHardwareDecode(settings.ksHardwareDecode);
+    }
+  }, [settings.ksHardwareDecode]);
+
   // Apply subtitle settings when video loads
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
@@ -686,6 +694,17 @@ export default function page() {
       // Apply subtitle size from general settings
       if (settings.subtitleSize) {
         await videoRef.current?.setSubtitleFontSize(settings.subtitleSize);
+      }
+      // Apply KSPlayer-specific subtitle styling (iOS only)
+      if (Platform.OS === "ios") {
+        if (settings.ksSubtitleColor) {
+          await videoRef.current?.setSubtitleColor(settings.ksSubtitleColor);
+        }
+        if (settings.ksSubtitleBackgroundColor) {
+          await videoRef.current?.setSubtitleBackgroundColor(
+            settings.ksSubtitleBackgroundColor,
+          );
+        }
       }
     };
 

@@ -89,6 +89,12 @@ export default React.forwardRef<SfPlayerViewRef, SfPlayerViewProps>(
       setSubtitleFontSize: async (size: number) => {
         await nativeRef.current?.setSubtitleFontSize(size);
       },
+      setSubtitleColor: async (hexColor: string) => {
+        await nativeRef.current?.setSubtitleColor(hexColor);
+      },
+      setSubtitleBackgroundColor: async (hexColor: string) => {
+        await nativeRef.current?.setSubtitleBackgroundColor(hexColor);
+      },
       getAudioTracks: async () => {
         return (await nativeRef.current?.getAudioTracks()) ?? [];
       },

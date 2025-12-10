@@ -4,6 +4,15 @@ public class SfPlayerModule: Module {
     public func definition() -> ModuleDefinition {
         Name("SfPlayer")
         
+        // Module-level functions (not tied to a specific view instance)
+        Function("setHardwareDecode") { (enabled: Bool) in
+            SfPlayerView.setHardwareDecode(enabled)
+        }
+        
+        Function("getHardwareDecode") { () -> Bool in
+            return SfPlayerView.getHardwareDecode()
+        }
+        
         // Enables the module to be used as a native view
         View(SfPlayerView.self) {
             // All video load options are passed via a single "source" prop
@@ -127,6 +136,14 @@ public class SfPlayerModule: Module {
             
             AsyncFunction("setSubtitleFontSize") { (view: SfPlayerView, size: Int) in
                 view.setSubtitleFontSize(size)
+            }
+            
+            AsyncFunction("setSubtitleColor") { (view: SfPlayerView, hexColor: String) in
+                view.setSubtitleColor(hexColor)
+            }
+            
+            AsyncFunction("setSubtitleBackgroundColor") { (view: SfPlayerView, hexColor: String) in
+                view.setSubtitleBackgroundColor(hexColor)
             }
             
             // Audio track functions

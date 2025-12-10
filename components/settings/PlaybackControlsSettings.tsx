@@ -12,6 +12,7 @@ import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { KSPlayerSettings } from "./KSPlayerSettings";
 
 export const PlaybackControlsSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -190,6 +191,8 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
       </ListGroup>
+
+      <KSPlayerSettings />
     </DisabledSetting>
   );
 };

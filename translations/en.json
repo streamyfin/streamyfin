@@ -168,7 +168,13 @@
           "Thin": "Thin",
           "Normal": "Normal",
           "Thick": "Thick"
-        }
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
       },
       "other": {
         "other_title": "Other",

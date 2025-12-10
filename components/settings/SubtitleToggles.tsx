@@ -12,6 +12,23 @@ import { ListItem } from "../list/ListItem";
 import { PlatformDropdown } from "../PlatformDropdown";
 import { useMedia } from "./MediaContext";
 
+const SUBTITLE_COLORS = [
+  { label: "White", value: "#FFFFFF" },
+  { label: "Yellow", value: "#FFFF00" },
+  { label: "Green", value: "#00FF00" },
+  { label: "Cyan", value: "#00FFFF" },
+  { label: "Blue", value: "#0000FF" },
+  { label: "Magenta", value: "#FF00FF" },
+  { label: "Red", value: "#FF0000" },
+];
+
+const SUBTITLE_BACKGROUND_COLORS = [
+  { label: "Semi-transparent Black", value: "#00000080" },
+  { label: "Black", value: "#000000" },
+  { label: "Transparent", value: "#00000000" },
+  { label: "Semi-transparent White", value: "#FFFFFF40" },
+];
+
 interface Props extends ViewProps {}
 
 export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
@@ -85,6 +102,37 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
       },
     ];
   }, [settings?.subtitleMode, t, updateSettings]);
+
+  const subtitleColorOptionGroups = useMemo(
+    () => [
+      {
+        options: SUBTITLE_COLORS.map((color) => ({
+          type: "radio" as const,
+          label: color.label,
+          value: color.value,
+          selected: color.value === settings?.ksSubtitleColor,
+          onPress: () => updateSettings({ ksSubtitleColor: color.value }),
+        })),
+      },
+    ],
+    [settings?.ksSubtitleColor, updateSettings],
+  );
+
+  const subtitleBackgroundOptionGroups = useMemo(
+    () => [
+      {
+        options: SUBTITLE_BACKGROUND_COLORS.map((color) => ({
+          type: "radio" as const,
+          label: color.label,
+          value: color.value,
+          selected: color.value === settings?.ksSubtitleBackgroundColor,
+          onPress: () =>
+            updateSettings({ ksSubtitleBackgroundColor: color.value }),
+        })),
+      },
+    ],
+    [settings?.ksSubtitleBackgroundColor, updateSettings],
+  );
 
   if (isTv) return null;
   if (!settings) return null;
@@ -170,6 +218,64 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             }
           />
         </ListItem>
+
+        {Platform.OS === "ios" && (
+          <View>
+            <ListItem title={t("home.settings.subtitles.subtitle_color")}>
+              <PlatformDropdown
+                groups={subtitleColorOptionGroups}
+                trigger={
+                  <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                    <View
+                      className='w-4 h-4 rounded-full mr-2 border border-neutral-500'
+                      style={{ backgroundColor: settings?.ksSubtitleColor }}
+                    />
+                    <Text className='mr-1 text-[#8E8D91]'>
+                      {SUBTITLE_COLORS.find(
+                        (c) => c.value === settings?.ksSubtitleColor,
+                      )?.label || "White"}
+                    </Text>
+                    <Ionicons
+                      name='chevron-expand-sharp'
+                      size={18}
+                      color='#5A5960'
+                    />
+                  </View>
+                }
+                title={t("home.settings.subtitles.subtitle_color")}
+              />
+            </ListItem>
+
+            <ListItem
+              title={t("home.settings.subtitles.subtitle_background_color")}
+            >
+              <PlatformDropdown
+                groups={subtitleBackgroundOptionGroups}
+                trigger={
+                  <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                    <View
+                      className='w-4 h-4 rounded-full mr-2 border border-neutral-500'
+                      style={{
+                        backgroundColor: settings?.ksSubtitleBackgroundColor,
+                      }}
+                    />
+                    <Text className='mr-1 text-[#8E8D91]'>
+                      {SUBTITLE_BACKGROUND_COLORS.find(
+                        (c) => c.value === settings?.ksSubtitleBackgroundColor,
+                      )?.label || "Semi-transparent Black"}
+                    </Text>
+                    <Ionicons
+                      name='chevron-expand-sharp'
+                      size={18}
+                      color='#5A5960'
+                    />
+                  </View>
+                }
+                title={t("home.settings.subtitles.subtitle_background_color")}
+              />
+            </ListItem>
+          </View>
+        )}
       </ListGroup>
     </View>
   );

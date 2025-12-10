@@ -169,6 +169,11 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
+  // KSPlayer settings
+  ksHardwareDecode: boolean;
+  ksSubtitleColor: string;
+  ksSubtitleBackgroundColor: string;
+  ksSubtitleFontName: string;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -230,6 +235,11 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
+  // KSPlayer defaults
+  ksHardwareDecode: true,
+  ksSubtitleColor: "#FFFFFF",
+  ksSubtitleBackgroundColor: "#00000080",
+  ksSubtitleFontName: "System",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,

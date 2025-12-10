@@ -22,4 +22,8 @@ export type {
   SubtitleTrack as SfSubtitleTrack,
   VideoSource as SfVideoSource,
 } from "./sf-player";
-export { SfPlayerView } from "./sf-player";
+export {
+  getHardwareDecode,
+  SfPlayerView,
+  setHardwareDecode,
+} from "./sf-player";

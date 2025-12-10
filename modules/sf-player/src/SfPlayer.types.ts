@@ -82,6 +82,8 @@ export interface SfPlayerViewRef {
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
   setSubtitleFontSize: (size: number) => Promise<void>;
+  setSubtitleColor: (hexColor: string) => Promise<void>;
+  setSubtitleBackgroundColor: (hexColor: string) => Promise<void>;
   // Audio controls
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;
