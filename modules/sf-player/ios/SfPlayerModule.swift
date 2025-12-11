@@ -145,6 +145,10 @@ public class SfPlayerModule: Module {
             AsyncFunction("setSubtitleBackgroundColor") { (view: SfPlayerView, hexColor: String) in
                 view.setSubtitleBackgroundColor(hexColor)
             }
+
+            AsyncFunction("setSubtitleFontName") { (view: SfPlayerView, fontName: String) in
+                view.setSubtitleFontName(fontName)
+            }
             
             // Audio track functions
             AsyncFunction("getAudioTracks") { (view: SfPlayerView) -> [[String: Any]] in

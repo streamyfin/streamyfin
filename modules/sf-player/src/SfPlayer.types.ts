@@ -84,6 +84,7 @@ export interface SfPlayerViewRef {
   setSubtitleFontSize: (size: number) => Promise<void>;
   setSubtitleColor: (hexColor: string) => Promise<void>;
   setSubtitleBackgroundColor: (hexColor: string) => Promise<void>;
+  setSubtitleFontName: (fontName: string) => Promise<void>;
   // Audio controls
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;

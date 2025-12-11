@@ -95,6 +95,9 @@ export default React.forwardRef<SfPlayerViewRef, SfPlayerViewProps>(
       setSubtitleBackgroundColor: async (hexColor: string) => {
         await nativeRef.current?.setSubtitleBackgroundColor(hexColor);
       },
+      setSubtitleFontName: async (fontName: string) => {
+        await nativeRef.current?.setSubtitleFontName?.(fontName);
+      },
       getAudioTracks: async () => {
         return (await nativeRef.current?.getAudioTracks()) ?? [];
       },

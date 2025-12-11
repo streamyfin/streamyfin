@@ -205,6 +205,10 @@ class SfPlayerView: ExpoView {
     func setSubtitleBackgroundColor(_ hexColor: String) {
         player?.setSubtitleBackgroundColor(hexColor)
     }
+
+    func setSubtitleFontName(_ fontName: String) {
+        player?.setSubtitleFontName(fontName)
+    }
     
     // MARK: - Hardware Decode (static, affects all players)
     

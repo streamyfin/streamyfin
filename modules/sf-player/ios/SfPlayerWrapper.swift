@@ -67,6 +67,8 @@ final class SfPlayerWrapper: NSObject {
     private var subtitleScale: CGFloat = 1.0
     /// When true, setSubtitleFontSize won't override the scale (user set explicit value)
     private var isScaleExplicitlySet: Bool = false
+    /// Optional override for subtitle font family
+    private var subtitleFontName: String?
     
     weak var delegate: SfPlayerWrapperDelegate?
     
@@ -130,7 +132,7 @@ final class SfPlayerWrapper: NSObject {
         
         // Disable interaction on hidden elements
         player.controllerView.isUserInteractionEnabled = false
-        
+        applySubtitleFont()
         return player
     }
     
@@ -522,6 +524,11 @@ final class SfPlayerWrapper: NSObject {
         
         playerView?.updateSrt()
     }
+
+    func setSubtitleFontName(_ name: String?) {
+        subtitleFontName = name
+        applySubtitleFont()
+    }
     
     func setSubtitleColor(_ hexColor: String) {
         if let color = UIColor(hex: hexColor) {
@@ -547,6 +554,32 @@ final class SfPlayerWrapper: NSObject {
     
     static func getHardwareDecode() -> Bool {
         return KSOptions.hardwareDecode
+    }
+
+    // MARK: - Private helpers
+
+    private func applySubtitleFont() {
+        guard let playerView else { return }
+        let currentSize = playerView.subtitleLabel.font.pointSize
+
+        let baseFont: UIFont
+        if let subtitleFontName,
+           !subtitleFontName.isEmpty,
+           subtitleFontName.lowercased() != "system",
+           let customFont = UIFont(name: subtitleFontName, size: currentSize) {
+            baseFont = customFont
+        } else {
+            baseFont = UIFont.systemFont(ofSize: currentSize)
+        }
+
+        // Remove any implicit italic trait to avoid overly slanted rendering
+        let nonItalicDescriptor = baseFont.fontDescriptor
+            .withSymbolicTraits(baseFont.fontDescriptor.symbolicTraits.subtracting(.traitItalic))
+            ?? baseFont.fontDescriptor
+        let finalFont = UIFont(descriptor: nonItalicDescriptor, size: currentSize)
+
+        playerView.subtitleLabel.font = finalFont
+        playerView.updateSrt()
     }
     
     // MARK: - Audio Controls

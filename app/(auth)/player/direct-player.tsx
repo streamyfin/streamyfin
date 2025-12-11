@@ -695,17 +695,7 @@ export default function page() {
       if (settings.subtitleSize) {
         await videoRef.current?.setSubtitleFontSize(settings.subtitleSize);
       }
-      // Apply KSPlayer-specific subtitle styling (iOS only)
-      if (Platform.OS === "ios") {
-        if (settings.ksSubtitleColor) {
-          await videoRef.current?.setSubtitleColor(settings.ksSubtitleColor);
-        }
-        if (settings.ksSubtitleBackgroundColor) {
-          await videoRef.current?.setSubtitleBackgroundColor(
-            settings.ksSubtitleBackgroundColor,
-          );
-        }
-      }
+      // No KSPlayer-specific styling applied
     };
 
     applySubtitleSettings();
