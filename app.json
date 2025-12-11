@@ -133,7 +133,16 @@
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"]
+      ["./plugins/withGradleProperties.js"],
+      [
+        "./plugins/addSPMDependenciesToMainTarget",
+        {
+          "version": "0.40.0",
+          "repositoryUrl": "https://github.com/Alexk2309/mpvkit-private",
+          "repoName": "mpvkit-private",
+          "productName": "MPVKit"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
