@@ -340,6 +340,7 @@ export const Controls: FC<Props> = ({
     offline,
     api,
     downloadedFiles,
+    max.value,
   );
 
   const goToItemCommon = useCallback(
