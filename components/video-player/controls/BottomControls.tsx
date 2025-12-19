@@ -21,6 +21,7 @@ interface BottomControlsProps {
   isVlc: boolean;
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
+  hasContentAfterCredits: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
   nextItem?: BaseItemDto | null;
@@ -69,6 +70,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
   isVlc,
   showSkipButton,
   showSkipCreditButton,
+  hasContentAfterCredits,
   skipIntro,
   skipCredit,
   nextItem,
@@ -136,8 +138,13 @@ export const BottomControls: FC<BottomControlsProps> = ({
             onPress={skipIntro}
             buttonText='Skip Intro'
           />
+          {/* Smart Skip Credits behavior:
+              - Show "Skip Credits" if there's content after credits OR no next episode
+              - Show "Next Episode" if credits extend to video end AND next episode exists */}
           <SkipButton
-            showButton={showSkipCreditButton}
+            showButton={
+              showSkipCreditButton && (hasContentAfterCredits || !nextItem)
+            }
             onPress={skipCredit}
             buttonText='Skip Credits'
           />
@@ -148,9 +155,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
               show={
                 !nextItem
                   ? false
-                  : isVlc
-                    ? remainingTime < 10000
-                    : remainingTime < 10
+                  : // Show during credits if no content after, OR near end of video
+                    (showSkipCreditButton && !hasContentAfterCredits) ||
+                    (isVlc ? remainingTime < 10000 : remainingTime < 10)
               }
               onFinish={handleNextEpisodeAutoPlay}
               onPress={handleNextEpisodeManual}

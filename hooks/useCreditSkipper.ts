@@ -57,6 +57,16 @@ export const useCreditSkipper = (
   );
   const creditTimestamps = segments?.creditSegments?.[0];
 
+  // Determine if there's content after credits (credits don't extend to video end)
+  // Use a 5-second buffer to account for timing discrepancies
+  const hasContentAfterCredits = (() => {
+    if (!creditTimestamps || !totalDurationInSeconds) return false;
+    const creditsEndToVideoEnd =
+      totalDurationInSeconds - creditTimestamps.endTime;
+    // If credits end more than 5 seconds before video ends, there's content after
+    return creditsEndToVideoEnd > 5;
+  })();
+
   useEffect(() => {
     if (creditTimestamps) {
       const shouldShow =
@@ -105,5 +115,5 @@ export const useCreditSkipper = (
     totalDurationInSeconds,
   ]);
 
-  return { showSkipCreditButton, skipCredit };
+  return { showSkipCreditButton, skipCredit, hasContentAfterCredits };
 };
