@@ -455,14 +455,25 @@ export const DownloadSingleItem: React.FC<{
 }> = ({ item, size = "default" }) => {
   if (Platform.isTV) return;
 
+  // Determine the download title based on item type
+  const getDownloadTitle = () => {
+    if (item.Type === "Episode") {
+      return t("item_card.download.download_episode");
+    }
+    // Channel video or audio items
+    if (item.ChannelId) {
+      if (item.MediaType === "Audio" || item.Type === "Audio") {
+        return t("item_card.download.download_channel_audio");
+      }
+      return t("item_card.download.download_channel_video");
+    }
+    return t("item_card.download.download_movie");
+  };
+
   return (
     <DownloadItems
       size={size}
-      title={
-        item.Type === "Episode"
-          ? t("item_card.download.download_episode")
-          : t("item_card.download.download_movie")
-      }
+      title={getDownloadTitle()}
       subtitle={item.Name!}
       items={[item]}
       MissingDownloadIconComponent={() => (

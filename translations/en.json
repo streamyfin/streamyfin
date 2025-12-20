@@ -281,6 +281,7 @@
       "movies": "Movies",
       "queue": "Queue",
       "other_media": "Other media",
+      "channel_content": "Channel Content",
       "queue_hint": "Queue and downloads will be lost on app restart",
       "no_items_in_queue": "No Items in Queue",
       "no_downloaded_items": "No Downloaded Items",
@@ -383,7 +384,8 @@
       "movies": "Movies",
       "series": "Series",
       "boxsets": "Box Sets",
-      "items": "Items"
+      "items": "Items",
+      "channel_items": "Items"
     },
     "options": {
       "display": "Display",
@@ -415,6 +417,11 @@
   },
   "custom_links": {
     "no_links": "No Links"
+  },
+  "channels": {
+    "title": "Channels",
+    "empty": "No content available",
+    "folder": "Folder"
   },
   "player": {
     "error": "Error",
@@ -464,6 +471,8 @@
       "download_series": "Download Series",
       "download_episode": "Download Episode",
       "download_movie": "Download Movie",
+      "download_channel_video": "Download Video",
+      "download_channel_audio": "Download Audio",
       "download_x_item": "Download {{item_count}} Items",
       "download_unwatched_only": "Unwatched Only",
       "download_button": "Download"

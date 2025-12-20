@@ -40,6 +40,15 @@ export const itemRouter = (item: BaseItemDto, from: string) => {
     return `/(auth)/(tabs)/(libraries)/${item.Id}`;
   }
 
+  // Channel navigation
+  if (item.Type === "Channel") {
+    return `/(auth)/(tabs)/${from}/channels/${item.Id}`;
+  }
+
+  if (item.Type === "ChannelFolderItem") {
+    return `/(auth)/(tabs)/${from}/channels/${item.ChannelId}/folder/${item.Id}`;
+  }
+
   return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
 };
 
@@ -75,6 +84,21 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     return {
       pathname: "/[libraryId]" as const,
       params: { libraryId: item.Id! },
+    };
+  }
+
+  // Channel navigation
+  if (item.Type === "Channel") {
+    return {
+      pathname: "/channels/[channelId]" as const,
+      params: { channelId: item.Id! },
+    };
+  }
+
+  if (item.Type === "ChannelFolderItem") {
+    return {
+      pathname: "/channels/[channelId]/folder/[folderId]" as const,
+      params: { channelId: item.ChannelId!, folderId: item.Id! },
     };
   }
 
