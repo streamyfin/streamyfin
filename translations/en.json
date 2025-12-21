@@ -113,6 +113,15 @@
         "right_side_volume": "Right Side Volume Control",
         "right_side_volume_description": "Swipe up/down on right side to adjust volume"
       },
+      "controls": {
+        "controls_title": "Controls",
+        "show_volume_slider": "Show Volume Slider",
+        "show_volume_slider_description": "Display volume slider on the right side of video controls",
+        "show_brightness_slider": "Show Brightness Slider",
+        "show_brightness_slider_description": "Display brightness slider on the left side of video controls",
+        "show_seek_buttons": "Show Seek Buttons",
+        "show_seek_buttons_description": "Display forward/rewind buttons next to the play button"
+      },
       "audio": {
         "audio_title": "Audio",
         "set_audio_track": "Set Audio Track From Previous Item",
