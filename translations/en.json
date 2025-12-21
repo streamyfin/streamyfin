@@ -111,7 +111,9 @@
         "left_side_brightness": "Left Side Brightness Control",
         "left_side_brightness_description": "Swipe up/down on left side to adjust brightness",
         "right_side_volume": "Right Side Volume Control",
-        "right_side_volume_description": "Swipe up/down on right side to adjust volume"
+        "right_side_volume_description": "Swipe up/down on right side to adjust volume",
+        "double_tap_to_seek": "Double Tap to Seek",
+        "double_tap_to_seek_description": "Seek forward/backward by double tapping on a screen side"
       },
       "audio": {
         "audio_title": "Audio",

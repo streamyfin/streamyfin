@@ -43,6 +43,8 @@ export const GestureOverlay = ({
   const isDraggingRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
   const lastUpdateTime = useRef(0);
+  const accumulatedSeekTime = useRef(0);
+  const lastDoubleTapSide = useRef<"left" | "right" | null>(null);
 
   const showFeedback = useCallback(
     (
@@ -62,24 +64,30 @@ export const GestureOverlay = ({
         setFeedback({ visible: true, icon, text, side });
 
         if (!isDuringDrag) {
-          // For discrete actions (like skip), show normal animation
-          Animated.sequence([
-            Animated.timing(fadeAnim, {
-              toValue: 1,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-            Animated.delay(1000),
+          // Stop any running animation
+          fadeAnim.stopAnimation();
+          // Ensure it's visible (fade in if needed, or stay visible)
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 100, // quick fade in if hidden
+            useNativeDriver: true,
+          }).start();
+
+          // Set timeout to hide
+          hideTimeoutRef.current = setTimeout(() => {
             Animated.timing(fadeAnim, {
               toValue: 0,
               duration: 300,
               useNativeDriver: true,
-            }),
-          ]).start(() => {
-            requestAnimationFrame(() => {
-              setFeedback((prev) => ({ ...prev, visible: false }));
+            }).start(() => {
+              requestAnimationFrame(() => {
+                setFeedback((prev) => ({ ...prev, visible: false }));
+              });
+              // Reset accumulator when feedback hides
+              accumulatedSeekTime.current = 0;
+              lastDoubleTapSide.current = null;
             });
-          });
+          }, 1000) as unknown as number;
         } else if (!isDraggingRef.current) {
           // For drag start, just fade in and stay visible
           isDraggingRef.current = true;
@@ -238,20 +246,45 @@ export const GestureOverlay = ({
   const handleDoubleTap = useCallback(
     (x: number) => {
       if (!settings.enableDoubleTapToSeek) return;
+      lightHaptic();
 
-      if (x < screenWidth / 2) {
-        // Left side - rewind
-        handleSkipBackward();
+      const side = x < screenWidth / 2 ? "left" : "right";
+      const baseTime =
+        side === "left" ? settings.rewindSkipTime : settings.forwardSkipTime;
+
+      // Check if we should stack (same side and feedback is currently visible)
+      if (lastDoubleTapSide.current === side && feedback.visible) {
+        accumulatedSeekTime.current += baseTime;
       } else {
-        // Right side - skip forward
-        handleSkipForward();
+        accumulatedSeekTime.current = baseTime;
+        lastDoubleTapSide.current = side;
       }
+
+      const text =
+        side === "left"
+          ? `-${accumulatedSeekTime.current}s`
+          : `+${accumulatedSeekTime.current}s`;
+      const icon = side === "left" ? "play-back" : "play-forward";
+
+      requestAnimationFrame(() => {
+        if (side === "left") {
+          onSkipBackward();
+        } else {
+          onSkipForward();
+        }
+        showFeedback(icon, text, side);
+      });
     },
     [
       settings.enableDoubleTapToSeek,
+      settings.rewindSkipTime,
+      settings.forwardSkipTime,
       screenWidth,
-      handleSkipBackward,
-      handleSkipForward,
+      onSkipBackward,
+      onSkipForward,
+      showFeedback,
+      lightHaptic,
+      feedback.visible,
     ],
   );
 
