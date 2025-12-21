@@ -28,6 +28,11 @@ export const PluginSettings = () => {
         title='Marlin Search'
         showArrow
       />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/jellysleep/page")}
+        title={"Jellysleep"}
+        showArrow
+      />
     </ListGroup>
   );
 };

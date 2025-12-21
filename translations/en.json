@@ -238,6 +238,12 @@
           "toasts": {
             "saved": "Saved"
           }
+        },
+        "jellysleep": {
+          "title": "Sleep Timer",
+          "enable": "Enable Sleep Timer",
+          "plugin_requirement": "This feature requires the Jellysleep plugin to be installed and enabled on your Jellyfin server.",
+          "github_repo_link": "https://github.com/jon4hz/jellyfin-plugin-jellysleep"
         }
       },
       "storage": {
@@ -338,7 +344,14 @@
     "subtitle": "Subtitle",
     "play": "Play",
     "none": "None",
-    "track": "Track"
+    "track": "Track",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "error": "Error"
   },
   "search": {
     "search": "Search...",
@@ -536,6 +549,46 @@
       "failed_to_approve_request": "Failed to Approve Request",
       "failed_to_decline_request": "Failed to Decline Request"
     }
+  },
+  "jellysleep": {
+    "manage_timer": "Manage Sleep Timer",
+    "cancel_timer": "Cancel Timer",
+    "active_timer": "Sleep Timer Active",
+    "remaining": "remaining",
+    "cancel_confirm_title": "Cancel Sleep Timer",
+    "cancel_confirm_message": "Are you sure you want to cancel the sleep timer?",
+    "error_title": "Sleep Timer Error",
+    "error_generic": "Failed to set sleep timer. Please try again.",
+    "after_episode": "After this episode",
+    "after_this_episode": "After this episode",
+    "after_episode_one": "After this episode",
+    "after_episode_other": "After {{count}} episodes",
+    "minute_one": "minute",
+    "minute_other": "minutes",
+    "hour_one": "hour",
+    "hour_other": "hours",
+    "episode_one": "episode",
+    "episode_other": "episodes",
+    "timer_options": "Sleep Timer Options",
+    "add_timer_option": "Add Timer Option",
+    "select_timer_type": "Select the type of timer you want to add",
+    "duration_timer": "Duration Timer",
+    "episode_timer": "Episode Timer",
+    "enter_minutes": "Enter the number of minutes",
+    "enter_episode_count": "Enter the number of episodes",
+    "delete_timer_option": "Delete Timer Option",
+    "delete_timer_option_confirm": "Are you sure you want to delete this timer option?",
+    "edit_duration_timer": "Edit Duration Timer",
+    "edit_episode_timer": "Edit Episode Timer",
+    "timer_options_description": "Customize your sleep timer options",
+    "timer_options_info": "You can add, edit, or delete timer options that will appear in the sleep timer menu during video playback.",
+    "plugin_requirement": "This feature requires the Jellysleep plugin to be installed and enabled on your Jellyfin server.",
+    "github_repo_link": "https://github.com/jon4hz/jellyfin-plugin-jellysleep",
+    "duplicate_duration_timer": "A {{minutes}} {{minute}} timer already exists",
+    "duplicate_episode_timer": "An episode timer for {{count}} {{episode}} already exists",
+    "enter_number_placeholder": "Enter number...",
+    "sleep_timer_label": "sleep timer",
+    "invalid_timer_value": "Invalid timer value"
   },
   "tabs": {
     "home": "Home",

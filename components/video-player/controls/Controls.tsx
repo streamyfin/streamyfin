@@ -1,3 +1,14 @@
+import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
+import { useCreditSkipper } from "@/hooks/useCreditSkipper";
+import { useHaptic } from "@/hooks/useHaptic";
+import { useIntroSkipper } from "@/hooks/useIntroSkipper";
+import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { useTrickplay } from "@/hooks/useTrickplay";
+import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
+import { DownloadedItem } from "@/providers/Downloads/types";
+import { useSettings } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { ticksToMs } from "@/utils/time";
 import { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
@@ -22,17 +33,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
-import { useHaptic } from "@/hooks/useHaptic";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
-import { usePlaybackManager } from "@/hooks/usePlaybackManager";
-import { useTrickplay } from "@/hooks/useTrickplay";
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
-import { DownloadedItem } from "@/providers/Downloads/types";
-import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
