@@ -1,5 +1,7 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { GestureResponderEvent } from "react-native";
+
+const DOUBLE_TAP_DELAY_MS = 300;
 
 export interface SwipeGestureOptions {
   minDistance?: number;
@@ -187,13 +189,13 @@ export const useGestureDetection = ({
         }
       } else if (
         !hasMovedEnough.current &&
-        touchDuration < 300 &&
+        touchDuration < DOUBLE_TAP_DELAY_MS &&
         totalDistance < 10
       ) {
         // It's a tap - short duration and small movement
         if (onDoubleTap) {
           const now = Date.now();
-          if (now - lastTapTime.current < 300) {
+          if (now - lastTapTime.current < DOUBLE_TAP_DELAY_MS) {
             // Double tap detected
             if (tapTimeout.current) {
               clearTimeout(tapTimeout.current);
@@ -207,11 +209,13 @@ export const useGestureDetection = ({
             tapTimeout.current = setTimeout(() => {
               onTap?.();
               lastTapTime.current = 0;
-            }, 300) as unknown as number;
+            }, DOUBLE_TAP_DELAY_MS) as unknown as number;
           }
         } else {
           onTap?.();
         }
+      } else {
+        lastTapTime.current = 0; // moved too much or too long, reset tap
       }
 
       hasMovedEnough.current = false;
@@ -227,6 +231,15 @@ export const useGestureDetection = ({
       onDoubleTap,
     ],
   );
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tapTimeout.current) {
+        clearTimeout(tapTimeout.current);
+      }
+    };
+  }, []);
 
   return {
     handleTouchStart,

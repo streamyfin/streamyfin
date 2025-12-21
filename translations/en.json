@@ -113,7 +113,7 @@
         "right_side_volume": "Right Side Volume Control",
         "right_side_volume_description": "Swipe up/down on right side to adjust volume",
         "double_tap_to_seek": "Double Tap to Seek",
-        "double_tap_to_seek_description": "Seek forward/backward by double tapping on a screen side"
+        "double_tap_to_seek_description": "Double tap left/right side of screen to rewind/skip forward"
       },
       "audio": {
         "audio_title": "Audio",

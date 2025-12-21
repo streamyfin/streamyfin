@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -22,6 +22,8 @@ interface FeedbackState {
   text: string;
   side?: "left" | "right";
 }
+
+const FEEDBACK_DISPLAY_DURATION_MS = 1000;
 
 export const GestureOverlay = ({
   screenWidth,
@@ -67,27 +69,26 @@ export const GestureOverlay = ({
           // Stop any running animation
           fadeAnim.stopAnimation();
           // Ensure it's visible (fade in if needed, or stay visible)
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 100, // quick fade in if hidden
-            useNativeDriver: true,
-          }).start();
-
-          // Set timeout to hide
-          hideTimeoutRef.current = setTimeout(() => {
+          Animated.sequence([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 100, // quick fade in if hidden
+              useNativeDriver: true,
+            }),
+            Animated.delay(FEEDBACK_DISPLAY_DURATION_MS),
             Animated.timing(fadeAnim, {
               toValue: 0,
               duration: 300,
               useNativeDriver: true,
-            }).start(() => {
-              requestAnimationFrame(() => {
-                setFeedback((prev) => ({ ...prev, visible: false }));
-              });
+            }),
+          ]).start(() => {
+            requestAnimationFrame(() => {
+              setFeedback((prev) => ({ ...prev, visible: false }));
               // Reset accumulator when feedback hides
               accumulatedSeekTime.current = 0;
               lastDoubleTapSide.current = null;
             });
-          }, 1000) as unknown as number;
+          });
         } else if (!isDraggingRef.current) {
           // For drag start, just fade in and stay visible
           isDraggingRef.current = true;
@@ -119,6 +120,15 @@ export const GestureOverlay = ({
       });
     }, 100) as unknown as number;
   }, [fadeAnim]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const {
     startVolumeDrag,
@@ -243,6 +253,12 @@ export const GestureOverlay = ({
     [endBrightnessDrag, endVolumeDrag, hideDragFeedback],
   );
 
+  // Keep track of feedback visibility in a ref to avoid dependency cycles
+  const isFeedbackVisible = useRef(false);
+  useEffect(() => {
+    isFeedbackVisible.current = feedback.visible;
+  }, [feedback.visible]);
+
   const handleDoubleTap = useCallback(
     (x: number) => {
       if (!settings.enableDoubleTapToSeek) return;
@@ -253,7 +269,7 @@ export const GestureOverlay = ({
         side === "left" ? settings.rewindSkipTime : settings.forwardSkipTime;
 
       // Check if we should stack (same side and feedback is currently visible)
-      if (lastDoubleTapSide.current === side && feedback.visible) {
+      if (lastDoubleTapSide.current === side && isFeedbackVisible.current) {
         accumulatedSeekTime.current += baseTime;
       } else {
         accumulatedSeekTime.current = baseTime;
@@ -284,7 +300,6 @@ export const GestureOverlay = ({
       onSkipForward,
       showFeedback,
       lightHaptic,
-      feedback.visible,
     ],
   );
 
