@@ -176,6 +176,7 @@ export type Settings = {
   vlcIsBold?: boolean;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
+  enableDoubleTapToSeek: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
@@ -240,6 +241,7 @@ export const defaultValues: Settings = {
   vlcIsBold: undefined,
   // Gesture controls
   enableHorizontalSwipeSkip: true,
+  enableDoubleTapToSeek: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,

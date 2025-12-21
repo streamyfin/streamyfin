@@ -14,6 +14,7 @@ export interface SwipeGestureOptions {
   ) => void;
   onVerticalDragEnd?: (side: "left" | "right") => void;
   onTap?: () => void;
+  onDoubleTap?: (x: number) => void;
   screenWidth?: number;
   screenHeight?: number;
 }
@@ -27,6 +28,7 @@ export const useGestureDetection = ({
   onVerticalDragMove,
   onVerticalDragEnd,
   onTap,
+  onDoubleTap,
   screenWidth = 400,
   screenHeight = 800,
 }: SwipeGestureOptions = {}) => {
@@ -38,6 +40,8 @@ export const useGestureDetection = ({
   const hasMovedEnough = useRef(false);
   const gestureType = useRef<"none" | "horizontal" | "vertical">("none");
   const shouldIgnoreTouch = useRef(false);
+  const lastTapTime = useRef(0);
+  const tapTimeout = useRef<number | null>(null);
 
   const handleTouchStart = useCallback(
     (event: GestureResponderEvent) => {
@@ -187,7 +191,27 @@ export const useGestureDetection = ({
         totalDistance < 10
       ) {
         // It's a tap - short duration and small movement
-        onTap?.();
+        if (onDoubleTap) {
+          const now = Date.now();
+          if (now - lastTapTime.current < 300) {
+            // Double tap detected
+            if (tapTimeout.current) {
+              clearTimeout(tapTimeout.current);
+              tapTimeout.current = null;
+            }
+            onDoubleTap(touchEndPosition.x);
+            lastTapTime.current = 0; // Reset
+          } else {
+            // First tap, wait for second
+            lastTapTime.current = now;
+            tapTimeout.current = setTimeout(() => {
+              onTap?.();
+              lastTapTime.current = 0;
+            }, 300) as unknown as number;
+          }
+        } else {
+          onTap?.();
+        }
       }
 
       hasMovedEnough.current = false;
@@ -200,6 +224,7 @@ export const useGestureDetection = ({
       onSwipeRight,
       onVerticalDragEnd,
       onTap,
+      onDoubleTap,
     ],
   );
 

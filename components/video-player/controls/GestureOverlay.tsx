@@ -235,6 +235,26 @@ export const GestureOverlay = ({
     [endBrightnessDrag, endVolumeDrag, hideDragFeedback],
   );
 
+  const handleDoubleTap = useCallback(
+    (x: number) => {
+      if (!settings.enableDoubleTapToSeek) return;
+
+      if (x < screenWidth / 2) {
+        // Left side - rewind
+        handleSkipBackward();
+      } else {
+        // Right side - skip forward
+        handleSkipForward();
+      }
+    },
+    [
+      settings.enableDoubleTapToSeek,
+      screenWidth,
+      handleSkipBackward,
+      handleSkipForward,
+    ],
+  );
+
   const { handleTouchStart, handleTouchMove, handleTouchEnd } =
     useGestureDetection({
       onSwipeLeft: handleSkipBackward,
@@ -243,29 +263,20 @@ export const GestureOverlay = ({
       onVerticalDragMove: handleVerticalDragMove,
       onVerticalDragEnd: handleVerticalDragEnd,
       onTap: onToggleControls,
+      onDoubleTap: settings.enableDoubleTapToSeek ? handleDoubleTap : undefined,
       screenWidth,
       screenHeight,
     });
 
-  // If controls are visible, act like the old tap overlay
-  if (showControls) {
-    return (
-      <Pressable
-        onPress={onToggleControls}
-        style={{
-          position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
-          backgroundColor: "black",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          opacity: 0.75,
-        }}
-      />
-    );
-  }
+  // Determine styles based on controls visibility
+  const overlayStyle = showControls
+    ? {
+        backgroundColor: "black",
+        opacity: 0.75,
+      }
+    : {
+        backgroundColor: "transparent",
+      };
 
   return (
     <>
@@ -278,11 +289,11 @@ export const GestureOverlay = ({
           position: "absolute",
           width: screenWidth,
           height: screenHeight,
-          backgroundColor: "transparent",
           left: 0,
           right: 0,
           top: 0,
           bottom: 0,
+          ...overlayStyle,
         }}
       />
 
