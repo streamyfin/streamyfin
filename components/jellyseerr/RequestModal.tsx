@@ -156,7 +156,7 @@ const RequestModal = forwardRef<
     }, [requestBody?.seasons]);
 
     const pathTitleExtractor = (item: RootFolder) =>
-      `${item.path} (${item.freeSpace.bytesToReadable()})`;
+      `${item.path}${item.freeSpace ? ` (${item.freeSpace.bytesToReadable()})` : ""}`;
 
     const qualityProfileOptions = useMemo(
       () => [
