@@ -519,12 +519,13 @@ export const useJellyseerr = () => {
     )?.getFullYear?.();
   };
 
-  const getMediaType = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
-  ): MediaType => {
-    return isJellyseerrMovieOrTvResult(item)
-      ? (item.mediaType as MediaType)
-      : item?.mediaInfo?.mediaType;
+  const getMediaType = (item?: any): MediaType | undefined => {
+    if (!item) return undefined;
+    return (
+      item.mediaType ||
+      item.mediaInfo?.mediaType ||
+      (item.title ? MediaType.MOVIE : item.name ? MediaType.TV : undefined)
+    );
   };
 
   const jellyseerrRegion = useMemo(

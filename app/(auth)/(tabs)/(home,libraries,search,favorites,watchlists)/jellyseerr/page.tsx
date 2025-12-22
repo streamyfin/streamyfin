@@ -61,14 +61,25 @@ const MobilePage: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const { mediaTitle, releaseYear, posterSrc, mediaType, ...result } =
-    params as unknown as {
-      mediaTitle: string;
-      releaseYear: number;
-      canRequest: string;
-      posterSrc: string;
-      mediaType: MediaType;
-    } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
+  const rawParams = params as unknown as {
+    mediaTitle: string;
+    releaseYear: number;
+    canRequest: string;
+    posterSrc: string;
+    mediaType: MediaType | MediaType[];
+  } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
+
+  const {
+    mediaTitle,
+    releaseYear,
+    posterSrc,
+    mediaType: rawMediaType,
+    ...result
+  } = rawParams;
+
+  const mediaType = Array.isArray(rawMediaType)
+    ? rawMediaType[0]
+    : rawMediaType;
 
   const navigation = useNavigation();
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
@@ -466,7 +477,7 @@ const MobilePage: React.FC = () => {
         requestBody={requestBody}
         title={mediaTitle}
         id={result.id!}
-        type={mediaType}
+        type={details?.mediaType ?? mediaType}
         isAnime={isAnime}
         onRequested={() => {
           _setRequestBody(undefined);

@@ -65,9 +65,13 @@ export const JellyserrRatings: React.FC<{
   const { data, isLoading } = useQuery({
     queryKey: ["jellyseerr", result.id, mediaType, "ratings"],
     queryFn: async () => {
-      return mediaType === MediaType.MOVIE
-        ? jellyseerrApi?.movieRatings(result.id)
-        : jellyseerrApi?.tvRatings(result.id);
+      if (mediaType === MediaType.MOVIE) {
+        return jellyseerrApi?.movieRatings(result.id);
+      }
+      if (mediaType === MediaType.TV) {
+        return jellyseerrApi?.tvRatings(result.id);
+      }
+      return null;
     },
     staleTime: (5).minutesToMilliseconds(),
     retry: false,
