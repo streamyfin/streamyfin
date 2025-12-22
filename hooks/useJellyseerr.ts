@@ -519,13 +519,21 @@ export const useJellyseerr = () => {
     )?.getFullYear?.();
   };
 
-  const getMediaType = (item?: any): MediaType | undefined => {
+  const getMediaType = (
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
+  ): MediaType | undefined => {
     if (!item) return undefined;
-    return (
-      item.mediaType ||
-      item.mediaInfo?.mediaType ||
-      (item.title ? MediaType.MOVIE : item.name ? MediaType.TV : undefined)
-    );
+    // Check direct mediaType (MovieResult/TvResult), then mediaInfo (Details), then infer from properties
+    if (isJellyseerrMovieOrTvResult(item)) {
+      return item.mediaType as MediaType;
+    }
+    if (item.mediaInfo?.mediaType) {
+      return item.mediaInfo.mediaType;
+    }
+    // Fallback: movies have 'title', TV shows have 'name'
+    if ("title" in item && item.title) return MediaType.MOVIE;
+    if ("name" in item && item.name) return MediaType.TV;
+    return undefined;
   };
 
   const jellyseerrRegion = useMemo(

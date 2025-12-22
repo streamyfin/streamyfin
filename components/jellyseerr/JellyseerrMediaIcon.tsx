@@ -4,7 +4,7 @@ import { View, type ViewProps } from "react-native";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 
 const JellyseerrMediaIcon: React.FC<
-  { mediaType: "tv" | "movie" } & ViewProps
+  { mediaType?: "tv" | "movie" } & ViewProps
 > = ({ mediaType, className, ...props }) => {
   const style = useMemo(
     () =>

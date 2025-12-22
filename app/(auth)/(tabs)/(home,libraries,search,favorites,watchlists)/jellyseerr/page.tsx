@@ -477,7 +477,7 @@ const MobilePage: React.FC = () => {
         requestBody={requestBody}
         title={mediaTitle}
         id={result.id!}
-        type={details?.mediaType ?? mediaType}
+        type={details?.mediaInfo?.mediaType ?? mediaType}
         isAnime={isAnime}
         onRequested={() => {
           _setRequestBody(undefined);
