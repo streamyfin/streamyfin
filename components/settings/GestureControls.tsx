@@ -1,10 +1,13 @@
+import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
-import { Switch } from "react-native";
+import { Switch, View } from "react-native";
+import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useSettings } from "@/utils/atoms/settings";
+import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -24,6 +27,50 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
     [pluginSettings],
   );
 
+  const smartGesturesOptions = useMemo(
+    () => [
+      {
+        options: [
+          {
+            type: "toggle" as const,
+            label: `${t("home.settings.gesture_controls.horizontal_swipe_skip")}\n${t("home.settings.gesture_controls.horizontal_swipe_skip_description")}`,
+            value: settings?.enableHorizontalSwipeSkip ?? false,
+            onToggle: () =>
+              updateSettings({
+                enableHorizontalSwipeSkip: !settings?.enableHorizontalSwipeSkip,
+              }),
+            disabled: pluginSettings?.enableHorizontalSwipeSkip?.locked,
+          },
+          {
+            type: "toggle" as const,
+            label: `${t("home.settings.gesture_controls.double_tap_to_seek")}\n${t("home.settings.gesture_controls.double_tap_to_seek_description")}`,
+            value: settings?.enableDoubleTapToSeek ?? false,
+            onToggle: () =>
+              updateSettings({
+                enableDoubleTapToSeek: !settings?.enableDoubleTapToSeek,
+              }),
+            disabled: pluginSettings?.enableDoubleTapToSeek?.locked,
+          },
+        ],
+      },
+    ],
+    [settings, updateSettings, pluginSettings, t],
+  );
+
+  const smartGesturesStatus = useMemo(() => {
+    const enabledCount = [
+      settings?.enableHorizontalSwipeSkip,
+      settings?.enableDoubleTapToSeek,
+    ].filter(Boolean).length;
+
+    if (enabledCount === 2)
+      return t("home.settings.other.disabled") === "Disabled"
+        ? "Both enabled"
+        : "Both enabled";
+    if (enabledCount === 1) return "1 enabled";
+    return t("home.settings.other.disabled");
+  }, [settings?.enableHorizontalSwipeSkip, settings?.enableDoubleTapToSeek, t]);
+
   if (!settings) return null;
 
   return (
@@ -32,34 +79,30 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         title={t("home.settings.gesture_controls.gesture_controls_title")}
       >
         <ListItem
-          title={t("home.settings.gesture_controls.horizontal_swipe_skip")}
+          title={t("home.settings.gesture_controls.smart_gestures")}
           subtitle={t(
-            "home.settings.gesture_controls.horizontal_swipe_skip_description",
+            "home.settings.gesture_controls.smart_gestures_description",
           )}
-          disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
+          disabled={
+            pluginSettings?.enableHorizontalSwipeSkip?.locked &&
+            pluginSettings?.enableDoubleTapToSeek?.locked
+          }
         >
-          <Switch
-            value={settings.enableHorizontalSwipeSkip}
-            disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
-            onValueChange={(enableHorizontalSwipeSkip) =>
-              updateSettings({ enableHorizontalSwipeSkip })
+          <PlatformDropdown
+            groups={smartGesturesOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {smartGesturesStatus}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
             }
-          />
-        </ListItem>
-
-        <ListItem
-          title={t("home.settings.gesture_controls.double_tap_to_seek")}
-          subtitle={t(
-            "home.settings.gesture_controls.double_tap_to_seek_description",
-          )}
-          disabled={pluginSettings?.enableDoubleTapToSeek?.locked}
-        >
-          <Switch
-            value={settings.enableDoubleTapToSeek}
-            disabled={pluginSettings?.enableDoubleTapToSeek?.locked}
-            onValueChange={(enableDoubleTapToSeek) =>
-              updateSettings({ enableDoubleTapToSeek })
-            }
+            title={t("home.settings.gesture_controls.smart_gestures")}
           />
         </ListItem>
 
