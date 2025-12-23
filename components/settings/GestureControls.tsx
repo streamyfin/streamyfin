@@ -106,6 +106,15 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           />
         </ListItem>
 
+        {settings.enableHorizontalSwipeSkip &&
+          settings.enableDoubleTapToSeek && (
+            <View className='bg-yellow-900/20 border border-yellow-600/30 rounded-lg mx-4 my-2 p-3'>
+              <Text className='text-yellow-500 text-xs'>
+                {t("home.settings.gesture_controls.smart_gestures_warning")}
+              </Text>
+            </View>
+          )}
+
         <ListItem
           title={t("home.settings.gesture_controls.left_side_brightness")}
           subtitle={t(
