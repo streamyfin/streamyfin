@@ -1,8 +1,8 @@
 import type React from "react";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
-import { Alert, Switch, View } from "react-native";
+import { Switch, View } from "react-native";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
@@ -15,7 +15,6 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
   const { settings, updateSettings, pluginSettings } = useSettings();
-  const previousBothEnabledRef = useRef(false);
 
   const disabled = useMemo(
     () =>
@@ -25,23 +24,6 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
       pluginSettings?.enableRightSideVolumeSwipe?.locked === true,
     [pluginSettings],
   );
-
-  // Show alert when both smart gesture features are enabled
-  useEffect(() => {
-    const bothEnabled =
-      settings?.enableHorizontalSwipeSkip && settings?.enableDoubleTapToSeek;
-
-    // Only show alert when transitioning from not-both-enabled to both-enabled
-    if (bothEnabled && !previousBothEnabledRef.current) {
-      Alert.alert(
-        t("home.settings.gesture_controls.smart_gestures"),
-        t("home.settings.gesture_controls.smart_gestures_warning"),
-        [{ text: "OK", style: "default" }],
-      );
-    }
-
-    previousBothEnabledRef.current = bothEnabled ?? false;
-  }, [settings?.enableHorizontalSwipeSkip, settings?.enableDoubleTapToSeek, t]);
 
   if (!settings) return null;
 
@@ -91,6 +73,15 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             }
           />
         </ListItem>
+
+        {settings.enableHorizontalSwipeSkip &&
+          settings.enableDoubleTapToSeek && (
+            <View className='bg-yellow-900/20 border border-yellow-600/30 rounded-lg mx-4 my-2 p-3'>
+              <Text className='text-yellow-500 text-xs'>
+                {t("home.settings.gesture_controls.smart_gestures_warning")}
+              </Text>
+            </View>
+          )}
 
         {/* Other Gestures Section */}
         <View className='px-4 py-2 bg-neutral-800/50 mt-2'>
