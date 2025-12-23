@@ -290,15 +290,17 @@ export const Controls: FC<Props> = ({
     downloadedFiles,
   );
 
-  const { showSkipCreditButton, skipCredit } = useCreditSkipper(
-    item.Id!,
-    currentTime,
-    seek,
-    play,
-    offline,
-    api,
-    downloadedFiles,
-  );
+  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
+    useCreditSkipper(
+      item.Id!,
+      currentTime,
+      seek,
+      play,
+      offline,
+      api,
+      downloadedFiles,
+      max.value,
+    );
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -500,6 +502,7 @@ export const Controls: FC<Props> = ({
               remainingTime={remainingTime}
               showSkipButton={showSkipButton}
               showSkipCreditButton={showSkipCreditButton}
+              hasContentAfterCredits={hasContentAfterCredits}
               skipIntro={skipIntro}
               skipCredit={skipCredit}
               nextItem={nextItem}
