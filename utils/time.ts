@@ -99,3 +99,21 @@ export const msToSeconds = (ms?: number | undefined) => {
   if (!ms) return 0;
   return Math.floor(ms / 1000);
 };
+
+/**
+ * Formats ticks to a compact duration string (MM:SS or HH:MM:SS).
+ * Useful for music track durations.
+ */
+export const formatDuration = (ticks: number | null | undefined): string => {
+  if (!ticks) return "0:00";
+
+  const totalSeconds = Math.floor(ticks / 10000000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};

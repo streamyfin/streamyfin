@@ -10,8 +10,10 @@ import type {
 import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
+import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
@@ -47,7 +49,7 @@ export default function TabLayout() {
   );
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <SystemBars hidden={false} style='light' />
       <NativeTabs
         sidebarAdaptable={false}
@@ -122,6 +124,8 @@ export default function TabLayout() {
           }}
         />
       </NativeTabs>
-    </>
+      <MiniPlayerBar />
+      <MusicPlaybackEngine />
+    </View>
   );
 }

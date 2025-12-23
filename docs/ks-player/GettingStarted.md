@@ -9,6 +9,27 @@ KSPlayer is a powerful media playback framework for iOS, tvOS, macOS, xrOS, and 
 - tvOS 13+
 - xrOS 1+
 
+## Troubleshooting
+
+### Missing Metal Toolchain (CocoaPods builds)
+
+If your build fails compiling `Shaders.metal` with:
+
+`cannot execute tool 'metal' due to missing Metal Toolchain`
+
+Install the component:
+
+```bash
+xcodebuild -downloadComponent MetalToolchain
+```
+
+Then verify:
+
+```bash
+xcrun --find metal
+xcrun metal -v
+```
+
 ## Installation
 
 ### Swift Package Manager
