@@ -68,6 +68,10 @@ const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
   const isToggle = option.type === "toggle";
   const handlePress = isToggle ? option.onToggle : option.onPress;
 
+  // Split label by newline to handle title + description
+  const labelParts = option.label.split("\n");
+  const hasDescription = labelParts.length > 1;
+
   return (
     <>
       <TouchableOpacity
@@ -77,7 +81,18 @@ const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
           option.disabled ? "opacity-50" : ""
         }`}
       >
-        <Text className='flex-1 text-white'>{option.label}</Text>
+        <View className='flex-1'>
+          {hasDescription ? (
+            <>
+              <Text className='text-white'>{labelParts[0]}</Text>
+              <Text className='text-neutral-500 text-sm mt-0.5'>
+                {labelParts.slice(1).join("\n")}
+              </Text>
+            </>
+          ) : (
+            <Text className='text-white'>{option.label}</Text>
+          )}
+        </View>
         {isToggle ? (
           <ToggleSwitch value={option.value} />
         ) : option.selected ? (
