@@ -34,7 +34,25 @@
 const { spawn, execSync, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
-const _os = require("node:os");
+
+// =============================================================================
+// Configuration Constants
+// =============================================================================
+
+/** Default Metro bundler port */
+const DEFAULT_METRO_PORT = 8081;
+
+/** Maximum buffer size for xcodebuild output (100MB) */
+const MAX_BUILD_BUFFER = 100 * 1024 * 1024;
+
+/** Default build timeout in milliseconds (30 minutes) */
+const DEFAULT_BUILD_TIMEOUT_MS = 30 * 60 * 1000;
+
+/** Simulator boot wait time in milliseconds (30 seconds max) */
+const SIMULATOR_BOOT_WAIT_MS = 30 * 1000;
+
+/** Number of output lines to show when no errors found */
+const ERROR_OUTPUT_TAIL_LINES = 50;
 
 // =============================================================================
 // Security Helpers
@@ -43,8 +61,10 @@ const _os = require("node:os");
 /**
  * Validates and sanitizes a path to prevent command injection.
  * Throws an error if the path contains dangerous characters.
+ * @param inputPath - The path to sanitize
+ * @param projectRoot - Optional project root to verify path doesn't escape
  */
-function sanitizePath(inputPath: string): string {
+function sanitizePath(inputPath: string, projectRoot?: string): string {
   // Resolve to absolute path to prevent traversal
   const resolved = path.resolve(inputPath);
 
@@ -56,7 +76,39 @@ function sanitizePath(inputPath: string): string {
     );
   }
 
+  // If projectRoot provided, ensure path doesn't escape it
+  if (projectRoot) {
+    const absProjectRoot = path.resolve(projectRoot);
+    if (!resolved.startsWith(absProjectRoot) && !resolved.startsWith("/tmp")) {
+      throw new Error(
+        `Path escapes project boundary: ${resolved} (expected within ${absProjectRoot})`,
+      );
+    }
+  }
+
   return resolved;
+}
+
+/**
+ * Validates a bundle ID to prevent command injection.
+ * Bundle IDs should only contain alphanumeric, dots, and hyphens.
+ */
+function validateBundleId(bundleId: string): string {
+  if (!/^[a-zA-Z0-9.-]+$/.test(bundleId)) {
+    throw new Error(`Invalid bundle ID format: ${bundleId}`);
+  }
+  return bundleId;
+}
+
+/**
+ * Validates a scheme name to prevent command injection.
+ * Scheme names should only contain alphanumeric, spaces, dashes, and underscores.
+ */
+function validateSchemeName(scheme: string): string {
+  if (!/^[a-zA-Z0-9 _-]+$/.test(scheme)) {
+    throw new Error(`Invalid scheme name format: ${scheme}`);
+  }
+  return scheme;
 }
 
 // =============================================================================
@@ -77,6 +129,8 @@ interface BuildOptions {
   simulator: boolean;
   skipCredentials: boolean;
   verbose: boolean;
+  buildTimeout: number;
+  noTimeout: boolean;
 }
 
 interface XcodeProject {
@@ -104,11 +158,13 @@ function parseArgs(argv: string[]): BuildOptions {
     install: true,
     clean: false,
     projectRoot: process.cwd(),
-    port: 8081,
+    port: DEFAULT_METRO_PORT,
     production: false,
     simulator: false,
     skipCredentials: false,
     verbose: false,
+    buildTimeout: DEFAULT_BUILD_TIMEOUT_MS,
+    noTimeout: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -143,7 +199,7 @@ function parseArgs(argv: string[]): BuildOptions {
         break;
       case "--port":
       case "-p":
-        options.port = parseInt(args[++i], 10) || 8081;
+        options.port = parseInt(args[++i], 10) || DEFAULT_METRO_PORT;
         break;
       case "--production":
         options.production = true;
@@ -166,6 +222,12 @@ function parseArgs(argv: string[]): BuildOptions {
       case "--verbose":
         options.verbose = true;
         break;
+      case "--no-timeout":
+        options.noTimeout = true;
+        break;
+      case "--timeout":
+        options.buildTimeout = parseInt(args[++i], 10) * 1000; // Convert seconds to ms
+        break;
     }
   }
 
@@ -187,16 +249,20 @@ Development Build Options:
   --no-install                     Skip installing dependencies (pods)
   --clean                          Clean build before building
   --project-root [path]            Project root directory (default: cwd)
-  --port, -p [number]              Metro bundler port (default: 8081)
+  --port, -p [number]              Metro bundler port (default: ${DEFAULT_METRO_PORT})
 
 Production Build Options:
   --production                     Build unsigned production archive (default: no signing)
   --output, -o [path]              Output path for build artifact
   --simulator                      Build .app for simulator instead of device
   --sign                           Enable code signing (creates signed IPA)
-  --verbose                        Show verbose build output
+  --timeout [seconds]              Build timeout in seconds (default: ${DEFAULT_BUILD_TIMEOUT_MS / 1000}s = 30min)
+  --no-timeout                     Disable build timeout entirely
 
-General:
+Output Options:
+  --verbose                        Stream full xcodebuild output to console.
+                                   When disabled, only errors are shown on failure.
+                                   Note: CI uses --verbose for PRs to aid debugging.
   --help, -h                       Show this help message
 
 Environment Variables:
@@ -216,6 +282,9 @@ Examples:
 
   # Production simulator build
   EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production --simulator
+
+  # Long build without timeout
+  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production --no-timeout
 `);
 }
 
@@ -230,6 +299,57 @@ const log = {
   error: (msg: string) => console.error(`\x1b[31m✖\x1b[0m ${msg}`),
   step: (msg: string) => console.log(`\x1b[1m› ${msg}\x1b[0m`),
 };
+
+/**
+ * Displays build error output in a structured format.
+ * Shows stderr, extracts error lines from stdout, or falls back to showing last N lines.
+ * @param stderr - Standard error output from the build process
+ * @param stdout - Standard output from the build process
+ * @param errorPatterns - Patterns to search for in stdout to identify errors
+ */
+function displayBuildError(
+  stderr: string,
+  stdout: string,
+  errorPatterns: string[] = [
+    "error:",
+    "Error:",
+    "fatal error",
+    "** BUILD FAILED **",
+    "** ARCHIVE FAILED **",
+    "** EXPORT FAILED **",
+  ],
+): void {
+  // Show stderr if present (may contain warnings or errors)
+  if (stderr.trim()) {
+    console.error("\n--- Build Error Output (stderr) ---");
+    console.error(stderr);
+    console.error("--- End stderr ---\n");
+  }
+
+  // Extract and show actual error lines from stdout
+  const errorLines = stdout
+    .split("\n")
+    .filter((line: string) =>
+      errorPatterns.some((pattern) => line.includes(pattern)),
+    );
+
+  if (errorLines.length > 0) {
+    console.error("\n--- Build Errors (from stdout) ---");
+    for (const line of errorLines) {
+      console.error(line);
+    }
+    console.error("--- End Build Errors ---\n");
+  } else if (stdout.trim()) {
+    // No specific error patterns found, show last N lines of stdout
+    const lines = stdout.split("\n");
+    const lastLines = lines.slice(-ERROR_OUTPUT_TAIL_LINES).join("\n");
+    console.error(
+      `\n--- Last ${ERROR_OUTPUT_TAIL_LINES} lines of build output ---`,
+    );
+    console.error(lastLines);
+    console.error("--- End build output ---\n");
+  }
+}
 
 // =============================================================================
 // Platform Check
@@ -318,7 +438,7 @@ function resolveScheme(
   const schemes = getSchemes(xcodeProject);
 
   if (schemeName && schemes.includes(schemeName)) {
-    return schemeName;
+    return validateSchemeName(schemeName);
   }
 
   if (schemes.length === 0) {
@@ -333,7 +453,8 @@ function resolveScheme(
   );
   const matchingScheme = schemes.find((s) => s === projectName);
 
-  return matchingScheme || schemes[0];
+  const finalScheme = matchingScheme || schemes[0];
+  return validateSchemeName(finalScheme);
 }
 
 // =============================================================================
@@ -552,43 +673,55 @@ function extractBinaryPath(buildOutput: string): string | null {
 async function launchApp(binaryPath: string, device: Device): Promise<void> {
   log.step("Installing and launching app...");
 
+  const sanitizedBinaryPath = sanitizePath(binaryPath);
+
   // Boot simulator if not running
   if (device.state !== "Booted") {
     log.info(`Booting simulator: ${device.name}`);
     try {
-      execSync(`xcrun simctl boot "${device.udid}"`, { stdio: "ignore" });
+      // Use spawnSync with array to prevent command injection via device.udid
+      spawnSync("xcrun", ["simctl", "boot", device.udid], { stdio: "ignore" });
     } catch {
       // May already be booting
     }
   }
 
   // Open Simulator app
-  execSync("open -a Simulator", { stdio: "ignore" });
+  spawnSync("open", ["-a", "Simulator"], { stdio: "ignore" });
 
-  // Wait a moment for simulator to be ready
-  await new Promise((r) => setTimeout(r, 2000));
+  // Wait for simulator to be ready (30s max)
+  await new Promise((r) => setTimeout(r, SIMULATOR_BOOT_WAIT_MS));
 
   // Install the app
   log.info("Installing app on simulator...");
   try {
-    execSync(`xcrun simctl install "${device.udid}" "${binaryPath}"`, {
-      stdio: "inherit",
-    });
+    // Use spawnSync with array to prevent command injection
+    const installResult = spawnSync(
+      "xcrun",
+      ["simctl", "install", device.udid, sanitizedBinaryPath],
+      { stdio: "inherit" },
+    );
+    if (installResult.status !== 0) {
+      throw new Error("simctl install failed");
+    }
   } catch (error) {
     log.error("Failed to install app on simulator");
     throw error;
   }
 
   // Get bundle ID from Info.plist
-  const infoPlistPath = path.join(binaryPath, "Info.plist");
+  const infoPlistPath = path.join(sanitizedBinaryPath, "Info.plist");
   let bundleId: string | null = null;
 
   try {
-    const bundleIdOutput = execSync(
-      `/usr/libexec/PlistBuddy -c "Print:CFBundleIdentifier" "${infoPlistPath}"`,
+    const bundleIdResult = spawnSync(
+      "/usr/libexec/PlistBuddy",
+      ["-c", "Print:CFBundleIdentifier", infoPlistPath],
       { encoding: "utf-8" },
     );
-    bundleId = bundleIdOutput.trim();
+    if (bundleIdResult.status === 0 && bundleIdResult.stdout) {
+      bundleId = validateBundleId(bundleIdResult.stdout.toString().trim());
+    }
   } catch {
     log.warn("Could not read bundle ID from Info.plist");
   }
@@ -596,9 +729,15 @@ async function launchApp(binaryPath: string, device: Device): Promise<void> {
   if (bundleId) {
     log.info(`Launching app: ${bundleId}`);
     try {
-      execSync(`xcrun simctl launch "${device.udid}" "${bundleId}"`, {
-        stdio: "inherit",
-      });
+      // Use spawnSync with array to prevent command injection
+      const launchResult = spawnSync(
+        "xcrun",
+        ["simctl", "launch", device.udid, bundleId],
+        { stdio: "inherit" },
+      );
+      if (launchResult.status !== 0) {
+        throw new Error("simctl launch failed");
+      }
       log.success(`App launched on ${device.name}`);
     } catch (error) {
       log.error("Failed to launch app");
@@ -693,7 +832,6 @@ function getBundleIdentifier(
 
 function createExportOptionsPlist(
   options: BuildOptions,
-  _projectRoot: string,
   outputDir: string,
 ): string {
   const plistPath = path.join(outputDir, "ExportOptions.plist");
@@ -787,7 +925,8 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
     const simResult = spawnSync("xcodebuild", buildArgs, {
       cwd: sanitizePath(path.join(options.projectRoot, "ios")),
       stdio: options.verbose ? "inherit" : "pipe",
-      maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large build output
+      maxBuffer: MAX_BUILD_BUFFER,
+      timeout: options.noTimeout ? undefined : options.buildTimeout,
       env: {
         ...process.env,
         EXPO_TV: process.env.EXPO_TV,
@@ -799,37 +938,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       if (!options.verbose) {
         const stderr = simResult.stderr?.toString() || "";
         const stdout = simResult.stdout?.toString() || "";
-
-        if (stderr.trim()) {
-          console.error("\n--- Build Error Output (stderr) ---");
-          console.error(stderr);
-          console.error("--- End stderr ---\n");
-        }
-
-        const errorLines = stdout
-          .split("\n")
-          .filter(
-            (line: string) =>
-              line.includes("error:") ||
-              line.includes("Error:") ||
-              line.includes("** BUILD FAILED **"),
-          );
-
-        if (errorLines.length > 0) {
-          console.error("\n--- Build Errors (from stdout) ---");
-          for (const line of errorLines) {
-            console.error(line);
-          }
-          console.error("--- End Build Errors ---\n");
-        } else if (stdout.trim()) {
-          // No specific error patterns found, show last 50 lines of stdout
-          const lines = stdout.split("\n");
-          const lastLines = lines.slice(-50).join("\n");
-          console.error("\n--- Last 50 lines of build output ---");
-          console.error(lastLines);
-          console.error("--- End build output ---\n");
-        }
-
+        displayBuildError(stderr, stdout);
         log.info("Run with --verbose to see full build output");
       }
       process.exit(1);
@@ -906,7 +1015,8 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
     const archiveResult = spawnSync("xcodebuild", archiveArgs, {
       cwd: sanitizePath(path.join(options.projectRoot, "ios")),
       stdio: options.verbose ? "inherit" : "pipe",
-      maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large build output
+      maxBuffer: MAX_BUILD_BUFFER,
+      timeout: options.noTimeout ? undefined : options.buildTimeout,
       env: {
         ...process.env,
         EXPO_TV: process.env.EXPO_TV,
@@ -918,41 +1028,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       if (!options.verbose) {
         const stderr = archiveResult.stderr?.toString() || "";
         const stdout = archiveResult.stdout?.toString() || "";
-
-        // Show stderr if present (may contain warnings)
-        if (stderr.trim()) {
-          console.error("\n--- Build Error Output (stderr) ---");
-          console.error(stderr);
-          console.error("--- End stderr ---\n");
-        }
-
-        // Extract and show actual error lines from stdout
-        const errorLines = stdout
-          .split("\n")
-          .filter(
-            (line: string) =>
-              line.includes("error:") ||
-              line.includes("Error:") ||
-              line.includes("fatal error") ||
-              line.includes("** BUILD FAILED **") ||
-              line.includes("** ARCHIVE FAILED **"),
-          );
-
-        if (errorLines.length > 0) {
-          console.error("\n--- Build Errors (from stdout) ---");
-          for (const line of errorLines) {
-            console.error(line);
-          }
-          console.error("--- End Build Errors ---\n");
-        } else if (stdout.trim()) {
-          // No specific error patterns found, show last 50 lines of stdout
-          const lines = stdout.split("\n");
-          const lastLines = lines.slice(-50).join("\n");
-          console.error("\n--- Last 50 lines of build output ---");
-          console.error(lastLines);
-          console.error("--- End build output ---\n");
-        }
-
+        displayBuildError(stderr, stdout);
         log.info("Run with --verbose to see full build output");
       }
       process.exit(1);
@@ -974,11 +1050,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
         fs.mkdirSync(exportDir, { recursive: true });
       }
 
-      const exportPlistPath = createExportOptionsPlist(
-        options,
-        options.projectRoot,
-        outputDir,
-      );
+      const exportPlistPath = createExportOptionsPlist(options, outputDir);
 
       const exportArgs = [
         "-exportArchive",
@@ -996,7 +1068,8 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       const exportResult = spawnSync("xcodebuild", exportArgs, {
         cwd: sanitizePath(path.join(options.projectRoot, "ios")),
         stdio: options.verbose ? "inherit" : "pipe",
-        maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large build output
+        maxBuffer: MAX_BUILD_BUFFER,
+        timeout: options.noTimeout ? undefined : options.buildTimeout,
         env: {
           ...process.env,
           EXPO_TV: process.env.EXPO_TV,
@@ -1008,37 +1081,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
         if (!options.verbose) {
           const stderr = exportResult.stderr?.toString() || "";
           const stdout = exportResult.stdout?.toString() || "";
-
-          if (stderr.trim()) {
-            console.error("\n--- Export Error Output (stderr) ---");
-            console.error(stderr);
-            console.error("--- End stderr ---\n");
-          }
-
-          const errorLines = stdout
-            .split("\n")
-            .filter(
-              (line: string) =>
-                line.includes("error:") ||
-                line.includes("Error:") ||
-                line.includes("** EXPORT FAILED **"),
-            );
-
-          if (errorLines.length > 0) {
-            console.error("\n--- Export Errors (from stdout) ---");
-            for (const line of errorLines) {
-              console.error(line);
-            }
-            console.error("--- End Export Errors ---\n");
-          } else if (stdout.trim()) {
-            // No specific error patterns found, show last 50 lines of stdout
-            const lines = stdout.split("\n");
-            const lastLines = lines.slice(-50).join("\n");
-            console.error("\n--- Last 50 lines of export output ---");
-            console.error(lastLines);
-            console.error("--- End export output ---\n");
-          }
-
+          displayBuildError(stderr, stdout);
           log.info("Run with --verbose to see full build output");
         }
         process.exit(1);
