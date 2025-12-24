@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx ts-node --transpile-only
+#!/usr/bin/env -S bunx ts-node --transpile-only
 /**
  * Standalone iOS Build Script
  *
@@ -11,7 +11,7 @@
  * without requiring EAS login.
  *
  * Usage:
- *   EXPO_TV=0 npx ts-node scripts/build-ios.ts [options]
+ *   EXPO_TV=0 bunx ts-node scripts/build-ios.ts [options]
  *
  * Options:
  *   --configuration [Debug|Release]  Xcode build configuration (default: Debug)
@@ -177,7 +177,7 @@ function printHelp(): void {
 Standalone iOS Build Script
 
 Usage:
-  EXPO_TV=0 npx ts-node scripts/build-ios.ts [options]
+  EXPO_TV=0 bunx ts-node scripts/build-ios.ts [options]
 
 Development Build Options:
   --configuration [Debug|Release]  Xcode build configuration (default: Debug)
@@ -205,17 +205,17 @@ Environment Variables:
 
 Examples:
   # Development build
-  EXPO_TV=0 npx ts-node scripts/build-ios.ts
-  EXPO_TV=0 npx ts-node scripts/build-ios.ts --device "iPhone 15"
+  EXPO_TV=0 bunx ts-node scripts/build-ios.ts
+  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --device "iPhone 15"
 
   # Production unsigned build (default)
-  EXPO_TV=0 npx ts-node scripts/build-ios.ts --production
+  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production
 
   # Production signed IPA
-  EXPO_TV=0 npx ts-node scripts/build-ios.ts --production --sign
+  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production --sign
 
   # Production simulator build
-  EXPO_TV=0 npx ts-node scripts/build-ios.ts --production --simulator
+  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production --simulator
 `);
 }
 
@@ -252,7 +252,7 @@ function findXcodeProject(projectRoot: string): XcodeProject {
 
   if (!fs.existsSync(iosPath)) {
     log.error(`iOS directory not found at: ${iosPath}`);
-    log.info("Run `npx expo prebuild` to generate the iOS project.");
+    log.info("Run `bunx expo prebuild` to generate the iOS project.");
     process.exit(1);
   }
 
@@ -614,7 +614,7 @@ async function launchApp(binaryPath: string, device: Device): Promise<void> {
 function startMetroBundler(projectRoot: string, port: number): void {
   log.step("Starting Metro bundler...");
 
-  const metro = spawn("npx", ["expo", "start", "--port", port.toString()], {
+  const metro = spawn("bunx", ["expo", "start", "--port", port.toString()], {
     cwd: projectRoot,
     stdio: "inherit",
     detached: true,
