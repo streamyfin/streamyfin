@@ -828,7 +828,9 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       if (fs.existsSync(finalPath)) {
         fs.rmSync(finalPath, { recursive: true });
       }
-      execSync(`cp -R "${appPath}" "${finalPath}"`);
+      fs.cpSync(sanitizePath(appPath), sanitizePath(finalPath), {
+        recursive: true,
+      });
 
       console.log("");
       log.success("Simulator build complete!");
