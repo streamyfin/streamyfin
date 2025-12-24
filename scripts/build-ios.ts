@@ -847,13 +847,13 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
     const archiveArgs = [
       projectOrWorkspaceFlag,
-      xcodeProject.path,
+      sanitizePath(xcodeProject.path),
       "-scheme",
       scheme,
       "-configuration",
       options.configuration,
       "-archivePath",
-      archivePath,
+      sanitizePath(archivePath),
       "archive",
     ];
 
@@ -873,14 +873,17 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
     log.info(`xcodebuild ${archiveArgs.join(" ")}`);
 
     try {
-      execSync(`xcodebuild ${archiveArgs.map((a) => `"${a}"`).join(" ")}`, {
-        cwd: path.join(options.projectRoot, "ios"),
+      const result = spawnSync("xcodebuild", archiveArgs, {
+        cwd: sanitizePath(path.join(options.projectRoot, "ios")),
         stdio: options.verbose ? "inherit" : "pipe",
         env: {
           ...process.env,
           EXPO_TV: process.env.EXPO_TV,
         },
       });
+      if (result.status !== 0) {
+        throw new Error(`xcodebuild failed with status ${result.status}`);
+      }
     } catch (error: any) {
       log.error("Archive creation failed");
       if (!options.verbose && error.stderr) {
