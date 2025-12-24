@@ -784,21 +784,52 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
     log.info(`xcodebuild ${buildArgs.join(" ")}`);
 
-    try {
-      const result = spawnSync("xcodebuild", buildArgs, {
-        cwd: sanitizePath(path.join(options.projectRoot, "ios")),
-        stdio: options.verbose ? "inherit" : "pipe",
-        env: {
-          ...process.env,
-          EXPO_TV: process.env.EXPO_TV,
-        },
-      });
-      if (result.status !== 0) {
-        throw new Error(`xcodebuild failed with status ${result.status}`);
-      }
-    } catch (_error: any) {
+    const simResult = spawnSync("xcodebuild", buildArgs, {
+      cwd: sanitizePath(path.join(options.projectRoot, "ios")),
+      stdio: options.verbose ? "inherit" : "pipe",
+      maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large build output
+      env: {
+        ...process.env,
+        EXPO_TV: process.env.EXPO_TV,
+      },
+    });
+
+    if (simResult.status !== 0) {
       log.error("Simulator build failed");
       if (!options.verbose) {
+        const stderr = simResult.stderr?.toString() || "";
+        const stdout = simResult.stdout?.toString() || "";
+
+        if (stderr.trim()) {
+          console.error("\n--- Build Error Output (stderr) ---");
+          console.error(stderr);
+          console.error("--- End stderr ---\n");
+        }
+
+        const errorLines = stdout
+          .split("\n")
+          .filter(
+            (line: string) =>
+              line.includes("error:") ||
+              line.includes("Error:") ||
+              line.includes("** BUILD FAILED **"),
+          );
+
+        if (errorLines.length > 0) {
+          console.error("\n--- Build Errors (from stdout) ---");
+          for (const line of errorLines) {
+            console.error(line);
+          }
+          console.error("--- End Build Errors ---\n");
+        } else if (stdout.trim()) {
+          // No specific error patterns found, show last 50 lines of stdout
+          const lines = stdout.split("\n");
+          const lastLines = lines.slice(-50).join("\n");
+          console.error("\n--- Last 50 lines of build output ---");
+          console.error(lastLines);
+          console.error("--- End build output ---\n");
+        }
+
         log.info("Run with --verbose to see full build output");
       }
       process.exit(1);
@@ -872,44 +903,58 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
     log.info(`xcodebuild ${archiveArgs.join(" ")}`);
 
-    try {
-      const result = spawnSync("xcodebuild", archiveArgs, {
-        cwd: sanitizePath(path.join(options.projectRoot, "ios")),
-        stdio: options.verbose ? "inherit" : "pipe",
-        env: {
-          ...process.env,
-          EXPO_TV: process.env.EXPO_TV,
-        },
-      });
-      if (result.status !== 0) {
-        throw new Error(`xcodebuild failed with status ${result.status}`);
-      }
-    } catch (error: any) {
+    const archiveResult = spawnSync("xcodebuild", archiveArgs, {
+      cwd: sanitizePath(path.join(options.projectRoot, "ios")),
+      stdio: options.verbose ? "inherit" : "pipe",
+      maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large build output
+      env: {
+        ...process.env,
+        EXPO_TV: process.env.EXPO_TV,
+      },
+    });
+
+    if (archiveResult.status !== 0) {
       log.error("Archive creation failed");
-      if (!options.verbose && error.stderr) {
-        console.error("\n--- Build Error Output ---");
-        console.error(error.stderr.toString());
-        console.error("--- End Build Error Output ---\n");
-      } else if (!options.verbose && error.stdout) {
-        // Sometimes errors are in stdout
-        const output = error.stdout.toString();
-        const errorLines = output
+      if (!options.verbose) {
+        const stderr = archiveResult.stderr?.toString() || "";
+        const stdout = archiveResult.stdout?.toString() || "";
+
+        // Show stderr if present (may contain warnings)
+        if (stderr.trim()) {
+          console.error("\n--- Build Error Output (stderr) ---");
+          console.error(stderr);
+          console.error("--- End stderr ---\n");
+        }
+
+        // Extract and show actual error lines from stdout
+        const errorLines = stdout
           .split("\n")
           .filter(
             (line: string) =>
               line.includes("error:") ||
               line.includes("Error:") ||
-              line.includes("fatal error"),
+              line.includes("fatal error") ||
+              line.includes("** BUILD FAILED **") ||
+              line.includes("** ARCHIVE FAILED **"),
           );
+
         if (errorLines.length > 0) {
-          console.error("\n--- Build Errors ---");
+          console.error("\n--- Build Errors (from stdout) ---");
           for (const line of errorLines) {
             console.error(line);
           }
           console.error("--- End Build Errors ---\n");
+        } else if (stdout.trim()) {
+          // No specific error patterns found, show last 50 lines of stdout
+          const lines = stdout.split("\n");
+          const lastLines = lines.slice(-50).join("\n");
+          console.error("\n--- Last 50 lines of build output ---");
+          console.error(lastLines);
+          console.error("--- End build output ---\n");
         }
+
+        log.info("Run with --verbose to see full build output");
       }
-      log.info("Run with --verbose to see full build output");
       process.exit(1);
     }
 
@@ -948,21 +993,52 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
       log.info(`xcodebuild ${exportArgs.join(" ")}`);
 
-      try {
-        const result = spawnSync("xcodebuild", exportArgs, {
-          cwd: sanitizePath(path.join(options.projectRoot, "ios")),
-          stdio: options.verbose ? "inherit" : "pipe",
-          env: {
-            ...process.env,
-            EXPO_TV: process.env.EXPO_TV,
-          },
-        });
-        if (result.status !== 0) {
-          throw new Error(`xcodebuild failed with status ${result.status}`);
-        }
-      } catch (_error: any) {
+      const exportResult = spawnSync("xcodebuild", exportArgs, {
+        cwd: sanitizePath(path.join(options.projectRoot, "ios")),
+        stdio: options.verbose ? "inherit" : "pipe",
+        maxBuffer: 100 * 1024 * 1024, // 100MB buffer for large build output
+        env: {
+          ...process.env,
+          EXPO_TV: process.env.EXPO_TV,
+        },
+      });
+
+      if (exportResult.status !== 0) {
         log.error("IPA export failed");
         if (!options.verbose) {
+          const stderr = exportResult.stderr?.toString() || "";
+          const stdout = exportResult.stdout?.toString() || "";
+
+          if (stderr.trim()) {
+            console.error("\n--- Export Error Output (stderr) ---");
+            console.error(stderr);
+            console.error("--- End stderr ---\n");
+          }
+
+          const errorLines = stdout
+            .split("\n")
+            .filter(
+              (line: string) =>
+                line.includes("error:") ||
+                line.includes("Error:") ||
+                line.includes("** EXPORT FAILED **"),
+            );
+
+          if (errorLines.length > 0) {
+            console.error("\n--- Export Errors (from stdout) ---");
+            for (const line of errorLines) {
+              console.error(line);
+            }
+            console.error("--- End Export Errors ---\n");
+          } else if (stdout.trim()) {
+            // No specific error patterns found, show last 50 lines of stdout
+            const lines = stdout.split("\n");
+            const lastLines = lines.slice(-50).join("\n");
+            console.error("\n--- Last 50 lines of export output ---");
+            console.error(lastLines);
+            console.error("--- End export output ---\n");
+          }
+
           log.info("Run with --verbose to see full build output");
         }
         process.exit(1);
