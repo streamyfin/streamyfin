@@ -31,10 +31,33 @@
  */
 
 /* eslint-disable @typescript-eslint/no-var-requires */
-const { spawn, execSync } = require("node:child_process");
+const { spawn, execSync, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const _os = require("node:os");
+
+// =============================================================================
+// Security Helpers
+// =============================================================================
+
+/**
+ * Validates and sanitizes a path to prevent command injection.
+ * Throws an error if the path contains dangerous characters.
+ */
+function _sanitizePath(inputPath: string): string {
+  // Resolve to absolute path to prevent traversal
+  const resolved = path.resolve(inputPath);
+
+  // Check for dangerous shell metacharacters
+  const dangerousChars = /[`$&|;<>(){}[\]!#~]/;
+  if (dangerousChars.test(resolved)) {
+    throw new Error(
+      `Path contains potentially dangerous characters: ${resolved}`,
+    );
+  }
+
+  return resolved;
+}
 
 // =============================================================================
 // Types
