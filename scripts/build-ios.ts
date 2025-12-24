@@ -2,6 +2,8 @@
 /**
  * Standalone iOS Build Script
  *
+ * Author: Victor Cristea (retrozenith) <80767544+retrozenith@users.noreply.github.com>
+ *
  * This script builds iOS apps similar to `cross-env EXPO_TV=0 expo run:ios`
  * but as a completely separate standalone script.
  *
