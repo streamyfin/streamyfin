@@ -938,25 +938,28 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       const exportArgs = [
         "-exportArchive",
         "-archivePath",
-        archivePath,
+        sanitizePath(archivePath),
         "-exportPath",
-        exportDir,
+        sanitizePath(exportDir),
         "-exportOptionsPlist",
-        exportPlistPath,
+        sanitizePath(exportPlistPath),
         "-allowProvisioningUpdates",
       ];
 
       log.info(`xcodebuild ${exportArgs.join(" ")}`);
 
       try {
-        execSync(`xcodebuild ${exportArgs.map((a) => `"${a}"`).join(" ")}`, {
-          cwd: path.join(options.projectRoot, "ios"),
+        const result = spawnSync("xcodebuild", exportArgs, {
+          cwd: sanitizePath(path.join(options.projectRoot, "ios")),
           stdio: options.verbose ? "inherit" : "pipe",
           env: {
             ...process.env,
             EXPO_TV: process.env.EXPO_TV,
           },
         });
+        if (result.status !== 0) {
+          throw new Error(`xcodebuild failed with status ${result.status}`);
+        }
       } catch (_error: any) {
         log.error("IPA export failed");
         if (!options.verbose) {
