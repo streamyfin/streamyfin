@@ -91,7 +91,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           },
           {
             type: "radio" as const,
-            label: `${t("home.settings.gesture_controls.gesture_mode_double_tap")}\n${t("home.settings.gesture_controls.double_tap_to_seek_description")}`,
+            label: t("home.settings.gesture_controls.gesture_mode_double_tap"),
             value: "doubleTap",
             selected: currentGestureMode === "doubleTap",
             onPress: () => handleGestureModeChange("doubleTap"),
@@ -101,7 +101,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           },
           {
             type: "radio" as const,
-            label: `${t("home.settings.gesture_controls.gesture_mode_swipe")}\n${t("home.settings.gesture_controls.horizontal_swipe_skip_description")}`,
+            label: t("home.settings.gesture_controls.gesture_mode_swipe"),
             value: "swipe",
             selected: currentGestureMode === "swipe",
             onPress: () => handleGestureModeChange("swipe"),
