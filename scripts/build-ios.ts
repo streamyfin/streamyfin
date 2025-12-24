@@ -44,7 +44,7 @@ const _os = require("node:os");
  * Validates and sanitizes a path to prevent command injection.
  * Throws an error if the path contains dangerous characters.
  */
-function _sanitizePath(inputPath: string): string {
+function sanitizePath(inputPath: string): string {
   // Resolve to absolute path to prevent traversal
   const resolved = path.resolve(inputPath);
 
@@ -288,10 +288,12 @@ function findXcodeProject(projectRoot: string): XcodeProject {
 function getSchemes(xcodeProject: XcodeProject): string[] {
   try {
     const flag = xcodeProject.isWorkspace ? "-workspace" : "-project";
-    const output = execSync(
-      `xcodebuild -list ${flag} "${xcodeProject.path}" 2>/dev/null`,
-      { encoding: "utf-8" },
-    );
+    const safePath = sanitizePath(xcodeProject.path);
+    const result = spawnSync("xcodebuild", ["-list", flag, safePath], {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const output = result.stdout || "";
 
     const schemesMatch = output.match(/Schemes:\s*\n([\s\S]*?)(?:\n\n|\n$|$)/);
     if (schemesMatch) {
