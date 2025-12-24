@@ -194,7 +194,7 @@ jobs:
       - name: 🔧 Setup Xcode
         uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
         with:
-          xcode-version: "26.0.1"
+          xcode-version: "26.2"
 
       - name: 🏗️ Setup EAS
         uses: expo/expo-github-action@main
@@ -264,7 +264,7 @@ jobs:
       - name: 🔧 Setup Xcode
         uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
         with:
-          xcode-version: "26.0.1"
+          xcode-version: "26.2"
 
       - name: 🛠️ Avoid inconsistent simulator error
         run: xcrun simctl list > /dev/null
