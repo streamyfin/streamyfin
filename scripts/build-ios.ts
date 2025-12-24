@@ -764,7 +764,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
     const buildArgs = [
       projectOrWorkspaceFlag,
-      xcodeProject.path,
+      sanitizePath(xcodeProject.path),
       "-scheme",
       scheme,
       "-configuration",
@@ -772,7 +772,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       "-sdk",
       "iphonesimulator",
       "-derivedDataPath",
-      path.join(outputDir, "DerivedData"),
+      sanitizePath(path.join(outputDir, "DerivedData")),
       "ONLY_ACTIVE_ARCH=NO",
       "CODE_SIGNING_ALLOWED=NO",
       "build",
@@ -785,14 +785,17 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
     log.info(`xcodebuild ${buildArgs.join(" ")}`);
 
     try {
-      execSync(`xcodebuild ${buildArgs.map((a) => `"${a}"`).join(" ")}`, {
-        cwd: path.join(options.projectRoot, "ios"),
+      const result = spawnSync("xcodebuild", buildArgs, {
+        cwd: sanitizePath(path.join(options.projectRoot, "ios")),
         stdio: options.verbose ? "inherit" : "pipe",
         env: {
           ...process.env,
           EXPO_TV: process.env.EXPO_TV,
         },
       });
+      if (result.status !== 0) {
+        throw new Error(`xcodebuild failed with status ${result.status}`);
+      }
     } catch (_error: any) {
       log.error("Simulator build failed");
       if (!options.verbose) {
