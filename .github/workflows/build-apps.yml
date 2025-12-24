@@ -275,7 +275,7 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 0
-        run: bun run ios:unsigned-build -- --verbose
+        run: bun run ios:unsigned-build ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
