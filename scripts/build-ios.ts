@@ -1012,11 +1012,20 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
       // Copy .app to Payload
       log.info("Copying app to Payload folder...");
-      execSync(`cp -R "${appPath}" "${payloadDir}/"`, { stdio: "pipe" });
+      fs.cpSync(
+        sanitizePath(appPath),
+        path.join(payloadDir, path.basename(appPath)),
+        {
+          recursive: true,
+        },
+      );
 
       // Create IPA (zip the Payload folder)
       log.info("Creating IPA...");
-      execSync(`cd "${outputDir}" && zip -r -q "${ipaPath}" Payload`, {
+      const safeOutputDir = sanitizePath(outputDir);
+      const safeIpaPath = sanitizePath(ipaPath);
+      spawnSync("zip", ["-r", "-q", safeIpaPath, "Payload"], {
+        cwd: safeOutputDir,
         stdio: "pipe",
       });
 
