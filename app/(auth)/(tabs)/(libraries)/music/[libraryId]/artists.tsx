@@ -47,7 +47,6 @@ export default function ArtistsScreen() {
         parentId: libraryId,
         sortBy: ["SortName"],
         sortOrder: ["Ascending"],
-        recursive: true,
         fields: ["PrimaryImageAspectRatio", "SortName"],
         imageTypeLimit: 1,
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
@@ -133,7 +132,6 @@ export default function ArtistsScreen() {
     <FlashList
       data={artists}
       numColumns={numColumns}
-      estimatedItemSize={itemWidth + 40}
       contentContainerStyle={{
         paddingBottom: insets.bottom + 100,
         paddingTop: 16,
