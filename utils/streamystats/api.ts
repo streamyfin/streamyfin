@@ -1,16 +1,19 @@
 import axios from "axios";
 import type {
-  StreamyStatsSearchFullResponse,
-  StreamyStatsSearchIdsResponse,
-  StreamyStatsSearchParams,
+  StreamystatsRecommendationsFullResponse,
+  StreamystatsRecommendationsIdsResponse,
+  StreamystatsRecommendationsParams,
+  StreamystatsSearchFullResponse,
+  StreamystatsSearchIdsResponse,
+  StreamystatsSearchParams,
 } from "./types";
 
-interface StreamyStatsApiConfig {
+interface StreamystatsApiConfig {
   serverUrl: string;
   jellyfinToken: string;
 }
 
-export const createStreamyStatsApi = (config: StreamyStatsApiConfig) => {
+export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
   const { serverUrl, jellyfinToken } = config;
 
   const baseUrl = serverUrl.endsWith("/") ? serverUrl.slice(0, -1) : serverUrl;
@@ -20,9 +23,9 @@ export const createStreamyStatsApi = (config: StreamyStatsApiConfig) => {
   };
 
   const search = async (
-    params: StreamyStatsSearchParams,
+    params: StreamystatsSearchParams,
   ): Promise<
-    StreamyStatsSearchIdsResponse | StreamyStatsSearchFullResponse
+    StreamystatsSearchIdsResponse | StreamystatsSearchFullResponse
   > => {
     const queryParams = new URLSearchParams();
     queryParams.set("q", params.q);
@@ -45,35 +48,91 @@ export const createStreamyStatsApi = (config: StreamyStatsApiConfig) => {
 
   const searchIds = async (
     query: string,
-    type?: StreamyStatsSearchParams["type"],
+    type?: StreamystatsSearchParams["type"],
     limit?: number,
-  ): Promise<StreamyStatsSearchIdsResponse> => {
+  ): Promise<StreamystatsSearchIdsResponse> => {
     return search({
       q: query,
       format: "ids",
       type,
       limit,
-    }) as Promise<StreamyStatsSearchIdsResponse>;
+    }) as Promise<StreamystatsSearchIdsResponse>;
   };
 
   const searchFull = async (
     query: string,
-    type?: StreamyStatsSearchParams["type"],
+    type?: StreamystatsSearchParams["type"],
     limit?: number,
-  ): Promise<StreamyStatsSearchFullResponse> => {
+  ): Promise<StreamystatsSearchFullResponse> => {
     return search({
       q: query,
       format: "full",
       type,
       limit,
-    }) as Promise<StreamyStatsSearchFullResponse>;
+    }) as Promise<StreamystatsSearchFullResponse>;
+  };
+
+  const getRecommendations = async (
+    params: StreamystatsRecommendationsParams,
+  ): Promise<
+    | StreamystatsRecommendationsIdsResponse
+    | StreamystatsRecommendationsFullResponse
+  > => {
+    const queryParams = new URLSearchParams();
+
+    if (params.serverId) {
+      queryParams.set("serverId", params.serverId.toString());
+    }
+    if (params.serverName) {
+      queryParams.set("serverName", params.serverName);
+    }
+    if (params.limit) {
+      queryParams.set("limit", params.limit.toString());
+    }
+    if (params.type) {
+      queryParams.set("type", params.type);
+    }
+    if (params.range) {
+      queryParams.set("range", params.range);
+    }
+    if (params.format) {
+      queryParams.set("format", params.format);
+    }
+    if (params.includeBasedOn !== undefined) {
+      queryParams.set("includeBasedOn", params.includeBasedOn.toString());
+    }
+    if (params.includeReasons !== undefined) {
+      queryParams.set("includeReasons", params.includeReasons.toString());
+    }
+
+    const url = `${baseUrl}/api/recommendations?${queryParams.toString()}`;
+    const response = await axios.get(url, { headers });
+
+    return response.data;
+  };
+
+  const getRecommendationIds = async (
+    serverName: string,
+    type?: StreamystatsRecommendationsParams["type"],
+    limit?: number,
+  ): Promise<StreamystatsRecommendationsIdsResponse> => {
+    return getRecommendations({
+      serverName,
+      format: "ids",
+      type,
+      limit,
+      includeBasedOn: false,
+      includeReasons: false,
+    }) as Promise<StreamystatsRecommendationsIdsResponse>;
   };
 
   return {
     search,
     searchIds,
     searchFull,
+    getRecommendations,
+    getRecommendationIds,
   };
 };
 
-export type StreamyStatsApi = ReturnType<typeof createStreamyStatsApi>;
+export type StreamystatsApi = ReturnType<typeof createStreamystatsApi>;

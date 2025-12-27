@@ -39,7 +39,7 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { createStreamyStatsApi } from "@/utils/streamystats";
+import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
 
@@ -119,12 +119,12 @@ export default function search() {
           return (searchApi.data.Items as BaseItemDto[]) || [];
         }
 
-        if (searchEngine === "StreamyStats") {
+        if (searchEngine === "Streamystats") {
           if (!settings?.streamyStatsServerUrl || !api.accessToken) {
             return [];
           }
 
-          const streamyStatsApi = createStreamyStatsApi({
+          const streamyStatsApi = createStreamystatsApi({
             serverUrl: settings.streamyStatsServerUrl,
             jellyfinToken: api.accessToken,
           });

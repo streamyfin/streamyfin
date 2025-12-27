@@ -32,7 +32,7 @@ export const PluginSettings = () => {
         onPress={() =>
           router.push("/settings/plugins/streamystats-search/page")
         }
-        title='StreamyStats Search'
+        title='Streamystats Search'
         showArrow
       />
     </ListGroup>

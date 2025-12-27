@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
+import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
@@ -473,6 +474,22 @@ export const Home = () => {
         className='flex flex-col space-y-4'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
+        {settings.streamyStatsMovieRecommendations && (
+          <StreamystatsRecommendations
+            title={t(
+              "home.settings.plugins.streamystats_search.recommended_movies",
+            )}
+            type='Movie'
+          />
+        )}
+        {settings.streamyStatsSeriesRecommendations && (
+          <StreamystatsRecommendations
+            title={t(
+              "home.settings.plugins.streamystats_search.recommended_series",
+            )}
+            type='Series'
+          />
+        )}
         {sections.map((section, index) => {
           if (section.type === "InfiniteScrollingCollectionList") {
             return (

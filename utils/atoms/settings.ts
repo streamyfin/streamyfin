@@ -139,9 +139,11 @@ export type Settings = {
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
-  searchEngine: "Marlin" | "Jellyfin" | "StreamyStats";
+  searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
   marlinServerUrl?: string;
   streamyStatsServerUrl?: string;
+  streamyStatsMovieRecommendations?: boolean;
+  streamyStatsSeriesRecommendations?: boolean;
   downloadQuality?: DownloadOption;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
@@ -203,6 +205,8 @@ export const defaultValues: Settings = {
   searchEngine: "Jellyfin",
   marlinServerUrl: "",
   streamyStatsServerUrl: "",
+  streamyStatsMovieRecommendations: false,
+  streamyStatsSeriesRecommendations: false,
   downloadQuality: DownloadOptions[0],
   defaultBitrate: BITRATES[0],
   libraryOptions: {

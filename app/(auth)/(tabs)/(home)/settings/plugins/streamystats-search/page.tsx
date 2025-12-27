@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Linking,
@@ -32,12 +32,37 @@ export default function page() {
     settings?.streamyStatsServerUrl || "",
   );
 
-  const onSave = (val: string) => {
-    updateSettings({
-      streamyStatsServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
-    });
-    toast.success(t("home.settings.plugins.streamystats_search.toasts.saved"));
-  };
+  const onSave = useCallback(
+    (val: string) => {
+      updateSettings({
+        streamyStatsServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
+      });
+      toast.success(
+        t("home.settings.plugins.streamystats_search.toasts.saved"),
+      );
+    },
+    [updateSettings, t],
+  );
+
+  const toggleMovieRecommendations = useCallback(
+    (enabled: boolean) => {
+      updateSettings({ streamyStatsMovieRecommendations: enabled });
+      queryClient.invalidateQueries({
+        queryKey: ["streamystats", "recommendations"],
+      });
+    },
+    [updateSettings, queryClient],
+  );
+
+  const toggleSeriesRecommendations = useCallback(
+    (enabled: boolean) => {
+      updateSettings({ streamyStatsSeriesRecommendations: enabled });
+      queryClient.invalidateQueries({
+        queryKey: ["streamystats", "recommendations"],
+      });
+    },
+    [updateSettings, queryClient],
+  );
 
   const handleOpenLink = () => {
     Linking.openURL("https://github.com/fredrikburmester/streamystats");
@@ -90,10 +115,10 @@ export default function page() {
               }}
             >
               <Switch
-                value={settings.searchEngine === "StreamyStats"}
+                value={settings.searchEngine === "Streamystats"}
                 onValueChange={(val) => {
                   updateSettings({
-                    searchEngine: val ? "StreamyStats" : "Jellyfin",
+                    searchEngine: val ? "Streamystats" : "Jellyfin",
                   });
                   queryClient.invalidateQueries({ queryKey: ["search"] });
                 }}
@@ -112,7 +137,7 @@ export default function page() {
               {t("home.settings.plugins.streamystats_search.url")}
             </Text>
             <TextInput
-              editable={settings.searchEngine === "StreamyStats"}
+              editable={settings.searchEngine === "Streamystats"}
               className='text-white'
               placeholder={t(
                 "home.settings.plugins.streamystats_search.server_url_placeholder",
@@ -135,6 +160,39 @@ export default function page() {
               "home.settings.plugins.streamystats_search.read_more_about_streamystats",
             )}
           </Text>
+        </Text>
+
+        <ListGroup
+          title={t(
+            "home.settings.plugins.streamystats_search.recommendations_title",
+          )}
+          className='mt-4'
+        >
+          <ListItem
+            title={t(
+              "home.settings.plugins.streamystats_search.enable_movie_recommendations",
+            )}
+          >
+            <Switch
+              value={settings.streamyStatsMovieRecommendations ?? false}
+              onValueChange={toggleMovieRecommendations}
+              disabled={!settings.streamyStatsServerUrl}
+            />
+          </ListItem>
+          <ListItem
+            title={t(
+              "home.settings.plugins.streamystats_search.enable_series_recommendations",
+            )}
+          >
+            <Switch
+              value={settings.streamyStatsSeriesRecommendations ?? false}
+              onValueChange={toggleSeriesRecommendations}
+              disabled={!settings.streamyStatsServerUrl}
+            />
+          </ListItem>
+        </ListGroup>
+        <Text className='px-4 text-xs text-neutral-500 mt-1'>
+          {t("home.settings.plugins.streamystats_search.recommendations_hint")}
         </Text>
       </DisabledSetting>
     </ScrollView>

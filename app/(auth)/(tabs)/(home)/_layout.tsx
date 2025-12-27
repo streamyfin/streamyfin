@@ -241,7 +241,7 @@ export default function IndexLayout() {
       <Stack.Screen
         name='settings/plugins/streamystats-search/page'
         options={{
-          title: "StreamyStats Search",
+          title: "Streamystats Search",
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
