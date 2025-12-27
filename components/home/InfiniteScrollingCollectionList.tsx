@@ -40,6 +40,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   pageSize = 10,
   ...props
 }) => {
+  const effectivePageSize = Math.max(1, pageSize);
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteQuery({
       queryKey: queryKey,
@@ -47,11 +48,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         queryFn({ ...context, queryKey, pageParam }),
       getNextPageParam: (lastPage, allPages) => {
         // If the last page has fewer items than pageSize, we've reached the end
-        if (lastPage.length < pageSize) {
+        if (lastPage.length < effectivePageSize) {
           return undefined;
         }
-        // Otherwise, return the next start index
-        return allPages.length * pageSize;
+        // Otherwise, return the next start index based on how many items we already loaded.
+        // This avoids overlaps if the server/page size differs from our configured page size.
+        return allPages.reduce((acc, page) => acc + page.length, 0);
       },
       initialPageParam: 0,
       staleTime: 60 * 1000, // 1 minute
@@ -62,8 +64,22 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   const { t } = useTranslation();
 
-  // Flatten all pages into a single array
-  const allItems = data?.pages.flat() || [];
+  // Flatten all pages into a single array (and de-dupe by Id to avoid UI duplicates)
+  const allItems = useMemo(() => {
+    const items = data?.pages.flat() ?? [];
+    const seen = new Set<string>();
+    const deduped: BaseItemDto[] = [];
+
+    for (const item of items) {
+      const id = item.Id;
+      if (!id) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      deduped.push(item);
+    }
+
+    return deduped;
+  }, [data]);
 
   const snapOffsets = useMemo(() => {
     const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)

@@ -24,6 +24,7 @@ type EmptyState = Record<FavoriteTypes, boolean>;
 export const Favorites = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const pageSize = 20;
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: false,
     Movie: false,
@@ -91,33 +92,33 @@ export const Favorites = () => {
 
   const fetchFavoriteSeries = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Series", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Series", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteMovies = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Movie", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Movie", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteEpisodes = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Episode", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Episode", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteVideos = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Video", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Video", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteBoxsets = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("BoxSet", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("BoxSet", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoritePlaylists = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Playlist", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Playlist", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
 
   return (
@@ -143,6 +144,7 @@ export const Favorites = () => {
         queryKey={["home", "favorites", "series"]}
         title={t("favorites.series")}
         hideIfEmpty
+        pageSize={pageSize}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
@@ -150,30 +152,35 @@ export const Favorites = () => {
         title={t("favorites.movies")}
         hideIfEmpty
         orientation='vertical'
+        pageSize={pageSize}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
         queryKey={["home", "favorites", "episodes"]}
         title={t("favorites.episodes")}
         hideIfEmpty
+        pageSize={pageSize}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
         queryKey={["home", "favorites", "videos"]}
         title={t("favorites.videos")}
         hideIfEmpty
+        pageSize={pageSize}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
         queryKey={["home", "favorites", "boxsets"]}
         title={t("favorites.boxsets")}
         hideIfEmpty
+        pageSize={pageSize}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
         queryKey={["home", "favorites", "playlists"]}
         title={t("favorites.playlists")}
         hideIfEmpty
+        pageSize={pageSize}
       />
     </View>
   );
