@@ -139,7 +139,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             )),
         });
       }
-    }, [item, navigation, user, item]);
+    }, [item, navigation, user]);
 
     useEffect(() => {
       if (item) {
