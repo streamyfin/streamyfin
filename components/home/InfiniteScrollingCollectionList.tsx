@@ -12,6 +12,7 @@ import {
   View,
   type ViewProps,
 } from "react-native";
+import { SectionHeader } from "@/components/common/SectionHeader";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { Colors } from "../../constants/Colors";
@@ -28,6 +29,7 @@ interface Props extends ViewProps {
   queryFn: QueryFunction<BaseItemDto[], QueryKey, number>;
   hideIfEmpty?: boolean;
   pageSize?: number;
+  onPressSeeAll?: () => void;
 }
 
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
@@ -38,6 +40,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   queryKey,
   hideIfEmpty = false,
   pageSize = 10,
+  onPressSeeAll,
   ...props
 }) => {
   const effectivePageSize = Math.max(1, pageSize);
@@ -106,9 +109,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   return (
     <View {...props}>
-      <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
-        {title}
-      </Text>
+      <SectionHeader
+        title={title}
+        actionLabel={t("common.seeAll", { defaultValue: "See all" })}
+        actionDisabled={isLoading}
+        onPressAction={onPressSeeAll}
+      />
       {isLoading === false && allItems.length === 0 && (
         <View className='px-4'>
           <Text className='text-neutral-500'>{t("home.no_items")}</Text>

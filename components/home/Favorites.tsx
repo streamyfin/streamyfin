@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
@@ -22,6 +23,7 @@ type FavoriteTypes =
 type EmptyState = Record<FavoriteTypes, boolean>;
 
 export const Favorites = () => {
+  const router = useRouter();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const pageSize = 20;
@@ -121,6 +123,48 @@ export const Favorites = () => {
     [fetchFavoritesByType, pageSize],
   );
 
+  const handleSeeAllSeries = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Series", title: t("favorites.series") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllMovies = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Movie", title: t("favorites.movies") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllEpisodes = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Episode", title: t("favorites.episodes") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllVideos = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Video", title: t("favorites.videos") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllBoxsets = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "BoxSet", title: t("favorites.boxsets") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllPlaylists = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Playlist", title: t("favorites.playlists") },
+    } as any);
+  }, [router]);
+
   return (
     <View className='flex flex-co gap-y-4'>
       {areAllEmpty() && (
@@ -145,6 +189,7 @@ export const Favorites = () => {
         title={t("favorites.series")}
         hideIfEmpty
         pageSize={pageSize}
+        onPressSeeAll={handleSeeAllSeries}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
@@ -153,6 +198,7 @@ export const Favorites = () => {
         hideIfEmpty
         orientation='vertical'
         pageSize={pageSize}
+        onPressSeeAll={handleSeeAllMovies}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
@@ -160,6 +206,7 @@ export const Favorites = () => {
         title={t("favorites.episodes")}
         hideIfEmpty
         pageSize={pageSize}
+        onPressSeeAll={handleSeeAllEpisodes}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
@@ -167,6 +214,7 @@ export const Favorites = () => {
         title={t("favorites.videos")}
         hideIfEmpty
         pageSize={pageSize}
+        onPressSeeAll={handleSeeAllVideos}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
@@ -174,6 +222,7 @@ export const Favorites = () => {
         title={t("favorites.boxsets")}
         hideIfEmpty
         pageSize={pageSize}
+        onPressSeeAll={handleSeeAllBoxsets}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
@@ -181,6 +230,7 @@ export const Favorites = () => {
         title={t("favorites.playlists")}
         hideIfEmpty
         pageSize={pageSize}
+        onPressSeeAll={handleSeeAllPlaylists}
       />
     </View>
   );
