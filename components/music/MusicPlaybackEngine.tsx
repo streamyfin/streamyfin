@@ -19,11 +19,17 @@ export const MusicPlaybackEngine: React.FC = () => {
     onTrackEnd,
   } = useMusicPlayer();
 
-  const lastProgressRef = useRef(0);
-  const isSeeking = useRef(false);
+  const isLoadedRef = useRef(false);
+  const lastPlaybackProgressRef = useRef(0);
+  const lastReportedProgressRef = useRef(0);
+  const isSeekingRef = useRef(false);
+  const seekResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const handleLoad = useCallback(
     (data: OnLoadData) => {
+      isLoadedRef.current = true;
       if (data.duration > 0) {
         setDuration(data.duration);
       }
@@ -33,14 +39,19 @@ export const MusicPlaybackEngine: React.FC = () => {
 
   const handleProgress = useCallback(
     (data: OnProgressData) => {
-      if (isSeeking.current) return;
+      if (isSeekingRef.current) return;
 
       const newProgress = data.currentTime;
+      lastPlaybackProgressRef.current = newProgress;
       setProgress(newProgress);
 
-      // Report progress every ~10 seconds
-      if (Math.floor(newProgress) - Math.floor(lastProgressRef.current) >= 10) {
-        lastProgressRef.current = newProgress;
+      // Report progress every ~10 seconds (provider also throttles, but keeping
+      // this here avoids calling into it every second).
+      if (
+        Math.floor(newProgress) - Math.floor(lastReportedProgressRef.current) >=
+        10
+      ) {
+        lastReportedProgressRef.current = newProgress;
         reportProgress();
       }
     },
@@ -55,18 +66,49 @@ export const MusicPlaybackEngine: React.FC = () => {
     // Silently handle errors
   }, []);
 
+  useEffect(() => {
+    // Reset per-track state so we don't treat normal playback as an "external seek"
+    // and so we don't attempt to seek before the new source is loaded.
+    isLoadedRef.current = false;
+    isSeekingRef.current = false;
+    lastPlaybackProgressRef.current = progress;
+    lastReportedProgressRef.current = progress;
+
+    if (seekResetTimeoutRef.current) {
+      clearTimeout(seekResetTimeoutRef.current);
+      seekResetTimeoutRef.current = null;
+    }
+  }, [streamUrl, currentTrack?.Id]);
+
   // Handle seek from external sources
   useEffect(() => {
-    if (videoRef.current && Math.abs(progress - lastProgressRef.current) > 2) {
-      isSeeking.current = true;
-      videoRef.current.seek(progress);
-      lastProgressRef.current = progress;
-      // Reset seeking flag after a short delay
-      setTimeout(() => {
-        isSeeking.current = false;
-      }, 500);
+    if (!isLoadedRef.current) return;
+    if (!videoRef.current) return;
+
+    const delta = Math.abs(progress - lastPlaybackProgressRef.current);
+    if (delta <= 2) return;
+
+    isSeekingRef.current = true;
+    videoRef.current.seek(progress);
+    lastPlaybackProgressRef.current = progress;
+
+    if (seekResetTimeoutRef.current) {
+      clearTimeout(seekResetTimeoutRef.current);
     }
+
+    // Reset seeking flag after a short delay (avoid stutter + allow onProgress again)
+    seekResetTimeoutRef.current = setTimeout(() => {
+      isSeekingRef.current = false;
+    }, 250);
   }, [progress]);
+
+  useEffect(() => {
+    return () => {
+      if (seekResetTimeoutRef.current) {
+        clearTimeout(seekResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!streamUrl || !currentTrack) {
     return null;
@@ -78,7 +120,6 @@ export const MusicPlaybackEngine: React.FC = () => {
         ref={videoRef}
         source={{ uri: streamUrl }}
         paused={!isPlaying}
-        audioOnly
         playInBackground
         playWhenInactive
         ignoreSilentSwitch='ignore'
