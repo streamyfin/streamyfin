@@ -12,6 +12,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { MusicControls } from "@/modules";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { storage } from "@/utils/mmkv";
 import native from "@/utils/profiles/native";
@@ -255,6 +256,32 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   });
 
   const lastReportRef = useRef<number>(0);
+  const lastNowPlayingUpdateRef = useRef<number>(0);
+
+  const pauseRef = useRef<() => void>(() => {});
+  const resumeRef = useRef<() => void>(() => {});
+  const togglePlayPauseRef = useRef<() => void>(() => {});
+  const nextRef = useRef<() => void>(() => {});
+  const previousRef = useRef<() => void>(() => {});
+  const seekRef = useRef<(position: number) => void>(() => {});
+
+  const getNowPlayingArtworkUri = useCallback(
+    (track: BaseItemDto): string | undefined => {
+      if (!api?.basePath || !track?.Id || !api.accessToken) return undefined;
+
+      const albumId = track.AlbumId || track.ParentId;
+      const itemId = albumId || track.Id;
+
+      const qs = new URLSearchParams({
+        maxHeight: "512",
+        maxWidth: "512",
+        quality: "90",
+        api_key: api.accessToken,
+      });
+      return `${api.basePath}/Items/${itemId}/Images/Primary?${qs.toString()}`;
+    },
+    [api?.basePath, api?.accessToken],
+  );
 
   // Restore queue on mount (when api is available)
   useEffect(() => {
@@ -633,6 +660,93 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     setState((prev) => ({ ...prev, progress: position }));
   }, []);
 
+  pauseRef.current = pause;
+  resumeRef.current = resume;
+  togglePlayPauseRef.current = togglePlayPause;
+  nextRef.current = next;
+  previousRef.current = previous;
+  seekRef.current = seek;
+
+  // Native transport controls: listen for OS play/pause/next/prev/seek commands
+  useEffect(() => {
+    const playSub = MusicControls.addPlayListener(() => {
+      resumeRef.current();
+    });
+    const pauseSub = MusicControls.addPauseListener(() => {
+      pauseRef.current();
+    });
+    const toggleSub = MusicControls.addTogglePlayPauseListener(() => {
+      togglePlayPauseRef.current();
+    });
+    const nextSub = MusicControls.addNextListener(() => {
+      nextRef.current();
+    });
+    const prevSub = MusicControls.addPreviousListener(() => {
+      previousRef.current();
+    });
+    const seekSub = MusicControls.addSeekToListener((event) => {
+      if (
+        typeof event?.position === "number" &&
+        Number.isFinite(event.position)
+      ) {
+        seekRef.current(Math.max(0, event.position));
+      }
+    });
+
+    return () => {
+      playSub.remove();
+      pauseSub.remove();
+      toggleSub.remove();
+      nextSub.remove();
+      prevSub.remove();
+      seekSub.remove();
+    };
+  }, []);
+
+  // Publish now-playing metadata and playback state to the OS
+  useEffect(() => {
+    if (!api || !state.currentTrack) {
+      MusicControls.disable();
+      return;
+    }
+
+    // Enable controls when we have something loaded (even if paused)
+    MusicControls.enable();
+
+    const metadata = {
+      title: state.currentTrack.Name ?? "Unknown",
+      artist:
+        state.currentTrack.Artists?.join(", ") ||
+        state.currentTrack.AlbumArtist ||
+        undefined,
+      albumTitle: state.currentTrack.Album || undefined,
+      artworkUri: getNowPlayingArtworkUri(state.currentTrack),
+      duration: state.duration || undefined,
+    };
+    MusicControls.setNowPlaying(metadata);
+  }, [api, state.currentTrack?.Id, state.duration, getNowPlayingArtworkUri]);
+
+  useEffect(() => {
+    if (!api || !state.currentTrack) return;
+
+    // Avoid hammering the bridge; keep OS scrubber reasonably up-to-date.
+    const now = Date.now();
+    if (now - lastNowPlayingUpdateRef.current < 750) return;
+    lastNowPlayingUpdateRef.current = now;
+
+    MusicControls.setPlaybackState({
+      isPlaying: state.isPlaying,
+      position: state.progress,
+      duration: state.duration || undefined,
+    });
+  }, [
+    api,
+    state.currentTrack?.Id,
+    state.isPlaying,
+    state.progress,
+    state.duration,
+  ]);
+
   const stop = useCallback(() => {
     if (state.currentTrack && state.playSessionId) {
       reportPlaybackStopped(
@@ -644,9 +758,9 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
     // Clear storage
     try {
-      storage.delete(STORAGE_KEYS.QUEUE);
-      storage.delete(STORAGE_KEYS.QUEUE_INDEX);
-      storage.delete(STORAGE_KEYS.CURRENT_PROGRESS);
+      storage.remove(STORAGE_KEYS.QUEUE);
+      storage.remove(STORAGE_KEYS.QUEUE_INDEX);
+      storage.remove(STORAGE_KEYS.CURRENT_PROGRESS);
     } catch {
       // Silently fail
     }
@@ -665,6 +779,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       repeatMode: state.repeatMode,
       shuffleEnabled: state.shuffleEnabled,
     });
+
+    MusicControls.disable();
   }, [
     state.currentTrack,
     state.playSessionId,
