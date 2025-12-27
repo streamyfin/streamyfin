@@ -28,6 +28,13 @@ export const PluginSettings = () => {
         title='Marlin Search'
         showArrow
       />
+      <ListItem
+        onPress={() =>
+          router.push("/settings/plugins/streamystats-search/page")
+        }
+        title='StreamyStats Search'
+        showArrow
+      />
     </ListGroup>
   );
 };

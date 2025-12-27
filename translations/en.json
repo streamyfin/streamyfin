@@ -244,6 +244,17 @@
           "toasts": {
             "saved": "Saved"
           }
+        },
+        "streamystats_search": {
+          "enable_streamystats_search": "Enable StreamyStats Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your StreamyStats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About StreamyStats.",
+          "save_button": "Save",
+          "toasts": {
+            "saved": "Saved"
+          }
         }
       },
       "storage": {

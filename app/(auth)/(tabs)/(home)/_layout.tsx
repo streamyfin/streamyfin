@@ -239,6 +239,24 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name='settings/plugins/streamystats-search/page'
+        options={{
+          title: "StreamyStats Search",
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Stack.Screen
         name='settings/intro/page'
         options={{
           title: t("home.settings.intro.title"),
