@@ -132,7 +132,6 @@ export default function PlaylistsScreen() {
     <FlashList
       data={playlists}
       numColumns={numColumns}
-      estimatedItemSize={itemWidth + 60}
       contentContainerStyle={{
         paddingBottom: insets.bottom + 100,
         paddingTop: 16,
