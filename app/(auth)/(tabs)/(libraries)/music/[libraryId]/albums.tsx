@@ -98,7 +98,6 @@ export default function AlbumsScreen() {
     <FlashList
       data={albums}
       numColumns={numColumns}
-      estimatedItemSize={itemWidth + 60}
       contentContainerStyle={{
         paddingBottom: insets.bottom + 100,
         paddingTop: 16,
