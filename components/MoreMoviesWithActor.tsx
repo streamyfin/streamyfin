@@ -11,6 +11,7 @@ import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 interface Props extends ViewProps {
@@ -87,7 +88,7 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
       <HorizontalScroll
         data={items}
         loading={isLoading}
-        height={247}
+        height={POSTER_CAROUSEL_HEIGHT}
         renderItem={renderItem}
       />
     </View>

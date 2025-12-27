@@ -240,7 +240,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             {item.Type !== "Program" && (
               <>
                 {item.Type === "Episode" && !isOffline && (
-                  <CurrentSeries item={item} className='mb-4' />
+                  <CurrentSeries item={item} className='mb-2' />
                 )}
 
                 <ItemPeopleSections item={item} isOffline={isOffline} />

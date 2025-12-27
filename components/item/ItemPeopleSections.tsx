@@ -41,8 +41,10 @@ export const ItemPeopleSections: React.FC<Props> = ({
   const topPeople = useMemo(() => people.slice(0, 3), [people]);
 
   const renderActorSection = useCallback(
-    (person: BaseItemPerson) => {
+    (person: BaseItemPerson, idx: number, total: number) => {
       if (!person.Id) return null;
+
+      const spacingClassName = idx === total - 1 ? undefined : "mb-2";
 
       return (
         <MoreMoviesWithActor
@@ -50,7 +52,7 @@ export const ItemPeopleSections: React.FC<Props> = ({
           currentItem={item}
           actorId={person.Id}
           actorName={person.Name}
-          className='mb-4'
+          className={spacingClassName}
         />
       );
     },
@@ -59,10 +61,18 @@ export const ItemPeopleSections: React.FC<Props> = ({
 
   if (isOffline || !enabled) return null;
 
+  const shouldSpaceCastAndCrew = topPeople.length > 0;
+
   return (
     <View {...props}>
-      <CastAndCrew item={itemWithPeople} loading={isLoading} className='mb-4' />
-      {topPeople.map(renderActorSection)}
+      <CastAndCrew
+        item={itemWithPeople}
+        loading={isLoading}
+        className={shouldSpaceCastAndCrew ? "mb-2" : undefined}
+      />
+      {topPeople.map((person, idx) =>
+        renderActorSection(person, idx, topPeople.length),
+      )}
     </View>
   );
 };
