@@ -1,3 +1,7 @@
+import {
+  ItemFields,
+  type ItemFields as ItemFieldsType,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { useLocalSearchParams } from "expo-router";
 import type React from "react";
 import { useEffect } from "react";
@@ -13,6 +17,15 @@ import { Text } from "@/components/common/Text";
 import { ItemContent } from "@/components/ItemContent";
 import { useItemQuery } from "@/hooks/useItemQuery";
 
+const ITEM_FIELDS: ItemFieldsType[] = [
+  ItemFields.Overview,
+  ItemFields.Genres,
+  ItemFields.PrimaryImageAspectRatio,
+  ItemFields.MediaSources,
+  ItemFields.MediaStreams,
+  // Intentionally omit ItemFields.People (lazy-loaded)
+];
+
 const Page: React.FC = () => {
   const { id } = useLocalSearchParams() as { id: string };
   const { t } = useTranslation();
@@ -20,8 +33,7 @@ const Page: React.FC = () => {
   const { offline } = useLocalSearchParams() as { offline?: string };
   const isOffline = offline === "true";
 
-  // Fetch item with all fields including MediaSources
-  const { data: item, isError } = useItemQuery(id, isOffline, undefined, []);
+  const { data: item, isError } = useItemQuery(id, isOffline, ITEM_FIELDS);
 
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
