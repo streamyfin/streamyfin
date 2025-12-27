@@ -25,7 +25,8 @@ export const useItemPeopleQuery = (
         fields: ["People" satisfies ItemFields],
       });
 
-      return response.data.Items?.[0]?.People ?? [];
+      const people = response.data.Items?.[0]?.People;
+      return Array.isArray(people) ? people : [];
     },
     enabled: !!api && !!user?.Id && !!itemId && enabled,
     staleTime: 10 * 60 * 1000,

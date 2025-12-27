@@ -29,10 +29,12 @@ export const ItemPeopleSections: React.FC<Props> = ({
     return () => task.cancel();
   }, [isOffline]);
 
-  const { data: people = [], isLoading } = useItemPeopleQuery(
+  const { data, isLoading } = useItemPeopleQuery(
     item.Id,
     enabled && !isOffline,
   );
+
+  const people = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const itemWithPeople = useMemo(() => {
     return { ...item, People: people } as BaseItemDto;
