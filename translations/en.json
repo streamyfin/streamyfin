@@ -399,6 +399,7 @@
       "genres": "Genres",
       "years": "Years",
       "sort_by": "Sort By",
+      "filter_by": "Filter By",
       "sort_order": "Sort Order",
       "tags": "Tags"
     }

@@ -15,12 +15,15 @@ export enum SortByOption {
   OfficialRating = "OfficialRating",
   PremiereDate = "PremiereDate",
   StartDate = "StartDate",
-  IsUnplayed = "IsUnplayed",
-  IsPlayed = "IsPlayed",
   AirTime = "AirTime",
   Studio = "Studio",
-  IsFavoriteOrLiked = "IsFavoriteOrLiked",
   Random = "Random",
+}
+export enum FilterByOption {
+  IsFavoriteOrLiked = "IsFavoriteOrLiked",
+  IsUnplayed = "IsUnplayed",
+  IsPlayed = "IsPlayed",
+  Likes = "Likes",
 }
 
 export enum SortOrderOption {
@@ -44,12 +47,21 @@ export const sortOptions: {
   { key: SortByOption.OfficialRating, value: "Official Rating" },
   { key: SortByOption.PremiereDate, value: "Premiere Date" },
   { key: SortByOption.StartDate, value: "Start Date" },
-  { key: SortByOption.IsUnplayed, value: "Is Unplayed" },
-  { key: SortByOption.IsPlayed, value: "Is Played" },
+
   { key: SortByOption.AirTime, value: "Air Time" },
   { key: SortByOption.Studio, value: "Studio" },
-  { key: SortByOption.IsFavoriteOrLiked, value: "Is Favorite Or Liked" },
+
   { key: SortByOption.Random, value: "Random" },
+];
+
+export const filterOptions: {
+  key: FilterByOption;
+  value: string;
+}[] = [
+  { key: FilterByOption.IsFavoriteOrLiked, value: "Is Favorite Or Liked" },
+  { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
+  { key: FilterByOption.IsPlayed, value: "Is Played" },
+  { key: FilterByOption.Likes, value: "Liked" },
 ];
 
 export const sortOrderOptions: {
@@ -67,6 +79,7 @@ export const sortByAtom = atom<SortByOption[]>([SortByOption.Default]);
 export const sortOrderAtom = atom<SortOrderOption[]>([
   SortOrderOption.Ascending,
 ]);
+export const filterByAtom = atom<FilterByOption[]>([]);
 
 export interface SortPreference {
   [libraryId: string]: SortByOption;

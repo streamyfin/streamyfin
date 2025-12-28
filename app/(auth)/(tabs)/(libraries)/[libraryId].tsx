@@ -27,6 +27,8 @@ import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  filterByAtom,
+  filterOptions,
   genreFilterAtom,
   getSortByPreference,
   getSortOrderPreference,
@@ -54,6 +56,7 @@ const Page = () => {
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
+  const [filterBy, setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [sortOrderPreference, setOderByPreference] = useAtom(
@@ -397,6 +400,26 @@ const Page = () => {
                 title={t("library.filters.sort_order")}
                 renderItemLabel={(item) =>
                   sortOrderOptions.find((i) => i.key === item)?.value || ""
+                }
+                searchFilter={(item, search) =>
+                  item.toLowerCase().includes(search.toLowerCase())
+                }
+              />
+            ),
+          },
+          {
+            key: "filterOptions",
+            component: (
+              <FilterButton
+                className='mr-1'
+                id={libraryId}
+                queryKey='filters'
+                queryFn={async () => filterOptions.map((s) => s.key)}
+                set={setFilterBy}
+                values={filterBy}
+                title={t("library.filters.filter_by")}
+                renderItemLabel={(item) =>
+                  filterOptions.find((i) => i.key === item)?.value || ""
                 }
                 searchFilter={(item, search) =>
                   item.toLowerCase().includes(search.toLowerCase())
