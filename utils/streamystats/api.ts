@@ -6,6 +6,10 @@ import type {
   StreamystatsSearchFullResponse,
   StreamystatsSearchIdsResponse,
   StreamystatsSearchParams,
+  StreamystatsWatchlistDetailIdsResponse,
+  StreamystatsWatchlistDetailParams,
+  StreamystatsWatchlistsFullResponse,
+  StreamystatsWatchlistsParams,
 } from "./types";
 
 interface StreamystatsApiConfig {
@@ -86,6 +90,9 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     if (params.serverName) {
       queryParams.set("serverName", params.serverName);
     }
+    if (params.jellyfinServerId) {
+      queryParams.set("jellyfinServerId", params.jellyfinServerId);
+    }
     if (params.limit) {
       queryParams.set("limit", params.limit.toString());
     }
@@ -112,12 +119,12 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
   };
 
   const getRecommendationIds = async (
-    serverName: string,
+    jellyfinServerId: string,
     type?: StreamystatsRecommendationsParams["type"],
     limit?: number,
   ): Promise<StreamystatsRecommendationsIdsResponse> => {
     return getRecommendations({
-      serverName,
+      jellyfinServerId,
       format: "ids",
       type,
       limit,
@@ -126,12 +133,72 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     }) as Promise<StreamystatsRecommendationsIdsResponse>;
   };
 
+  const getPromotedWatchlists = async (
+    params: StreamystatsWatchlistsParams,
+  ): Promise<StreamystatsWatchlistsFullResponse> => {
+    const queryParams = new URLSearchParams();
+
+    if (params.serverId) {
+      queryParams.set("serverId", params.serverId.toString());
+    }
+    if (params.serverName) {
+      queryParams.set("serverName", params.serverName);
+    }
+    if (params.serverUrl) {
+      queryParams.set("serverUrl", params.serverUrl);
+    }
+    if (params.jellyfinServerId) {
+      queryParams.set("jellyfinServerId", params.jellyfinServerId);
+    }
+    if (params.limit) {
+      queryParams.set("limit", params.limit.toString());
+    }
+    if (params.format) {
+      queryParams.set("format", params.format);
+    }
+    if (params.includePreview !== undefined) {
+      queryParams.set("includePreview", params.includePreview.toString());
+    }
+
+    const url = `${baseUrl}/api/watchlists/promoted?${queryParams.toString()}`;
+    const response = await axios.get(url, { headers });
+
+    return response.data;
+  };
+
+  const getWatchlistItemIds = async (
+    params: StreamystatsWatchlistDetailParams,
+  ): Promise<StreamystatsWatchlistDetailIdsResponse> => {
+    const queryParams = new URLSearchParams();
+    queryParams.set("format", "ids");
+
+    if (params.serverId) {
+      queryParams.set("serverId", params.serverId.toString());
+    }
+    if (params.serverName) {
+      queryParams.set("serverName", params.serverName);
+    }
+    if (params.serverUrl) {
+      queryParams.set("serverUrl", params.serverUrl);
+    }
+    if (params.jellyfinServerId) {
+      queryParams.set("jellyfinServerId", params.jellyfinServerId);
+    }
+
+    const url = `${baseUrl}/api/watchlists/${params.watchlistId}?${queryParams.toString()}`;
+    const response = await axios.get(url, { headers });
+
+    return response.data;
+  };
+
   return {
     search,
     searchIds,
     searchFull,
     getRecommendations,
     getRecommendationIds,
+    getPromotedWatchlists,
+    getWatchlistItemIds,
   };
 };
 

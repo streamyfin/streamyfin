@@ -89,6 +89,7 @@ export type StreamystatsRecommendationRange =
 export interface StreamystatsRecommendationsParams {
   serverId?: number;
   serverName?: string;
+  jellyfinServerId?: string;
   limit?: number;
   type?: StreamystatsRecommendationType;
   range?: StreamystatsRecommendationRange;
@@ -140,3 +141,116 @@ export interface StreamystatsRecommendationsIdsResponse {
 export type StreamystatsRecommendationsResponse =
   | StreamystatsRecommendationsFullResponse
   | StreamystatsRecommendationsIdsResponse;
+
+/**
+ * Streamystats Watchlists API Types
+ */
+
+export interface StreamystatsServerInfo {
+  id: number;
+  name: string;
+}
+
+export interface StreamystatsWatchlistsParams {
+  serverId?: number;
+  serverName?: string;
+  serverUrl?: string;
+  jellyfinServerId?: string;
+  limit?: number;
+  format?: StreamystatsSearchFormat;
+  includePreview?: boolean;
+}
+
+export interface StreamystatsWatchlistPreviewItem {
+  id: string;
+  name: string;
+  type: "Movie" | "Series" | "Episode";
+  primaryImageTag?: string;
+}
+
+export interface StreamystatsWatchlistItem {
+  id: string;
+  name: string;
+  type: "Movie" | "Series" | "Episode";
+  productionYear?: number;
+  runtimeTicks?: number;
+  genres?: string[];
+  primaryImageTag?: string;
+  seriesId?: string;
+  seriesName?: string;
+  communityRating?: number;
+}
+
+export interface StreamystatsWatchlistItemEntry {
+  id: number;
+  watchlistId: number;
+  itemId: string;
+  position: number;
+  addedAt: string;
+  item: StreamystatsWatchlistItem;
+}
+
+export interface StreamystatsWatchlist {
+  id: number;
+  serverId: number;
+  userId: string;
+  name: string;
+  description?: string | null;
+  isPublic: boolean;
+  isPromoted: boolean;
+  allowedItemType?: string;
+  defaultSortOrder?: string;
+  createdAt: string;
+  updatedAt: string;
+  itemCount?: number;
+  previewItems?: StreamystatsWatchlistPreviewItem[];
+  items?: StreamystatsWatchlistItemEntry[];
+}
+
+export interface StreamystatsWatchlistsFullResponse {
+  server: StreamystatsServerInfo;
+  data: StreamystatsWatchlist[];
+  total: number;
+  error?: string;
+}
+
+export interface StreamystatsWatchlistsIdsResponse {
+  data: {
+    watchlists: string[];
+    total: number;
+  };
+  error?: string;
+}
+
+export type StreamystatsWatchlistsResponse =
+  | StreamystatsWatchlistsFullResponse
+  | StreamystatsWatchlistsIdsResponse;
+
+export interface StreamystatsWatchlistDetailParams {
+  watchlistId: number;
+  serverId?: number;
+  serverName?: string;
+  serverUrl?: string;
+  jellyfinServerId?: string;
+  format?: StreamystatsSearchFormat;
+}
+
+export interface StreamystatsWatchlistDetailFullResponse {
+  server: StreamystatsServerInfo;
+  data: StreamystatsWatchlist;
+  error?: string;
+}
+
+export interface StreamystatsWatchlistDetailIdsResponse {
+  server: StreamystatsServerInfo;
+  data: {
+    id: number;
+    name: string;
+    items: string[];
+  };
+  error?: string;
+}
+
+export type StreamystatsWatchlistDetailResponse =
+  | StreamystatsWatchlistDetailFullResponse
+  | StreamystatsWatchlistDetailIdsResponse;

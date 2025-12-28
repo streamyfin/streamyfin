@@ -245,17 +245,18 @@
             "saved": "Saved"
           }
         },
-        "streamystats_search": {
-          "enable_streamystats_search": "Enable Streamystats Search",
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
           "save_button": "Save",
-          "recommendations_title": "Recommendations",
+          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
-          "recommendations_hint": "Show personalized recommendations from Streamystats on the home page. Requires a configured Streamystats server URL.",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
           "recommended_movies": "Recommended Movies",
           "recommended_series": "Recommended Series",
           "toasts": {

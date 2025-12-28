@@ -144,6 +144,7 @@ export type Settings = {
   streamyStatsServerUrl?: string;
   streamyStatsMovieRecommendations?: boolean;
   streamyStatsSeriesRecommendations?: boolean;
+  streamyStatsPromotedWatchlists?: boolean;
   downloadQuality?: DownloadOption;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
@@ -207,6 +208,7 @@ export const defaultValues: Settings = {
   streamyStatsServerUrl: "",
   streamyStatsMovieRecommendations: false,
   streamyStatsSeriesRecommendations: false,
+  streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
   defaultBitrate: BITRATES[0],
   libraryOptions: {

@@ -37,9 +37,7 @@ export default function page() {
       updateSettings({
         streamyStatsServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
       });
-      toast.success(
-        t("home.settings.plugins.streamystats_search.toasts.saved"),
-      );
+      toast.success(t("home.settings.plugins.streamystats.toasts.saved"));
     },
     [updateSettings, t],
   );
@@ -64,6 +62,16 @@ export default function page() {
     [updateSettings, queryClient],
   );
 
+  const togglePromotedWatchlists = useCallback(
+    (enabled: boolean) => {
+      updateSettings({ streamyStatsPromotedWatchlists: enabled });
+      queryClient.invalidateQueries({
+        queryKey: ["streamystats", "promotedWatchlists"],
+      });
+    },
+    [updateSettings, queryClient],
+  );
+
   const handleOpenLink = () => {
     Linking.openURL("https://github.com/fredrikburmester/streamystats");
   };
@@ -81,7 +89,7 @@ export default function page() {
         headerRight: () => (
           <TouchableOpacity onPress={() => onSave(value)} className='px-2'>
             <Text className='text-blue-500'>
-              {t("home.settings.plugins.streamystats_search.save_button")}
+              {t("home.settings.plugins.streamystats.save_button")}
             </Text>
           </TouchableOpacity>
         ),
@@ -107,7 +115,7 @@ export default function page() {
           >
             <ListItem
               title={t(
-                "home.settings.plugins.streamystats_search.enable_streamystats_search",
+                "home.settings.plugins.streamystats.enable_streamystats",
               )}
               onPress={() => {
                 updateSettings({ searchEngine: "Jellyfin" });
@@ -134,13 +142,13 @@ export default function page() {
         >
           <View className='flex flex-row items-center bg-neutral-900 h-11 pr-4'>
             <Text className='mr-4'>
-              {t("home.settings.plugins.streamystats_search.url")}
+              {t("home.settings.plugins.streamystats.url")}
             </Text>
             <TextInput
               editable={settings.searchEngine === "Streamystats"}
               className='text-white'
               placeholder={t(
-                "home.settings.plugins.streamystats_search.server_url_placeholder",
+                "home.settings.plugins.streamystats.server_url_placeholder",
               )}
               value={value}
               keyboardType='url'
@@ -152,25 +160,21 @@ export default function page() {
           </View>
         </DisabledSetting>
         <Text className='px-4 text-xs text-neutral-500 mt-1'>
-          {t(
-            "home.settings.plugins.streamystats_search.streamystats_search_hint",
-          )}{" "}
+          {t("home.settings.plugins.streamystats.streamystats_search_hint")}{" "}
           <Text className='text-blue-500' onPress={handleOpenLink}>
             {t(
-              "home.settings.plugins.streamystats_search.read_more_about_streamystats",
+              "home.settings.plugins.streamystats.read_more_about_streamystats",
             )}
           </Text>
         </Text>
 
         <ListGroup
-          title={t(
-            "home.settings.plugins.streamystats_search.recommendations_title",
-          )}
+          title={t("home.settings.plugins.streamystats.home_sections_title")}
           className='mt-4'
         >
           <ListItem
             title={t(
-              "home.settings.plugins.streamystats_search.enable_movie_recommendations",
+              "home.settings.plugins.streamystats.enable_movie_recommendations",
             )}
           >
             <Switch
@@ -181,7 +185,7 @@ export default function page() {
           </ListItem>
           <ListItem
             title={t(
-              "home.settings.plugins.streamystats_search.enable_series_recommendations",
+              "home.settings.plugins.streamystats.enable_series_recommendations",
             )}
           >
             <Switch
@@ -190,9 +194,20 @@ export default function page() {
               disabled={!settings.streamyStatsServerUrl}
             />
           </ListItem>
+          <ListItem
+            title={t(
+              "home.settings.plugins.streamystats.enable_promoted_watchlists",
+            )}
+          >
+            <Switch
+              value={settings.streamyStatsPromotedWatchlists ?? false}
+              onValueChange={togglePromotedWatchlists}
+              disabled={!settings.streamyStatsServerUrl}
+            />
+          </ListItem>
         </ListGroup>
         <Text className='px-4 text-xs text-neutral-500 mt-1'>
-          {t("home.settings.plugins.streamystats_search.recommendations_hint")}
+          {t("home.settings.plugins.streamystats.home_sections_hint")}
         </Text>
       </DisabledSetting>
     </ScrollView>

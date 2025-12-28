@@ -1,9 +1,11 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import type {
+  BaseItemDto,
+  PublicSystemInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { getItemsApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { ScrollView, View, type ViewProps } from "react-native";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Text } from "@/components/common/Text";
@@ -28,24 +30,27 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
   limit = 20,
   ...props
 }) => {
-  const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
 
-  const serverName = useMemo(() => {
-    if (!api?.basePath) return null;
-    try {
-      const url = new URL(api.basePath);
-      return url.hostname;
-    } catch {
-      return null;
-    }
-  }, [api?.basePath]);
-
   const streamyStatsEnabled = useMemo(() => {
     return Boolean(settings?.streamyStatsServerUrl);
   }, [settings?.streamyStatsServerUrl]);
+
+  // Fetch server info to get the Jellyfin server ID
+  const { data: serverInfo } = useQuery({
+    queryKey: ["jellyfin", "serverInfo"],
+    queryFn: async (): Promise<PublicSystemInfo | null> => {
+      if (!api) return null;
+      const response = await getSystemApi(api).getPublicSystemInfo();
+      return response.data;
+    },
+    enabled: Boolean(api) && streamyStatsEnabled,
+    staleTime: 60 * 60 * 1000, // 1 hour - server info rarely changes
+  });
+
+  const jellyfinServerId = serverInfo?.Id;
 
   const {
     data: recommendationIds,
@@ -56,14 +61,14 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
       "streamystats",
       "recommendations",
       type,
-      serverName,
+      jellyfinServerId,
       settings?.streamyStatsServerUrl,
     ],
     queryFn: async (): Promise<string[]> => {
       if (
         !settings?.streamyStatsServerUrl ||
         !api?.accessToken ||
-        !serverName
+        !jellyfinServerId
       ) {
         return [];
       }
@@ -74,7 +79,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
       });
 
       const response = await streamyStatsApi.getRecommendationIds(
-        serverName,
+        jellyfinServerId,
         type,
         limit,
       );
@@ -89,7 +94,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
     enabled:
       streamyStatsEnabled &&
       Boolean(api?.accessToken) &&
-      Boolean(serverName) &&
+      Boolean(jellyfinServerId) &&
       Boolean(user?.Id),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnMount: false,

@@ -29,10 +29,8 @@ export const PluginSettings = () => {
         showArrow
       />
       <ListItem
-        onPress={() =>
-          router.push("/settings/plugins/streamystats-search/page")
-        }
-        title='Streamystats Search'
+        onPress={() => router.push("/settings/plugins/streamystats/page")}
+        title='Streamystats'
         showArrow
       />
     </ListGroup>

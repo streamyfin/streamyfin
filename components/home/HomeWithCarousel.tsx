@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
+import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
@@ -477,45 +478,59 @@ export const HomeWithCarousel = () => {
         }}
       >
         <View className='flex flex-col space-y-4'>
-          {settings.streamyStatsMovieRecommendations && (
-            <StreamystatsRecommendations
-              title={t(
-                "home.settings.plugins.streamystats_search.recommended_movies",
-              )}
-              type='Movie'
-            />
-          )}
-          {settings.streamyStatsSeriesRecommendations && (
-            <StreamystatsRecommendations
-              title={t(
-                "home.settings.plugins.streamystats_search.recommended_series",
-              )}
-              type='Series'
-            />
-          )}
           {sections.map((section, index) => {
+            // Render Streamystats sections after Continue Watching and Next Up
+            const streamystatsSections =
+              index === 1 ? (
+                <>
+                  {settings.streamyStatsMovieRecommendations && (
+                    <StreamystatsRecommendations
+                      title={t(
+                        "home.settings.plugins.streamystats.recommended_movies",
+                      )}
+                      type='Movie'
+                    />
+                  )}
+                  {settings.streamyStatsSeriesRecommendations && (
+                    <StreamystatsRecommendations
+                      title={t(
+                        "home.settings.plugins.streamystats.recommended_series",
+                      )}
+                      type='Series'
+                    />
+                  )}
+                  {settings.streamyStatsPromotedWatchlists && (
+                    <StreamystatsPromotedWatchlists />
+                  )}
+                </>
+              ) : null;
+
             if (section.type === "InfiniteScrollingCollectionList") {
               return (
-                <InfiniteScrollingCollectionList
-                  key={index}
-                  title={section.title}
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
-                  orientation={section.orientation}
-                  hideIfEmpty
-                  pageSize={section.pageSize}
-                />
+                <View key={index} className='flex flex-col space-y-4'>
+                  <InfiniteScrollingCollectionList
+                    title={section.title}
+                    queryKey={section.queryKey}
+                    queryFn={section.queryFn}
+                    orientation={section.orientation}
+                    hideIfEmpty
+                    pageSize={section.pageSize}
+                  />
+                  {streamystatsSections}
+                </View>
               );
             }
             if (section.type === "MediaListSection") {
               return (
-                <MediaListSection
-                  key={index}
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
-                  scrollY={scrollY}
-                  enableLazyLoading={true}
-                />
+                <View key={index} className='flex flex-col space-y-4'>
+                  <MediaListSection
+                    queryKey={section.queryKey}
+                    queryFn={section.queryFn}
+                    scrollY={scrollY}
+                    enableLazyLoading={true}
+                  />
+                  {streamystatsSections}
+                </View>
               );
             }
             return null;

@@ -239,9 +239,9 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
-        name='settings/plugins/streamystats-search/page'
+        name='settings/plugins/streamystats/page'
         options={{
-          title: "Streamystats Search",
+          title: "Streamystats",
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
