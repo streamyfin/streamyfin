@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { ScrollView, View, type ViewProps } from "react-native";
+
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
@@ -17,6 +18,8 @@ import type { StreamystatsRecommendationsIdsResponse } from "@/utils/streamystat
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
 import SeriesPoster from "../posters/SeriesPoster";
+
+const ITEM_WIDTH = 120; // w-28 (112px) + mr-2 (8px)
 
 interface Props extends ViewProps {
   title: string;
@@ -137,6 +140,10 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
   const isLoading = isLoadingRecommendations || isLoadingItems;
   const isError = isRecommendationsError || isItemsError;
 
+  const snapOffsets = useMemo(() => {
+    return items?.map((_, index) => index * ITEM_WIDTH) ?? [];
+  }, [items]);
+
   if (!streamyStatsEnabled) return null;
   if (isError) return null;
   if (!isLoading && (!items || items.length === 0)) return null;
@@ -161,7 +168,12 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           ))}
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToOffsets={snapOffsets}
+          decelerationRate='fast'
+        >
           <View className='px-4 flex flex-row'>
             {items?.map((item) => (
               <TouchableItemRouter

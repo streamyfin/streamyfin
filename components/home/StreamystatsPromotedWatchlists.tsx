@@ -18,6 +18,8 @@ import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
 import SeriesPoster from "../posters/SeriesPoster";
 
+const ITEM_WIDTH = 120; // w-28 (112px) + mr-2 (8px)
+
 interface WatchlistSectionProps extends ViewProps {
   watchlist: StreamystatsWatchlist;
   jellyfinServerId: string;
@@ -78,6 +80,10 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
     refetchOnWindowFocus: false,
   });
 
+  const snapOffsets = useMemo(() => {
+    return items?.map((_, index) => index * ITEM_WIDTH) ?? [];
+  }, [items]);
+
   if (!isLoading && (!items || items.length === 0)) return null;
 
   return (
@@ -100,7 +106,12 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           ))}
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToOffsets={snapOffsets}
+          decelerationRate='fast'
+        >
           <View className='px-4 flex flex-row'>
             {items?.map((item) => (
               <TouchableItemRouter
