@@ -398,8 +398,8 @@ const Login: React.FC = () => {
         style={{ flex: 1 }}
       >
         {api?.basePath ? (
-          <View className='flex flex-col flex-1 items-center justify-center'>
-            <View className='px-4 -mt-20 w-full'>
+          <View className='flex flex-col flex-1 justify-center'>
+            <View className='px-4 w-full'>
               <View className='flex flex-col space-y-2'>
                 <Text className='text-2xl font-bold -mb-2'>
                   {serverName ? (
