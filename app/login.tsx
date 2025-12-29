@@ -262,12 +262,12 @@ const Login: React.FC = () => {
               <Input
                 placeholder={t("login.username_placeholder")}
                 onChangeText={(text: string) =>
-                  setCredentials({ ...credentials, username: text })
+                  setCredentials((prev) => ({ ...prev, username: text }))
                 }
                 onEndEditing={(e) => {
                   const newValue = e.nativeEvent.text;
                   if (newValue && newValue !== credentials.username) {
-                    setCredentials({ ...credentials, username: newValue });
+                    setCredentials((prev) => ({ ...prev, username: newValue }));
                   }
                 }}
                 value={credentials.username}
@@ -286,12 +286,12 @@ const Login: React.FC = () => {
               <Input
                 placeholder={t("login.password_placeholder")}
                 onChangeText={(text: string) =>
-                  setCredentials({ ...credentials, password: text })
+                  setCredentials((prev) => ({ ...prev, password: text }))
                 }
                 onEndEditing={(e) => {
                   const newValue = e.nativeEvent.text;
                   if (newValue && newValue !== credentials.password) {
-                    setCredentials({ ...credentials, password: newValue });
+                    setCredentials((prev) => ({ ...prev, password: newValue }));
                   }
                 }}
                 value={credentials.password}
@@ -415,12 +415,15 @@ const Login: React.FC = () => {
                 <Input
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
-                    setCredentials({ ...credentials, username: text })
+                    setCredentials((prev) => ({ ...prev, username: text }))
                   }
                   onEndEditing={(e) => {
                     const newValue = e.nativeEvent.text;
                     if (newValue && newValue !== credentials.username) {
-                      setCredentials({ ...credentials, username: newValue });
+                      setCredentials((prev) => ({
+                        ...prev,
+                        username: newValue,
+                      }));
                     }
                   }}
                   value={credentials.username}
@@ -437,12 +440,15 @@ const Login: React.FC = () => {
                 <Input
                   placeholder={t("login.password_placeholder")}
                   onChangeText={(text) =>
-                    setCredentials({ ...credentials, password: text })
+                    setCredentials((prev) => ({ ...prev, password: text }))
                   }
                   onEndEditing={(e) => {
                     const newValue = e.nativeEvent.text;
                     if (newValue && newValue !== credentials.password) {
-                      setCredentials({ ...credentials, password: newValue });
+                      setCredentials((prev) => ({
+                        ...prev,
+                        password: newValue,
+                      }));
                     }
                   }}
                   value={credentials.password}
