@@ -1,7 +1,4 @@
-import {
-  ItemFields,
-  type ItemFields as ItemFieldsType,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import { ItemFields } from "@jellyfin/sdk/lib/generated-client/models";
 import { useLocalSearchParams } from "expo-router";
 import type React from "react";
 import { useEffect } from "react";
@@ -17,15 +14,6 @@ import { Text } from "@/components/common/Text";
 import { ItemContent } from "@/components/ItemContent";
 import { useItemQuery } from "@/hooks/useItemQuery";
 
-const ITEM_FIELDS: ItemFieldsType[] = [
-  ItemFields.Overview,
-  ItemFields.Genres,
-  ItemFields.PrimaryImageAspectRatio,
-  ItemFields.MediaSources,
-  ItemFields.MediaStreams,
-  // Intentionally omit ItemFields.People (lazy-loaded)
-];
-
 const Page: React.FC = () => {
   const { id } = useLocalSearchParams() as { id: string };
   const { t } = useTranslation();
@@ -33,7 +21,16 @@ const Page: React.FC = () => {
   const { offline } = useLocalSearchParams() as { offline?: string };
   const isOffline = offline === "true";
 
-  const { data: item, isError } = useItemQuery(id, isOffline, ITEM_FIELDS);
+  // Exclude MediaSources/MediaStreams from initial fetch for faster loading
+  // (especially important for plugins like Gelato)
+  const { data: item, isError } = useItemQuery(id, isOffline, undefined, [
+    ItemFields.MediaSources,
+    ItemFields.MediaSourceCount,
+    ItemFields.MediaStreams,
+  ]);
+
+  // Lazily preload item with full media sources in background
+  const { data: itemWithSources } = useItemQuery(id, isOffline, undefined, []);
 
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
@@ -103,7 +100,13 @@ const Page: React.FC = () => {
         <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
         <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
       </Animated.View>
-      {item && <ItemContent item={item} isOffline={isOffline} />}
+      {item && (
+        <ItemContent
+          item={item}
+          isOffline={isOffline}
+          itemWithSources={itemWithSources}
+        />
+      )}
     </View>
   );
 };
