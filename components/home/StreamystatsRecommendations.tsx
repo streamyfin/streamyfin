@@ -25,12 +25,14 @@ interface Props extends ViewProps {
   title: string;
   type: "Movie" | "Series";
   limit?: number;
+  enabled?: boolean;
 }
 
 export const StreamystatsRecommendations: React.FC<Props> = ({
   title,
   type,
   limit = 20,
+  enabled = true,
   ...props
 }) => {
   const api = useAtomValue(apiAtom);
@@ -49,7 +51,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
       const response = await getSystemApi(api).getPublicSystemInfo();
       return response.data;
     },
-    enabled: Boolean(api) && streamyStatsEnabled,
+    enabled: enabled && Boolean(api) && streamyStatsEnabled,
     staleTime: 60 * 60 * 1000, // 1 hour - server info rarely changes
   });
 
@@ -95,6 +97,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
       return data.data.series || [];
     },
     enabled:
+      enabled &&
       streamyStatsEnabled &&
       Boolean(api?.accessToken) &&
       Boolean(jellyfinServerId) &&

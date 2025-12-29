@@ -131,7 +131,13 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   );
 };
 
-export const StreamystatsPromotedWatchlists: React.FC<ViewProps> = (props) => {
+interface StreamystatsPromotedWatchlistsProps extends ViewProps {
+  enabled?: boolean;
+}
+
+export const StreamystatsPromotedWatchlists: React.FC<
+  StreamystatsPromotedWatchlistsProps
+> = ({ enabled = true, ...props }) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -148,7 +154,7 @@ export const StreamystatsPromotedWatchlists: React.FC<ViewProps> = (props) => {
       const response = await getSystemApi(api).getPublicSystemInfo();
       return response.data;
     },
-    enabled: Boolean(api) && streamyStatsEnabled,
+    enabled: enabled && Boolean(api) && streamyStatsEnabled,
     staleTime: 60 * 60 * 1000,
   });
 
@@ -187,6 +193,7 @@ export const StreamystatsPromotedWatchlists: React.FC<ViewProps> = (props) => {
       return response.data || [];
     },
     enabled:
+      enabled &&
       streamyStatsEnabled &&
       Boolean(api?.accessToken) &&
       Boolean(jellyfinServerId) &&
