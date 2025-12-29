@@ -70,6 +70,7 @@ export default function page() {
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
+  const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -591,6 +592,7 @@ export default function page() {
       if (playing) {
         setIsPlaying(true);
         setIsBuffering(false);
+        setHasPlaybackStarted(true);
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -774,6 +776,22 @@ export default function page() {
                 setTracksReady(true);
               }}
             />
+            {!hasPlaybackStarted && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: "black",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Loader />
+              </View>
+            )}
           </View>
           {isMounted === true && item && !isPipMode && (
             <Controls

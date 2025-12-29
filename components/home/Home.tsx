@@ -176,7 +176,7 @@ export const Home = () => {
 
   const refetch = async () => {
     setLoading(true);
-    setHighPriorityLoaded(false);
+    setLoadedSections(new Set());
     await refreshStreamyfinPluginSettings();
     await invalidateCache();
     setLoading(false);
