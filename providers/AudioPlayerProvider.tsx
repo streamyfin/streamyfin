@@ -96,8 +96,7 @@ export function AudioPlayerProvider({
   const controllerRef = useRef<AudioController | null>(null);
 
   // Download provider for checking and managing downloads
-  const { getDownloadedItemById, startBackgroundDownload, downloadedItems } =
-    useDownload();
+  const { getDownloadedItemById, downloadedItems } = useDownload();
 
   // Audio prefetching/caching hook
   const { checkAndPrefetch, markAsPlayed } = useAudioPreloader({

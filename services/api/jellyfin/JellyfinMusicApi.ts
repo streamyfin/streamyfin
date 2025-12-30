@@ -151,10 +151,10 @@ export class JellyfinMusicApi implements MusicLibraryApi {
 
   async getItem(id: string): Promise<Album | Artist | Song | Playlist | null> {
     return (
-      this.getAlbum(id) ||
-      this.getArtist(id) ||
-      this.getSong(id) ||
-      this.getPlaylist(id)
+      (await this.getAlbum(id)) ||
+      (await this.getArtist(id)) ||
+      (await this.getSong(id)) ||
+      (await this.getPlaylist(id))
     );
   }
 
