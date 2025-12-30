@@ -31,6 +31,7 @@ const getPlaybackUrl = (
     playSessionId?: string | null;
     container?: string;
     static?: string;
+    isAudio?: boolean;
   },
 ): string => {
   let transcodeUrl = mediaSource?.TranscodingUrl;
@@ -45,17 +46,20 @@ const getPlaybackUrl = (
       );
     }
 
-    console.log("Video is being transcoded:", transcodeUrl);
+    console.log("Media is being transcoded:", transcodeUrl);
     return `${api.basePath}${transcodeUrl}`;
   }
+
+  // Determine if this is audio-only content
+  const isAudioContent =
+    params.isAudio ||
+    (mediaSource?.MediaStreams?.every((s) => s.Type !== "Video") ?? false);
 
   // Fall back to direct play
   const streamParams = new URLSearchParams({
     static: params.static || "true",
-    container: params.container || "mp4",
+    container: params.container || (isAudioContent ? "mp3" : "mp4"),
     mediaSourceId: mediaSource?.Id || "",
-    subtitleStreamIndex: params.subtitleStreamIndex?.toString() || "",
-    audioStreamIndex: params.audioStreamIndex?.toString() || "",
     deviceId: params.deviceId || api.deviceInfo.id,
     api_key: api.accessToken,
     startTimeTicks: params.startTimeTicks?.toString() || "0",
@@ -63,14 +67,31 @@ const getPlaybackUrl = (
     userId: params.userId,
   });
 
+  // Only add video-specific parameters for video content
+  if (!isAudioContent) {
+    streamParams.append(
+      "subtitleStreamIndex",
+      params.subtitleStreamIndex?.toString() || "",
+    );
+  }
+  streamParams.append(
+    "audioStreamIndex",
+    params.audioStreamIndex?.toString() || "",
+  );
+
   // Add additional parameters if provided
   if (params.playSessionId) {
     streamParams.append("playSessionId", params.playSessionId);
   }
 
-  const directPlayUrl = `${api.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
+  // Use appropriate endpoint based on content type
+  const endpoint = isAudioContent ? "Audio" : "Videos";
+  const directPlayUrl = `${api.basePath}/${endpoint}/${itemId}/stream?${streamParams.toString()}`;
 
-  console.log("Video is being direct played:", directPlayUrl);
+  console.log(
+    `${isAudioContent ? "Audio" : "Video"} is being direct played:`,
+    directPlayUrl,
+  );
   return directPlayUrl;
 };
 
@@ -239,6 +260,9 @@ export const getStreamUrl = async ({
   sessionId = res.data.PlaySessionId || null;
   mediaSource = res.data.MediaSources?.[0];
 
+  // Check if the item is audio content based on type or media type
+  const isAudio = item.Type === "Audio" || item.MediaType === "Audio";
+
   const url = getPlaybackUrl(api, item.Id!, mediaSource, {
     subtitleStreamIndex,
     audioStreamIndex,
@@ -247,6 +271,7 @@ export const getStreamUrl = async ({
     maxStreamingBitrate,
     userId,
     playSessionId: playSessionId || undefined,
+    isAudio,
   });
 
   return {

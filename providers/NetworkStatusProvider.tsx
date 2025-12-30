@@ -21,14 +21,46 @@ const NetworkStatusContext = createContext<NetworkStatusContextType | null>(
   null,
 );
 
+const SERVER_CHECK_TIMEOUT = 5000; // 5 second timeout
+const SERVER_CHECK_RETRIES = 2; // Retry twice before marking offline
+
 async function checkApiReachable(basePath?: string): Promise<boolean> {
   if (!basePath) return false;
-  try {
-    const response = await fetch(basePath, { method: "HEAD" });
-    return response.ok;
-  } catch {
-    return false;
+
+  for (let attempt = 0; attempt <= SERVER_CHECK_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        SERVER_CHECK_TIMEOUT,
+      );
+
+      const response = await fetch(basePath, {
+        method: "HEAD",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        return true;
+      }
+    } catch (error) {
+      // Log only on final attempt
+      if (attempt === SERVER_CHECK_RETRIES) {
+        console.warn(
+          `[NetworkStatus] Server check failed after ${SERVER_CHECK_RETRIES + 1} attempts:`,
+          error instanceof Error ? error.message : "Unknown error",
+        );
+      }
+      // Small delay before retry
+      if (attempt < SERVER_CHECK_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
   }
+
+  return false;
 }
 
 export function NetworkStatusProvider({ children }: { children: ReactNode }) {

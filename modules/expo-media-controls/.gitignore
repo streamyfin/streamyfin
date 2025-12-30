@@ -1,0 +1,25 @@
+# Build artifacts
+android/build/
+android/.gradle/
+android/.cxx/
+android/app/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/gradle.properties
+android/settings.gradle
+
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+
+# Expo prebuild artifacts
+app.json
+
+# Dependencies
+node_modules/
+
+# Generated files
+build/
+dist/
+*.log

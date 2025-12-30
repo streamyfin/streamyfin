@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import type { AudioBufferMode } from "@/providers/AudioPlayer/types";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
@@ -144,6 +145,7 @@ export type Settings = {
   searchEngine: "Marlin" | "Jellyfin";
   marlinServerUrl?: string;
   openInVLC?: boolean;
+  preferLocalPlayback?: boolean;
   downloadQuality?: DownloadOption;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
@@ -180,6 +182,25 @@ export type Settings = {
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
+  // Audio settings
+  audioBufferTracks: number;
+  audioBufferSizeMB: number;
+  audioBufferMode: AudioBufferMode;
+  favoriteSongCacheSizeMB: number;
+  temporarySongCacheSizeMB: number;
+  maxMusicLibrarySizeMB: number;
+  autoFavoritePlayCount: number;
+  audioSkipForward: number;
+  audioSkipBackward: number;
+  gaplessPlayback: boolean;
+  temporaryCacheMaxAgeDays: number;
+  // Audio prefetching settings
+  audioPrefetchEnabled: boolean;
+  audioPrefetchCount: number;
+  audioPrefetchThreshold: number;
+  audioPrefetchBitrate: number;
+  // Download notifications
+  showMusicDownloadNotifications: boolean;
 };
 
 export interface Lockable<T> {
@@ -202,6 +223,7 @@ export const defaultValues: Settings = {
   searchEngine: "Jellyfin",
   marlinServerUrl: "",
   openInVLC: false,
+  preferLocalPlayback: true,
   downloadQuality: DownloadOptions[0],
   defaultBitrate: BITRATES[0],
   libraryOptions: {
@@ -244,6 +266,25 @@ export const defaultValues: Settings = {
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
+  // Audio settings
+  audioBufferTracks: 5,
+  audioBufferSizeMB: 50,
+  audioBufferMode: "tracks",
+  favoriteSongCacheSizeMB: 500,
+  temporarySongCacheSizeMB: 200,
+  maxMusicLibrarySizeMB: 2000,
+  autoFavoritePlayCount: 5,
+  audioSkipForward: 15,
+  audioSkipBackward: 15,
+  gaplessPlayback: true,
+  temporaryCacheMaxAgeDays: 30,
+  // Audio prefetching defaults
+  audioPrefetchEnabled: true,
+  audioPrefetchCount: 2,
+  audioPrefetchThreshold: 0.75,
+  audioPrefetchBitrate: 320000,
+  // Download notifications (disabled by default for music)
+  showMusicDownloadNotifications: false,
 };
 
 const loadSettings = (): Partial<Settings> => {

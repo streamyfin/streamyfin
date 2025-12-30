@@ -39,6 +39,7 @@ import type {
   ProgressUpdatePayload,
   VlcPlayerViewRef,
 } from "@/modules/VlcPlayer.types";
+import { useAudioPlayer } from "@/providers/AudioPlayerProvider";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -55,6 +56,7 @@ export default function page() {
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const { clearQueue } = useAudioPlayer();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -619,8 +621,12 @@ export default function page() {
   // Add useEffect to handle mounting
   useEffect(() => {
     setIsMounted(true);
+    // Stop audio player when video player starts
+    clearQueue().catch((err) =>
+      console.error("Failed to clear audio queue:", err),
+    );
     return () => setIsMounted(false);
-  }, []);
+  }, [clearQueue]);
 
   // Memoize video ref functions to prevent unnecessary re-renders
   const startPictureInPicture = useCallback(async () => {

@@ -5,7 +5,9 @@ import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getStoredImage } from "@/utils/storedImages";
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -17,14 +19,21 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
   showProgress = false,
 }) => {
   const [api] = useAtom(apiAtom);
+  const { offlineMode } = useOfflineLibrary();
 
   const url = useMemo(() => {
+    // When offline, check for stored images first
+    if (offlineMode || !api) {
+      const storedImage = getStoredImage(item.Id);
+      if (storedImage) return storedImage;
+      if (!api) return undefined;
+    }
     return getPrimaryImageUrl({
       api,
       item,
       width: 300,
     });
-  }, [item]);
+  }, [item, api, offlineMode]);
 
   const [progress, _setProgress] = useState(
     item.UserData?.PlayedPercentage || 0,

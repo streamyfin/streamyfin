@@ -1,18 +1,21 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getUserLibraryApi,
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { FlashList } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, StyleSheet, View } from "react-native";
+import { FlatList, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { LibraryItemCard } from "@/components/library/LibraryItemCard";
+import { useChannels } from "@/hooks/useChannels";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getOfflineLibraryViews } from "@/providers/OfflineLibrary/database";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function index() {
@@ -20,11 +23,12 @@ export default function index() {
   const [user] = useAtom(userAtom);
   const queryClient = useQueryClient();
   const { settings } = useSettings();
+  const { offlineMode } = useOfflineLibrary();
 
   const { t } = useTranslation();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["user-views", user?.Id],
+    queryKey: ["user-views", user?.Id, offlineMode ? "offline" : "online"],
     queryFn: async () => {
       const response = await getUserViewsApi(api!).getUserViews({
         userId: user?.Id,
@@ -32,17 +36,39 @@ export default function index() {
 
       return response.data.Items || null;
     },
+    enabled: !offlineMode && !!api && !!user?.Id,
+    networkMode: offlineMode ? "offlineFirst" : "online",
     staleTime: 60,
   });
 
-  const libraries = useMemo(
-    () =>
+  // Fetch channels
+  const { data: channels, isLoading: isChannelsLoading } = useChannels();
+
+  const libraries = useMemo(() => {
+    // When offline, show available offline library views
+    if (offlineMode) {
+      return getOfflineLibraryViews();
+    }
+
+    const filteredLibraries =
       data
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
-        .filter((l) => l.CollectionType !== "music")
-        .filter((l) => l.CollectionType !== "books") || [],
-    [data, settings?.hiddenLibraries],
-  );
+        // Music libraries are now supported
+        .filter((l) => l.CollectionType !== "books") || [];
+
+    // Merge libraries with channels
+    const allItems: BaseItemDto[] = [...filteredLibraries];
+    if (channels && channels.length > 0) {
+      allItems.push(...channels);
+    }
+
+    // Deduplicate by ID (channels might already be in user views from server-side plugins)
+    const uniqueItems = allItems.filter(
+      (item, index, self) => index === self.findIndex((t) => t.Id === item.Id),
+    );
+
+    return uniqueItems;
+  }, [data, settings?.hiddenLibraries, channels, offlineMode]);
 
   useEffect(() => {
     for (const item of data || []) {
@@ -63,7 +89,8 @@ export default function index() {
 
   const insets = useSafeAreaInsets();
 
-  if (isLoading)
+  // Don't show loading when offline (data comes from local DB synchronously)
+  if (!offlineMode && (isLoading || isChannelsLoading))
     return (
       <View className='justify-center items-center h-full'>
         <Loader />
@@ -80,7 +107,7 @@ export default function index() {
     );
 
   return (
-    <FlashList
+    <FlatList
       extraData={settings}
       contentInsetAdjustmentBehavior='automatic'
       contentContainerStyle={{
@@ -93,18 +120,14 @@ export default function index() {
       data={libraries}
       renderItem={({ item }) => <LibraryItemCard library={item} />}
       keyExtractor={(item) => item.Id || ""}
-      ItemSeparatorComponent={() =>
-        settings?.libraryOptions?.display === "row" ? (
-          <View
-            style={{
-              height: StyleSheet.hairlineWidth,
-            }}
-            className='bg-neutral-800 mx-2 my-4'
-          />
-        ) : (
-          <View className='h-4' />
-        )
-      }
+      ItemSeparatorComponent={() => (
+        <View
+          style={{
+            height: settings?.libraryOptions?.display === "row" ? 24 : 16,
+            width: "100%",
+          }}
+        />
+      )}
     />
   );
 }

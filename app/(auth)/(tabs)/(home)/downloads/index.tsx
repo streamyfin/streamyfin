@@ -18,6 +18,8 @@ import ActiveDownloads from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import { MovieCard } from "@/components/downloads/MovieCard";
 import { SeriesCard } from "@/components/downloads/SeriesCard";
+import { AlbumCard } from "@/components/music/AlbumCard";
+import { getDownloadedAlbumsAsDomainModels } from "@/providers/AudioPlayer/database";
 import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { queueAtom } from "@/utils/atoms/queue";
@@ -87,11 +89,33 @@ export default function page() {
     }
   }, [downloadedFiles]);
 
+  const channelContent = useMemo(() => {
+    try {
+      return downloadedFiles?.filter((f) => !!f.item.ChannelId) || [];
+    } catch {
+      setShowMigration(true);
+      return [];
+    }
+  }, [downloadedFiles]);
+
+  const groupedByAlbum = useMemo(() => {
+    try {
+      return getDownloadedAlbumsAsDomainModels();
+    } catch {
+      setShowMigration(true);
+      return [];
+    }
+  }, [downloadedFiles]);
+
   const otherMedia = useMemo(() => {
     try {
       return (
         downloadedFiles?.filter(
-          (f) => f.item.Type !== "Movie" && f.item.Type !== "Episode",
+          (f) =>
+            f.item.Type !== "Movie" &&
+            f.item.Type !== "Episode" &&
+            f.item.Type !== "Audio" &&
+            !f.item.ChannelId,
         ) || []
       );
     } catch {
@@ -266,6 +290,72 @@ export default function page() {
                       key={items[0].item.SeriesId}
                     />
                   </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        {groupedByAlbum.length > 0 && (
+          <View className='mb-4'>
+            <View className='flex flex-row items-center justify-between mb-2 px-4'>
+              <Text className='text-lg font-bold'>
+                {t("home.downloads.music")}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push("/(auth)/(tabs)/(home)/downloads/music")
+                }
+                className='flex flex-row items-center gap-2'
+              >
+                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                  <Text className='text-xs font-bold'>
+                    {groupedByAlbum?.length}
+                  </Text>
+                </View>
+                <Text className='text-sm text-purple-600 font-semibold'>
+                  View All
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className='px-4 flex flex-row'>
+                {groupedByAlbum?.map((album) => (
+                  <TouchableItemRouter
+                    item={album.jellyfinItem}
+                    isOffline
+                    key={album.id}
+                  >
+                    <AlbumCard album={album} size='medium' hideDownloadButton />
+                  </TouchableItemRouter>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        {channelContent.length > 0 && (
+          <View className='mb-4'>
+            <View className='flex flex-row items-center justify-between mb-2 px-4'>
+              <Text className='text-lg font-bold'>
+                {t("home.downloads.channel_content")}
+              </Text>
+              <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                <Text className='text-xs font-bold'>
+                  {channelContent?.length}
+                </Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className='px-4 flex flex-row'>
+                {channelContent?.map((item) => (
+                  <TouchableItemRouter
+                    item={item.item}
+                    isOffline
+                    key={item.item.Id}
+                  >
+                    <MovieCard item={item.item} />
+                  </TouchableItemRouter>
                 ))}
               </View>
             </ScrollView>

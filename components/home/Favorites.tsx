@@ -18,7 +18,10 @@ type FavoriteTypes =
   | "Episode"
   | "Video"
   | "BoxSet"
-  | "Playlist";
+  | "Playlist"
+  | "MusicArtist"
+  | "MusicAlbum"
+  | "Audio";
 type EmptyState = Record<FavoriteTypes, boolean>;
 
 export const Favorites = () => {
@@ -31,6 +34,9 @@ export const Favorites = () => {
     Video: false,
     BoxSet: false,
     Playlist: false,
+    MusicArtist: false,
+    MusicAlbum: false,
+    Audio: false,
   });
 
   const fetchFavoritesByType = useCallback(
@@ -77,6 +83,9 @@ export const Favorites = () => {
       Video: false,
       BoxSet: false,
       Playlist: false,
+      MusicArtist: false,
+      MusicAlbum: false,
+      Audio: false,
     });
   }, [api, user]);
 
@@ -117,6 +126,21 @@ export const Favorites = () => {
   const fetchFavoritePlaylists = useCallback(
     ({ pageParam }: { pageParam: number }) =>
       fetchFavoritesByType("Playlist", pageParam),
+    [fetchFavoritesByType],
+  );
+  const fetchFavoriteArtists = useCallback(
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("MusicArtist", pageParam),
+    [fetchFavoritesByType],
+  );
+  const fetchFavoriteAlbums = useCallback(
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("MusicAlbum", pageParam),
+    [fetchFavoritesByType],
+  );
+  const fetchFavoriteSongs = useCallback(
+    ({ pageParam }: { pageParam: number }) =>
+      fetchFavoritesByType("Audio", pageParam),
     [fetchFavoritesByType],
   );
 
@@ -173,6 +197,24 @@ export const Favorites = () => {
         queryFn={fetchFavoritePlaylists}
         queryKey={["home", "favorites", "playlists"]}
         title={t("favorites.playlists")}
+        hideIfEmpty
+      />
+      <InfiniteScrollingCollectionList
+        queryFn={fetchFavoriteArtists}
+        queryKey={["home", "favorites", "artists"]}
+        title={t("favorites.artists")}
+        hideIfEmpty
+      />
+      <InfiniteScrollingCollectionList
+        queryFn={fetchFavoriteAlbums}
+        queryKey={["home", "favorites", "albums"]}
+        title={t("favorites.albums")}
+        hideIfEmpty
+      />
+      <InfiniteScrollingCollectionList
+        queryFn={fetchFavoriteSongs}
+        queryKey={["home", "favorites", "songs"]}
+        title={t("favorites.songs")}
         hideIfEmpty
       />
     </View>

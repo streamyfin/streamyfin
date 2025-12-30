@@ -8,6 +8,7 @@ import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
+import { AudioPlayerProvider } from "@/providers/AudioPlayerProvider";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
 import {
@@ -15,7 +16,9 @@ import {
   getOrSetDeviceId,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
+import { MediaApiProvider } from "@/providers/MediaApiProvider";
 import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
+import { OfflineLibraryProvider } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -188,6 +191,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30000,
+      // Allow queries to run when offline if they have cached data
+      networkMode: "offlineFirst",
+    },
+    mutations: {
+      // Mutations can be queued when offline (handled by OfflineLibrary)
+      networkMode: "offlineFirst",
+      retry: false, // Don't auto-retry mutations - use queue instead
     },
   },
 });
@@ -256,19 +266,28 @@ function Layout() {
 
     // only create push token for real devices (pointless for emulators)
     if (Device.isDevice) {
-      Notifications?.getExpoPushTokenAsync({
-        projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
-      })
-        .then((token: ExpoPushToken) => {
-          if (token) {
-            console.log("Expo push token obtained:", token.data);
-            setExpoPushToken(token);
-          }
+      // Skip push token registration if Firebase is not configured
+      const skipPushTokens = true; // Set to false when Firebase is properly configured
+
+      if (!skipPushTokens) {
+        Notifications?.getExpoPushTokenAsync({
+          projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
         })
-        .catch((reason: any) => {
-          console.error("Failed to get push token:", reason);
-          writeErrorLog("Failed to get Expo push token", reason);
-        });
+          .then((token: ExpoPushToken) => {
+            if (token) {
+              console.log("Expo push token obtained:", token.data);
+              setExpoPushToken(token);
+            }
+          })
+          .catch((reason: any) => {
+            console.error("Failed to get push token:", reason);
+            writeErrorLog("Failed to get Expo push token", reason);
+          });
+      } else {
+        console.log(
+          "Push token registration skipped (Firebase not configured)",
+        );
+      }
     }
   }, [user]);
 
@@ -289,11 +308,17 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
+            const { title, data } = response.notification.request.content;
+
+            // Skip audio player notifications - they're handled by the media session listener
+            if (data?.trackId !== undefined) {
+              return;
+            }
+
             // redirect if internal notification
             redirect(response?.notification);
 
             // Currently the notifications supported by the plugin will send data for deep links.
-            const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
 
             let url: any;
@@ -344,55 +369,71 @@ function Layout() {
             <LogProvider>
               <WebSocketProvider>
                 <DownloadProvider>
-                  <GlobalModalProvider>
-                    <BottomSheetModalProvider>
-                      <ThemeProvider value={DarkTheme}>
-                        <SystemBars style='light' hidden={false} />
-                        <Stack initialRouteName='(auth)/(tabs)'>
-                          <Stack.Screen
-                            name='(auth)/(tabs)'
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
-                            }}
-                          />
-                          <Stack.Screen
-                            name='(auth)/player'
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
-                            }}
-                          />
-                          <Stack.Screen
-                            name='login'
-                            options={{
-                              headerShown: true,
-                              title: "",
-                              headerTransparent: Platform.OS === "ios",
-                            }}
-                          />
-                          <Stack.Screen name='+not-found' />
-                        </Stack>
-                        <Toaster
-                          duration={4000}
-                          toastOptions={{
-                            style: {
-                              backgroundColor: "#262626",
-                              borderColor: "#363639",
-                              borderWidth: 1,
-                            },
-                            titleStyle: {
-                              color: "white",
-                            },
-                          }}
-                          closeButton
-                        />
-                        <GlobalModal />
-                      </ThemeProvider>
-                    </BottomSheetModalProvider>
-                  </GlobalModalProvider>
+                  <OfflineLibraryProvider>
+                    <MediaApiProvider>
+                      <AudioPlayerProvider>
+                        <GlobalModalProvider>
+                          <BottomSheetModalProvider>
+                            <ThemeProvider value={DarkTheme}>
+                              <SystemBars style='light' hidden={false} />
+                              <Stack initialRouteName='(auth)/(tabs)'>
+                                <Stack.Screen
+                                  name='(auth)/(tabs)'
+                                  options={{
+                                    headerShown: false,
+                                    title: "",
+                                    header: () => null,
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/player'
+                                  options={{
+                                    headerShown: false,
+                                    title: "",
+                                    header: () => null,
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/audio-player/index'
+                                  options={{
+                                    headerShown: false,
+                                    title: "",
+                                    header: () => null,
+                                    presentation: "modal",
+                                    animation: "slide_from_bottom",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='login'
+                                  options={{
+                                    headerShown: true,
+                                    title: "",
+                                    headerTransparent: Platform.OS === "ios",
+                                  }}
+                                />
+                                <Stack.Screen name='+not-found' />
+                              </Stack>
+                              <Toaster
+                                duration={4000}
+                                toastOptions={{
+                                  style: {
+                                    backgroundColor: "#262626",
+                                    borderColor: "#363639",
+                                    borderWidth: 1,
+                                  },
+                                  titleStyle: {
+                                    color: "white",
+                                  },
+                                }}
+                                closeButton
+                              />
+                              <GlobalModal />
+                            </ThemeProvider>
+                          </BottomSheetModalProvider>
+                        </GlobalModalProvider>
+                      </AudioPlayerProvider>
+                    </MediaApiProvider>
+                  </OfflineLibraryProvider>
                 </DownloadProvider>
               </WebSocketProvider>
             </LogProvider>

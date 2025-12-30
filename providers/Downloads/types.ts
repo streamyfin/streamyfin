@@ -84,13 +84,15 @@ export interface DownloadedSeries {
 /**
  * The main structure for all downloaded content stored locally.
  * This object is what will be saved to your local storage.
+ *
+ * Note: Audio downloads are now managed separately by AudioPlayer database
  */
 export interface DownloadsDatabase {
   /** A map of movie IDs to their downloaded movie data. */
   movies: Record<string, DownloadedItem>;
   /** A map of series IDs to their downloaded series data. */
   series: Record<string, DownloadedSeries>;
-  /** A map of IDs to downloaded items that are neither movies nor episodes */
+  /** A map of IDs to downloaded items that are neither movies, episodes, nor audio */
   other: Record<string, DownloadedItem>;
 }
 
@@ -142,4 +144,6 @@ export type JobStatus = {
   introSegments?: MediaTimeSegment[];
   /** Pre-downloaded credit segments (optional) - downloaded before video starts */
   creditSegments?: MediaTimeSegment[];
+  /** Whether this download should suppress all notifications (e.g., prefetch downloads) */
+  silent?: boolean;
 };

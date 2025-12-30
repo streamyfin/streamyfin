@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import { getDownloadedAudioById } from "@/providers/AudioPlayer/database";
 import { getAllDownloadedItems, getDownloadedItemById } from "./database";
 import type { DownloadedItem } from "./types";
 import { filePathToUri } from "./utils";
@@ -79,16 +80,25 @@ export function deleteAllAssociatedFiles(item: DownloadedItem): void {
 
 /**
  * Get the size of a downloaded item by ID
- * Includes video file size and trickplay data size
+ * Checks both video downloads and audio downloads
+ * Includes video file size, trickplay data size, or audio file size
  */
 export function getDownloadedItemSize(id: string): number {
+  // First check video/old database
   const item = getDownloadedItemById(id);
-  if (!item) return 0;
+  if (item) {
+    const videoSize = item.videoFileSize || 0;
+    const trickplaySize = item.trickPlayData?.size || 0;
+    return videoSize + trickplaySize;
+  }
 
-  const videoSize = item.videoFileSize || 0;
-  const trickplaySize = item.trickPlayData?.size || 0;
+  // Then check AudioPlayer database for audio items
+  const audioItem = getDownloadedAudioById(id);
+  if (audioItem) {
+    return audioItem.audioFileSize || 0;
+  }
 
-  return videoSize + trickplaySize;
+  return 0;
 }
 
 /**

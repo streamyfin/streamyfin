@@ -25,6 +25,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { toSong } from "@/models/music/adapters";
+import { getDownloadedAudioById } from "@/providers/AudioPlayer/database";
+import { useAudioPlayer } from "@/providers/AudioPlayerProvider";
 import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -79,6 +82,13 @@ export const PlayButton: React.FC<Props> = ({
   const colorChangeProgress = useSharedValue(0);
   const { settings, updateSettings } = useSettings();
   const lightHapticFeedback = useHaptic("light");
+  const { playSong, isReady: isAudioPlayerReady } = useAudioPlayer();
+
+  // Check if item is audio content (music, podcast, audiobook, etc.)
+  const isAudioItem =
+    item?.Type === "Audio" ||
+    item?.Type === "AudioBook" ||
+    (item?.Type === "Episode" && item?.MediaType === "Audio");
 
   const goToPlayer = useCallback(
     (q: string) => {
@@ -92,6 +102,46 @@ export const PlayButton: React.FC<Props> = ({
 
   const handleNormalPlayFlow = useCallback(async () => {
     if (!item) return;
+
+    // Route audio items to the audio player
+    if (isAudioItem && isAudioPlayerReady) {
+      try {
+        console.log(
+          "[PlayButton] Playing audio item via audio player:",
+          item.Name,
+        );
+        // Convert BaseItemDto to Song
+        const downloadedAudioItem = getDownloadedAudioById(item.Id!);
+        const song = toSong(
+          item,
+          downloadedAudioItem
+            ? {
+                filePath: downloadedAudioItem.audioFilePath,
+                fileSize: downloadedAudioItem.audioFileSize,
+                cacheType: downloadedAudioItem.cacheType as any,
+                downloadedAt: new Date(),
+                playCount: downloadedAudioItem.playCount || 0,
+                lastPlayedAt: downloadedAudioItem.lastPlayedDate
+                  ? new Date(downloadedAudioItem.lastPlayedDate)
+                  : undefined,
+              }
+            : undefined,
+          api || undefined,
+          user?.Id,
+        );
+        // Let the controller handle conversion and state management
+        await playSong(song);
+        router.push("/(auth)/audio-player");
+        return;
+      } catch (error) {
+        console.error("[PlayButton] Error playing audio track:", error);
+        Alert.alert(
+          t("player.error"),
+          t("player.failed_to_play_audio") || "Failed to play audio track",
+        );
+        return;
+      }
+    }
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
@@ -277,10 +327,12 @@ export const PlayButton: React.FC<Props> = ({
     goToPlayer,
     isOffline,
     t,
+    isAudioItem,
+    isAudioPlayerReady,
+    playSong,
   ]);
 
   const onPress = useCallback(async () => {
-    console.log("onPress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -289,6 +341,18 @@ export const PlayButton: React.FC<Props> = ({
     const downloadedItem = item.Id ? getDownloadedItemById(item.Id) : undefined;
 
     if (downloadedItem) {
+      // If user prefers local playback, play downloaded file directly without asking
+      if (settings?.preferLocalPlayback) {
+        const queryParams = new URLSearchParams({
+          itemId: item.Id!,
+          offline: "true",
+          playbackPosition:
+            item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+        });
+        goToPlayer(queryParams.toString());
+        return;
+      }
+
       if (Platform.OS === "android") {
         // Show bottom sheet for Android
         showModal(

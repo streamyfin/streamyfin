@@ -220,11 +220,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
               </View>
             </View>
             {item.Type === "Episode" && (
-              <SeasonEpisodesCarousel
-                item={item}
-                loading={loading}
-                isOffline={isOffline}
-              />
+              <SeasonEpisodesCarousel item={item} loading={loading} />
             )}
 
             {!isOffline &&

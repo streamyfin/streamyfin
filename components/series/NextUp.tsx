@@ -1,37 +1,39 @@
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
 import type React from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import type { Episode } from "@/models/video/types";
+import { useVideoApi } from "@/providers/MediaApiProvider";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
 
+/**
+ * NextUp component for TV series
+ * Uses unified Video API - automatically handles online/offline mode
+ */
 export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
-  const [user] = useAtom(userAtom);
-  const [api] = useAtom(apiAtom);
+  const videoApi = useVideoApi();
   const { t } = useTranslation();
 
-  const { data: items } = useQuery({
+  const { data: episodes } = useQuery({
     queryKey: ["nextUp", seriesId],
-    queryFn: async () => {
-      if (!api) return null;
-      return (
-        await getTvShowsApi(api).getNextUp({
-          userId: user?.Id,
-          seriesId,
-          fields: ["MediaSourceCount"],
-          limit: 10,
-        })
-      ).data.Items;
+    queryFn: async (): Promise<Episode[]> => {
+      if (!videoApi.getNextUp) return [];
+      return videoApi.getNextUp(seriesId, 10);
     },
-    enabled: !!api && !!seriesId && !!user?.Id,
+    enabled: !!seriesId,
     staleTime: 0,
   });
+
+  // Convert Episode domain models to BaseItemDto for component compatibility
+  const items = useMemo(
+    () => episodes?.map((e) => e.jellyfinItem) ?? [],
+    [episodes],
+  );
 
   if (!items?.length)
     return (

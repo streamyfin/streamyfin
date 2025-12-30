@@ -10,8 +10,9 @@ import type {
 import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { CustomTabBarWithPlayer } from "@/components/audio-player/CustomTabBarWithPlayer";
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
@@ -31,6 +32,9 @@ export default function TabLayout() {
   const { t } = useTranslation();
   const router = useRouter();
 
+  // Hide custom links tab by default
+  const shouldShowCustomLinks = settings?.showCustomMenuLinks === true;
+
   useFocusEffect(
     useCallback(() => {
       const hasShownIntro = storage.getBoolean("hasShownIntro");
@@ -47,10 +51,11 @@ export default function TabLayout() {
   );
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <SystemBars hidden={false} style='light' />
       <NativeTabs
         sidebarAdaptable={false}
+        tabBar={(props) => <CustomTabBarWithPlayer {...props} />}
         tabBarStyle={{
           backgroundColor: "#121212",
         }}
@@ -58,7 +63,11 @@ export default function TabLayout() {
         activeIndicatorColor={"#392c3b"}
         scrollEdgeAppearance='default'
       >
-        <NativeTabs.Screen redirect name='index' />
+        <NativeTabs.Screen
+          redirect
+          name='index'
+          options={{ tabBarItemHidden: true }}
+        />
         <NativeTabs.Screen
           listeners={(_e) => ({
             tabPress: (_e) => {
@@ -114,7 +123,7 @@ export default function TabLayout() {
           name='(custom-links)'
           options={{
             title: t("tabs.custom_links"),
-            tabBarItemHidden: !settings?.showCustomMenuLinks,
+            tabBarItemHidden: !shouldShowCustomLinks,
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/list.png")
@@ -122,6 +131,6 @@ export default function TabLayout() {
           }}
         />
       </NativeTabs>
-    </>
+    </View>
   );
 }

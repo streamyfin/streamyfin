@@ -189,6 +189,15 @@ export const PlaybackControlsSettings: React.FC = () => {
             title={t("home.settings.other.max_auto_play_episode_count")}
           />
         </ListItem>
+
+        <ListItem title={t("home.settings.other.prefer_local_playback")}>
+          <Switch
+            value={settings.preferLocalPlayback ?? true}
+            onValueChange={(preferLocalPlayback) =>
+              updateSettings({ preferLocalPlayback })
+            }
+          />
+        </ListItem>
       </ListGroup>
     </DisabledSetting>
   );

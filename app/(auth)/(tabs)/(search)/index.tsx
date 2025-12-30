@@ -29,6 +29,9 @@ import {
   JellyseerrSearchSort,
   JellyserrIndexPage,
 } from "@/components/jellyseerr/JellyseerrIndexPage";
+import { AlbumCard } from "@/components/music/AlbumCard";
+import { ArtistCard } from "@/components/music/ArtistCard";
+import { TrackRow } from "@/components/music/TrackRow";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
 import { DiscoverFilters } from "@/components/search/DiscoverFilters";
@@ -37,6 +40,8 @@ import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useMusicApi, useVideoApi } from "@/providers/MediaApiProvider";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 
@@ -56,6 +61,9 @@ export default function search() {
   const insets = useSafeAreaInsets();
 
   const [user] = useAtom(userAtom);
+  const musicApi = useMusicApi();
+  const videoApi = useVideoApi();
+  const { offlineMode } = useOfflineLibrary();
 
   const { t } = useTranslation();
 
@@ -189,35 +197,47 @@ export default function search() {
     };
   }, []);
 
-  const { data: movies, isFetching: l1 } = useQuery({
-    queryKey: ["search", "movies", debouncedSearch],
-    queryFn: () =>
-      searchFn({
-        query: debouncedSearch,
-        types: ["Movie"],
-      }),
+  // Video searches use unified API (handles online/offline)
+  const { data: moviesResult, isFetching: l1 } = useQuery({
+    queryKey: ["search", "movies", debouncedSearch, offlineMode],
+    queryFn: async () => {
+      if (!debouncedSearch) return { items: [] };
+      return videoApi.getMovies({
+        searchTerm: debouncedSearch,
+        limit: 10,
+      });
+    },
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: series, isFetching: l2 } = useQuery({
-    queryKey: ["search", "series", debouncedSearch],
-    queryFn: () =>
-      searchFn({
-        query: debouncedSearch,
-        types: ["Series"],
-      }),
+  const { data: seriesResult, isFetching: l2 } = useQuery({
+    queryKey: ["search", "series", debouncedSearch, offlineMode],
+    queryFn: async () => {
+      if (!debouncedSearch) return { items: [] };
+      return videoApi.getSeries({
+        searchTerm: debouncedSearch,
+        limit: 10,
+      });
+    },
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
-  const { data: episodes, isFetching: l3 } = useQuery({
-    queryKey: ["search", "episodes", debouncedSearch],
-    queryFn: () =>
-      searchFn({
-        query: debouncedSearch,
-        types: ["Episode"],
-      }),
+  const { data: episodesResult, isFetching: l3 } = useQuery({
+    queryKey: ["search", "episodes", debouncedSearch, offlineMode],
+    queryFn: async () => {
+      if (!debouncedSearch) return [];
+      return videoApi.getEpisodes({
+        searchTerm: debouncedSearch,
+        limit: 10,
+      });
+    },
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
+
+  // Convert domain models to BaseItemDto for backward compatibility
+  const movies = moviesResult?.items.map((m) => m.jellyfinItem) || [];
+  const series = seriesResult?.items.map((s) => s.jellyfinItem) || [];
+  const episodes = episodesResult?.map((e) => e.jellyfinItem) || [];
 
   const { data: collections, isFetching: l7 } = useQuery({
     queryKey: ["search", "collections", debouncedSearch],
@@ -239,19 +259,72 @@ export default function search() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
+  const { data: artistsResult, isFetching: l9 } = useQuery({
+    queryKey: ["search", "artists", debouncedSearch],
+    queryFn: async () => {
+      if (!debouncedSearch) return { items: [] };
+      return musicApi.getArtists({
+        searchTerm: debouncedSearch,
+        limit: 10,
+      });
+    },
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
+  const { data: albumsResult, isFetching: l10 } = useQuery({
+    queryKey: ["search", "albums", debouncedSearch],
+    queryFn: async () => {
+      if (!debouncedSearch) return { items: [] };
+      return musicApi.getAlbums({
+        searchTerm: debouncedSearch,
+        limit: 10,
+      });
+    },
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
+  const { data: songsResult, isFetching: l11 } = useQuery({
+    queryKey: ["search", "songs", debouncedSearch],
+    queryFn: async () => {
+      if (!debouncedSearch) return { items: [] };
+      return musicApi.getSongs({
+        searchTerm: debouncedSearch,
+        limit: 10,
+      });
+    },
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
+  // Extract items from results (already domain models)
+  const artistsDomain = artistsResult?.items || [];
+  const albumsDomain = albumsResult?.items || [];
+  const songsDomain = songsResult?.items || [];
+
   const noResults = useMemo(() => {
     return !(
       movies?.length ||
       episodes?.length ||
       series?.length ||
       collections?.length ||
-      actors?.length
+      actors?.length ||
+      artistsDomain?.length ||
+      albumsDomain?.length ||
+      songsDomain?.length
     );
-  }, [episodes, movies, series, collections, actors]);
+  }, [
+    episodes,
+    movies,
+    series,
+    collections,
+    actors,
+    artistsDomain,
+    albumsDomain,
+    songsDomain,
+  ]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l7 || l8;
-  }, [l1, l2, l3, l7, l8]);
+    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11;
+  }, [l1, l2, l3, l7, l8, l9, l10, l11]);
 
   return (
     <ScrollView
@@ -396,6 +469,29 @@ export default function search() {
                   <MoviePoster item={item} />
                   <ItemCardText item={item} />
                 </TouchableItemRouter>
+              )}
+            />
+            <SearchItemWrapper
+              items={artistsDomain}
+              header='Artists'
+              renderItem={(item) => (
+                <ArtistCard key={item.id} artist={item} size='small' />
+              )}
+            />
+            <SearchItemWrapper
+              items={albumsDomain}
+              header='Albums'
+              renderItem={(item) => (
+                <AlbumCard key={item.id} album={item} size='small' />
+              )}
+            />
+            <SearchItemWrapper
+              items={songsDomain}
+              header='Songs'
+              renderItem={(item) => (
+                <View key={item.id} className='w-full'>
+                  <TrackRow track={item} showAlbum showArtwork />
+                </View>
               )}
             />
           </View>

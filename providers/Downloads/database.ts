@@ -10,7 +10,9 @@ const DOWNLOADS_DATABASE_KEY = "downloads.v2.json";
 export function getDownloadsDatabase(): DownloadsDatabase {
   const file = storage.getString(DOWNLOADS_DATABASE_KEY);
   if (file) {
-    return JSON.parse(file) as DownloadsDatabase;
+    const db = JSON.parse(file) as DownloadsDatabase;
+    // Audio category no longer used - managed by AudioPlayer database
+    return db;
   }
   return { movies: {}, series: {}, other: {} };
 }
@@ -41,6 +43,9 @@ export function getAllDownloadedItems(): DownloadedItem[] {
     }
   }
 
+  // Audio now managed by AudioPlayer database - skip legacy audio items
+  // Note: Old audio downloads still in db.audio won't be returned here
+
   if (db.other) {
     for (const item of Object.values(db.other)) {
       items.push(item);
@@ -69,6 +74,8 @@ export function getDownloadedItemById(id: string): DownloadedItem | undefined {
       }
     }
   }
+
+  // Audio now managed by AudioPlayer database - no longer check here
 
   if (db.other?.[id]) {
     return db.other[id];
@@ -119,6 +126,13 @@ export function addDownloadedItem(item: DownloadedItem): void {
     const episodeNumber = baseItem.IndexNumber;
     db.series[baseItem.SeriesId].seasons[seasonNumber].episodes[episodeNumber] =
       item;
+  } else if (baseItem.Type === "Audio") {
+    // Audio downloads now managed by AudioPlayer database
+    // This case is handled separately in the download completion handler
+    console.log(
+      "[Downloads DB] Audio type detected - managed by AudioPlayer database",
+    );
+    return; // Don't save to this database
   } else if (baseItem.Id) {
     if (!db.other) db.other = {};
     db.other[baseItem.Id] = item;
@@ -167,6 +181,9 @@ export function removeDownloadedItem(id: string): DownloadedItem | undefined {
       }
     }
 
+    // Audio now managed by AudioPlayer database - skip removal here
+    // Note: removeDownloadedTrack() should be called separately for audio
+
     // Check other items
     if (!itemToDelete && db.other?.[id]) {
       itemToDelete = db.other[id];
@@ -209,6 +226,12 @@ export function updateDownloadedItem(
       db.series[seriesId].seasons[seasonNumber].episodes[episodeNumber] =
         updatedItem;
     }
+  } else if (baseItem.Type === "Audio") {
+    // Audio now managed by AudioPlayer database - skip update here
+    console.log(
+      "[Downloads DB] Audio update skipped - managed by AudioPlayer database",
+    );
+    return;
   } else if (baseItem.Id && db.other?.[baseItem.Id]) {
     db.other[baseItem.Id] = updatedItem;
   }

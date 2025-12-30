@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +9,10 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { MediaSource } from "@/models/common/types";
+import type { Episode, Season } from "@/models/video/types";
+import { useVideoApi } from "@/providers/MediaApiProvider";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { Text } from "../common/Text";
@@ -26,9 +28,13 @@ type Props = {
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
+/**
+ * Season picker component for TV series
+ * Uses unified Video API - automatically handles online/offline mode
+ */
 export const SeasonPicker: React.FC<Props> = ({ item }) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
+  const videoApi = useVideoApi();
+  const { offlineMode } = useOfflineLibrary();
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
   const { t } = useTranslation();
 
@@ -37,68 +43,45 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     [item, seasonIndexState],
   );
 
+  // Fetch seasons using unified API
   const { data: seasons } = useQuery({
-    queryKey: ["seasons", item.Id],
-    queryFn: async () => {
-      if (!api || !user?.Id || !item.Id) return [];
-      const response = await api.axiosInstance.get(
-        `${api.basePath}/Shows/${item.Id}/Seasons`,
-        {
-          params: {
-            userId: user?.Id,
-            itemId: item.Id,
-            Fields:
-              "ItemCounts,PrimaryImageAspectRatio,CanDelete,MediaSourceCount",
-          },
-          headers: {
-            Authorization: `MediaBrowser DeviceId="${api.deviceInfo.id}", Token="${api.accessToken}"`,
-          },
-        },
-      );
-
-      return response.data.Items;
+    queryKey: ["series-seasons", item.Id],
+    queryFn: async (): Promise<Season[]> => {
+      if (!item.Id) return [];
+      return videoApi.getSeriesSeasons(item.Id);
     },
     staleTime: 60,
-    enabled: !!api && !!user?.Id && !!item.Id,
+    enabled: !!item.Id,
   });
+
+  // Convert Season domain models to BaseItemDto for SeasonDropdown compatibility
+  const seasonsAsBaseItems = useMemo(
+    () => seasons?.map((s) => s.jellyfinItem) ?? [],
+    [seasons],
+  );
 
   const selectedSeasonId: string | null = useMemo(() => {
-    const season: BaseItemDto = seasons?.find(
-      (s: BaseItemDto) =>
-        s.IndexNumber === seasonIndex || s.Name === seasonIndex,
+    const season = seasons?.find(
+      (s) => s.seasonNumber === seasonIndex || s.name === seasonIndex,
     );
-
-    if (!season?.Id) return null;
-
-    return season.Id!;
+    return season?.id ?? null;
   }, [seasons, seasonIndex]);
 
+  // Fetch episodes using unified API
   const { data: episodes, isPending } = useQuery({
-    queryKey: ["episodes", item.Id, selectedSeasonId],
-    queryFn: async () => {
-      if (!api || !user?.Id || !item.Id || !selectedSeasonId) {
-        return [];
-      }
-
-      const res = await getTvShowsApi(api).getEpisodes({
-        seriesId: item.Id,
-        userId: user.Id,
-        seasonId: selectedSeasonId,
-        enableUserData: true,
-        // Note: Including trick play is necessary to enable trick play downloads
-        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
-      });
-
-      if (res.data.TotalRecordCount === 0)
-        console.warn(
-          "No episodes found for season with ID ~",
-          selectedSeasonId,
-        );
-
-      return res.data.Items;
+    queryKey: ["season-episodes", item.Id, selectedSeasonId],
+    queryFn: async (): Promise<Episode[]> => {
+      if (!item.Id || !selectedSeasonId) return [];
+      return videoApi.getSeasonEpisodes(selectedSeasonId);
     },
-    enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
+    enabled: !!item.Id && !!selectedSeasonId,
   });
+
+  // Convert Episode domain models to BaseItemDto for component compatibility
+  const episodesAsBaseItems = useMemo(
+    () => episodes?.map((e) => e.jellyfinItem) ?? [],
+    [episodes],
+  );
 
   // Used for height calculation
   const [nrOfEpisodes, setNrOfEpisodes] = useState(0);
@@ -117,7 +100,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
       <View className='flex flex-row justify-start items-center px-4'>
         <SeasonDropdown
           item={item}
-          seasons={seasons}
+          seasons={seasonsAsBaseItems}
           state={seasonIndexState}
           onSelect={(season) => {
             if (!item.Id) return;
@@ -132,7 +115,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
             <DownloadItems
               title={t("item_card.download.download_season")}
               className='ml-2'
-              items={episodes || []}
+              items={episodesAsBaseItems}
               MissingDownloadIconComponent={() => (
                 <Ionicons name='download' size={20} color='white' />
               )}
@@ -140,7 +123,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
                 <Ionicons name='download' size={20} color='#9333ea' />
               )}
             />
-            <PlayedStatus items={episodes || []} />
+            <PlayedStatus items={episodesAsBaseItems} />
           </View>
         ) : null}
       </View>
@@ -155,44 +138,53 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
             <Loader />
           </View>
         ) : (
-          episodes?.map((e: BaseItemDto) => (
-            <TouchableItemRouter
-              item={e}
-              key={e.Id}
-              className='flex flex-col mb-4'
-            >
-              <View className='flex flex-row items-start mb-2'>
-                <View className='mr-2'>
-                  <ContinueWatchingPoster
-                    size='small'
-                    item={e}
-                    useEpisodePoster
-                  />
-                </View>
-                <View className='shrink'>
-                  <Text numberOfLines={2} className=''>
-                    {e.Name}
-                  </Text>
-                  <Text numberOfLines={1} className='text-xs text-neutral-500'>
-                    {`S${e.ParentIndexNumber?.toString()}:E${e.IndexNumber?.toString()}`}
-                  </Text>
-                  <Text className='text-xs text-neutral-500'>
-                    {runtimeTicksToSeconds(e.RunTimeTicks)}
-                  </Text>
-                </View>
-                <View className='self-start ml-auto -mt-0.5'>
-                  <DownloadSingleItem item={e} />
-                </View>
-              </View>
+          episodes?.map((episode) => {
+            const isDownloaded = episode.source === MediaSource.Offline;
+            // Only grey out unavailable episodes in offline mode
+            const shouldGreyOut = offlineMode && !isDownloaded;
 
-              <Text
-                numberOfLines={3}
-                className='text-xs text-neutral-500 shrink'
+            return (
+              <TouchableItemRouter
+                item={episode.jellyfinItem}
+                key={episode.id}
+                className={`flex flex-col mb-4 ${shouldGreyOut ? "opacity-50" : ""}`}
               >
-                {e.Overview}
-              </Text>
-            </TouchableItemRouter>
-          ))
+                <View className='flex flex-row items-start mb-2'>
+                  <View className='mr-2'>
+                    <ContinueWatchingPoster
+                      size='small'
+                      item={episode.jellyfinItem}
+                      useEpisodePoster
+                    />
+                  </View>
+                  <View className='shrink'>
+                    <Text numberOfLines={2} className=''>
+                      {episode.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      className='text-xs text-neutral-500'
+                    >
+                      {`S${episode.seasonNumber?.toString()}:E${episode.episodeNumber?.toString()}`}
+                    </Text>
+                    <Text className='text-xs text-neutral-500'>
+                      {runtimeTicksToSeconds(episode.jellyfinItem.RunTimeTicks)}
+                    </Text>
+                  </View>
+                  <View className='self-start ml-auto -mt-0.5'>
+                    <DownloadSingleItem item={episode.jellyfinItem} />
+                  </View>
+                </View>
+
+                <Text
+                  numberOfLines={3}
+                  className='text-xs text-neutral-500 shrink'
+                >
+                  {episode.overview}
+                </Text>
+              </TouchableItemRouter>
+            );
+          })
         )}
         {(episodes?.length || 0) === 0 ? (
           <View className='flex flex-col'>

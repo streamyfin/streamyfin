@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -14,10 +13,10 @@ import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { useVideoApi } from "@/providers/MediaApiProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 const page: React.FC = () => {
   const navigation = useNavigation();
@@ -29,18 +28,18 @@ const page: React.FC = () => {
   };
 
   const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
+  const videoApi = useVideoApi();
 
-  const { data: item } = useQuery({
+  // Fetch series info using unified API (handles online/offline)
+  const { data: series } = useQuery({
     queryKey: ["series", seriesId],
-    queryFn: async () =>
-      await getUserItemData({
-        api,
-        userId: user?.Id,
-        itemId: seriesId,
-      }),
+    queryFn: async () => videoApi.getSeriesById(seriesId),
     staleTime: 60 * 1000,
+    enabled: !!seriesId,
   });
+
+  // Get the underlying BaseItemDto for backward compatibility
+  const item = series?.jellyfinItem;
 
   const backdropUrl = useMemo(
     () =>
@@ -62,29 +61,24 @@ const page: React.FC = () => {
     [item],
   );
 
+  // Fetch all episodes using unified API (handles online/offline)
   const { data: allEpisodes, isLoading } = useQuery({
-    queryKey: ["AllEpisodes", item?.Id],
+    queryKey: ["AllEpisodes", seriesId],
     queryFn: async () => {
-      if (!api || !user?.Id || !item?.Id) return [];
-
-      const res = await getTvShowsApi(api).getEpisodes({
-        seriesId: item.Id,
-        userId: user.Id,
-        enableUserData: true,
-        // Note: Including trick play is necessary to enable trick play downloads
-        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
-      });
-      return res?.data.Items || [];
+      if (!seriesId) return [];
+      const episodes = await videoApi.getSeriesEpisodes(seriesId);
+      // Return BaseItemDto array for DownloadItems compatibility
+      return episodes.map((ep) => ep.jellyfinItem);
     },
     select: (data) =>
-      // This needs to be sorted by parent index number and then index number, that way we can download the episodes in the correct order.
+      // Sort by season and episode number for correct download order
       [...(data || [])].sort(
         (a, b) =>
           (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
           (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
       ),
     staleTime: 60,
-    enabled: !!api && !!user?.Id && !!item?.Id,
+    enabled: !!seriesId,
   });
 
   useEffect(() => {

@@ -26,6 +26,9 @@ import { ItemPoster } from "@/components/posters/ItemPoster";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useVideoApi } from "@/providers/MediaApiProvider";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
+import { OfflineVideoApi } from "@/services/api/offline/OfflineVideoApi";
 import {
   genreFilterAtom,
   getSortByPreference,
@@ -48,6 +51,8 @@ const Page = () => {
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const { offlineMode } = useOfflineLibrary();
+  const videoApi = useVideoApi();
   const { width: screenWidth } = useWindowDimensions();
 
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
@@ -119,7 +124,28 @@ const Page = () => {
     return 6;
   }, [screenWidth, orientation]);
 
-  const { data: library, isLoading: isLibraryLoading } = useQuery({
+  // Virtual library info for offline mode
+  const virtualLibrary = useMemo((): BaseItemDto | null => {
+    if (libraryId === "offline-movies") {
+      return {
+        Id: "offline-movies",
+        Name: "Movies (Offline)",
+        CollectionType: "movies",
+        Type: "CollectionFolder",
+      } as BaseItemDto;
+    }
+    if (libraryId === "offline-tvshows") {
+      return {
+        Id: "offline-tvshows",
+        Name: "TV Shows (Offline)",
+        CollectionType: "tvshows",
+        Type: "CollectionFolder",
+      } as BaseItemDto;
+    }
+    return null;
+  }, [libraryId]);
+
+  const { data: serverLibrary, isLoading: isLibraryLoading } = useQuery({
     queryKey: ["library", libraryId],
     queryFn: async () => {
       if (!api) return null;
@@ -129,9 +155,13 @@ const Page = () => {
       });
       return response.data;
     },
-    enabled: !!api && !!user?.Id && !!libraryId,
+    // Skip server query for virtual offline libraries
+    enabled: !!api && !!user?.Id && !!libraryId && !virtualLibrary,
     staleTime: 60 * 1000,
   });
+
+  // Use virtual library info for offline mode, otherwise use server library
+  const library = virtualLibrary || serverLibrary;
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -146,29 +176,71 @@ const Page = () => {
     }: {
       pageParam: number;
     }): Promise<BaseItemDtoQueryResult | null> => {
-      if (!api || !library) return null;
+      if (!library) return null;
+
+      const limit = 36;
+
+      // For virtual offline libraries, always use OfflineVideoApi directly
+      // This ensures offline content is shown even when network is connected
+      const isVirtualOfflineLibrary = !!virtualLibrary;
+      const effectiveApi = isVirtualOfflineLibrary
+        ? new OfflineVideoApi()
+        : videoApi;
+
+      // Use unified Video API for movies and TV shows
+      if (library.CollectionType === "movies") {
+        const result = await effectiveApi.getMovies({
+          libraryId: isVirtualOfflineLibrary ? undefined : libraryId, // Don't filter by libraryId for offline content
+          searchTerm: selectedGenres.length > 0 ? undefined : undefined,
+          sortBy: sortBy[0] ? [sortBy[0]] : undefined,
+          sortOrder: sortOrder[0],
+          startIndex: pageParam,
+          limit,
+        });
+
+        return {
+          Items: result.items.map((movie) => movie.jellyfinItem),
+          TotalRecordCount: result.totalCount,
+          StartIndex: result.startIndex,
+        };
+      }
+
+      if (library.CollectionType === "tvshows") {
+        const result = await effectiveApi.getSeries({
+          libraryId: isVirtualOfflineLibrary ? undefined : libraryId,
+          searchTerm: selectedGenres.length > 0 ? undefined : undefined,
+          sortBy: sortBy[0] ? [sortBy[0]] : undefined,
+          sortOrder: sortOrder[0],
+          startIndex: pageParam,
+          limit,
+        });
+
+        return {
+          Items: result.items.map((series) => series.jellyfinItem),
+          TotalRecordCount: result.totalCount,
+          StartIndex: result.startIndex,
+        };
+      }
+
+      // For non-video libraries (music, boxsets), use direct Jellyfin API
+      // These only work in online mode
+      if (!api) return null;
 
       let itemType: BaseItemKind | undefined;
-
-      // This fix makes sure to only return 1 type of items, if defined.
-      // This is because the underlying directory some times contains other types, and we don't want to show them.
-      if (library.CollectionType === "movies") {
-        itemType = "Movie";
-      } else if (library.CollectionType === "tvshows") {
-        itemType = "Series";
-      } else if (library.CollectionType === "boxsets") {
+      if (library.CollectionType === "boxsets") {
         itemType = "BoxSet";
+      } else if (library.CollectionType === "music") {
+        itemType = "MusicAlbum";
       }
 
       const response = await getItemsApi(api).getItems({
         userId: user?.Id,
         parentId: libraryId,
-        limit: 36,
+        limit,
         startIndex: pageParam,
         sortBy: [sortBy[0], "SortName", "ProductionYear"],
         sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
-        // true is needed for merged versions
         recursive: true,
         imageTypeLimit: 1,
         fields: ["PrimaryImageAspectRatio", "SortName"],
@@ -185,6 +257,8 @@ const Page = () => {
       user?.Id,
       libraryId,
       library,
+      virtualLibrary,
+      videoApi,
       selectedGenres,
       selectedYears,
       selectedTags,
@@ -198,6 +272,7 @@ const Page = () => {
       queryKey: [
         "library-items",
         libraryId,
+        offlineMode, // Refetch when switching between online/offline
         selectedGenres,
         selectedYears,
         selectedTags,
@@ -225,7 +300,8 @@ const Page = () => {
         return undefined;
       },
       initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!library,
+      // For virtual offline libraries, we don't need api/user - just need library info
+      enabled: !!library && (!!virtualLibrary || (!!api && !!user?.Id)),
     });
 
   const flatData = useMemo(() => {
@@ -264,7 +340,7 @@ const Page = () => {
         </View>
       </TouchableItemRouter>
     ),
-    [orientation],
+    [orientation, nrOfCols],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
@@ -464,14 +540,6 @@ const Page = () => {
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }}
-      ItemSeparatorComponent={() => (
-        <View
-          style={{
-            width: 10,
-            height: 10,
-          }}
-        />
-      )}
     />
   );
 };

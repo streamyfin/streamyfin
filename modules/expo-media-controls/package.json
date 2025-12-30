@@ -1,0 +1,25 @@
+{
+  "name": "expo-media-controls",
+  "version": "1.0.0",
+  "description": "Native media controls for lock screen and notification panel",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "keywords": [
+    "react-native",
+    "expo",
+    "media-controls",
+    "lock-screen"
+  ],
+  "repository": "https://github.com/fredrikburmester/streamyfin",
+  "author": "Streamyfin",
+  "license": "MIT",
+  "scripts": {
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "expo": "~54.0.23",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  }
+}

@@ -23,7 +23,7 @@ interface Props extends TouchableOpacityProps {
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const icons: Record<CollectionType, IconName> = {
+const icons: Record<CollectionType | "channel", IconName> = {
   movies: "film",
   tvshows: "tv",
   music: "musical-notes",
@@ -37,6 +37,7 @@ const icons: Record<CollectionType, IconName> = {
   photos: "images",
   trailers: "videocam",
   unknown: "help-circle",
+  channel: "radio",
 } as const;
 export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const [api] = useAtom(apiAtom);
@@ -71,7 +72,9 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   const itemTypeName = useMemo(() => {
     let nameStr: string;
 
-    if (library.CollectionType === "movies") {
+    if (library.Type === "Channel") {
+      nameStr = t("library.item_types.channel_items");
+    } else if (library.CollectionType === "movies") {
       nameStr = t("library.item_types.movies");
     } else if (library.CollectionType === "tvshows") {
       nameStr = t("library.item_types.series");
@@ -82,7 +85,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     }
 
     return nameStr;
-  }, [library.CollectionType]);
+  }, [library.CollectionType, library.Type]);
 
   const { data: itemsCount } = useQuery({
     queryKey: ["library-count", library.Id],
@@ -98,14 +101,16 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
     },
   });
 
-  if (!url) return null;
-
   if (settings?.libraryOptions?.display === "row") {
     return (
       <TouchableItemRouter item={library} className='w-full px-4'>
         <View className='flex flex-row items-center w-full relative '>
           <Ionicons
-            name={icons[library.CollectionType!] || "folder"}
+            name={
+              library.Type === "Channel"
+                ? icons.channel
+                : icons[library.CollectionType!] || "folder"
+            }
             size={22}
             color={"#e5e5e5"}
           />
@@ -137,14 +142,36 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
               overflow: "hidden",
             }}
           >
-            <Image
-              source={{ uri: url }}
-              style={{
-                width: "100%",
-                height: "100%",
-              }}
-              cachePolicy={"memory-disk"}
-            />
+            {url ? (
+              <Image
+                source={{ uri: url }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                }}
+                cachePolicy={"memory-disk"}
+              />
+            ) : (
+              <View
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "#262626",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons
+                  name={
+                    library.Type === "Channel"
+                      ? icons.channel
+                      : icons[library.CollectionType!] || "folder"
+                  }
+                  size={32}
+                  color={"#737373"}
+                />
+              </View>
+            )}
             <View
               style={{
                 position: "absolute",
@@ -185,10 +212,33 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
           )}
         </View>
         <View className='p-2'>
-          <Image
-            source={{ uri: url }}
-            className='h-full aspect-[2/1] object-cover rounded-lg overflow-hidden'
-          />
+          {url ? (
+            <Image
+              source={{ uri: url }}
+              className='h-full aspect-[2/1] object-cover rounded-lg overflow-hidden'
+            />
+          ) : (
+            <View
+              style={{
+                height: "100%",
+                aspectRatio: 2,
+                backgroundColor: "#262626",
+                borderRadius: 8,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name={
+                  library.Type === "Channel"
+                    ? icons.channel
+                    : icons[library.CollectionType!] || "folder"
+                }
+                size={24}
+                color={"#737373"}
+              />
+            </View>
+          )}
         </View>
       </View>
     </TouchableItemRouter>

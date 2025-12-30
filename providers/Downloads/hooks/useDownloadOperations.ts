@@ -11,6 +11,7 @@ import { toast } from "sonner-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
+import { removeDownloadedTrack } from "@/providers/AudioPlayer/database";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
 import { downloadAdditionalAssets } from "../additionalDownloads";
@@ -58,6 +59,7 @@ export function useDownloadOperations({
       item: BaseItemDto,
       mediaSource: MediaSourceInfo,
       maxBitrate: Bitrate,
+      silent = false,
     ) => {
       if (!api || !item.Id || !authHeader) {
         console.warn("startBackgroundDownload ~ Missing required params");
@@ -71,11 +73,13 @@ export function useDownloadOperations({
         // Check if already downloading
         const existingProcess = processes.find((p) => p.id === processId);
         if (existingProcess) {
-          toast.info(
-            t("home.downloads.toasts.item_already_downloading", {
-              item: item.Name,
-            }),
-          );
+          if (!silent) {
+            toast.info(
+              t("home.downloads.toasts.item_already_downloading", {
+                item: item.Name,
+              }),
+            );
+          }
           return;
         }
 
@@ -114,6 +118,7 @@ export function useDownloadOperations({
           trickPlayData: additionalAssets.trickPlayData,
           introSegments: additionalAssets.introSegments,
           creditSegments: additionalAssets.creditSegments,
+          silent,
         };
 
         // Add to processes
@@ -142,11 +147,13 @@ export function useDownloadOperations({
           taskMapRef.current.set(downloadUrl, processId);
         }
 
-        toast.success(
-          t("home.downloads.toasts.download_started_for_item", {
-            item: item.Name,
-          }),
-        );
+        if (!silent) {
+          toast.success(
+            t("home.downloads.toasts.download_started_for_item", {
+              item: item.Name,
+            }),
+          );
+        }
       } catch (error) {
         console.error("Failed to start download:", error);
         toast.error(t("home.downloads.toasts.failed_to_start_download"), {
@@ -256,6 +263,11 @@ export function useDownloadOperations({
         try {
           deleteAllAssociatedFiles(item);
           removeDownloadedItem(item.item.Id || "");
+
+          // Also remove from AudioPlayer database if it's audio
+          if (itemType === "Audio" && item.item.Id) {
+            removeDownloadedTrack(item.item.Id);
+          }
         } catch (error) {
           console.error(
             `Failed to delete ${itemType} file ${item.item.Name}:`,

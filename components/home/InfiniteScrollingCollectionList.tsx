@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
+import MusicPoster from "@/components/posters/MusicPoster";
 import { Colors } from "../../constants/Colors";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
@@ -183,6 +184,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                 {item.Type === "Video" && orientation === "horizontal" && (
                   <ContinueWatchingPoster item={item} />
                 )}
+                {item.Type === "MusicAlbum" && <MusicPoster item={item} />}
+                {item.Type === "Audio" && <MusicPoster item={item} />}
                 <ItemCardText item={item} />
               </TouchableItemRouter>
             ))}

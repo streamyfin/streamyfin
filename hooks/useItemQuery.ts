@@ -1,9 +1,6 @@
 import { ItemFields } from "@jellyfin/sdk/lib/generated-client/models";
-import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useVideoApi } from "@/providers/MediaApiProvider";
 
 // Helper to exclude specific fields
 export const excludeFields = (fieldsToExclude: ItemFields[]) => {
@@ -12,41 +9,33 @@ export const excludeFields = (fieldsToExclude: ItemFields[]) => {
   );
 };
 
+/**
+ * Query hook for fetching a single video item (Movie, Episode, Series)
+ * Uses unified Video API - automatically handles online/offline mode
+ *
+ * @param itemId - The item ID to fetch
+ * @param _isOffline - Deprecated: offline mode is now automatic
+ * @param _fields - Deprecated: fields are now determined by the API
+ * @param _excludeFields - Deprecated: fields are now determined by the API
+ * @returns Query result with BaseItemDto for backwards compatibility
+ */
 export const useItemQuery = (
   itemId: string | undefined,
-  isOffline?: boolean,
-  fields?: ItemFields[],
-  excludeFields?: ItemFields[],
+  _isOffline?: boolean,
+  _fields?: ItemFields[],
+  _excludeFields?: ItemFields[],
 ) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-  const { getDownloadedItemById } = useDownload();
-
-  // Calculate final fields: use excludeFields if provided, otherwise use fields
-  const finalFields = excludeFields
-    ? Object.values(ItemFields).filter(
-        (field) => !excludeFields.includes(field),
-      )
-    : fields;
+  const videoApi = useVideoApi();
 
   return useQuery({
-    queryKey: ["item", itemId, finalFields],
+    queryKey: ["item", itemId],
     queryFn: async () => {
       if (!itemId) throw new Error("Item ID is required");
 
-      if (isOffline) {
-        return getDownloadedItemById(itemId)?.item;
-      }
+      const result = await videoApi.getItem(itemId);
 
-      if (!api || !user) return null;
-
-      const response = await getItemsApi(api).getItems({
-        ids: [itemId],
-        userId: user.Id,
-        ...(finalFields && { fields: finalFields }),
-      });
-
-      return response.data.Items?.[0];
+      // Return jellyfinItem for backwards compatibility with existing components
+      return result?.jellyfinItem ?? null;
     },
     enabled: !!itemId,
     refetchOnMount: true,

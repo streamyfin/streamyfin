@@ -167,7 +167,7 @@ export const HomeWithCarousel = () => {
   );
 
   const collections = useMemo(() => {
-    const allow = ["movies", "tvshows"];
+    const allow = ["movies", "tvshows", "music"];
     return (
       userViews?.filter(
         (c) => c.CollectionType && allow.includes(c.CollectionType),
@@ -221,10 +221,12 @@ export const HomeWithCarousel = () => {
     if (!api || !user?.Id) return [];
 
     const latestMediaViews = collections.map((c) => {
-      const includeItemTypes: BaseItemKind[] =
-        c.CollectionType === "tvshows" || c.CollectionType === "movies"
-          ? []
-          : ["Movie"];
+      let includeItemTypes: BaseItemKind[] = ["Movie"];
+      if (c.CollectionType === "tvshows" || c.CollectionType === "movies") {
+        includeItemTypes = [];
+      } else if (c.CollectionType === "music") {
+        includeItemTypes = ["MusicAlbum"];
+      }
       const title = t("home.recently_added_in", { libraryName: c.Name });
       const queryKey: string[] = [
         "home",
@@ -274,6 +276,70 @@ export const HomeWithCarousel = () => {
               enableResumable: false,
             })
           ).data.Items || [],
+        type: "InfiniteScrollingCollectionList",
+        orientation: "horizontal",
+        pageSize: 10,
+      },
+      {
+        title: t("home.continue_listening"),
+        queryKey: ["home", "resumeMusic"],
+        queryFn: async ({ pageParam = 0 }) =>
+          (
+            await getItemsApi(api).getResumeItems({
+              userId: user.Id,
+              includeItemTypes: ["MusicAlbum", "Audio"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+              fields: ["Genres"],
+              startIndex: pageParam,
+              limit: 10,
+            })
+          ).data.Items || [],
+        type: "InfiniteScrollingCollectionList",
+        orientation: "horizontal",
+        pageSize: 10,
+      },
+      {
+        title: t("home.recently_listened"),
+        queryKey: ["home", "recentlyListened"],
+        queryFn: async ({ pageParam = 0 }) => {
+          // Get recently played audio tracks
+          const response = await getItemsApi(api).getItems({
+            userId: user.Id,
+            includeItemTypes: ["Audio"],
+            sortBy: ["DatePlayed"],
+            sortOrder: ["Descending"],
+            filters: ["IsPlayed"],
+            fields: ["Genres", "ParentId"],
+            limit: 100, // Get more tracks to ensure we get enough unique albums
+            recursive: true,
+          });
+
+          const tracks = response.data.Items || [];
+
+          // Get unique parent albums
+          const seenAlbumIds = new Set<string>();
+          const uniqueAlbums: BaseItemDto[] = [];
+
+          for (const track of tracks) {
+            if (track.AlbumId && !seenAlbumIds.has(track.AlbumId)) {
+              seenAlbumIds.add(track.AlbumId);
+              // Fetch the album details
+              const albumResponse = await getItemsApi(api).getItems({
+                userId: user.Id,
+                ids: [track.AlbumId],
+                fields: ["Genres"],
+                enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+              });
+              if (albumResponse.data.Items?.[0]) {
+                uniqueAlbums.push(albumResponse.data.Items[0]);
+              }
+            }
+            if (uniqueAlbums.length >= pageParam + 10) break;
+          }
+
+          // Return paginated slice
+          return uniqueAlbums.slice(pageParam, pageParam + 10);
+        },
         type: "InfiniteScrollingCollectionList",
         orientation: "horizontal",
         pageSize: 10,

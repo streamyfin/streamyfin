@@ -8,6 +8,77 @@ const Notifications = Platform.isTV
   ? null
   : (require("expo-notifications") as typeof NotificationsType);
 
+// Track album downloads to prevent notification spam
+interface AlbumDownloadTracker {
+  totalTracks: number;
+  completedTracks: number;
+  albumName: string;
+  artistName: string;
+}
+
+const albumDownloads = new Map<string, AlbumDownloadTracker>();
+
+/**
+ * Register a track as part of an album download
+ */
+export function registerAlbumTrack(
+  albumId: string,
+  albumName: string,
+  artistName: string,
+  totalTracks: number,
+): void {
+  if (!albumDownloads.has(albumId)) {
+    albumDownloads.set(albumId, {
+      totalTracks,
+      completedTracks: 0,
+      albumName,
+      artistName,
+    });
+  }
+}
+
+/**
+ * Mark a track as completed and check if album download is finished
+ * Returns true if this was the last track and a notification should be sent
+ */
+export function markTrackCompleted(albumId: string): {
+  shouldNotify: boolean;
+  albumName?: string;
+  artistName?: string;
+  completedTracks?: number;
+  totalTracks?: number;
+} {
+  const tracker = albumDownloads.get(albumId);
+  if (!tracker) {
+    // Track is not part of a tracked album download, allow individual notification
+    return { shouldNotify: true };
+  }
+
+  tracker.completedTracks++;
+
+  if (tracker.completedTracks >= tracker.totalTracks) {
+    // All tracks completed, remove from tracker and send album notification
+    albumDownloads.delete(albumId);
+    return {
+      shouldNotify: true,
+      albumName: tracker.albumName,
+      artistName: tracker.artistName,
+      completedTracks: tracker.completedTracks,
+      totalTracks: tracker.totalTracks,
+    };
+  }
+
+  // More tracks remaining, suppress notification
+  return { shouldNotify: false };
+}
+
+/**
+ * Clear album download tracker (e.g., on error or cancellation)
+ */
+export function clearAlbumTracker(albumId: string): void {
+  albumDownloads.delete(albumId);
+}
+
 /**
  * Generate notification content based on item type
  */

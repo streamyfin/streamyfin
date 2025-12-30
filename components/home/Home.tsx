@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -17,7 +17,6 @@ import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActivityIndicator,
   Platform,
   RefreshControl,
   ScrollView,
@@ -25,7 +24,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { Loader } from "@/components/Loader";
@@ -34,6 +32,7 @@ import { Colors } from "@/constants/Colors";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
+import { useOfflineHomeSections } from "@/providers/HomeData/useHomeBackend";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
@@ -67,12 +66,7 @@ export const Home = () => {
   const scrollRef = useRef<ScrollView>(null);
   const { downloadedItems, cleanCacheDirectory } = useDownload();
   const prevIsConnected = useRef<boolean | null>(false);
-  const {
-    isConnected,
-    serverConnected,
-    loading: retryLoading,
-    retryCheck,
-  } = useNetworkStatus();
+  const { isConnected } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [scrollY, setScrollY] = useState(0);
 
@@ -162,7 +156,7 @@ export const Home = () => {
   );
 
   const collections = useMemo(() => {
-    const allow = ["movies", "tvshows"];
+    const allow = ["movies", "tvshows", "music"];
     return (
       userViews?.filter(
         (c) => c.CollectionType && allow.includes(c.CollectionType),
@@ -200,6 +194,7 @@ export const Home = () => {
               enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
               includeItemTypes,
               parentId,
+              groupItems: false, // Don't group items (important for music albums)
             })
           ).data || [];
 
@@ -216,10 +211,14 @@ export const Home = () => {
     if (!api || !user?.Id) return [];
 
     const latestMediaViews = collections.map((c) => {
-      const includeItemTypes: BaseItemKind[] =
-        c.CollectionType === "tvshows" || c.CollectionType === "movies"
-          ? []
-          : ["Movie"];
+      let includeItemTypes: BaseItemKind[] = ["Movie"];
+      let pageSize = 10;
+      if (c.CollectionType === "tvshows" || c.CollectionType === "movies") {
+        includeItemTypes = [];
+      } else if (c.CollectionType === "music") {
+        includeItemTypes = ["MusicAlbum"];
+        pageSize = 30; // Show more albums for music
+      }
       const title = t("home.recently_added_in", { libraryName: c.Name });
       const queryKey: string[] = [
         "home",
@@ -232,7 +231,7 @@ export const Home = () => {
         queryKey,
         includeItemTypes,
         c.Id,
-        10,
+        pageSize,
       );
     });
 
@@ -269,6 +268,70 @@ export const Home = () => {
               enableResumable: false,
             })
           ).data.Items || [],
+        type: "InfiniteScrollingCollectionList",
+        orientation: "horizontal",
+        pageSize: 10,
+      },
+      {
+        title: t("home.continue_listening"),
+        queryKey: ["home", "resumeMusic"],
+        queryFn: async ({ pageParam = 0 }) =>
+          (
+            await getItemsApi(api).getResumeItems({
+              userId: user.Id,
+              includeItemTypes: ["MusicAlbum", "Audio"],
+              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+              fields: ["Genres"],
+              startIndex: pageParam,
+              limit: 10,
+            })
+          ).data.Items || [],
+        type: "InfiniteScrollingCollectionList",
+        orientation: "horizontal",
+        pageSize: 10,
+      },
+      {
+        title: t("home.recently_listened"),
+        queryKey: ["home", "recentlyListened"],
+        queryFn: async ({ pageParam = 0 }) => {
+          // Get recently played audio tracks
+          const response = await getItemsApi(api).getItems({
+            userId: user.Id,
+            includeItemTypes: ["Audio"],
+            sortBy: ["DatePlayed"],
+            sortOrder: ["Descending"],
+            filters: ["IsPlayed"],
+            fields: ["Genres", "ParentId"],
+            limit: 100, // Get more tracks to ensure we get enough unique albums
+            recursive: true,
+          });
+
+          const tracks = response.data.Items || [];
+
+          // Get unique parent albums
+          const seenAlbumIds = new Set<string>();
+          const uniqueAlbums: BaseItemDto[] = [];
+
+          for (const track of tracks) {
+            if (track.AlbumId && !seenAlbumIds.has(track.AlbumId)) {
+              seenAlbumIds.add(track.AlbumId);
+              // Fetch the album details
+              const albumResponse = await getItemsApi(api).getItems({
+                userId: user.Id,
+                ids: [track.AlbumId],
+                fields: ["Genres"],
+                enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+              });
+              if (albumResponse.data.Items?.[0]) {
+                uniqueAlbums.push(albumResponse.data.Items[0]);
+              }
+            }
+            if (uniqueAlbums.length >= pageParam + 10) break;
+          }
+
+          // Return paginated slice
+          return uniqueAlbums.slice(pageParam, pageParam + 10);
+        },
         type: "InfiniteScrollingCollectionList",
         orientation: "horizontal",
         pageSize: 10,
@@ -372,64 +435,16 @@ export const Home = () => {
     return ss;
   }, [api, user?.Id, settings?.home?.sections, t]);
 
-  const sections = settings?.home?.sections ? customSections : defaultSections;
+  // Get offline sections when in offline mode
+  const offlineSections = useOfflineHomeSections();
 
-  if (!isConnected || serverConnected !== true) {
-    let title = "";
-    let subtitle = "";
+  // Use offline sections if available, otherwise use live sections
+  const sections =
+    offlineSections ??
+    (settings?.home?.sections ? customSections : defaultSections);
 
-    if (!isConnected) {
-      title = t("home.no_internet");
-      subtitle = t("home.no_internet_message");
-    } else if (serverConnected === null) {
-      title = t("home.checking_server_connection");
-      subtitle = t("home.checking_server_connection_message");
-    } else if (!serverConnected) {
-      title = t("home.server_unreachable");
-      subtitle = t("home.server_unreachable_message");
-    }
-    return (
-      <View className='flex flex-col items-center justify-center h-full -mt-6 px-8'>
-        <Text className='text-3xl font-bold mb-2'>{title}</Text>
-        <Text className='text-center opacity-70'>{subtitle}</Text>
-
-        <View className='mt-4'>
-          {!Platform.isTV && (
-            <Button
-              color='purple'
-              onPress={() => router.push("/(auth)/downloads")}
-              justify='center'
-              iconRight={
-                <Ionicons name='arrow-forward' size={20} color='white' />
-              }
-            >
-              {t("home.go_to_downloads")}
-            </Button>
-          )}
-
-          <Button
-            color='black'
-            onPress={retryCheck}
-            justify='center'
-            className='mt-2'
-            iconRight={
-              retryLoading ? null : (
-                <Ionicons name='refresh' size={20} color='white' />
-              )
-            }
-          >
-            {retryLoading ? (
-              <ActivityIndicator size='small' color='white' />
-            ) : (
-              t("home.retry")
-            )}
-          </Button>
-        </View>
-      </View>
-    );
-  }
-
-  if (e1)
+  // Skip error state when we have offline sections to display
+  if (e1 && !offlineSections)
     return (
       <View className='flex flex-col items-center justify-center h-full -mt-6'>
         <Text className='text-3xl font-bold mb-2'>{t("home.oops")}</Text>
@@ -439,7 +454,8 @@ export const Home = () => {
       </View>
     );
 
-  if (l1)
+  // Skip loading state when we have offline sections to display
+  if (l1 && !offlineSections)
     return (
       <View className='justify-center items-center h-full'>
         <Loader />

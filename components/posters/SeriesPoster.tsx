@@ -4,7 +4,9 @@ import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getStoredImage } from "@/utils/storedImages";
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -13,8 +15,22 @@ type MoviePosterProps = {
 
 const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
   const [api] = useAtom(apiAtom);
+  const { offlineMode } = useOfflineLibrary();
 
   const url = useMemo(() => {
+    // When offline, check for stored images first
+    if (offlineMode || !api) {
+      // For episodes, try series image first
+      if (item.Type === "Episode" && item.SeriesId) {
+        const seriesImage = getStoredImage(item.SeriesId);
+        if (seriesImage) return seriesImage;
+      }
+      // Try the item's own stored image
+      const storedImage = getStoredImage(item.Id);
+      if (storedImage) return storedImage;
+      if (!api) return undefined;
+    }
+
     if (item.Type === "Episode") {
       return `${api?.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=389&quality=80&tag=${item.SeriesPrimaryImageTag}`;
     }
@@ -23,7 +39,7 @@ const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
       item,
       width: 300,
     });
-  }, [item]);
+  }, [item, api, offlineMode]);
 
   const blurhash = useMemo(() => {
     const key = item.ImageTags?.Primary as string;

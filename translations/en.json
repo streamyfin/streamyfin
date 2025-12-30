@@ -48,6 +48,8 @@
     "error_message": "Something went wrong.\nPlease log out and in again.",
     "continue_watching": "Continue Watching",
     "next_up": "Next Up",
+    "recently_listened": "Recently Listened",
+    "continue_listening": "Continue Listening",
     "recently_added_in": "Recently Added in {{libraryName}}",
     "suggested_movies": "Suggested Movies",
     "suggested_episodes": "Suggested Episodes",
@@ -199,6 +201,7 @@
         "disable_haptic_feedback": "Disable Haptic Feedback",
         "default_quality": "Default Quality",
         "max_auto_play_episode_count": "Max Auto Play Episode Count",
+        "prefer_local_playback": "Prefer Local Playback",
         "disabled": "Disabled"
       },
       "downloads": {
@@ -279,8 +282,10 @@
       "downloads_title": "Downloads",
       "tvseries": "TV-Series",
       "movies": "Movies",
+      "music": "Music",
       "queue": "Queue",
       "other_media": "Other media",
+      "channel_content": "Channel Content",
       "queue_hint": "Queue and downloads will be lost on app restart",
       "no_items_in_queue": "No Items in Queue",
       "no_downloaded_items": "No Downloaded Items",
@@ -383,7 +388,8 @@
       "movies": "Movies",
       "series": "Series",
       "boxsets": "Box Sets",
-      "items": "Items"
+      "items": "Items",
+      "channel_items": "Items"
     },
     "options": {
       "display": "Display",
@@ -410,11 +416,19 @@
     "videos": "Videos",
     "boxsets": "Box Sets",
     "playlists": "Playlists",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
     "noDataTitle": "No Favorites Yet",
     "noData": "Mark items as favorites to see them appear here for quick access."
   },
   "custom_links": {
     "no_links": "No Links"
+  },
+  "channels": {
+    "title": "Channels",
+    "empty": "No content available",
+    "folder": "Folder"
   },
   "player": {
     "error": "Error",
@@ -464,6 +478,8 @@
       "download_series": "Download Series",
       "download_episode": "Download Episode",
       "download_movie": "Download Movie",
+      "download_channel_video": "Download Video",
+      "download_channel_audio": "Download Audio",
       "download_x_item": "Download {{item_count}} Items",
       "download_unwatched_only": "Unwatched Only",
       "download_button": "Download"

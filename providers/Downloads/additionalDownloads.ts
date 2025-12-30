@@ -174,6 +174,71 @@ export async function downloadSeriesImage(
 }
 
 /**
+ * Downloads and saves the album artwork for a music track
+ * Music tracks display the album artwork, not their own image
+ * @returns Path to the saved album artwork, or undefined if failed
+ */
+export async function downloadAlbumArtwork(
+  item: BaseItemDto,
+  api: Api,
+  saveImageFn: (itemId: string, url?: string) => Promise<void>,
+): Promise<string | undefined> {
+  // Only download album artwork for Audio items that have an AlbumId
+  if (item.Type !== "Audio" || !item.AlbumId) {
+    return undefined;
+  }
+
+  try {
+    // Download the album's Primary image (same size as used in audio player)
+    const albumArtworkUrl = `${api.basePath}/Items/${item.AlbumId}/Images/Primary?fillWidth=300&fillHeight=300`;
+
+    await saveImageFn(item.AlbumId, albumArtworkUrl);
+
+    console.log(`[COVER] Downloaded album artwork for ${item.Name}`);
+    return albumArtworkUrl;
+  } catch (error) {
+    console.error(`[COVER] Failed to download album artwork:`, error);
+    return undefined;
+  }
+}
+
+/**
+ * Downloads and saves the artist artwork for a music track
+ * @returns Path to the saved artist artwork, or undefined if failed
+ */
+export async function downloadArtistArtwork(
+  item: BaseItemDto,
+  api: Api,
+  saveImageFn: (itemId: string, url?: string) => Promise<void>,
+): Promise<string | undefined> {
+  // Only download artist artwork for Audio items that have artist info
+  if (item.Type !== "Audio") {
+    return undefined;
+  }
+
+  // Get the primary artist ID
+  const artistId = item.AlbumArtists?.[0]?.Id || item.ArtistItems?.[0]?.Id;
+  if (!artistId) {
+    return undefined;
+  }
+
+  try {
+    // Download the artist's Primary image
+    const artistArtworkUrl = `${api.basePath}/Items/${artistId}/Images/Primary?fillWidth=300&fillHeight=300`;
+
+    await saveImageFn(artistId, artistArtworkUrl);
+
+    console.log(
+      `[COVER] Downloaded artist artwork for ${item.Artists?.[0] || "Unknown Artist"}`,
+    );
+    return artistArtworkUrl;
+  } catch (error) {
+    console.error(`[COVER] Failed to download artist artwork:`, error);
+    return undefined;
+  }
+}
+
+/**
  * Fetches intro and credit segments for an item
  */
 export async function fetchSegments(
@@ -241,6 +306,16 @@ export async function downloadAdditionalAssets(params: {
     }),
     downloadSeriesImage(item, saveSeriesImageFn).catch((err) => {
       console.error("[COVER] Error downloading series image:", err);
+      return undefined;
+    }),
+    // Album artwork for music tracks
+    downloadAlbumArtwork(item, api, saveImageFn).catch((err) => {
+      console.error("[COVER] Error downloading album artwork:", err);
+      return undefined;
+    }),
+    // Artist artwork for music tracks
+    downloadArtistArtwork(item, api, saveImageFn).catch((err) => {
+      console.error("[COVER] Error downloading artist artwork:", err);
       return undefined;
     }),
   ]);

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useState } from "react";
 import { View, type ViewProps } from "react-native";
@@ -18,7 +19,12 @@ export const ItemPoster: React.FC<Props> = ({
     item.UserData?.PlayedPercentage || 0,
   );
 
-  if (item.Type === "Movie" || item.Type === "Series" || item.Type === "BoxSet")
+  if (
+    item.Type === "Movie" ||
+    item.Type === "Series" ||
+    item.Type === "BoxSet" ||
+    item.Type === "MusicAlbum"
+  )
     return (
       <View
         className='relative rounded-lg overflow-hidden border border-neutral-900'
@@ -26,7 +32,7 @@ export const ItemPoster: React.FC<Props> = ({
       >
         <ItemImage
           style={{
-            aspectRatio: "10/15",
+            aspectRatio: item.Type === "MusicAlbum" ? "1/1" : "10/15",
             width: "100%",
           }}
           item={item}
@@ -37,6 +43,36 @@ export const ItemPoster: React.FC<Props> = ({
         )}
       </View>
     );
+
+  // Channel folder item - show folder icon overlay
+  if (item.Type === "ChannelFolderItem") {
+    return (
+      <View
+        className='rounded-lg w-full aspect-square overflow-hidden border border-neutral-900 relative'
+        {...props}
+      >
+        <ItemImage className='w-full aspect-square' item={item} />
+        <View className='absolute bottom-1 right-1 bg-black/60 rounded p-1'>
+          <Ionicons name='folder' size={16} color='white' />
+        </View>
+      </View>
+    );
+  }
+
+  // Channel audio item - show audio icon overlay
+  if (item.Type === "Audio" || item.MediaType === "Audio") {
+    return (
+      <View
+        className='rounded-lg w-full aspect-square overflow-hidden border border-neutral-900 relative'
+        {...props}
+      >
+        <ItemImage className='w-full aspect-square' item={item} />
+        <View className='absolute bottom-1 right-1 bg-black/60 rounded p-1'>
+          <Ionicons name='musical-note' size={16} color='white' />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View

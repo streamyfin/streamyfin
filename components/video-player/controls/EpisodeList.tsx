@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGlobalSearchParams } from "expo-router";
 import { atom, useAtom } from "jotai";
@@ -18,10 +17,10 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
-import { useDownload } from "@/providers/DownloadProvider";
-import type { DownloadedItem } from "@/providers/Downloads/types";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+import { MediaSource } from "@/models/common/types";
+import type { Episode, Season } from "@/models/video/types";
+import { useVideoApi } from "@/providers/MediaApiProvider";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import { runtimeTicksToSeconds } from "@/utils/time";
 
 type Props = {
@@ -32,18 +31,25 @@ type Props = {
 
 export const seasonIndexAtom = atom<SeasonIndexState>({});
 
+/**
+ * Episode list overlay for video player
+ * Uses unified Video API - automatically handles online/offline mode
+ */
 export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
+  const videoApi = useVideoApi();
+  const { offlineMode } = useOfflineLibrary();
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
-  const scrollViewRef = useRef<HorizontalScrollRef>(null); // Reference to the HorizontalScroll
+  const scrollViewRef = useRef<HorizontalScrollRef>(null);
+  const queryClient = useQueryClient();
+
   const scrollToIndex = (index: number) => {
     scrollViewRef.current?.scrollToIndex(index, 100);
   };
+
   const { offline } = useGlobalSearchParams<{
     offline: string;
   }>();
-  const isOffline = offline === "true";
+  const _isOffline = offline === "true";
 
   // Set the initial season index
   useEffect(() => {
@@ -55,94 +61,44 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, []);
 
-  const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
-
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
 
+  // Fetch seasons using unified API
   const { data: seasons } = useQuery({
-    queryKey: ["seasons", item.SeriesId],
-    queryFn: async () => {
-      if (isOffline) {
-        if (!item.SeriesId) return [];
-        const seriesEpisodes = downloadedFiles?.filter(
-          (f: DownloadedItem) => f.item.SeriesId === item.SeriesId,
-        );
-        const seasonNumbers = Array.from(
-          new Set(
-            seriesEpisodes
-              ?.map((f: DownloadedItem) => f.item.ParentIndexNumber)
-              .filter(Boolean),
-          ),
-        );
-        // Create fake season objects
-        return seasonNumbers.map((seasonNumber) => ({
-          Id: seasonNumber?.toString(),
-          IndexNumber: seasonNumber,
-          Name: `Season ${seasonNumber}`,
-          SeriesId: item.SeriesId,
-        }));
-      }
-
-      if (!api || !user?.Id || !item.SeriesId) return [];
-      const response = await getTvShowsApi(api).getSeasons({
-        seriesId: item.SeriesId,
-        userId: user.Id,
-        fields: [
-          "ItemCounts",
-          "PrimaryImageAspectRatio",
-          "CanDelete",
-          "MediaSourceCount",
-        ],
-      });
-      return response.data.Items;
+    queryKey: ["series-seasons", item.SeriesId],
+    queryFn: async (): Promise<Season[]> => {
+      if (!item.SeriesId) return [];
+      return videoApi.getSeriesSeasons(item.SeriesId);
     },
-    enabled: isOffline
-      ? !!item.SeriesId
-      : !!api && !!user?.Id && !!item.SeasonId,
+    enabled: !!item.SeriesId,
   });
+
+  // Convert Season domain models to BaseItemDto for SeasonDropdown compatibility
+  const seasonsAsBaseItems = useMemo(
+    () => seasons?.map((s) => s.jellyfinItem) ?? [],
+    [seasons],
+  );
 
   const selectedSeasonId: string | null = useMemo(
     () =>
-      seasons
-        ?.find((season: any) => season.IndexNumber === seasonIndex)
-        ?.Id?.toString() || null,
+      seasons?.find((season) => season.seasonNumber === seasonIndex)?.id ??
+      null,
     [seasons, seasonIndex],
   );
 
+  // Fetch episodes using unified API
   const { data: episodes, isLoading: episodesLoading } = useQuery({
-    queryKey: ["episodes", item.SeriesId, selectedSeasonId],
-    queryFn: async () => {
-      if (isOffline) {
-        if (!item.SeriesId) return [];
-        return downloadedFiles
-          ?.filter(
-            (f: DownloadedItem) =>
-              f.item.SeriesId === item.SeriesId &&
-              f.item.ParentIndexNumber === seasonIndex,
-          )
-          .map((f: DownloadedItem) => f.item);
-      }
-      if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
-      const res = await getTvShowsApi(api).getEpisodes({
-        seriesId: item.SeriesId || "",
-        userId: user.Id,
-        seasonId: selectedSeasonId || undefined,
-        enableUserData: true,
-        fields: ["MediaSources", "MediaStreams", "Overview"],
-      });
-
-      return res.data.Items;
+    queryKey: ["season-episodes", item.SeriesId, selectedSeasonId],
+    queryFn: async (): Promise<Episode[]> => {
+      if (!selectedSeasonId) return [];
+      return videoApi.getSeasonEpisodes(selectedSeasonId);
     },
-    enabled: !!api && !!user?.Id && !!selectedSeasonId,
+    enabled: !!selectedSeasonId,
   });
 
   useEffect(() => {
     if (item?.Type === "Episode" && item.Id) {
-      const index = episodes?.findIndex((ep: BaseItemDto) => ep.Id === item.Id);
+      const index = episodes?.findIndex((ep) => ep.id === item.Id);
       if (index !== undefined && index !== -1) {
         setTimeout(() => {
           scrollToIndex(index);
@@ -151,20 +107,12 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, [episodes, item]);
 
-  const queryClient = useQueryClient();
+  // Prefetch episode data
   useEffect(() => {
-    for (const e of episodes || []) {
+    for (const episode of episodes || []) {
       queryClient.prefetchQuery({
-        queryKey: ["item", e.Id],
-        queryFn: async () => {
-          if (!e.Id) return;
-          const res = await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: e.Id,
-          });
-          return res;
-        },
+        queryKey: ["item", episode.id],
+        queryFn: async () => episode.jellyfinItem,
         staleTime: 60 * 5 * 1000,
       });
     }
@@ -173,9 +121,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   // Scroll to the current item when episodes are fetched
   useEffect(() => {
     if (episodes && scrollViewRef.current) {
-      const currentItemIndex = episodes.findIndex((e) => e.Id === item.Id);
+      const currentItemIndex = episodes.findIndex((e) => e.id === item.Id);
       if (currentItemIndex !== -1) {
-        scrollViewRef.current.scrollToIndex(currentItemIndex, 16); // Adjust the scroll position based on item width
+        scrollViewRef.current.scrollToIndex(currentItemIndex, 16);
       }
     }
   }, [episodes, item.Id]);
@@ -193,7 +141,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         {seasons && seasons.length > 0 && !episodesLoading && episodes && (
           <SeasonDropdown
             item={item}
-            seasons={seasons}
+            seasons={seasonsAsBaseItems}
             state={seasonIndexState}
             onSelect={(season) => {
               setSeasonIndexState((prev) => ({
@@ -225,52 +173,61 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           data={episodes}
           height={800}
           extraData={item}
-          // Note otherItem is the item that is being rendered, not the item that is currently selected
-          renderItem={(otherItem, _idx) => (
-            <View
-              key={otherItem.Id}
-              style={{}}
-              className={`flex flex-col w-44 ${
-                item.Id !== otherItem.Id ? "opacity-50" : ""
-              }`}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  goToItem(otherItem);
-                }}
+          renderItem={(episode, _idx) => {
+            const isCurrentEpisode = item.Id === episode.id;
+            const isDownloaded = episode.source === MediaSource.Offline;
+            // Only grey out unavailable episodes in offline mode
+            const shouldGreyOut = offlineMode && !isDownloaded;
+
+            return (
+              <View
+                key={episode.id}
+                className={`flex flex-col w-44 ${
+                  isCurrentEpisode
+                    ? ""
+                    : shouldGreyOut
+                      ? "opacity-30"
+                      : "opacity-50"
+                }`}
               >
-                <ContinueWatchingPoster
-                  item={otherItem}
-                  useEpisodePoster
-                  showPlayButton={otherItem.Id !== item.Id}
-                />
-              </TouchableOpacity>
-              <View className='shrink'>
-                <Text
-                  numberOfLines={2}
-                  style={{
-                    lineHeight: 18, // Adjust this value based on your text size
-                    height: 36, // lineHeight * 2 for consistent two-line space
+                <TouchableOpacity
+                  onPress={() => {
+                    goToItem(episode.jellyfinItem);
                   }}
                 >
-                  {otherItem.Name}
-                </Text>
-                <Text numberOfLines={1} className='text-xs text-neutral-475'>
-                  {`S${otherItem.ParentIndexNumber?.toString()}:E${otherItem.IndexNumber?.toString()}`}
-                </Text>
-                <Text className='text-xs text-neutral-500'>
-                  {runtimeTicksToSeconds(otherItem.RunTimeTicks)}
+                  <ContinueWatchingPoster
+                    item={episode.jellyfinItem}
+                    useEpisodePoster
+                    showPlayButton={!isCurrentEpisode}
+                  />
+                </TouchableOpacity>
+                <View className='shrink'>
+                  <Text
+                    numberOfLines={2}
+                    style={{
+                      lineHeight: 18,
+                      height: 36,
+                    }}
+                  >
+                    {episode.name}
+                  </Text>
+                  <Text numberOfLines={1} className='text-xs text-neutral-475'>
+                    {`S${episode.seasonNumber?.toString()}:E${episode.episodeNumber?.toString()}`}
+                  </Text>
+                  <Text className='text-xs text-neutral-500'>
+                    {runtimeTicksToSeconds(episode.jellyfinItem.RunTimeTicks)}
+                  </Text>
+                </View>
+                <Text
+                  numberOfLines={7}
+                  className='text-xs text-neutral-500 shrink'
+                >
+                  {episode.overview}
                 </Text>
               </View>
-              <Text
-                numberOfLines={7}
-                className='text-xs text-neutral-500 shrink'
-              >
-                {otherItem.Overview}
-              </Text>
-            </View>
-          )}
-          keyExtractor={(e: BaseItemDto) => e.Id ?? ""}
+            );
+          }}
+          keyExtractor={(e: Episode) => e.id ?? ""}
           showsHorizontalScrollIndicator={false}
         />
       )}

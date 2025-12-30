@@ -1,12 +1,12 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, type ViewStyle } from "react-native";
-import { useDownload } from "@/providers/DownloadProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { MediaSource } from "@/models/common/types";
+import type { Episode } from "@/models/video/types";
+import { useVideoApi } from "@/providers/MediaApiProvider";
+import { useOfflineLibrary } from "@/providers/OfflineLibrary/OfflineLibraryProvider";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -17,25 +17,23 @@ import { ItemCardText } from "../ItemCardText";
 interface Props {
   item?: BaseItemDto | null;
   loading?: boolean;
-  isOffline?: boolean;
   style?: ViewStyle;
   containerStyle?: ViewStyle;
 }
 
+/**
+ * Episode carousel for a season
+ * Uses unified Video API - automatically handles online/offline mode
+ */
 export const SeasonEpisodesCarousel: React.FC<Props> = ({
   item,
   loading,
-  isOffline,
   style,
   containerStyle,
 }) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-  const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
+  // Use unified Video API - automatically switches between online/offline
+  const videoApi = useVideoApi();
+  const { offlineMode } = useOfflineLibrary();
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
@@ -47,38 +45,21 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     return item?.SeasonId;
   }, [item]);
 
+  // Fetch episodes using unified API
+  // Online mode: Fetches from Jellyfin server, enriches with download status
+  // Offline mode: Returns only downloaded episodes
   const { data: episodes, isPending } = useQuery({
-    queryKey: ["episodes", seasonId, isOffline],
-    queryFn: async () => {
-      if (isOffline) {
-        return downloadedFiles
-          ?.filter(
-            (f) => f.item.Type === "Episode" && f.item.SeasonId === seasonId,
-          )
-          .map((f) => f.item);
-      }
-      if (!api || !user?.Id || !item?.SeriesId) return [];
-      const response = await getTvShowsApi(api).getEpisodes({
-        userId: user.Id,
-        seasonId: seasonId || undefined,
-        seriesId: item.SeriesId,
-        enableUserData: true,
-        fields: [
-          "ItemCounts",
-          "PrimaryImageAspectRatio",
-          "CanDelete",
-          "MediaSourceCount",
-          "Overview",
-        ],
-      });
-      return response.data.Items as BaseItemDto[];
+    queryKey: ["season-episodes", seasonId],
+    queryFn: async (): Promise<Episode[]> => {
+      if (!seasonId) return [];
+      return videoApi.getSeasonEpisodes(seasonId);
     },
-    enabled: !!api && !!user?.Id && !!seasonId,
+    enabled: !!seasonId,
   });
 
   useEffect(() => {
     if (item?.Type === "Episode" && item.Id) {
-      const index = episodes?.findIndex((ep) => ep.Id === item.Id);
+      const index = episodes?.findIndex((ep) => ep.id === item.Id);
       if (index !== undefined && index !== -1) {
         setTimeout(() => {
           scrollToIndex(index);
@@ -100,20 +81,37 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
       loading={loading || isPending}
       style={style}
       containerStyle={containerStyle}
-      renderItem={(_item, _idx) => (
-        <TouchableOpacity
-          key={_item.Id}
-          onPress={() => {
-            router.setParams({ id: _item.Id });
-          }}
-          className={`flex flex-col w-44 
-                  ${item?.Id === _item.Id ? "" : "opacity-50"}
-                `}
-        >
-          <ContinueWatchingPoster item={_item} useEpisodePoster />
-          <ItemCardText item={_item} />
-        </TouchableOpacity>
-      )}
+      renderItem={(episode, _idx) => {
+        const isCurrentEpisode = item?.Id === episode.id;
+        const isDownloaded = episode.source === MediaSource.Offline;
+
+        // Opacity logic:
+        // - Current episode: full opacity
+        // - Other episodes: slightly dimmed
+        // - In offline mode, unavailable episodes: greyed out
+        const opacity = isCurrentEpisode
+          ? ""
+          : offlineMode && !isDownloaded
+            ? "opacity-30"
+            : "opacity-70";
+
+        return (
+          <TouchableOpacity
+            key={episode.id}
+            onPress={() => {
+              router.setParams({ id: episode.id });
+            }}
+            className={`flex flex-col w-44 ${opacity}`}
+          >
+            {/* Use jellyfinItem for components that expect BaseItemDto */}
+            <ContinueWatchingPoster
+              item={episode.jellyfinItem}
+              useEpisodePoster
+            />
+            <ItemCardText item={episode.jellyfinItem} />
+          </TouchableOpacity>
+        );
+      }}
       snapToOffsets={snapOffsets}
       decelerationRate='fast'
     />

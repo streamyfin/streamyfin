@@ -10,9 +10,12 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
+import { addDownloadedTrack } from "@/providers/AudioPlayer/database";
+import { useSettings } from "@/utils/atoms/settings";
 import { addDownloadedItem } from "../database";
 import {
   getNotificationContent,
+  markTrackCompleted,
   sendDownloadNotification,
 } from "../notifications";
 import type { DownloadedItem, JobStatus } from "../types";
@@ -49,6 +52,7 @@ export function useDownloadEventHandlers({
   api,
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
+  const { settings } = useSettings();
 
   // Handle download started events
   useEffect(() => {
@@ -263,18 +267,90 @@ export function useDownloadEventHandlers({
             },
           };
 
+          // Save to old database (backwards compatibility)
           addDownloadedItem(downloadedItem);
+
+          // Also save audio downloads to new AudioPlayer database
+          if (item.Type === "Audio") {
+            try {
+              console.log(
+                `[COMPLETE] Saving audio track to AudioPlayer database: ${item.Name}`,
+              );
+              addDownloadedTrack(
+                {
+                  item,
+                  audioFilePath: filePathToUri(event.filePath),
+                  audioFileSize: videoFileSize,
+                  cacheType: "permanent",
+                  playCount: 0,
+                },
+                item.AlbumId ?? undefined,
+                item.AlbumArtists?.[0]?.Id || item.ArtistItems?.[0]?.Id,
+              );
+            } catch (error) {
+              console.error(
+                "[COMPLETE] Failed to save to AudioPlayer database:",
+                error,
+              );
+            }
+          }
 
           updateProcess(processId, {
             status: "completed",
             progress: 100,
           });
 
-          const notificationContent = getNotificationContent(item, true, t);
-          await sendDownloadNotification(
-            notificationContent.title,
-            notificationContent.body,
-          );
+          // Skip all notifications for silent downloads (e.g., prefetch/cache)
+          if (!process.silent) {
+            // Handle notifications for audio tracks (album grouping)
+            if (item.Type === "Audio") {
+              if (item.AlbumId) {
+                const result = markTrackCompleted(item.AlbumId);
+                if (
+                  result.shouldNotify &&
+                  settings.showMusicDownloadNotifications
+                ) {
+                  if (result.albumName) {
+                    // Album download completed - send album notification
+                    await sendDownloadNotification(
+                      t("home.downloads.toasts.download_completed"),
+                      `${result.albumName} - ${result.artistName} (${result.totalTracks} tracks)`,
+                    );
+                  } else {
+                    // Single track download - send normal notification
+                    const notificationContent = getNotificationContent(
+                      item,
+                      true,
+                      t,
+                    );
+                    await sendDownloadNotification(
+                      notificationContent.title,
+                      notificationContent.body,
+                    );
+                  }
+                }
+                // If shouldNotify is false, suppress notification (track is part of album)
+              } else if (settings.showMusicDownloadNotifications) {
+                // Audio without AlbumId - respect music notification setting
+                const notificationContent = getNotificationContent(
+                  item,
+                  true,
+                  t,
+                );
+                await sendDownloadNotification(
+                  notificationContent.title,
+                  notificationContent.body,
+                );
+              }
+            } else {
+              // Non-audio item - send normal notification
+              const notificationContent = getNotificationContent(item, true, t);
+              await sendDownloadNotification(
+                notificationContent.title,
+                notificationContent.body,
+              );
+            }
+          }
 
           onSuccess?.();
           onDataChange?.();
@@ -305,6 +381,7 @@ export function useDownloadEventHandlers({
     onDataChange,
     api,
     t,
+    settings,
   ]);
 
   // Handle download error events
@@ -324,15 +401,23 @@ export function useDownloadEventHandlers({
         // Clean up speed data
         clearSpeedData(processId);
 
-        const notificationContent = getNotificationContent(
-          process.item,
-          false,
-          t,
-        );
-        await sendDownloadNotification(
-          notificationContent.title,
-          notificationContent.body,
-        );
+        // Skip notifications for silent downloads; otherwise respect music notification settings
+        const shouldNotify =
+          !process.silent &&
+          (process.item.Type !== "Audio" ||
+            settings.showMusicDownloadNotifications);
+
+        if (shouldNotify) {
+          const notificationContent = getNotificationContent(
+            process.item,
+            false,
+            t,
+          );
+          await sendDownloadNotification(
+            notificationContent.title,
+            notificationContent.body,
+          );
+        }
 
         // Remove process after short delay
         setTimeout(() => {
@@ -342,5 +427,5 @@ export function useDownloadEventHandlers({
     );
 
     return () => errorSub.remove();
-  }, [taskMapRef, processes, updateProcess, removeProcess, t]);
+  }, [taskMapRef, processes, updateProcess, removeProcess, t, settings]);
 }
