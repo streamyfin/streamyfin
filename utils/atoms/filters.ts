@@ -61,7 +61,7 @@ export const filterOptions: {
   { key: FilterByOption.IsFavoriteOrLiked, value: "Is Favorite Or Liked" },
   { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
   { key: FilterByOption.IsPlayed, value: "Is Played" },
-  { key: FilterByOption.Likes, value: "Liked" },
+  { key: FilterByOption.Likes, value: "Likes" },
 ];
 
 export const sortOrderOptions: {
@@ -89,12 +89,34 @@ export interface SortOrderPreference {
   [libraryId: string]: SortOrderOption;
 }
 
+export interface FilterPreference {
+  [libraryId: string]: FilterByOption;
+}
+
 const defaultSortPreference: SortPreference = {};
 const defaultSortOrderPreference: SortOrderPreference = {};
+const defaultFilterPreference: FilterPreference = {};
 
 export const sortByPreferenceAtom = atomWithStorage<SortPreference>(
   "sortByPreference",
   defaultSortPreference,
+  {
+    getItem: (key) => {
+      const value = storage.getString(key);
+      return value ? JSON.parse(value) : null;
+    },
+    setItem: (key, value) => {
+      storage.set(key, JSON.stringify(value));
+    },
+    removeItem: (key) => {
+      storage.remove(key);
+    },
+  },
+);
+
+export const FilterByPreferenceAtom = atomWithStorage<FilterPreference>(
+  "filterByPreference",
+  defaultFilterPreference,
   {
     getItem: (key) => {
       const value = storage.getString(key);
@@ -136,6 +158,13 @@ export const getSortByPreference = (
 export const getSortOrderPreference = (
   libraryId: string,
   preferences: SortOrderPreference,
+) => {
+  return preferences?.[libraryId] || null;
+};
+
+export const getFilterByPreference = (
+  libraryId: string,
+  preferences: FilterPreference,
 ) => {
   return preferences?.[libraryId] || null;
 };

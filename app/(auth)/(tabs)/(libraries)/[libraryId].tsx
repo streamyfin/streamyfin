@@ -2,6 +2,7 @@ import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
   BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
@@ -27,9 +28,12 @@ import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  FilterByOption,
+  FilterByPreferenceAtom,
   filterByAtom,
   filterOptions,
   genreFilterAtom,
+  getFilterByPreference,
   getSortByPreference,
   getSortOrderPreference,
   SortByOption,
@@ -56,10 +60,13 @@ const Page = () => {
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
-  const [filterBy, setFilterBy] = useAtom(filterByAtom);
+  const [filterBy, _setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
-  const [sortOrderPreference, setOderByPreference] = useAtom(
+  const [filterByPreference, setFilterByPreference] = useAtom(
+    FilterByPreferenceAtom,
+  );
+  const [sortOrderPreference, setOrderByPreference] = useAtom(
     sortOrderPreferenceAtom,
   );
 
@@ -79,6 +86,12 @@ const Page = () => {
       _setSortBy([obp]);
     } else {
       _setSortBy([SortByOption.SortName]);
+    }
+    const fp = getFilterByPreference(libraryId, filterByPreference);
+    if (fp) {
+      _setFilterBy([fp]);
+    } else {
+      _setFilterBy([]);
     }
   }, [
     libraryId,
@@ -103,15 +116,26 @@ const Page = () => {
     (sortOrder: SortOrderOption[]) => {
       const sop = getSortOrderPreference(libraryId, sortOrderPreference);
       if (sortOrder[0] !== sop) {
-        setOderByPreference({
+        setOrderByPreference({
           ...sortOrderPreference,
           [libraryId]: sortOrder[0],
         });
       }
       _setSortOrder(sortOrder);
     },
-    [libraryId, sortOrderPreference, setOderByPreference, _setSortOrder],
+    [libraryId, sortOrderPreference, setOrderByPreference, _setSortOrder],
   );
+  // TODO: rename this
+  const setFilter = useCallback((filterBy: FilterByOption[]) => {
+    const fp = getFilterByPreference(libraryId, filterByPreference);
+    if (filterBy[0] !== fp) {
+      setFilterByPreference({
+        ...filterByPreference,
+        [libraryId]: filterBy[0],
+      });
+    }
+    _setFilterBy(filterBy);
+  }, []);
 
   const nrOfCols = useMemo(() => {
     if (screenWidth < 300) return 2;
@@ -171,6 +195,7 @@ const Page = () => {
         sortBy: [sortBy[0], "SortName", "ProductionYear"],
         sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
+        filters: filterBy as ItemFilter[],
         // true is needed for merged versions
         recursive: true,
         imageTypeLimit: 1,
@@ -193,6 +218,7 @@ const Page = () => {
       selectedTags,
       sortBy,
       sortOrder,
+      filterBy,
     ],
   );
 
@@ -415,7 +441,7 @@ const Page = () => {
                 id={libraryId}
                 queryKey='filters'
                 queryFn={async () => filterOptions.map((s) => s.key)}
-                set={setFilterBy}
+                set={setFilter}
                 values={filterBy}
                 title={t("library.filters.filter_by")}
                 renderItemLabel={(item) =>
@@ -447,6 +473,8 @@ const Page = () => {
       sortOrder,
       setSortOrder,
       isFetching,
+      filterBy,
+      setFilter,
     ],
   );
 
