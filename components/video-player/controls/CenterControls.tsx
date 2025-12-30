@@ -18,6 +18,8 @@ interface CenterControlsProps {
   togglePlay: () => void;
   handleSkipBackward: () => void;
   handleSkipForward: () => void;
+  handlePreviousChapter: () => void;
+  handleNextChapter: () => void;
 }
 
 export const CenterControls: FC<CenterControlsProps> = ({
@@ -29,6 +31,8 @@ export const CenterControls: FC<CenterControlsProps> = ({
   togglePlay,
   handleSkipBackward,
   handleSkipForward,
+  handlePreviousChapter,
+  handleNextChapter,
 }) => {
   const { settings } = useSettings();
   const insets = useSafeAreaInsets();
@@ -36,15 +40,17 @@ export const CenterControls: FC<CenterControlsProps> = ({
   return (
     <View
       style={{
-        position: "absolute",
-        top: "50%",
-        left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
-        right: (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
+        position: "relative",
+        marginTop: "auto",
+        marginBottom: "auto",
+        paddingLeft:
+          (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
+        paddingRight:
+          (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
+        display: "flex",
         flexDirection: "row",
-        justifyContent: "space-between",
+        justifyContent: "center",
         alignItems: "center",
-        transform: [{ translateY: -22.5 }],
-        paddingHorizontal: "28%",
       }}
       pointerEvents={showControls ? "box-none" : "none"}
     >
@@ -61,96 +67,138 @@ export const CenterControls: FC<CenterControlsProps> = ({
           <BrightnessSlider />
         </View>
       )}
-
-      {!Platform.isTV && (
-        <TouchableOpacity onPress={handleSkipBackward}>
-          <View
-            style={{
-              position: "relative",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons
-              name='refresh-outline'
-              size={ICON_SIZES.CENTER}
-              color='white'
+      <View
+        style={{
+          minWidth: "60%",
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }}
+      >
+        {!Platform.isTV && (
+          <TouchableOpacity onPress={handlePreviousChapter}>
+            <View
               style={{
-                transform: [{ scaleY: -1 }, { rotate: "180deg" }],
-              }}
-            />
-            <Text
-              style={{
-                position: "absolute",
-                color: "white",
-                fontSize: 16,
-                fontWeight: "bold",
-                bottom: 10,
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              {settings?.rewindSkipTime}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
+              <Ionicons
+                name='chevron-back-circle-outline'
+                size={ICON_SIZES.CENTER}
+                color='white'
+              />
+            </View>
+          </TouchableOpacity>
+        )}
 
-      <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
-        <TouchableOpacity onPress={togglePlay}>
-          {!isBuffering ? (
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={ICON_SIZES.CENTER}
-              color='white'
-            />
-          ) : (
-            <Loader size={"large"} />
-          )}
-        </TouchableOpacity>
+        {!Platform.isTV && (
+          <TouchableOpacity onPress={handleSkipBackward}>
+            <View
+              style={{
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name='refresh-outline'
+                size={ICON_SIZES.CENTER}
+                color='white'
+                style={{
+                  transform: [{ scaleY: -1 }, { rotate: "180deg" }],
+                }}
+              />
+              <Text
+                style={{
+                  position: "absolute",
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  bottom: 10,
+                }}
+              >
+                {settings?.rewindSkipTime}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
+          <TouchableOpacity onPress={togglePlay}>
+            {!isBuffering ? (
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={ICON_SIZES.CENTER}
+                color='white'
+              />
+            ) : (
+              <Loader size={"large"} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {!Platform.isTV && (
+          <TouchableOpacity onPress={handleSkipForward}>
+            <View
+              style={{
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name='refresh-outline'
+                size={ICON_SIZES.CENTER}
+                color='white'
+              />
+              <Text
+                style={{
+                  position: "absolute",
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  bottom: 10,
+                }}
+              >
+                {settings?.forwardSkipTime}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {!Platform.isTV && (
+          <TouchableOpacity onPress={handleNextChapter}>
+            <View
+              style={{
+                position: "relative",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name='chevron-forward-circle-outline'
+                size={ICON_SIZES.CENTER}
+                color='white'
+              />
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {!Platform.isTV && (
-        <TouchableOpacity onPress={handleSkipForward}>
-          <View
-            style={{
-              position: "relative",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons
-              name='refresh-outline'
-              size={ICON_SIZES.CENTER}
-              color='white'
-            />
-            <Text
-              style={{
-                position: "absolute",
-                color: "white",
-                fontSize: 16,
-                fontWeight: "bold",
-                bottom: 10,
-              }}
-            >
-              {settings?.forwardSkipTime}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
-
-      {!settings?.hideVolumeSlider && (
-        <View
-          style={{
-            position: "absolute",
-            alignItems: "center",
-            transform: [{ rotate: "270deg" }],
-            bottom: 30,
-            right: 0,
-            opacity: showAudioSlider || showControls ? 1 : 0,
-          }}
-        >
-          <AudioSlider setVisibility={setShowAudioSlider} />
-        </View>
-      )}
+      <View
+        style={{
+          position: "absolute",
+          alignItems: "center",
+          transform: [{ rotate: "270deg" }],
+          bottom: 30,
+          right: 0,
+          opacity: showAudioSlider || showControls ? 1 : 0,
+        }}
+      >
+        <AudioSlider setVisibility={setShowAudioSlider} />
+      </View>
     </View>
   );
 };

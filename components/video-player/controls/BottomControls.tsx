@@ -21,6 +21,7 @@ interface BottomControlsProps {
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
+  chapterStartMs?: number[];
   skipIntro: () => void;
   skipCredit: () => void;
   nextItem?: BaseItemDto | null;
@@ -69,6 +70,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showSkipButton,
   showSkipCreditButton,
   hasContentAfterCredits,
+  chapterStartMs = [],
   skipIntro,
   skipCredit,
   nextItem,
@@ -90,6 +92,12 @@ export const BottomControls: FC<BottomControlsProps> = ({
 }) => {
   const { settings } = useSettings();
   const insets = useSafeAreaInsets();
+
+  const chaptersInPercent = (
+    max.value !== 0
+      ? chapterStartMs.map((c) => `${((c / max.value) * 100).toFixed(2)}%`)
+      : []
+  ) as `${number}%`[];
 
   return (
     <View
@@ -171,47 +179,74 @@ export const BottomControls: FC<BottomControlsProps> = ({
         pointerEvents={showControls ? "box-none" : "none"}
       >
         <View className={"flex flex-col w-full shrink"}>
-          <View
-            style={{
-              height: 10,
-              justifyContent: "center",
-              alignItems: "stretch",
-            }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            <Slider
-              theme={{
-                maximumTrackTintColor: "rgba(255,255,255,0.2)",
-                minimumTrackTintColor: "#fff",
-                cacheTrackTintColor: "rgba(255,255,255,0.3)",
-                bubbleBackgroundColor: "#fff",
-                bubbleTextColor: "#666",
-                heartbeatColor: "#999",
+          <View>
+            <View
+              style={{
+                position: "absolute",
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "row",
+                backgroundColor: "#FF000022",
               }}
-              renderThumb={() => null}
-              cache={cacheProgress}
-              onSlidingStart={handleSliderStart}
-              onSlidingComplete={handleSliderComplete}
-              onValueChange={handleSliderChange}
-              containerStyle={{
-                borderRadius: 100,
+            >
+              {chaptersInPercent.map((percent, i) => (
+                <View
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    backgroundColor: `#${i}FFF${i}${i}`,
+                    width: 2,
+                    height: "50%",
+                    top: "25%",
+                    left: percent,
+                    zIndex: 1000,
+                  }}
+                />
+              ))}
+            </View>
+            <View
+              style={{
+                height: 10,
+                justifyContent: "center",
+                alignItems: "stretch",
               }}
-              renderBubble={() =>
-                (isSliding || showRemoteBubble) && (
-                  <TrickplayBubble
-                    trickPlayUrl={trickPlayUrl}
-                    trickplayInfo={trickplayInfo}
-                    time={time}
-                  />
-                )
-              }
-              sliderHeight={10}
-              thumbWidth={0}
-              progress={effectiveProgress}
-              minimumValue={min}
-              maximumValue={max}
-            />
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              <Slider
+                theme={{
+                  maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                  minimumTrackTintColor: "#fff",
+                  cacheTrackTintColor: "rgba(255,255,255,0.3)",
+                  bubbleBackgroundColor: "#fff",
+                  bubbleTextColor: "#666",
+                  heartbeatColor: "#999",
+                }}
+                renderThumb={() => null}
+                cache={cacheProgress}
+                onSlidingStart={handleSliderStart}
+                onSlidingComplete={handleSliderComplete}
+                onValueChange={handleSliderChange}
+                containerStyle={{
+                  borderRadius: 100,
+                }}
+                renderBubble={() =>
+                  (isSliding || showRemoteBubble) && (
+                    <TrickplayBubble
+                      trickPlayUrl={trickPlayUrl}
+                      trickplayInfo={trickplayInfo}
+                      time={time}
+                    />
+                  )
+                }
+                sliderHeight={10}
+                thumbWidth={0}
+                progress={effectiveProgress}
+                minimumValue={min}
+                maximumValue={max}
+              />
+            </View>
           </View>
           <TimeDisplay
             currentTime={currentTime}

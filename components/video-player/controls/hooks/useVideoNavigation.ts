@@ -8,6 +8,7 @@ import { secondsToMs } from "@/utils/time";
 interface UseVideoNavigationProps {
   progress: SharedValue<number>;
   isPlaying: boolean;
+  chapterStartMs?: number[];
   seek: (value: number) => void;
   play: () => void;
 }
@@ -19,6 +20,7 @@ interface UseVideoNavigationProps {
 export function useVideoNavigation({
   progress,
   isPlaying,
+  chapterStartMs = [],
   seek,
   play,
 }: UseVideoNavigationProps) {
@@ -105,11 +107,72 @@ export function useVideoNavigation({
     }
   }, [settings, isPlaying, play, seek, progress, lightHapticFeedback]);
 
+  const handlePreviousChapter = useCallback(async () => {
+    wasPlayingRef.current = isPlaying;
+    lightHapticFeedback();
+
+    try {
+      const playProgress = progress.value;
+      if (playProgress !== undefined) {
+        const pastProgress = Math.max(playProgress - secondsToMs(10), 0);
+        const currentChapterIdx = getCurrentChapterIdx({
+          chapterStartMs,
+          currentMs: pastProgress,
+        });
+        const newPositionMs = chapterStartMs[currentChapterIdx];
+        seek(Math.max(0, newPositionMs));
+        if (wasPlayingRef.current) {
+          play();
+        }
+      }
+    } catch (error) {
+      writeToLog("ERROR", "Error skipping to previous chapter", error);
+    }
+  }, [isPlaying, play, seek, progress, lightHapticFeedback]);
+
+  const handleNextChapter = useCallback(async () => {
+    wasPlayingRef.current = isPlaying;
+    lightHapticFeedback();
+
+    try {
+      const playProgress = progress.value;
+      if (playProgress !== undefined) {
+        const currentChapterIdx = getCurrentChapterIdx({
+          chapterStartMs,
+          currentMs: playProgress,
+        });
+        const nextChapterIndex = currentChapterIdx + 1;
+
+        if (nextChapterIndex > chapterStartMs.length - 1) return;
+
+        const newPositionMs = chapterStartMs[nextChapterIndex];
+        seek(Math.max(0, newPositionMs));
+        if (wasPlayingRef.current) {
+          play();
+        }
+      }
+    } catch (error) {
+      writeToLog("ERROR", "Error skipping to next chapter", error);
+    }
+  }, [isPlaying, play, seek, progress, lightHapticFeedback]);
+
   return {
     handleSeekBackward,
     handleSeekForward,
     handleSkipBackward,
     handleSkipForward,
+    handlePreviousChapter,
+    handleNextChapter,
     wasPlayingRef,
   };
 }
+
+interface GetCurrentChapterIdxParams {
+  chapterStartMs: number[];
+  currentMs: number;
+}
+const getCurrentChapterIdx = ({
+  chapterStartMs,
+  currentMs,
+}: GetCurrentChapterIdxParams) =>
+  chapterStartMs.findLastIndex((c) => currentMs >= c);

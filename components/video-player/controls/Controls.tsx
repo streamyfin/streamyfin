@@ -191,15 +191,24 @@ export const Controls: FC<Props> = ({
     }
   }, [item, progress, max]);
 
-  // Navigation hooks
+  const chapterStartMs =
+    item.Chapters?.reduce((acc, curr) => {
+      if (!curr.StartPositionTicks) return acc;
+      acc.push(ticksToMs(curr.StartPositionTicks));
+      return acc;
+    }, [] as number[]) ?? [];
+
   const {
     handleSeekBackward,
     handleSeekForward,
     handleSkipBackward,
     handleSkipForward,
+    handlePreviousChapter,
+    handleNextChapter,
   } = useVideoNavigation({
     progress,
     isPlaying,
+    chapterStartMs,
     seek,
     play,
   });
@@ -520,6 +529,8 @@ export const Controls: FC<Props> = ({
               togglePlay={togglePlay}
               handleSkipBackward={handleSkipBackward}
               handleSkipForward={handleSkipForward}
+              handlePreviousChapter={handlePreviousChapter}
+              handleNextChapter={handleNextChapter}
             />
           </Animated.View>
           <Animated.View
@@ -533,6 +544,7 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
+              chapterStartMs={chapterStartMs}
               showSkipButton={showSkipButton}
               showSkipCreditButton={showSkipCreditButton}
               hasContentAfterCredits={hasContentAfterCredits}
