@@ -227,10 +227,15 @@ export default function page() {
             return;
           }
 
+          // Calculate start ticks directly from item to avoid stale closure
+          const startTicks = playbackPositionFromUrl
+            ? Number.parseInt(playbackPositionFromUrl, 10)
+            : (item?.UserData?.PlaybackPositionTicks ?? 0);
+
           const res = await getStreamUrl({
             api,
             item,
-            startTimeTicks: getInitialPlaybackTicks(),
+            startTimeTicks: startTicks,
             userId: user.Id,
             audioStreamIndex: audioIndex,
             maxStreamingBitrate: bitrateValue,
