@@ -99,7 +99,13 @@ export default function page() {
         ),
       });
     }
-  }, [navigation, value]);
+  }, [
+    navigation,
+    value,
+    pluginSettings?.streamyStatsServerUrl?.locked,
+    onSave,
+    t,
+  ]);
 
   if (!settings) return null;
 
@@ -115,7 +121,10 @@ export default function page() {
         <ListGroup>
           <ListItem
             title={t("home.settings.plugins.streamystats.enable_streamystats")}
-            disabledByAdmin={pluginSettings?.searchEngine?.locked === true}
+            disabledByAdmin={
+              pluginSettings?.searchEngine?.locked === true ||
+              !!pluginSettings?.streamyStatsServerUrl?.value
+            }
             onPress={() => {
               updateSettings({ searchEngine: "Jellyfin" });
               queryClient.invalidateQueries({ queryKey: ["search"] });
@@ -123,6 +132,7 @@ export default function page() {
           >
             <Switch
               value={settings.searchEngine === "Streamystats"}
+              disabled={!!pluginSettings?.streamyStatsServerUrl?.value}
               onValueChange={(val) => {
                 updateSettings({
                   searchEngine: val ? "Streamystats" : "Jellyfin",
