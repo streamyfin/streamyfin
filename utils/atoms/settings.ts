@@ -163,6 +163,7 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
@@ -233,6 +234,7 @@ export const defaultValues: Settings = {
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },

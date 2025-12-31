@@ -33,6 +33,11 @@ export const PluginSettings = () => {
         title='Streamystats'
         showArrow
       />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/kefinTweaks/page")}
+        title='KefinTweaks'
+        showArrow
+      />
     </ListGroup>
   );
 };

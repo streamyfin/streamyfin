@@ -266,6 +266,10 @@
             "refreshed": "Settings refreshed from server"
           },
           "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -427,6 +431,7 @@
       "genres": "Genres",
       "years": "Years",
       "sort_by": "Sort By",
+      "filter_by": "Filter By",
       "sort_order": "Sort Order",
       "tags": "Tags"
     }

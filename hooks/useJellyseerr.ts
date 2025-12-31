@@ -528,6 +528,7 @@ export const useJellyseerr = () => {
   };
 
   const jellyseerrRegion = useMemo(
+    // streamingRegion and discoverRegion exists. region doesn't
     () => jellyseerrUser?.settings?.discoverRegion || "US",
     [jellyseerrUser],
   );
