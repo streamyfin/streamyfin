@@ -20,7 +20,7 @@ public class SfPlayerModule: Module {
                 guard let source = source,
                       let urlString = source["url"] as? String,
                       let videoURL = URL(string: urlString) else { return }
-                
+
                 let config = VideoLoadConfig(
                     url: videoURL,
                     headers: source["headers"] as? [String: String],

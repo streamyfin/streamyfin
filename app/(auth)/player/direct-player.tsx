@@ -246,26 +246,6 @@ export default function page() {
           if (!res) return;
           const { mediaSource, sessionId, url } = res;
 
-          // Debug: Log mediaSource to see if it has MediaStreams
-          console.log(
-            "[Stream] Got mediaSource with MediaStreams count:",
-            mediaSource?.MediaStreams?.length ?? 0,
-          );
-          console.log(
-            "[Stream] Subtitle streams in mediaSource:",
-            JSON.stringify(
-              mediaSource?.MediaStreams?.filter(
-                (s) => s.Type === "Subtitle",
-              )?.map((s) => ({
-                index: s.Index,
-                title: s.DisplayTitle,
-                deliveryMethod: s.DeliveryMethod,
-                deliveryUrl: s.DeliveryUrl,
-                isExternal: s.IsExternal,
-              })),
-            ),
-          );
-
           if (!sessionId || !mediaSource || !url) {
             Alert.alert(
               t("player.error"),
@@ -534,16 +514,20 @@ export default function page() {
     const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
 
     // Calculate start position directly here to avoid timing issues
-    const startPos = ticksToSeconds(
-      playbackPositionFromUrl
-        ? Number.parseInt(playbackPositionFromUrl, 10)
-        : (item?.UserData?.PlaybackPositionTicks ?? 0),
-    );
+    const startTicks = playbackPositionFromUrl
+      ? Number.parseInt(playbackPositionFromUrl, 10)
+      : (item?.UserData?.PlaybackPositionTicks ?? 0);
+    const startPos = ticksToSeconds(startTicks);
+
+    // For transcoded streams, the server already handles seeking via startTimeTicks,
+    // so we should NOT also tell the player to seek (would cause double-seeking).
+    // For direct play/stream, the player needs to seek itself.
+    const playerStartPos = isTranscoding ? 0 : startPos;
 
     // Build source config - headers only needed for online streaming
     const source: SfVideoSource = {
       url: stream.url,
-      startPosition: startPos,
+      startPosition: playerStartPos,
       autoplay: true,
       initialSubtitleId,
       initialAudioId,
@@ -637,9 +621,14 @@ export default function page() {
     }
     initOptions.push("--sub-margin=40");
 
+    // For transcoded streams, the server already handles seeking via startTimeTicks,
+    // so we should NOT also tell the player to seek (would cause double-seeking).
+    // For direct play/stream, the player needs to seek itself.
+    const playerStartPos = isTranscoding ? 0 : startPosition;
+
     const source: VlcPlayerSource = {
       uri: stream.url,
-      startPosition,
+      startPosition: playerStartPos,
       autoplay: true,
       isNetwork: !offline,
       externalSubtitles: externalSubs,
@@ -651,9 +640,9 @@ export default function page() {
     stream?.url,
     stream?.mediaSource,
     startPosition,
+    isAndroid,
     api?.basePath,
     offline,
-    isAndroid,
     subtitleIndex,
     audioIndex,
     settings.subtitleSize,

@@ -58,6 +58,7 @@ final class SfPlayerWrapper: NSObject {
     private var pendingExternalSubtitles: [String] = []
     private var initialSubtitleId: Int?
     private var initialAudioId: Int?
+    private var pendingStartPosition: Double?
     
     private var progressTimer: Timer?
     private var pipController: AVPictureInPictureController?
@@ -167,11 +168,18 @@ final class SfPlayerWrapper: NSObject {
     
     func load(config: VideoLoadConfig) {
         guard config.url != currentURL else { return }
-        
+
         currentURL = config.url
         pendingExternalSubtitles = config.externalSubtitles ?? []
         initialSubtitleId = config.initialSubtitleId
         initialAudioId = config.initialAudioId
+
+        // Store start position to seek after video is ready
+        if let startPos = config.startPosition, startPos > 0 {
+            pendingStartPosition = startPos
+        } else {
+            pendingStartPosition = nil
+        }
         
         isLoading = true
         delegate?.player(self, didChangeLoading: true)
@@ -203,11 +211,9 @@ final class SfPlayerWrapper: NSObject {
             }
         }
         
-        // Set start position
-        if let startPos = config.startPosition, startPos > 0 {
-            options.startPlayTime = startPos
-        }
-        
+        // Note: startPosition is handled via explicit seek in readyToPlay callback
+        // because KSPlayer's options.startPlayTime doesn't work reliably
+
         // Set the URL with options
         playerView?.set(url: config.url, options: options)
         
@@ -231,9 +237,14 @@ final class SfPlayerWrapper: NSObject {
     
     func seek(to seconds: Double) {
         let time = max(0, seconds)
+        let wasPaused = isPaused
         cachedPosition = time
         playerView?.seek(time: time) { [weak self] finished in
             guard let self, finished else { return }
+            // KSPlayer may auto-resume after seeking, so enforce the intended state
+            if wasPaused {
+                self.pause()
+            }
             self.updateProgress()
         }
     }
@@ -663,7 +674,29 @@ extension SfPlayerWrapper: PlayerControllerDelegate {
             delegate?.player(self, didChangeLoading: false)
             delegate?.player(self, didBecomeReadyToSeek: true)
             delegate?.player(self, didBecomeTracksReady: true)
-            
+
+            // Seek to pending start position if set
+            // Pause first, seek, then resume to avoid showing video at wrong position
+            if let startPos = pendingStartPosition, startPos > 0 {
+                let capturedStartPos = startPos
+                let wasPlaying = !isPaused
+                pendingStartPosition = nil
+
+                // Pause to prevent showing frames at wrong position
+                playerView?.pause()
+
+                // Small delay then seek
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    guard let self else { return }
+                    self.playerView?.seek(time: capturedStartPos) { [weak self] finished in
+                        guard let self else { return }
+                        if finished && wasPlaying {
+                            self.play()
+                        }
+                    }
+                }
+            }
+
             // Center video content - KSAVPlayerView maps contentMode to videoGravity
             playerView?.playerLayer?.player.view?.contentMode = .scaleAspectFit
             
