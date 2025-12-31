@@ -528,10 +528,17 @@ export default function page() {
     );
     const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
 
+    // Calculate start position directly here to avoid timing issues
+    const startPos = ticksToSeconds(
+      playbackPositionFromUrl
+        ? Number.parseInt(playbackPositionFromUrl, 10)
+        : (item?.UserData?.PlaybackPositionTicks ?? 0),
+    );
+
     // Build source config - headers only needed for online streaming
     const source: SfVideoSource = {
       url: stream.url,
-      startPosition,
+      startPosition: startPos,
       autoplay: true,
       initialSubtitleId,
       initialAudioId,
@@ -553,7 +560,8 @@ export default function page() {
   }, [
     stream?.url,
     stream?.mediaSource,
-    startPosition,
+    item?.UserData?.PlaybackPositionTicks,
+    playbackPositionFromUrl,
     api?.basePath,
     api?.accessToken,
     subtitleIndex,
