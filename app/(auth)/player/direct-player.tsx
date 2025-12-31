@@ -148,7 +148,7 @@ export default function page() {
       return Number.parseInt(playbackPositionFromUrl, 10);
     }
     return item?.UserData?.PlaybackPositionTicks ?? 0;
-  }, [playbackPositionFromUrl]);
+  }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
 
   useEffect(() => {
     const fetchItemData = async () => {
