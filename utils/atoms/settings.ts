@@ -162,6 +162,7 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
   defaultPlayer: VideoPlayer;
@@ -226,6 +227,7 @@ export const defaultValues: Settings = {
   subtitleSize: Platform.OS === "ios" ? 60 : 100,
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
   defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android

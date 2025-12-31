@@ -31,7 +31,6 @@ import {
   FilterByOption,
   FilterByPreferenceAtom,
   filterByAtom,
-  filterOptions,
   genreFilterAtom,
   getFilterByPreference,
   getSortByPreference,
@@ -45,8 +44,10 @@ import {
   sortOrderOptions,
   sortOrderPreferenceAtom,
   tagsFilterAtom,
+  useFilterOptions,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
+import { useSettings } from "@/utils/atoms/settings";
 
 const Page = () => {
   const searchParams = useLocalSearchParams();
@@ -99,6 +100,8 @@ const Page = () => {
     sortByPreference,
     _setSortOrder,
     _setSortBy,
+    filterByPreference,
+    _setFilterBy,
   ]);
 
   const setSortBy = useCallback(
@@ -125,17 +128,20 @@ const Page = () => {
     },
     [libraryId, sortOrderPreference, setOrderByPreference, _setSortOrder],
   );
-  // TODO: rename this
-  const setFilter = useCallback((filterBy: FilterByOption[]) => {
-    const fp = getFilterByPreference(libraryId, filterByPreference);
-    if (filterBy[0] !== fp) {
-      setFilterByPreference({
-        ...filterByPreference,
-        [libraryId]: filterBy[0],
-      });
-    }
-    _setFilterBy(filterBy);
-  }, []);
+
+  const setFilter = useCallback(
+    (filterBy: FilterByOption[]) => {
+      const fp = getFilterByPreference(libraryId, filterByPreference);
+      if (filterBy[0] !== fp) {
+        setFilterByPreference({
+          ...filterByPreference,
+          [libraryId]: filterBy[0],
+        });
+      }
+      _setFilterBy(filterBy);
+    },
+    [libraryId, filterByPreference, setFilterByPreference, _setFilterBy],
+  );
 
   const nrOfCols = useMemo(() => {
     if (screenWidth < 300) return 2;
@@ -232,6 +238,7 @@ const Page = () => {
         selectedTags,
         sortBy,
         sortOrder,
+        filterBy,
       ],
       queryFn: fetchItems,
       getNextPageParam: (lastPage, pages) => {
@@ -297,7 +304,8 @@ const Page = () => {
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
-
+  const generalFilters = useFilterOptions();
+  const settings = useSettings();
   const ListHeaderComponent = useCallback(
     () => (
       <FlatList
@@ -440,12 +448,12 @@ const Page = () => {
                 className='mr-1'
                 id={libraryId}
                 queryKey='filters'
-                queryFn={async () => filterOptions.map((s) => s.key)}
+                queryFn={async () => generalFilters.map((s) => s.key)}
                 set={setFilter}
                 values={filterBy}
                 title={t("library.filters.filter_by")}
                 renderItemLabel={(item) =>
-                  filterOptions.find((i) => i.key === item)?.value || ""
+                  generalFilters.find((i) => i.key === item)?.value || ""
                 }
                 searchFilter={(item, search) =>
                   item.toLowerCase().includes(search.toLowerCase())
@@ -475,6 +483,7 @@ const Page = () => {
       isFetching,
       filterBy,
       setFilter,
+      settings,
     ],
   );
 

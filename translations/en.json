@@ -238,6 +238,10 @@
           "toasts": {
             "saved": "Saved"
           }
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {

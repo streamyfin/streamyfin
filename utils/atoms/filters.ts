@@ -1,6 +1,7 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { storage } from "../mmkv";
+import { useSettings } from "./settings";
 
 export enum SortByOption {
   Default = "Default",
@@ -24,6 +25,8 @@ export enum FilterByOption {
   IsUnplayed = "IsUnplayed",
   IsPlayed = "IsPlayed",
   Likes = "Likes",
+  IsFavorite = "IsFavorite",
+  IsResumable = "IsResumable",
 }
 
 export enum SortOrderOption {
@@ -54,15 +57,35 @@ export const sortOptions: {
   { key: SortByOption.Random, value: "Random" },
 ];
 
-export const filterOptions: {
-  key: FilterByOption;
-  value: string;
-}[] = [
-  { key: FilterByOption.IsFavoriteOrLiked, value: "Is Favorite Or Liked" },
-  { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
-  { key: FilterByOption.IsPlayed, value: "Is Played" },
-  { key: FilterByOption.Likes, value: "Likes" },
-];
+export const useFilterOptions = () => {
+  const { settings } = useSettings();
+  // We want to only show the watchlist option if someone has ticked that setting.
+  const filterOptions = settings?.useKefinTweaks
+    ? [
+        {
+          key: FilterByOption.IsFavoriteOrLiked,
+          value: "Is Favorite Or Liked",
+        },
+        { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
+        { key: FilterByOption.IsPlayed, value: "Is Played" },
+        { key: FilterByOption.IsFavorite, value: "Is Favorite" },
+        { key: FilterByOption.IsResumable, value: "Is Resumable" },
+        { key: FilterByOption.Likes, value: "Watchlist" },
+      ]
+    : [
+        {
+          key: FilterByOption.IsFavoriteOrLiked,
+          value: "Is Favorite Or Liked",
+        },
+        { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
+        { key: FilterByOption.IsPlayed, value: "Is Played" },
+        { key: FilterByOption.IsFavorite, value: "Is Favorite" },
+        { key: FilterByOption.IsResumable, value: "Is Resumable" },
+      ];
+  console.log("filterOptions");
+  console.log(filterOptions);
+  return filterOptions;
+};
 
 export const sortOrderOptions: {
   key: SortOrderOption;
