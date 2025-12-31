@@ -134,7 +134,6 @@ export default function ArtistDetailScreen() {
   return (
     <FlashList
       data={sections}
-      estimatedItemSize={300}
       contentContainerStyle={{
         paddingBottom: insets.bottom + 100,
       }}

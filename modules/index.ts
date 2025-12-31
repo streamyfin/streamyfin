@@ -16,7 +16,7 @@ export type {
 } from "./music-controls";
 export { default as MusicControls } from "./music-controls";
 
-// Streamyfin Player (KSPlayer-based) - GPU acceleration + native PiP
+// Streamyfin Player (KSPlayer-based) - GPU acceleration + native PiP (iOS)
 export type {
   AudioTrack as SfAudioTrack,
   OnErrorEventPayload as SfOnErrorEventPayload,
@@ -35,3 +35,20 @@ export {
   SfPlayerView,
   setHardwareDecode,
 } from "./sf-player";
+
+// VLC Player (Android)
+export type {
+  ChapterInfo,
+  NowPlayingMetadata,
+  PipStartedPayload,
+  PlaybackStatePayload,
+  ProgressUpdatePayload,
+  TrackInfo,
+  VideoLoadStartPayload,
+  VideoProgressPayload,
+  VideoStateChangePayload,
+  VlcPlayerSource,
+  VlcPlayerViewProps,
+  VlcPlayerViewRef,
+} from "./VlcPlayer.types";
+export { default as VlcPlayerView } from "./VlcPlayerView";

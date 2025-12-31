@@ -107,7 +107,6 @@ export default function AlbumDetailScreen() {
   return (
     <FlashList
       data={tracks || []}
-      estimatedItemSize={60}
       contentContainerStyle={{
         paddingBottom: insets.bottom + 100,
       }}

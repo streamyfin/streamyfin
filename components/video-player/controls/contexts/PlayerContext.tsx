@@ -9,10 +9,13 @@ import React, {
   useContext,
   useMemo,
 } from "react";
-import type { SfPlayerViewRef } from "@/modules";
+import type { SfPlayerViewRef, VlcPlayerViewRef } from "@/modules";
+
+// Union type for both player refs
+type PlayerRef = SfPlayerViewRef | VlcPlayerViewRef;
 
 interface PlayerContextProps {
-  playerRef: MutableRefObject<SfPlayerViewRef | null>;
+  playerRef: MutableRefObject<PlayerRef | null>;
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
@@ -23,7 +26,7 @@ const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
 
 interface PlayerProviderProps {
   children: ReactNode;
-  playerRef: MutableRefObject<SfPlayerViewRef | null>;
+  playerRef: MutableRefObject<PlayerRef | null>;
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
@@ -56,52 +59,57 @@ export const usePlayerContext = () => {
   return context;
 };
 
-// Player controls hook
+// Player controls hook - supports both SfPlayer (iOS) and VlcPlayer (Android)
 export const usePlayerControls = () => {
   const { playerRef } = usePlayerContext();
 
+  // Helper to get SfPlayer-specific ref (for iOS-only features)
+  const getSfRef = () => playerRef.current as SfPlayerViewRef | null;
+
   return {
-    // Subtitle controls
+    // Subtitle controls (both players support these, but with different interfaces)
     getSubtitleTracks: async () => {
-      return playerRef.current?.getSubtitleTracks() ?? null;
+      return playerRef.current?.getSubtitleTracks?.() ?? null;
     },
     setSubtitleTrack: (trackId: number) => {
-      playerRef.current?.setSubtitleTrack(trackId);
+      playerRef.current?.setSubtitleTrack?.(trackId);
     },
+    // iOS only (SfPlayer)
     disableSubtitles: () => {
-      playerRef.current?.disableSubtitles();
+      getSfRef()?.disableSubtitles?.();
     },
     addSubtitleFile: (url: string, select = true) => {
-      playerRef.current?.addSubtitleFile(url, select);
+      getSfRef()?.addSubtitleFile?.(url, select);
     },
 
-    // Audio controls
+    // Audio controls (both players)
     getAudioTracks: async () => {
-      return playerRef.current?.getAudioTracks() ?? null;
+      return playerRef.current?.getAudioTracks?.() ?? null;
     },
     setAudioTrack: (trackId: number) => {
-      playerRef.current?.setAudioTrack(trackId);
+      playerRef.current?.setAudioTrack?.(trackId);
     },
 
-    // Playback controls
-    play: () => playerRef.current?.play(),
-    pause: () => playerRef.current?.pause(),
-    seekTo: (position: number) => playerRef.current?.seekTo(position),
-    seekBy: (offset: number) => playerRef.current?.seekBy(offset),
-    setSpeed: (speed: number) => playerRef.current?.setSpeed(speed),
+    // Playback controls (both players)
+    play: () => playerRef.current?.play?.(),
+    pause: () => playerRef.current?.pause?.(),
+    seekTo: (position: number) => playerRef.current?.seekTo?.(position),
+    // iOS only (SfPlayer)
+    seekBy: (offset: number) => getSfRef()?.seekBy?.(offset),
+    setSpeed: (speed: number) => getSfRef()?.setSpeed?.(speed),
 
-    // Subtitle positioning
-    setSubtitleScale: (scale: number) =>
-      playerRef.current?.setSubtitleScale(scale),
+    // Subtitle positioning - iOS only (SfPlayer)
+    setSubtitleScale: (scale: number) => getSfRef()?.setSubtitleScale?.(scale),
     setSubtitlePosition: (position: number) =>
-      playerRef.current?.setSubtitlePosition(position),
+      getSfRef()?.setSubtitlePosition?.(position),
     setSubtitleMarginY: (margin: number) =>
-      playerRef.current?.setSubtitleMarginY(margin),
+      getSfRef()?.setSubtitleMarginY?.(margin),
     setSubtitleFontSize: (size: number) =>
-      playerRef.current?.setSubtitleFontSize(size),
+      getSfRef()?.setSubtitleFontSize?.(size),
 
-    // PiP
-    startPictureInPicture: () => playerRef.current?.startPictureInPicture(),
-    stopPictureInPicture: () => playerRef.current?.stopPictureInPicture(),
+    // PiP (both players)
+    startPictureInPicture: () => playerRef.current?.startPictureInPicture?.(),
+    // iOS only (SfPlayer)
+    stopPictureInPicture: () => getSfRef()?.stopPictureInPicture?.(),
   };
 };

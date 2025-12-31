@@ -29,6 +29,8 @@ import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
+  type PlaybackStatePayload,
+  type ProgressUpdatePayload,
   type SfOnErrorEventPayload,
   type SfOnPictureInPictureChangePayload,
   type SfOnPlaybackStateChangePayload,
@@ -37,6 +39,9 @@ import {
   type SfPlayerViewRef,
   type SfVideoSource,
   setHardwareDecode,
+  type VlcPlayerSource,
+  VlcPlayerView,
+  type VlcPlayerViewRef,
 } from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
@@ -52,7 +57,8 @@ import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function page() {
-  const videoRef = useRef<SfPlayerViewRef>(null);
+  const isAndroid = Platform.OS === "android";
+  const videoRef = useRef<SfPlayerViewRef | VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
@@ -393,7 +399,8 @@ export default function page() {
     [],
   );
 
-  const onProgress = useCallback(
+  /** Progress handler for iOS (SfPlayer) - position in seconds */
+  const onProgressSf = useCallback(
     async (data: { nativeEvent: SfOnProgressEventPayload }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
@@ -441,14 +448,62 @@ export default function page() {
     ],
   );
 
+  /** Progress handler for Android (VLC) - currentTime in milliseconds */
+  const onProgressVlc = useCallback(
+    async (data: ProgressUpdatePayload) => {
+      if (isSeeking.get() || isPlaybackStopped) return;
+
+      const { currentTime } = data.nativeEvent;
+      // VLC reports currentTime in milliseconds
+
+      if (isBuffering) {
+        setIsBuffering(false);
+      }
+
+      progress.set(currentTime);
+
+      // Update URL immediately after seeking, or every 30 seconds during normal playback
+      const now = Date.now();
+      const shouldUpdateUrl = wasJustSeeking.get();
+      wasJustSeeking.value = false;
+
+      if (
+        shouldUpdateUrl ||
+        now - lastUrlUpdateTime.get() > URL_UPDATE_INTERVAL
+      ) {
+        router.setParams({
+          playbackPosition: msToTicks(currentTime).toString(),
+        });
+        lastUrlUpdateTime.value = now;
+      }
+
+      if (!item?.Id) return;
+
+      playbackManager.reportPlaybackProgress(
+        currentPlayStateInfo() as PlaybackProgressInfo,
+      );
+    },
+    [
+      item?.Id,
+      audioIndex,
+      subtitleIndex,
+      mediaSourceId,
+      isPlaying,
+      stream,
+      isSeeking,
+      isPlaybackStopped,
+      isBuffering,
+    ],
+  );
+
   /** Gets the initial playback position in seconds. */
   const startPosition = useMemo(() => {
     return ticksToSeconds(getInitialPlaybackTicks());
   }, [getInitialPlaybackTicks]);
 
-  /** Build video source config for the native player */
-  const videoSource = useMemo<SfVideoSource | undefined>(() => {
-    if (!stream?.url) return undefined;
+  /** Build video source config for iOS (SfPlayer/KSPlayer) */
+  const sfVideoSource = useMemo<SfVideoSource | undefined>(() => {
+    if (!stream?.url || isAndroid) return undefined;
 
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
@@ -504,6 +559,91 @@ export default function page() {
     subtitleIndex,
     audioIndex,
     offline,
+    isAndroid,
+  ]);
+
+  /** Build video source config for Android (VLC) */
+  const vlcVideoSource = useMemo<VlcPlayerSource | undefined>(() => {
+    if (!stream?.url || !isAndroid) return undefined;
+
+    const mediaSource = stream.mediaSource;
+    const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
+
+    // For VLC, external subtitles need name and DeliveryUrl
+    let externalSubs: { name: string; DeliveryUrl: string }[] | undefined;
+    if (!offline && api?.basePath) {
+      externalSubs = mediaSource?.MediaStreams?.filter(
+        (s) =>
+          s.Type === "Subtitle" &&
+          s.DeliveryMethod === "External" &&
+          s.DeliveryUrl,
+      ).map((s) => ({
+        name: s.DisplayTitle || s.Title || `Subtitle ${s.Index}`,
+        DeliveryUrl: `${api.basePath}${s.DeliveryUrl}`,
+      }));
+    }
+
+    // Build VLC init options (required for VLC to work properly)
+    const initOptions: string[] = [""];
+
+    // Get all subtitle and audio streams
+    const allSubs =
+      mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") ?? [];
+    const textSubs = allSubs.filter((s) => s.IsTextSubtitleStream);
+    const allAudio =
+      mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+
+    // Find chosen tracks
+    const chosenSubtitleTrack = allSubs.find((s) => s.Index === subtitleIndex);
+    const chosenAudioTrack = allAudio.find((a) => a.Index === audioIndex);
+
+    // Set subtitle track
+    if (
+      chosenSubtitleTrack &&
+      (!isTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
+    ) {
+      const finalIndex = !isTranscoding
+        ? allSubs.indexOf(chosenSubtitleTrack)
+        : [...textSubs].reverse().indexOf(chosenSubtitleTrack);
+      if (finalIndex >= 0) {
+        initOptions.push(`--sub-track=${finalIndex}`);
+      }
+    }
+
+    // Set audio track
+    if (!isTranscoding && chosenAudioTrack) {
+      const audioTrackIndex = allAudio.indexOf(chosenAudioTrack);
+      if (audioTrackIndex >= 0) {
+        initOptions.push(`--audio-track=${audioTrackIndex}`);
+      }
+    }
+
+    // Add subtitle styling
+    if (settings.subtitleSize) {
+      initOptions.push(`--sub-text-scale=${settings.subtitleSize}`);
+    }
+    initOptions.push("--sub-margin=40");
+
+    const source: VlcPlayerSource = {
+      uri: stream.url,
+      startPosition,
+      autoplay: true,
+      isNetwork: !offline,
+      externalSubtitles: externalSubs,
+      initOptions,
+    };
+
+    return source;
+  }, [
+    stream?.url,
+    stream?.mediaSource,
+    startPosition,
+    api?.basePath,
+    offline,
+    isAndroid,
+    subtitleIndex,
+    audioIndex,
+    settings.subtitleSize,
   ]);
 
   const volumeUpCb = useCallback(async () => {
@@ -585,7 +725,8 @@ export default function page() {
     setVolume: setVolumeCb,
   });
 
-  const onPlaybackStateChanged = useCallback(
+  /** Playback state handler for iOS (SfPlayer) */
+  const onPlaybackStateChangedSf = useCallback(
     async (e: { nativeEvent: SfOnPlaybackStateChangePayload }) => {
       const { isPaused, isPlaying: playing, isLoading } = e.nativeEvent;
 
@@ -620,12 +761,66 @@ export default function page() {
     [playbackManager, item?.Id, progress],
   );
 
-  const onPictureInPictureChange = useCallback(
+  /** Playback state handler for Android (VLC) */
+  const onPlaybackStateChangedVlc = useCallback(
+    async (e: PlaybackStatePayload) => {
+      const {
+        state,
+        isBuffering: buffering,
+        isPlaying: playing,
+      } = e.nativeEvent;
+
+      if (state === "Playing" || playing) {
+        setIsPlaying(true);
+        setIsBuffering(false);
+        setHasPlaybackStarted(true);
+        if (item?.Id) {
+          playbackManager.reportPlaybackProgress(
+            currentPlayStateInfo() as PlaybackProgressInfo,
+          );
+        }
+        if (!Platform.isTV) await activateKeepAwakeAsync();
+        return;
+      }
+
+      if (state === "Paused") {
+        setIsPlaying(false);
+        if (item?.Id) {
+          playbackManager.reportPlaybackProgress(
+            currentPlayStateInfo() as PlaybackProgressInfo,
+          );
+        }
+        if (!Platform.isTV) await deactivateKeepAwake();
+        return;
+      }
+
+      if (state === "Buffering" || buffering) {
+        setIsBuffering(true);
+      }
+    },
+    [playbackManager, item?.Id, progress],
+  );
+
+  /** PiP handler for iOS (SfPlayer) */
+  const onPictureInPictureChangeSf = useCallback(
     (e: { nativeEvent: SfOnPictureInPictureChangePayload }) => {
       const { isActive } = e.nativeEvent;
       setIsPipMode(isActive);
       // Hide controls when entering PiP
       if (isActive) {
+        _setShowControls(false);
+      }
+    },
+    [],
+  );
+
+  /** PiP handler for Android (VLC) */
+  const onPipStartedVlc = useCallback(
+    (e: { nativeEvent: { pipStarted: boolean } }) => {
+      const { pipStarted } = e.nativeEvent;
+      setIsPipMode(pipStarted);
+      // Hide controls when entering PiP
+      if (pipStarted) {
         _setShowControls(false);
       }
     },
@@ -653,16 +848,28 @@ export default function page() {
     videoRef.current?.pause?.();
   }, []);
 
-  const seek = useCallback((position: number) => {
-    // KSPlayer expects seconds, convert from ms
-    videoRef.current?.seekTo?.(position / 1000);
-  }, []);
+  const seek = useCallback(
+    (position: number) => {
+      if (isAndroid) {
+        // VLC expects milliseconds
+        videoRef.current?.seekTo?.(position);
+      } else {
+        // KSPlayer expects seconds, convert from ms
+        videoRef.current?.seekTo?.(position / 1000);
+      }
+    },
+    [isAndroid],
+  );
 
   const handleZoomToggle = useCallback(async () => {
+    // Zoom toggle only supported on iOS (SfPlayer)
+    if (isAndroid) return;
     const newZoomState = !isZoomedToFill;
     setIsZoomedToFill(newZoomState);
-    await videoRef.current?.setVideoZoomToFill(newZoomState);
-  }, [isZoomedToFill]);
+    await (videoRef.current as SfPlayerViewRef)?.setVideoZoomToFill?.(
+      newZoomState,
+    );
+  }, [isZoomedToFill, isAndroid]);
 
   // Apply KSPlayer global settings before video loads
   useEffect(() => {
@@ -671,37 +878,35 @@ export default function page() {
     }
   }, [settings.ksHardwareDecode]);
 
-  // Apply subtitle settings when video loads
+  // Apply subtitle settings when video loads (iOS only - SfPlayer-specific)
   useEffect(() => {
-    if (!isVideoLoaded || !videoRef.current) return;
+    if (isAndroid || !isVideoLoaded || !videoRef.current) return;
 
+    const sfRef = videoRef.current as SfPlayerViewRef;
     const applySubtitleSettings = async () => {
       if (settings.mpvSubtitleScale !== undefined) {
-        await videoRef.current?.setSubtitleScale(settings.mpvSubtitleScale);
+        await sfRef?.setSubtitleScale?.(settings.mpvSubtitleScale);
       }
       if (settings.mpvSubtitleMarginY !== undefined) {
-        await videoRef.current?.setSubtitleMarginY(settings.mpvSubtitleMarginY);
+        await sfRef?.setSubtitleMarginY?.(settings.mpvSubtitleMarginY);
       }
       if (settings.mpvSubtitleAlignX !== undefined) {
-        await videoRef.current?.setSubtitleAlignX(settings.mpvSubtitleAlignX);
+        await sfRef?.setSubtitleAlignX?.(settings.mpvSubtitleAlignX);
       }
       if (settings.mpvSubtitleAlignY !== undefined) {
-        await videoRef.current?.setSubtitleAlignY(settings.mpvSubtitleAlignY);
+        await sfRef?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
       if (settings.mpvSubtitleFontSize !== undefined) {
-        await videoRef.current?.setSubtitleFontSize(
-          settings.mpvSubtitleFontSize,
-        );
+        await sfRef?.setSubtitleFontSize?.(settings.mpvSubtitleFontSize);
       }
       // Apply subtitle size from general settings
       if (settings.subtitleSize) {
-        await videoRef.current?.setSubtitleFontSize(settings.subtitleSize);
+        await sfRef?.setSubtitleFontSize?.(settings.subtitleSize);
       }
-      // No KSPlayer-specific styling applied
     };
 
     applySubtitleSettings();
-  }, [isVideoLoaded, settings]);
+  }, [isVideoLoaded, settings, isAndroid]);
 
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
@@ -756,26 +961,47 @@ export default function page() {
               justifyContent: "center",
             }}
           >
-            <SfPlayerView
-              ref={videoRef}
-              source={videoSource}
-              style={{ width: "100%", height: "100%" }}
-              onProgress={onProgress}
-              onPlaybackStateChange={onPlaybackStateChanged}
-              onPictureInPictureChange={onPictureInPictureChange}
-              onLoad={() => setIsVideoLoaded(true)}
-              onError={(e: { nativeEvent: SfOnErrorEventPayload }) => {
-                console.error("Video Error:", e.nativeEvent);
-                Alert.alert(
-                  t("player.error"),
-                  t("player.an_error_occured_while_playing_the_video"),
-                );
-                writeToLog("ERROR", "Video Error", e.nativeEvent);
-              }}
-              onTracksReady={() => {
-                setTracksReady(true);
-              }}
-            />
+            {isAndroid ? (
+              <VlcPlayerView
+                ref={videoRef as React.RefObject<VlcPlayerViewRef>}
+                source={vlcVideoSource!}
+                style={{ width: "100%", height: "100%" }}
+                onVideoProgress={onProgressVlc}
+                onVideoStateChange={onPlaybackStateChangedVlc}
+                onPipStarted={onPipStartedVlc}
+                onVideoLoadEnd={() => setIsVideoLoaded(true)}
+                onVideoError={(e: PlaybackStatePayload) => {
+                  console.error("Video Error:", e.nativeEvent);
+                  Alert.alert(
+                    t("player.error"),
+                    t("player.an_error_occured_while_playing_the_video"),
+                  );
+                  writeToLog("ERROR", "Video Error", e.nativeEvent);
+                }}
+                progressUpdateInterval={1000}
+              />
+            ) : (
+              <SfPlayerView
+                ref={videoRef as React.RefObject<SfPlayerViewRef>}
+                source={sfVideoSource}
+                style={{ width: "100%", height: "100%" }}
+                onProgress={onProgressSf}
+                onPlaybackStateChange={onPlaybackStateChangedSf}
+                onPictureInPictureChange={onPictureInPictureChangeSf}
+                onLoad={() => setIsVideoLoaded(true)}
+                onError={(e: { nativeEvent: SfOnErrorEventPayload }) => {
+                  console.error("Video Error:", e.nativeEvent);
+                  Alert.alert(
+                    t("player.error"),
+                    t("player.an_error_occured_while_playing_the_video"),
+                  );
+                  writeToLog("ERROR", "Video Error", e.nativeEvent);
+                }}
+                onTracksReady={() => {
+                  setTracksReady(true);
+                }}
+              />
+            )}
             {!hasPlaybackStarted && (
               <View
                 style={{

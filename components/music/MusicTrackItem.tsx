@@ -56,8 +56,8 @@ export const MusicTrackItem: React.FC<Props> = ({
       {
         options,
         cancelButtonIndex,
-        title: track.Name,
-        message: track.Artists?.join(", ") || track.AlbumArtist || undefined,
+        title: track.Name ?? undefined,
+        message: (track.Artists?.join(", ") || track.AlbumArtist) ?? undefined,
       },
       (selectedIndex) => {
         if (selectedIndex === 0) {
