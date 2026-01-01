@@ -55,7 +55,7 @@ export const MiniPlayerBar: React.FC = () => {
     [next],
   );
 
-  if (!currentTrack || !isPlaying) return null;
+  if (!currentTrack) return null;
 
   const content = (
     <>

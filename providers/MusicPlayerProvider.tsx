@@ -12,7 +12,11 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { MusicControls } from "@/modules";
+import TrackPlayer, {
+  Capability,
+  RepeatMode as TPRepeatMode,
+  type Track,
+} from "react-native-track-player";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { storage } from "@/utils/mmkv";
 import native from "@/utils/profiles/native";
@@ -75,6 +79,7 @@ interface MusicPlayerContextType extends MusicPlayerState {
   setIsPlaying: (isPlaying: boolean) => void;
   reportProgress: () => void;
   onTrackEnd: () => void;
+  syncFromTrackPlayer: () => void;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(
@@ -233,12 +238,32 @@ const getAudioStreamUrl = async (
   }
 };
 
+// Convert BaseItemDto to TrackPlayer Track
+const itemToTrack = (item: BaseItemDto, url: string, api: Api): Track => {
+  const albumId = item.AlbumId || item.ParentId;
+  const artworkId = albumId || item.Id;
+  const artwork = artworkId
+    ? `${api.basePath}/Items/${artworkId}/Images/Primary?maxHeight=512&maxWidth=512&quality=90`
+    : undefined;
+
+  return {
+    id: item.Id || "",
+    url,
+    title: item.Name || "Unknown",
+    artist: item.Artists?.join(", ") || item.AlbumArtist || "Unknown Artist",
+    album: item.Album || undefined,
+    artwork,
+    duration: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : undefined,
+  };
+};
+
 export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   children,
 }) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const initializedRef = useRef(false);
+  const playerSetupRef = useRef(false);
 
   const [state, setState] = useState<MusicPlayerState>({
     currentTrack: null,
@@ -256,32 +281,61 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   });
 
   const lastReportRef = useRef<number>(0);
-  const lastNowPlayingUpdateRef = useRef<number>(0);
 
-  const pauseRef = useRef<() => void>(() => {});
-  const resumeRef = useRef<() => void>(() => {});
-  const togglePlayPauseRef = useRef<() => void>(() => {});
-  const nextRef = useRef<() => void>(() => {});
-  const previousRef = useRef<() => void>(() => {});
-  const seekRef = useRef<(position: number) => void>(() => {});
+  // Setup TrackPlayer
+  useEffect(() => {
+    const setupPlayer = async () => {
+      if (playerSetupRef.current) return;
 
-  const getNowPlayingArtworkUri = useCallback(
-    (track: BaseItemDto): string | undefined => {
-      if (!api?.basePath || !track?.Id || !api.accessToken) return undefined;
+      try {
+        await TrackPlayer.setupPlayer();
+        await TrackPlayer.updateOptions({
+          capabilities: [
+            Capability.Play,
+            Capability.Pause,
+            Capability.SkipToNext,
+            Capability.SkipToPrevious,
+            Capability.SeekTo,
+            Capability.Stop,
+          ],
+          compactCapabilities: [
+            Capability.Play,
+            Capability.Pause,
+            Capability.SkipToNext,
+            Capability.SkipToPrevious,
+          ],
+        });
+        playerSetupRef.current = true;
+      } catch (_error) {
+        // Player might already be set up
+        playerSetupRef.current = true;
+      }
+    };
 
-      const albumId = track.AlbumId || track.ParentId;
-      const itemId = albumId || track.Id;
+    setupPlayer();
+  }, []);
 
-      const qs = new URLSearchParams({
-        maxHeight: "512",
-        maxWidth: "512",
-        quality: "90",
-        api_key: api.accessToken,
-      });
-      return `${api.basePath}/Items/${itemId}/Images/Primary?${qs.toString()}`;
-    },
-    [api?.basePath, api?.accessToken],
-  );
+  // Sync repeat mode to TrackPlayer
+  useEffect(() => {
+    const syncRepeatMode = async () => {
+      if (!playerSetupRef.current) return;
+
+      let tpRepeatMode: TPRepeatMode;
+      switch (state.repeatMode) {
+        case "one":
+          tpRepeatMode = TPRepeatMode.Track;
+          break;
+        case "all":
+          tpRepeatMode = TPRepeatMode.Queue;
+          break;
+        default:
+          tpRepeatMode = TPRepeatMode.Off;
+      }
+      await TrackPlayer.setRepeatMode(tpRepeatMode);
+    };
+
+    syncRepeatMode();
+  }, [state.repeatMode]);
 
   // Restore queue on mount (when api is available)
   useEffect(() => {
@@ -400,37 +454,62 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     [api, user?.Id],
   );
 
-  const loadTrack = useCallback(
-    async (track: BaseItemDto, startProgress = 0) => {
-      if (!api || !user?.Id || !track.Id) return;
+  const loadAndPlayQueue = useCallback(
+    async (queue: BaseItemDto[], startIndex: number) => {
+      if (!api || !user?.Id || queue.length === 0) return;
 
       setState((prev) => ({ ...prev, isLoading: true }));
 
-      const result = await getAudioStreamUrl(api, user.Id, track.Id);
+      try {
+        // Get stream URLs for all tracks
+        const tracks: Track[] = [];
+        for (const item of queue) {
+          if (!item.Id) continue;
+          const result = await getAudioStreamUrl(api, user.Id, item.Id);
+          if (result) {
+            tracks.push(itemToTrack(item, result.url, api));
+            // Store first track's session ID
+            if (tracks.length === 1) {
+              setState((prev) => ({
+                ...prev,
+                playSessionId: result.sessionId,
+              }));
+            }
+          }
+        }
 
-      if (!result) {
+        if (tracks.length === 0) {
+          setState((prev) => ({ ...prev, isLoading: false }));
+          return;
+        }
+
+        // Reset TrackPlayer and add new queue
+        await TrackPlayer.reset();
+        await TrackPlayer.add(tracks);
+        await TrackPlayer.skip(startIndex);
+        await TrackPlayer.play();
+
+        const currentTrack = queue[startIndex];
+        setState((prev) => ({
+          ...prev,
+          queue,
+          originalQueue: queue,
+          queueIndex: startIndex,
+          currentTrack,
+          isLoading: false,
+          isPlaying: true,
+          streamUrl: tracks[startIndex]?.url || null,
+          duration: currentTrack?.RunTimeTicks
+            ? Math.floor(currentTrack.RunTimeTicks / 10000000)
+            : 0,
+        }));
+
+        reportPlaybackStart(currentTrack, state.playSessionId);
+      } catch (_error) {
         setState((prev) => ({ ...prev, isLoading: false }));
-        return;
       }
-
-      const durationSeconds = track.RunTimeTicks
-        ? Math.floor(track.RunTimeTicks / 10000000)
-        : 0;
-
-      setState((prev) => ({
-        ...prev,
-        currentTrack: track,
-        streamUrl: result.url,
-        playSessionId: result.sessionId,
-        isLoading: false,
-        isPlaying: true,
-        progress: startProgress,
-        duration: durationSeconds,
-      }));
-
-      reportPlaybackStart(track, result.sessionId);
     },
-    [api, user?.Id, reportPlaybackStart],
+    [api, user?.Id, reportPlaybackStart, state.playSessionId],
   );
 
   const playTrack = useCallback(
@@ -445,22 +524,14 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       const newQueue = queue || [track];
       const queueIndex = newQueue.findIndex((t) => t.Id === track.Id);
-
-      setState((prev) => ({
-        ...prev,
-        queue: newQueue,
-        originalQueue: newQueue,
-        queueIndex: queueIndex >= 0 ? queueIndex : 0,
-      }));
-
-      loadTrack(track);
+      loadAndPlayQueue(newQueue, queueIndex >= 0 ? queueIndex : 0);
     },
     [
       state.currentTrack,
       state.playSessionId,
       state.progress,
       reportPlaybackStopped,
-      loadTrack,
+      loadAndPlayQueue,
     ],
   );
 
@@ -485,14 +556,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         finalIndex = 0;
       }
 
-      setState((prev) => ({
-        ...prev,
-        queue: finalQueue,
-        originalQueue: queue,
-        queueIndex: finalIndex,
-      }));
-
-      loadTrack(finalQueue[finalIndex]);
+      loadAndPlayQueue(finalQueue, finalIndex);
     },
     [
       state.currentTrack,
@@ -500,7 +564,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       state.progress,
       state.shuffleEnabled,
       reportPlaybackStopped,
-      loadTrack,
+      loadAndPlayQueue,
     ],
   );
 
@@ -552,37 +616,50 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     [api, user?.Id, playQueue],
   );
 
-  const pause = useCallback(() => {
+  const pause = useCallback(async () => {
+    await TrackPlayer.pause();
     setState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
 
-  const resume = useCallback(() => {
-    if (!state.streamUrl && state.currentTrack) {
+  const resume = useCallback(async () => {
+    if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // Need to load the track first (e.g., after app restart)
-      loadTrack(state.currentTrack, state.progress);
+      const result = await getAudioStreamUrl(
+        api,
+        user.Id,
+        state.currentTrack.Id!,
+      );
+      if (result) {
+        await TrackPlayer.reset();
+        await TrackPlayer.add(itemToTrack(state.currentTrack, result.url, api));
+        await TrackPlayer.seekTo(state.progress);
+        await TrackPlayer.play();
+        setState((prev) => ({
+          ...prev,
+          streamUrl: result.url,
+          playSessionId: result.sessionId,
+          isPlaying: true,
+        }));
+      }
     } else {
+      await TrackPlayer.play();
       setState((prev) => ({ ...prev, isPlaying: true }));
     }
-  }, [state.streamUrl, state.currentTrack, state.progress, loadTrack]);
+  }, [api, user?.Id, state.streamUrl, state.currentTrack, state.progress]);
 
-  const togglePlayPause = useCallback(() => {
-    if (!state.isPlaying && !state.streamUrl && state.currentTrack) {
-      loadTrack(state.currentTrack, state.progress);
+  const togglePlayPause = useCallback(async () => {
+    if (state.isPlaying) {
+      await pause();
     } else {
-      setState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
+      await resume();
     }
-  }, [
-    state.isPlaying,
-    state.streamUrl,
-    state.currentTrack,
-    state.progress,
-    loadTrack,
-  ]);
+  }, [state.isPlaying, pause, resume]);
 
-  const next = useCallback(() => {
-    const nextIndex = state.queueIndex + 1;
+  const next = useCallback(async () => {
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const queueLength = (await TrackPlayer.getQueue()).length;
 
-    if (nextIndex < state.queue.length) {
+    if (currentIndex !== undefined && currentIndex < queueLength - 1) {
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -590,10 +667,14 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           state.playSessionId,
         );
       }
-      setState((prev) => ({ ...prev, queueIndex: nextIndex }));
-      loadTrack(state.queue[nextIndex]);
+      await TrackPlayer.skipToNext();
+      const newIndex = currentIndex + 1;
+      setState((prev) => ({
+        ...prev,
+        queueIndex: newIndex,
+        currentTrack: prev.queue[newIndex],
+      }));
     } else if (state.repeatMode === "all" && state.queue.length > 0) {
-      // Loop back to start
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -601,28 +682,34 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           state.playSessionId,
         );
       }
-      setState((prev) => ({ ...prev, queueIndex: 0 }));
-      loadTrack(state.queue[0]);
+      await TrackPlayer.skip(0);
+      setState((prev) => ({
+        ...prev,
+        queueIndex: 0,
+        currentTrack: prev.queue[0],
+      }));
     }
   }, [
     state.queue,
-    state.queueIndex,
     state.currentTrack,
     state.playSessionId,
     state.progress,
     state.repeatMode,
-    loadTrack,
     reportPlaybackStopped,
   ]);
 
-  const previous = useCallback(() => {
-    if (state.progress > 3) {
+  const previous = useCallback(async () => {
+    const position = await TrackPlayer.getProgress().then((p) => p.position);
+
+    if (position > 3) {
+      await TrackPlayer.seekTo(0);
       setState((prev) => ({ ...prev, progress: 0 }));
       return;
     }
 
-    const prevIndex = state.queueIndex - 1;
-    if (prevIndex >= 0) {
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+    if (currentIndex !== undefined && currentIndex > 0) {
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -630,10 +717,14 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           state.playSessionId,
         );
       }
-      setState((prev) => ({ ...prev, queueIndex: prevIndex }));
-      loadTrack(state.queue[prevIndex]);
+      await TrackPlayer.skipToPrevious();
+      const newIndex = currentIndex - 1;
+      setState((prev) => ({
+        ...prev,
+        queueIndex: newIndex,
+        currentTrack: prev.queue[newIndex],
+      }));
     } else if (state.repeatMode === "all" && state.queue.length > 0) {
-      // Loop to end
       const lastIndex = state.queue.length - 1;
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
@@ -642,112 +733,28 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           state.playSessionId,
         );
       }
-      setState((prev) => ({ ...prev, queueIndex: lastIndex }));
-      loadTrack(state.queue[lastIndex]);
+      await TrackPlayer.skip(lastIndex);
+      setState((prev) => ({
+        ...prev,
+        queueIndex: lastIndex,
+        currentTrack: prev.queue[lastIndex],
+      }));
     }
   }, [
     state.queue,
-    state.queueIndex,
-    state.progress,
     state.currentTrack,
     state.playSessionId,
+    state.progress,
     state.repeatMode,
-    loadTrack,
     reportPlaybackStopped,
   ]);
 
-  const seek = useCallback((position: number) => {
+  const seek = useCallback(async (position: number) => {
+    await TrackPlayer.seekTo(position);
     setState((prev) => ({ ...prev, progress: position }));
   }, []);
 
-  pauseRef.current = pause;
-  resumeRef.current = resume;
-  togglePlayPauseRef.current = togglePlayPause;
-  nextRef.current = next;
-  previousRef.current = previous;
-  seekRef.current = seek;
-
-  // Native transport controls: listen for OS play/pause/next/prev/seek commands
-  useEffect(() => {
-    const playSub = MusicControls.addPlayListener(() => {
-      resumeRef.current();
-    });
-    const pauseSub = MusicControls.addPauseListener(() => {
-      pauseRef.current();
-    });
-    const toggleSub = MusicControls.addTogglePlayPauseListener(() => {
-      togglePlayPauseRef.current();
-    });
-    const nextSub = MusicControls.addNextListener(() => {
-      nextRef.current();
-    });
-    const prevSub = MusicControls.addPreviousListener(() => {
-      previousRef.current();
-    });
-    const seekSub = MusicControls.addSeekToListener((event) => {
-      if (
-        typeof event?.position === "number" &&
-        Number.isFinite(event.position)
-      ) {
-        seekRef.current(Math.max(0, event.position));
-      }
-    });
-
-    return () => {
-      playSub.remove();
-      pauseSub.remove();
-      toggleSub.remove();
-      nextSub.remove();
-      prevSub.remove();
-      seekSub.remove();
-    };
-  }, []);
-
-  // Publish now-playing metadata and playback state to the OS
-  useEffect(() => {
-    if (!api || !state.currentTrack) {
-      MusicControls.disable();
-      return;
-    }
-
-    // Enable controls when we have something loaded (even if paused)
-    MusicControls.enable();
-
-    const metadata = {
-      title: state.currentTrack.Name ?? "Unknown",
-      artist:
-        state.currentTrack.Artists?.join(", ") ||
-        state.currentTrack.AlbumArtist ||
-        undefined,
-      albumTitle: state.currentTrack.Album || undefined,
-      artworkUri: getNowPlayingArtworkUri(state.currentTrack),
-      duration: state.duration || undefined,
-    };
-    MusicControls.setNowPlaying(metadata);
-  }, [api, state.currentTrack?.Id, state.duration, getNowPlayingArtworkUri]);
-
-  useEffect(() => {
-    if (!api || !state.currentTrack) return;
-
-    // Avoid hammering the bridge; keep OS scrubber reasonably up-to-date.
-    const now = Date.now();
-    if (now - lastNowPlayingUpdateRef.current < 750) return;
-    lastNowPlayingUpdateRef.current = now;
-
-    MusicControls.setPlaybackState({
-      isPlaying: state.isPlaying,
-      position: state.progress,
-      duration: state.duration || undefined,
-    });
-  }, [
-    api,
-    state.currentTrack?.Id,
-    state.isPlaying,
-    state.progress,
-    state.duration,
-  ]);
-
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
     if (state.currentTrack && state.playSessionId) {
       reportPlaybackStopped(
         state.currentTrack,
@@ -755,6 +762,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         state.playSessionId,
       );
     }
+
+    await TrackPlayer.reset();
 
     // Clear storage
     try {
@@ -779,8 +788,6 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       repeatMode: state.repeatMode,
       shuffleEnabled: state.shuffleEnabled,
     });
-
-    MusicControls.disable();
   }, [
     state.currentTrack,
     state.playSessionId,
@@ -791,37 +798,81 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   ]);
 
   // Queue management
-  const addToQueue = useCallback((tracks: BaseItemDto | BaseItemDto[]) => {
-    const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
-    setState((prev) => ({
-      ...prev,
-      queue: [...prev.queue, ...tracksArray],
-      originalQueue: [...prev.originalQueue, ...tracksArray],
-    }));
-  }, []);
+  const addToQueue = useCallback(
+    async (tracks: BaseItemDto | BaseItemDto[]) => {
+      if (!api || !user?.Id) return;
 
-  const playNext = useCallback((tracks: BaseItemDto | BaseItemDto[]) => {
-    const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
-    setState((prev) => {
-      const insertIndex = prev.queueIndex + 1;
-      const newQueue = [...prev.queue];
-      const newOriginalQueue = [...prev.originalQueue];
+      const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
 
-      newQueue.splice(insertIndex, 0, ...tracksArray);
-      newOriginalQueue.splice(insertIndex, 0, ...tracksArray);
+      // Add to TrackPlayer queue
+      for (const item of tracksArray) {
+        if (!item.Id) continue;
+        const result = await getAudioStreamUrl(api, user.Id, item.Id);
+        if (result) {
+          await TrackPlayer.add(itemToTrack(item, result.url, api));
+        }
+      }
 
-      return {
+      setState((prev) => ({
         ...prev,
-        queue: newQueue,
-        originalQueue: newOriginalQueue,
-      };
-    });
-  }, []);
+        queue: [...prev.queue, ...tracksArray],
+        originalQueue: [...prev.originalQueue, ...tracksArray],
+      }));
+    },
+    [api, user?.Id],
+  );
 
-  const removeFromQueue = useCallback((index: number) => {
+  const playNext = useCallback(
+    async (tracks: BaseItemDto | BaseItemDto[]) => {
+      if (!api || !user?.Id) return;
+
+      const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
+      const insertIndex = (currentIndex ?? -1) + 1;
+
+      // Add to TrackPlayer queue after current track
+      for (let i = tracksArray.length - 1; i >= 0; i--) {
+        const item = tracksArray[i];
+        if (!item.Id) continue;
+        const result = await getAudioStreamUrl(api, user.Id, item.Id);
+        if (result) {
+          await TrackPlayer.add(
+            itemToTrack(item, result.url, api),
+            insertIndex,
+          );
+        }
+      }
+
+      setState((prev) => {
+        const stateInsertIndex = prev.queueIndex + 1;
+        const newQueue = [...prev.queue];
+        const newOriginalQueue = [...prev.originalQueue];
+
+        newQueue.splice(stateInsertIndex, 0, ...tracksArray);
+        newOriginalQueue.splice(stateInsertIndex, 0, ...tracksArray);
+
+        return {
+          ...prev,
+          queue: newQueue,
+          originalQueue: newOriginalQueue,
+        };
+      });
+    },
+    [api, user?.Id],
+  );
+
+  const removeFromQueue = useCallback(async (index: number) => {
+    const queueLength = (await TrackPlayer.getQueue()).length;
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+    if (index < 0 || index >= queueLength) return;
+    if (index === currentIndex) return; // Can't remove currently playing
+
+    await TrackPlayer.remove(index);
+
     setState((prev) => {
       if (index < 0 || index >= prev.queue.length) return prev;
-      if (index === prev.queueIndex) return prev; // Can't remove currently playing
+      if (index === prev.queueIndex) return prev;
 
       const newQueue = [...prev.queue];
       const removedTrack = newQueue.splice(index, 1)[0];
@@ -830,7 +881,6 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         (t) => t.Id !== removedTrack.Id,
       );
 
-      // Adjust index if removed track was before current
       const newIndex =
         index < prev.queueIndex ? prev.queueIndex - 1 : prev.queueIndex;
 
@@ -843,45 +893,64 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     });
   }, []);
 
-  const moveInQueue = useCallback((fromIndex: number, toIndex: number) => {
-    setState((prev) => {
+  const moveInQueue = useCallback(
+    async (fromIndex: number, toIndex: number) => {
+      const queue = await TrackPlayer.getQueue();
       if (
         fromIndex < 0 ||
-        fromIndex >= prev.queue.length ||
+        fromIndex >= queue.length ||
         toIndex < 0 ||
-        toIndex >= prev.queue.length ||
+        toIndex >= queue.length ||
         fromIndex === toIndex
       ) {
-        return prev;
+        return;
       }
 
-      const newQueue = [...prev.queue];
-      const [movedItem] = newQueue.splice(fromIndex, 1);
-      newQueue.splice(toIndex, 0, movedItem);
+      await TrackPlayer.move(fromIndex, toIndex);
 
-      // Adjust current index
-      let newIndex = prev.queueIndex;
-      if (fromIndex === prev.queueIndex) {
-        newIndex = toIndex;
-      } else if (fromIndex < prev.queueIndex && toIndex >= prev.queueIndex) {
-        newIndex = prev.queueIndex - 1;
-      } else if (fromIndex > prev.queueIndex && toIndex <= prev.queueIndex) {
-        newIndex = prev.queueIndex + 1;
-      }
+      setState((prev) => {
+        const newQueue = [...prev.queue];
+        const [movedItem] = newQueue.splice(fromIndex, 1);
+        newQueue.splice(toIndex, 0, movedItem);
 
-      return {
-        ...prev,
-        queue: newQueue,
-        queueIndex: newIndex,
-      };
-    });
-  }, []);
+        let newIndex = prev.queueIndex;
+        if (fromIndex === prev.queueIndex) {
+          newIndex = toIndex;
+        } else if (fromIndex < prev.queueIndex && toIndex >= prev.queueIndex) {
+          newIndex = prev.queueIndex - 1;
+        } else if (fromIndex > prev.queueIndex && toIndex <= prev.queueIndex) {
+          newIndex = prev.queueIndex + 1;
+        }
 
-  const clearQueue = useCallback(() => {
+        return {
+          ...prev,
+          queue: newQueue,
+          queueIndex: newIndex,
+        };
+      });
+    },
+    [],
+  );
+
+  const clearQueue = useCallback(async () => {
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const queue = await TrackPlayer.getQueue();
+
+    if (currentIndex === undefined || queue.length === 0) return;
+
+    // Remove all tracks except current
+    const indicesToRemove = queue
+      .map((_, i) => i)
+      .filter((i) => i !== currentIndex);
+
+    // Remove in reverse order to not mess up indices
+    for (const i of indicesToRemove.reverse()) {
+      await TrackPlayer.remove(i);
+    }
+
     setState((prev) => {
       if (!prev.currentTrack) return prev;
 
-      // Keep only the current track
       return {
         ...prev,
         queue: [prev.currentTrack],
@@ -892,7 +961,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, []);
 
   const jumpToIndex = useCallback(
-    (index: number) => {
+    async (index: number) => {
       if (
         index < 0 ||
         index >= state.queue.length ||
@@ -908,8 +977,13 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
 
-      setState((prev) => ({ ...prev, queueIndex: index }));
-      loadTrack(state.queue[index]);
+      await TrackPlayer.skip(index);
+
+      setState((prev) => ({
+        ...prev,
+        queueIndex: index,
+        currentTrack: prev.queue[index],
+      }));
     },
     [
       state.queue,
@@ -917,7 +991,6 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       state.currentTrack,
       state.playSessionId,
       state.progress,
-      loadTrack,
       reportPlaybackStopped,
     ],
   );
@@ -934,7 +1007,6 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       storage.set(STORAGE_KEYS.SHUFFLE_ENABLED, newShuffleEnabled);
 
       if (newShuffleEnabled) {
-        // Shuffle the queue, keeping current track at position 0
         const shuffled = shuffleArray(prev.queue, prev.queueIndex);
         return {
           ...prev,
@@ -943,7 +1015,6 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           queueIndex: 0,
         };
       } else {
-        // Restore original order
         const currentTrackId = prev.currentTrack?.Id;
         const newIndex = prev.originalQueue.findIndex(
           (t) => t.Id === currentTrackId,
@@ -970,18 +1041,26 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     setState((prev) => ({ ...prev, isPlaying }));
   }, []);
 
+  // Sync state from TrackPlayer (called when active track changes)
+  const syncFromTrackPlayer = useCallback(async () => {
+    const index = await TrackPlayer.getActiveTrackIndex();
+    if (index !== undefined && index < state.queue.length) {
+      setState((prev) => ({
+        ...prev,
+        queueIndex: index,
+        currentTrack: prev.queue[index],
+      }));
+    }
+  }, [state.queue]);
+
   // Called by playback engine when track ends
   const onTrackEnd = useCallback(() => {
     if (state.repeatMode === "one") {
-      // Repeat the current track
-      setState((prev) => ({ ...prev, progress: 0 }));
-      if (state.currentTrack) {
-        loadTrack(state.currentTrack);
-      }
-    } else {
-      next();
+      TrackPlayer.seekTo(0);
+      TrackPlayer.play();
     }
-  }, [state.repeatMode, state.currentTrack, loadTrack, next]);
+    // For other modes, TrackPlayer handles it via repeat mode setting
+  }, [state.repeatMode]);
 
   const value = useMemo(
     () => ({
@@ -1010,6 +1089,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       setIsPlaying,
       reportProgress: reportPlaybackProgress,
       onTrackEnd,
+      syncFromTrackPlayer,
     }),
     [
       state,
@@ -1037,6 +1117,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       setIsPlaying,
       reportPlaybackProgress,
       onTrackEnd,
+      syncFromTrackPlayer,
     ],
   );
 

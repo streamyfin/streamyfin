@@ -8,14 +8,6 @@ export type {
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
 
-// Music Controls (lock screen / Control Center / system transport controls)
-export type {
-  MusicNowPlayingMetadata,
-  MusicPlaybackState,
-  MusicSeekToEvent,
-} from "./music-controls";
-export { default as MusicControls } from "./music-controls";
-
 // Streamyfin Player (KSPlayer-based) - GPU acceleration + native PiP (iOS)
 export type {
   AudioTrack as SfAudioTrack,
