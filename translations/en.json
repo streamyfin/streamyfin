@@ -48,6 +48,7 @@
     "error_message": "Something went wrong.\nPlease log out and in again.",
     "continue_watching": "Continue Watching",
     "next_up": "Next Up",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Recently Added in {{libraryName}}",
     "suggested_movies": "Suggested Movies",
     "suggested_episodes": "Suggested Episodes",
@@ -79,7 +80,8 @@
         "title": "Audio & Subtitles"
       },
       "appearance": {
-        "title": "Appearance"
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up"
       },
       "user_info": {
         "user_info_title": "User Info",

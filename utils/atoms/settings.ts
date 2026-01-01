@@ -185,6 +185,7 @@ export type Settings = {
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
+  mergeNextUpAndContinueWatching: boolean;
 };
 
 export interface Lockable<T> {
@@ -256,6 +257,7 @@ export const defaultValues: Settings = {
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
+  mergeNextUpAndContinueWatching: false,
 };
 
 const loadSettings = (): Partial<Settings> => {

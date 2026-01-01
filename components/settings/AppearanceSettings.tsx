@@ -51,6 +51,16 @@ export const AppearanceSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem
+          title={t("home.settings.appearance.merge_next_up_continue_watching")}
+        >
+          <Switch
+            value={settings.mergeNextUpAndContinueWatching}
+            onValueChange={(value) =>
+              updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+          />
+        </ListItem>
+        <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")
           }

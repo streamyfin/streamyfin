@@ -241,43 +241,108 @@ export const Home = () => {
       );
     });
 
+    // Helper to sort items by most recent activity
+    const sortByRecentActivity = (items: BaseItemDto[]): BaseItemDto[] => {
+      return items.sort((a, b) => {
+        const dateA = a.UserData?.LastPlayedDate || a.DateCreated || "";
+        const dateB = b.UserData?.LastPlayedDate || b.DateCreated || "";
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+    };
+
+    // Helper to deduplicate items by ID
+    const deduplicateById = (items: BaseItemDto[]): BaseItemDto[] => {
+      const seen = new Set<string>();
+      return items.filter((item) => {
+        if (!item.Id || seen.has(item.Id)) return false;
+        seen.add(item.Id);
+        return true;
+      });
+    };
+
+    // Build the first sections based on merge setting
+    const firstSections: Section[] = settings.mergeNextUpAndContinueWatching
+      ? [
+          {
+            title: t("home.continue_and_next_up"),
+            queryKey: ["home", "continueAndNextUp"],
+            queryFn: async ({ pageParam = 0 }) => {
+              // Fetch both in parallel
+              const [resumeResponse, nextUpResponse] = await Promise.all([
+                getItemsApi(api).getResumeItems({
+                  userId: user.Id,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  startIndex: 0,
+                  limit: 20,
+                }),
+                getTvShowsApi(api).getNextUp({
+                  userId: user?.Id,
+                  startIndex: 0,
+                  limit: 20,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                  enableResumable: false,
+                }),
+              ]);
+
+              const resumeItems = resumeResponse.data.Items || [];
+              const nextUpItems = nextUpResponse.data.Items || [];
+
+              // Combine, sort by recent activity, deduplicate
+              const combined = [...resumeItems, ...nextUpItems];
+              const sorted = sortByRecentActivity(combined);
+              const deduplicated = deduplicateById(sorted);
+
+              // Paginate client-side
+              return deduplicated.slice(pageParam, pageParam + 10);
+            },
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: 10,
+            priority: 1,
+          },
+        ]
+      : [
+          {
+            title: t("home.continue_watching"),
+            queryKey: ["home", "resumeItems"],
+            queryFn: async ({ pageParam = 0 }) =>
+              (
+                await getItemsApi(api).getResumeItems({
+                  userId: user.Id,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  startIndex: pageParam,
+                  limit: 10,
+                })
+              ).data.Items || [],
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: 10,
+            priority: 1,
+          },
+          {
+            title: t("home.next_up"),
+            queryKey: ["home", "nextUp-all"],
+            queryFn: async ({ pageParam = 0 }) =>
+              (
+                await getTvShowsApi(api).getNextUp({
+                  userId: user?.Id,
+                  startIndex: pageParam,
+                  limit: 10,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+                  enableResumable: false,
+                })
+              ).data.Items || [],
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: 10,
+            priority: 1,
+          },
+        ];
+
     const ss: Section[] = [
-      {
-        title: t("home.continue_watching"),
-        queryKey: ["home", "resumeItems"],
-        queryFn: async ({ pageParam = 0 }) =>
-          (
-            await getItemsApi(api).getResumeItems({
-              userId: user.Id,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              includeItemTypes: ["Movie", "Series", "Episode"],
-              startIndex: pageParam,
-              limit: 10,
-            })
-          ).data.Items || [],
-        type: "InfiniteScrollingCollectionList",
-        orientation: "horizontal",
-        pageSize: 10,
-        priority: 1,
-      },
-      {
-        title: t("home.next_up"),
-        queryKey: ["home", "nextUp-all"],
-        queryFn: async ({ pageParam = 0 }) =>
-          (
-            await getTvShowsApi(api).getNextUp({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: 10,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-              enableResumable: false,
-            })
-          ).data.Items || [],
-        type: "InfiniteScrollingCollectionList",
-        orientation: "horizontal",
-        pageSize: 10,
-        priority: 1,
-      },
+      ...firstSections,
       ...latestMediaViews.map((s) => ({ ...s, priority: 2 as const })),
       // Only show Jellyfin suggested movies if StreamyStats recommendations are disabled
       ...(!settings?.streamyStatsMovieRecommendations
@@ -311,6 +376,7 @@ export const Home = () => {
     t,
     createCollectionConfig,
     settings?.streamyStatsMovieRecommendations,
+    settings.mergeNextUpAndContinueWatching,
   ]);
 
   const customSections = useMemo(() => {
@@ -509,8 +575,16 @@ export const Home = () => {
       >
         {sections.map((section, index) => {
           // Render Streamystats sections after Continue Watching and Next Up
+          // When merged, they appear after index 0; otherwise after index 1
+          const streamystatsIndex = settings.mergeNextUpAndContinueWatching
+            ? 0
+            : 1;
+          const hasStreamystatsContent =
+            settings.streamyStatsMovieRecommendations ||
+            settings.streamyStatsSeriesRecommendations ||
+            settings.streamyStatsPromotedWatchlists;
           const streamystatsSections =
-            index === 1 ? (
+            index === streamystatsIndex && hasStreamystatsContent ? (
               <View
                 key='streamystats-sections'
                 className='flex flex-col space-y-4'
