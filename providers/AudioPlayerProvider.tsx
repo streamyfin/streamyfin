@@ -95,6 +95,15 @@ export function AudioPlayerProvider({
   });
 
   const controllerRef = useRef<AudioController | null>(null);
+  // Ref to track current remote session ID to avoid stale closures in event listeners
+  const remoteSessionIdRef = useRef<string | null>(null);
+  // Ref to track current remote volume locally to avoid race conditions with remote state
+  const remoteVolumeRef = useRef<number>(50);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    remoteSessionIdRef.current = state.remoteSessionId;
+  }, [state.remoteSessionId]);
 
   // Download provider for checking and managing downloads
   const { getDownloadedItemById, downloadedItems } = useDownload();
@@ -303,26 +312,61 @@ export function AudioPlayerProvider({
       return;
     }
 
-    const initRemoteVolume = async () => {
+    const initRemoteVolume = async (retryCount = 0): Promise<void> => {
+      const maxRetries = 3;
+      const retryDelay = 500; // ms
+
       try {
         const sessionInfo = await getSessionApi(api).getSessions();
         const session = sessionInfo.data.find(
           (s) => s.Id === state.remoteSessionId,
         );
 
-        const initialVolume = session?.PlayState?.VolumeLevel ?? 50;
-        await MediaControls.enableRemoteVolume(initialVolume);
+        if (!session) {
+          console.warn(
+            `[AudioPlayer] Session not found for volume init (attempt ${retryCount + 1}/${maxRetries + 1})`,
+          );
+          if (retryCount < maxRetries) {
+            setTimeout(() => initRemoteVolume(retryCount + 1), retryDelay);
+            return;
+          }
+          // Fallback to default volume
+          await MediaControls.enableRemoteVolume(50);
+          return;
+        }
+
+        const initialVolume = session.PlayState?.VolumeLevel;
+        if (initialVolume === undefined && retryCount < maxRetries) {
+          // Volume not available yet, retry after delay
+          console.log(
+            `[AudioPlayer] Volume not available yet, retrying... (attempt ${retryCount + 1}/${maxRetries + 1})`,
+          );
+          setTimeout(() => initRemoteVolume(retryCount + 1), retryDelay);
+          return;
+        }
+
+        const volume = initialVolume ?? 50;
+        remoteVolumeRef.current = volume;
+        console.log(`[AudioPlayer] Initializing remote volume to ${volume}`);
+        await MediaControls.enableRemoteVolume(volume);
       } catch (error) {
         console.error("[AudioPlayer] Error enabling remote volume:", error);
+        if (retryCount < maxRetries) {
+          setTimeout(() => initRemoteVolume(retryCount + 1), retryDelay);
+        }
       }
     };
 
-    initRemoteVolume();
+    // Small initial delay to let the session establish
+    setTimeout(() => initRemoteVolume(), 200);
 
     const volumeListener = MediaControls.addListener(
       "remoteVolumeChange",
       async (event?: MediaControls.RemoteVolumeChangeEvent) => {
         if (!event || !api) return;
+
+        // Use ref to get the current session ID to avoid stale closure issues
+        const currentSessionId = remoteSessionIdRef.current;
 
         try {
           // Handle volume commands
@@ -333,40 +377,19 @@ export function AudioPlayerProvider({
                   "[AudioPlayer] Received SetVolume event:",
                   event.volume,
                   "Remote session:",
-                  state.remoteSessionId,
+                  currentSessionId,
                 );
+                // Update local ref to keep it in sync
+                remoteVolumeRef.current = event.volume;
                 await setVolume(event.volume);
               }
               break;
             case "VolumeUp":
             case "VolumeDown":
-              // VolumeUp/Down events don't include the volume value
-              // We need to get the current volume from the remote session and adjust it
-              if (!state.remoteSessionId || !api) {
-                console.warn(
-                  "[AudioPlayer] Cannot adjust volume: no remote session or API",
-                );
-                break;
-              }
-
-              try {
-                // Get current remote session volume
-                const sessionsApi = getSessionApi(api);
-                const sessionsResponse = await sessionsApi.getSessions();
-                const remoteSession = sessionsResponse.data.find(
-                  (s) => s.Id === state.remoteSessionId,
-                );
-
-                if (!remoteSession) {
-                  console.warn(
-                    "[AudioPlayer] Cannot find remote session for volume adjustment",
-                  );
-                  break;
-                }
-
-                // Get current volume (default to 50 if not available)
-                const currentVolume =
-                  remoteSession.PlayState?.VolumeLevel ?? 50;
+              {
+                // Use local volume ref to avoid race conditions with remote state
+                // The remote might not have updated yet after a previous volume change
+                const currentVolume = remoteVolumeRef.current;
                 const volumeStep = 5; // Adjust by 5% each time
 
                 const newVolume =
@@ -374,15 +397,13 @@ export function AudioPlayerProvider({
                     ? Math.min(100, currentVolume + volumeStep)
                     : Math.max(0, currentVolume - volumeStep);
 
+                // Update local ref immediately to avoid hysteresis on rapid presses
+                remoteVolumeRef.current = newVolume;
+
                 console.log(
                   `[AudioPlayer] Adjusting volume from ${currentVolume} to ${newVolume}`,
                 );
                 await setVolume(newVolume);
-              } catch (error) {
-                console.error(
-                  "[AudioPlayer] Error adjusting remote volume:",
-                  error,
-                );
               }
               break;
           }

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { router, Stack } from "expo-router";
+import { useAtomValue } from "jotai";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -24,7 +25,10 @@ import {
   getPlayStats,
   removeDownloadedTrack,
 } from "@/providers/AudioPlayer/database";
-import { useDownload } from "@/providers/DownloadProvider";
+import {
+  downloadsRefreshAtom,
+  useDownload,
+} from "@/providers/DownloadProvider";
 
 type ViewMode = "albums" | "artists";
 type SortMode = "name" | "recent" | "mostPlayed" | "leastPlayed";
@@ -37,14 +41,15 @@ interface AlbumWithStats extends Album {
 
 export default function OfflineMusicPage() {
   const insets = useSafeAreaInsets();
-  const { downloadedItems, deleteFileByType, deleteFile, triggerRefresh } =
-    useDownload();
+  const { deleteFileByType, deleteFile, triggerRefresh } = useDownload();
+  // Use refresh key to trigger re-computation when audio downloads change
+  const refreshKey = useAtomValue(downloadsRefreshAtom);
   const [viewMode, setViewMode] = useState<ViewMode>("albums");
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get play stats for all tracks - cached and only recomputed when items change
-  const playStats = useMemo(() => getPlayStats(), [downloadedItems.length]);
+  // Get play stats for all tracks - cached and only recomputed when refresh key changes
+  const playStats = useMemo(() => getPlayStats(), [refreshKey]);
 
   // Get albums directly from offline library (already has download info)
   const albumsData = useMemo(() => {
@@ -94,7 +99,7 @@ export default function OfflineMusicPage() {
           trackCount: albumStats[album.id]?.trackCount || album.trackCount || 0,
         }) as AlbumWithStats,
     );
-  }, [downloadedItems.length, playStats]);
+  }, [refreshKey, playStats]);
 
   // Sort albums based on sort mode
   const sortedAlbums = useMemo(() => {
@@ -140,13 +145,13 @@ export default function OfflineMusicPage() {
       getDownloadedArtistsAsDomainModels().sort((a, b) =>
         a.name.localeCompare(b.name),
       ),
-    [downloadedItems.length],
+    [refreshKey],
   );
 
   const totalAlbums = albumsData.length;
   const totalTracks = useMemo(
     () => getAllDownloadedAudioItems().length,
-    [downloadedItems.length],
+    [refreshKey],
   );
 
   // Handle sort mode change with loading indicator

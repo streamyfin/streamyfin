@@ -79,10 +79,9 @@ export class StreamingPlayer
       shuffleEnabled: state.shuffleEnabled,
     };
 
-    // Load the track
-    await this.loadTrack(state.track, () => {
-      // Callback will be handled by controller
-    });
+    // Load the track using existing callback (set by controller before resume)
+    // or a no-op if no callback was set yet
+    await this.loadTrackWithExistingCallback(state.track);
 
     // Seek to position
     await this.seekTo(state.position);
@@ -94,6 +93,20 @@ export class StreamingPlayer
 
     // Restore repeat mode
     await this.setRepeatMode(state.repeatMode);
+  }
+
+  /**
+   * Load a track without overwriting the existing callback
+   * Used during resume when callback is already set by controller
+   */
+  private async loadTrackWithExistingCallback(
+    track: AudioTrack,
+  ): Promise<void> {
+    this.currentState.track = track;
+    // Use the parent's loadTrack but preserve callback set via setCallback
+    // by passing a wrapper that uses the existing callback
+    const existingCallback = (this as any).currentCallback;
+    await super.loadTrack(track, existingCallback || (() => {}));
   }
 
   // Override loadTrack to update internal state

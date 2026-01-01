@@ -10,23 +10,43 @@ import { StreamingPlayer } from "./StreamingPlayer";
  * Extends StreamingPlayer but uses local file:// URIs
  */
 export class LocalPlayer extends StreamingPlayer {
+  // Track if we're currently falling back to streaming
+  private isUsingStreamingFallback = false;
+
   getPlayerType(): PlayerType {
     return "local";
+  }
+
+  /**
+   * Check if the player fell back to streaming for the current track
+   */
+  isStreamingFallback(): boolean {
+    return this.isUsingStreamingFallback;
   }
 
   canHandleTrack(track: AudioTrack): boolean {
     // Check if track is downloaded
     const db = getAudioDownloadsDatabase();
+    const trackId = track.jellyfinItem.Id || "";
 
     // Check in standalone tracks
-    if (db.tracks[track.jellyfinItem.Id || ""]) {
+    if (db.tracks[trackId]) {
       return true;
     }
 
     // Check in album tracks
     for (const album of Object.values(db.albums)) {
-      if (album.tracks[track.jellyfinItem.Id || ""]) {
+      if (album.tracks[trackId]) {
         return true;
+      }
+    }
+
+    // Check in artist album tracks
+    for (const artist of Object.values(db.artists)) {
+      for (const album of Object.values(artist.albums)) {
+        if (album.tracks[trackId]) {
+          return true;
+        }
       }
     }
 
@@ -43,6 +63,7 @@ export class LocalPlayer extends StreamingPlayer {
     // Verify the file path exists and is not empty
     if (downloadedTrack?.audioFilePath) {
       // Use local file path
+      this.isUsingStreamingFallback = false;
       const localTrack = {
         ...track,
         url: downloadedTrack.audioFilePath,
@@ -53,8 +74,10 @@ export class LocalPlayer extends StreamingPlayer {
       return super.loadTrack(localTrack, callback);
     } else {
       // Fallback to streaming URL - either not downloaded or download incomplete
+      this.isUsingStreamingFallback = true;
       console.warn(
-        "[LocalPlayer] Track not found in downloads or file path empty, using streaming URL",
+        `[LocalPlayer] FALLBACK TO STREAMING: Track "${track.title}" not found in downloads or file path empty. ` +
+          "This may indicate a corrupted download or missing file.",
       );
       return super.loadTrack(track, callback);
     }
@@ -73,6 +96,15 @@ export class LocalPlayer extends StreamingPlayer {
     for (const album of Object.values(db.albums)) {
       if (album.tracks[trackId]) {
         return album.tracks[trackId];
+      }
+    }
+
+    // Check artist album tracks
+    for (const artist of Object.values(db.artists)) {
+      for (const album of Object.values(artist.albums)) {
+        if (album.tracks[trackId]) {
+          return album.tracks[trackId];
+        }
       }
     }
 

@@ -139,6 +139,8 @@ export class RemotePlayer implements BaseAudioPlayer {
           if (!session) {
             console.warn("[RemotePlayer] Session not found while polling");
             clearInterval(interval);
+            // Emit error but don't reject to allow graceful degradation
+            this.emitError("session_not_found");
             resolve();
             return;
           }
@@ -164,13 +166,19 @@ export class RemotePlayer implements BaseAudioPlayer {
 
             resolve();
           } else if (attempts >= maxAttempts) {
-            console.warn("[RemotePlayer] Track load timeout");
+            console.error(
+              "[RemotePlayer] Track load timeout - remote device did not load track in time",
+            );
             clearInterval(interval);
+            // Emit error but don't reject to allow graceful degradation
+            this.emitError("track_load_timeout");
             resolve();
           }
         } catch (error) {
           console.error("[RemotePlayer] Error polling for track load:", error);
           clearInterval(interval);
+          // Emit error but don't reject to allow graceful degradation
+          this.emitError("track_load_error");
           resolve();
         }
       }, 100);
@@ -258,8 +266,17 @@ export class RemotePlayer implements BaseAudioPlayer {
       console.error("[RemotePlayer] Error polling remote session:", error);
       this.failedPollCount++;
       if (this.failedPollCount >= this.MAX_FAILED_POLLS) {
+        // Stop polling to avoid endless failed requests
+        this.stopPolling();
         this.emitError("remote_disconnected");
       }
+    }
+  }
+
+  private stopPolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
     }
   }
 
@@ -319,15 +336,19 @@ export class RemotePlayer implements BaseAudioPlayer {
 
   async setVolume(volume: number): Promise<void> {
     try {
+      console.log(
+        `[RemotePlayer] Setting volume to ${volume} for session ${this.sessionId}`,
+      );
       await getSessionApi(this.api).sendFullGeneralCommand({
         sessionId: this.sessionId,
         generalCommand: {
           Name: GeneralCommandType.SetVolume,
           Arguments: {
-            Volume: volume.toString(),
+            Volume: Math.round(volume).toString(),
           },
         },
       });
+      console.log("[RemotePlayer] Volume set successfully");
     } catch (error) {
       console.error("[RemotePlayer] Failed to set volume:", error);
       throw error;
@@ -348,10 +369,7 @@ export class RemotePlayer implements BaseAudioPlayer {
 
   async destroy(): Promise<void> {
     // Stop polling
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
-    }
+    this.stopPolling();
 
     // Stop playback on remote
     try {

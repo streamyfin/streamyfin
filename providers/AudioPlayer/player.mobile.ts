@@ -25,8 +25,10 @@ export class MobileAudioPlayer implements AudioPlayerAdapter {
       await Audio.setAudioModeAsync({
         staysActiveInBackground: true, // Keeps playing when app is backgrounded
         playsInSilentModeIOS: true, // Allows playback when phone is on silent
-        interruptionModeIOS: InterruptionModeIOS.DuckOthers, // Properly handles audio interruptions on iOS
-        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers, // Properly handles audio interruptions (notifications, etc.) on Android
+        // DoNotMix pauses playback during interruptions (phone calls, alarms, etc.)
+        // This is better UX for music apps than DuckOthers which just lowers volume
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
         playThroughEarpieceAndroid: false,
       });
 
@@ -197,6 +199,24 @@ export class MobileAudioPlayer implements AudioPlayerAdapter {
       );
     } catch (error) {
       console.error("[MobileAudioPlayer] Error updating metadata:", error);
+    }
+  }
+
+  /**
+   * Set the playback status callback
+   * Used by AudioController to receive status updates after player switching
+   */
+  setCallback(callback: PlaybackStatusCallback): void {
+    this.currentCallback = callback;
+  }
+
+  /**
+   * Set volume (0-100)
+   * Note: expo-av uses 0-1 scale, so we convert
+   */
+  async setVolume(volume: number): Promise<void> {
+    if (this.sound) {
+      await this.sound.setVolumeAsync(volume / 100);
     }
   }
 }

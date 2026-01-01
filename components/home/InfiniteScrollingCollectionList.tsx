@@ -184,8 +184,18 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                 {item.Type === "Video" && orientation === "horizontal" && (
                   <ContinueWatchingPoster item={item} />
                 )}
-                {item.Type === "MusicAlbum" && <MusicPoster item={item} />}
-                {item.Type === "Audio" && <MusicPoster item={item} />}
+                {item.Type === "MusicAlbum" && (
+                  <MusicPoster
+                    item={item}
+                    size={orientation === "horizontal" ? "large" : "medium"}
+                  />
+                )}
+                {item.Type === "Audio" && (
+                  <MusicPoster
+                    item={item}
+                    size={orientation === "horizontal" ? "large" : "medium"}
+                  />
+                )}
                 <ItemCardText item={item} />
               </TouchableItemRouter>
             ))}

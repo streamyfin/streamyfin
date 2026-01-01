@@ -36,7 +36,10 @@ export class AudioController {
 
   // State machine
   private controllerState: ControllerState = "idle";
-  private pendingCommands: Array<() => Promise<void>> = [];
+  private pendingCommands: Array<{
+    command: () => Promise<void>;
+    tag?: string;
+  }> = [];
 
   // Playback state (exposed to views)
   private state: AudioPlayerState = {
@@ -83,12 +86,23 @@ export class AudioController {
 
   /**
    * Queue a command to be executed after current operation completes
+   * @param command The command function to execute
+   * @param tag Optional tag for filtering/replacing commands (e.g., "skipToIndex")
    */
-  private queueCommand(command: () => Promise<void>): void {
+  private queueCommand(command: () => Promise<void>, tag?: string): void {
     console.log(
-      `[AudioController] Queuing command for after ${this.controllerState}`,
+      `[AudioController] Queuing command for after ${this.controllerState}${tag ? ` (tag: ${tag})` : ""}`,
     );
-    this.pendingCommands.push(command);
+    this.pendingCommands.push({ command, tag });
+  }
+
+  /**
+   * Remove pending commands with a specific tag
+   */
+  private removePendingCommandsByTag(tag: string): void {
+    this.pendingCommands = this.pendingCommands.filter(
+      (cmd) => cmd.tag !== tag,
+    );
   }
 
   /**
@@ -98,7 +112,7 @@ export class AudioController {
     const commands = [...this.pendingCommands];
     this.pendingCommands = [];
     for (const cmd of commands) {
-      await cmd();
+      await cmd.command();
     }
   }
 
@@ -194,6 +208,17 @@ export class AudioController {
 
       await this.currentPlayer.initialize();
 
+      // Set callback BEFORE resume to avoid race condition where player
+      // starts polling/updating before callback is set
+      if (
+        "setCallback" in this.currentPlayer &&
+        typeof this.currentPlayer.setCallback === "function"
+      ) {
+        (this.currentPlayer as any).setCallback(
+          this.handlePlaybackStatus.bind(this),
+        );
+      }
+
       if (
         "updateQueue" in this.currentPlayer &&
         typeof this.currentPlayer.updateQueue === "function"
@@ -205,15 +230,6 @@ export class AudioController {
       }
 
       await this.currentPlayer.resume(playerState);
-
-      if (
-        "setCallback" in this.currentPlayer &&
-        typeof this.currentPlayer.setCallback === "function"
-      ) {
-        (this.currentPlayer as any).setCallback(
-          this.handlePlaybackStatus.bind(this),
-        );
-      }
 
       this.state.remoteSessionId = type === "remote" ? sessionId || null : null;
       this.notifyViews();
@@ -250,11 +266,24 @@ export class AudioController {
 
     // Check if track is downloaded AND has a valid file path
     // This prevents switching to local player for incomplete downloads
-    const downloadedTrack =
+    let downloadedTrack =
       db.tracks[trackId] ||
       Object.values(db.albums)
         .map((album) => album.tracks[trackId])
         .find(Boolean);
+
+    // Also check artist album tracks
+    if (!downloadedTrack) {
+      for (const artist of Object.values(db.artists)) {
+        for (const album of Object.values(artist.albums)) {
+          if (album.tracks[trackId]) {
+            downloadedTrack = album.tracks[trackId];
+            break;
+          }
+        }
+        if (downloadedTrack) break;
+      }
+    }
 
     const isDownloadedAndReady = !!downloadedTrack?.audioFilePath;
 
@@ -343,10 +372,16 @@ export class AudioController {
       return;
     }
 
-    await this.currentPlayer.play();
-    this.state.isPlaying = true;
-    this.transition("playing");
-    this.notifyViews();
+    try {
+      await this.currentPlayer.play();
+      this.state.isPlaying = true;
+      this.transition("playing");
+      this.notifyViews();
+    } catch (error) {
+      console.error("[AudioController] Error playing:", error);
+      // Don't change state if play failed
+      this.notifyViews();
+    }
   }
 
   /**
@@ -362,10 +397,16 @@ export class AudioController {
       return;
     }
 
-    await this.currentPlayer.pause();
-    this.state.isPlaying = false;
-    this.transition("paused");
-    this.notifyViews();
+    try {
+      await this.currentPlayer.pause();
+      this.state.isPlaying = false;
+      this.transition("paused");
+      this.notifyViews();
+    } catch (error) {
+      console.error("[AudioController] Error pausing:", error);
+      // Don't change state if pause failed
+      this.notifyViews();
+    }
   }
 
   /**
@@ -391,7 +432,12 @@ export class AudioController {
       return;
     }
 
-    await this.currentPlayer.stop();
+    try {
+      await this.currentPlayer.stop();
+    } catch (error) {
+      console.error("[AudioController] Error stopping:", error);
+      // Continue with state cleanup even if stop failed
+    }
     this.state.isPlaying = false;
     this.state.currentTrack = null;
     this.transition("idle");
@@ -411,9 +457,14 @@ export class AudioController {
       return;
     }
 
-    await this.currentPlayer.seekTo(position);
-    this.state.position = position;
-    this.notifyViews();
+    try {
+      await this.currentPlayer.seekTo(position);
+      this.state.position = position;
+      this.notifyViews();
+    } catch (error) {
+      console.error("[AudioController] Error seeking:", error);
+      // Don't update position if seek failed
+    }
   }
 
   /**
@@ -436,7 +487,44 @@ export class AudioController {
    * Skip to next track
    */
   async skipToNext(): Promise<void> {
-    if (this.state.queueIndex >= this.state.queue.length - 1) {
+    if (this.state.repeatMode === "album") {
+      // Album repeat: find next track from same album, or loop to first album track
+      const currentAlbumId = this.state.currentTrack?.jellyfinItem.AlbumId;
+      if (currentAlbumId) {
+        // Find all indices of tracks from this album
+        const albumTrackIndices = this.state.queue
+          .map((track, index) =>
+            track.jellyfinItem.AlbumId === currentAlbumId ? index : -1,
+          )
+          .filter((index) => index !== -1);
+
+        if (albumTrackIndices.length > 0) {
+          // Find current position within album tracks
+          const currentAlbumPosition = albumTrackIndices.indexOf(
+            this.state.queueIndex,
+          );
+
+          if (
+            currentAlbumPosition >= 0 &&
+            currentAlbumPosition < albumTrackIndices.length - 1
+          ) {
+            // Go to next album track
+            await this.skipToIndex(albumTrackIndices[currentAlbumPosition + 1]);
+            return;
+          } else {
+            // Loop to first album track
+            await this.skipToIndex(albumTrackIndices[0]);
+            return;
+          }
+        }
+      }
+      // Fallback: treat like "all" repeat if no album info
+      if (this.state.queueIndex >= this.state.queue.length - 1) {
+        await this.skipToIndex(0);
+      } else {
+        await this.skipToIndex(this.state.queueIndex + 1);
+      }
+    } else if (this.state.queueIndex >= this.state.queue.length - 1) {
       if (this.state.repeatMode === "all") {
         await this.skipToIndex(0);
       } else {
@@ -453,7 +541,43 @@ export class AudioController {
   async skipToPrevious(): Promise<void> {
     if (this.state.position > 3) {
       await this.seekTo(0);
-    } else if (this.state.queueIndex > 0) {
+      return;
+    }
+
+    if (this.state.repeatMode === "album") {
+      // Album repeat: find previous track from same album, or loop to last album track
+      const currentAlbumId = this.state.currentTrack?.jellyfinItem.AlbumId;
+      if (currentAlbumId) {
+        // Find all indices of tracks from this album
+        const albumTrackIndices = this.state.queue
+          .map((track, index) =>
+            track.jellyfinItem.AlbumId === currentAlbumId ? index : -1,
+          )
+          .filter((index) => index !== -1);
+
+        if (albumTrackIndices.length > 0) {
+          // Find current position within album tracks
+          const currentAlbumPosition = albumTrackIndices.indexOf(
+            this.state.queueIndex,
+          );
+
+          if (currentAlbumPosition > 0) {
+            // Go to previous album track
+            await this.skipToIndex(albumTrackIndices[currentAlbumPosition - 1]);
+            return;
+          } else {
+            // Loop to last album track
+            await this.skipToIndex(
+              albumTrackIndices[albumTrackIndices.length - 1],
+            );
+            return;
+          }
+        }
+      }
+    }
+
+    // Default behavior
+    if (this.state.queueIndex > 0) {
       await this.skipToIndex(this.state.queueIndex - 1);
     } else {
       await this.seekTo(0);
@@ -471,7 +595,7 @@ export class AudioController {
 
     // Queue if switching
     if (this.controllerState === "switching") {
-      this.queueCommand(() => this.skipToIndex(index));
+      this.queueCommand(() => this.skipToIndex(index), "skipToIndex");
       return;
     }
 
@@ -482,10 +606,8 @@ export class AudioController {
         index,
       );
       // Replace any existing pending skip with this one (latest wins)
-      this.pendingCommands = this.pendingCommands.filter(
-        (cmd) => !cmd.toString().includes("skipToIndex"),
-      );
-      this.queueCommand(() => this.skipToIndex(index));
+      this.removePendingCommandsByTag("skipToIndex");
+      this.queueCommand(() => this.skipToIndex(index), "skipToIndex");
       return;
     }
 
@@ -555,6 +677,22 @@ export class AudioController {
       this.state.queueIndex = status.newQueueIndex;
     }
 
+    // Sync controllerState with isPlaying to keep state machine in sync
+    // This is critical for remote playback where the remote device can change state
+    if (
+      this.controllerState !== "switching" &&
+      this.controllerState !== "loading"
+    ) {
+      const previousIsPlaying = this.state.isPlaying;
+      if (status.isPlaying !== previousIsPlaying) {
+        if (status.isPlaying && this.controllerState !== "playing") {
+          this.transition("playing");
+        } else if (!status.isPlaying && this.controllerState === "playing") {
+          this.transition("paused");
+        }
+      }
+    }
+
     this.state.isPlaying = status.isPlaying;
     this.state.position = status.position;
     this.state.duration = status.duration;
@@ -592,6 +730,12 @@ export class AudioController {
    * Handle when a track finishes playing
    */
   private async handleTrackFinished(): Promise<void> {
+    // Don't process track finished during switching - queue the action instead
+    if (this.controllerState === "switching") {
+      this.queueCommand(() => this.handleTrackFinished());
+      return;
+    }
+
     // Increment play count for the finished track
     const trackId = this.state.currentTrack?.jellyfinItem.Id;
     if (trackId) {
@@ -688,16 +832,30 @@ export class AudioController {
    */
   async toggleShuffle(): Promise<void> {
     if (!this.state.shuffleEnabled) {
+      const currentTrack = this.state.currentTrack;
       const queue = [...this.state.queue];
 
-      // Fisher-Yates shuffle starting from index 1
+      // Remove current track from queue temporarily
+      const currentIndex = queue.findIndex((t) => t.id === currentTrack?.id);
+      let currentTrackItem: AudioTrack | undefined;
+      if (currentIndex >= 0) {
+        currentTrackItem = queue.splice(currentIndex, 1)[0];
+      }
+
+      // Fisher-Yates shuffle the remaining tracks
       for (let i = queue.length - 1; i > 0; i--) {
-        const j = 1 + Math.floor(Math.random() * i);
+        const j = Math.floor(Math.random() * (i + 1));
         [queue[i], queue[j]] = [queue[j], queue[i]];
+      }
+
+      // Put current track at the beginning
+      if (currentTrackItem) {
+        queue.unshift(currentTrackItem);
       }
 
       this.state.queue = queue;
       this.state.queueIndex = 0;
+      this.state.currentTrack = queue[0] || null;
       this.state.shuffleEnabled = true;
     } else {
       const currentTrack = this.state.currentTrack;
@@ -707,6 +865,7 @@ export class AudioController {
         (t) => t.id === currentTrack?.id,
       );
       this.state.queueIndex = originalIndex >= 0 ? originalIndex : 0;
+      this.state.currentTrack = this.state.queue[this.state.queueIndex] || null;
       this.state.shuffleEnabled = false;
     }
 
@@ -780,10 +939,27 @@ export class AudioController {
   private isTrackDownloaded(track: AudioTrack): boolean {
     const db = getAudioDownloadsDatabase();
     const trackId = track.jellyfinItem.Id || "";
-    return !!(
-      db.tracks[trackId] ||
-      Object.values(db.albums).some((album) => album.tracks[trackId])
-    );
+
+    // Check standalone tracks
+    if (db.tracks[trackId]) {
+      return true;
+    }
+
+    // Check album tracks
+    if (Object.values(db.albums).some((album) => album.tracks[trackId])) {
+      return true;
+    }
+
+    // Check artist album tracks
+    if (
+      Object.values(db.artists).some((artist) =>
+        Object.values(artist.albums).some((album) => album.tracks[trackId]),
+      )
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -802,10 +978,26 @@ export class AudioController {
   }
 
   /**
+   * Get all registered view IDs (for debugging)
+   */
+  getRegisteredViewIds(): string[] {
+    return Array.from(this.views.keys());
+  }
+
+  /**
    * Cleanup
    */
   async destroy(): Promise<void> {
+    // Warn about views that weren't properly unregistered
+    if (this.views.size > 0) {
+      console.warn(
+        `[AudioController] Destroying with ${this.views.size} registered views still active:`,
+        this.getRegisteredViewIds(),
+      );
+    }
+
     await this.currentPlayer.destroy();
     this.views.clear();
+    this.pendingCommands = [];
   }
 }
