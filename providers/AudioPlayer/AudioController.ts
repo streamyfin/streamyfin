@@ -493,6 +493,26 @@ export class AudioController {
    * Skip to next track
    */
   async skipToNext(): Promise<void> {
+    // For remote playback, use the player's native skip method if available
+    // This is much faster than loadTrack() and doesn't block on waiting for track load
+    if (
+      this.playerType === "remote" &&
+      "skipToNext" in this.currentPlayer &&
+      typeof this.currentPlayer.skipToNext === "function"
+    ) {
+      try {
+        await (this.currentPlayer as any).skipToNext();
+        // The polling will detect the track change and update state
+        return;
+      } catch (error) {
+        console.error(
+          "[AudioController] Remote skip failed, falling back to skipToIndex:",
+          error,
+        );
+        // Fall through to regular skipToIndex
+      }
+    }
+
     if (this.state.repeatMode === "album") {
       // Album repeat: find next track from same album, or loop to first album track
       const currentAlbumId = this.state.currentTrack?.jellyfinItem.AlbumId;
@@ -548,6 +568,26 @@ export class AudioController {
     if (this.state.position > 3) {
       await this.seekTo(0);
       return;
+    }
+
+    // For remote playback, use the player's native skip method if available
+    // This is much faster than loadTrack() and doesn't block on waiting for track load
+    if (
+      this.playerType === "remote" &&
+      "skipToPrevious" in this.currentPlayer &&
+      typeof this.currentPlayer.skipToPrevious === "function"
+    ) {
+      try {
+        await (this.currentPlayer as any).skipToPrevious();
+        // The polling will detect the track change and update state
+        return;
+      } catch (error) {
+        console.error(
+          "[AudioController] Remote skip previous failed, falling back to skipToIndex:",
+          error,
+        );
+        // Fall through to regular skipToIndex
+      }
     }
 
     if (this.state.repeatMode === "album") {

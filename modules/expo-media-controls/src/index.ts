@@ -144,3 +144,24 @@ export async function disableRemoteVolume(): Promise<void> {
 export async function updateRemoteVolume(volume: number): Promise<void> {
   return await MediaControlsModule.updateRemoteVolume(volume);
 }
+
+export interface QueueTrackMetadata {
+  title: string;
+  artist?: string;
+  album?: string;
+  artwork?: string;
+  duration: number;
+}
+
+/**
+ * Set queue metadata for optimistic skip updates on lock screen
+ * When the user presses skip on the lock screen while the app is in background,
+ * the native module can immediately update to the next/previous track without
+ * waiting for JavaScript to respond.
+ */
+export async function setQueue(
+  tracks: QueueTrackMetadata[],
+  currentIndex: number,
+): Promise<void> {
+  return await MediaControlsModule.setQueue(tracks, currentIndex);
+}

@@ -388,7 +388,7 @@ export default function search() {
         </View>
 
         {searchType === "Library" ? (
-          <View className={l1 || l2 ? "opacity-0" : "opacity-100"}>
+          <View className={loading ? "opacity-0" : "opacity-100"}>
             <SearchItemWrapper
               header={t("search.movies")}
               items={movies}

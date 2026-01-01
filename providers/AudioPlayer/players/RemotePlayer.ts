@@ -334,6 +334,38 @@ export class RemotePlayer implements BaseAudioPlayer {
     }
   }
 
+  /**
+   * Skip to next track on remote device
+   * This is more efficient than loadTrack() for remote playback
+   */
+  async skipToNext(): Promise<void> {
+    try {
+      await getSessionApi(this.api).sendPlaystateCommand({
+        sessionId: this.sessionId,
+        command: PlaystateCommand.NextTrack,
+      });
+    } catch (error) {
+      console.error("[RemotePlayer] Failed to skip to next:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Skip to previous track on remote device
+   * This is more efficient than loadTrack() for remote playback
+   */
+  async skipToPrevious(): Promise<void> {
+    try {
+      await getSessionApi(this.api).sendPlaystateCommand({
+        sessionId: this.sessionId,
+        command: PlaystateCommand.PreviousTrack,
+      });
+    } catch (error) {
+      console.error("[RemotePlayer] Failed to skip to previous:", error);
+      throw error;
+    }
+  }
+
   async seekTo(position: number): Promise<void> {
     try {
       await getSessionApi(this.api).sendPlaystateCommand({

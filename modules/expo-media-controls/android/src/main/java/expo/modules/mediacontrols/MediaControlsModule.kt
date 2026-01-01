@@ -23,8 +23,18 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.net.URL
+
+// Data class for queue track metadata (used for optimistic skip updates)
+data class QueueTrack(
+  val title: String,
+  val artist: String,
+  val album: String,
+  val artwork: String?,
+  val duration: Long
+)
 
 class MediaControlsModule : Module() {
   private var mediaSession: MediaSessionCompat? = null
@@ -37,7 +47,18 @@ class MediaControlsModule : Module() {
   private var volumeObserver: ContentObserver? = null
   private var audioManager: AudioManager? = null
   private var remoteVolumeProvider: VolumeProviderCompat? = null
+  private var isRemoteVolumeEnabled = false
   private var artworkLoadingJob: kotlinx.coroutines.Job? = null
+  // Track current playback state for optimistic updates on lock screen
+  // This ensures the lock screen UI stays responsive even when JS is suspended
+  private var currentIsPlaying: Boolean = false
+  private var currentTitle: String = ""
+  private var currentArtist: String = ""
+  private var currentPosition: Long = 0
+  private var currentDuration: Long = 0
+  // Queue metadata for optimistic skip updates
+  private var queue: List<QueueTrack> = emptyList()
+  private var queueIndex: Int = 0
 
   override fun definition() = ModuleDefinition {
     Name("MediaControls")
@@ -80,6 +101,10 @@ class MediaControlsModule : Module() {
     AsyncFunction("updateRemoteVolume") { volume: Int ->
       updateRemoteVolume(volume)
     }
+
+    AsyncFunction("setQueue") { tracks: List<Map<String, Any?>>, index: Int ->
+      setQueue(tracks, index)
+    }
   }
 
   private fun initializeMediaSession() {
@@ -107,26 +132,46 @@ class MediaControlsModule : Module() {
       // Set callback for media button events
       setCallback(object : MediaSessionCompat.Callback() {
         override fun onPlay() {
+          // Optimistically update lock screen state immediately
+          // This ensures UI stays responsive even when JS runtime is suspended
+          currentIsPlaying = true
+          updatePlaybackStateOptimistic(true)
           sendEvent("play", emptyMap<String, Any>())
         }
 
         override fun onPause() {
+          // Optimistically update lock screen state immediately
+          currentIsPlaying = false
+          updatePlaybackStateOptimistic(false)
           sendEvent("pause", emptyMap<String, Any>())
         }
 
         override fun onStop() {
+          currentIsPlaying = false
+          updatePlaybackStateOptimistic(false)
           sendEvent("stop", emptyMap<String, Any>())
         }
 
         override fun onSkipToNext() {
+          // Optimistically update to next track if we have queue info
+          if (queue.isNotEmpty() && queueIndex < queue.size - 1) {
+            queueIndex++
+            updateMetadataFromQueueOptimistic()
+          }
           sendEvent("next", emptyMap<String, Any>())
         }
 
         override fun onSkipToPrevious() {
+          // Optimistically update to previous track if we have queue info
+          if (queue.isNotEmpty() && queueIndex > 0) {
+            queueIndex--
+            updateMetadataFromQueueOptimistic()
+          }
           sendEvent("previous", emptyMap<String, Any>())
         }
 
         override fun onSeekTo(pos: Long) {
+          currentPosition = pos / 1000
           sendEvent("seekTo", mapOf("position" to pos / 1000.0))
         }
       })
@@ -158,6 +203,35 @@ class MediaControlsModule : Module() {
     mediaSession = null
   }
 
+  /**
+   * Optimistically update the playback state when lock screen buttons are pressed.
+   * This ensures the UI stays responsive even when the JS runtime is suspended in background.
+   */
+  private fun updatePlaybackStateOptimistic(isPlaying: Boolean) {
+    val session = mediaSession ?: return
+    val context = appContext.reactContext ?: return
+
+    // Update playback state immediately
+    val stateBuilder = PlaybackStateCompat.Builder()
+      .setActions(
+        PlaybackStateCompat.ACTION_PLAY or
+        PlaybackStateCompat.ACTION_PAUSE or
+        PlaybackStateCompat.ACTION_STOP or
+        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+        PlaybackStateCompat.ACTION_SEEK_TO
+      )
+      .setState(
+        if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+        currentPosition * 1000,
+        1.0f
+      )
+    session.setPlaybackState(stateBuilder.build())
+
+    // Update notification with new play/pause button
+    showNotification(context, currentTitle, currentArtist, isPlaying)
+  }
+
   private fun updateNowPlaying(metadata: Map<String, Any?>) {
     val session = mediaSession ?: return
     val context = appContext.reactContext ?: return
@@ -169,6 +243,13 @@ class MediaControlsModule : Module() {
     val duration = (metadata["duration"] as? Number)?.toLong() ?: 0L
     val position = (metadata["position"] as? Number)?.toLong() ?: 0L
     val isPlaying = metadata["isPlaying"] as? Boolean ?: false
+
+    // Store current state for optimistic updates when buttons are pressed on lock screen
+    currentTitle = title
+    currentArtist = artist
+    currentPosition = position
+    currentDuration = duration
+    currentIsPlaying = isPlaying
 
     // Build metadata
     val metadataBuilder = MediaMetadataCompat.Builder()
@@ -190,7 +271,7 @@ class MediaControlsModule : Module() {
           val url = URL(artworkUrl)
           val bitmap = BitmapFactory.decodeStream(url.openStream())
           // Only update if this job wasn't cancelled (i.e., no new track was set)
-          if (kotlinx.coroutines.isActive) {
+          if (isActive) {
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
             session.setMetadata(metadataBuilder.build())
           }
@@ -325,6 +406,8 @@ class MediaControlsModule : Module() {
   private fun enableRemoteVolume(initialVolume: Int) {
     val session = mediaSession ?: return
 
+    isRemoteVolumeEnabled = true
+
     // Ensure MediaSession is active
     if (!session.isActive) {
       session.isActive = true
@@ -348,6 +431,9 @@ class MediaControlsModule : Module() {
       initialVolume // Initial volume
     ) {
       override fun onSetVolumeTo(volume: Int) {
+        // Guard: ignore if remote volume has been disabled
+        if (!isRemoteVolumeEnabled) return
+
         // User adjusted volume to specific level via system controls
         // Matches Jellyfin app: webappFunctionChannel.setVolume(volume)
         // Send SetVolume command to Jellyfin session
@@ -359,6 +445,9 @@ class MediaControlsModule : Module() {
       }
 
       override fun onAdjustVolume(direction: Int) {
+        // Guard: ignore if remote volume has been disabled
+        if (!isRemoteVolumeEnabled) return
+
         // User pressed volume up/down buttons
         // Matches Jellyfin app: callPlaybackManagerAction(PLAYBACK_MANAGER_COMMAND_VOL_UP/DOWN)
         when (direction) {
@@ -400,6 +489,9 @@ class MediaControlsModule : Module() {
   }
 
   private fun disableRemoteVolume() {
+    // Disable the flag first to prevent any pending callbacks from sending events
+    isRemoteVolumeEnabled = false
+
     val session = mediaSession ?: return
 
     // Switch back to local playback (removes the second volume bar)
@@ -410,6 +502,88 @@ class MediaControlsModule : Module() {
   private fun updateRemoteVolume(volume: Int) {
     // Update the volume provider's current volume
     remoteVolumeProvider?.currentVolume = volume.coerceIn(0, 100)
+  }
+
+  private fun setQueue(tracks: List<Map<String, Any?>>, index: Int) {
+    queue = tracks.map { track ->
+      QueueTrack(
+        title = track["title"] as? String ?: "",
+        artist = track["artist"] as? String ?: "",
+        album = track["album"] as? String ?: "",
+        artwork = track["artwork"] as? String,
+        duration = (track["duration"] as? Number)?.toLong() ?: 0L
+      )
+    }
+    queueIndex = index.coerceIn(0, (queue.size - 1).coerceAtLeast(0))
+  }
+
+  /**
+   * Optimistically update metadata from queue when skip is pressed on lock screen.
+   * This ensures the UI updates immediately even when JS runtime is suspended.
+   */
+  private fun updateMetadataFromQueueOptimistic() {
+    val session = mediaSession ?: return
+    val context = appContext.reactContext ?: return
+
+    if (queue.isEmpty() || queueIndex < 0 || queueIndex >= queue.size) return
+
+    val track = queue[queueIndex]
+
+    // Update cached state
+    currentTitle = track.title
+    currentArtist = track.artist
+    currentDuration = track.duration
+    currentPosition = 0 // Reset position for new track
+    // Keep currentIsPlaying as-is (skip doesn't change play state)
+
+    // Cancel any pending artwork loading
+    artworkLoadingJob?.cancel()
+
+    // Build metadata
+    val metadataBuilder = MediaMetadataCompat.Builder()
+      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
+      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.artist)
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, track.album)
+      .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, track.duration * 1000)
+
+    // Set metadata immediately without artwork
+    session.setMetadata(metadataBuilder.build())
+
+    // Update playback state with reset position
+    val stateBuilder = PlaybackStateCompat.Builder()
+      .setActions(
+        PlaybackStateCompat.ACTION_PLAY or
+        PlaybackStateCompat.ACTION_PAUSE or
+        PlaybackStateCompat.ACTION_STOP or
+        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+        PlaybackStateCompat.ACTION_SEEK_TO
+      )
+      .setState(
+        if (currentIsPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+        0, // Reset position to 0 for new track
+        1.0f
+      )
+    session.setPlaybackState(stateBuilder.build())
+
+    // Update notification
+    showNotification(context, track.title, track.artist, currentIsPlaying)
+
+    // Load artwork asynchronously
+    if (track.artwork != null) {
+      artworkLoadingJob = coroutineScope.launch {
+        try {
+          val url = URL(track.artwork)
+          val bitmap = BitmapFactory.decodeStream(url.openStream())
+          if (isActive) {
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+            session.setMetadata(metadataBuilder.build())
+          }
+        } catch (e: Exception) {
+          // Artwork loading failed, metadata already set without it
+        }
+      }
+    }
   }
 
   companion object {

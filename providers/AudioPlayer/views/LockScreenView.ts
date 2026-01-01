@@ -1,4 +1,6 @@
 // LockScreenView manages lock screen / notification controls
+
+import { Platform } from "react-native";
 import * as MediaControls from "@/modules/expo-media-controls";
 import type { AudioPlayerView } from "../AudioController";
 import type { AudioPlayerState } from "../types";
@@ -14,6 +16,8 @@ export class LockScreenView implements AudioPlayerView {
   // Track previous state for comparison
   private lastTrackId: string | null = null;
   private lastIsPlaying: boolean = false;
+  private lastQueueLength: number = 0;
+  private lastQueueIndex: number = -1;
 
   getViewId(): string {
     return "lockscreen-view";
@@ -58,6 +62,42 @@ export class LockScreenView implements AudioPlayerView {
     }).catch((error) => {
       console.error("[LockScreenView] Error updating metadata:", error);
     });
+
+    // Sync queue to native module for optimistic skip updates (Android only)
+    // This allows the lock screen to immediately update when skip is pressed,
+    // even when the JS runtime is suspended in background
+    if (Platform.OS === "android") {
+      this.syncQueueIfNeeded(state);
+    }
+  }
+
+  /**
+   * Sync queue metadata to native module if queue or index changed
+   */
+  private syncQueueIfNeeded(state: AudioPlayerState): void {
+    const queueChanged =
+      state.queue.length !== this.lastQueueLength ||
+      state.queueIndex !== this.lastQueueIndex;
+
+    if (!queueChanged) {
+      return;
+    }
+
+    this.lastQueueLength = state.queue.length;
+    this.lastQueueIndex = state.queueIndex;
+
+    // Convert queue to metadata format for native module
+    const queueMetadata = state.queue.map((track) => ({
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      artwork: track.artwork,
+      duration: track.duration || 0,
+    }));
+
+    MediaControls.setQueue(queueMetadata, state.queueIndex).catch((error) => {
+      console.error("[LockScreenView] Error syncing queue:", error);
+    });
   }
 
   /**
@@ -86,6 +126,8 @@ export class LockScreenView implements AudioPlayerView {
   clear(): void {
     this.lastTrackId = null;
     this.lastIsPlaying = false;
+    this.lastQueueLength = 0;
+    this.lastQueueIndex = -1;
     MediaControls.clearNowPlaying();
   }
 }
