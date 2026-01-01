@@ -296,36 +296,56 @@ export class RemotePlayer implements BaseAudioPlayer {
   }
 
   async play(): Promise<void> {
-    await getSessionApi(this.api).sendPlaystateCommand({
-      sessionId: this.sessionId,
-      command: PlaystateCommand.Unpause,
-    });
-    this.currentState.isPlaying = true;
+    try {
+      await getSessionApi(this.api).sendPlaystateCommand({
+        sessionId: this.sessionId,
+        command: PlaystateCommand.Unpause,
+      });
+      this.currentState.isPlaying = true;
+    } catch (error) {
+      console.error("[RemotePlayer] Failed to play:", error);
+      throw error;
+    }
   }
 
   async pause(): Promise<void> {
-    await getSessionApi(this.api).sendPlaystateCommand({
-      sessionId: this.sessionId,
-      command: PlaystateCommand.Pause,
-    });
-    this.currentState.isPlaying = false;
+    try {
+      await getSessionApi(this.api).sendPlaystateCommand({
+        sessionId: this.sessionId,
+        command: PlaystateCommand.Pause,
+      });
+      this.currentState.isPlaying = false;
+    } catch (error) {
+      console.error("[RemotePlayer] Failed to pause:", error);
+      throw error;
+    }
   }
 
   async stop(): Promise<void> {
-    await getSessionApi(this.api).sendPlaystateCommand({
-      sessionId: this.sessionId,
-      command: PlaystateCommand.Stop,
-    });
-    this.currentState.isPlaying = false;
+    try {
+      await getSessionApi(this.api).sendPlaystateCommand({
+        sessionId: this.sessionId,
+        command: PlaystateCommand.Stop,
+      });
+      this.currentState.isPlaying = false;
+    } catch (error) {
+      console.error("[RemotePlayer] Failed to stop:", error);
+      throw error;
+    }
   }
 
   async seekTo(position: number): Promise<void> {
-    await getSessionApi(this.api).sendPlaystateCommand({
-      sessionId: this.sessionId,
-      command: PlaystateCommand.Seek,
-      seekPositionTicks: Math.floor(position * 10000000),
-    });
-    this.currentState.position = position;
+    try {
+      await getSessionApi(this.api).sendPlaystateCommand({
+        sessionId: this.sessionId,
+        command: PlaystateCommand.Seek,
+        seekPositionTicks: Math.floor(position * 10000000),
+      });
+      this.currentState.position = position;
+    } catch (error) {
+      console.error("[RemotePlayer] Failed to seek:", error);
+      throw error;
+    }
   }
 
   async setRepeatMode(mode: RepeatMode): Promise<void> {
@@ -382,15 +402,25 @@ export class RemotePlayer implements BaseAudioPlayer {
   }
 
   async suspend(): Promise<PlayerState> {
-    // Get current state from remote session
-    const sessionInfo = await getSessionApi(this.api).getSessions();
-    const session = sessionInfo.data.find((s) => s.Id === this.sessionId);
+    // Try to get current state from remote session for most accurate position
+    // Fall back to cached state if API call fails
+    try {
+      const sessionInfo = await getSessionApi(this.api).getSessions();
+      const session = sessionInfo.data.find((s) => s.Id === this.sessionId);
 
-    if (session?.PlayState) {
-      if (session.PlayState.PositionTicks) {
-        this.currentState.position = session.PlayState.PositionTicks / 10000000;
+      if (session?.PlayState) {
+        if (session.PlayState.PositionTicks) {
+          this.currentState.position =
+            session.PlayState.PositionTicks / 10000000;
+        }
+        this.currentState.isPlaying = !session.PlayState.IsPaused;
       }
-      this.currentState.isPlaying = !session.PlayState.IsPaused;
+    } catch (error) {
+      console.warn(
+        "[RemotePlayer] Failed to get remote state during suspend, using cached state:",
+        error,
+      );
+      // Continue with cached state - better than failing the suspend entirely
     }
 
     if (!this.currentState.track) {

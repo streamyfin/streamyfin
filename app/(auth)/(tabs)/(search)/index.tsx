@@ -485,15 +485,14 @@ export default function search() {
                 <AlbumCard key={item.id} album={item} size='small' />
               )}
             />
-            <SearchItemWrapper
-              items={songsDomain}
-              header='Songs'
-              renderItem={(item) => (
-                <View key={item.id} className='w-full'>
-                  <TrackRow track={item} showAlbum showArtwork />
-                </View>
-              )}
-            />
+            {songsDomain.length > 0 && (
+              <View className='mt-2'>
+                <Text className='font-bold text-lg px-4 mb-2'>Songs</Text>
+                {songsDomain.map((song) => (
+                  <TrackRow key={song.id} track={song} showAlbum showArtwork />
+                ))}
+              </View>
+            )}
           </View>
         ) : (
           <JellyserrIndexPage

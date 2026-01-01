@@ -363,7 +363,10 @@ export class AudioController {
    * Play (resume playback)
    */
   async play(): Promise<void> {
-    if (this.controllerState === "switching") {
+    if (
+      this.controllerState === "switching" ||
+      this.controllerState === "loading"
+    ) {
       this.queueCommand(() => this.play());
       return;
     }
@@ -388,7 +391,10 @@ export class AudioController {
    * Pause playback
    */
   async pause(): Promise<void> {
-    if (this.controllerState === "switching") {
+    if (
+      this.controllerState === "switching" ||
+      this.controllerState === "loading"
+    ) {
       this.queueCommand(() => this.pause());
       return;
     }
@@ -770,6 +776,90 @@ export class AudioController {
     this.state.queue.push(track);
     this.originalQueue.push(track);
 
+    if (
+      "updateQueue" in this.currentPlayer &&
+      typeof this.currentPlayer.updateQueue === "function"
+    ) {
+      (this.currentPlayer as any).updateQueue(
+        this.state.queue,
+        this.state.queueIndex,
+      );
+    }
+
+    this.notifyViews();
+  }
+
+  /**
+   * Add multiple tracks to end of queue
+   * More efficient than calling addToQueue repeatedly
+   */
+  async addTracksToQueue(tracks: AudioTrack[]): Promise<void> {
+    if (this.controllerState === "switching") {
+      this.queueCommand(() => this.addTracksToQueue(tracks));
+      return;
+    }
+
+    if (tracks.length === 0) return;
+
+    this.state.queue.push(...tracks);
+    this.originalQueue.push(...tracks);
+
+    if (
+      "updateQueue" in this.currentPlayer &&
+      typeof this.currentPlayer.updateQueue === "function"
+    ) {
+      (this.currentPlayer as any).updateQueue(
+        this.state.queue,
+        this.state.queueIndex,
+      );
+    }
+
+    this.notifyViews();
+  }
+
+  /**
+   * Remove track from queue at specified index
+   */
+  async removeFromQueue(index: number): Promise<void> {
+    if (this.controllerState === "switching") {
+      this.queueCommand(() => this.removeFromQueue(index));
+      return;
+    }
+
+    // Validate index
+    if (index < 0 || index >= this.state.queue.length) {
+      console.warn(
+        `[AudioController] Cannot remove: index ${index} out of bounds (queue length: ${this.state.queue.length})`,
+      );
+      return;
+    }
+
+    // Don't allow removing the currently playing track
+    if (index === this.state.queueIndex) {
+      console.warn(
+        "[AudioController] Cannot remove currently playing track from queue",
+      );
+      return;
+    }
+
+    // Remove from queue
+    const removedTrack = this.state.queue[index];
+    this.state.queue.splice(index, 1);
+
+    // Also remove from originalQueue (for shuffle restore)
+    const originalIndex = this.originalQueue.findIndex(
+      (t) => t.id === removedTrack.id,
+    );
+    if (originalIndex !== -1) {
+      this.originalQueue.splice(originalIndex, 1);
+    }
+
+    // Adjust queueIndex if removed track was before current
+    if (index < this.state.queueIndex) {
+      this.state.queueIndex--;
+    }
+
+    // Sync with player
     if (
       "updateQueue" in this.currentPlayer &&
       typeof this.currentPlayer.updateQueue === "function"

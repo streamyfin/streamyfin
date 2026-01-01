@@ -159,10 +159,17 @@ export function AudioPlayerProvider({
     init();
 
     return () => {
-      if (controllerRef.current) {
-        controllerRef.current.destroy();
-      }
-      MediaControls.clearNowPlaying();
+      const cleanup = async () => {
+        if (controllerRef.current) {
+          await controllerRef.current.destroy();
+        }
+        MediaControls.clearNowPlaying();
+      };
+      // Run cleanup but don't block unmount - React cleanup can't be async
+      // However, awaiting ensures proper sequencing of cleanup operations
+      cleanup().catch((error) => {
+        console.error("[AudioPlayer] Error during cleanup:", error);
+      });
     };
   }, [api]);
 
@@ -214,14 +221,11 @@ export function AudioPlayerProvider({
   }, []);
 
   const addTracksToQueue = useCallback(async (tracks: AudioTrack[]) => {
-    for (const track of tracks) {
-      await controllerRef.current?.addToQueue(track);
-    }
+    await controllerRef.current?.addTracksToQueue(tracks);
   }, []);
 
-  const removeFromQueue = useCallback(async (_index: number) => {
-    // TODO: Implement in controller
-    console.warn("[AudioPlayer] removeFromQueue not yet implemented");
+  const removeFromQueue = useCallback(async (index: number) => {
+    await controllerRef.current?.removeFromQueue(index);
   }, []);
 
   const skipToNext = useCallback(async () => {

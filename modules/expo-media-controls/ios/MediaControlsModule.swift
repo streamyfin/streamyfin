@@ -2,6 +2,8 @@ import ExpoModulesCore
 import MediaPlayer
 
 public class MediaControlsModule: Module {
+  private var currentArtworkTask: URLSessionDataTask?
+
   public func definition() -> ModuleDefinition {
     Name("MediaControls")
 
@@ -99,6 +101,10 @@ public class MediaControlsModule: Module {
     let position = metadata["position"] as? Double ?? 0.0
     let isPlaying = metadata["isPlaying"] as? Bool ?? false
 
+    // Cancel any pending artwork loading to prevent stale metadata from overwriting
+    currentArtworkTask?.cancel()
+    currentArtworkTask = nil
+
     var nowPlayingInfo: [String: Any] = [
       MPMediaItemPropertyTitle: title,
       MPMediaItemPropertyArtist: artist,
@@ -108,22 +114,29 @@ public class MediaControlsModule: Module {
       MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
     ]
 
-    // Load artwork asynchronously if provided
+    // Set metadata immediately without artwork (so track info updates right away)
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+
+    // Load artwork asynchronously and update when ready
     if let artworkUrl = artworkUrl, let url = URL(string: artworkUrl) {
-      URLSession.shared.dataTask(with: url) { data, response, error in
+      let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        // Check if this task was cancelled (i.e., a new track was set)
+        guard self?.currentArtworkTask != nil else { return }
+
         if let data = data, let image = UIImage(data: data) {
           let artwork = MPMediaItemArtwork(boundsSize: image.size) { size in
             return image
           }
-          nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-          MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-        } else {
-          // Set without artwork if loading fails
-          MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+          // Get current info and only add artwork (preserve any updates made since)
+          if var currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo {
+            currentInfo[MPMediaItemPropertyArtwork] = artwork
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfo
+          }
         }
-      }.resume()
-    } else {
-      MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        // If artwork loading fails, metadata is already set without it
+      }
+      currentArtworkTask = task
+      task.resume()
     }
   }
 

@@ -37,6 +37,7 @@ class MediaControlsModule : Module() {
   private var volumeObserver: ContentObserver? = null
   private var audioManager: AudioManager? = null
   private var remoteVolumeProvider: VolumeProviderCompat? = null
+  private var artworkLoadingJob: kotlinx.coroutines.Job? = null
 
   override fun definition() = ModuleDefinition {
     Name("MediaControls")
@@ -176,21 +177,27 @@ class MediaControlsModule : Module() {
       .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
       .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration * 1000)
 
-    // Load artwork asynchronously
+    // Cancel any pending artwork loading to prevent stale metadata from overwriting
+    artworkLoadingJob?.cancel()
+
+    // Set metadata immediately without artwork (so track info updates right away)
+    session.setMetadata(metadataBuilder.build())
+
+    // Load artwork asynchronously and update metadata when ready
     if (artworkUrl != null) {
-      coroutineScope.launch {
+      artworkLoadingJob = coroutineScope.launch {
         try {
           val url = URL(artworkUrl)
           val bitmap = BitmapFactory.decodeStream(url.openStream())
-          metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-          session.setMetadata(metadataBuilder.build())
+          // Only update if this job wasn't cancelled (i.e., no new track was set)
+          if (kotlinx.coroutines.isActive) {
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+            session.setMetadata(metadataBuilder.build())
+          }
         } catch (e: Exception) {
-          // If artwork loading fails, just set metadata without it
-          session.setMetadata(metadataBuilder.build())
+          // Artwork loading failed, metadata already set without it
         }
       }
-    } else {
-      session.setMetadata(metadataBuilder.build())
     }
 
     // Update playback state
