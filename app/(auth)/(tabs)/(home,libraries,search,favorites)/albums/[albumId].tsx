@@ -94,6 +94,20 @@ export default function AlbumDetailScreen() {
     await playItems(shuffled, 0);
   }, [songs, playItems]);
 
+  // Navigate to artist page
+  const handleArtistPress = useCallback(() => {
+    if (album?.artistId) {
+      router.push(`/(auth)/music/artist/${album.artistId}`);
+    }
+  }, [album?.artistId]);
+
+  // Navigate to genre page
+  const handleGenrePress = useCallback((genre: string) => {
+    router.push(
+      `/(auth)/(tabs)/(home)/music/genre/${encodeURIComponent(genre)}`,
+    );
+  }, []);
+
   const isLoading = albumLoading || songsLoading;
 
   if (isLoading) {
@@ -194,9 +208,17 @@ export default function AlbumDetailScreen() {
               </Text>
               <LikeButton item={album.jellyfinItem} size={28} />
             </View>
-            <Text style={styles.albumArtist} numberOfLines={1}>
-              {album.artistName || "Unknown Artist"}
-            </Text>
+            <TouchableOpacity
+              onPress={handleArtistPress}
+              disabled={!album.artistId}
+            >
+              <Text
+                style={[styles.albumArtist, album.artistId && styles.linkText]}
+                numberOfLines={1}
+              >
+                {album.artistName || "Unknown Artist"}
+              </Text>
+            </TouchableOpacity>
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
             >
@@ -209,6 +231,20 @@ export default function AlbumDetailScreen() {
                 {totalDuration > 0 && ` • ${formatDuration(totalDuration)}`}
               </Text>
             </View>
+            {/* Genre labels */}
+            {album.genres && album.genres.length > 0 && (
+              <View style={styles.genreContainer}>
+                {album.genres.slice(0, 3).map((genre) => (
+                  <TouchableOpacity
+                    key={genre}
+                    style={styles.genreChip}
+                    onPress={() => handleGenrePress(genre)}
+                  >
+                    <Text style={styles.genreText}>{genre}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         </View>
 
@@ -333,10 +369,32 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
+  linkText: {
+    textDecorationLine: "underline",
+  },
   albumMeta: {
     fontSize: 14,
     color: "#6b7280",
     marginTop: 8,
+  },
+  genreContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  genreChip: {
+    backgroundColor: "rgba(147, 51, 234, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(147, 51, 234, 0.4)",
+  },
+  genreText: {
+    fontSize: 12,
+    color: "#a855f7",
   },
   playButtons: {
     flexDirection: "row",

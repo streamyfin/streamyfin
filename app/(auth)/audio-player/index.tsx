@@ -83,6 +83,26 @@ export default function AudioPlayerScreen() {
     router.back();
   }, []);
 
+  const handleArtistPress = useCallback(() => {
+    const artistId = currentTrack?.jellyfinItem?.ArtistItems?.[0]?.Id;
+    if (artistId) {
+      router.push(`/(auth)/music/artist/${artistId}`);
+    }
+  }, [currentTrack]);
+
+  const handleAlbumPress = useCallback(() => {
+    const albumId = currentTrack?.jellyfinItem?.AlbumId;
+    if (albumId) {
+      router.push(`/albums/${albumId}`);
+    }
+  }, [currentTrack]);
+
+  const handleGenrePress = useCallback((genre: string) => {
+    router.push(
+      `/(auth)/(tabs)/(home)/music/genre/${encodeURIComponent(genre)}`,
+    );
+  }, []);
+
   const handleSeek = useCallback(
     async (value: number) => {
       const newPosition = (value / 100) * duration;
@@ -189,12 +209,22 @@ export default function AudioPlayerScreen() {
         <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
           <Ionicons name='chevron-down' size={28} color='white' />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
+        <TouchableOpacity
+          style={styles.headerCenter}
+          onPress={handleAlbumPress}
+          disabled={!currentTrack.jellyfinItem?.AlbumId}
+        >
           <Text style={styles.headerSubtitle}>PLAYING FROM</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text
+            style={[
+              styles.headerTitle,
+              currentTrack.jellyfinItem?.AlbumId && styles.linkText,
+            ]}
+            numberOfLines={1}
+          >
             {currentTrack.album || "Unknown Album"}
           </Text>
-        </View>
+        </TouchableOpacity>
         <AudioCastButton
           size='large'
           onCastToSession={castToSession}
@@ -230,9 +260,36 @@ export default function AudioPlayerScreen() {
           <Text style={styles.trackTitle} numberOfLines={1}>
             {currentTrack.title}
           </Text>
-          <Text style={styles.trackArtist} numberOfLines={1}>
-            {currentTrack.artist || "Unknown Artist"}
-          </Text>
+          <TouchableOpacity
+            onPress={handleArtistPress}
+            disabled={!currentTrack.jellyfinItem?.ArtistItems?.[0]?.Id}
+          >
+            <Text
+              style={[
+                styles.trackArtist,
+                currentTrack.jellyfinItem?.ArtistItems?.[0]?.Id &&
+                  styles.linkText,
+              ]}
+              numberOfLines={1}
+            >
+              {currentTrack.artist || "Unknown Artist"}
+            </Text>
+          </TouchableOpacity>
+          {/* Genre labels */}
+          {currentTrack.jellyfinItem?.Genres &&
+            currentTrack.jellyfinItem.Genres.length > 0 && (
+              <View style={styles.genreContainer}>
+                {currentTrack.jellyfinItem.Genres.slice(0, 3).map((genre) => (
+                  <TouchableOpacity
+                    key={genre}
+                    style={styles.genreChip}
+                    onPress={() => handleGenrePress(genre)}
+                  >
+                    <Text style={styles.genreText}>{genre}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
         </View>
         <View style={styles.actionButtons}>
           {currentTrack?.jellyfinItem && (
@@ -485,6 +542,27 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#9ca3af",
     marginTop: 4,
+  },
+  linkText: {
+    textDecorationLine: "underline",
+  },
+  genreContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  genreChip: {
+    backgroundColor: "rgba(147, 51, 234, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(147, 51, 234, 0.4)",
+  },
+  genreText: {
+    fontSize: 12,
+    color: "#a855f7",
   },
   actionButtons: {
     flexDirection: "row",

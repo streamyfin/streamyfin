@@ -14,6 +14,7 @@ import type { Song } from "@/models/music/types";
 import * as MediaControls from "@/modules/expo-media-controls";
 import { useSettings } from "@/utils/atoms/settings";
 import { AudioController } from "./AudioPlayer/AudioController";
+import { cleanupInvalidAudioEntries } from "./AudioPlayer/database";
 import type {
   AudioPlayerState,
   AudioTrack,
@@ -109,6 +110,14 @@ export function AudioPlayerProvider({
   useEffect(() => {
     async function init() {
       try {
+        // Clean up any invalid audio database entries on startup
+        const removedCount = cleanupInvalidAudioEntries();
+        if (removedCount > 0) {
+          console.log(
+            `[AudioPlayer] Cleaned up ${removedCount} invalid audio entries`,
+          );
+        }
+
         const controller = new AudioController(api);
 
         // Register React state view

@@ -40,17 +40,21 @@ export class LocalPlayer extends StreamingPlayer {
     // Get downloaded file path
     const downloadedTrack = this.getDownloadedTrack(track);
 
-    if (downloadedTrack) {
+    // Verify the file path exists and is not empty
+    if (downloadedTrack?.audioFilePath) {
       // Use local file path
       const localTrack = {
         ...track,
         url: downloadedTrack.audioFilePath,
       };
+      console.log(
+        `[LocalPlayer] Playing from local file: ${downloadedTrack.audioFilePath}`,
+      );
       return super.loadTrack(localTrack, callback);
     } else {
-      // Fallback to streaming URL
+      // Fallback to streaming URL - either not downloaded or download incomplete
       console.warn(
-        "[LocalPlayer] Track not found in downloads, using streaming URL",
+        "[LocalPlayer] Track not found in downloads or file path empty, using streaming URL",
       );
       return super.loadTrack(track, callback);
     }

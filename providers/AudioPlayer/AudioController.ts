@@ -247,12 +247,18 @@ export class AudioController {
 
     const db = getAudioDownloadsDatabase();
     const trackId = this.state.currentTrack.jellyfinItem.Id || "";
-    const isDownloaded = !!(
-      db.tracks[trackId] ||
-      Object.values(db.albums).some((album) => album.tracks[trackId])
-    );
 
-    const targetType: PlayerType = isDownloaded ? "local" : "streaming";
+    // Check if track is downloaded AND has a valid file path
+    // This prevents switching to local player for incomplete downloads
+    const downloadedTrack =
+      db.tracks[trackId] ||
+      Object.values(db.albums)
+        .map((album) => album.tracks[trackId])
+        .find(Boolean);
+
+    const isDownloadedAndReady = !!downloadedTrack?.audioFilePath;
+
+    const targetType: PlayerType = isDownloadedAndReady ? "local" : "streaming";
 
     if (this.playerType !== targetType) {
       console.log(

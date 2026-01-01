@@ -840,3 +840,92 @@ export function getAlbumTrackIds(albumId: string): string[] {
 
   return Object.keys(album.tracks);
 }
+
+/**
+ * Remove audio download entries that have empty or invalid file paths.
+ * This cleans up corrupted data from interrupted downloads or deleted files.
+ * Returns the number of entries removed.
+ */
+export function cleanupInvalidAudioEntries(): number {
+  const db = getAudioDownloadsDatabase();
+  let removedCount = 0;
+
+  // Clean up standalone tracks with empty paths
+  for (const trackId of Object.keys(db.tracks)) {
+    if (!db.tracks[trackId].audioFilePath) {
+      console.log(
+        `[AudioDB Cleanup] Removing invalid track: ${db.tracks[trackId].item.Name}`,
+      );
+      delete db.tracks[trackId];
+      removedCount++;
+    }
+  }
+
+  // Clean up album tracks with empty paths
+  for (const albumId of Object.keys(db.albums)) {
+    const album = db.albums[albumId];
+    for (const trackId of Object.keys(album.tracks)) {
+      if (!album.tracks[trackId].audioFilePath) {
+        console.log(
+          `[AudioDB Cleanup] Removing invalid album track: ${album.tracks[trackId].item.Name}`,
+        );
+        delete album.tracks[trackId];
+        removedCount++;
+      }
+    }
+
+    // Remove empty albums
+    if (Object.keys(album.tracks).length === 0) {
+      console.log(
+        `[AudioDB Cleanup] Removing empty album: ${album.albumInfo.Name}`,
+      );
+      delete db.albums[albumId];
+    } else {
+      updateAlbumSize(db, albumId);
+    }
+  }
+
+  // Clean up artist album tracks with empty paths
+  for (const artistId of Object.keys(db.artists)) {
+    const artist = db.artists[artistId];
+    for (const albumId of Object.keys(artist.albums)) {
+      const album = artist.albums[albumId];
+      for (const trackId of Object.keys(album.tracks)) {
+        if (!album.tracks[trackId].audioFilePath) {
+          console.log(
+            `[AudioDB Cleanup] Removing invalid artist album track: ${album.tracks[trackId].item.Name}`,
+          );
+          delete album.tracks[trackId];
+          removedCount++;
+        }
+      }
+
+      // Remove empty albums
+      if (Object.keys(album.tracks).length === 0) {
+        console.log(
+          `[AudioDB Cleanup] Removing empty artist album: ${album.albumInfo.Name}`,
+        );
+        delete artist.albums[albumId];
+      }
+    }
+
+    // Remove empty artists
+    if (Object.keys(artist.albums).length === 0) {
+      console.log(
+        `[AudioDB Cleanup] Removing empty artist: ${artist.artistInfo.Name}`,
+      );
+      delete db.artists[artistId];
+    } else {
+      updateArtistSize(db, artistId);
+    }
+  }
+
+  if (removedCount > 0) {
+    saveAudioDownloadsDatabase(db);
+    console.log(
+      `[AudioDB Cleanup] Removed ${removedCount} invalid entries from audio database`,
+    );
+  }
+
+  return removedCount;
+}

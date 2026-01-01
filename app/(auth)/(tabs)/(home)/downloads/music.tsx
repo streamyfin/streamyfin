@@ -17,10 +17,12 @@ import { ArtistCard } from "@/components/music/ArtistCard";
 import type { Album, Artist } from "@/models/music/types";
 import {
   clearAllAudioDownloads,
+  getAlbumTrackIds,
   getAllDownloadedAudioItems,
   getDownloadedAlbumsAsDomainModels,
   getDownloadedArtistsAsDomainModels,
   getPlayStats,
+  removeDownloadedTrack,
 } from "@/providers/AudioPlayer/database";
 import { useDownload } from "@/providers/DownloadProvider";
 
@@ -35,7 +37,8 @@ interface AlbumWithStats extends Album {
 
 export default function OfflineMusicPage() {
   const insets = useSafeAreaInsets();
-  const { downloadedItems, deleteFileByType, deleteFile } = useDownload();
+  const { downloadedItems, deleteFileByType, deleteFile, triggerRefresh } =
+    useDownload();
   const [viewMode, setViewMode] = useState<ViewMode>("albums");
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [isLoading, setIsLoading] = useState(false);
@@ -189,13 +192,12 @@ export default function OfflineMusicPage() {
 
   const handleDeleteAlbum = useCallback(
     (album: AlbumWithStats) => {
-      const albumTracks = downloadedItems.filter(
-        (f) => f.item.Type === "Audio" && f.item.AlbumId === album.id,
-      );
+      // Get track IDs from the AudioPlayer database (not the legacy downloadedItems)
+      const trackIds = getAlbumTrackIds(album.id);
 
       Alert.alert(
         "Delete Album",
-        `Delete "${album.name}" (${albumTracks.length} tracks)?`,
+        `Delete "${album.name}" (${trackIds.length} tracks)?`,
         [
           { text: "Cancel", style: "cancel" },
           {
@@ -204,9 +206,14 @@ export default function OfflineMusicPage() {
             onPress: async () => {
               try {
                 // Delete all tracks from this album
-                await Promise.all(
-                  albumTracks.map((track) => deleteFile(track.item.Id!)),
-                );
+                for (const trackId of trackIds) {
+                  // Delete from legacy database (file deletion)
+                  await deleteFile(trackId);
+                  // Also remove from AudioPlayer database
+                  removeDownloadedTrack(trackId);
+                }
+                // Force UI update after deleting all tracks
+                triggerRefresh();
                 toast.success(`Deleted ${album.name}`);
               } catch (error) {
                 console.error("Failed to delete album:", error);
@@ -217,7 +224,7 @@ export default function OfflineMusicPage() {
         ],
       );
     },
-    [downloadedItems, deleteFile],
+    [deleteFile, triggerRefresh],
   );
 
   const formatLastPlayed = (date?: Date): string => {

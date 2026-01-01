@@ -7,6 +7,7 @@ import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import {
   getAlbumTrackIds,
+  getDownloadedAudioById,
   isAlbumDownloaded,
   isArtistDownloaded,
   removeDownloadedTrack,
@@ -47,8 +48,11 @@ export function DownloadButton({
 
   const isDownloaded = useMemo(() => {
     if (type === "track") {
-      // For tracks, check if this specific track is downloaded
-      return downloadedItems.some((d) => d.item?.Id === item.Id);
+      // For tracks, check both the legacy database and the AudioPlayer database
+      // (album downloads store tracks in the AudioPlayer database)
+      const inLegacyDb = downloadedItems.some((d) => d.item?.Id === item.Id);
+      const inAudioDb = getDownloadedAudioById(item.Id || "") !== undefined;
+      return inLegacyDb || inAudioDb;
     } else if (type === "album") {
       // For albums, check if any tracks are downloaded
       return isAlbumDownloaded(item.Id || "");

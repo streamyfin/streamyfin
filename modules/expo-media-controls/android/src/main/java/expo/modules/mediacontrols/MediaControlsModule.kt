@@ -18,7 +18,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.VolumeProviderCompat
-import androidx.media.session.MediaButtonReceiver
+import androidx.media.session.MediaButtonReceiver as AndroidMediaButtonReceiver
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +28,11 @@ import java.net.URL
 
 class MediaControlsModule : Module() {
   private var mediaSession: MediaSessionCompat? = null
+    set(value) {
+      field = value
+      // Update the static reference for MediaButtonReceiver access
+      Companion.mediaSessionInstance = value
+    }
   private val coroutineScope = CoroutineScope(Dispatchers.IO)
   private var volumeObserver: ContentObserver? = null
   private var audioManager: AudioManager? = null
@@ -79,8 +84,19 @@ class MediaControlsModule : Module() {
   private fun initializeMediaSession() {
     val context = appContext.reactContext ?: return
 
-    // Create MediaSession
-    mediaSession = MediaSessionCompat(context, "StreamyfinMediaSession").apply {
+    // Create ComponentName for MediaButtonReceiver to handle Bluetooth headset buttons
+    val mediaButtonReceiverComponent = ComponentName(
+      context,
+      MediaButtonReceiver::class.java
+    )
+
+    // Create MediaSession with MediaButtonReceiver for Bluetooth support
+    mediaSession = MediaSessionCompat(
+      context,
+      "StreamyfinMediaSession",
+      mediaButtonReceiverComponent,
+      null
+    ).apply {
       // Set flags to handle media buttons and transport controls
       setFlags(
         MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
@@ -214,7 +230,7 @@ class MediaControlsModule : Module() {
       .addAction(
         android.R.drawable.ic_media_previous,
         "Previous",
-        MediaButtonReceiver.buildMediaButtonPendingIntent(
+        AndroidMediaButtonReceiver.buildMediaButtonPendingIntent(
           context,
           PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
         )
@@ -222,7 +238,7 @@ class MediaControlsModule : Module() {
       .addAction(
         if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
         if (isPlaying) "Pause" else "Play",
-        MediaButtonReceiver.buildMediaButtonPendingIntent(
+        AndroidMediaButtonReceiver.buildMediaButtonPendingIntent(
           context,
           if (isPlaying) PlaybackStateCompat.ACTION_PAUSE else PlaybackStateCompat.ACTION_PLAY
         )
@@ -230,7 +246,7 @@ class MediaControlsModule : Module() {
       .addAction(
         android.R.drawable.ic_media_next,
         "Next",
-        MediaButtonReceiver.buildMediaButtonPendingIntent(
+        AndroidMediaButtonReceiver.buildMediaButtonPendingIntent(
           context,
           PlaybackStateCompat.ACTION_SKIP_TO_NEXT
         )
@@ -392,5 +408,16 @@ class MediaControlsModule : Module() {
   companion object {
     private const val ADJUST_RAISE = 1
     private const val ADJUST_LOWER = -1
+
+    // Static reference to the MediaSession for MediaButtonReceiver access
+    @Volatile
+    private var mediaSessionInstance: MediaSessionCompat? = null
+
+    /**
+     * Get the current MediaSession instance.
+     * Used by MediaButtonReceiver to forward Bluetooth media button events.
+     */
+    @JvmStatic
+    fun getMediaSession(): MediaSessionCompat? = mediaSessionInstance
   }
 }
