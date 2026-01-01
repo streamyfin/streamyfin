@@ -279,27 +279,39 @@ export const Home = () => {
         priority: 1,
       },
       ...latestMediaViews.map((s) => ({ ...s, priority: 2 as const })),
-      {
-        title: t("home.suggested_movies"),
-        queryKey: ["home", "suggestedMovies", user?.Id],
-        queryFn: async ({ pageParam = 0 }) =>
-          (
-            await getSuggestionsApi(api).getSuggestions({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: 10,
-              mediaType: ["Video"],
-              type: ["Movie"],
-            })
-          ).data.Items || [],
-        type: "InfiniteScrollingCollectionList",
-        orientation: "vertical",
-        pageSize: 10,
-        priority: 2,
-      },
+      // Only show Jellyfin suggested movies if StreamyStats recommendations are disabled
+      ...(!settings?.streamyStatsMovieRecommendations
+        ? [
+            {
+              title: t("home.suggested_movies"),
+              queryKey: ["home", "suggestedMovies", user?.Id],
+              queryFn: async ({ pageParam = 0 }: { pageParam?: number }) =>
+                (
+                  await getSuggestionsApi(api).getSuggestions({
+                    userId: user?.Id,
+                    startIndex: pageParam,
+                    limit: 10,
+                    mediaType: ["Video"],
+                    type: ["Movie"],
+                  })
+                ).data.Items || [],
+              type: "InfiniteScrollingCollectionList" as const,
+              orientation: "vertical" as const,
+              pageSize: 10,
+              priority: 2 as const,
+            },
+          ]
+        : []),
     ];
     return ss;
-  }, [api, user?.Id, collections, t, createCollectionConfig]);
+  }, [
+    api,
+    user?.Id,
+    collections,
+    t,
+    createCollectionConfig,
+    settings?.streamyStatsMovieRecommendations,
+  ]);
 
   const customSections = useMemo(() => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
