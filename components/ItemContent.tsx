@@ -29,6 +29,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
+import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
@@ -121,6 +122,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
+                    <AddToWatchlist item={item} />
                   </View>
                 )}
               </View>
@@ -138,6 +140,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
+                    <AddToWatchlist item={item} />
                   </View>
                 )}
               </View>

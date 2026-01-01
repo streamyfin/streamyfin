@@ -1,15 +1,25 @@
 import axios from "axios";
 import type {
+  AddWatchlistItemResponse,
+  CreateWatchlistRequest,
+  CreateWatchlistResponse,
+  DeleteWatchlistResponse,
+  GetWatchlistItemsParams,
+  GetWatchlistsResponse,
+  RemoveWatchlistItemResponse,
   StreamystatsRecommendationsFullResponse,
   StreamystatsRecommendationsIdsResponse,
   StreamystatsRecommendationsParams,
   StreamystatsSearchFullResponse,
   StreamystatsSearchIdsResponse,
   StreamystatsSearchParams,
+  StreamystatsWatchlistDetailFullResponse,
   StreamystatsWatchlistDetailIdsResponse,
   StreamystatsWatchlistDetailParams,
   StreamystatsWatchlistsFullResponse,
   StreamystatsWatchlistsParams,
+  UpdateWatchlistRequest,
+  UpdateWatchlistResponse,
 } from "./types";
 
 interface StreamystatsApiConfig {
@@ -191,6 +201,102 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     return response.data;
   };
 
+  /**
+   * Get all watchlists (own + public)
+   * GET /api/watchlists
+   */
+  const getWatchlists = async (): Promise<GetWatchlistsResponse> => {
+    const url = `${baseUrl}/api/watchlists`;
+    const response = await axios.get(url, { headers });
+    return response.data;
+  };
+
+  /**
+   * Create a new watchlist
+   * POST /api/watchlists
+   */
+  const createWatchlist = async (
+    data: CreateWatchlistRequest,
+  ): Promise<CreateWatchlistResponse> => {
+    const url = `${baseUrl}/api/watchlists`;
+    const response = await axios.post(url, data, { headers });
+    return response.data;
+  };
+
+  /**
+   * Get a single watchlist with items
+   * GET /api/watchlists/[id]
+   */
+  const getWatchlistDetail = async (
+    watchlistId: number,
+    params?: GetWatchlistItemsParams,
+  ): Promise<StreamystatsWatchlistDetailFullResponse> => {
+    const queryParams = new URLSearchParams();
+    queryParams.set("format", "full");
+
+    if (params?.type) {
+      queryParams.set("type", params.type);
+    }
+    if (params?.sort) {
+      queryParams.set("sort", params.sort);
+    }
+
+    const url = `${baseUrl}/api/watchlists/${watchlistId}?${queryParams.toString()}`;
+    const response = await axios.get(url, { headers });
+    return response.data;
+  };
+
+  /**
+   * Update a watchlist (owner only)
+   * PATCH /api/watchlists/[id]
+   */
+  const updateWatchlist = async (
+    watchlistId: number,
+    data: UpdateWatchlistRequest,
+  ): Promise<UpdateWatchlistResponse> => {
+    const url = `${baseUrl}/api/watchlists/${watchlistId}`;
+    const response = await axios.patch(url, data, { headers });
+    return response.data;
+  };
+
+  /**
+   * Delete a watchlist (owner only)
+   * DELETE /api/watchlists/[id]
+   */
+  const deleteWatchlist = async (
+    watchlistId: number,
+  ): Promise<DeleteWatchlistResponse> => {
+    const url = `${baseUrl}/api/watchlists/${watchlistId}`;
+    const response = await axios.delete(url, { headers });
+    return response.data;
+  };
+
+  /**
+   * Add an item to a watchlist (owner only)
+   * POST /api/watchlists/[id]/items
+   */
+  const addWatchlistItem = async (
+    watchlistId: number,
+    itemId: string,
+  ): Promise<AddWatchlistItemResponse> => {
+    const url = `${baseUrl}/api/watchlists/${watchlistId}/items`;
+    const response = await axios.post(url, { itemId }, { headers });
+    return response.data;
+  };
+
+  /**
+   * Remove an item from a watchlist (owner only)
+   * DELETE /api/watchlists/[id]/items/[itemId]
+   */
+  const removeWatchlistItem = async (
+    watchlistId: number,
+    itemId: string,
+  ): Promise<RemoveWatchlistItemResponse> => {
+    const url = `${baseUrl}/api/watchlists/${watchlistId}/items/${itemId}`;
+    const response = await axios.delete(url, { headers });
+    return response.data;
+  };
+
   return {
     search,
     searchIds,
@@ -199,6 +305,14 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     getRecommendationIds,
     getPromotedWatchlists,
     getWatchlistItemIds,
+    // Watchlist CRUD
+    getWatchlists,
+    createWatchlist,
+    getWatchlistDetail,
+    updateWatchlist,
+    deleteWatchlist,
+    addWatchlistItem,
+    removeWatchlistItem,
   };
 };
 

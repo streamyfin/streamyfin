@@ -321,53 +321,60 @@ export const useSettings = () => {
     [_setPluginSettings],
   );
 
-  const refreshStreamyfinPluginSettings = useCallback(async () => {
-    if (!api) {
-      return;
-    }
-    const newPluginSettings = await api.getStreamyfinPluginConfig().then(
-      ({ data }) => {
-        writeInfoLog("Got plugin settings", data?.settings);
-        return data?.settings;
-      },
-      (_err) => undefined,
-    );
-    setPluginSettings(newPluginSettings);
+  const refreshStreamyfinPluginSettings = useCallback(
+    async (forceOverride = false) => {
+      if (!api) {
+        return;
+      }
+      const newPluginSettings = await api.getStreamyfinPluginConfig().then(
+        ({ data }) => {
+          writeInfoLog("Got plugin settings", data?.settings);
+          return data?.settings;
+        },
+        (_err) => undefined,
+      );
+      setPluginSettings(newPluginSettings);
 
-    // Apply unlocked plugin values to settings when user hasn't set them
-    if (newPluginSettings && _settings) {
-      const updates: Partial<Settings> = {};
-      for (const [key, setting] of Object.entries(newPluginSettings)) {
-        if (setting && !setting.locked && setting.value !== undefined) {
-          const settingsKey = key as keyof Settings;
-          // Only apply if user hasn't explicitly set this value
-          if (
-            _settings[settingsKey] === undefined ||
-            _settings[settingsKey] === ""
-          ) {
-            (updates as any)[settingsKey] = setting.value;
+      // Apply plugin values to settings
+      if (newPluginSettings && _settings) {
+        const updates: Partial<Settings> = {};
+        for (const [key, setting] of Object.entries(newPluginSettings)) {
+          if (setting && !setting.locked && setting.value !== undefined) {
+            const settingsKey = key as keyof Settings;
+            // Apply if forceOverride is true, or if user hasn't explicitly set this value
+            if (
+              forceOverride ||
+              _settings[settingsKey] === undefined ||
+              _settings[settingsKey] === ""
+            ) {
+              (updates as any)[settingsKey] = setting.value;
+            }
           }
+        }
+
+        // Auto-enable Streamystats if server URL is provided
+        const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
+        if (
+          streamyStatsUrl?.value &&
+          _settings.searchEngine !== "Streamystats"
+        ) {
+          updates.searchEngine = "Streamystats";
+        }
+        if (Object.keys(updates).length > 0) {
+          const newSettings = {
+            ...defaultValues,
+            ..._settings,
+            ...updates,
+          } as Settings;
+          setSettings(newSettings);
+          saveSettings(newSettings);
         }
       }
 
-      // Auto-enable Streamystats if server URL is provided
-      const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
-      if (streamyStatsUrl?.value && _settings.searchEngine !== "Streamystats") {
-        updates.searchEngine = "Streamystats";
-      }
-      if (Object.keys(updates).length > 0) {
-        const newSettings = {
-          ...defaultValues,
-          ..._settings,
-          ...updates,
-        } as Settings;
-        setSettings(newSettings);
-        saveSettings(newSettings);
-      }
-    }
-
-    return newPluginSettings;
-  }, [api, _settings]);
+      return newPluginSettings;
+    },
+    [api, _settings],
+  );
 
   const updateSettings = (update: Partial<Settings>) => {
     if (!_settings) {

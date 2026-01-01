@@ -254,3 +254,76 @@ export interface StreamystatsWatchlistDetailIdsResponse {
 export type StreamystatsWatchlistDetailResponse =
   | StreamystatsWatchlistDetailFullResponse
   | StreamystatsWatchlistDetailIdsResponse;
+
+/**
+ * Streamystats Watchlists CRUD Types
+ */
+
+export type StreamystatsWatchlistAllowedItemType =
+  | "Movie"
+  | "Series"
+  | "Episode"
+  | null;
+
+export type StreamystatsWatchlistSortOrder =
+  | "custom"
+  | "name"
+  | "dateAdded"
+  | "releaseDate";
+
+export interface CreateWatchlistRequest {
+  name: string;
+  description?: string;
+  isPublic?: boolean;
+  allowedItemType?: StreamystatsWatchlistAllowedItemType;
+  defaultSortOrder?: StreamystatsWatchlistSortOrder;
+}
+
+export interface UpdateWatchlistRequest {
+  name?: string;
+  description?: string;
+  isPublic?: boolean;
+  allowedItemType?: StreamystatsWatchlistAllowedItemType;
+  defaultSortOrder?: StreamystatsWatchlistSortOrder;
+}
+
+export interface CreateWatchlistResponse {
+  data: StreamystatsWatchlist;
+  error?: string;
+}
+
+export interface UpdateWatchlistResponse {
+  data: StreamystatsWatchlist;
+  error?: string;
+}
+
+export interface DeleteWatchlistResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface AddWatchlistItemResponse {
+  data: {
+    id: number;
+    watchlistId: number;
+    itemId: string;
+    position: number;
+    addedAt: string;
+  };
+  error?: string;
+}
+
+export interface RemoveWatchlistItemResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface GetWatchlistsResponse {
+  data: StreamystatsWatchlist[];
+  error?: string;
+}
+
+export interface GetWatchlistItemsParams {
+  type?: "Movie" | "Series" | "Episode";
+  sort?: StreamystatsWatchlistSortOrder;
+}

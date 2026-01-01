@@ -103,6 +103,17 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
+          name='(watchlists)'
+          options={{
+            title: t("watchlists.title"),
+            tabBarItemHidden: !settings?.streamyStatsServerUrl,
+            tabBarIcon:
+              Platform.OS === "android"
+                ? (_e) => require("@/assets/icons/list.png")
+                : (_e) => ({ sfSymbol: "list.bullet.rectangle" }),
+          }}
+        />
+        <NativeTabs.Screen
           name='(libraries)'
           options={{
             title: t("tabs.library"),

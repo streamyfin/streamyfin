@@ -138,13 +138,14 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       )
     )
       return;
-    const options = [
+
+    const options: string[] = [
       "Mark as Played",
       "Mark as Not Played",
       isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
       "Cancel",
     ];
-    const cancelButtonIndex = 3;
+    const cancelButtonIndex = options.length - 1;
 
     showActionSheetWithOptions(
       {
@@ -161,13 +162,19 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
         }
       },
     );
-  }, [showActionSheetWithOptions, isFavorite, markAsPlayedStatus]);
+  }, [
+    showActionSheetWithOptions,
+    isFavorite,
+    markAsPlayedStatus,
+    toggleFavorite,
+  ]);
 
   if (
     from === "(home)" ||
     from === "(search)" ||
     from === "(libraries)" ||
-    from === "(favorites)"
+    from === "(favorites)" ||
+    from === "(watchlists)"
   )
     return (
       <TouchableOpacity

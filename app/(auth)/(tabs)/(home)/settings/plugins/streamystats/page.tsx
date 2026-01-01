@@ -15,14 +15,11 @@ import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
-
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
-  const navigation = useNavigation();
-
   const { t } = useTranslation();
-
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
   const {
@@ -33,79 +30,92 @@ export default function page() {
   } = useSettings();
   const queryClient = useQueryClient();
 
-  const [value, setValue] = useState<string>(
-    settings?.streamyStatsServerUrl || "",
+  // Local state for all editable fields
+  const [url, setUrl] = useState<string>(settings?.streamyStatsServerUrl || "");
+  const [useForSearch, setUseForSearch] = useState<boolean>(
+    settings?.searchEngine === "Streamystats",
+  );
+  const [movieRecs, setMovieRecs] = useState<boolean>(
+    settings?.streamyStatsMovieRecommendations ?? false,
+  );
+  const [seriesRecs, setSeriesRecs] = useState<boolean>(
+    settings?.streamyStatsSeriesRecommendations ?? false,
+  );
+  const [promotedWatchlists, setPromotedWatchlists] = useState<boolean>(
+    settings?.streamyStatsPromotedWatchlists ?? false,
   );
 
-  const onSave = useCallback(
-    (val: string) => {
-      updateSettings({
-        streamyStatsServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
-      });
-      toast.success(t("home.settings.plugins.streamystats.toasts.saved"));
-    },
-    [updateSettings, t],
-  );
+  const isUrlLocked = pluginSettings?.streamyStatsServerUrl?.locked === true;
+  const isStreamystatsEnabled = !!url;
 
-  const toggleMovieRecommendations = useCallback(
-    (enabled: boolean) => {
-      updateSettings({ streamyStatsMovieRecommendations: enabled });
-      queryClient.invalidateQueries({
-        queryKey: ["streamystats", "recommendations"],
-      });
-    },
-    [updateSettings, queryClient],
-  );
+  const onSave = useCallback(() => {
+    const cleanUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+    updateSettings({
+      streamyStatsServerUrl: cleanUrl,
+      searchEngine: useForSearch ? "Streamystats" : "Jellyfin",
+      streamyStatsMovieRecommendations: movieRecs,
+      streamyStatsSeriesRecommendations: seriesRecs,
+      streamyStatsPromotedWatchlists: promotedWatchlists,
+    });
+    queryClient.invalidateQueries({ queryKey: ["search"] });
+    queryClient.invalidateQueries({ queryKey: ["streamystats"] });
+    toast.success(t("home.settings.plugins.streamystats.toasts.saved"));
+  }, [
+    url,
+    useForSearch,
+    movieRecs,
+    seriesRecs,
+    promotedWatchlists,
+    updateSettings,
+    queryClient,
+    t,
+  ]);
 
-  const toggleSeriesRecommendations = useCallback(
-    (enabled: boolean) => {
-      updateSettings({ streamyStatsSeriesRecommendations: enabled });
-      queryClient.invalidateQueries({
-        queryKey: ["streamystats", "recommendations"],
-      });
-    },
-    [updateSettings, queryClient],
-  );
+  // Set up header save button
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={onSave}>
+          <Text className='text-blue-500 font-medium'>
+            {t("home.settings.plugins.streamystats.save")}
+          </Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, onSave, t]);
 
-  const togglePromotedWatchlists = useCallback(
-    (enabled: boolean) => {
-      updateSettings({ streamyStatsPromotedWatchlists: enabled });
-      queryClient.invalidateQueries({
-        queryKey: ["streamystats", "promotedWatchlists"],
-      });
-    },
-    [updateSettings, queryClient],
-  );
+  const handleClearStreamystats = useCallback(() => {
+    setUrl("");
+    setUseForSearch(false);
+    setMovieRecs(false);
+    setSeriesRecs(false);
+    setPromotedWatchlists(false);
+    updateSettings({
+      streamyStatsServerUrl: "",
+      searchEngine: "Jellyfin",
+      streamyStatsMovieRecommendations: false,
+      streamyStatsSeriesRecommendations: false,
+      streamyStatsPromotedWatchlists: false,
+    });
+    queryClient.invalidateQueries({ queryKey: ["streamystats"] });
+    queryClient.invalidateQueries({ queryKey: ["search"] });
+    toast.success(t("home.settings.plugins.streamystats.toasts.disabled"));
+  }, [updateSettings, queryClient, t]);
 
   const handleOpenLink = () => {
     Linking.openURL("https://github.com/fredrikburmester/streamystats");
   };
 
   const handleRefreshFromServer = useCallback(async () => {
-    await refreshStreamyfinPluginSettings();
-    setValue(settings?.streamyStatsServerUrl || "");
-    toast.success(t("home.settings.plugins.streamystats.toasts.refreshed"));
-  }, [refreshStreamyfinPluginSettings, settings?.streamyStatsServerUrl, t]);
-
-  useEffect(() => {
-    if (!pluginSettings?.streamyStatsServerUrl?.locked) {
-      navigation.setOptions({
-        headerRight: () => (
-          <TouchableOpacity onPress={() => onSave(value)} className='px-2'>
-            <Text className='text-blue-500'>
-              {t("home.settings.plugins.streamystats.save_button")}
-            </Text>
-          </TouchableOpacity>
-        ),
-      });
+    const newPluginSettings = await refreshStreamyfinPluginSettings(true);
+    // Update local state with new values
+    const newUrl = newPluginSettings?.streamyStatsServerUrl?.value || "";
+    setUrl(newUrl);
+    if (newUrl) {
+      setUseForSearch(true);
     }
-  }, [
-    navigation,
-    value,
-    pluginSettings?.streamyStatsServerUrl?.locked,
-    onSave,
-    t,
-  ]);
+    toast.success(t("home.settings.plugins.streamystats.toasts.refreshed"));
+  }, [refreshStreamyfinPluginSettings, t]);
 
   if (!settings) return null;
 
@@ -118,56 +128,27 @@ export default function page() {
       }}
     >
       <View className='px-4'>
-        <ListGroup>
-          <ListItem
-            title={t("home.settings.plugins.streamystats.enable_streamystats")}
-            disabledByAdmin={
-              pluginSettings?.searchEngine?.locked === true ||
-              !!pluginSettings?.streamyStatsServerUrl?.value
-            }
-            onPress={() => {
-              updateSettings({ searchEngine: "Jellyfin" });
-              queryClient.invalidateQueries({ queryKey: ["search"] });
-            }}
-          >
-            <Switch
-              value={settings.searchEngine === "Streamystats"}
-              disabled={!!pluginSettings?.streamyStatsServerUrl?.value}
-              onValueChange={(val) => {
-                updateSettings({
-                  searchEngine: val ? "Streamystats" : "Jellyfin",
-                });
-                queryClient.invalidateQueries({ queryKey: ["search"] });
-              }}
-            />
-          </ListItem>
-        </ListGroup>
-
-        <ListGroup className='mt-2'>
+        <ListGroup className='flex-1'>
           <ListItem
             title={t("home.settings.plugins.streamystats.url")}
-            disabledByAdmin={
-              pluginSettings?.streamyStatsServerUrl?.locked === true
-            }
+            disabledByAdmin={isUrlLocked}
           >
             <TextInput
-              editable={
-                settings.searchEngine === "Streamystats" &&
-                !pluginSettings?.streamyStatsServerUrl?.locked
-              }
+              editable={!isUrlLocked}
               className='text-white text-right flex-1'
               placeholder={t(
                 "home.settings.plugins.streamystats.server_url_placeholder",
               )}
-              value={value}
+              value={url}
               keyboardType='url'
               returnKeyType='done'
               autoCapitalize='none'
               textContentType='URL'
-              onChangeText={(text) => setValue(text)}
+              onChangeText={setUrl}
             />
           </ListItem>
         </ListGroup>
+
         <Text className='px-4 text-xs text-neutral-500 mt-1'>
           {t("home.settings.plugins.streamystats.streamystats_search_hint")}{" "}
           <Text className='text-blue-500' onPress={handleOpenLink}>
@@ -178,9 +159,19 @@ export default function page() {
         </Text>
 
         <ListGroup
-          title={t("home.settings.plugins.streamystats.home_sections_title")}
+          title={t("home.settings.plugins.streamystats.features_title")}
           className='mt-4'
         >
+          <ListItem
+            title={t("home.settings.plugins.streamystats.enable_search")}
+            disabledByAdmin={pluginSettings?.searchEngine?.locked === true}
+          >
+            <Switch
+              value={useForSearch}
+              disabled={!isStreamystatsEnabled}
+              onValueChange={setUseForSearch}
+            />
+          </ListItem>
           <ListItem
             title={t(
               "home.settings.plugins.streamystats.enable_movie_recommendations",
@@ -190,9 +181,9 @@ export default function page() {
             }
           >
             <Switch
-              value={settings.streamyStatsMovieRecommendations ?? false}
-              onValueChange={toggleMovieRecommendations}
-              disabled={!settings.streamyStatsServerUrl}
+              value={movieRecs}
+              onValueChange={setMovieRecs}
+              disabled={!isStreamystatsEnabled}
             />
           </ListItem>
           <ListItem
@@ -204,9 +195,9 @@ export default function page() {
             }
           >
             <Switch
-              value={settings.streamyStatsSeriesRecommendations ?? false}
-              onValueChange={toggleSeriesRecommendations}
-              disabled={!settings.streamyStatsServerUrl}
+              value={seriesRecs}
+              onValueChange={setSeriesRecs}
+              disabled={!isStreamystatsEnabled}
             />
           </ListItem>
           <ListItem
@@ -218,9 +209,9 @@ export default function page() {
             }
           >
             <Switch
-              value={settings.streamyStatsPromotedWatchlists ?? false}
-              onValueChange={togglePromotedWatchlists}
-              disabled={!settings.streamyStatsServerUrl}
+              value={promotedWatchlists}
+              onValueChange={setPromotedWatchlists}
+              disabled={!isStreamystatsEnabled}
             />
           </ListItem>
         </ListGroup>
@@ -230,12 +221,24 @@ export default function page() {
 
         <TouchableOpacity
           onPress={handleRefreshFromServer}
-          className='mt-6 mb-4 py-3 rounded-xl bg-neutral-800'
+          className='mt-6 py-3 rounded-xl bg-neutral-800'
         >
-          <Text className='text-center text-red-500'>
+          <Text className='text-center text-blue-500'>
             {t("home.settings.plugins.streamystats.refresh_from_server")}
           </Text>
         </TouchableOpacity>
+
+        {/* Disable button - only show if URL is not locked and Streamystats is enabled */}
+        {!isUrlLocked && isStreamystatsEnabled && (
+          <TouchableOpacity
+            onPress={handleClearStreamystats}
+            className='mt-3 mb-4 py-3 rounded-xl bg-neutral-800'
+          >
+            <Text className='text-center text-red-500'>
+              {t("home.settings.plugins.streamystats.disable_streamystats")}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
