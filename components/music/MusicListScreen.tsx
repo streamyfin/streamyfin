@@ -183,17 +183,6 @@ export function MusicListScreen<T>({
     [title],
   );
 
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <Stack.Screen options={headerOptions} />
-        <View style={styles.loaderContainer}>
-          <Loader />
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <Stack.Screen options={headerOptions} />
@@ -215,23 +204,31 @@ export function MusicListScreen<T>({
         </View>
       )}
 
-      <FlashList
-        ref={listRef}
-        data={items}
-        renderItem={renderItemCallback}
-        keyExtractor={keyExtractor}
-        numColumns={columns}
-        contentContainerStyle={[
-          styles.gridContent,
-          showAlphabetScroll && styles.gridContentWithScrollBar,
-        ]}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.5}
-        showsVerticalScrollIndicator={!showAlphabetScroll}
-      />
+      {isLoading ? (
+        <View style={styles.loaderContainer}>
+          <Loader />
+        </View>
+      ) : (
+        <>
+          <FlashList
+            ref={listRef}
+            data={items}
+            renderItem={renderItemCallback}
+            keyExtractor={keyExtractor}
+            numColumns={columns}
+            contentContainerStyle={[
+              styles.gridContent,
+              showAlphabetScroll && styles.gridContentWithScrollBar,
+            ]}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            showsVerticalScrollIndicator={!showAlphabetScroll}
+          />
 
-      {showAlphabetScroll && (
-        <AlphabetScrollBar onLetterPress={handleLetterPress} />
+          {showAlphabetScroll && (
+            <AlphabetScrollBar onLetterPress={handleLetterPress} />
+          )}
+        </>
       )}
     </View>
   );
