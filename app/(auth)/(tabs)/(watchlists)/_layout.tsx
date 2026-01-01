@@ -39,7 +39,7 @@ export default function WatchlistsLayout() {
         options={{
           title: "",
           headerShown: true,
-          headerBlurEffect: "prominent",
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}

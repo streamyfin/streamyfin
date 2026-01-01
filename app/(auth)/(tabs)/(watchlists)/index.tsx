@@ -204,42 +204,36 @@ export default function WatchlistsScreen() {
   }
 
   return (
-    <View
-      className='flex-1 bg-black'
-      style={{
+    <FlashList
+      data={sections}
+      contentInsetAdjustmentBehavior='automatic'
+      contentContainerStyle={{
+        paddingTop: Platform.OS === "android" ? 10 : 0,
+        paddingBottom: 100,
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }}
-    >
-      <FlashList
-        data={sections}
-        contentInsetAdjustmentBehavior='automatic'
-        contentContainerStyle={{
-          paddingTop: Platform.OS === "android" ? 10 : 0,
-          paddingBottom: 100,
-        }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        renderItem={({ item }) => {
-          if (item.type === "header") {
-            return (
-              <Text className='text-lg font-bold px-4 pt-4 pb-2'>
-                {item.title}
-              </Text>
-            );
-          }
-
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+      renderItem={({ item }) => {
+        if (item.type === "header") {
           return (
-            <WatchlistCard
-              watchlist={item.data}
-              isOwner={item.isOwner}
-              onPress={() => handleWatchlistPress(item.data.id)}
-            />
+            <Text className='text-lg font-bold px-4 pt-4 pb-2'>
+              {item.title}
+            </Text>
           );
-        }}
-        getItemType={(item) => item.type}
-      />
-    </View>
+        }
+
+        return (
+          <WatchlistCard
+            watchlist={item.data}
+            isOwner={item.isOwner}
+            onPress={() => handleWatchlistPress(item.data.id)}
+          />
+        );
+      }}
+      getItemType={(item) => item.type}
+    />
   );
 }
