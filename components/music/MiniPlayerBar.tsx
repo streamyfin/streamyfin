@@ -10,9 +10,9 @@ import { Text } from "@/components/common/Text";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 
-const HORIZONTAL_MARGIN = 16;
-const BOTTOM_TAB_HEIGHT = 52;
-const BAR_HEIGHT = 50;
+const HORIZONTAL_MARGIN = Platform.OS === "android" ? 8 : 16;
+const BOTTOM_TAB_HEIGHT = Platform.OS === "android" ? 56 : 52;
+const BAR_HEIGHT = 58;
 
 export const MiniPlayerBar: React.FC = () => {
   const [api] = useAtom(apiAtom);
@@ -120,7 +120,9 @@ export const MiniPlayerBar: React.FC = () => {
     <View
       style={[
         styles.container,
-        { bottom: BOTTOM_TAB_HEIGHT + insets.bottom + 4 },
+        {
+          bottom: BOTTOM_TAB_HEIGHT + insets.bottom + 32,
+        },
       ]}
     >
       <TouchableOpacity

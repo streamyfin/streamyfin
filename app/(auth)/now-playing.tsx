@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   FlatList,
+  Platform,
   ScrollView,
   TouchableOpacity,
   View,
@@ -30,7 +31,7 @@ type ViewMode = "player" | "queue";
 export default function NowPlayingScreen() {
   const [api] = useAtom(apiAtom);
   const router = useRouter();
-  const _insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>("player");
 
   const {
@@ -123,14 +124,26 @@ export default function NowPlayingScreen() {
 
   if (!currentTrack) {
     return (
-      <View className='flex-1 bg-[#121212] items-center justify-center'>
+      <View
+        className='flex-1 bg-[#121212] items-center justify-center'
+        style={{
+          paddingTop: Platform.OS === "android" ? insets.top : 0,
+          paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
+        }}
+      >
         <Text className='text-neutral-500'>No track playing</Text>
       </View>
     );
   }
 
   return (
-    <View className='flex-1 bg-[#121212]'>
+    <View
+      className='flex-1 bg-[#121212]'
+      style={{
+        paddingTop: Platform.OS === "android" ? insets.top : 0,
+        paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
+      }}
+    >
       {/* Header */}
       <View className='flex-row items-center justify-between px-4 pt-3 pb-2'>
         <TouchableOpacity

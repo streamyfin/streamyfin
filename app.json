@@ -53,6 +53,7 @@
       "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
+      "./plugins/withExcludeMedia3Dash.js",
       [
         "react-native-video",
         {
@@ -74,7 +75,7 @@
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64"],
-            "compileSdkVersion": 35,
+            "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
             "kotlinVersion": "2.0.21",
