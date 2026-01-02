@@ -697,7 +697,7 @@ extension SfPlayerWrapper: PlayerControllerDelegate {
                 }
             }
 
-            // Center video content - KSAVPlayerView maps contentMode to videoGravity
+             // Center video content - KSAVPlayerView maps contentMode to videoGravity
             playerView?.playerLayer?.player.view?.contentMode = .scaleAspectFit
             
             // Setup PiP controller with delegate

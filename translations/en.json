@@ -178,6 +178,13 @@
         "hardware_decode": "Hardware Decoding",
         "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
       },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
+      },
       "other": {
         "other_title": "Other",
         "video_orientation": "Video Orientation",

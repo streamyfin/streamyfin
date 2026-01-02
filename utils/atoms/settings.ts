@@ -134,6 +134,12 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
+// iOS video player selection
+export enum VideoPlayerIOS {
+  KSPlayer = "ksplayer",
+  VLC = "vlc",
+}
+
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -186,6 +192,8 @@ export type Settings = {
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  // iOS video player selection
+  videoPlayerIOS: VideoPlayerIOS;
 };
 
 export interface Lockable<T> {
@@ -258,6 +266,8 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
+  // iOS video player selection - default to KSPlayer
+  videoPlayerIOS: VideoPlayerIOS.KSPlayer,
 };
 
 const loadSettings = (): Partial<Settings> => {

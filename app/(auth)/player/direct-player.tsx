@@ -47,7 +47,7 @@ import {
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
+import { useSettings, VideoPlayerIOS } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
   getMpvAudioId,
@@ -58,12 +58,19 @@ import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function page() {
-  const isAndroid = Platform.OS === "android";
   const videoRef = useRef<SfPlayerViewRef | VlcPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const { settings } = useSettings();
+
+  // Determine which player to use:
+  // - Android always uses VLC
+  // - iOS uses user setting (KSPlayer by default, VLC optional)
+  const useVlcPlayer =
+    Platform.OS === "android" ||
+    (Platform.OS === "ios" && settings.videoPlayerIOS === VideoPlayerIOS.VLC);
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -119,7 +126,6 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  const { settings } = useSettings();
   const { lockOrientation, unlockOrientation } = useOrientation();
 
   const offline = offlineStr === "true";
@@ -501,7 +507,7 @@ export default function page() {
 
   /** Build video source config for iOS (SfPlayer/KSPlayer) */
   const sfVideoSource = useMemo<SfVideoSource | undefined>(() => {
-    if (!stream?.url || isAndroid) return undefined;
+    if (!stream?.url || useVlcPlayer) return undefined;
 
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
@@ -569,12 +575,12 @@ export default function page() {
     subtitleIndex,
     audioIndex,
     offline,
-    isAndroid,
+    useVlcPlayer,
   ]);
 
   /** Build video source config for Android (VLC) */
   const vlcVideoSource = useMemo<VlcPlayerSource | undefined>(() => {
-    if (!stream?.url || !isAndroid) return undefined;
+    if (!stream?.url || !useVlcPlayer) return undefined;
 
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
@@ -653,7 +659,7 @@ export default function page() {
     stream?.url,
     stream?.mediaSource,
     startPosition,
-    isAndroid,
+    useVlcPlayer,
     api?.basePath,
     offline,
     subtitleIndex,
@@ -865,7 +871,7 @@ export default function page() {
 
   const seek = useCallback(
     (position: number) => {
-      if (isAndroid) {
+      if (useVlcPlayer) {
         // VLC expects milliseconds
         videoRef.current?.seekTo?.(position);
       } else {
@@ -873,29 +879,29 @@ export default function page() {
         videoRef.current?.seekTo?.(position / 1000);
       }
     },
-    [isAndroid],
+    [useVlcPlayer],
   );
 
   const handleZoomToggle = useCallback(async () => {
-    // Zoom toggle only supported on iOS (SfPlayer)
-    if (isAndroid) return;
+    // Zoom toggle only supported when using SfPlayer (KSPlayer)
+    if (useVlcPlayer) return;
     const newZoomState = !isZoomedToFill;
     setIsZoomedToFill(newZoomState);
     await (videoRef.current as SfPlayerViewRef)?.setVideoZoomToFill?.(
       newZoomState,
     );
-  }, [isZoomedToFill, isAndroid]);
+  }, [isZoomedToFill, useVlcPlayer]);
 
-  // Apply KSPlayer global settings before video loads
+  // Apply KSPlayer global settings before video loads (only when using KSPlayer)
   useEffect(() => {
-    if (Platform.OS === "ios") {
+    if (Platform.OS === "ios" && !useVlcPlayer) {
       setHardwareDecode(settings.ksHardwareDecode);
     }
-  }, [settings.ksHardwareDecode]);
+  }, [settings.ksHardwareDecode, useVlcPlayer]);
 
-  // Apply subtitle settings when video loads (iOS only - SfPlayer-specific)
+  // Apply subtitle settings when video loads (SfPlayer-specific)
   useEffect(() => {
-    if (isAndroid || !isVideoLoaded || !videoRef.current) return;
+    if (useVlcPlayer || !isVideoLoaded || !videoRef.current) return;
 
     const sfRef = videoRef.current as SfPlayerViewRef;
     const applySubtitleSettings = async () => {
@@ -921,7 +927,7 @@ export default function page() {
     };
 
     applySubtitleSettings();
-  }, [isVideoLoaded, settings, isAndroid]);
+  }, [isVideoLoaded, settings, useVlcPlayer]);
 
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
@@ -976,7 +982,7 @@ export default function page() {
               justifyContent: "center",
             }}
           >
-            {isAndroid ? (
+            {useVlcPlayer ? (
               <VlcPlayerView
                 ref={videoRef as React.RefObject<VlcPlayerViewRef>}
                 source={vlcVideoSource!}
