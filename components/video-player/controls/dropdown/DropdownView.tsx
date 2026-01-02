@@ -171,6 +171,7 @@ const DropdownView = () => {
       title='Playback Options'
       groups={optionGroups}
       trigger={trigger}
+      expoUIConfig={{}}
       bottomSheetConfig={{
         enablePanDownToClose: true,
       }}

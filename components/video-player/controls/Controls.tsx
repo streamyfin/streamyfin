@@ -5,7 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { type FC, useCallback, useEffect, useState } from "react";
-import { useWindowDimensions } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
   type SharedValue,
@@ -436,7 +436,7 @@ export const Controls: FC<Props> = ({
   }, [isPlaying, togglePlay]);
 
   return (
-    <>
+    <View style={styles.controlsContainer} pointerEvents='box-none'>
       {episodeView ? (
         <EpisodeList
           item={item}
@@ -528,6 +528,16 @@ export const Controls: FC<Props> = ({
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (
         <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
       )}
-    </>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  controlsContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+});

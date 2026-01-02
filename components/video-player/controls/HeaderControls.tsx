@@ -16,10 +16,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
-import {
-  type AspectRatio,
-  AspectRatioSelector,
-} from "./VideoScalingModeSelector";
+import { type AspectRatio } from "./VideoScalingModeSelector";
 import { ZoomToggle } from "./ZoomToggle";
 
 interface HeaderControlsProps {
@@ -72,16 +69,14 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
         {
           position: "absolute",
           top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
+          left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
           right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
-          width: settings?.safeAreaInControlsEnabled
-            ? screenWidth - insets.left - insets.right
-            : screenWidth,
         },
       ]}
       pointerEvents={showControls ? "auto" : "none"}
-      className={"flex flex-row w-full pt-2"}
+      className='flex flex-row justify-between'
     >
-      <View className='mr-auto' pointerEvents='box-none'>
+      <View className='mr-auto p-2' pointerEvents='box-none'>
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
           <View pointerEvents='auto'>
             <DropdownView />
@@ -134,17 +129,16 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             />
           </TouchableOpacity>
         )}
-        <AspectRatioSelector
+        {/*<AspectRatioSelector
           currentRatio={aspectRatio}
           onRatioChange={async (newRatio) => {
             if (setVideoAspectRatio) {
-              const aspectRatioString =
-                newRatio === "default" ? null : newRatio;
+              const aspectRatioString = newRatio === "default" ? null : newRatio;
               await setVideoAspectRatio(aspectRatioString);
             }
           }}
           disabled={!setVideoAspectRatio}
-        />
+        />*/}
         <ZoomToggle
           isZoomedToFill={isZoomedToFill}
           onToggle={onZoomToggle ?? (() => {})}

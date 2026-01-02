@@ -25,6 +25,7 @@ import { Controls } from "@/components/video-player/controls/Controls";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
@@ -119,6 +120,7 @@ export default function page() {
     playbackPosition?: string;
   }>();
   const { settings } = useSettings();
+  const { lockOrientation, unlockOrientation } = useOrientation();
 
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager({ isOffline: offline });
@@ -180,6 +182,17 @@ export default function page() {
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
+
+  // Lock orientation based on user settings
+  useEffect(() => {
+    if (settings?.defaultVideoOrientation) {
+      lockOrientation(settings.defaultVideoOrientation);
+    }
+
+    return () => {
+      unlockOrientation();
+    };
+  }, [settings?.defaultVideoOrientation, lockOrientation, unlockOrientation]);
 
   interface Stream {
     mediaSource: MediaSourceInfo;
