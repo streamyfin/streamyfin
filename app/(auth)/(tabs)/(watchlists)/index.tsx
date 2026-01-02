@@ -83,7 +83,7 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
 };
 
 const EmptyState: React.FC<{ onCreatePress: () => void }> = ({
-  onCreatePress,
+  onCreatePress: _onCreatePress,
 }) => {
   const { t } = useTranslation();
 

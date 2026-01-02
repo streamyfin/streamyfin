@@ -47,15 +47,15 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   goToNextItem,
   previousItem,
   nextItem,
-  aspectRatio = "default",
-  setVideoAspectRatio,
+  aspectRatio: _aspectRatio = "default",
+  setVideoAspectRatio: _setVideoAspectRatio,
   isZoomedToFill = false,
   onZoomToggle,
 }) => {
   const { settings } = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: _screenWidth } = useWindowDimensions();
   const lightHapticFeedback = useHaptic("light");
 
   const onClose = async () => {
