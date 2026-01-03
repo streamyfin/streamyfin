@@ -56,7 +56,12 @@ export default function AlbumDetailScreen() {
   });
 
   useEffect(() => {
-    navigation.setOptions({ title: album?.Name ?? "" });
+    navigation.setOptions({
+      title: album?.Name ?? "",
+      headerTransparent: true,
+      headerStyle: { backgroundColor: "transparent" },
+      headerShadowVisible: false,
+    });
   }, [album?.Name, navigation]);
 
   const imageUrl = useMemo(
@@ -111,7 +116,10 @@ export default function AlbumDetailScreen() {
         paddingBottom: insets.bottom + 100,
       }}
       ListHeaderComponent={
-        <View className='items-center px-4 pt-4 pb-6'>
+        <View
+          className='items-center px-4 pb-6 bg-black'
+          style={{ paddingTop: insets.top + 60 }}
+        >
           {/* Album artwork */}
           <View
             style={{

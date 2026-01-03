@@ -29,7 +29,13 @@ const Layout = () => {
 
   return (
     <>
-      <Stack.Screen options={{ title: t("music.title") }} />
+      <Stack.Screen
+        options={{
+          title: t("music.title"),
+          headerStyle: { backgroundColor: "black" },
+          headerShadowVisible: false,
+        }}
+      />
       <Tab
         initialRouteName='suggestions'
         keyboardDismissMode='none'

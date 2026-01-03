@@ -54,7 +54,12 @@ export default function PlaylistDetailScreen() {
   });
 
   useEffect(() => {
-    navigation.setOptions({ title: playlist?.Name ?? "" });
+    navigation.setOptions({
+      title: playlist?.Name ?? "",
+      headerTransparent: true,
+      headerStyle: { backgroundColor: "transparent" },
+      headerShadowVisible: false,
+    });
   }, [playlist?.Name, navigation]);
 
   const imageUrl = useMemo(
@@ -111,7 +116,10 @@ export default function PlaylistDetailScreen() {
         paddingBottom: insets.bottom + 100,
       }}
       ListHeaderComponent={
-        <View className='items-center px-4 pt-4 pb-6'>
+        <View
+          className='items-center px-4 pb-6 bg-black'
+          style={{ paddingTop: insets.top + 50 }}
+        >
           {/* Playlist artwork */}
           <View
             style={{
