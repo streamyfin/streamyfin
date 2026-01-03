@@ -58,6 +58,10 @@ const MAX_BUILD_BUFFER = 100 * 1024 * 1024;
 /** Default build timeout in milliseconds (30 minutes) */
 const DEFAULT_BUILD_TIMEOUT_MS = 30 * 60 * 1000;
 
+/** Regex to find .app path in DerivedData build output */
+const DERIVED_DATA_APP_PATH_REGEX =
+  /\/[\S]+\/DerivedData\/[\S]+\/Build\/Products\/[\S]+-[\S]+\/[\S]+\.app/;
+
 /** Maximum build timeout in milliseconds (2 hours) */
 const MAX_BUILD_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
@@ -839,9 +843,7 @@ function extractBinaryPath(buildOutput: string): string | null {
   }
 
   // Fallback: find .app path in DerivedData
-  const appPathMatch = buildOutput.match(
-    /\/[\S]+\/DerivedData\/[\S]+\/Build\/Products\/[\S]+-[\S]+\/[\S]+\.app/,
-  );
+  const appPathMatch = buildOutput.match(DERIVED_DATA_APP_PATH_REGEX);
   return appPathMatch ? appPathMatch[0] : null;
 }
 
