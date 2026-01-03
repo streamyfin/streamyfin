@@ -130,6 +130,30 @@ function validatePort(port: number): number {
   return port;
 }
 
+/**
+ * Validates a timeout value in milliseconds.
+ * @param timeoutMs - The timeout in milliseconds
+ * @returns The validated timeout value
+ * @throws Error if timeout is invalid
+ */
+function validateTimeout(timeoutMs: number): number {
+  if (!Number.isInteger(timeoutMs)) {
+    throw new Error(`Timeout must be an integer, got: ${timeoutMs}`);
+  }
+  if (timeoutMs < 0) {
+    throw new Error(
+      `Timeout cannot be negative, got ${timeoutMs}ms. Use --no-timeout to disable timeout.`,
+    );
+  }
+  const MAX_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+  if (timeoutMs > MAX_TIMEOUT_MS) {
+    throw new Error(
+      `Timeout is too large (${timeoutMs}ms = ${timeoutMs / 1000}s). Maximum: ${MAX_TIMEOUT_MS / 1000}s (2 hours). Use --no-timeout for unlimited builds.`,
+    );
+  }
+  return timeoutMs;
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -246,9 +270,16 @@ function parseArgs(argv: string[]): BuildOptions {
       case "--no-timeout":
         options.noTimeout = true;
         break;
-      case "--timeout":
-        options.buildTimeout = parseInt(args[++i], 10) * 1000; // Convert seconds to ms
+      case "--timeout": {
+        const timeoutSeconds = parseInt(args[++i], 10);
+        if (Number.isNaN(timeoutSeconds)) {
+          throw new Error(
+            "Invalid timeout value. Must be a number in seconds.",
+          );
+        }
+        options.buildTimeout = validateTimeout(timeoutSeconds * 1000);
         break;
+      }
     }
   }
 
