@@ -54,6 +54,9 @@ const MIN_PORT = 1024;
 /** Maximum allowed port number */
 const MAX_PORT = 65535;
 
+/** Progress line width for padding */
+const PROGRESS_LINE_WIDTH = 60;
+
 /** Maximum buffer size for xcodebuild output (100MB) */
 const MAX_BUILD_BUFFER = 100 * 1024 * 1024;
 
@@ -828,7 +831,9 @@ async function runXcodeBuild(
           // Show compilation progress
           const match = str.match(/Compiling\s+(\S+)/);
           if (match) {
-            process.stdout.write(`\r  Compiling ${match[1]}...`.padEnd(60));
+            process.stdout.write(
+              `\r  Compiling ${match[1]}...`.padEnd(PROGRESS_LINE_WIDTH),
+            );
           }
         }
       }
@@ -1069,14 +1074,15 @@ function cleanupMetroBundler(): void {
 
 // Register cleanup handler for process exit
 process.on("exit", cleanupMetroBundler);
-process.on("SIGINT", () => {
+// Handle process termination for graceful cleanup
+const handleExit = (signal: NodeJS.Signals, exitCode: number) => () => {
+  log.info(`Received ${signal}, shutting down gracefully...`);
   cleanupMetroBundler();
-  process.exit(130); // Standard exit code for SIGINT
-});
-process.on("SIGTERM", () => {
-  cleanupMetroBundler();
-  process.exit(143); // Standard exit code for SIGTERM
-});
+  process.exit(exitCode);
+};
+
+process.on("SIGINT", handleExit("SIGINT", 130));
+process.on("SIGTERM", handleExit("SIGTERM", 143));
 
 // =============================================================================
 // Production Build (IPA/App Archive)
@@ -1607,7 +1613,7 @@ async function main(): Promise<void> {
       log.info("Check the Xcode build output for the .app location");
     }
   } catch (_error) {
-    log.error("Build failed");
+    log.error("Development build failed");
     process.exit(1);
   }
 }
