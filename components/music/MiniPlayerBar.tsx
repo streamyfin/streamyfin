@@ -111,27 +111,27 @@ export const MiniPlayerBar: React.FC = () => {
 
       // Swipe up - open modal (check position OR velocity)
       if (currentPosition < -16 || velocity < -VELOCITY_THRESHOLD) {
+        // Slow return animation - won't jank with navigation
+        translateY.value = withTiming(0, {
+          duration: 600,
+          easing: Easing.out(Easing.cubic),
+        });
         runOnJS(handlePress)();
+        return;
       }
       // Swipe down - stop playback and dismiss (check position OR velocity)
-      else if (currentPosition > 16 || velocity > VELOCITY_THRESHOLD) {
+      if (currentPosition > 16 || velocity > VELOCITY_THRESHOLD) {
+        // No need to reset - component will unmount
         runOnJS(handleDismiss)();
+        return;
       }
 
-      // Smooth return to original position (no bounce)
+      // Only animate back if no action was triggered
       translateY.value = withTiming(0, {
         duration: 200,
         easing: Easing.out(Easing.cubic),
       });
     });
-
-  // Tap gesture for opening modal (preserves existing behavior)
-  const tapGesture = Gesture.Tap().onEnd(() => {
-    runOnJS(handlePress)();
-  });
-
-  // Combine gestures - pan takes priority over tap
-  const composedGesture = Gesture.Race(panGesture, tapGesture);
 
   // Animated styles for the container
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -158,31 +158,38 @@ export const MiniPlayerBar: React.FC = () => {
 
   const content = (
     <>
-      {/* Album art */}
-      <View style={styles.albumArt}>
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.albumImage}
-            contentFit='cover'
-            cachePolicy='memory-disk'
-          />
-        ) : (
-          <View style={styles.albumPlaceholder}>
-            <Ionicons name='musical-note' size={20} color='#888' />
-          </View>
-        )}
-      </View>
+      {/* Tappable area: Album art + Track info */}
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={0.7}
+        style={styles.tappableArea}
+      >
+        {/* Album art */}
+        <View style={styles.albumArt}>
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.albumImage}
+              contentFit='cover'
+              cachePolicy='memory-disk'
+            />
+          ) : (
+            <View style={styles.albumPlaceholder}>
+              <Ionicons name='musical-note' size={20} color='#888' />
+            </View>
+          )}
+        </View>
 
-      {/* Track info */}
-      <View style={styles.trackInfo}>
-        <Text numberOfLines={1} style={styles.trackTitle}>
-          {currentTrack.Name}
-        </Text>
-        <Text numberOfLines={1} style={styles.artistName}>
-          {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
-        </Text>
-      </View>
+        {/* Track info */}
+        <View style={styles.trackInfo}>
+          <Text numberOfLines={1} style={styles.trackTitle}>
+            {currentTrack.Name}
+          </Text>
+          <Text numberOfLines={1} style={styles.artistName}>
+            {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
+          </Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Controls */}
       <View style={styles.controls}>
@@ -222,7 +229,7 @@ export const MiniPlayerBar: React.FC = () => {
   );
 
   return (
-    <GestureDetector gesture={composedGesture}>
+    <GestureDetector gesture={panGesture}>
       <Animated.View
         style={[
           styles.container,
@@ -287,6 +294,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 0.5,
     borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  tappableArea: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
   },
   albumArt: {
     width: 32,
