@@ -3,8 +3,47 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
 import { getSubtitleProfiles } from "./subtitles";
+
+/**
+ * Audio profiles for react-native-track-player based on platform capabilities.
+ * iOS uses AVPlayer, Android uses ExoPlayer - each has different codec support.
+ */
+const getAudioDirectPlayProfile = () => {
+  if (Platform.OS === "ios") {
+    // iOS AVPlayer supported formats
+    return {
+      Type: MediaTypes.Audio,
+      Container: "mp3,m4a,aac,flac,alac,wav,aiff,caf",
+      AudioCodec: "mp3,aac,alac,flac,opus,pcm",
+    };
+  }
+
+  // Android ExoPlayer supported formats
+  return {
+    Type: MediaTypes.Audio,
+    Container: "mp3,m4a,aac,ogg,flac,wav,webm,mka",
+    AudioCodec: "mp3,aac,flac,vorbis,opus,pcm",
+  };
+};
+
+const getAudioCodecProfile = () => {
+  if (Platform.OS === "ios") {
+    // iOS AVPlayer codec constraints
+    return {
+      Type: MediaTypes.Audio,
+      Codec: "aac,ac3,eac3,mp3,flac,alac,opus,pcm",
+    };
+  }
+
+  // Android ExoPlayer codec constraints
+  return {
+    Type: MediaTypes.Audio,
+    Codec: "aac,ac3,eac3,mp3,flac,vorbis,opus,pcm",
+  };
+};
 
 export const generateDeviceProfile = () => {
   /**
@@ -37,10 +76,7 @@ export const generateDeviceProfile = () => {
           },
         ],
       },
-      {
-        Type: MediaTypes.Audio,
-        Codec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,pcm,wma",
-      },
+      getAudioCodecProfile(),
     ],
     DirectPlayProfiles: [
       {
@@ -50,12 +86,7 @@ export const generateDeviceProfile = () => {
           "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
         AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma,dts,truehd",
       },
-      {
-        Type: MediaTypes.Audio,
-        Container: "mp3,aac,flac,alac,wav,ogg,wma",
-        AudioCodec:
-          "mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape",
-      },
+      getAudioDirectPlayProfile(),
     ],
     TranscodingProfiles: [
       {
