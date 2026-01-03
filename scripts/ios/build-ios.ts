@@ -793,16 +793,20 @@ async function runXcodeBuild(
 
     const buildProcess = spawn("xcodebuild", args, {
       env,
-      stdio: verbose ? "inherit" : ["inherit", "pipe", "pipe"],
+      stdio: ["inherit", "pipe", "pipe"],
     });
 
     let output = "";
     let errorOutput = "";
 
-    if (!verbose) {
-      buildProcess.stdout?.on("data", (data: Buffer) => {
-        const str = data.toString();
-        output += str;
+    // Always capture stdout for binary path extraction
+    buildProcess.stdout?.on("data", (data: Buffer) => {
+      const str = data.toString();
+      output += str;
+
+      if (verbose) {
+        process.stdout.write(str);
+      } else {
         // Simple progress indicator
         if (str.includes("Build succeeded")) {
           log.success("Build succeeded");
@@ -813,26 +817,32 @@ async function runXcodeBuild(
             process.stdout.write(`\r  Compiling ${match[1]}...`.padEnd(60));
           }
         }
-      });
-    }
+      }
+    });
 
     buildProcess.stderr?.on("data", (data: Buffer) => {
-      errorOutput += data.toString();
+      const str = data.toString();
+      errorOutput += str;
+      if (verbose) {
+        process.stderr.write(str);
+      }
     });
 
     buildProcess.on("close", (code: number | null) => {
-      process.stdout.write("\n");
+      if (!verbose) {
+        process.stdout.write("\n");
+      }
       if (code === 0) {
         resolve(output);
       } else if (code === null) {
         log.error("xcodebuild process terminated abnormally (no exit code)");
-        if (errorOutput) {
+        if (errorOutput && !verbose) {
           console.error(errorOutput);
         }
         reject(new Error("Build process exited without code"));
       } else {
         log.error(`xcodebuild exited with code ${code}`);
-        if (errorOutput) {
+        if (errorOutput && !verbose) {
           console.error(errorOutput);
         }
         reject(new Error(`Build failed with code ${code}`));
