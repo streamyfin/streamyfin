@@ -890,10 +890,29 @@ async function waitForSimulatorBoot(
 
   while (Date.now() - startTime < maxWaitMs) {
     try {
-      const result = execSync(`xcrun simctl list devices | grep "${udid}"`, {
+      const result = execSync("xcrun simctl list devices --json", {
         encoding: "utf-8",
       });
-      if (result.includes("Booted")) {
+      const data = JSON.parse(result);
+
+      // Find the device in the JSON output
+      let isBooted = false;
+      const devices = data.devices || {};
+
+      for (const runtime in devices) {
+        if (Object.hasOwn(devices, runtime)) {
+          const deviceList = devices[runtime];
+          if (Array.isArray(deviceList)) {
+            const device = deviceList.find((d: any) => d.udid === udid);
+            if (device && device.state === "Booted") {
+              isBooted = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (isBooted) {
         log.info("Simulator is ready");
         return;
       }
