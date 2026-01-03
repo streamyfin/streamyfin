@@ -185,14 +185,12 @@ export default function AlbumDetailScreen() {
         </View>
       }
       renderItem={({ item, index }) => (
-        <View className='px-4'>
-          <MusicTrackItem
-            track={item}
-            index={index + 1}
-            queue={tracks}
-            showArtwork={false}
-          />
-        </View>
+        <MusicTrackItem
+          track={item}
+          index={index + 1}
+          queue={tracks}
+          showArtwork={false}
+        />
       )}
       keyExtractor={(item) => item.Id!}
     />

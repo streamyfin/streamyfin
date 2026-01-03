@@ -181,9 +181,7 @@ export default function PlaylistDetailScreen() {
         </View>
       }
       renderItem={({ item, index }) => (
-        <View className='px-4'>
-          <MusicTrackItem track={item} index={index + 1} queue={tracks} />
-        </View>
+        <MusicTrackItem track={item} index={index + 1} queue={tracks} />
       )}
       keyExtractor={(item) => item.Id!}
     />

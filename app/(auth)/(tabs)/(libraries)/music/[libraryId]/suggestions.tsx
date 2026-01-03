@@ -268,16 +268,16 @@ export default function SuggestionsScreen() {
                 renderItem={(item) => <MusicAlbumCard album={item} />}
               />
             ) : (
-              <View className='px-4'>
-                {section.data.slice(0, 5).map((track, index, _tracks) => (
+              section.data
+                .slice(0, 5)
+                .map((track, index, _tracks) => (
                   <MusicTrackItem
                     key={track.Id}
                     track={track}
                     index={index + 1}
                     queue={section.data}
                   />
-                ))}
-              </View>
+                ))
             )}
           </View>
         )}
