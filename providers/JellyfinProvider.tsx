@@ -18,7 +18,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { getDeviceName } from "react-native-device-info";
 import uuid from "react-native-uuid";
 import { useInterval } from "@/hooks/useInterval";
@@ -64,7 +64,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.48.0" },
+            clientInfo: { name: "Streamyfin", version: "0.50.1" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -87,7 +87,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.48.0"`,
+      }, DeviceId="${deviceId}", Version="0.50.1"`,
     };
   }, [deviceId]);
 
@@ -166,7 +166,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   }, [api]);
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
-  useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
+
+  // Refresh plugin settings when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        refreshStreamyfinPluginSettings();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const discoverServers = async (url: string): Promise<Server[]> => {
     const servers =

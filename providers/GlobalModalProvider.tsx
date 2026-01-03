@@ -60,10 +60,6 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
     (content: ReactNode, options?: ModalOptions) => {
       setModalState({ content, options });
       setIsVisible(true);
-      // Wait for state update and layout to complete before presenting
-      requestAnimationFrame(() => {
-        modalRef.current?.present();
-      });
     },
     [],
   );

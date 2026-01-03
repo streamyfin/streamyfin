@@ -237,6 +237,7 @@ export const usePlaybackManager = ({
         });
       } catch (error) {
         console.error("Failed to mark item as played on server", error);
+        throw error;
       }
     }
   };
@@ -278,6 +279,7 @@ export const usePlaybackManager = ({
         });
       } catch (error) {
         console.error("Failed to mark item as unplayed on server", error);
+        throw error;
       }
     }
   };

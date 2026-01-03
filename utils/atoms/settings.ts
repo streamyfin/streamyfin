@@ -8,7 +8,6 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
-import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -130,10 +129,15 @@ export type HomeSectionLatestResolver = {
   includeItemTypes?: Array<BaseItemKind>;
 };
 
+// Video player enum - currently only MPV is supported
 export enum VideoPlayer {
-  // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
-  VLC_3 = 0,
-  VLC_4 = 1,
+  MPV = 0,
+}
+
+// iOS video player selection
+export enum VideoPlayerIOS {
+  KSPlayer = "ksplayer",
+  VLC = "vlc",
 }
 
 export type Settings = {
@@ -141,9 +145,12 @@ export type Settings = {
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
-  searchEngine: "Marlin" | "Jellyfin";
+  searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
   marlinServerUrl?: string;
-  openInVLC?: boolean;
+  streamyStatsServerUrl?: string;
+  streamyStatsMovieRecommendations?: boolean;
+  streamyStatsSeriesRecommendations?: boolean;
+  streamyStatsPromotedWatchlists?: boolean;
   downloadQuality?: DownloadOption;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
@@ -162,24 +169,31 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
-  defaultPlayer: VideoPlayer;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
-  vlcTextColor?: string;
-  vlcBackgroundColor?: string;
-  vlcOutlineColor?: string;
-  vlcOutlineThickness?: string;
-  vlcBackgroundOpacity?: number;
-  vlcOutlineOpacity?: number;
-  vlcIsBold?: boolean;
+  // MPV subtitle settings
+  mpvSubtitleScale?: number;
+  mpvSubtitleMarginY?: number;
+  mpvSubtitleAlignX?: "left" | "center" | "right";
+  mpvSubtitleAlignY?: "top" | "center" | "bottom";
+  mpvSubtitleFontSize?: number;
+  // KSPlayer settings
+  ksHardwareDecode: boolean;
+  ksSubtitleColor: string;
+  ksSubtitleBackgroundColor: string;
+  ksSubtitleFontName: string;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
+  mergeNextUpAndContinueWatching: boolean;
+  // iOS video player selection
+  videoPlayerIOS: VideoPlayerIOS;
 };
 
 export interface Lockable<T> {
@@ -201,7 +215,10 @@ export const defaultValues: Settings = {
   preferedLanguage: undefined,
   searchEngine: "Jellyfin",
   marlinServerUrl: "",
-  openInVLC: false,
+  streamyStatsServerUrl: "",
+  streamyStatsMovieRecommendations: false,
+  streamyStatsSeriesRecommendations: false,
+  streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
   defaultBitrate: BITRATES[0],
   libraryOptions: {
@@ -223,27 +240,34 @@ export const defaultValues: Settings = {
   rewindSkipTime: 10,
   showCustomMenuLinks: false,
   disableHapticFeedback: false,
-  subtitleSize: Platform.OS === "ios" ? 60 : 100,
+  subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
-  vlcTextColor: undefined,
-  vlcBackgroundColor: undefined,
-  vlcOutlineColor: undefined,
-  vlcOutlineThickness: undefined,
-  vlcBackgroundOpacity: undefined,
-  vlcOutlineOpacity: undefined,
-  vlcIsBold: undefined,
+  // MPV subtitle defaults
+  mpvSubtitleScale: undefined,
+  mpvSubtitleMarginY: undefined,
+  mpvSubtitleAlignX: undefined,
+  mpvSubtitleAlignY: undefined,
+  mpvSubtitleFontSize: undefined,
+  // KSPlayer defaults
+  ksHardwareDecode: true,
+  ksSubtitleColor: "#FFFFFF",
+  ksSubtitleBackgroundColor: "#00000080",
+  ksSubtitleFontName: "System",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
+  mergeNextUpAndContinueWatching: false,
+  // iOS video player selection - default to VLC
+  videoPlayerIOS: VideoPlayerIOS.VLC,
 };
 
 const loadSettings = (): Partial<Settings> => {
@@ -309,20 +333,60 @@ export const useSettings = () => {
     [_setPluginSettings],
   );
 
-  const refreshStreamyfinPluginSettings = useCallback(async () => {
-    if (!api) {
-      return;
-    }
-    const settings = await api.getStreamyfinPluginConfig().then(
-      ({ data }) => {
-        writeInfoLog("Got plugin settings", data?.settings);
-        return data?.settings;
-      },
-      (_err) => undefined,
-    );
-    setPluginSettings(settings);
-    return settings;
-  }, [api]);
+  const refreshStreamyfinPluginSettings = useCallback(
+    async (forceOverride = false) => {
+      if (!api) {
+        return;
+      }
+      const newPluginSettings = await api.getStreamyfinPluginConfig().then(
+        ({ data }) => {
+          writeInfoLog("Got plugin settings", data?.settings);
+          return data?.settings;
+        },
+        (_err) => undefined,
+      );
+      setPluginSettings(newPluginSettings);
+
+      // Apply plugin values to settings
+      if (newPluginSettings && _settings) {
+        const updates: Partial<Settings> = {};
+        for (const [key, setting] of Object.entries(newPluginSettings)) {
+          if (setting && !setting.locked && setting.value !== undefined) {
+            const settingsKey = key as keyof Settings;
+            // Apply if forceOverride is true, or if user hasn't explicitly set this value
+            if (
+              forceOverride ||
+              _settings[settingsKey] === undefined ||
+              _settings[settingsKey] === ""
+            ) {
+              (updates as any)[settingsKey] = setting.value;
+            }
+          }
+        }
+
+        // Auto-enable Streamystats if server URL is provided
+        const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
+        if (
+          streamyStatsUrl?.value &&
+          _settings.searchEngine !== "Streamystats"
+        ) {
+          updates.searchEngine = "Streamystats";
+        }
+        if (Object.keys(updates).length > 0) {
+          const newSettings = {
+            ...defaultValues,
+            ..._settings,
+            ...updates,
+          } as Settings;
+          setSettings(newSettings);
+          saveSettings(newSettings);
+        }
+      }
+
+      return newPluginSettings;
+    },
+    [api, _settings],
+  );
 
   const updateSettings = (update: Partial<Settings>) => {
     if (!_settings) {

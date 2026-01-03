@@ -2,108 +2,92 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 export const useFavorite = (item: BaseItemDto) => {
   const queryClient = useQueryClient();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const type = "item";
-  const [isFavorite, setIsFavorite] = useState(item.UserData?.IsFavorite);
+  const [isFavorite, setIsFavorite] = useState<boolean | undefined>(
+    item.UserData?.IsFavorite,
+  );
 
   useEffect(() => {
     setIsFavorite(item.UserData?.IsFavorite);
   }, [item.UserData?.IsFavorite]);
 
-  const updateItemInQueries = (newData: Partial<BaseItemDto>) => {
-    queryClient.setQueryData<BaseItemDto | undefined>(
-      [type, item.Id],
-      (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          ...newData,
-          UserData: { ...old.UserData, ...newData.UserData },
-        };
-      },
-    );
-  };
+  const itemQueryKeyPrefix = useMemo(
+    () => ["item", item.Id] as const,
+    [item.Id],
+  );
 
-  const markFavoriteMutation = useMutation({
-    mutationFn: async () => {
-      if (api && user) {
+  const updateItemInQueries = useCallback(
+    (newData: Partial<BaseItemDto>) => {
+      queryClient.setQueriesData<BaseItemDto | null | undefined>(
+        { queryKey: itemQueryKeyPrefix },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...newData,
+            UserData: { ...old.UserData, ...newData.UserData },
+          };
+        },
+      );
+    },
+    [itemQueryKeyPrefix, queryClient],
+  );
+
+  const favoriteMutation = useMutation({
+    mutationFn: async (nextIsFavorite: boolean) => {
+      if (!api || !user || !item.Id) return;
+      if (nextIsFavorite) {
         await getUserLibraryApi(api).markFavoriteItem({
           userId: user.Id,
-          itemId: item.Id!,
+          itemId: item.Id,
         });
+        return;
       }
+      await getUserLibraryApi(api).unmarkFavoriteItem({
+        userId: user.Id,
+        itemId: item.Id,
+      });
     },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: [type, item.Id] });
-      const previousItem = queryClient.getQueryData<BaseItemDto>([
-        type,
-        item.Id,
-      ]);
-      updateItemInQueries({ UserData: { IsFavorite: true } });
+    onMutate: async (nextIsFavorite: boolean) => {
+      await queryClient.cancelQueries({ queryKey: itemQueryKeyPrefix });
 
-      return { previousItem };
+      const previousIsFavorite = isFavorite;
+      const previousQueries = queryClient.getQueriesData<BaseItemDto | null>({
+        queryKey: itemQueryKeyPrefix,
+      });
+
+      setIsFavorite(nextIsFavorite);
+      updateItemInQueries({ UserData: { IsFavorite: nextIsFavorite } });
+
+      return { previousIsFavorite, previousQueries };
     },
-    onError: (_err, _variables, context) => {
-      if (context?.previousItem) {
-        queryClient.setQueryData([type, item.Id], context.previousItem);
+    onError: (_err, _nextIsFavorite, context) => {
+      if (context?.previousQueries) {
+        for (const [queryKey, data] of context.previousQueries) {
+          queryClient.setQueryData(queryKey, data);
+        }
       }
+      setIsFavorite(context?.previousIsFavorite);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [type, item.Id] });
+      queryClient.invalidateQueries({ queryKey: itemQueryKeyPrefix });
       queryClient.invalidateQueries({ queryKey: ["home", "favorites"] });
-      setIsFavorite(true);
     },
   });
 
-  const unmarkFavoriteMutation = useMutation({
-    mutationFn: async () => {
-      if (api && user) {
-        await getUserLibraryApi(api).unmarkFavoriteItem({
-          userId: user.Id,
-          itemId: item.Id!,
-        });
-      }
-    },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: [type, item.Id] });
-      const previousItem = queryClient.getQueryData<BaseItemDto>([
-        type,
-        item.Id,
-      ]);
-      updateItemInQueries({ UserData: { IsFavorite: false } });
-
-      return { previousItem };
-    },
-    onError: (_err, _variables, context) => {
-      if (context?.previousItem) {
-        queryClient.setQueryData([type, item.Id], context.previousItem);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [type, item.Id] });
-      queryClient.invalidateQueries({ queryKey: ["home", "favorites"] });
-      setIsFavorite(false);
-    },
-  });
-
-  const toggleFavorite = () => {
-    if (isFavorite) {
-      unmarkFavoriteMutation.mutate();
-    } else {
-      markFavoriteMutation.mutate();
-    }
-  };
+  const toggleFavorite = useCallback(() => {
+    favoriteMutation.mutate(!isFavorite);
+  }, [favoriteMutation, isFavorite]);
 
   return {
     isFavorite,
     toggleFavorite,
-    markFavoriteMutation,
-    unmarkFavoriteMutation,
+    favoriteMutation,
   };
 };

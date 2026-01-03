@@ -39,6 +39,7 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
 
@@ -117,6 +118,54 @@ export default function search() {
 
           return (searchApi.data.Items as BaseItemDto[]) || [];
         }
+
+        if (searchEngine === "Streamystats") {
+          if (!settings?.streamyStatsServerUrl || !api.accessToken) {
+            return [];
+          }
+
+          const streamyStatsApi = createStreamystatsApi({
+            serverUrl: settings.streamyStatsServerUrl,
+            jellyfinToken: api.accessToken,
+          });
+
+          const typeMap: Record<BaseItemKind, string> = {
+            Movie: "movies",
+            Series: "series",
+            Episode: "episodes",
+            Person: "actors",
+            BoxSet: "movies",
+            Audio: "audio",
+          } as Record<BaseItemKind, string>;
+
+          const searchType = types.length === 1 ? typeMap[types[0]] : "media";
+          const response = await streamyStatsApi.searchIds(
+            query,
+            searchType as "movies" | "series" | "episodes" | "actors" | "media",
+            10,
+          );
+
+          const allIds: string[] = [
+            ...(response.data.movies || []),
+            ...(response.data.series || []),
+            ...(response.data.episodes || []),
+            ...(response.data.actors || []),
+            ...(response.data.audio || []),
+          ];
+
+          if (!allIds.length) {
+            return [];
+          }
+
+          const itemsResponse = await getItemsApi(api).getItems({
+            ids: allIds,
+            enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          });
+
+          return (itemsResponse.data.Items as BaseItemDto[]) || [];
+        }
+
+        // Marlin search
         if (!settings?.marlinServerUrl) {
           return [];
         }
@@ -141,12 +190,11 @@ export default function search() {
         });
 
         return (response2.data.Items as BaseItemDto[]) || [];
-      } catch (error) {
-        console.error("Error during search:", error);
-        return []; // Ensure an empty array is returned in case of an error
+      } catch (_error) {
+        return [];
       }
     },
-    [api, searchEngine, settings],
+    [api, searchEngine, settings, user?.Id],
   );
 
   type HeaderSearchBarRef = {
