@@ -193,6 +193,8 @@ export type Settings = {
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
+  hideVolumeSlider: boolean;
+  hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
@@ -273,6 +275,8 @@ export const defaultValues: Settings = {
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
+  hideVolumeSlider: false,
+  hideBrightnessSlider: false,
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,

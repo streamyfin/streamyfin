@@ -114,7 +114,11 @@
         "left_side_brightness": "Left Side Brightness Control",
         "left_side_brightness_description": "Swipe up/down on left side to adjust brightness",
         "right_side_volume": "Right Side Volume Control",
-        "right_side_volume_description": "Swipe up/down on right side to adjust volume"
+        "right_side_volume_description": "Swipe up/down on right side to adjust volume",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
       },
       "audio": {
         "audio_title": "Audio",
