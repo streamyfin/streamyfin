@@ -79,6 +79,10 @@ public class VlcPlayerModule: Module {
             AsyncFunction("getSubtitleTracks") { (view: VlcPlayerView) -> [[String: Any]]? in
                 return view.getSubtitleTracks()
             }
+
+            AsyncFunction("setRate") { (view: VlcPlayerView, rate: Float) in
+                view.setRate(rate)
+            }
         }
     }
 }

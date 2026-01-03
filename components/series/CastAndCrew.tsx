@@ -8,6 +8,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { HorizontalScroll } from "../common/HorizontalScroll";
@@ -50,7 +51,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
       <HorizontalScroll
         loading={loading}
         keyExtractor={(i, _idx) => i.Id?.toString() || ""}
-        height={247}
+        height={POSTER_CAROUSEL_HEIGHT}
         data={destinctPeople}
         renderItem={(i) => (
           <TouchableOpacity
@@ -65,8 +66,12 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
             className='flex flex-col w-28'
           >
             <Poster id={i.Id} url={getPrimaryImageUrl({ api, item: i })} />
-            <Text className='mt-2'>{i.Name}</Text>
-            <Text className='text-xs opacity-50'>{i.Role}</Text>
+            <Text className='mt-2' numberOfLines={1}>
+              {i.Name}
+            </Text>
+            <Text className='text-xs opacity-50' numberOfLines={1}>
+              {i.Role}
+            </Text>
           </TouchableOpacity>
         )}
       />

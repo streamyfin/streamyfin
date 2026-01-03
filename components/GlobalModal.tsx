@@ -3,7 +3,7 @@ import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
 /**
@@ -16,7 +16,13 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
  * after BottomSheetModalProvider.
  */
 export const GlobalModal = () => {
-  const { hideModal, modalState, modalRef } = useGlobalModal();
+  const { hideModal, modalState, modalRef, isVisible } = useGlobalModal();
+
+  useEffect(() => {
+    if (isVisible && modalState.content) {
+      modalRef.current?.present();
+    }
+  }, [isVisible, modalState.content, modalRef]);
 
   const handleSheetChanges = useCallback(
     (index: number) => {

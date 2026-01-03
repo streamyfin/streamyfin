@@ -3,6 +3,7 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import type React from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
@@ -10,35 +11,24 @@ import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
 interface Props extends ViewProps {
   actorId: string;
+  actorName?: string | null;
   currentItem: BaseItemDto;
 }
 
 export const MoreMoviesWithActor: React.FC<Props> = ({
   actorId,
+  actorName,
   currentItem,
   ...props
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { t } = useTranslation();
-
-  const { data: actor } = useQuery({
-    queryKey: ["actor", actorId],
-    queryFn: async () => {
-      if (!api || !user?.Id) return null;
-      return await getUserItemData({
-        api,
-        userId: user.Id,
-        itemId: actorId,
-      });
-    },
-    enabled: !!api && !!user?.Id && !!actorId,
-  });
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["actor", "movies", actorId, currentItem.Id],
@@ -72,29 +62,34 @@ export const MoreMoviesWithActor: React.FC<Props> = ({
     enabled: !!api && !!user?.Id && !!actorId,
   });
 
+  const renderItem = useCallback(
+    (item: BaseItemDto, idx: number) => (
+      <TouchableItemRouter
+        key={item.Id ?? idx}
+        item={item}
+        className='flex flex-col w-28'
+      >
+        <View>
+          <MoviePoster item={item} />
+          <ItemCardText item={item} />
+        </View>
+      </TouchableItemRouter>
+    ),
+    [],
+  );
+
   if (items?.length === 0) return null;
 
   return (
     <View {...props}>
       <Text className='text-lg font-bold mb-2 px-4'>
-        {t("item_card.more_with", { name: actor?.Name })}
+        {t("item_card.more_with", { name: actorName ?? "" })}
       </Text>
       <HorizontalScroll
         data={items}
         loading={isLoading}
-        height={247}
-        renderItem={(item: BaseItemDto, idx: number) => (
-          <TouchableItemRouter
-            key={idx}
-            item={item}
-            className='flex flex-col w-28'
-          >
-            <View>
-              <MoviePoster item={item} />
-              <ItemCardText item={item} />
-            </View>
-          </TouchableItemRouter>
-        )}
+        height={POSTER_CAROUSEL_HEIGHT}
+        renderItem={renderItem}
       />
     </View>
   );

@@ -25,7 +25,9 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
       pluginSettings?.enableHorizontalSwipeSkip?.locked === true &&
       pluginSettings?.enableDoubleTapToSeek?.locked === true &&
       pluginSettings?.enableLeftSideBrightnessSwipe?.locked === true &&
-      pluginSettings?.enableRightSideVolumeSwipe?.locked === true,
+      pluginSettings?.enableRightSideVolumeSwipe?.locked === true &&
+      pluginSettings?.hideVolumeSlider?.locked === true &&
+      pluginSettings?.hideBrightnessSlider?.locked === true,
     [pluginSettings],
   );
 
@@ -190,6 +192,38 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
             disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
             onValueChange={(enableRightSideVolumeSwipe) =>
               updateSettings({ enableRightSideVolumeSwipe })
+            }
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.gesture_controls.hide_volume_slider")}
+          subtitle={t(
+            "home.settings.gesture_controls.hide_volume_slider_description",
+          )}
+          disabled={pluginSettings?.hideVolumeSlider?.locked}
+        >
+          <Switch
+            value={settings.hideVolumeSlider}
+            disabled={pluginSettings?.hideVolumeSlider?.locked}
+            onValueChange={(hideVolumeSlider) =>
+              updateSettings({ hideVolumeSlider })
+            }
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.gesture_controls.hide_brightness_slider")}
+          subtitle={t(
+            "home.settings.gesture_controls.hide_brightness_slider_description",
+          )}
+          disabled={pluginSettings?.hideBrightnessSlider?.locked}
+        >
+          <Switch
+            value={settings.hideBrightnessSlider}
+            disabled={pluginSettings?.hideBrightnessSlider?.locked}
+            onValueChange={(hideBrightnessSlider) =>
+              updateSettings({ hideBrightnessSlider })
             }
           />
         </ListItem>
