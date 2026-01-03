@@ -31,13 +31,15 @@
  */
 
 /* eslint-disable @typescript-eslint/no-var-requires */
-const { spawn, execSync, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
-const { ChildProcess } = require("node:child_process");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { spawn, execSync, spawnSync } = require("node:child_process");
+
+import type { ChildProcess } from "node:child_process";
 
 // Track Metro bundler process for cleanup
-let metroProcess: typeof ChildProcess | null = null;
+let metroProcess: ChildProcess | null = null;
 
 // =============================================================================
 // Configuration Constants
