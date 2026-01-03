@@ -77,7 +77,12 @@ export default function ArtistDetailScreen() {
   });
 
   useEffect(() => {
-    navigation.setOptions({ title: artist?.Name ?? "" });
+    navigation.setOptions({
+      title: artist?.Name ?? "",
+      headerTransparent: true,
+      headerStyle: { backgroundColor: "transparent" },
+      headerShadowVisible: false,
+    });
   }, [artist?.Name, navigation]);
 
   const imageUrl = useMemo(
@@ -138,7 +143,10 @@ export default function ArtistDetailScreen() {
         paddingBottom: insets.bottom + 100,
       }}
       ListHeaderComponent={
-        <View className='items-center px-4 pt-4 pb-6'>
+        <View
+          className='items-center px-4 pb-6 bg-black'
+          style={{ paddingTop: insets.top + 50 }}
+        >
           {/* Artist image */}
           <View
             style={{

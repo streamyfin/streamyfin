@@ -129,42 +129,44 @@ export default function ArtistsScreen() {
   }
 
   return (
-    <FlashList
-      data={artists}
-      numColumns={numColumns}
-      contentContainerStyle={{
-        paddingBottom: insets.bottom + 100,
-        paddingTop: 16,
-        paddingHorizontal: padding,
-      }}
-      refreshControl={
-        <RefreshControl
-          refreshing={false}
-          onRefresh={refetch}
-          tintColor='#9334E9'
-        />
-      }
-      onEndReached={handleEndReached}
-      onEndReachedThreshold={0.5}
-      renderItem={({ item, index }) => (
-        <View
-          style={{
-            width: itemWidth,
-            marginRight: index % numColumns !== numColumns - 1 ? gap : 0,
-            marginBottom: gap,
-          }}
-        >
-          <MusicArtistCard artist={item} size={itemWidth} />
-        </View>
-      )}
-      keyExtractor={(item) => item.Id!}
-      ListFooterComponent={
-        isFetchingNextPage ? (
-          <View className='py-4'>
-            <Loader />
+    <View className='flex-1 bg-black'>
+      <FlashList
+        data={artists}
+        numColumns={numColumns}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 100,
+          paddingTop: 16,
+          paddingHorizontal: padding,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={refetch}
+            tintColor='#9334E9'
+          />
+        }
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
+        renderItem={({ item, index }) => (
+          <View
+            style={{
+              width: itemWidth,
+              marginRight: index % numColumns !== numColumns - 1 ? gap : 0,
+              marginBottom: gap,
+            }}
+          >
+            <MusicArtistCard artist={item} size={itemWidth} />
           </View>
-        ) : null
-      }
-    />
+        )}
+        keyExtractor={(item) => item.Id!}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View className='py-4'>
+              <Loader />
+            </View>
+          ) : null
+        }
+      />
+    </View>
   );
 }

@@ -243,44 +243,46 @@ export default function SuggestionsScreen() {
   }
 
   return (
-    <FlashList
-      data={sections}
-      contentContainerStyle={{
-        paddingBottom: insets.bottom + 100,
-        paddingTop: 16,
-      }}
-      refreshControl={
-        <RefreshControl
-          refreshing={false}
-          onRefresh={handleRefresh}
-          tintColor='#9334E9'
-        />
-      }
-      renderItem={({ item: section }) => (
-        <View className='mb-6'>
-          <Text className='text-lg font-bold px-4 mb-3'>{section.title}</Text>
-          {section.type === "albums" ? (
-            <HorizontalScroll
-              data={section.data}
-              height={200}
-              keyExtractor={(item) => item.Id!}
-              renderItem={(item) => <MusicAlbumCard album={item} />}
-            />
-          ) : (
-            <View className='px-4'>
-              {section.data.slice(0, 5).map((track, index, _tracks) => (
-                <MusicTrackItem
-                  key={track.Id}
-                  track={track}
-                  index={index + 1}
-                  queue={section.data}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-      )}
-      keyExtractor={(item) => item.title}
-    />
+    <View className='flex-1 bg-black'>
+      <FlashList
+        data={sections}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 100,
+          paddingTop: 16,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={handleRefresh}
+            tintColor='#9334E9'
+          />
+        }
+        renderItem={({ item: section }) => (
+          <View className='mb-6'>
+            <Text className='text-lg font-bold px-4 mb-3'>{section.title}</Text>
+            {section.type === "albums" ? (
+              <HorizontalScroll
+                data={section.data}
+                height={200}
+                keyExtractor={(item) => item.Id!}
+                renderItem={(item) => <MusicAlbumCard album={item} />}
+              />
+            ) : (
+              <View className='px-4'>
+                {section.data.slice(0, 5).map((track, index, _tracks) => (
+                  <MusicTrackItem
+                    key={track.Id}
+                    track={track}
+                    index={index + 1}
+                    queue={section.data}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+        keyExtractor={(item) => item.title}
+      />
+    </View>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Platform,
@@ -39,6 +40,7 @@ export default function NowPlayingScreen() {
     queue,
     queueIndex,
     isPlaying,
+    isLoading,
     progress,
     duration,
     repeatMode,
@@ -205,6 +207,7 @@ export default function NowPlayingScreen() {
           progressText={progressText}
           durationText={durationText}
           isPlaying={isPlaying}
+          isLoading={isLoading}
           repeatMode={repeatMode}
           shuffleEnabled={shuffleEnabled}
           canGoNext={canGoNext}
@@ -242,6 +245,7 @@ interface PlayerViewProps {
   progressText: string;
   durationText: string;
   isPlaying: boolean;
+  isLoading: boolean;
   repeatMode: RepeatMode;
   shuffleEnabled: boolean;
   canGoNext: boolean;
@@ -266,6 +270,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   progressText,
   durationText,
   isPlaying,
+  isLoading,
   repeatMode,
   shuffleEnabled,
   canGoNext,
@@ -355,30 +360,35 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       <View className='flex flex-row items-center justify-center mb-4'>
         <TouchableOpacity
           onPress={onPrevious}
-          disabled={!canGoPrevious}
+          disabled={!canGoPrevious || isLoading}
           className='p-4'
-          style={{ opacity: canGoPrevious ? 1 : 0.3 }}
+          style={{ opacity: canGoPrevious && !isLoading ? 1 : 0.3 }}
         >
           <Ionicons name='play-skip-back' size={32} color='white' />
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={onTogglePlayPause}
+          disabled={isLoading}
           className='mx-8 bg-white rounded-full p-4'
         >
-          <Ionicons
-            name={isPlaying ? "pause" : "play"}
-            size={36}
-            color='#121212'
-            style={isPlaying ? {} : { marginLeft: 4 }}
-          />
+          {isLoading ? (
+            <ActivityIndicator size={36} color='#121212' />
+          ) : (
+            <Ionicons
+              name={isPlaying ? "pause" : "play"}
+              size={36}
+              color='#121212'
+              style={isPlaying ? {} : { marginLeft: 4 }}
+            />
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={onNext}
-          disabled={!canGoNext}
+          disabled={!canGoNext || isLoading}
           className='p-4'
-          style={{ opacity: canGoNext ? 1 : 0.3 }}
+          style={{ opacity: canGoNext && !isLoading ? 1 : 0.3 }}
         >
           <Ionicons name='play-skip-forward' size={32} color='white' />
         </TouchableOpacity>

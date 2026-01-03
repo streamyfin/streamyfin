@@ -174,6 +174,10 @@ export type Settings = {
   enableH265ForChromecast: boolean;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
+  // Playback speed settings
+  defaultPlaybackSpeed: number;
+  playbackSpeedPerMedia: Record<string, number>;
+  playbackSpeedPerShow: Record<string, number>;
   // MPV subtitle settings
   mpvSubtitleScale?: number;
   mpvSubtitleMarginY?: number;
@@ -189,11 +193,15 @@ export type Settings = {
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
+  hideVolumeSlider: boolean;
+  hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
   // iOS video player selection
   videoPlayerIOS: VideoPlayerIOS;
+  // Appearance
+  hideRemoteSessionButton: boolean;
 };
 
 export interface Lockable<T> {
@@ -248,6 +256,10 @@ export const defaultValues: Settings = {
   enableH265ForChromecast: false,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
+  // Playback speed defaults
+  defaultPlaybackSpeed: 1.0,
+  playbackSpeedPerMedia: {},
+  playbackSpeedPerShow: {},
   // MPV subtitle defaults
   mpvSubtitleScale: undefined,
   mpvSubtitleMarginY: undefined,
@@ -263,11 +275,15 @@ export const defaultValues: Settings = {
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
+  hideVolumeSlider: false,
+  hideBrightnessSlider: false,
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
   // iOS video player selection - default to VLC
   videoPlayerIOS: VideoPlayerIOS.VLC,
+  // Appearance
+  hideRemoteSessionButton: false,
 };
 
 const loadSettings = (): Partial<Settings> => {

@@ -35,7 +35,9 @@ import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { useControlsTimeout } from "./useControlsTimeout";
+import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
+import { type ScaleFactor } from "./VlcZoomControl";
 
 interface Props {
   item: BaseItemDto;
@@ -54,12 +56,20 @@ interface Props {
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
+  useVlcPlayer?: boolean;
+  // VLC-specific props
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   aspectRatio?: AspectRatio;
+  scaleFactor?: ScaleFactor;
+  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  // KSPlayer-specific props
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
   api?: Api | null;
   downloadedFiles?: DownloadedItem[];
+  // Playback speed props
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
 }
 
 export const Controls: FC<Props> = ({
@@ -77,13 +87,18 @@ export const Controls: FC<Props> = ({
   showControls,
   setShowControls,
   mediaSource,
+  useVlcPlayer = false,
   setVideoAspectRatio,
   aspectRatio = "default",
+  scaleFactor = 0,
+  setVideoScaleFactor,
   isZoomedToFill = false,
   onZoomToggle,
   offline = false,
   api = null,
   downloadedFiles = undefined,
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
 }) => {
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
@@ -468,10 +483,15 @@ export const Controls: FC<Props> = ({
               goToNextItem={goToNextItem}
               previousItem={previousItem}
               nextItem={nextItem}
+              useVlcPlayer={useVlcPlayer}
               aspectRatio={aspectRatio}
               setVideoAspectRatio={setVideoAspectRatio}
+              scaleFactor={scaleFactor}
+              setVideoScaleFactor={setVideoScaleFactor}
               isZoomedToFill={isZoomedToFill}
               onZoomToggle={onZoomToggle}
+              playbackSpeed={playbackSpeed}
+              setPlaybackSpeed={setPlaybackSpeed}
             />
           </Animated.View>
           <Animated.View
