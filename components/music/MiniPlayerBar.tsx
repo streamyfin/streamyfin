@@ -4,7 +4,13 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -18,8 +24,15 @@ export const MiniPlayerBar: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { currentTrack, isPlaying, progress, duration, togglePlayPause, next } =
-    useMusicPlayer();
+  const {
+    currentTrack,
+    isPlaying,
+    isLoading,
+    progress,
+    duration,
+    togglePlayPause,
+    next,
+  } = useMusicPlayer();
 
   const imageUrl = useMemo(() => {
     if (!api || !currentTrack) return null;
@@ -87,24 +100,30 @@ export const MiniPlayerBar: React.FC = () => {
 
       {/* Controls */}
       <View style={styles.controls}>
-        <TouchableOpacity
-          onPress={handlePlayPause}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.controlButton}
-        >
-          <Ionicons
-            name={isPlaying ? "pause" : "play"}
-            size={26}
-            color='white'
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleNext}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.controlButton}
-        >
-          <Ionicons name='play-forward' size={22} color='white' />
-        </TouchableOpacity>
+        {isLoading ? (
+          <ActivityIndicator size='small' color='white' style={styles.loader} />
+        ) : (
+          <>
+            <TouchableOpacity
+              onPress={handlePlayPause}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.controlButton}
+            >
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={26}
+                color='white'
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleNext}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.controlButton}
+            >
+              <Ionicons name='play-forward' size={22} color='white' />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* Progress bar at bottom */}
@@ -218,6 +237,9 @@ const styles = StyleSheet.create({
   },
   controlButton: {
     padding: 8,
+  },
+  loader: {
+    marginHorizontal: 16,
   },
   progressContainer: {
     position: "absolute",

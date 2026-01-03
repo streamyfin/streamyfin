@@ -4,7 +4,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
@@ -26,8 +26,14 @@ export const MusicTrackItem: React.FC<Props> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const { showActionSheetWithOptions } = useActionSheet();
-  const { playTrack, playNext, addToQueue, currentTrack, isPlaying } =
-    useMusicPlayer();
+  const {
+    playTrack,
+    playNext,
+    addToQueue,
+    currentTrack,
+    isPlaying,
+    loadingTrackId,
+  } = useMusicPlayer();
 
   const imageUrl = useMemo(() => {
     const albumId = track.AlbumId || track.ParentId;
@@ -38,6 +44,7 @@ export const MusicTrackItem: React.FC<Props> = ({
   }, [api, track]);
 
   const isCurrentTrack = currentTrack?.Id === track.Id;
+  const isTrackLoading = loadingTrackId === track.Id;
 
   const duration = useMemo(() => {
     if (!track.RunTimeTicks) return "";
@@ -107,6 +114,22 @@ export const MusicTrackItem: React.FC<Props> = ({
           ) : (
             <View className='flex-1 items-center justify-center bg-neutral-800'>
               <Ionicons name='musical-note' size={20} color='#737373' />
+            </View>
+          )}
+          {isTrackLoading && (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.6)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <ActivityIndicator size='small' color='white' />
             </View>
           )}
         </View>

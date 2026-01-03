@@ -40,6 +40,7 @@ interface MusicPlayerState {
   queueIndex: number;
   isPlaying: boolean;
   isLoading: boolean;
+  loadingTrackId: string | null; // Track ID being loaded
   progress: number;
   duration: number;
   streamUrl: string | null;
@@ -273,6 +274,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     queueIndex: 0,
     isPlaying: false,
     isLoading: false,
+    loadingTrackId: null,
     progress: 0,
     duration: 0,
     streamUrl: null,
@@ -459,7 +461,12 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     async (queue: BaseItemDto[], startIndex: number) => {
       if (!api || !user?.Id || queue.length === 0) return;
 
-      setState((prev) => ({ ...prev, isLoading: true }));
+      const trackToLoad = queue[startIndex];
+      setState((prev) => ({
+        ...prev,
+        isLoading: true,
+        loadingTrackId: trackToLoad?.Id ?? null,
+      }));
 
       try {
         // Get stream URLs for all tracks
@@ -480,7 +487,11 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }
 
         if (tracks.length === 0) {
-          setState((prev) => ({ ...prev, isLoading: false }));
+          setState((prev) => ({
+            ...prev,
+            isLoading: false,
+            loadingTrackId: null,
+          }));
           return;
         }
 
@@ -498,6 +509,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           queueIndex: startIndex,
           currentTrack,
           isLoading: false,
+          loadingTrackId: null,
           isPlaying: true,
           streamUrl: tracks[startIndex]?.url || null,
           duration: currentTrack?.RunTimeTicks
@@ -507,7 +519,11 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
         reportPlaybackStart(currentTrack, state.playSessionId);
       } catch (_error) {
-        setState((prev) => ({ ...prev, isLoading: false }));
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          loadingTrackId: null,
+        }));
       }
     },
     [api, user?.Id, reportPlaybackStart, state.playSessionId],
@@ -784,6 +800,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       queueIndex: 0,
       isPlaying: false,
       isLoading: false,
+      loadingTrackId: null,
       progress: 0,
       duration: 0,
       streamUrl: null,
