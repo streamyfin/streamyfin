@@ -692,6 +692,11 @@ function resolveDevice(deviceName?: string): Device {
 // CocoaPods
 // =============================================================================
 
+/**
+ * Installs CocoaPods dependencies for the iOS project.
+ * Tries `pod install` first, falls back to `pod install --repo-update`.
+ * @param projectRoot - Project root directory
+ */
 function installPods(projectRoot: string): void {
   const iosPath = path.join(projectRoot, "ios");
   const podfilePath = path.join(iosPath, "Podfile");
@@ -873,6 +878,17 @@ async function waitForSimulatorBoot(
   );
 }
 
+// =============================================================================
+// App Launch
+// =============================================================================
+
+/**
+ * Installs and launches the app on the specified simulator.
+ * Handles simulator booting, app installation, and launching.
+ * @param binaryPath - Path to the compiled .app directory
+ * @param device - Target simulator device
+ * @throws Error if installation or launch fails
+ */
 async function launchApp(binaryPath: string, device: Device): Promise<void> {
   log.step("Installing and launching app...");
 
@@ -953,6 +969,12 @@ async function launchApp(binaryPath: string, device: Device): Promise<void> {
 // Metro Bundler
 // =============================================================================
 
+/**
+ * Starts the Metro bundler in a detached process.
+ * Tracks the process for cleanup on script exit.
+ * @param projectRoot - Project root directory
+ * @param port - Port to run Metro on
+ */
 function startMetroBundler(projectRoot: string, port: number): void {
   log.step("Starting Metro bundler...");
 
@@ -1169,6 +1191,12 @@ function runXcodeBuildCommand(
   }
 }
 
+/**
+ * Orchestrates the production build process (Archive -> Export IPA).
+ * Handles both device (IPA) and simulator (.app) builds.
+ * @param options - Build options
+ * @throws Error if build, archive, or export fails
+ */
 async function runProductionBuild(options: BuildOptions): Promise<void> {
   log.step("Production Build Mode");
   console.log(
@@ -1417,6 +1445,11 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 // Main
 // =============================================================================
 
+/**
+ * Main entry point for the iOS build script.
+ * Handles argument parsing, environment setup, and dispatching to appropriate build flow.
+ * @throws Error if build fails to complete
+ */
 async function main(): Promise<void> {
   assertPlatform();
 
