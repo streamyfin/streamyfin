@@ -63,8 +63,25 @@ const ERROR_OUTPUT_TAIL_LINES = 50;
  * Throws an error if the path contains dangerous characters.
  * @param inputPath - The path to sanitize
  * @param projectRoot - Optional project root to verify path doesn't escape
+ * @param mustExist - If true, validates that the path exists (default: false)
+ * @returns The validated absolute path
+ * @throws Error if validation fails
  */
-function sanitizePath(inputPath: string, projectRoot?: string): string {
+function sanitizePath(
+  inputPath: string,
+  projectRoot?: string,
+  mustExist = false,
+): string {
+  // Validate input is a string
+  if (typeof inputPath !== "string" || inputPath.trim() === "") {
+    throw new Error("Path must be a non-empty string");
+  }
+
+  // Check for null bytes (common injection technique)
+  if (inputPath.includes("\0")) {
+    throw new Error("Path contains null byte");
+  }
+
   // Resolve to absolute path to prevent traversal
   const resolved = path.resolve(inputPath);
 
@@ -79,10 +96,46 @@ function sanitizePath(inputPath: string, projectRoot?: string): string {
   // If projectRoot provided, ensure path doesn't escape it
   if (projectRoot) {
     const absProjectRoot = path.resolve(projectRoot);
-    if (!resolved.startsWith(absProjectRoot) && !resolved.startsWith("/tmp")) {
+    // Allow /tmp and system temp directories for build artifacts
+    const systemTempDir = require("node:os").tmpdir();
+    if (
+      !resolved.startsWith(absProjectRoot) &&
+      !resolved.startsWith("/tmp") &&
+      !resolved.startsWith(systemTempDir)
+    ) {
       throw new Error(
         `Path escapes project boundary: ${resolved} (expected within ${absProjectRoot})`,
       );
+    }
+  }
+
+  // Optionally validate path exists
+  if (mustExist && !fs.existsSync(resolved)) {
+    throw new Error(`Path does not exist: ${resolved}`);
+  }
+
+  // Check for symlink traversal (optional additional security)
+  if (mustExist && fs.existsSync(resolved)) {
+    try {
+      const realPath = fs.realpathSync(resolved);
+      if (projectRoot) {
+        const absProjectRoot = path.resolve(projectRoot);
+        const systemTempDir = require("node:os").tmpdir();
+        if (
+          !realPath.startsWith(absProjectRoot) &&
+          !realPath.startsWith("/tmp") &&
+          !realPath.startsWith(systemTempDir)
+        ) {
+          throw new Error(
+            `Symlink resolves outside project boundary: ${realPath}`,
+          );
+        }
+      }
+    } catch (error: any) {
+      if (error.message?.includes("project boundary")) {
+        throw error;
+      }
+      // Ignore other errors (e.g., permission issues)
     }
   }
 
