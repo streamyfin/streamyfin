@@ -11,7 +11,7 @@
  * without requiring EAS login.
  *
  * Usage:
- *   EXPO_TV=0 bunx ts-node scripts/build-ios.ts [options]
+ *   EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts [options]
  *
  * Options:
  *   --configuration [Debug|Release]  Xcode build configuration (default: Debug)
@@ -353,7 +353,7 @@ function printHelp(): void {
 Standalone iOS Build Script
 
 Usage:
-  EXPO_TV=0 bunx ts-node scripts/build-ios.ts [options]
+  EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts [options]
 
 Development Build Options:
   --configuration [Debug|Release]  Xcode build configuration (default: Debug)
@@ -385,20 +385,20 @@ Environment Variables:
 
 Examples:
   # Development build
-  EXPO_TV=0 bunx ts-node scripts/build-ios.ts
-  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --device "iPhone 15"
+  EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts
+  EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts --device "iPhone 15"
 
   # Production unsigned build (default)
-  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production
+  EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts --production
 
   # Production signed IPA
-  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production --sign
+  EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts --production --sign
 
   # Production simulator build
-  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production --simulator
+  EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts --production --simulator
 
   # Long build without timeout
-  EXPO_TV=0 bunx ts-node scripts/build-ios.ts --production --no-timeout
+  EXPO_TV=0 bunx ts-node scripts/ios/build-ios.ts --production --no-timeout
 `);
 }
 
