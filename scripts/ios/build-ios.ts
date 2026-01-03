@@ -145,8 +145,10 @@ function sanitizePath(
         }
       }
     } catch (error: unknown) {
-      const err = error as Error;
-      if (err.message?.includes("project boundary")) {
+      if (
+        error instanceof Error &&
+        error.message?.includes("project boundary")
+      ) {
         throw error;
       }
       // Ignore other errors (e.g., permission issues)
@@ -505,8 +507,10 @@ function findXcodeProject(projectRoot: string): XcodeProject {
     let files: string[];
     try {
       files = fs.readdirSync(iosPath);
-    } catch (error: any) {
-      log.error(`Failed to read iOS directory: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      log.error(`Failed to read iOS directory: ${errorMessage}`);
       log.info(`Check permissions for directory: ${iosPath}`);
       process.exit(1);
     }
@@ -533,8 +537,9 @@ function findXcodeProject(projectRoot: string): XcodeProject {
     log.error("No Xcode project or workspace found in ios/ directory");
     log.info("Run `bunx expo prebuild` to generate the iOS project.");
     process.exit(1);
-  } catch (error: any) {
-    log.error(`Unexpected error finding Xcode project: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Unexpected error finding Xcode project: ${errorMessage}`);
     throw error;
   }
 }
