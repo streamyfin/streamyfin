@@ -203,7 +203,7 @@ function validatePort(port: number): number {
   }
   if (port < MIN_PORT || port > MAX_PORT) {
     throw new Error(
-      `Port must be between ${MIN_PORT} and ${MAX_PORT} (got ${port}). Privileged ports (<${MIN_PORT}) are not allowed.`,
+      `Port must be between ${MIN_PORT} and ${MAX_PORT} (got ${port}). Privileged ports (below ${MIN_PORT}) are not allowed.`,
     );
   }
   return port;
@@ -297,16 +297,31 @@ function parseArgs(argv: string[]): BuildOptions {
         printHelp();
         process.exit(0);
         break;
-      case "--configuration":
-        options.configuration = (args[++i] as "Debug" | "Release") || "Debug";
+      case "--configuration": {
+        const configArg = args[++i];
+        if (!configArg) {
+          throw new Error("--configuration requires an argument");
+        }
+        options.configuration = (configArg as "Debug" | "Release") || "Debug";
         break;
+      }
       case "--device":
-      case "-d":
-        options.device = args[++i];
+      case "-d": {
+        const deviceArg = args[++i];
+        if (!deviceArg) {
+          throw new Error("--device requires an argument");
+        }
+        options.device = deviceArg;
         break;
-      case "--scheme":
-        options.scheme = args[++i];
+      }
+      case "--scheme": {
+        const schemeArg = args[++i];
+        if (!schemeArg) {
+          throw new Error("--scheme requires an argument");
+        }
+        options.scheme = schemeArg;
         break;
+      }
       case "--no-bundler":
         options.bundler = false;
         break;
@@ -333,8 +348,19 @@ function parseArgs(argv: string[]): BuildOptions {
       }
       case "--port":
       case "-p": {
-        const parsedPort = parseInt(args[++i], 10) || DEFAULT_METRO_PORT;
-        options.port = validatePort(parsedPort);
+        const portArg = args[++i];
+        if (!portArg) {
+          throw new Error("--port requires an argument");
+        }
+        const effectivePort = parseInt(portArg, 10);
+        // Handle 0 or NaN validly based on PR suggestion logic
+        // Using isNaN check allows 0 to be a valid input if that was intended,
+        // though typically 0 means "random free port".
+        // The original PR suggestion was: const effectivePort = Number.isNaN(parsedPort) ? DEFAULT_METRO_PORT : parsedPort;
+        const validPort = Number.isNaN(effectivePort)
+          ? DEFAULT_METRO_PORT
+          : effectivePort;
+        options.port = validatePort(validPort);
         break;
       }
       case "--production":
@@ -343,9 +369,22 @@ function parseArgs(argv: string[]): BuildOptions {
         options.skipCredentials = true; // Default to unsigned builds
         break;
       case "--output":
-      case "-o":
-        options.output = path.resolve(args[++i]);
+      case "-o": {
+        const outputArg = args[++i];
+        if (!outputArg) {
+          throw new Error("--output requires a path argument");
+        }
+        const resolvedOutput = path.resolve(outputArg);
+        const outputDir = path.dirname(resolvedOutput);
+        if (!fs.existsSync(outputDir)) {
+          throw new Error(`Output directory does not exist: ${outputDir}`);
+        }
+        if (!fs.statSync(outputDir).isDirectory()) {
+          throw new Error(`Output path is not a directory: ${outputDir}`);
+        }
+        options.output = resolvedOutput;
         break;
+      }
       case "--simulator":
         options.simulator = true;
         break;
@@ -362,7 +401,11 @@ function parseArgs(argv: string[]): BuildOptions {
         options.noTimeout = true;
         break;
       case "--timeout": {
-        const timeoutSeconds = parseInt(args[++i], 10);
+        const timeoutArg = args[++i];
+        if (!timeoutArg) {
+          throw new Error("--timeout requires an argument");
+        }
+        const timeoutSeconds = parseInt(timeoutArg, 10);
         if (Number.isNaN(timeoutSeconds)) {
           throw new Error(
             "Invalid timeout value. Must be a number in seconds.",
@@ -601,8 +644,12 @@ function getSchemes(xcodeProject: XcodeProject): string[] {
         .map((s: string) => s.trim())
         .filter(Boolean);
     }
-  } catch {
-    // Fallback to inferring from project name
+  } catch (error) {
+    // xcodebuild -list failed; log a warning and fall back to inferring from project name
+    console.warn(
+      `Warning: Failed to list Xcode schemes for project "${xcodeProject.path}". Falling back to project-name-based scheme inference.`,
+      error,
+    );
   }
 
   // Default scheme from project name
@@ -657,10 +704,12 @@ function getAvailableSimulators(): Device[] {
     const output = execSync("xcrun simctl list devices available --json", {
       encoding: "utf-8",
     });
-    const data = JSON.parse(output);
+    const devicesData = JSON.parse(output);
     const devices: Device[] = [];
 
-    for (const [runtime, deviceList] of Object.entries(data.devices || {})) {
+    for (const [runtime, deviceList] of Object.entries(
+      devicesData.devices || {},
+    )) {
       if (!runtime.includes("iOS")) continue;
 
       for (const device of deviceList as any[]) {
@@ -935,6 +984,10 @@ async function waitForSimulatorBoot(
       }
     } catch {
       // Simulator not found or not booted yet, continue polling
+      if (pollIntervalMs > 1000) {
+        // Only log if we've been waiting a while to avoid spam
+        // console.warn("Simulator polling failed, retrying...");
+      }
     }
 
     // Wait before next poll
@@ -945,10 +998,6 @@ async function waitForSimulatorBoot(
     `Simulator failed to boot within ${maxWaitMs / 1000} seconds`,
   );
 }
-
-// =============================================================================
-// App Launch
-// =============================================================================
 
 /**
  * Installs and launches the app on the specified simulator.
@@ -1047,7 +1096,7 @@ function startMetroBundler(projectRoot: string, port: number): void {
   log.step("Starting Metro bundler...");
 
   metroProcess = spawn("bunx", ["expo", "start", "--port", port.toString()], {
-    cwd: projectRoot,
+    cwd: sanitizePath(projectRoot),
     stdio: "inherit",
     detached: true,
     env: { ...process.env },
