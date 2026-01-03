@@ -20,7 +20,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Free Disk Space (Ubuntu)
+      - name: 🗑️ Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
@@ -102,7 +102,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Free Disk Space (Ubuntu)
+      - name: 🗑️ Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
