@@ -75,9 +75,12 @@ export default function page() {
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
-  const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
-    "default",
-  );
+  const [aspectRatio, setAspectRatio] = useState<
+    "default" | "16:9" | "4:3" | "1:1" | "21:9"
+  >("default");
+  const [scaleFactor, setScaleFactor] = useState<
+    0 | 0.25 | 0.5 | 0.75 | 1.0 | 1.25 | 1.5 | 2.0
+  >(0);
   const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -892,6 +895,37 @@ export default function page() {
     );
   }, [isZoomedToFill, useVlcPlayer]);
 
+  // VLC-specific handlers for aspect ratio and scale factor
+  const handleSetVideoAspectRatio = useCallback(
+    async (newAspectRatio: string | null) => {
+      if (!useVlcPlayer) return;
+      const ratio = (newAspectRatio ?? "default") as
+        | "default"
+        | "16:9"
+        | "4:3"
+        | "1:1"
+        | "21:9";
+      setAspectRatio(ratio);
+      await (videoRef.current as VlcPlayerViewRef)?.setVideoAspectRatio?.(
+        newAspectRatio,
+      );
+    },
+    [useVlcPlayer],
+  );
+
+  const handleSetVideoScaleFactor = useCallback(
+    async (newScaleFactor: number) => {
+      if (!useVlcPlayer) return;
+      setScaleFactor(
+        newScaleFactor as 0 | 0.25 | 0.5 | 0.75 | 1.0 | 1.25 | 1.5 | 2.0,
+      );
+      await (videoRef.current as VlcPlayerViewRef)?.setVideoScaleFactor?.(
+        newScaleFactor,
+      );
+    },
+    [useVlcPlayer],
+  );
+
   // Apply KSPlayer global settings before video loads (only when using KSPlayer)
   useEffect(() => {
     if (Platform.OS === "ios" && !useVlcPlayer) {
@@ -1058,7 +1092,11 @@ export default function page() {
               seek={seek}
               enableTrickplay={true}
               offline={offline}
+              useVlcPlayer={useVlcPlayer}
               aspectRatio={aspectRatio}
+              setVideoAspectRatio={handleSetVideoAspectRatio}
+              scaleFactor={scaleFactor}
+              setVideoScaleFactor={handleSetVideoScaleFactor}
               isZoomedToFill={isZoomedToFill}
               onZoomToggle={handleZoomToggle}
               api={api}

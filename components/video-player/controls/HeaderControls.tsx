@@ -5,12 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { type FC, useCallback, useState } from "react";
-import {
-  Platform,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -18,7 +13,11 @@ import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useSettings, VideoPlayerIOS } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
-import { type AspectRatio } from "./VideoScalingModeSelector";
+import {
+  type AspectRatio,
+  AspectRatioSelector,
+} from "./VideoScalingModeSelector";
+import { type ScaleFactor, VlcZoomControl } from "./VlcZoomControl";
 import { ZoomToggle } from "./ZoomToggle";
 
 interface HeaderControlsProps {
@@ -32,8 +31,13 @@ interface HeaderControlsProps {
   goToNextItem: (options: { isAutoPlay?: boolean }) => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
+  useVlcPlayer?: boolean;
+  // VLC-specific props
   aspectRatio?: AspectRatio;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
+  scaleFactor?: ScaleFactor;
+  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  // KSPlayer-specific props
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
 }
@@ -49,15 +53,17 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   goToNextItem,
   previousItem,
   nextItem,
-  aspectRatio: _aspectRatio = "default",
-  setVideoAspectRatio: _setVideoAspectRatio,
+  useVlcPlayer = false,
+  aspectRatio = "default",
+  setVideoAspectRatio,
+  scaleFactor = 0,
+  setVideoScaleFactor,
   isZoomedToFill = false,
   onZoomToggle,
 }) => {
   const { settings } = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: _screenWidth } = useWindowDimensions();
   const lightHapticFeedback = useHaptic("light");
   const { orientation, lockOrientation } = useOrientation();
   const [isTogglingOrientation, setIsTogglingOrientation] = useState(false);
@@ -175,21 +181,39 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             />
           </TouchableOpacity>
         )}
-        {/*<AspectRatioSelector
-          currentRatio={aspectRatio}
-          onRatioChange={async (newRatio) => {
-            if (setVideoAspectRatio) {
-              const aspectRatioString = newRatio === "default" ? null : newRatio;
-              await setVideoAspectRatio(aspectRatioString);
-            }
-          }}
-          disabled={!setVideoAspectRatio}
-        />*/}
-        <ZoomToggle
-          isZoomedToFill={isZoomedToFill}
-          onToggle={onZoomToggle ?? (() => {})}
-          disabled={!onZoomToggle}
-        />
+        {/* VLC-specific controls: Aspect Ratio and Scale/Zoom */}
+        {useVlcPlayer && (
+          <AspectRatioSelector
+            currentRatio={aspectRatio}
+            onRatioChange={async (newRatio) => {
+              if (setVideoAspectRatio) {
+                const aspectRatioString =
+                  newRatio === "default" ? null : newRatio;
+                await setVideoAspectRatio(aspectRatioString);
+              }
+            }}
+            disabled={!setVideoAspectRatio}
+          />
+        )}
+        {useVlcPlayer && (
+          <VlcZoomControl
+            currentScale={scaleFactor}
+            onScaleChange={async (newScale) => {
+              if (setVideoScaleFactor) {
+                await setVideoScaleFactor(newScale);
+              }
+            }}
+            disabled={!setVideoScaleFactor}
+          />
+        )}
+        {/* KSPlayer-specific control: Zoom to Fill */}
+        {!useVlcPlayer && (
+          <ZoomToggle
+            isZoomedToFill={isZoomedToFill}
+            onToggle={onZoomToggle ?? (() => {})}
+            disabled={!onZoomToggle}
+          />
+        )}
         <TouchableOpacity
           onPress={onClose}
           className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'

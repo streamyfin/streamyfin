@@ -36,6 +36,7 @@ import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { type AspectRatio } from "./VideoScalingModeSelector";
+import { type ScaleFactor } from "./VlcZoomControl";
 
 interface Props {
   item: BaseItemDto;
@@ -54,8 +55,13 @@ interface Props {
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
+  useVlcPlayer?: boolean;
+  // VLC-specific props
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   aspectRatio?: AspectRatio;
+  scaleFactor?: ScaleFactor;
+  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  // KSPlayer-specific props
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
   api?: Api | null;
@@ -77,8 +83,11 @@ export const Controls: FC<Props> = ({
   showControls,
   setShowControls,
   mediaSource,
+  useVlcPlayer = false,
   setVideoAspectRatio,
   aspectRatio = "default",
+  scaleFactor = 0,
+  setVideoScaleFactor,
   isZoomedToFill = false,
   onZoomToggle,
   offline = false,
@@ -468,8 +477,11 @@ export const Controls: FC<Props> = ({
               goToNextItem={goToNextItem}
               previousItem={previousItem}
               nextItem={nextItem}
+              useVlcPlayer={useVlcPlayer}
               aspectRatio={aspectRatio}
               setVideoAspectRatio={setVideoAspectRatio}
+              scaleFactor={scaleFactor}
+              setVideoScaleFactor={setVideoScaleFactor}
               isZoomedToFill={isZoomedToFill}
               onZoomToggle={onZoomToggle}
             />
