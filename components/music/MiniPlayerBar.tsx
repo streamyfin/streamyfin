@@ -12,7 +12,7 @@ import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 
 const HORIZONTAL_MARGIN = Platform.OS === "android" ? 8 : 16;
 const BOTTOM_TAB_HEIGHT = Platform.OS === "android" ? 56 : 52;
-const BAR_HEIGHT = 58;
+const BAR_HEIGHT = Platform.OS === "android" ? 58 : 50;
 
 export const MiniPlayerBar: React.FC = () => {
   const [api] = useAtom(apiAtom);
@@ -121,7 +121,10 @@ export const MiniPlayerBar: React.FC = () => {
       style={[
         styles.container,
         {
-          bottom: BOTTOM_TAB_HEIGHT + insets.bottom + 32,
+          bottom:
+            BOTTOM_TAB_HEIGHT +
+            insets.bottom +
+            (Platform.OS === "android" ? 32 : 4),
         },
       ]}
     >
