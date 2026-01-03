@@ -1,5 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi, getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import React, {
@@ -33,6 +36,11 @@ const STORAGE_KEYS = {
 
 export type RepeatMode = "off" | "all" | "one";
 
+interface TrackMediaInfo {
+  mediaSource: MediaSourceInfo | null;
+  isTranscoding: boolean;
+}
+
 interface MusicPlayerState {
   currentTrack: BaseItemDto | null;
   queue: BaseItemDto[];
@@ -47,6 +55,9 @@ interface MusicPlayerState {
   playSessionId: string | null;
   repeatMode: RepeatMode;
   shuffleEnabled: boolean;
+  mediaSource: MediaSourceInfo | null;
+  isTranscoding: boolean;
+  trackMediaInfoMap: Record<string, TrackMediaInfo>;
 }
 
 interface MusicPlayerContextType extends MusicPlayerState {
@@ -195,7 +206,12 @@ const getAudioStreamUrl = async (
   api: Api,
   userId: string,
   itemId: string,
-): Promise<{ url: string; sessionId: string | null } | null> => {
+): Promise<{
+  url: string;
+  sessionId: string | null;
+  mediaSource: MediaSourceInfo | null;
+  isTranscoding: boolean;
+} | null> => {
   try {
     const res = await getMediaInfoApi(api).getPlaybackInfo(
       { itemId },
@@ -212,12 +228,14 @@ const getAudioStreamUrl = async (
     );
 
     const sessionId = res.data.PlaySessionId || null;
-    const mediaSource = res.data.MediaSources?.[0];
+    const mediaSource = res.data.MediaSources?.[0] || null;
 
     if (mediaSource?.TranscodingUrl) {
       return {
         url: `${api.basePath}${mediaSource.TranscodingUrl}`,
         sessionId,
+        mediaSource,
+        isTranscoding: true,
       };
     }
 
@@ -234,6 +252,8 @@ const getAudioStreamUrl = async (
     return {
       url: `${api.basePath}/Audio/${itemId}/stream?${streamParams.toString()}`,
       sessionId,
+      mediaSource,
+      isTranscoding: false,
     };
   } catch {
     return null;
@@ -281,6 +301,9 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     playSessionId: null,
     repeatMode: loadRepeatMode(),
     shuffleEnabled: loadShuffleEnabled(),
+    mediaSource: null,
+    isTranscoding: false,
+    trackMediaInfoMap: {},
   });
 
   const lastReportRef = useRef<number>(0);
@@ -471,17 +494,32 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       try {
         // Get stream URLs for all tracks
         const tracks: Track[] = [];
-        for (const item of queue) {
+        const mediaInfoMap: Record<string, TrackMediaInfo> = {};
+        let startTrackMediaSource: MediaSourceInfo | null = null;
+        let startTrackIsTranscoding = false;
+
+        for (let i = 0; i < queue.length; i++) {
+          const item = queue[i];
           if (!item.Id) continue;
           const result = await getAudioStreamUrl(api, user.Id, item.Id);
           if (result) {
             tracks.push(itemToTrack(item, result.url, api));
+            // Store media info for all tracks
+            mediaInfoMap[item.Id] = {
+              mediaSource: result.mediaSource,
+              isTranscoding: result.isTranscoding,
+            };
             // Store first track's session ID
             if (tracks.length === 1) {
               setState((prev) => ({
                 ...prev,
                 playSessionId: result.sessionId,
               }));
+            }
+            // Store media source info for the starting track
+            if (i === startIndex) {
+              startTrackMediaSource = result.mediaSource;
+              startTrackIsTranscoding = result.isTranscoding;
             }
           }
         }
@@ -515,6 +553,9 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           duration: currentTrack?.RunTimeTicks
             ? Math.floor(currentTrack.RunTimeTicks / 10000000)
             : 0,
+          mediaSource: startTrackMediaSource,
+          isTranscoding: startTrackIsTranscoding,
+          trackMediaInfoMap: mediaInfoMap,
         }));
 
         reportPlaybackStart(currentTrack, state.playSessionId);
@@ -686,11 +727,19 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
       await TrackPlayer.skipToNext();
       const newIndex = currentIndex + 1;
-      setState((prev) => ({
-        ...prev,
-        queueIndex: newIndex,
-        currentTrack: prev.queue[newIndex],
-      }));
+      setState((prev) => {
+        const nextTrack = prev.queue[newIndex];
+        const mediaInfo = nextTrack?.Id
+          ? prev.trackMediaInfoMap[nextTrack.Id]
+          : null;
+        return {
+          ...prev,
+          queueIndex: newIndex,
+          currentTrack: nextTrack,
+          mediaSource: mediaInfo?.mediaSource ?? null,
+          isTranscoding: mediaInfo?.isTranscoding ?? false,
+        };
+      });
     } else if (state.repeatMode === "all" && state.queue.length > 0) {
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
@@ -700,11 +749,19 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skip(0);
-      setState((prev) => ({
-        ...prev,
-        queueIndex: 0,
-        currentTrack: prev.queue[0],
-      }));
+      setState((prev) => {
+        const firstTrack = prev.queue[0];
+        const mediaInfo = firstTrack?.Id
+          ? prev.trackMediaInfoMap[firstTrack.Id]
+          : null;
+        return {
+          ...prev,
+          queueIndex: 0,
+          currentTrack: firstTrack,
+          mediaSource: mediaInfo?.mediaSource ?? null,
+          isTranscoding: mediaInfo?.isTranscoding ?? false,
+        };
+      });
     }
   }, [
     state.queue,
@@ -738,11 +795,19 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
       await TrackPlayer.skipToPrevious();
       const newIndex = currentIndex - 1;
-      setState((prev) => ({
-        ...prev,
-        queueIndex: newIndex,
-        currentTrack: prev.queue[newIndex],
-      }));
+      setState((prev) => {
+        const prevTrack = prev.queue[newIndex];
+        const mediaInfo = prevTrack?.Id
+          ? prev.trackMediaInfoMap[prevTrack.Id]
+          : null;
+        return {
+          ...prev,
+          queueIndex: newIndex,
+          currentTrack: prevTrack,
+          mediaSource: mediaInfo?.mediaSource ?? null,
+          isTranscoding: mediaInfo?.isTranscoding ?? false,
+        };
+      });
     } else if (state.repeatMode === "all" && state.queue.length > 0) {
       const lastIndex = state.queue.length - 1;
       if (state.currentTrack && state.playSessionId) {
@@ -753,11 +818,19 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         );
       }
       await TrackPlayer.skip(lastIndex);
-      setState((prev) => ({
-        ...prev,
-        queueIndex: lastIndex,
-        currentTrack: prev.queue[lastIndex],
-      }));
+      setState((prev) => {
+        const lastTrack = prev.queue[lastIndex];
+        const mediaInfo = lastTrack?.Id
+          ? prev.trackMediaInfoMap[lastTrack.Id]
+          : null;
+        return {
+          ...prev,
+          queueIndex: lastIndex,
+          currentTrack: lastTrack,
+          mediaSource: mediaInfo?.mediaSource ?? null,
+          isTranscoding: mediaInfo?.isTranscoding ?? false,
+        };
+      });
     }
   }, [
     state.queue,
@@ -807,6 +880,9 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       playSessionId: null,
       repeatMode: state.repeatMode,
       shuffleEnabled: state.shuffleEnabled,
+      mediaSource: null,
+      isTranscoding: false,
+      trackMediaInfoMap: {},
     });
   }, [
     state.currentTrack,
@@ -999,11 +1075,19 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       await TrackPlayer.skip(index);
 
-      setState((prev) => ({
-        ...prev,
-        queueIndex: index,
-        currentTrack: prev.queue[index],
-      }));
+      setState((prev) => {
+        const targetTrack = prev.queue[index];
+        const mediaInfo = targetTrack?.Id
+          ? prev.trackMediaInfoMap[targetTrack.Id]
+          : null;
+        return {
+          ...prev,
+          queueIndex: index,
+          currentTrack: targetTrack,
+          mediaSource: mediaInfo?.mediaSource ?? null,
+          isTranscoding: mediaInfo?.isTranscoding ?? false,
+        };
+      });
     },
     [
       state.queue,

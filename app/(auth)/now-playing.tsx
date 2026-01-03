@@ -1,5 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
@@ -16,13 +19,28 @@ import {
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
   useMusicPlayer,
 } from "@/providers/MusicPlayerProvider";
+import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
+
+const formatFileSize = (bytes?: number | null) => {
+  if (!bytes) return null;
+  const sizes = ["B", "KB", "MB", "GB"];
+  if (bytes === 0) return "0 B";
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${Math.round((bytes / 1024 ** i) * 100) / 100} ${sizes[i]}`;
+};
+
+const formatSampleRate = (sampleRate?: number | null) => {
+  if (!sampleRate) return null;
+  return `${(sampleRate / 1000).toFixed(1)} kHz`;
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ARTWORK_SIZE = SCREEN_WIDTH - 80;
@@ -45,6 +63,8 @@ export default function NowPlayingScreen() {
     duration,
     repeatMode,
     shuffleEnabled,
+    mediaSource,
+    isTranscoding,
     togglePlayPause,
     next,
     previous,
@@ -221,6 +241,8 @@ export default function NowPlayingScreen() {
           getRepeatIcon={getRepeatIcon}
           queue={queue}
           queueIndex={queueIndex}
+          mediaSource={mediaSource}
+          isTranscoding={isTranscoding}
         />
       ) : (
         <QueueView
@@ -259,6 +281,8 @@ interface PlayerViewProps {
   getRepeatIcon: () => string;
   queue: BaseItemDto[];
   queueIndex: number;
+  mediaSource: MediaSourceInfo | null;
+  isTranscoding: boolean;
 }
 
 const PlayerView: React.FC<PlayerViewProps> = ({
@@ -284,7 +308,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   getRepeatIcon,
   queue,
   queueIndex,
+  mediaSource,
+  isTranscoding,
 }) => {
+  const audioStream = useMemo(() => {
+    return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
+  }, [mediaSource]);
+
+  const fileSize = formatFileSize(mediaSource?.Size);
+  const codec = audioStream?.Codec?.toUpperCase();
+  const bitrate = formatBitrate(audioStream?.BitRate);
+  const sampleRate = formatSampleRate(audioStream?.SampleRate);
+  const playbackMethod = isTranscoding ? "Transcoding" : "Direct";
+
+  const hasAudioStats =
+    mediaSource && (fileSize || codec || bitrate || sampleRate);
   return (
     <ScrollView className='flex-1 px-6' showsVerticalScrollIndicator={false}>
       {/* Album artwork */}
@@ -329,6 +367,29 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <Text numberOfLines={1} className='text-neutral-500 text-sm mt-1'>
             {currentTrack.Album}
           </Text>
+        )}
+
+        {/* Audio Stats */}
+        {hasAudioStats && (
+          <View className='flex-row flex-wrap gap-1.5 mt-3'>
+            {fileSize && <Badge variant='gray' text={fileSize} />}
+            {codec && <Badge variant='gray' text={codec} />}
+            <Badge
+              variant='gray'
+              text={playbackMethod}
+              iconLeft={
+                <Ionicons
+                  name={isTranscoding ? "swap-horizontal" : "play"}
+                  size={12}
+                  color='white'
+                />
+              }
+            />
+            {bitrate && bitrate !== "N/A" && (
+              <Badge variant='gray' text={bitrate} />
+            )}
+            {sampleRate && <Badge variant='gray' text={sampleRate} />}
+          </View>
         )}
       </View>
 
