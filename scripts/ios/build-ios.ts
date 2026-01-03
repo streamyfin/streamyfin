@@ -110,8 +110,8 @@ function sanitizePath(
   // Resolve to absolute path to prevent traversal
   const resolved = path.resolve(inputPath);
 
-  // Check for dangerous shell metacharacters
-  const dangerousChars = /[`$&|;<>(){}[\]!#~]/;
+  // Check for dangerous shell metacharacters (allow tilde for Unix home paths)
+  const dangerousChars = /[`$&|;<>(){}[\]!#]/;
   if (dangerousChars.test(resolved)) {
     throw new Error(
       `Path contains potentially dangerous characters: ${resolved}`,
