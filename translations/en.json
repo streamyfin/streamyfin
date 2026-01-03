@@ -603,7 +603,8 @@
       "suggestions": "Suggestions",
       "albums": "Albums",
       "artists": "Artists",
-      "playlists": "Playlists"
+      "playlists": "Playlists",
+      "tracks": "tracks"
     },
     "filters": {
       "all": "All"
@@ -622,7 +623,28 @@
     "no_playlists": "No playlists found",
     "album_not_found": "Album not found",
     "artist_not_found": "Artist not found",
-    "playlist_not_found": "Playlist not found"
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist"
+    }
   },
   "watchlists": {
     "title": "Watchlists",

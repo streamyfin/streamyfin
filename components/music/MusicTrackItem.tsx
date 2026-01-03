@@ -1,4 +1,3 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
@@ -16,6 +15,7 @@ interface Props {
   index?: number;
   queue?: BaseItemDto[];
   showArtwork?: boolean;
+  onOptionsPress?: (track: BaseItemDto) => void;
 }
 
 export const MusicTrackItem: React.FC<Props> = ({
@@ -23,17 +23,11 @@ export const MusicTrackItem: React.FC<Props> = ({
   index,
   queue,
   showArtwork = true,
+  onOptionsPress,
 }) => {
   const [api] = useAtom(apiAtom);
-  const { showActionSheetWithOptions } = useActionSheet();
-  const {
-    playTrack,
-    playNext,
-    addToQueue,
-    currentTrack,
-    isPlaying,
-    loadingTrackId,
-  } = useMusicPlayer();
+  const { playTrack, currentTrack, isPlaying, loadingTrackId } =
+    useMusicPlayer();
 
   const imageUrl = useMemo(() => {
     const albumId = track.AlbumId || track.ParentId;
@@ -56,25 +50,12 @@ export const MusicTrackItem: React.FC<Props> = ({
   }, [playTrack, track, queue]);
 
   const handleLongPress = useCallback(() => {
-    const options = ["Play Next", "Add to Queue", "Cancel"];
-    const cancelButtonIndex = 2;
+    onOptionsPress?.(track);
+  }, [onOptionsPress, track]);
 
-    showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-        title: track.Name ?? undefined,
-        message: (track.Artists?.join(", ") || track.AlbumArtist) ?? undefined,
-      },
-      (selectedIndex) => {
-        if (selectedIndex === 0) {
-          playNext(track);
-        } else if (selectedIndex === 1) {
-          addToQueue(track);
-        }
-      },
-    );
-  }, [showActionSheetWithOptions, track, playNext, addToQueue]);
+  const handleOptionsPress = useCallback(() => {
+    onOptionsPress?.(track);
+  }, [onOptionsPress, track]);
 
   return (
     <TouchableOpacity
@@ -135,7 +116,7 @@ export const MusicTrackItem: React.FC<Props> = ({
         </View>
       )}
 
-      <View className='flex-1 mr-4'>
+      <View className='flex-1 mr-3'>
         <Text
           numberOfLines={1}
           className={`text-sm ${isCurrentTrack ? "text-purple-400 font-medium" : "text-white"}`}
@@ -147,7 +128,17 @@ export const MusicTrackItem: React.FC<Props> = ({
         </Text>
       </View>
 
-      <Text className='text-neutral-500 text-xs'>{duration}</Text>
+      <Text className='text-neutral-500 text-xs mr-2'>{duration}</Text>
+
+      {onOptionsPress && (
+        <TouchableOpacity
+          onPress={handleOptionsPress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className='p-1'
+        >
+          <Ionicons name='ellipsis-vertical' size={18} color='#737373' />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };

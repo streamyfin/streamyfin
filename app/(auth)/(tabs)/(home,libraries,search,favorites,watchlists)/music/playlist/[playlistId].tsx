@@ -1,17 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
+import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
+import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -28,6 +32,24 @@ export default function PlaylistDetailScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { playQueue } = useMusicPlayer();
+
+  const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
+  const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+
+  const handleTrackOptionsPress = useCallback((track: BaseItemDto) => {
+    setSelectedTrack(track);
+    setTrackOptionsOpen(true);
+  }, []);
+
+  const handleAddToPlaylist = useCallback(() => {
+    setPlaylistPickerOpen(true);
+  }, []);
+
+  const handleCreateNewPlaylist = useCallback(() => {
+    setCreatePlaylistOpen(true);
+  }, []);
 
   const { data: playlist, isLoading: loadingPlaylist } = useQuery({
     queryKey: ["music-playlist", playlistId, user?.Id],
@@ -181,9 +203,35 @@ export default function PlaylistDetailScreen() {
         </View>
       }
       renderItem={({ item, index }) => (
-        <MusicTrackItem track={item} index={index + 1} queue={tracks} />
+        <MusicTrackItem
+          track={item}
+          index={index + 1}
+          queue={tracks}
+          onOptionsPress={handleTrackOptionsPress}
+        />
       )}
       keyExtractor={(item) => item.Id!}
+      ListFooterComponent={
+        <>
+          <TrackOptionsSheet
+            open={trackOptionsOpen}
+            setOpen={setTrackOptionsOpen}
+            track={selectedTrack}
+            onAddToPlaylist={handleAddToPlaylist}
+          />
+          <PlaylistPickerSheet
+            open={playlistPickerOpen}
+            setOpen={setPlaylistPickerOpen}
+            trackToAdd={selectedTrack}
+            onCreateNew={handleCreateNewPlaylist}
+          />
+          <CreatePlaylistModal
+            open={createPlaylistOpen}
+            setOpen={setCreatePlaylistOpen}
+            initialTrackId={selectedTrack?.Id}
+          />
+        </>
+      }
     />
   );
 }

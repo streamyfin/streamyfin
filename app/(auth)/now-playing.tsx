@@ -118,7 +118,7 @@ export default function NowPlayingScreen() {
     router.back();
   }, [router]);
 
-  const handleStop = useCallback(() => {
+  const _handleStop = useCallback(() => {
     stop();
     router.back();
   }, [stop, router]);
@@ -206,14 +206,7 @@ export default function NowPlayingScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          onPress={handleStop}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className='p-2'
-        >
-          <Ionicons name='close' size={24} color='#666' />
-        </TouchableOpacity>
+        <View style={{ width: 16 }} />
       </View>
 
       {viewMode === "player" ? (
