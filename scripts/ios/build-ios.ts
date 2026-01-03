@@ -833,6 +833,41 @@ function extractBinaryPath(buildOutput: string): string | null {
 // App Launch
 // =============================================================================
 
+/**
+ * Waits for simulator to boot by polling its state.
+ * @param udid - Simulator UDID
+ * @param maxWaitMs - Maximum time to wait in milliseconds
+ * @throws Error if simulator doesn't boot within timeout
+ */
+async function waitForSimulatorBoot(
+  udid: string,
+  maxWaitMs: number,
+): Promise<void> {
+  const startTime = Date.now();
+  const pollIntervalMs = 1000; // Check every second
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const result = execSync(`xcrun simctl list devices | grep "${udid}"`, {
+        encoding: "utf-8",
+      });
+      if (result.includes("Booted")) {
+        log.info("Simulator is ready");
+        return;
+      }
+    } catch {
+      // Simulator not found or not booted yet, continue polling
+    }
+
+    // Wait before next poll
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  throw new Error(
+    `Simulator failed to boot within ${maxWaitMs / 1000} seconds`,
+  );
+}
+
 async function launchApp(binaryPath: string, device: Device): Promise<void> {
   log.step("Installing and launching app...");
 
@@ -852,8 +887,8 @@ async function launchApp(binaryPath: string, device: Device): Promise<void> {
   // Open Simulator app
   spawnSync("open", ["-a", "Simulator"], { stdio: "ignore" });
 
-  // Wait for simulator to be ready (30s max)
-  await new Promise((r) => setTimeout(r, SIMULATOR_BOOT_WAIT_MS));
+  // Wait for simulator to be ready with polling
+  await waitForSimulatorBoot(device.udid, SIMULATOR_BOOT_WAIT_MS);
 
   // Install the app
   log.info("Installing app on simulator...");
