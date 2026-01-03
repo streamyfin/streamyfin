@@ -1128,6 +1128,42 @@ function createExportOptionsPlist(
   }
 }
 
+/**
+ * Executes xcodebuild command with standardized error handling and options.
+ * @param args - Arguments for xcodebuild
+ * @param options - Build options
+ * @param errorContext - Description of action for error messages
+ */
+function runXcodeBuildCommand(
+  args: string[],
+  options: BuildOptions,
+  errorContext: string,
+): void {
+  log.info(`xcodebuild ${args.join(" ")}`);
+
+  const result = spawnSync("xcodebuild", args, {
+    cwd: sanitizePath(path.join(options.projectRoot, "ios")),
+    stdio: options.verbose ? "inherit" : "pipe",
+    maxBuffer: MAX_BUILD_BUFFER,
+    timeout: options.noTimeout ? undefined : options.buildTimeout,
+    env: {
+      ...process.env,
+      EXPO_TV: process.env.EXPO_TV,
+    },
+  });
+
+  if (result.status !== 0) {
+    log.error(`${errorContext} failed`);
+    if (!options.verbose) {
+      const stderr = result.stderr?.toString() || "";
+      const stdout = result.stdout?.toString() || "";
+      displayBuildError(stderr, stdout);
+      log.info("Run with --verbose to see full build output");
+    }
+    process.exit(1);
+  }
+}
+
 async function runProductionBuild(options: BuildOptions): Promise<void> {
   log.step("Production Build Mode");
   console.log(
@@ -1187,29 +1223,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       buildArgs.unshift("clean");
     }
 
-    log.info(`xcodebuild ${buildArgs.join(" ")}`);
-
-    const simResult = spawnSync("xcodebuild", buildArgs, {
-      cwd: sanitizePath(path.join(options.projectRoot, "ios")),
-      stdio: options.verbose ? "inherit" : "pipe",
-      maxBuffer: MAX_BUILD_BUFFER,
-      timeout: options.noTimeout ? undefined : options.buildTimeout,
-      env: {
-        ...process.env,
-        EXPO_TV: process.env.EXPO_TV,
-      },
-    });
-
-    if (simResult.status !== 0) {
-      log.error("Simulator build failed");
-      if (!options.verbose) {
-        const stderr = simResult.stderr?.toString() || "";
-        const stdout = simResult.stdout?.toString() || "";
-        displayBuildError(stderr, stdout);
-        log.info("Run with --verbose to see full build output");
-      }
-      process.exit(1);
-    }
+    runXcodeBuildCommand(buildArgs, options, "Simulator build");
 
     // Find the built .app
     const derivedDataPath = path.join(outputDir, "DerivedData");
@@ -1277,29 +1291,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       archiveArgs.unshift("clean");
     }
 
-    log.info(`xcodebuild ${archiveArgs.join(" ")}`);
-
-    const archiveResult = spawnSync("xcodebuild", archiveArgs, {
-      cwd: sanitizePath(path.join(options.projectRoot, "ios")),
-      stdio: options.verbose ? "inherit" : "pipe",
-      maxBuffer: MAX_BUILD_BUFFER,
-      timeout: options.noTimeout ? undefined : options.buildTimeout,
-      env: {
-        ...process.env,
-        EXPO_TV: process.env.EXPO_TV,
-      },
-    });
-
-    if (archiveResult.status !== 0) {
-      log.error("Archive creation failed");
-      if (!options.verbose) {
-        const stderr = archiveResult.stderr?.toString() || "";
-        const stdout = archiveResult.stdout?.toString() || "";
-        displayBuildError(stderr, stdout);
-        log.info("Run with --verbose to see full build output");
-      }
-      process.exit(1);
-    }
+    runXcodeBuildCommand(archiveArgs, options, "Archive creation");
 
     if (!fs.existsSync(archivePath)) {
       log.error("Archive was not created");
@@ -1330,29 +1322,7 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
         "-allowProvisioningUpdates",
       ];
 
-      log.info(`xcodebuild ${exportArgs.join(" ")}`);
-
-      const exportResult = spawnSync("xcodebuild", exportArgs, {
-        cwd: sanitizePath(path.join(options.projectRoot, "ios")),
-        stdio: options.verbose ? "inherit" : "pipe",
-        maxBuffer: MAX_BUILD_BUFFER,
-        timeout: options.noTimeout ? undefined : options.buildTimeout,
-        env: {
-          ...process.env,
-          EXPO_TV: process.env.EXPO_TV,
-        },
-      });
-
-      if (exportResult.status !== 0) {
-        log.error("IPA export failed");
-        if (!options.verbose) {
-          const stderr = exportResult.stderr?.toString() || "";
-          const stdout = exportResult.stdout?.toString() || "";
-          displayBuildError(stderr, stdout);
-          log.info("Run with --verbose to see full build output");
-        }
-        process.exit(1);
-      }
+      runXcodeBuildCommand(exportArgs, options, "IPA export");
 
       // Find the IPA
       const ipaFile = fs
