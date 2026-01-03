@@ -69,3 +69,4 @@ streamyfin-4fec1-firebase-adminsdk.json
 modules/background-downloader/android/build/*
 /modules/sf-player/android/build
 /modules/music-controls/android/build
+/modules/mpv-player/android/build
