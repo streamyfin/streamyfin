@@ -21,9 +21,10 @@ jobs:
 
     steps:
       - name: 🗑️ Free Disk Space
-        uses: jlumbroso/free-disk-space@main
+        uses: BRAINSia/free-disk-space@f9f59b0ef974ff4b873aa243ce5278ab644eedc6 # v2.0.0
         with:
           tool-cache: false
+          mandb: true
           android: false
           dotnet: true
           haskell: true
@@ -103,9 +104,10 @@ jobs:
 
     steps:
       - name: 🗑️ Free Disk Space
-        uses: jlumbroso/free-disk-space@main
+        uses: BRAINSia/free-disk-space@f9f59b0ef974ff4b873aa243ce5278ab644eedc6 # v2.0.0
         with:
           tool-cache: false
+          mandb: true
           android: false
           dotnet: true
           haskell: true
