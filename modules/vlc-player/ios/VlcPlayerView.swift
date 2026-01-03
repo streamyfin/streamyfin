@@ -433,6 +433,13 @@ class VlcPlayerView: ExpoView {
         }
     }
 
+    @objc func setRate(_ rate: Float) {
+        DispatchQueue.main.async {
+            self.mediaPlayer?.rate = rate
+            print("Set playback rate: \(rate)")
+        }
+    }
+
     @objc func setNowPlayingMetadata(_ metadata: [String: String]) {
         // Cancel any existing artwork download to prevent race conditions
         artworkDownloadTask?.cancel()

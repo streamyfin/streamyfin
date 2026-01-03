@@ -51,12 +51,32 @@ export const AppearanceSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem
+          title={t("home.settings.appearance.merge_next_up_continue_watching")}
+        >
+          <Switch
+            value={settings.mergeNextUpAndContinueWatching}
+            onValueChange={(value) =>
+              updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+          />
+        </ListItem>
+        <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")
           }
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
+        <ListItem
+          title={t("home.settings.appearance.hide_remote_session_button")}
+        >
+          <Switch
+            value={settings.hideRemoteSessionButton}
+            onValueChange={(value) =>
+              updateSettings({ hideRemoteSessionButton: value })
+            }
+          />
+        </ListItem>
       </ListGroup>
     </DisabledSetting>
   );

@@ -30,6 +30,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
+import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
+import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
@@ -241,64 +243,143 @@ export const HomeWithCarousel = () => {
       );
     });
 
+    // Helper to sort items by most recent activity
+    const sortByRecentActivity = (items: BaseItemDto[]): BaseItemDto[] => {
+      return items.sort((a, b) => {
+        const dateA = a.UserData?.LastPlayedDate || a.DateCreated || "";
+        const dateB = b.UserData?.LastPlayedDate || b.DateCreated || "";
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+    };
+
+    // Helper to deduplicate items by ID
+    const deduplicateById = (items: BaseItemDto[]): BaseItemDto[] => {
+      const seen = new Set<string>();
+      return items.filter((item) => {
+        if (!item.Id || seen.has(item.Id)) return false;
+        seen.add(item.Id);
+        return true;
+      });
+    };
+
+    // Build the first sections based on merge setting
+    const firstSections: Section[] = settings.mergeNextUpAndContinueWatching
+      ? [
+          {
+            title: t("home.continue_and_next_up"),
+            queryKey: ["home", "continueAndNextUp"],
+            queryFn: async ({ pageParam = 0 }) => {
+              // Fetch both in parallel
+              const [resumeResponse, nextUpResponse] = await Promise.all([
+                getItemsApi(api).getResumeItems({
+                  userId: user.Id,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  fields: ["Genres"],
+                  startIndex: 0,
+                  limit: 20,
+                }),
+                getTvShowsApi(api).getNextUp({
+                  userId: user?.Id,
+                  fields: ["MediaSourceCount", "Genres"],
+                  startIndex: 0,
+                  limit: 20,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+                  enableResumable: false,
+                }),
+              ]);
+
+              const resumeItems = resumeResponse.data.Items || [];
+              const nextUpItems = nextUpResponse.data.Items || [];
+
+              // Combine, sort by recent activity, deduplicate
+              const combined = [...resumeItems, ...nextUpItems];
+              const sorted = sortByRecentActivity(combined);
+              const deduplicated = deduplicateById(sorted);
+
+              // Paginate client-side
+              return deduplicated.slice(pageParam, pageParam + 10);
+            },
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: 10,
+          },
+        ]
+      : [
+          {
+            title: t("home.continue_watching"),
+            queryKey: ["home", "resumeItems"],
+            queryFn: async ({ pageParam = 0 }) =>
+              (
+                await getItemsApi(api).getResumeItems({
+                  userId: user.Id,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+                  includeItemTypes: ["Movie", "Series", "Episode"],
+                  fields: ["Genres"],
+                  startIndex: pageParam,
+                  limit: 10,
+                })
+              ).data.Items || [],
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: 10,
+          },
+          {
+            title: t("home.next_up"),
+            queryKey: ["home", "nextUp-all"],
+            queryFn: async ({ pageParam = 0 }) =>
+              (
+                await getTvShowsApi(api).getNextUp({
+                  userId: user?.Id,
+                  fields: ["MediaSourceCount", "Genres"],
+                  startIndex: pageParam,
+                  limit: 10,
+                  enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
+                  enableResumable: false,
+                })
+              ).data.Items || [],
+            type: "InfiniteScrollingCollectionList",
+            orientation: "horizontal",
+            pageSize: 10,
+          },
+        ];
+
     const ss: Section[] = [
-      {
-        title: t("home.continue_watching"),
-        queryKey: ["home", "resumeItems"],
-        queryFn: async ({ pageParam = 0 }) =>
-          (
-            await getItemsApi(api).getResumeItems({
-              userId: user.Id,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
-              includeItemTypes: ["Movie", "Series", "Episode"],
-              fields: ["Genres"],
-              startIndex: pageParam,
-              limit: 10,
-            })
-          ).data.Items || [],
-        type: "InfiniteScrollingCollectionList",
-        orientation: "horizontal",
-        pageSize: 10,
-      },
-      {
-        title: t("home.next_up"),
-        queryKey: ["home", "nextUp-all"],
-        queryFn: async ({ pageParam = 0 }) =>
-          (
-            await getTvShowsApi(api).getNextUp({
-              userId: user?.Id,
-              fields: ["MediaSourceCount", "Genres"],
-              startIndex: pageParam,
-              limit: 10,
-              enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
-              enableResumable: false,
-            })
-          ).data.Items || [],
-        type: "InfiniteScrollingCollectionList",
-        orientation: "horizontal",
-        pageSize: 10,
-      },
+      ...firstSections,
       ...latestMediaViews,
-      {
-        title: t("home.suggested_movies"),
-        queryKey: ["home", "suggestedMovies", user?.Id],
-        queryFn: async ({ pageParam = 0 }) =>
-          (
-            await getSuggestionsApi(api).getSuggestions({
-              userId: user?.Id,
-              startIndex: pageParam,
-              limit: 10,
-              mediaType: ["Video"],
-              type: ["Movie"],
-            })
-          ).data.Items || [],
-        type: "InfiniteScrollingCollectionList",
-        orientation: "vertical",
-        pageSize: 10,
-      },
+      // Only show Jellyfin suggested movies if StreamyStats recommendations are disabled
+      ...(!settings?.streamyStatsMovieRecommendations
+        ? [
+            {
+              title: t("home.suggested_movies"),
+              queryKey: ["home", "suggestedMovies", user?.Id],
+              queryFn: async ({ pageParam = 0 }: { pageParam?: number }) =>
+                (
+                  await getSuggestionsApi(api).getSuggestions({
+                    userId: user?.Id,
+                    startIndex: pageParam,
+                    limit: 10,
+                    mediaType: ["Video"],
+                    type: ["Movie"],
+                  })
+                ).data.Items || [],
+              type: "InfiniteScrollingCollectionList" as const,
+              orientation: "vertical" as const,
+              pageSize: 10,
+            },
+          ]
+        : []),
     ];
     return ss;
-  }, [api, user?.Id, collections, t, createCollectionConfig]);
+  }, [
+    api,
+    user?.Id,
+    collections,
+    t,
+    createCollectionConfig,
+    settings?.streamyStatsMovieRecommendations,
+    settings.mergeNextUpAndContinueWatching,
+  ]);
 
   const customSections = useMemo(() => {
     if (!api || !user?.Id || !settings?.home?.sections) return [];
@@ -477,28 +558,66 @@ export const HomeWithCarousel = () => {
       >
         <View className='flex flex-col space-y-4'>
           {sections.map((section, index) => {
+            // Render Streamystats sections after Continue Watching and Next Up
+            // When merged, they appear after index 0; otherwise after index 1
+            const streamystatsIndex = settings.mergeNextUpAndContinueWatching
+              ? 0
+              : 1;
+            const hasStreamystatsContent =
+              settings.streamyStatsMovieRecommendations ||
+              settings.streamyStatsSeriesRecommendations ||
+              settings.streamyStatsPromotedWatchlists;
+            const streamystatsSections =
+              index === streamystatsIndex && hasStreamystatsContent ? (
+                <>
+                  {settings.streamyStatsMovieRecommendations && (
+                    <StreamystatsRecommendations
+                      title={t(
+                        "home.settings.plugins.streamystats.recommended_movies",
+                      )}
+                      type='Movie'
+                    />
+                  )}
+                  {settings.streamyStatsSeriesRecommendations && (
+                    <StreamystatsRecommendations
+                      title={t(
+                        "home.settings.plugins.streamystats.recommended_series",
+                      )}
+                      type='Series'
+                    />
+                  )}
+                  {settings.streamyStatsPromotedWatchlists && (
+                    <StreamystatsPromotedWatchlists />
+                  )}
+                </>
+              ) : null;
+
             if (section.type === "InfiniteScrollingCollectionList") {
               return (
-                <InfiniteScrollingCollectionList
-                  key={index}
-                  title={section.title}
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
-                  orientation={section.orientation}
-                  hideIfEmpty
-                  pageSize={section.pageSize}
-                />
+                <View key={index} className='flex flex-col space-y-4'>
+                  <InfiniteScrollingCollectionList
+                    title={section.title}
+                    queryKey={section.queryKey}
+                    queryFn={section.queryFn}
+                    orientation={section.orientation}
+                    hideIfEmpty
+                    pageSize={section.pageSize}
+                  />
+                  {streamystatsSections}
+                </View>
               );
             }
             if (section.type === "MediaListSection") {
               return (
-                <MediaListSection
-                  key={index}
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
-                  scrollY={scrollY}
-                  enableLazyLoading={true}
-                />
+                <View key={index} className='flex flex-col space-y-4'>
+                  <MediaListSection
+                    queryKey={section.queryKey}
+                    queryFn={section.queryFn}
+                    scrollY={scrollY}
+                    enableLazyLoading={true}
+                  />
+                  {streamystatsSections}
+                </View>
               );
             }
             return null;
