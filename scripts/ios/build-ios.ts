@@ -1078,6 +1078,13 @@ function getBundleIdentifier(
   return `com.example.${projectName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
 }
 
+/**
+ * Creates the ExportOptions.plist file for IPA export.
+ * @param options - Build options
+ * @param outputDir - Directory to write the plist to
+ * @returns Path to the created plist file
+ * @throws Error if file creation fails
+ */
 function createExportOptionsPlist(
   options: BuildOptions,
   outputDir: string,
@@ -1105,8 +1112,20 @@ function createExportOptionsPlist(
 </dict>
 </plist>`;
 
-  fs.writeFileSync(plistPath, plistContent);
-  return plistPath;
+  try {
+    fs.writeFileSync(plistPath, plistContent);
+
+    if (!fs.existsSync(plistPath)) {
+      throw new Error("Failed to write ExportOptions.plist");
+    }
+
+    return plistPath;
+  } catch (error) {
+    log.error(
+      `Failed to create export options: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+    throw error;
+  }
 }
 
 async function runProductionBuild(options: BuildOptions): Promise<void> {
