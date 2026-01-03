@@ -42,11 +42,20 @@ const path = require("node:path");
 /** Default Metro bundler port */
 const DEFAULT_METRO_PORT = 8081;
 
+/** Minimum allowed port number (avoiding privileged ports) */
+const MIN_PORT = 1024;
+
+/** Maximum allowed port number */
+const MAX_PORT = 65535;
+
 /** Maximum buffer size for xcodebuild output (100MB) */
 const MAX_BUILD_BUFFER = 100 * 1024 * 1024;
 
 /** Default build timeout in milliseconds (30 minutes) */
 const DEFAULT_BUILD_TIMEOUT_MS = 30 * 60 * 1000;
+
+/** Maximum build timeout in milliseconds (2 hours) */
+const MAX_BUILD_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
 /** Simulator boot wait time in milliseconds (30 seconds max) */
 const SIMULATOR_BOOT_WAIT_MS = 30 * 1000;
@@ -175,9 +184,9 @@ function validatePort(port: number): number {
   if (!Number.isInteger(port)) {
     throw new Error(`Port must be an integer, got: ${port}`);
   }
-  if (port < 1024 || port > 65535) {
+  if (port < MIN_PORT || port > MAX_PORT) {
     throw new Error(
-      `Port must be between 1024 and 65535 (got ${port}). Privileged ports (<1024) are not allowed.`,
+      `Port must be between ${MIN_PORT} and ${MAX_PORT} (got ${port}). Privileged ports (<${MIN_PORT}) are not allowed.`,
     );
   }
   return port;
@@ -198,10 +207,9 @@ function validateTimeout(timeoutMs: number): number {
       `Timeout cannot be negative, got ${timeoutMs}ms. Use --no-timeout to disable timeout.`,
     );
   }
-  const MAX_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
-  if (timeoutMs > MAX_TIMEOUT_MS) {
+  if (timeoutMs > MAX_BUILD_TIMEOUT_MS) {
     throw new Error(
-      `Timeout is too large (${timeoutMs}ms = ${timeoutMs / 1000}s). Maximum: ${MAX_TIMEOUT_MS / 1000}s (2 hours). Use --no-timeout for unlimited builds.`,
+      `Timeout is too large (${timeoutMs}ms = ${timeoutMs / 1000}s). Maximum: ${MAX_BUILD_TIMEOUT_MS / 1000}s (2 hours). Use --no-timeout for unlimited builds.`,
     );
   }
   return timeoutMs;
