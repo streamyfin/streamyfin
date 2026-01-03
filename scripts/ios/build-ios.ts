@@ -1053,7 +1053,9 @@ function startMetroBundler(projectRoot: string, port: number): void {
     env: { ...process.env },
   });
 
-  metroProcess.unref();
+  if (metroProcess) {
+    metroProcess.unref();
+  }
   log.info(`Metro bundler started on port ${port}`);
 }
 
