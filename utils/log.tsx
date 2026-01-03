@@ -55,7 +55,6 @@ export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
 
   storage.set("logs", JSON.stringify(recentLogs));
-  console.log(message);
 };
 
 export const writeInfoLog = (message: string, data?: any) =>

@@ -54,9 +54,7 @@ const ToggleSwitch: React.FC<{ value: boolean }> = ({ value }) => (
     className={`w-12 h-7 rounded-full ${value ? "bg-purple-600" : "bg-neutral-600"} flex-row items-center`}
   >
     <View
-      className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-        value ? "translate-x-6" : "translate-x-1"
-      }`}
+      className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${value ? "translate-x-6" : "translate-x-1"}`}
     />
   </View>
 );
@@ -73,9 +71,7 @@ const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
       <TouchableOpacity
         onPress={handlePress}
         disabled={option.disabled}
-        className={`px-4 py-3 flex flex-row items-center justify-between ${
-          option.disabled ? "opacity-50" : ""
-        }`}
+        className={`px-4 py-3 flex flex-row items-center justify-between ${option.disabled ? "opacity-50" : ""}`}
       >
         <Text className='flex-1 text-white'>{option.label}</Text>
         {isToggle ? (
@@ -219,11 +215,7 @@ const PlatformDropdownComponent = ({
     return (
       <Host style={expoUIConfig?.hostStyle}>
         <ContextMenu>
-          <ContextMenu.Trigger>
-            <View className=''>
-              {trigger || <Button variant='bordered'>Show Menu</Button>}
-            </View>
-          </ContextMenu.Trigger>
+          <ContextMenu.Trigger>{trigger}</ContextMenu.Trigger>
           <ContextMenu.Items>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options

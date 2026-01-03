@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
@@ -22,8 +23,10 @@ type FavoriteTypes =
 type EmptyState = Record<FavoriteTypes, boolean>;
 
 export const Favorites = () => {
+  const router = useRouter();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const pageSize = 20;
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: false,
     Movie: false,
@@ -91,34 +94,76 @@ export const Favorites = () => {
 
   const fetchFavoriteSeries = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Series", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Series", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteMovies = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Movie", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Movie", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteEpisodes = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Episode", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Episode", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteVideos = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Video", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Video", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoriteBoxsets = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("BoxSet", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("BoxSet", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
   const fetchFavoritePlaylists = useCallback(
     ({ pageParam }: { pageParam: number }) =>
-      fetchFavoritesByType("Playlist", pageParam),
-    [fetchFavoritesByType],
+      fetchFavoritesByType("Playlist", pageParam, pageSize),
+    [fetchFavoritesByType, pageSize],
   );
+
+  const handleSeeAllSeries = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Series", title: t("favorites.series") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllMovies = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Movie", title: t("favorites.movies") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllEpisodes = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Episode", title: t("favorites.episodes") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllVideos = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Video", title: t("favorites.videos") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllBoxsets = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "BoxSet", title: t("favorites.boxsets") },
+    } as any);
+  }, [router]);
+
+  const handleSeeAllPlaylists = useCallback(() => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(favorites)/see-all",
+      params: { type: "Playlist", title: t("favorites.playlists") },
+    } as any);
+  }, [router]);
 
   return (
     <View className='flex flex-co gap-y-4'>
@@ -143,6 +188,8 @@ export const Favorites = () => {
         queryKey={["home", "favorites", "series"]}
         title={t("favorites.series")}
         hideIfEmpty
+        pageSize={pageSize}
+        onPressSeeAll={handleSeeAllSeries}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
@@ -150,30 +197,40 @@ export const Favorites = () => {
         title={t("favorites.movies")}
         hideIfEmpty
         orientation='vertical'
+        pageSize={pageSize}
+        onPressSeeAll={handleSeeAllMovies}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
         queryKey={["home", "favorites", "episodes"]}
         title={t("favorites.episodes")}
         hideIfEmpty
+        pageSize={pageSize}
+        onPressSeeAll={handleSeeAllEpisodes}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
         queryKey={["home", "favorites", "videos"]}
         title={t("favorites.videos")}
         hideIfEmpty
+        pageSize={pageSize}
+        onPressSeeAll={handleSeeAllVideos}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
         queryKey={["home", "favorites", "boxsets"]}
         title={t("favorites.boxsets")}
         hideIfEmpty
+        pageSize={pageSize}
+        onPressSeeAll={handleSeeAllBoxsets}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
         queryKey={["home", "favorites", "playlists"]}
         title={t("favorites.playlists")}
         hideIfEmpty
+        pageSize={pageSize}
+        onPressSeeAll={handleSeeAllPlaylists}
       />
     </View>
   );

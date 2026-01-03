@@ -6,6 +6,7 @@ import { Text } from "../common/Text";
 interface Props extends ViewProps {
   title?: string | null | undefined;
   subtitle?: string | null | undefined;
+  subtitleColor?: "default" | "red";
   value?: string | null | undefined;
   children?: ReactNode;
   iconAfter?: ReactNode;
@@ -14,6 +15,7 @@ interface Props extends ViewProps {
   textColor?: "default" | "blue" | "red";
   onPress?: () => void;
   disabled?: boolean;
+  disabledByAdmin?: boolean;
 }
 
 export const ListItem: React.FC<PropsWithChildren<Props>> = ({
@@ -27,21 +29,23 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
   textColor = "default",
   onPress,
   disabled = false,
+  disabledByAdmin = false,
   ...viewProps
 }) => {
+  const effectiveSubtitle = disabledByAdmin ? "Disabled by admin" : subtitle;
+  const isDisabled = disabled || disabledByAdmin;
   if (onPress)
     return (
       <TouchableOpacity
-        disabled={disabled}
+        disabled={isDisabled}
         onPress={onPress}
-        className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${
-          disabled ? "opacity-50" : ""
-        }`}
+        className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${isDisabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         <ListItemContent
           title={title}
-          subtitle={subtitle}
+          subtitle={effectiveSubtitle}
+          subtitleColor={disabledByAdmin ? "red" : undefined}
           value={value}
           icon={icon}
           textColor={textColor}
@@ -54,14 +58,13 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
     );
   return (
     <View
-      className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${
-        disabled ? "opacity-50" : ""
-      }`}
+      className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${isDisabled ? "opacity-50" : ""}`}
       {...viewProps}
     >
       <ListItemContent
         title={title}
-        subtitle={subtitle}
+        subtitle={effectiveSubtitle}
+        subtitleColor={disabledByAdmin ? "red" : undefined}
         value={value}
         icon={icon}
         textColor={textColor}
@@ -77,6 +80,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
 const ListItemContent = ({
   title,
   subtitle,
+  subtitleColor,
   textColor,
   icon,
   value,
@@ -107,7 +111,7 @@ const ListItemContent = ({
           </Text>
           {subtitle && (
             <Text
-              className='text-[#9899A1] text-[12px] mt-0.5'
+              className={`text-[12px] mt-0.5 ${subtitleColor === "red" ? "text-red-600" : "text-[#9899A1]"}`}
               numberOfLines={2}
             >
               {subtitle}

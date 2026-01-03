@@ -282,7 +282,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     if (currentItem) {
       setSelectedOptions({
         bitrate: defaultBitrate,
-        mediaSource: defaultMediaSource,
+        mediaSource: defaultMediaSource ?? undefined,
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
       });

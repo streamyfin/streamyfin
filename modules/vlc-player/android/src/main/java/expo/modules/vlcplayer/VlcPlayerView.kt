@@ -343,6 +343,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         mediaPlayer?.scale = scaleFactor
     }
 
+    fun setRate(rate: Float) {
+        log.debug("Setting playback rate: $rate")
+        mediaPlayer?.rate = rate
+    }
+
     private fun setInitialExternalSubtitles() {
         externalSubtitles?.let { subtitles ->
             for (subtitle in subtitles) {

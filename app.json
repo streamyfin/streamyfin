@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.48.0",
+    "version": "0.50.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -34,7 +34,7 @@
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 85,
+      "versionCode": 88,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
@@ -53,29 +53,16 @@
       "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
-      [
-        "react-native-video",
-        {
-          "enableNotificationControls": true,
-          "enableBackgroundAudio": true,
-          "androidExtensions": {
-            "useExoplayerRtsp": false,
-            "useExoplayerSmoothStreaming": false,
-            "useExoplayerHls": true,
-            "useExoplayerDash": false
-          }
-        }
-      ],
+      "./plugins/withExcludeMedia3Dash.js",
       [
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "deploymentTarget": "15.6"
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64"],
-            "compileSdkVersion": 35,
+            "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
             "kotlinVersion": "2.0.21",

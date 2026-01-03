@@ -6,12 +6,12 @@
 import MediaTypes from "../../constants/MediaTypes";
 import { getSubtitleProfiles } from "./subtitles";
 
-export const generateDeviceProfile = ({ transcode = false } = {}) => {
+export const generateDeviceProfile = () => {
   /**
    * Device profile for Native video player
    */
   const profile = {
-    Name: `1. Vlc Player${transcode ? " (Transcoding)" : ""}`,
+    Name: `1. MPV Player`,
     MaxStaticBitrate: 999_999_999,
     MaxStreamingBitrate: 999_999_999,
     CodecProfiles: [
@@ -48,7 +48,7 @@ export const generateDeviceProfile = ({ transcode = false } = {}) => {
         Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
         VideoCodec:
           "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
-        AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma,dts",
+        AudioCodec: "aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma,dts,truehd",
       },
       {
         Type: MediaTypes.Audio,
@@ -75,7 +75,7 @@ export const generateDeviceProfile = ({ transcode = false } = {}) => {
         MaxAudioChannels: "2",
       },
     ],
-    SubtitleProfiles: getSubtitleProfiles(transcode ? "hls" : "External"),
+    SubtitleProfiles: getSubtitleProfiles(),
   };
 
   return profile;
