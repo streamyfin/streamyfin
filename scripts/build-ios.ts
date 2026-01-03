@@ -480,6 +480,13 @@ function assertPlatform(): void {
 // Xcode Project Resolution
 // =============================================================================
 
+/**
+ * Finds the Xcode project or workspace in the iOS directory.
+ * Prefers .xcworkspace over .xcodeproj when both exist.
+ * @param projectRoot - The root directory of the project
+ * @returns XcodeProject object containing project information
+ * @throws Error if iOS directory is not found or not readable
+ */
 function findXcodeProject(projectRoot: string): XcodeProject {
   const iosPath = path.join(projectRoot, "ios");
 
@@ -531,6 +538,12 @@ function findXcodeProject(projectRoot: string): XcodeProject {
 // Scheme Resolution
 // =============================================================================
 
+/**
+ * Retrieves available schemes from an Xcode project.
+ * Falls back to project name if xcodebuild command fails.
+ * @param xcodeProject - The Xcode project to query
+ * @returns Array of scheme names
+ */
 function getSchemes(xcodeProject: XcodeProject): string[] {
   try {
     const flag = xcodeProject.isWorkspace ? "-workspace" : "-project";
@@ -557,6 +570,14 @@ function getSchemes(xcodeProject: XcodeProject): string[] {
   return [name];
 }
 
+/**
+ * Resolves and validates the scheme name for building.
+ * Uses provided scheme if valid, otherwise selects best match.
+ * @param xcodeProject - The Xcode project
+ * @param schemeName - Optional scheme name to use
+ * @returns The validated scheme name
+ * @throws Error if no schemes are available
+ */
 function resolveScheme(
   xcodeProject: XcodeProject,
   schemeName?: string,
@@ -587,6 +608,10 @@ function resolveScheme(
 // Device Resolution
 // =============================================================================
 
+/**
+ * Retrieves list of available iOS simulators.
+ * @returns Array of Device objects representing available simulators
+ */
 function getAvailableSimulators(): Device[] {
   try {
     const output = execSync("xcrun simctl list devices available --json", {
@@ -614,6 +639,13 @@ function getAvailableSimulators(): Device[] {
   }
 }
 
+/**
+ * Resolves target device for installation.
+ * Prefers booted simulator or matches by name/UDID.
+ * @param deviceName - Optional device name or UDID to match
+ * @returns Device object for the resolved target
+ * @throws Error if no simulators are available
+ */
 function resolveDevice(deviceName?: string): Device {
   const simulators = getAvailableSimulators();
 
