@@ -116,11 +116,10 @@ function sanitizePath(
   // If projectRoot provided, ensure path doesn't escape it
   if (projectRoot) {
     const absProjectRoot = path.resolve(projectRoot);
-    // Allow /tmp and system temp directories for build artifacts
+    // Allow system temp directories for build artifacts
     const systemTempDir = require("node:os").tmpdir();
     if (
       !resolved.startsWith(absProjectRoot) &&
-      !resolved.startsWith("/tmp") &&
       !resolved.startsWith(systemTempDir)
     ) {
       throw new Error(
@@ -143,7 +142,6 @@ function sanitizePath(
         const systemTempDir = require("node:os").tmpdir();
         if (
           !realPath.startsWith(absProjectRoot) &&
-          !realPath.startsWith("/tmp") &&
           !realPath.startsWith(systemTempDir)
         ) {
           throw new Error(
