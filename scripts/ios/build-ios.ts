@@ -34,6 +34,10 @@
 const { spawn, execSync, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
+const { ChildProcess } = require("node:child_process");
+
+// Track Metro bundler process for cleanup
+let metroProcess: typeof ChildProcess | null = null;
 
 // =============================================================================
 // Configuration Constants
@@ -912,16 +916,42 @@ async function launchApp(binaryPath: string, device: Device): Promise<void> {
 function startMetroBundler(projectRoot: string, port: number): void {
   log.step("Starting Metro bundler...");
 
-  const metro = spawn("bunx", ["expo", "start", "--port", port.toString()], {
+  metroProcess = spawn("bunx", ["expo", "start", "--port", port.toString()], {
     cwd: projectRoot,
     stdio: "inherit",
     detached: true,
     env: { ...process.env },
   });
 
-  metro.unref();
+  metroProcess.unref();
   log.info(`Metro bundler started on port ${port}`);
 }
+
+/**
+ * Cleanup handler for Metro bundler process.
+ * Ensures Metro is killed when script exits.
+ */
+function cleanupMetroBundler(): void {
+  if (metroProcess && !metroProcess.killed) {
+    try {
+      metroProcess.kill();
+      log.info("Metro bundler stopped");
+    } catch (_error) {
+      // Process might already be killed, ignore error
+    }
+  }
+}
+
+// Register cleanup handler for process exit
+process.on("exit", cleanupMetroBundler);
+process.on("SIGINT", () => {
+  cleanupMetroBundler();
+  process.exit(130); // Standard exit code for SIGINT
+});
+process.on("SIGTERM", () => {
+  cleanupMetroBundler();
+  process.exit(143); // Standard exit code for SIGTERM
+});
 
 // =============================================================================
 // Production Build (IPA/App Archive)
