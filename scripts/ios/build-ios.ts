@@ -219,9 +219,10 @@ function validateTimeout(timeoutMs: number): number {
       `Timeout cannot be negative, got ${timeoutMs}ms. Use --no-timeout to disable timeout.`,
     );
   }
+  // Warn but allow large timeouts
   if (timeoutMs > MAX_BUILD_TIMEOUT_MS) {
-    throw new Error(
-      `Timeout is too large (${timeoutMs}ms = ${timeoutMs / 1000}s). Maximum: ${MAX_BUILD_TIMEOUT_MS / 1000}s (2 hours). Use --no-timeout for unlimited builds.`,
+    console.warn(
+      `\x1b[33m⚠ Warning: Custom timeout ${timeoutMs / 1000}s exceeds default limit of ${MAX_BUILD_TIMEOUT_MS / 1000}s. Proceeding anyway.\x1b[0m`,
     );
   }
   return timeoutMs;
