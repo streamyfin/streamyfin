@@ -313,9 +313,21 @@ function parseArgs(argv: string[]): BuildOptions {
       case "--clean":
         options.clean = true;
         break;
-      case "--project-root":
-        options.projectRoot = path.resolve(args[++i] || process.cwd());
+      case "--project-root": {
+        const rootPath = args[++i];
+        if (!rootPath) {
+          throw new Error("--project-root requires a path argument");
+        }
+        const resolved = path.resolve(rootPath);
+        if (!fs.existsSync(resolved)) {
+          throw new Error(`Project root does not exist: ${resolved}`);
+        }
+        if (!fs.statSync(resolved).isDirectory()) {
+          throw new Error(`Project root is not a directory: ${resolved}`);
+        }
+        options.projectRoot = resolved;
         break;
+      }
       case "--port":
       case "-p": {
         const parsedPort = parseInt(args[++i], 10) || DEFAULT_METRO_PORT;
@@ -1232,11 +1244,15 @@ function runXcodeBuildCommand(
 
   if (result.status !== 0) {
     log.error(`${errorContext} failed`);
-    if (!options.verbose) {
-      const stderr = result.stderr?.toString() || "";
+    if (!options.verbose && result.stderr) {
+      const stderr = result.stderr.toString();
       const stdout = result.stdout?.toString() || "";
       displayBuildError(stderr, stdout);
       log.info("Run with --verbose to see full build output");
+    } else if (!options.verbose) {
+      log.info(
+        "No detailed error output available. Run with --verbose to see more.",
+      );
     }
     process.exit(1);
   }
