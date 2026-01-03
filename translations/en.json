@@ -214,6 +214,7 @@
         "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable Haptic Feedback",
         "default_quality": "Default Quality",
+        "default_playback_speed": "Default Playback Speed",
         "max_auto_play_episode_count": "Max Auto Play Episode Count",
         "disabled": "Disabled"
       },
@@ -663,5 +664,15 @@
     "loading": "Loading watchlists...",
     "no_compatible_watchlists": "No compatible watchlists",
     "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

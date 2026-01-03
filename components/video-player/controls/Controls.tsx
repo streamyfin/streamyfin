@@ -35,6 +35,7 @@ import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { useControlsTimeout } from "./useControlsTimeout";
+import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
 import { type ScaleFactor } from "./VlcZoomControl";
 
@@ -66,6 +67,9 @@ interface Props {
   onZoomToggle?: () => void;
   api?: Api | null;
   downloadedFiles?: DownloadedItem[];
+  // Playback speed props
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
 }
 
 export const Controls: FC<Props> = ({
@@ -93,6 +97,8 @@ export const Controls: FC<Props> = ({
   offline = false,
   api = null,
   downloadedFiles = undefined,
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
 }) => {
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
@@ -484,6 +490,8 @@ export const Controls: FC<Props> = ({
               setVideoScaleFactor={setVideoScaleFactor}
               isZoomedToFill={isZoomedToFill}
               onZoomToggle={onZoomToggle}
+              playbackSpeed={playbackSpeed}
+              setPlaybackSpeed={setPlaybackSpeed}
             />
           </Animated.View>
           <Animated.View

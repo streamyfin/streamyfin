@@ -24,9 +24,14 @@ import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
+import {
+  PlaybackSpeedScope,
+  updatePlaybackSpeedSettings,
+} from "@/components/video-player/controls/utils/playback-speed-settings";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
@@ -63,7 +68,7 @@ export default function page() {
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
 
   // Determine which player to use:
   // - Android always uses VLC
@@ -88,6 +93,7 @@ export default function page() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
+  const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -152,6 +158,35 @@ export default function page() {
     isLoading: true,
     isError: false,
   });
+
+  // Get the playback speed for this item based on settings
+  const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
+    item,
+    settings,
+  );
+
+  // Handler for changing playback speed
+  const handleSetPlaybackSpeed = useCallback(
+    async (speed: number, scope: PlaybackSpeedScope) => {
+      // Update settings based on scope
+      updatePlaybackSpeedSettings(
+        speed,
+        scope,
+        item ?? undefined,
+        settings,
+        updateSettings,
+      );
+
+      // Apply speed to the current player
+      setCurrentPlaybackSpeed(speed);
+      if (useVlcPlayer) {
+        await (videoRef.current as VlcPlayerViewRef)?.setRate?.(speed);
+      } else {
+        await (videoRef.current as SfPlayerViewRef)?.setSpeed?.(speed);
+      }
+    },
+    [item, settings, updateSettings, useVlcPlayer],
+  );
 
   /** Gets the initial playback position from the URL. */
   const getInitialPlaybackTicks = useCallback((): number => {
@@ -963,6 +998,28 @@ export default function page() {
     applySubtitleSettings();
   }, [isVideoLoaded, settings, useVlcPlayer]);
 
+  // Apply initial playback speed when video loads
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current) return;
+
+    const applyInitialPlaybackSpeed = async () => {
+      if (initialPlaybackSpeed !== 1.0) {
+        setCurrentPlaybackSpeed(initialPlaybackSpeed);
+        if (useVlcPlayer) {
+          await (videoRef.current as VlcPlayerViewRef)?.setRate?.(
+            initialPlaybackSpeed,
+          );
+        } else {
+          await (videoRef.current as SfPlayerViewRef)?.setSpeed?.(
+            initialPlaybackSpeed,
+          );
+        }
+      }
+    };
+
+    applyInitialPlaybackSpeed();
+  }, [isVideoLoaded, initialPlaybackSpeed, useVlcPlayer]);
+
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
     return (
@@ -1101,6 +1158,8 @@ export default function page() {
               onZoomToggle={handleZoomToggle}
               api={api}
               downloadedFiles={downloadedFiles}
+              playbackSpeed={currentPlaybackSpeed}
+              setPlaybackSpeed={handleSetPlaybackSpeed}
             />
           )}
         </View>

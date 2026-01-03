@@ -7,12 +7,14 @@ import { useRouter } from "expo-router";
 import { type FC, useCallback, useState } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PlaybackSpeedSelector } from "@/components/PlaybackSpeedSelector";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useSettings, VideoPlayerIOS } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
+import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import {
   type AspectRatio,
   AspectRatioSelector,
@@ -40,6 +42,9 @@ interface HeaderControlsProps {
   // KSPlayer-specific props
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
+  // Playback speed props
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
 }
 
 export const HeaderControls: FC<HeaderControlsProps> = ({
@@ -60,6 +65,8 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   setVideoScaleFactor,
   isZoomedToFill = false,
   onZoomToggle,
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
 }) => {
   const { settings } = useSettings();
   const router = useRouter();
@@ -180,6 +187,14 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
               color='white'
             />
           </TouchableOpacity>
+        )}
+        {/* Playback Speed Control */}
+        {!Platform.isTV && setPlaybackSpeed && (
+          <PlaybackSpeedSelector
+            selected={playbackSpeed}
+            onChange={setPlaybackSpeed}
+            item={item}
+          />
         )}
         {/* VLC-specific controls: Aspect Ratio and Scale/Zoom */}
         {useVlcPlayer && (
