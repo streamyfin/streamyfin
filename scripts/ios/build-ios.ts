@@ -1311,11 +1311,14 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
     if (appPath && fs.existsSync(appPath)) {
       // Copy to output location
-      const finalPath = options.output || path.join(outputDir, `${scheme}.app`);
+      const finalPath = sanitizePath(
+        options.output || path.join(outputDir, `${scheme}.app`),
+        options.projectRoot,
+      );
       if (fs.existsSync(finalPath)) {
         fs.rmSync(finalPath, { recursive: true });
       }
-      fs.cpSync(sanitizePath(appPath), sanitizePath(finalPath), {
+      fs.cpSync(sanitizePath(appPath), finalPath, {
         recursive: true,
       });
 
@@ -1393,8 +1396,10 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
         .find((f: string) => f.endsWith(".ipa"));
       if (ipaFile) {
         const ipaPath = path.join(exportDir, ipaFile);
-        const finalPath =
-          options.output || path.join(outputDir, `${scheme}.ipa`);
+        const finalPath = sanitizePath(
+          options.output || path.join(outputDir, `${scheme}.ipa`),
+          options.projectRoot,
+        );
 
         if (finalPath !== ipaPath) {
           fs.copyFileSync(ipaPath, finalPath);
@@ -1430,7 +1435,10 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
 
       const appPath = path.join(productsPath, appName);
       const payloadDir = path.join(outputDir, "Payload");
-      const ipaPath = options.output || path.join(outputDir, `${scheme}.ipa`);
+      const ipaPath = sanitizePath(
+        options.output || path.join(outputDir, `${scheme}.ipa`),
+        options.projectRoot,
+      );
 
       // Clean up previous Payload directory if exists
       if (fs.existsSync(payloadDir)) {
@@ -1451,11 +1459,25 @@ async function runProductionBuild(options: BuildOptions): Promise<void> {
       // Create IPA (zip the Payload folder)
       log.info("Creating IPA...");
       const safeOutputDir = sanitizePath(outputDir);
-      const safeIpaPath = sanitizePath(ipaPath);
-      spawnSync("zip", ["-r", "-q", safeIpaPath, "Payload"], {
-        cwd: safeOutputDir,
-        stdio: "pipe",
+      const safeIpaPath = ipaPath; // Already sanitized above
+
+      // Zip Payload directory to create IPA
+      // Using /usr/bin/zip to ensure compatibility
+      const zipArgs = ["-r", "-y", safeIpaPath, "Payload"];
+
+      const zipResult = spawnSync("zip", zipArgs, {
+        cwd: safeOutputDir, // Run zip from output dir so Payload is at root of archive
+        stdio: options.verbose ? "inherit" : "pipe",
+        env: { ...process.env },
       });
+
+      if (zipResult.status !== 0) {
+        log.error("Failed to create IPA");
+        if (!options.verbose) {
+          console.error(zipResult.stderr?.toString());
+        }
+        process.exit(1);
+      }
 
       // Clean up Payload directory
       fs.rmSync(payloadDir, { recursive: true });
