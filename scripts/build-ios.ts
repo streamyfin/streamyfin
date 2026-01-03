@@ -140,8 +140,9 @@ function sanitizePath(
           );
         }
       }
-    } catch (error: any) {
-      if (error.message?.includes("project boundary")) {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.message?.includes("project boundary")) {
         throw error;
       }
       // Ignore other errors (e.g., permission issues)
@@ -926,7 +927,23 @@ function startMetroBundler(projectRoot: string, port: number): void {
 // Production Build (IPA/App Archive)
 // =============================================================================
 
-function getAppConfig(projectRoot: string): any {
+interface AppConfig {
+  expo?: {
+    ios?: {
+      bundleIdentifier?: string;
+    };
+  };
+  ios?: {
+    bundleIdentifier?: string;
+  };
+}
+
+/**
+ * Reads and parses the app configuration.
+ * @param projectRoot - Project root directory
+ * @returns Parsed app configuration object
+ */
+function getAppConfig(projectRoot: string): AppConfig {
   // Try to read app.json or app.config.js
   const appJsonPath = path.join(projectRoot, "app.json");
   const appConfigPath = path.join(projectRoot, "app.config.js");
