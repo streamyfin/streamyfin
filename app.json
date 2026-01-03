@@ -55,19 +55,6 @@
       "expo-font",
       "./plugins/withExcludeMedia3Dash.js",
       [
-        "react-native-video",
-        {
-          "enableNotificationControls": true,
-          "enableBackgroundAudio": true,
-          "androidExtensions": {
-            "useExoplayerRtsp": false,
-            "useExoplayerSmoothStreaming": false,
-            "useExoplayerHls": true,
-            "useExoplayerDash": false
-          }
-        }
-      ],
-      [
         "expo-build-properties",
         {
           "ios": {
