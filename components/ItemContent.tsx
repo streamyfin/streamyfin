@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
+import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
@@ -18,7 +19,6 @@ import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlayButton } from "@/components/PlayButton";
 import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
-import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -29,9 +29,9 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
+import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
-import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
 
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
@@ -67,17 +67,22 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       SelectedOptions | undefined
     >(undefined);
 
+    // Use itemWithSources for play settings since it has MediaSources data
     const {
       defaultAudioIndex,
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(item!, settings);
+    } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
       [api, item],
     );
+
+    const onLogoLoad = React.useCallback(() => {
+      setLoadingLogo(false);
+    }, []);
 
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
@@ -87,7 +92,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     useEffect(() => {
       setSelectedOptions(() => ({
         bitrate: defaultBitrate,
-        mediaSource: defaultMediaSource,
+        mediaSource: defaultMediaSource ?? undefined,
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
       }));
@@ -117,6 +122,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
+                    <AddToWatchlist item={item} />
                   </View>
                 )}
               </View>
@@ -134,6 +140,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
+                    <AddToWatchlist item={item} />
                   </View>
                 )}
               </View>
@@ -162,7 +169,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
         }}
       >
         <ParallaxScrollView
-          className={`flex-1 ${loading ? "opacity-0" : "opacity-100"}`}
+          className='flex-1'
           headerHeight={headerHeight}
           headerImage={
             <View style={[{ flex: 1 }]}>
@@ -189,8 +196,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                   width: "100%",
                 }}
                 contentFit='contain'
-                onLoad={() => setLoadingLogo(false)}
-                onError={() => setLoadingLogo(false)}
+                onLoad={onLogoLoad}
+                onError={onLogoLoad}
               />
             ) : (
               <View />
@@ -238,25 +245,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             {item.Type !== "Program" && (
               <>
                 {item.Type === "Episode" && !isOffline && (
-                  <CurrentSeries item={item} className='mb-4' />
+                  <CurrentSeries item={item} className='mb-2' />
                 )}
 
-                {!isOffline && (
-                  <CastAndCrew item={item} className='mb-4' loading={loading} />
-                )}
-
-                {item.People && item.People.length > 0 && !isOffline && (
-                  <View className='mb-4'>
-                    {item.People.slice(0, 3).map((person, idx) => (
-                      <MoreMoviesWithActor
-                        currentItem={item}
-                        key={idx}
-                        actorId={person.Id!}
-                        className='mb-4'
-                      />
-                    ))}
-                  </View>
-                )}
+                <ItemPeopleSections item={item} isOffline={isOffline} />
 
                 {!isOffline && <SimilarItems itemId={item.Id} />}
               </>

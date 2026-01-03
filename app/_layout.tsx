@@ -15,6 +15,7 @@ import {
   getOrSetDeviceId,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
+import { MusicPlayerProvider } from "@/providers/MusicPlayerProvider";
 import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
@@ -344,55 +345,65 @@ function Layout() {
             <LogProvider>
               <WebSocketProvider>
                 <DownloadProvider>
-                  <GlobalModalProvider>
-                    <BottomSheetModalProvider>
-                      <ThemeProvider value={DarkTheme}>
-                        <SystemBars style='light' hidden={false} />
-                        <Stack initialRouteName='(auth)/(tabs)'>
-                          <Stack.Screen
-                            name='(auth)/(tabs)'
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
+                  <MusicPlayerProvider>
+                    <GlobalModalProvider>
+                      <BottomSheetModalProvider>
+                        <ThemeProvider value={DarkTheme}>
+                          <SystemBars style='light' hidden={false} />
+                          <Stack initialRouteName='(auth)/(tabs)'>
+                            <Stack.Screen
+                              name='(auth)/(tabs)'
+                              options={{
+                                headerShown: false,
+                                title: "",
+                                header: () => null,
+                              }}
+                            />
+                            <Stack.Screen
+                              name='(auth)/player'
+                              options={{
+                                headerShown: false,
+                                title: "",
+                                header: () => null,
+                              }}
+                            />
+                            <Stack.Screen
+                              name='(auth)/now-playing'
+                              options={{
+                                headerShown: false,
+                                presentation: "modal",
+                                gestureEnabled: true,
+                              }}
+                            />
+                            <Stack.Screen
+                              name='login'
+                              options={{
+                                headerShown: true,
+                                title: "",
+                                headerTransparent: Platform.OS === "ios",
+                              }}
+                            />
+                            <Stack.Screen name='+not-found' />
+                          </Stack>
+                          <Toaster
+                            duration={4000}
+                            toastOptions={{
+                              style: {
+                                backgroundColor: "#262626",
+                                borderColor: "#363639",
+                                borderWidth: 1,
+                              },
+                              titleStyle: {
+                                color: "white",
+                              },
                             }}
+                            closeButton
                           />
-                          <Stack.Screen
-                            name='(auth)/player'
-                            options={{
-                              headerShown: false,
-                              title: "",
-                              header: () => null,
-                            }}
-                          />
-                          <Stack.Screen
-                            name='login'
-                            options={{
-                              headerShown: true,
-                              title: "",
-                              headerTransparent: Platform.OS === "ios",
-                            }}
-                          />
-                          <Stack.Screen name='+not-found' />
-                        </Stack>
-                        <Toaster
-                          duration={4000}
-                          toastOptions={{
-                            style: {
-                              backgroundColor: "#262626",
-                              borderColor: "#363639",
-                              borderWidth: 1,
-                            },
-                            titleStyle: {
-                              color: "white",
-                            },
-                          }}
-                          closeButton
-                        />
-                        <GlobalModal />
-                      </ThemeProvider>
-                    </BottomSheetModalProvider>
-                  </GlobalModalProvider>
+                          <GlobalModal />
+                        </ThemeProvider>
+                      </BottomSheetModalProvider>
+                    </GlobalModalProvider>
+                  </MusicPlayerProvider>
                 </DownloadProvider>
               </WebSocketProvider>
             </LogProvider>

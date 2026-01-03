@@ -6,18 +6,20 @@ import { formatTimeString } from "@/utils/time";
 interface TimeDisplayProps {
   currentTime: number;
   remainingTime: number;
-  isVlc: boolean;
 }
 
+/**
+ * Displays current time and remaining time.
+ * MPV player uses milliseconds for time values.
+ */
 export const TimeDisplay: FC<TimeDisplayProps> = ({
   currentTime,
   remainingTime,
-  isVlc,
 }) => {
   const getFinishTime = () => {
     const now = new Date();
-    const remainingMs = isVlc ? remainingTime : remainingTime * 1000;
-    const finishTime = new Date(now.getTime() + remainingMs);
+    // remainingTime is in ms
+    const finishTime = new Date(now.getTime() + remainingTime);
     return finishTime.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -28,11 +30,11 @@ export const TimeDisplay: FC<TimeDisplayProps> = ({
   return (
     <View className='flex flex-row items-center justify-between mt-2'>
       <Text className='text-[12px] text-neutral-400'>
-        {formatTimeString(currentTime, isVlc ? "ms" : "s")}
+        {formatTimeString(currentTime, "ms")}
       </Text>
       <View className='flex flex-col items-end'>
         <Text className='text-[12px] text-neutral-400'>
-          -{formatTimeString(remainingTime, isVlc ? "ms" : "s")}
+          -{formatTimeString(remainingTime, "ms")}
         </Text>
         <Text className='text-[10px] text-neutral-500 opacity-70'>
           ends at {getFinishTime()}

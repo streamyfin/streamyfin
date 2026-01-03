@@ -4,8 +4,4 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-export interface DeviceProfileOptions {
-  transcode?: boolean;
-}
-
-export function generateDeviceProfile(options?: DeviceProfileOptions): any;
+export function generateDeviceProfile(): any;

@@ -4,7 +4,7 @@ import {
   type QueryKey,
   useInfiniteQuery,
 } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
   View,
   type ViewProps,
 } from "react-native";
+import { SectionHeader } from "@/components/common/SectionHeader";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { Colors } from "../../constants/Colors";
@@ -28,6 +29,9 @@ interface Props extends ViewProps {
   queryFn: QueryFunction<BaseItemDto[], QueryKey, number>;
   hideIfEmpty?: boolean;
   pageSize?: number;
+  onPressSeeAll?: () => void;
+  enabled?: boolean;
+  onLoaded?: () => void;
 }
 
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
@@ -38,32 +42,67 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   queryKey,
   hideIfEmpty = false,
   pageSize = 10,
+  onPressSeeAll,
+  enabled = true,
+  onLoaded,
   ...props
 }) => {
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: queryKey,
-      queryFn: ({ pageParam = 0, ...context }) =>
-        queryFn({ ...context, queryKey, pageParam }),
-      getNextPageParam: (lastPage, allPages) => {
-        // If the last page has fewer items than pageSize, we've reached the end
-        if (lastPage.length < pageSize) {
-          return undefined;
-        }
-        // Otherwise, return the next start index
-        return allPages.length * pageSize;
-      },
-      initialPageParam: 0,
-      staleTime: 60 * 1000, // 1 minute
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-    });
+  const effectivePageSize = Math.max(1, pageSize);
+  const hasCalledOnLoaded = useRef(false);
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    isSuccess,
+  } = useInfiniteQuery({
+    queryKey: queryKey,
+    queryFn: ({ pageParam = 0, ...context }) =>
+      queryFn({ ...context, queryKey, pageParam }),
+    getNextPageParam: (lastPage, allPages) => {
+      // If the last page has fewer items than pageSize, we've reached the end
+      if (lastPage.length < effectivePageSize) {
+        return undefined;
+      }
+      // Otherwise, return the next start index based on how many items we already loaded.
+      // This avoids overlaps if the server/page size differs from our configured page size.
+      return allPages.reduce((acc, page) => acc + page.length, 0);
+    },
+    initialPageParam: 0,
+    staleTime: 60 * 1000, // 1 minute
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    enabled,
+  });
+
+  // Notify parent when data has loaded
+  useEffect(() => {
+    if (isSuccess && !hasCalledOnLoaded.current && onLoaded) {
+      hasCalledOnLoaded.current = true;
+      onLoaded();
+    }
+  }, [isSuccess, onLoaded]);
 
   const { t } = useTranslation();
 
-  // Flatten all pages into a single array
-  const allItems = data?.pages.flat() || [];
+  // Flatten all pages into a single array (and de-dupe by Id to avoid UI duplicates)
+  const allItems = useMemo(() => {
+    const items = data?.pages.flat() ?? [];
+    const seen = new Set<string>();
+    const deduped: BaseItemDto[] = [];
+
+    for (const item of items) {
+      const id = item.Id;
+      if (!id) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      deduped.push(item);
+    }
+
+    return deduped;
+  }, [data]);
 
   const snapOffsets = useMemo(() => {
     const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)
@@ -90,9 +129,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   return (
     <View {...props}>
-      <Text className='px-4 text-lg font-bold mb-2 text-neutral-100'>
-        {title}
-      </Text>
+      <SectionHeader
+        title={title}
+        actionLabel={t("common.seeAll", { defaultValue: "See all" })}
+        actionDisabled={isLoading}
+        onPressAction={onPressSeeAll}
+      />
       {isLoading === false && allItems.length === 0 && (
         <View className='px-4'>
           <Text className='text-neutral-500'>{t("home.no_items")}</Text>

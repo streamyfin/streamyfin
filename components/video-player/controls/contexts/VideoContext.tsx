@@ -1,3 +1,51 @@
+/**
+ * VideoContext.tsx
+ *
+ * Manages subtitle and audio track state for the video player UI.
+ *
+ * ============================================================================
+ * ARCHITECTURE
+ * ============================================================================
+ *
+ * - Jellyfin is source of truth for subtitle list (embedded + external)
+ * - KSPlayer only knows about:
+ *   - Embedded subs it finds in the video stream
+ *   - External subs we explicitly add via addSubtitleFile()
+ * - UI shows Jellyfin's complete list
+ * - On selection: either select embedded track or load external URL
+ *
+ * ============================================================================
+ * INDEX TYPES
+ * ============================================================================
+ *
+ * 1. SERVER INDEX (sub.Index / track.index)
+ *    - Jellyfin's server-side stream index
+ *    - Used to report playback state to Jellyfin server
+ *    - Value of -1 means disabled/none
+ *
+ * 2. MPV INDEX (track.mpvIndex)
+ *    - KSPlayer's internal track ID
+ *    - KSPlayer orders tracks as: [all embedded, then all external]
+ *    - IDs: 1..embeddedCount for embedded, embeddedCount+1.. for external
+ *    - Value of -1 means track needs replacePlayer() (e.g., burned-in sub)
+ *
+ * ============================================================================
+ * SUBTITLE HANDLING
+ * ============================================================================
+ *
+ * Embedded (DeliveryMethod.Embed):
+ *   - Already in KSPlayer's track list
+ *   - Select via setSubtitleTrack(mpvId)
+ *
+ * External (DeliveryMethod.External):
+ *   - Loaded into KSPlayer's srtControl on video start
+ *   - Select via setSubtitleTrack(embeddedCount + externalPosition + 1)
+ *
+ * Image-based during transcoding:
+ *   - Burned into video by Jellyfin, not in KSPlayer
+ *   - Requires replacePlayer() to change
+ */
+
 import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
 import { router, useLocalSearchParams } from "expo-router";
 import type React from "react";
@@ -9,52 +57,26 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { TrackInfo } from "@/modules/VlcPlayer.types";
+import type { SfAudioTrack } from "@/modules";
+import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
-import { useControlContext } from "./ControlContext";
+import { usePlayerContext, usePlayerControls } from "./PlayerContext";
 
 interface VideoContextProps {
-  audioTracks: Track[] | null;
   subtitleTracks: Track[] | null;
-  setAudioTrack: ((index: number) => void) | undefined;
-  setSubtitleTrack: ((index: number) => void) | undefined;
-  setSubtitleURL: ((url: string, customName: string) => void) | undefined;
+  audioTracks: Track[] | null;
 }
 
 const VideoContext = createContext<VideoContextProps | undefined>(undefined);
 
-interface VideoProviderProps {
-  children: ReactNode;
-  getAudioTracks:
-    | (() => Promise<TrackInfo[] | null>)
-    | (() => TrackInfo[])
-    | undefined;
-  getSubtitleTracks:
-    | (() => Promise<TrackInfo[] | null>)
-    | (() => TrackInfo[])
-    | undefined;
-  setAudioTrack: ((index: number) => void) | undefined;
-  setSubtitleTrack: ((index: number) => void) | undefined;
-  setSubtitleURL: ((url: string, customName: string) => void) | undefined;
-}
-
-export const VideoProvider: React.FC<VideoProviderProps> = ({
+export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   children,
-  getSubtitleTracks,
-  getAudioTracks,
-  setSubtitleTrack,
-  setSubtitleURL,
-  setAudioTrack,
 }) => {
-  const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
+  const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const ControlContext = useControlContext();
-  const isVideoLoaded = ControlContext?.isVideoLoaded;
-  const mediaSource = ControlContext?.mediaSource;
-
-  const allSubs =
-    mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
+  const { tracksReady, mediaSource } = usePlayerContext();
+  const playerControls = usePlayerControls();
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
@@ -66,185 +88,189 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({
       playbackPosition: string;
     }>();
 
-  const onTextBasedSubtitle = useMemo(() => {
-    return (
-      allSubs.find(
-        (s) =>
-          s.Index?.toString() === subtitleIndex &&
-          (s.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-            s.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-            s.DeliveryMethod === SubtitleDeliveryMethod.External),
-      ) || subtitleIndex === "-1"
+  const allSubs =
+    mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
+  const allAudio =
+    mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
+
+  const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
+
+  /**
+   * Check if the currently selected subtitle is image-based.
+   * Used to determine if we need to refresh the player when changing subs.
+   */
+  const isCurrentSubImageBased = useMemo(() => {
+    if (subtitleIndex === "-1") return false;
+    const currentSub = allSubs.find(
+      (s) => s.Index?.toString() === subtitleIndex,
     );
+    return currentSub ? isImageBasedSubtitle(currentSub) : false;
   }, [allSubs, subtitleIndex]);
 
-  const setPlayerParams = ({
-    chosenAudioIndex = audioIndex,
-    chosenSubtitleIndex = subtitleIndex,
-  }: {
-    chosenAudioIndex?: string;
-    chosenSubtitleIndex?: string;
+  /**
+   * Refresh the player with new parameters.
+   * This triggers Jellyfin to re-process the stream (e.g., burn in image subs).
+   */
+  const replacePlayer = (params: {
+    audioIndex?: string;
+    subtitleIndex?: string;
   }) => {
-    console.log("chosenSubtitleIndex", chosenSubtitleIndex);
     const queryParams = new URLSearchParams({
       itemId: itemId ?? "",
-      audioIndex: chosenAudioIndex,
-      subtitleIndex: chosenSubtitleIndex,
+      audioIndex: params.audioIndex ?? audioIndex,
+      subtitleIndex: params.subtitleIndex ?? subtitleIndex,
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
       playbackPosition: playbackPosition,
     }).toString();
-
     router.replace(`player/direct-player?${queryParams}` as any);
   };
 
-  const setTrackParams = (
-    type: "audio" | "subtitle",
-    index: number,
-    serverIndex: number,
-  ) => {
-    const setTrack = type === "audio" ? setAudioTrack : setSubtitleTrack;
-    const paramKey = type === "audio" ? "audioIndex" : "subtitleIndex";
-
-    // If we're transcoding and we're going from a image based subtitle
-    // to a text based subtitle, we need to change the player params.
-
-    const shouldChangePlayerParams =
-      type === "subtitle" &&
-      mediaSource?.TranscodingUrl &&
-      !onTextBasedSubtitle;
-
-    console.log("Set player params", index, serverIndex);
-    if (shouldChangePlayerParams) {
-      setPlayerParams({
-        chosenSubtitleIndex: serverIndex.toString(),
-      });
-      return;
-    }
-    setTrack?.(serverIndex);
-    router.setParams({
-      [paramKey]: serverIndex.toString(),
-    });
-  };
-
+  // Fetch tracks when ready
   useEffect(() => {
+    if (!tracksReady) return;
+
     const fetchTracks = async () => {
-      if (getSubtitleTracks) {
-        let subtitleData: TrackInfo[] | null = null;
-        try {
-          subtitleData = await getSubtitleTracks();
-        } catch (error) {
-          console.log("[VideoContext] Failed to get subtitle tracks:", error);
-          return;
-        }
-        // Only FOR VLC 3, If we're transcoding, we need to reverse the subtitle data, because VLC reverses the HLS subtitles.
-        if (
-          mediaSource?.TranscodingUrl &&
-          subtitleData &&
-          subtitleData.length > 1
-        ) {
-          subtitleData = [subtitleData[0], ...subtitleData.slice(1).reverse()];
-        }
+      const audioData = await playerControls.getAudioTracks().catch(() => null);
+      const playerAudio = (audioData as SfAudioTrack[]) ?? [];
 
-        let embedSubIndex = 1;
-        const processedSubs: Track[] = allSubs?.map((sub) => {
-          /** A boolean value determining if we should increment the embedSubIndex, currently only Embed and Hls subtitles are automatically added into VLC Player */
-          const shouldIncrement =
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.External;
-          /** The index of subtitle inside VLC Player Itself */
-          const vlcIndex = subtitleData?.at(embedSubIndex)?.index ?? -1;
-          if (shouldIncrement) embedSubIndex++;
-          return {
-            name: sub.DisplayTitle || "Undefined Subtitle",
+      // Separate embedded vs external subtitles from Jellyfin's list
+      // KSPlayer orders tracks as: [all embedded, then all external]
+      const embeddedSubs = allSubs.filter(
+        (s) => s.DeliveryMethod === SubtitleDeliveryMethod.Embed,
+      );
+      const externalSubs = allSubs.filter(
+        (s) => s.DeliveryMethod === SubtitleDeliveryMethod.External,
+      );
+
+      // Count embedded subs that will be in KSPlayer
+      // (excludes image-based subs during transcoding as they're burned in)
+      const embeddedInPlayer = embeddedSubs.filter(
+        (s) => !isTranscoding || !isImageBasedSubtitle(s),
+      );
+
+      const subs: Track[] = [];
+
+      // Process all Jellyfin subtitles
+      for (const sub of allSubs) {
+        const isEmbedded = sub.DeliveryMethod === SubtitleDeliveryMethod.Embed;
+        const isExternal =
+          sub.DeliveryMethod === SubtitleDeliveryMethod.External;
+
+        // For image-based subs during transcoding, need to refresh player
+        if (isTranscoding && isImageBasedSubtitle(sub)) {
+          subs.push({
+            name: sub.DisplayTitle || "Unknown",
             index: sub.Index ?? -1,
-            setTrack: () =>
-              shouldIncrement
-                ? setTrackParams("subtitle", vlcIndex, sub.Index ?? -1)
-                : setPlayerParams({
-                    chosenSubtitleIndex: sub.Index?.toString(),
-                  }),
-          };
-        });
-
-        // Step 3: Restore the original order
-        const subtitles: Track[] = processedSubs.sort(
-          (a, b) => a.index - b.index,
-        );
-
-        // Add a "Disable Subtitles" option
-        subtitles.unshift({
-          name: "Disable",
-          index: -1,
-          setTrack: () =>
-            !mediaSource?.TranscodingUrl || onTextBasedSubtitle
-              ? setTrackParams("subtitle", -1, -1)
-              : setPlayerParams({ chosenSubtitleIndex: "-1" }),
-        });
-        setSubtitleTracks(subtitles);
-      }
-      if (getAudioTracks) {
-        let audioData: TrackInfo[] | null = null;
-        try {
-          audioData = await getAudioTracks();
-        } catch (error) {
-          console.log("[VideoContext] Failed to get audio tracks:", error);
-          return;
-        }
-        const allAudio =
-          mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
-        const audioTracks: Track[] = allAudio?.map((audio, idx) => {
-          if (!mediaSource?.TranscodingUrl) {
-            const vlcIndex = audioData?.at(idx + 1)?.index ?? -1;
-            return {
-              name: audio.DisplayTitle ?? "Undefined Audio",
-              index: audio.Index ?? -1,
-              setTrack: () =>
-                setTrackParams("audio", vlcIndex, audio.Index ?? -1),
-            };
-          }
-          return {
-            name: audio.DisplayTitle ?? "Undefined Audio",
-            index: audio.Index ?? -1,
-            setTrack: () =>
-              setPlayerParams({ chosenAudioIndex: audio.Index?.toString() }),
-          };
-        });
-
-        // Add a "Disable Audio" option if its not transcoding.
-        if (!mediaSource?.TranscodingUrl) {
-          audioTracks.unshift({
-            name: "Disable",
-            index: -1,
-            setTrack: () => setTrackParams("audio", -1, -1),
+            mpvIndex: -1,
+            setTrack: () => {
+              replacePlayer({ subtitleIndex: String(sub.Index) });
+            },
           });
+          continue;
         }
-        setAudioTracks(audioTracks);
+
+        // Calculate KSPlayer track ID based on type
+        // KSPlayer IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
+        let mpvId = -1;
+
+        if (isEmbedded) {
+          // Find position among embedded subs that are in player
+          const embeddedPosition = embeddedInPlayer.findIndex(
+            (s) => s.Index === sub.Index,
+          );
+          if (embeddedPosition !== -1) {
+            mpvId = embeddedPosition + 1; // 1-based ID
+          }
+        } else if (isExternal) {
+          // Find position among external subs, offset by embedded count
+          const externalPosition = externalSubs.findIndex(
+            (s) => s.Index === sub.Index,
+          );
+          if (externalPosition !== -1) {
+            mpvId = embeddedInPlayer.length + externalPosition + 1;
+          }
+        }
+
+        subs.push({
+          name: sub.DisplayTitle || "Unknown",
+          index: sub.Index ?? -1,
+          mpvIndex: mpvId,
+          setTrack: () => {
+            // Transcoding + switching to/from image-based sub
+            if (
+              isTranscoding &&
+              (isImageBasedSubtitle(sub) || isCurrentSubImageBased)
+            ) {
+              replacePlayer({ subtitleIndex: String(sub.Index) });
+              return;
+            }
+
+            // Direct switch in player
+            if (mpvId !== -1) {
+              playerControls.setSubtitleTrack(mpvId);
+              router.setParams({ subtitleIndex: String(sub.Index) });
+              return;
+            }
+
+            // Fallback - refresh player
+            replacePlayer({ subtitleIndex: String(sub.Index) });
+          },
+        });
       }
+
+      // Add "Disable" option at the beginning
+      subs.unshift({
+        name: "Disable",
+        index: -1,
+        mpvIndex: -1,
+        setTrack: () => {
+          if (isTranscoding && isCurrentSubImageBased) {
+            replacePlayer({ subtitleIndex: "-1" });
+          } else {
+            playerControls.setSubtitleTrack(-1);
+            router.setParams({ subtitleIndex: "-1" });
+          }
+        },
+      });
+
+      // Process audio tracks
+      const audio: Track[] = allAudio.map((a, idx) => {
+        const playerTrack = playerAudio[idx];
+        const mpvId = playerTrack?.id ?? idx + 1;
+
+        return {
+          name: a.DisplayTitle || "Unknown",
+          index: a.Index ?? -1,
+          mpvIndex: mpvId,
+          setTrack: () => {
+            if (isTranscoding) {
+              replacePlayer({ audioIndex: String(a.Index) });
+              return;
+            }
+            playerControls.setAudioTrack(mpvId);
+            router.setParams({ audioIndex: String(a.Index) });
+          },
+        };
+      });
+
+      setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
+      setAudioTracks(audio);
     };
+
     fetchTracks();
-  }, [isVideoLoaded, getAudioTracks, getSubtitleTracks]);
+  }, [tracksReady, mediaSource]);
 
   return (
-    <VideoContext.Provider
-      value={{
-        audioTracks,
-        subtitleTracks,
-        setSubtitleTrack,
-        setSubtitleURL,
-        setAudioTrack,
-      }}
-    >
+    <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>
       {children}
     </VideoContext.Provider>
   );
 };
 
 export const useVideoContext = () => {
-  const context = useContext(VideoContext);
-  if (context === undefined) {
-    throw new Error("useVideoContext must be used within a VideoProvider");
-  }
-  return context;
+  const ctx = useContext(VideoContext);
+  if (!ctx)
+    throw new Error("useVideoContext must be used within VideoProvider");
+  return ctx;
 };
