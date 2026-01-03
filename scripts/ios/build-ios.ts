@@ -784,6 +784,7 @@ function getProcessEnv(options: BuildOptions): NodeJS.ProcessEnv {
 async function runXcodeBuild(
   args: string[],
   env: NodeJS.ProcessEnv,
+  verbose = false,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     log.step("Building iOS app...");
@@ -791,26 +792,28 @@ async function runXcodeBuild(
 
     const buildProcess = spawn("xcodebuild", args, {
       env,
-      stdio: ["inherit", "pipe", "pipe"],
+      stdio: verbose ? "inherit" : ["inherit", "pipe", "pipe"],
     });
 
     let output = "";
     let errorOutput = "";
 
-    buildProcess.stdout?.on("data", (data: Buffer) => {
-      const str = data.toString();
-      output += str;
-      // Simple progress indicator
-      if (str.includes("Build succeeded")) {
-        log.success("Build succeeded");
-      } else if (str.includes("Compiling")) {
-        // Show compilation progress
-        const match = str.match(/Compiling\s+(\S+)/);
-        if (match) {
-          process.stdout.write(`\r  Compiling ${match[1]}...`.padEnd(60));
+    if (!verbose) {
+      buildProcess.stdout?.on("data", (data: Buffer) => {
+        const str = data.toString();
+        output += str;
+        // Simple progress indicator
+        if (str.includes("Build succeeded")) {
+          log.success("Build succeeded");
+        } else if (str.includes("Compiling")) {
+          // Show compilation progress
+          const match = str.match(/Compiling\s+(\S+)/);
+          if (match) {
+            process.stdout.write(`\r  Compiling ${match[1]}...`.padEnd(60));
+          }
         }
-      }
-    });
+      });
+    }
 
     buildProcess.stderr?.on("data", (data: Buffer) => {
       errorOutput += data.toString();
@@ -1505,10 +1508,9 @@ async function main(): Promise<void> {
 
   // Build the app
   const buildArgs = getXcodeBuildArgs(xcodeProject, scheme, device, options);
-  const buildEnv = getProcessEnv(options);
-
+  const env = getProcessEnv(options);
   try {
-    const buildOutput = await runXcodeBuild(buildArgs, buildEnv);
+    const buildOutput = await runXcodeBuild(buildArgs, env, options.verbose);
 
     // Find the built binary
     const binaryPath = extractBinaryPath(buildOutput);
