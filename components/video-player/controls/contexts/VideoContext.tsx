@@ -57,7 +57,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { SfAudioTrack } from "@/modules";
+import type { MpvAudioTrack } from "@/modules";
 import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
@@ -132,7 +132,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
 
     const fetchTracks = async () => {
       const audioData = await playerControls.getAudioTracks().catch(() => null);
-      const playerAudio = (audioData as SfAudioTrack[]) ?? [];
+      const playerAudio = (audioData as MpvAudioTrack[]) ?? [];
 
       // Separate embedded vs external subtitles from Jellyfin's list
       // KSPlayer orders tracks as: [all embedded, then all external]

@@ -599,6 +599,9 @@
       "artists": "Artists",
       "playlists": "Playlists"
     },
+    "filters": {
+      "all": "All"
+    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",

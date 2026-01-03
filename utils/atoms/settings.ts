@@ -134,12 +134,6 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
-// iOS video player selection
-export enum VideoPlayerIOS {
-  KSPlayer = "ksplayer",
-  VLC = "vlc",
-}
-
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -180,11 +174,6 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
-  // KSPlayer settings
-  ksHardwareDecode: boolean;
-  ksSubtitleColor: string;
-  ksSubtitleBackgroundColor: string;
-  ksSubtitleFontName: string;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -192,8 +181,6 @@ export type Settings = {
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
-  // iOS video player selection
-  videoPlayerIOS: VideoPlayerIOS;
 };
 
 export interface Lockable<T> {
@@ -254,11 +241,6 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
-  // KSPlayer defaults
-  ksHardwareDecode: true,
-  ksSubtitleColor: "#FFFFFF",
-  ksSubtitleBackgroundColor: "#00000080",
-  ksSubtitleFontName: "System",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
@@ -266,8 +248,6 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
-  // iOS video player selection - default to VLC
-  videoPlayerIOS: VideoPlayerIOS.VLC,
 };
 
 const loadSettings = (): Partial<Settings> => {

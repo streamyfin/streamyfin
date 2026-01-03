@@ -9,13 +9,10 @@ import React, {
   useContext,
   useMemo,
 } from "react";
-import type { SfPlayerViewRef, VlcPlayerViewRef } from "@/modules";
-
-// Union type for both player refs
-type PlayerRef = SfPlayerViewRef | VlcPlayerViewRef;
+import type { MpvPlayerViewRef } from "@/modules";
 
 interface PlayerContextProps {
-  playerRef: MutableRefObject<PlayerRef | null>;
+  playerRef: MutableRefObject<MpvPlayerViewRef | null>;
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
@@ -26,7 +23,7 @@ const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
 
 interface PlayerProviderProps {
   children: ReactNode;
-  playerRef: MutableRefObject<PlayerRef | null>;
+  playerRef: MutableRefObject<MpvPlayerViewRef | null>;
   item: BaseItemDto;
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
@@ -59,30 +56,26 @@ export const usePlayerContext = () => {
   return context;
 };
 
-// Player controls hook - supports both SfPlayer (iOS) and VlcPlayer (Android)
+// Player controls hook - MPV player only
 export const usePlayerControls = () => {
   const { playerRef } = usePlayerContext();
 
-  // Helper to get SfPlayer-specific ref (for iOS-only features)
-  const getSfRef = () => playerRef.current as SfPlayerViewRef | null;
-
   return {
-    // Subtitle controls (both players support these, but with different interfaces)
+    // Subtitle controls
     getSubtitleTracks: async () => {
       return playerRef.current?.getSubtitleTracks?.() ?? null;
     },
     setSubtitleTrack: (trackId: number) => {
       playerRef.current?.setSubtitleTrack?.(trackId);
     },
-    // iOS only (SfPlayer)
     disableSubtitles: () => {
-      getSfRef()?.disableSubtitles?.();
+      playerRef.current?.disableSubtitles?.();
     },
     addSubtitleFile: (url: string, select = true) => {
-      getSfRef()?.addSubtitleFile?.(url, select);
+      playerRef.current?.addSubtitleFile?.(url, select);
     },
 
-    // Audio controls (both players)
+    // Audio controls
     getAudioTracks: async () => {
       return playerRef.current?.getAudioTracks?.() ?? null;
     },
@@ -90,26 +83,25 @@ export const usePlayerControls = () => {
       playerRef.current?.setAudioTrack?.(trackId);
     },
 
-    // Playback controls (both players)
+    // Playback controls
     play: () => playerRef.current?.play?.(),
     pause: () => playerRef.current?.pause?.(),
     seekTo: (position: number) => playerRef.current?.seekTo?.(position),
-    // iOS only (SfPlayer)
-    seekBy: (offset: number) => getSfRef()?.seekBy?.(offset),
-    setSpeed: (speed: number) => getSfRef()?.setSpeed?.(speed),
+    seekBy: (offset: number) => playerRef.current?.seekBy?.(offset),
+    setSpeed: (speed: number) => playerRef.current?.setSpeed?.(speed),
 
-    // Subtitle positioning - iOS only (SfPlayer)
-    setSubtitleScale: (scale: number) => getSfRef()?.setSubtitleScale?.(scale),
+    // Subtitle positioning
+    setSubtitleScale: (scale: number) =>
+      playerRef.current?.setSubtitleScale?.(scale),
     setSubtitlePosition: (position: number) =>
-      getSfRef()?.setSubtitlePosition?.(position),
+      playerRef.current?.setSubtitlePosition?.(position),
     setSubtitleMarginY: (margin: number) =>
-      getSfRef()?.setSubtitleMarginY?.(margin),
+      playerRef.current?.setSubtitleMarginY?.(margin),
     setSubtitleFontSize: (size: number) =>
-      getSfRef()?.setSubtitleFontSize?.(size),
+      playerRef.current?.setSubtitleFontSize?.(size),
 
-    // PiP (both players)
+    // PiP
     startPictureInPicture: () => playerRef.current?.startPictureInPicture?.(),
-    // iOS only (SfPlayer)
-    stopPictureInPicture: () => getSfRef()?.stopPictureInPicture?.(),
+    stopPictureInPicture: () => playerRef.current?.stopPictureInPicture?.(),
   };
 };
