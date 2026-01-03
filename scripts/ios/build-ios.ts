@@ -808,6 +808,12 @@ async function runXcodeBuild(
       process.stdout.write("\n");
       if (code === 0) {
         resolve(output);
+      } else if (code === null) {
+        log.error("xcodebuild process terminated abnormally (no exit code)");
+        if (errorOutput) {
+          console.error(errorOutput);
+        }
+        reject(new Error("Build process exited without code"));
       } else {
         log.error(`xcodebuild exited with code ${code}`);
         if (errorOutput) {
