@@ -14,7 +14,7 @@ export type HapticFeedbackType =
   | "error";
 
 export const useHaptic = (feedbackType: HapticFeedbackType = "selection") => {
-  const [settings] = useSettings();
+  const { settings } = useSettings();
   const isTv = Platform.isTV;
   const isDisabled =
     isTv ||

@@ -40,6 +40,7 @@ import type { UserResultsResponse } from "@/utils/jellyseerr/server/interfaces/a
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type {
   CombinedCredit,
+  PersonCreditCast,
   PersonDetails,
 } from "@/utils/jellyseerr/server/models/Person";
 import type {
@@ -65,8 +66,8 @@ const JELLYSEERR_USER = "JELLYSEERR_USER";
 const JELLYSEERR_COOKIES = "JELLYSEERR_COOKIES";
 
 export const clearJellyseerrStorageData = () => {
-  storage.delete(JELLYSEERR_USER);
-  storage.delete(JELLYSEERR_COOKIES);
+  storage.remove(JELLYSEERR_USER);
+  storage.remove(JELLYSEERR_COOKIES);
 };
 
 export enum Endpoints {
@@ -243,6 +244,22 @@ export class JellyseerrApi {
       .then(({ data }) => data);
   }
 
+  async approveRequest(requestId: number): Promise<MediaRequest> {
+    return this.axios
+      ?.post<MediaRequest>(
+        `${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}/approve`,
+      )
+      .then(({ data }) => data);
+  }
+
+  async declineRequest(requestId: number): Promise<MediaRequest> {
+    return this.axios
+      ?.post<MediaRequest>(
+        `${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}/decline`,
+      )
+      .then(({ data }) => data);
+  }
+
   async requests(
     params = {
       filter: "all",
@@ -386,7 +403,7 @@ export class JellyseerrApi {
           `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
-        if (error.status === 403) {
+        if (error.response?.status === 403) {
           clearJellyseerrStorageData();
         }
         return Promise.reject(error);
@@ -417,8 +434,8 @@ export class JellyseerrApi {
 const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 
 export const useJellyseerr = () => {
+  const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
-  const [settings, updateSettings] = useSettings();
   const queryClient = useQueryClient();
 
   const jellyseerrApi = useMemo(() => {
@@ -466,52 +483,53 @@ export const useJellyseerr = () => {
     [jellyseerrApi],
   );
 
-  const isJellyseerrResult = (
+  const isJellyseerrMovieOrTvResult = (
     items: any | null | undefined,
-  ): items is Results => {
+  ): items is MovieResult | TvResult => {
     return (
       items &&
       Object.hasOwn(items, "mediaType") &&
-      Object.values(MediaType).includes(items.mediaType)
+      (items.mediaType === MediaType.MOVIE || items.mediaType === MediaType.TV)
     );
   };
 
   const getTitle = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
-    return isJellyseerrResult(item)
+    return isJellyseerrMovieOrTvResult(item)
       ? item.mediaType === MediaType.MOVIE
         ? item?.title
         : item?.name
-      : item?.mediaInfo.mediaType === MediaType.MOVIE
+      : item?.mediaInfo?.mediaType === MediaType.MOVIE
         ? (item as MovieDetails)?.title
         : (item as TvDetails)?.name;
   };
 
   const getYear = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
     return new Date(
-      (isJellyseerrResult(item)
+      (isJellyseerrMovieOrTvResult(item)
         ? item.mediaType === MediaType.MOVIE
           ? item?.releaseDate
           : item?.firstAirDate
-        : item?.mediaInfo.mediaType === MediaType.MOVIE
+        : item?.mediaInfo?.mediaType === MediaType.MOVIE
           ? (item as MovieDetails)?.releaseDate
           : (item as TvDetails)?.firstAirDate) || "",
     )?.getFullYear?.();
   };
 
   const getMediaType = (
-    item?: TvResult | TvDetails | MovieResult | MovieDetails,
+    item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ): MediaType => {
-    return isJellyseerrResult(item)
-      ? item.mediaType
+    return isJellyseerrMovieOrTvResult(item)
+      ? (item.mediaType as MediaType)
       : item?.mediaInfo?.mediaType;
   };
 
   const jellyseerrRegion = useMemo(
-    () => jellyseerrUser?.settings?.region || "US",
+    // streamingRegion and discoverRegion exists. region doesn't
+    () => jellyseerrUser?.settings?.discoverRegion || "US",
     [jellyseerrUser],
   );
 
@@ -524,7 +542,7 @@ export const useJellyseerr = () => {
     jellyseerrUser,
     setJellyseerrUser,
     clearAllJellyseerData,
-    isJellyseerrResult,
+    isJellyseerrMovieOrTvResult,
     getTitle,
     getYear,
     getMediaType,

@@ -1,18 +1,25 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as BackgroundTask from "expo-background-task";
+import * as Device from "expo-device";
 import { Platform } from "react-native";
+import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
+import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
 import {
   apiAtom,
   getOrSetDeviceId,
-  getTokenFromStorage,
   JellyfinProvider,
 } from "@/providers/JellyfinProvider";
+import { MusicPlayerProvider } from "@/providers/MusicPlayerProvider";
+import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
-import { type Settings, useSettings } from "@/utils/atoms/settings";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   BACKGROUND_FETCH_TASK,
   BACKGROUND_FETCH_TASK_SESSIONS,
@@ -20,53 +27,35 @@ import {
 } from "@/utils/background-tasks";
 import {
   LogProvider,
-  writeDebugLog,
   writeErrorLog,
+  writeInfoLog,
   writeToLog,
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
-const BackGroundDownloader = !Platform.isTV
-  ? require("@kesha-antonov/react-native-background-downloader")
-  : null;
-
-import { DarkTheme, ThemeProvider } from "@react-navigation/native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-const BackgroundFetch = !Platform.isTV
-  ? require("expo-background-fetch")
-  : null;
-
-import * as Device from "expo-device";
-import * as FileSystem from "expo-file-system";
-
 const Notifications = !Platform.isTV ? require("expo-notifications") : null;
 
-import { router, Stack, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import * as ScreenOrientation from "@/packages/expo-screen-orientation";
-
-const TaskManager = !Platform.isTV ? require("expo-task-manager") : null;
-
-import { getLocales } from "expo-localization";
-import { Provider as JotaiProvider } from "jotai";
-import { useEffect, useRef, useState } from "react";
-import { I18nextProvider } from "react-i18next";
-import { Appearance, AppState } from "react-native";
-import { SystemBars } from "react-native-edge-to-edge";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import "react-native-reanimated";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
+import { getLocales } from "expo-localization";
 import type { EventSubscription } from "expo-modules-core";
 import type {
   Notification,
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
 import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { useAtom } from "jotai";
-import { Toaster } from "sonner-native";
+import { router, Stack, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import * as TaskManager from "expo-task-manager";
+import { Provider as JotaiProvider, useAtom } from "jotai";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { I18nextProvider } from "react-i18next";
+import { Appearance } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
+import "react-native-reanimated";
+import { Toaster } from "sonner-native";
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
@@ -87,18 +76,18 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+function redirect(notification: typeof Notifications.Notification) {
+  const url = notification.request.content.data?.url;
+  if (url) {
+    router.push(url);
+  }
+}
+
 function useNotificationObserver() {
   useEffect(() => {
     if (Platform.isTV) return;
 
     let isMounted = true;
-
-    function redirect(notification: typeof Notifications.Notification) {
-      const url = notification.request.content.data?.url;
-      if (url) {
-        router.push(url);
-      }
-    }
 
     Notifications.getLastNotificationResponseAsync().then(
       (response: { notification: any }) => {
@@ -109,15 +98,8 @@ function useNotificationObserver() {
       },
     );
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: any }) => {
-        redirect(response.notification);
-      },
-    );
-
     return () => {
       isMounted = false;
-      subscription.remove();
     };
   }, []);
 }
@@ -136,30 +118,13 @@ if (!Platform.isTV) {
     const result = response.data.filter((s) => s.NowPlayingItem);
     Notifications.setBadgeCountAsync(result.length);
 
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    return BackgroundTask.BackgroundTaskResult.Success;
   });
 
   TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     console.log("TaskManager ~ trigger");
-
-    const settingsData = storage.getString("settings");
-
-    if (!settingsData) return BackgroundFetch.BackgroundFetchResult.NoData;
-
-    const settings: Partial<Settings> = JSON.parse(settingsData);
-
-    if (!settings?.autoDownload)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
-
-    const token = getTokenFromStorage();
-    const deviceId = getOrSetDeviceId();
-    const baseDirectory = FileSystem.documentDirectory;
-
-    if (!token || !deviceId || !baseDirectory)
-      return BackgroundFetch.BackgroundFetchResult.NoData;
-
-    // Be sure to return the successful result type!
-    return BackgroundFetch.BackgroundFetchResult.NewData;
+    // Background fetch task placeholder - currently unused
+    return BackgroundTask.BackgroundTaskResult.Success;
   });
 }
 
@@ -168,22 +133,31 @@ const checkAndRequestPermissions = async () => {
     const hasAskedBefore = storage.getString(
       "hasAskedForNotificationPermission",
     );
-
+    let granted = false;
     if (hasAskedBefore !== "true") {
       const { status } = await Notifications.requestPermissionsAsync();
-
-      if (status === "granted") {
+      granted = status === "granted";
+      if (granted) {
         writeToLog("INFO", "Notification permissions granted.");
         console.log("Notification permissions granted.");
       } else {
         writeToLog("ERROR", "Notification permissions denied.");
         console.log("Notification permissions denied.");
       }
-
       storage.set("hasAskedForNotificationPermission", "true");
     } else {
-      console.log("Already asked for notification permissions before.");
+      // Already asked before, check current status
+      const { status } = await Notifications.getPermissionsAsync();
+      granted = status === "granted";
+      if (!granted) {
+        writeToLog(
+          "ERROR",
+          "Notification permissions denied (already asked before).",
+        );
+        console.log("Notification permissions denied (already asked before).");
+      }
     }
+    return granted;
   } catch (error) {
     writeToLog(
       "ERROR",
@@ -191,6 +165,7 @@ const checkAndRequestPermissions = async () => {
       error,
     );
     console.error("Error checking/requesting notification permissions:", error);
+    return false;
   }
 };
 
@@ -213,21 +188,16 @@ export default function RootLayout() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0,
-      refetchOnMount: true,
-      refetchOnReconnect: true,
-      refetchOnWindowFocus: true,
-      retryOnMount: true,
+      staleTime: 30000,
     },
   },
 });
 
 function Layout() {
-  const [settings] = useSettings();
+  const { settings } = useSettings();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
-  const appState = useRef(AppState.currentState);
-  const segments = useSegments();
+  const _segments = useSegments();
 
   useEffect(() => {
     i18n.changeLanguage(
@@ -238,8 +208,8 @@ function Layout() {
   useNotificationObserver();
 
   const [expoPushToken, setExpoPushToken] = useState<ExpoPushToken>();
-  const notificationListener = useRef<EventSubscription>();
-  const responseListener = useRef<EventSubscription>();
+  const notificationListener = useRef<EventSubscription>(null);
+  const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
     if (!Platform.isTV && expoPushToken && api && user) {
@@ -256,15 +226,30 @@ function Layout() {
     } else console.log("No token available");
   }, [api, expoPushToken, user]);
 
-  async function registerNotifications() {
+  const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
       console.log("Setting android notification channel 'default'");
       await Notifications?.setNotificationChannelAsync("default", {
         name: "default",
       });
+
+      // Create dedicated channel for download notifications
+      console.log("Setting android notification channel 'downloads'");
+      await Notifications?.setNotificationChannelAsync("downloads", {
+        name: "Downloads",
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FF231F7C",
+      });
     }
 
-    await checkAndRequestPermissions();
+    const granted = await checkAndRequestPermissions();
+    if (!granted) {
+      console.log(
+        "Notification permissions not granted, skipping background fetch and push token registration.",
+      );
+      return;
+    }
 
     if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
       await registerBackgroundFetchAsyncSessions();
@@ -272,15 +257,25 @@ function Layout() {
 
     // only create push token for real devices (pointless for emulators)
     if (Device.isDevice) {
-      Notifications?.getExpoPushTokenAsync()
-        .then((token: ExpoPushToken) => token && setExpoPushToken(token))
-        .catch((reason: any) => console.log("Failed to get token", reason));
+      Notifications?.getExpoPushTokenAsync({
+        projectId: "e79219d1-797f-4fbe-9fa1-cfd360690a68",
+      })
+        .then((token: ExpoPushToken) => {
+          if (token) {
+            console.log("Expo push token obtained:", token.data);
+            setExpoPushToken(token);
+          }
+        })
+        .catch((reason: any) => {
+          console.error("Failed to get push token:", reason);
+          writeErrorLog("Failed to get Expo push token", reason);
+        });
     }
-  }
+  }, [user]);
 
   useEffect(() => {
     if (!Platform.isTV) {
-      registerNotifications();
+      void registerNotifications();
 
       notificationListener.current =
         Notifications?.addNotificationReceivedListener(
@@ -295,161 +290,125 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
+            // redirect if internal notification
+            redirect(response?.notification);
+
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
-            writeDebugLog(
-              `Notification ${title} opened`,
-              response.notification.request.content,
-            );
-            if (data && Object.keys(data).length > 0) {
-              const type = data?.type?.toLower?.();
-              const itemId = data?.id;
+            writeInfoLog(`Notification ${title} opened`, data);
 
-              switch (type) {
-                case "movie":
-                  router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                  break;
-                case "episode":
-                  // We just clicked a notification for an individual episode.
-                  if (itemId) {
-                    router.push(`/(auth)/(tabs)/home/items/page?id=${itemId}`);
-                    // summarized season notification for multiple episodes. Bring them to series season
+            let url: any;
+            const type = (data?.type ?? "").toString().toLowerCase();
+            const itemId = data?.id;
+
+            switch (type) {
+              case "movie":
+                url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+                break;
+              case "episode":
+                // `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
+                // We just clicked a notification for an individual episode.
+                if (itemId) {
+                  url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
+                  // summarized season notification for multiple episodes. Bring them to series season
+                } else {
+                  const seriesId = data.seriesId;
+                  const seasonIndex = data.seasonIndex;
+                  if (seasonIndex) {
+                    url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
                   } else {
-                    const seriesId = data.seriesId;
-                    const seasonIndex = data.seasonIndex;
-                    if (seasonIndex) {
-                      router.push(
-                        `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`,
-                      );
-                    } else {
-                      router.push(`/(auth)/(tabs)/home/series/${seriesId}`);
-                    }
+                    url = `/(auth)/(tabs)/home/series/${seriesId}`;
                   }
-                  break;
-              }
+                }
+                break;
+            }
+
+            writeInfoLog(`Notification attempting to redirect to ${url}`);
+            if (url) {
+              router.push(url);
             }
           },
         );
 
       return () => {
-        notificationListener.current &&
-          Notifications?.removeNotificationSubscription(
-            notificationListener.current,
-          );
-        responseListener.current &&
-          Notifications?.removeNotificationSubscription(
-            responseListener.current,
-          );
+        notificationListener.current?.remove();
+        responseListener.current?.remove();
       };
     }
-  }, [user, api]);
-
-  useEffect(() => {
-    if (Platform.isTV) {
-      return;
-    }
-
-    if (segments.includes("direct-player" as never)) {
-      if (
-        !settings.followDeviceOrientation &&
-        settings.defaultVideoOrientation
-      ) {
-        ScreenOrientation.lockAsync(settings.defaultVideoOrientation);
-      }
-      return;
-    }
-
-    if (settings.followDeviceOrientation === true) {
-      ScreenOrientation.unlockAsync();
-    } else {
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      );
-    }
-  }, [
-    settings.followDeviceOrientation,
-    settings.defaultVideoOrientation,
-    segments,
-  ]);
-
-  useEffect(() => {
-    if (Platform.isTV) {
-      return;
-    }
-
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
-        BackGroundDownloader.checkForExistingDownloads();
-      }
-    });
-
-    BackGroundDownloader.checkForExistingDownloads();
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+  }, [user]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <JellyfinProvider>
-        <PlaySettingsProvider>
-          <LogProvider>
-            <WebSocketProvider>
-              <DownloadProvider>
-                <BottomSheetModalProvider>
-                  <SystemBars style='light' hidden={false} />
-                  <ThemeProvider value={DarkTheme}>
-                    <Stack initialRouteName='(auth)/(tabs)'>
-                      <Stack.Screen
-                        name='(auth)/(tabs)'
-                        options={{
-                          headerShown: false,
-                          title: "",
-                          header: () => null,
-                        }}
-                      />
-                      <Stack.Screen
-                        name='(auth)/player'
-                        options={{
-                          headerShown: false,
-                          title: "",
-                          header: () => null,
-                        }}
-                      />
-                      <Stack.Screen
-                        name='login'
-                        options={{
-                          headerShown: true,
-                          title: "",
-                          headerTransparent: true,
-                        }}
-                      />
-                      <Stack.Screen name='+not-found' />
-                    </Stack>
-                    <Toaster
-                      duration={4000}
-                      toastOptions={{
-                        style: {
-                          backgroundColor: "#262626",
-                          borderColor: "#363639",
-                          borderWidth: 1,
-                        },
-                        titleStyle: {
-                          color: "white",
-                        },
-                      }}
-                      closeButton
-                    />
-                  </ThemeProvider>
-                </BottomSheetModalProvider>
-              </DownloadProvider>
-            </WebSocketProvider>
-          </LogProvider>
-        </PlaySettingsProvider>
+        <NetworkStatusProvider>
+          <PlaySettingsProvider>
+            <LogProvider>
+              <WebSocketProvider>
+                <DownloadProvider>
+                  <MusicPlayerProvider>
+                    <GlobalModalProvider>
+                      <BottomSheetModalProvider>
+                        <ThemeProvider value={DarkTheme}>
+                          <SystemBars style='light' hidden={false} />
+                          <Stack initialRouteName='(auth)/(tabs)'>
+                            <Stack.Screen
+                              name='(auth)/(tabs)'
+                              options={{
+                                headerShown: false,
+                                title: "",
+                                header: () => null,
+                              }}
+                            />
+                            <Stack.Screen
+                              name='(auth)/player'
+                              options={{
+                                headerShown: false,
+                                title: "",
+                                header: () => null,
+                              }}
+                            />
+                            <Stack.Screen
+                              name='(auth)/now-playing'
+                              options={{
+                                headerShown: false,
+                                presentation: "modal",
+                                gestureEnabled: true,
+                              }}
+                            />
+                            <Stack.Screen
+                              name='login'
+                              options={{
+                                headerShown: true,
+                                title: "",
+                                headerTransparent: Platform.OS === "ios",
+                              }}
+                            />
+                            <Stack.Screen name='+not-found' />
+                          </Stack>
+                          <Toaster
+                            duration={4000}
+                            toastOptions={{
+                              style: {
+                                backgroundColor: "#262626",
+                                borderColor: "#363639",
+                                borderWidth: 1,
+                              },
+                              titleStyle: {
+                                color: "white",
+                              },
+                            }}
+                            closeButton
+                          />
+                          <GlobalModal />
+                        </ThemeProvider>
+                      </BottomSheetModalProvider>
+                    </GlobalModalProvider>
+                  </MusicPlayerProvider>
+                </DownloadProvider>
+              </WebSocketProvider>
+            </LogProvider>
+          </PlaySettingsProvider>
+        </NetworkStatusProvider>
       </JellyfinProvider>
     </QueryClientProvider>
   );

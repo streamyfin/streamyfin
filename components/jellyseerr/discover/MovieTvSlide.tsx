@@ -11,16 +11,12 @@ import {
   useJellyseerr,
 } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
-import type {
-  MovieResult,
-  TvResult,
-} from "@/utils/jellyseerr/server/models/Search";
 
 const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
   slide,
   ...props
 }) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey: ["jellyseerr", "discover", slide.id],
@@ -69,7 +65,9 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
       uniqBy(
         data?.pages
           ?.filter((p) => p?.results.length)
-          .flatMap((p) => p?.results),
+          .flatMap((p) =>
+            p?.results.filter((r) => isJellyseerrMovieOrTvResult(r)),
+          ),
         "id",
       ),
     [data],
@@ -86,12 +84,7 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
         onEndReached={() => {
           if (hasNextPage) fetchNextPage();
         }}
-        renderItem={(item) => (
-          <JellyseerrPoster
-            item={item as MovieResult | TvResult}
-            key={item?.id}
-          />
-        )}
+        renderItem={(item) => <JellyseerrPoster item={item} key={item?.id} />}
       />
     )
   );

@@ -4,17 +4,16 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtomValue } from "jotai";
-import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
@@ -43,14 +42,14 @@ const Login: React.FC = () => {
 
   const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const [serverURL, setServerURL] = useState<string>(_apiUrl);
+  const [serverURL, setServerURL] = useState<string>(_apiUrl || "");
   const [serverName, setServerName] = useState<string>("");
   const [credentials, setCredentials] = useState<{
     username: string;
     password: string;
   }>({
-    username: _username,
-    password: _password,
+    username: _username || "",
+    password: _password || "",
   });
 
   /**
@@ -63,12 +62,13 @@ const Login: React.FC = () => {
           address: _apiUrl,
         });
 
+        // Wait for server setup and state updates to complete
         setTimeout(() => {
           if (_username && _password) {
             setCredentials({ username: _username, password: _password });
             login(_username, _password);
           }
-        }, 300);
+        }, 0);
       }
     })();
   }, [_apiUrl, _username, _password]);
@@ -82,10 +82,10 @@ const Login: React.FC = () => {
             onPress={() => {
               removeServer();
             }}
-            className='flex flex-row items-center'
+            className='flex flex-row items-center pr-2 pl-1'
           >
             <Ionicons name='chevron-back' size={18} color={Colors.primary} />
-            <Text className='ml-2 text-purple-600'>
+            <Text className=' ml-1 text-purple-600'>
               {t("login.change_server")}
             </Text>
           </TouchableOpacity>
@@ -133,27 +133,52 @@ const Login: React.FC = () => {
    */
   const checkUrl = useCallback(async (url: string) => {
     setLoadingServerCheck(true);
-
+    const baseUrl = url.replace(/^https?:\/\//i, "");
+    const protocols = ["https", "http"];
     try {
-      const response = await fetch(`${url}/System/Info/Public`, {
-        mode: "cors",
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as PublicSystemInfo;
-
-        setServerName(data.ServerName || "");
-        return url;
+      return checkHttp(baseUrl, protocols);
+    } catch (e) {
+      if (e instanceof Error && e.message === "Server too old") {
+        throw e;
       }
-
-      return undefined;
-    } catch {
       return undefined;
     } finally {
       setLoadingServerCheck(false);
     }
   }, []);
 
+  async function checkHttp(baseUrl: string, protocols: string[]) {
+    for (const protocol of protocols) {
+      try {
+        const response = await fetch(
+          `${protocol}://${baseUrl}/System/Info/Public`,
+          {
+            mode: "cors",
+          },
+        );
+        if (response.ok) {
+          const data = (await response.json()) as PublicSystemInfo;
+          const serverVersion = data.Version?.split(".");
+          if (serverVersion && +serverVersion[0] <= 10) {
+            if (+serverVersion[1] < 10) {
+              Alert.alert(
+                t("login.too_old_server_text"),
+                t("login.too_old_server_description"),
+              );
+              throw new Error("Server too old");
+            }
+          }
+          setServerName(data.ServerName || "");
+          return `${protocol}://${baseUrl}`;
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === "Server too old") {
+          throw e;
+        }
+      }
+    }
+    return undefined;
+  }
   /**
    * Handles the connection attempt to a Jellyfin server.
    *
@@ -172,17 +197,17 @@ const Login: React.FC = () => {
    */
   const handleConnect = useCallback(async (url: string) => {
     url = url.trim().replace(/\/$/, "");
-    const result = await checkUrl(url);
-
-    if (result === undefined) {
-      Alert.alert(
-        t("login.connection_failed"),
-        t("login.could_not_connect_to_server"),
-      );
-      return;
-    }
-
-    await setServer({ address: url });
+    try {
+      const result = await checkUrl(url);
+      if (result === undefined) {
+        Alert.alert(
+          t("login.connection_failed"),
+          t("login.could_not_connect_to_server"),
+        );
+        return;
+      }
+      await setServer({ address: result });
+    } catch {}
   }, []);
 
   const handleQuickConnect = async () => {
@@ -207,14 +232,174 @@ const Login: React.FC = () => {
     }
   };
 
-  return (
-    <SafeAreaView style={{ flex: 1, paddingBottom: 16 }}>
+  return Platform.isTV ? (
+    // TV layout
+    <SafeAreaView className='flex-1 bg-black'>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
         {api?.basePath ? (
-          <View className='flex flex-col h-full relative items-center justify-center'>
-            <View className='px-4 -mt-20 w-full'>
+          // ------------ Username/Password view ------------
+          <View className='flex-1 items-center justify-center'>
+            {/* Safe centered column with max width so TV doesn’t stretch too far */}
+            <View className='w-[92%] max-w-[900px] px-2 -mt-12'>
+              <Text className='text-3xl font-bold text-white mb-1'>
+                {serverName ? (
+                  <>
+                    {`${t("login.login_to_title")} `}
+                    <Text className='text-purple-500'>{serverName}</Text>
+                  </>
+                ) : (
+                  t("login.login_title")
+                )}
+              </Text>
+              <Text className='text-xs text-neutral-400 mb-6'>
+                {api.basePath}
+              </Text>
+
+              {/* Username */}
+              <Input
+                placeholder={t("login.username_placeholder")}
+                onChangeText={(text: string) =>
+                  setCredentials((prev) => ({ ...prev, username: text }))
+                }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.username) {
+                    setCredentials((prev) => ({ ...prev, username: newValue }));
+                  }
+                }}
+                value={credentials.username}
+                keyboardType='default'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='oneTimeCode'
+                clearButtonMode='while-editing'
+                maxLength={500}
+                extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
+              />
+
+              {/* Password */}
+              <Input
+                placeholder={t("login.password_placeholder")}
+                onChangeText={(text: string) =>
+                  setCredentials((prev) => ({ ...prev, password: text }))
+                }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.password) {
+                    setCredentials((prev) => ({ ...prev, password: newValue }));
+                  }
+                }}
+                value={credentials.password}
+                secureTextEntry
+                keyboardType='default'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='password'
+                clearButtonMode='while-editing'
+                maxLength={500}
+                extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
+              />
+
+              <View className='mt-4'>
+                <Button
+                  onPress={handleLogin}
+                  disabled={!credentials.username.trim()}
+                >
+                  {t("login.login_button")}
+                </Button>
+              </View>
+              <View className='mt-3'>
+                <Button
+                  onPress={handleQuickConnect}
+                  className='bg-neutral-800 border border-neutral-700'
+                >
+                  {t("login.quick_connect")}
+                </Button>
+              </View>
+            </View>
+          </View>
+        ) : (
+          // ------------ Server connect view ------------
+          <View className='flex-1 items-center justify-center'>
+            <View className='w-[92%] max-w-[900px] -mt-2'>
+              <View className='items-center mb-1'>
+                <Image
+                  source={require("@/assets/images/icon-ios-plain.png")}
+                  style={{ width: 110, height: 110 }}
+                  contentFit='contain'
+                />
+              </View>
+
+              <Text className='text-white text-4xl font-bold text-center'>
+                Streamyfin
+              </Text>
+              <Text className='text-neutral-400 text-base text-left mt-2 mb-1'>
+                {t("server.enter_url_to_jellyfin_server")}
+              </Text>
+
+              {/* Full-width Input with clear focus ring */}
+              <Input
+                aria-label='Server URL'
+                placeholder={t("server.server_url_placeholder")}
+                onChangeText={setServerURL}
+                value={serverURL}
+                keyboardType='url'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='URL'
+                maxLength={500}
+                autoFocus={false}
+                blurOnSubmit={true}
+              />
+
+              {/* Full-width primary button */}
+              <View className='mt-4'>
+                <Button
+                  onPress={async () => {
+                    await handleConnect(serverURL);
+                  }}
+                >
+                  {t("server.connect_button")}
+                </Button>
+              </View>
+
+              {/* Lists stay full width but inside max width container */}
+              <View className='mt-2'>
+                <JellyfinServerDiscovery
+                  onServerSelect={async (server: any) => {
+                    setServerURL(server.address);
+                    if (server.serverName) setServerName(server.serverName);
+                    await handleConnect(server.address);
+                  }}
+                />
+                <PreviousServersList
+                  onServerSelect={async (s: any) => {
+                    await handleConnect(s.address);
+                  }}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  ) : (
+    // Mobile layout
+    <SafeAreaView style={{ flex: 1, paddingBottom: 16 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        {api?.basePath ? (
+          <View className='flex flex-col flex-1 justify-center'>
+            <View className='px-4 w-full'>
               <View className='flex flex-col space-y-2'>
                 <Text className='text-2xl font-bold -mb-2'>
                   {serverName ? (
@@ -230,8 +415,17 @@ const Login: React.FC = () => {
                 <Input
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
-                    setCredentials({ ...credentials, username: text })
+                    setCredentials((prev) => ({ ...prev, username: text }))
                   }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.username) {
+                      setCredentials((prev) => ({
+                        ...prev,
+                        username: newValue,
+                      }));
+                    }
+                  }}
                   value={credentials.username}
                   keyboardType='default'
                   returnKeyType='done'
@@ -246,8 +440,17 @@ const Login: React.FC = () => {
                 <Input
                   placeholder={t("login.password_placeholder")}
                   onChangeText={(text) =>
-                    setCredentials({ ...credentials, password: text })
+                    setCredentials((prev) => ({ ...prev, password: text }))
                   }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.password) {
+                      setCredentials((prev) => ({
+                        ...prev,
+                        password: newValue,
+                      }));
+                    }
+                  }}
                   value={credentials.password}
                   secureTextEntry
                   keyboardType='default'
@@ -261,6 +464,7 @@ const Login: React.FC = () => {
                   <Button
                     onPress={handleLogin}
                     loading={loading}
+                    disabled={!credentials.username.trim()}
                     className='flex-1 mr-2'
                   >
                     {t("login.login_button")}
@@ -282,7 +486,7 @@ const Login: React.FC = () => {
             <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
           </View>
         ) : (
-          <View className='flex flex-col h-full items-center justify-center w-full'>
+          <View className='flex flex-col flex-1 items-center justify-center w-full'>
             <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
               <Image
                 style={{

@@ -1,35 +1,43 @@
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const PluginSettings = () => {
-  const [settings, _updateSettings] = useSettings();
+  const { settings } = useSettings();
 
   const router = useRouter();
 
   const { t } = useTranslation();
 
   if (!settings) return null;
+
   return (
-    <View>
-      <ListGroup
-        title={t("home.settings.plugins.plugins_title")}
-        className='mb-4'
-      >
-        <ListItem
-          onPress={() => router.push("/settings/jellyseerr/page")}
-          title={"Jellyseerr"}
-          showArrow
-        />
-        <ListItem
-          onPress={() => router.push("/settings/marlin-search/page")}
-          title='Marlin Search'
-          showArrow
-        />
-      </ListGroup>
-    </View>
+    <ListGroup
+      title={t("home.settings.plugins.plugins_title")}
+      className='mb-4'
+    >
+      <ListItem
+        onPress={() => router.push("/settings/plugins/jellyseerr/page")}
+        title={"Jellyseerr"}
+        showArrow
+      />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/marlin-search/page")}
+        title='Marlin Search'
+        showArrow
+      />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/streamystats/page")}
+        title='Streamystats'
+        showArrow
+      />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/kefinTweaks/page")}
+        title='KefinTweaks'
+        showArrow
+      />
+    </ListGroup>
   );
 };

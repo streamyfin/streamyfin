@@ -61,12 +61,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [queue, _setQueue] = useAtom(queueAtom);
-  const [settings] = useSettings();
+  const { settings } = useSettings();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
-  const { processes, startBackgroundDownload, getDownloadedItems } =
-    useDownload();
-  const downloadedFiles = getDownloadedItems();
+  const { processes, startBackgroundDownload, downloadedItems } = useDownload();
+  const downloadedFiles = downloadedItems;
 
   const [selectedOptions, setSelectedOptions] = useState<
     SelectedOptions | undefined
@@ -90,7 +89,9 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const handleSheetChanges = useCallback((_index: number) => {}, []);
+  const handleSheetChanges = useCallback((_index: number) => {
+    // Modal state tracking handled by BottomSheetModal
+  }, []);
 
   const closeModal = useCallback(() => {
     bottomSheetModalRef.current?.dismiss();
@@ -106,20 +107,17 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
   // Initialize selectedOptions with default values
   useEffect(() => {
-    if (itemsNotDownloaded.length === 1) {
-      setSelectedOptions(() => ({
-        bitrate: defaultBitrate,
-        mediaSource: defaultMediaSource,
-        subtitleIndex: defaultSubtitleIndex ?? -1,
-        audioIndex: defaultAudioIndex,
-      }));
-    }
+    setSelectedOptions(() => ({
+      bitrate: defaultBitrate,
+      mediaSource: defaultMediaSource ?? undefined,
+      subtitleIndex: defaultSubtitleIndex ?? -1,
+      audioIndex: defaultAudioIndex,
+    }));
   }, [
     defaultAudioIndex,
     defaultBitrate,
     defaultSubtitleIndex,
     defaultMediaSource,
-    itemsNotDownloaded.length,
   ]);
 
   const itemsToDownload = useMemo(() => {
@@ -134,13 +132,15 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     return itemsNotDownloaded.length === 0;
   }, [items, itemsNotDownloaded]);
   const itemsProcesses = useMemo(
-    () => processes?.filter((p) => itemIds.includes(p.item.Id)),
+    () =>
+      processes?.filter((p) => p?.item?.Id && itemIds.includes(p.item.Id)) ||
+      [],
     [processes, itemIds],
   );
 
   const progress = useMemo(() => {
     if (itemIds.length === 1)
-      return itemsProcesses.reduce((acc, p) => acc + p.progress, 0);
+      return itemsProcesses.reduce((acc, p) => acc + (p.progress || 0), 0);
     return (
       ((itemIds.length -
         queue.filter((q) => itemIds.includes(q.item.Id)).length) /
@@ -155,6 +155,13 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       itemsNotDownloaded.every((p) => queue.some((q) => p.Id === q.item.Id))
     );
   }, [queue, itemsNotDownloaded]);
+
+  const itemsInProgressOrQueued = useMemo(() => {
+    const inProgress = itemsProcesses.length;
+    const inQueue = queue.filter((q) => itemIds.includes(q.item.Id)).length;
+    return inProgress + inQueue;
+  }, [itemsProcesses, queue, itemIds]);
+
   const navigateToDownloads = () => router.push("/downloads");
 
   const onDownloadedPress = () => {
@@ -223,7 +230,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         if (!mediaSource) {
           console.error(`Could not get download URL for ${item.Name}`);
           toast.error(
-            t("Could not get download URL for {{itemName}}", {
+            t("home.downloads.toasts.could_not_get_download_url_for_item", {
               itemName: item.Name,
             }),
           );
@@ -248,14 +255,18 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     ],
   );
 
-  const acceptDownloadOptions = useCallback(() => {
+  const acceptDownloadOptions = useCallback(async () => {
     if (userCanDownload === true) {
       if (itemsToDownload.some((i) => !i.Id)) {
         throw new Error("No item id");
       }
+
       closeModal();
 
-      initiateDownload(...itemsToDownload);
+      // Wait for modal dismiss animation to complete
+      setTimeout(() => {
+        initiateDownload(...itemsToDownload);
+      }, 300);
     } else {
       toast.error(
         t("home.downloads.toasts.you_are_not_allowed_to_download_files"),
@@ -275,7 +286,14 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   );
 
   const renderButtonContent = () => {
-    if (processes.length > 0 && itemsProcesses.length > 0) {
+    // For single item downloads, show progress if item is being processed
+    // For multi-item downloads (season/series), show progress only if 2+ items are in progress or queued
+    const shouldShowProgress =
+      itemIds.length === 1
+        ? itemsProcesses.length > 0
+        : itemsInProgressOrQueued > 1;
+
+    if (processes.length > 0 && shouldShowProgress) {
       return progress === 0 ? (
         <Loader />
       ) : (
@@ -330,6 +348,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         }}
         onChange={handleSheetChanges}
         backdropComponent={renderBackdrop}
+        enablePanDownToClose
+        enableDismissOnClose
+        android_keyboardInputMode='adjustResize'
+        keyboardBehavior='interactive'
+        keyboardBlurBehavior='restore'
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
@@ -344,16 +367,18 @@ export const DownloadItems: React.FC<DownloadProps> = ({
                   })}
               </Text>
             </View>
-            <View className='flex flex-col space-y-2 w-full items-start'>
-              <BitrateSelector
-                inverted
-                onChange={(val) =>
-                  setSelectedOptions(
-                    (prev) => prev && { ...prev, bitrate: val },
-                  )
-                }
-                selected={selectedOptions?.bitrate}
-              />
+            <View className='flex flex-col space-y-2 w-full'>
+              <View className='items-start'>
+                <BitrateSelector
+                  inverted
+                  onChange={(val) =>
+                    setSelectedOptions(
+                      (prev) => prev && { ...prev, bitrate: val },
+                    )
+                  }
+                  selected={selectedOptions?.bitrate}
+                />
+              </View>
               {itemsNotDownloaded.length > 1 && (
                 <View className='flex flex-row items-center justify-between w-full py-2'>
                   <Text>{t("item_card.download.download_unwatched_only")}</Text>
@@ -365,21 +390,23 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
               {itemsNotDownloaded.length === 1 && (
                 <View>
-                  <MediaSourceSelector
-                    item={items[0]}
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            mediaSource: val,
-                          },
-                      )
-                    }
-                    selected={selectedOptions?.mediaSource}
-                  />
+                  <View className='items-start'>
+                    <MediaSourceSelector
+                      item={items[0]}
+                      onChange={(val) =>
+                        setSelectedOptions(
+                          (prev) =>
+                            prev && {
+                              ...prev,
+                              mediaSource: val,
+                            },
+                        )
+                      }
+                      selected={selectedOptions?.mediaSource}
+                    />
+                  </View>
                   {selectedOptions?.mediaSource && (
-                    <View className='flex flex-col space-y-2'>
+                    <View className='flex flex-col space-y-2 items-start'>
                       <AudioTrackSelector
                         source={selectedOptions.mediaSource}
                         onChange={(val) => {
@@ -412,11 +439,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
               )}
             </View>
 
-            <Button
-              className='mt-auto'
-              onPress={acceptDownloadOptions}
-              color='purple'
-            >
+            <Button onPress={acceptDownloadOptions} color='purple'>
               {t("item_card.download.download_button")}
             </Button>
           </View>

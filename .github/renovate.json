@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate configuration for Streamyfin - Expo React Native Jellyfin client",
+  "extends": [
+    "config:best-practices",
+    ":dependencyDashboard",
+    ":enableVulnerabilityAlertsWithLabel(security)",
+    ":semanticCommits",
+    ":timezone(Etc/UTC)",
+    "group:testNonMajor",
+    "group:monorepos",
+    "helpers:pinGitHubActionDigests",
+    "customManagers:biomeVersions",
+    ":automergeBranch",
+    ":automergeRequireAllStatusChecks"
+  ],
+  "addLabels": ["dependencies"],
+  "rebaseWhen": "conflicted",
+  "ignorePaths": ["**/node_modules/**"],
+  "ignoreUnstable": true,
+  "minimumReleaseAge": "3 days",
+  "schedule": ["before 6am on Sunday"],
+  "branchPrefix": "renovate/",
+  "commitMessagePrefix": "chore(deps):",
+  "osvVulnerabilityAlerts": true,
+  "configMigration": true,
+  "separateMinorPatch": true,
+  "lockFileMaintenance": {
+    "vulnerabilityAlerts": {
+      "enabled": true,
+      "addLabels": ["security", "vulnerability"],
+      "assigneesFromCodeOwners": true,
+      "commitMessageSuffix": " [SECURITY]"
+    },
+    "packageRules": [
+      {
+        "description": "Group minor and patch GitHub Action updates into a single PR",
+        "matchManagers": ["github-actions"],
+        "groupName": "CI dependencies",
+        "groupSlug": "ci-deps",
+        "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+        "automerge": true
+      }
+    ]
+  }
+}

@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "patlh",
-        "follow_device_orientation": "naDevvo' pegh",
         "video_orientation": "mu'tlhegh pegh",
         "orientation": "pegh",
         "orientations": {
@@ -142,9 +141,6 @@
       },
       "downloads": {
         "downloads_title": "Qaw' Doch",
-        "download_method": "Qaw' mIw",
-        "remux_max_download": "Remux Qaw' Dun",
-        "auto_download": "chIch Qaw'",
         "optimized_versions_server": "luj wej Ho'Do' veS",
         "save_button": "yIqIp",
         "optimized_server": "luj Ho'Do' veS",

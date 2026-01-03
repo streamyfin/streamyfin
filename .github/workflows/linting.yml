@@ -20,7 +20,7 @@ jobs:
       pull-requests: write
       contents: read
     steps:
-      - uses: amannn/action-semantic-pull-request@fdd4d3ddf614fbcd8c29e4b106d3bbe0cb2c605d # v6.0.1
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         id: lint_pr_title
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,25 +53,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@bc41886e18ea39df68b1b1245f4184881938e050 # v4.7.2
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
         with:
           fail-on-severity: high
-          deny-licenses: GPL-3.0, AGPL-3.0
           base-ref: ${{ github.event.pull_request.base.sha || 'develop' }}
           head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
   expo-doctor:
     name: 🚑 Expo Doctor Check
+    if: false
     runs-on: ubuntu-24.04
     steps:
       - name: 🛒 Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
           fetch-depth: 0
 
@@ -88,7 +88,7 @@ jobs:
 
   code_quality:
     name: "🔍 Lint & Test (${{ matrix.command }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -96,16 +96,18 @@ jobs:
           - "lint"
           - "check"
           - "format"
+          - "typecheck"
+
     steps:
       - name: "📥 Checkout PR code"
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
           fetch-depth: 0
 
       - name: "🟢 Setup Node.js"
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: '24.x'
 

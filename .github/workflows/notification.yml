@@ -1,13 +1,18 @@
-name: 🛎️ Discord Pull Request Notification
+name: 🛎️ Discord Notification
 
 on:
   pull_request:
     types: [opened, reopened]
     branches: [develop]
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+    branches: [develop]
 
 jobs:
   notify:
     runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
     steps:
       - name: 🛎️ Notify Discord
         uses: Ilshidur/action-discord@d2594079a10f1d6739ee50a2471f0ca57418b554 # 0.4.0
@@ -21,3 +26,21 @@ jobs:
             **By:** ${{ github.event.pull_request.user.login }}
             **Branch:** ${{ github.event.pull_request.head.ref }}
             🔗 ${{ github.event.pull_request.html_url }}
+
+  notify-on-failure:
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: 🚨 Notify Discord on Failure
+        uses: Ilshidur/action-discord@d2594079a10f1d6739ee50a2471f0ca57418b554 # 0.4.0
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.WEBHOOK_FAILED_JOB_URL }}
+          DISCORD_AVATAR: https://avatars.githubusercontent.com/u/193271640
+        with:
+          args: |
+            🚨 **Workflow Failed** in **${{ github.repository }}**
+            **Workflow:** ${{ github.event.workflow_run.name }}
+            **Branch:** ${{ github.event.workflow_run.head_branch }}
+            **Triggered by:** ${{ github.event.workflow_run.triggering_actor.login }}
+            **Commit:** ${{ github.event.workflow_run.head_commit.message }}
+            🔗 ${{ github.event.workflow_run.html_url }}

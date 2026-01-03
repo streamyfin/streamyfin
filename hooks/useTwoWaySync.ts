@@ -1,8 +1,8 @@
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { useNetInfo } from "@react-native-community/netinfo";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
+import { useNetworkStatus } from "./useNetworkStatus";
 
 /**
  * This hook is used to sync the playback state of a downloaded item with the server
@@ -11,8 +11,8 @@ import { apiAtom, userAtom } from "../providers/JellyfinProvider";
 export const useTwoWaySync = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const netInfo = useNetInfo();
   const { getDownloadedItemById, updateDownloadedItem } = useDownload();
+  const { isConnected } = useNetworkStatus();
 
   /**
    * Syncs the playback state of an offline item with the server.
@@ -21,7 +21,7 @@ export const useTwoWaySync = () => {
    * @returns A Promise<boolean> indicating whether a server update was made (true) or not (false).
    */
   const syncPlaybackState = async (itemId: string): Promise<boolean> => {
-    if (!api || !user || !netInfo.isConnected) {
+    if (!api || !user || !isConnected) {
       // Cannot sync if offline or not logged in
       return false;
     }

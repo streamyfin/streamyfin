@@ -1,8 +1,5 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import type {
-  BaseItemDto,
-  BaseItemPerson,
-} from "@jellyfin/sdk/lib/generated-client/models";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useRouter, useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
@@ -14,20 +11,21 @@ interface Props extends TouchableOpacityProps {
   isOffline?: boolean;
 }
 
-export const itemRouter = (
-  item: BaseItemDto | BaseItemPerson,
-  from: string,
-) => {
+export const itemRouter = (item: BaseItemDto, from: string) => {
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${from}/livetv`;
+  }
+
+  if ("CollectionType" in item && item.CollectionType === "music") {
+    return `/(auth)/(tabs)/(libraries)/music/${item.Id}`;
   }
 
   if (item.Type === "Series") {
     return `/(auth)/(tabs)/${from}/series/${item.Id}`;
   }
 
-  if (item.Type === "Person" || item.Type === "Actor") {
-    return `/(auth)/(tabs)/${from}/actors/${item.Id}`;
+  if (item.Type === "Person") {
+    return `/(auth)/(tabs)/${from}/persons/${item.Id}`;
   }
 
   if (item.Type === "BoxSet") {
@@ -49,6 +47,55 @@ export const itemRouter = (
   return `/(auth)/(tabs)/${from}/items/page?id=${item.Id}`;
 };
 
+export const getItemNavigation = (item: BaseItemDto, _from: string) => {
+  if ("CollectionType" in item && item.CollectionType === "livetv") {
+    return {
+      pathname: "/livetv" as const,
+    };
+  }
+
+  if ("CollectionType" in item && item.CollectionType === "music") {
+    return {
+      pathname: "/music/[libraryId]" as const,
+      params: { libraryId: item.Id! },
+    };
+  }
+
+  if (item.Type === "Series") {
+    return {
+      pathname: "/series/[id]" as const,
+      params: { id: item.Id! },
+    };
+  }
+
+  if (item.Type === "Person") {
+    return {
+      pathname: "/persons/[personId]" as const,
+      params: { personId: item.Id! },
+    };
+  }
+
+  if (item.Type === "BoxSet" || item.Type === "UserView") {
+    return {
+      pathname: "/collections/[collectionId]" as const,
+      params: { collectionId: item.Id! },
+    };
+  }
+
+  if (item.Type === "CollectionFolder" || item.Type === "Playlist") {
+    return {
+      pathname: "/[libraryId]" as const,
+      params: { libraryId: item.Id! },
+    };
+  }
+
+  // Default case - items page
+  return {
+    pathname: "/items/page" as const,
+    params: { id: item.Id! },
+  };
+};
+
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
   isOffline = false,
@@ -61,7 +108,26 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
 
-  const from = segments[2];
+  const from = (segments as string[])[2] || "(home)";
+
+  const handlePress = useCallback(() => {
+    // For offline mode, we still need to use query params
+    if (isOffline) {
+      const url = `${itemRouter(item, from)}&offline=true`;
+      router.push(url as any);
+      return;
+    }
+
+    // Force music libraries to navigate via the explicit string route.
+    // This avoids losing the dynamic [libraryId] param when going through a nested navigator.
+    if ("CollectionType" in item && item.CollectionType === "music") {
+      router.push(itemRouter(item, from) as any);
+      return;
+    }
+
+    const navigation = getItemNavigation(item, from);
+    router.push(navigation as any);
+  }, [from, isOffline, item, router]);
 
   const showActionSheet = useCallback(() => {
     if (
@@ -72,13 +138,14 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       )
     )
       return;
-    const options = [
+
+    const options: string[] = [
       "Mark as Played",
       "Mark as Not Played",
       isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
       "Cancel",
     ];
-    const cancelButtonIndex = 3;
+    const cancelButtonIndex = options.length - 1;
 
     showActionSheetWithOptions(
       {
@@ -95,25 +162,24 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
         }
       },
     );
-  }, [showActionSheetWithOptions, isFavorite, markAsPlayedStatus]);
+  }, [
+    showActionSheetWithOptions,
+    isFavorite,
+    markAsPlayedStatus,
+    toggleFavorite,
+  ]);
 
   if (
     from === "(home)" ||
     from === "(search)" ||
     from === "(libraries)" ||
-    from === "(favorites)"
+    from === "(favorites)" ||
+    from === "(watchlists)"
   )
     return (
       <TouchableOpacity
         onLongPress={showActionSheet}
-        onPress={() => {
-          let url = itemRouter(item, from);
-          if (isOffline) {
-            url += `&offline=true`;
-          }
-          // @ts-expect-error
-          router.push(url);
-        }}
+        onPress={handlePress}
         {...props}
       >
         {children}

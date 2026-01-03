@@ -20,6 +20,7 @@ type TranscodedSubtitle = {
 type Track = {
   name: string;
   index: number;
+  mpvIndex?: number;
   setTrack: () => void;
 };
 

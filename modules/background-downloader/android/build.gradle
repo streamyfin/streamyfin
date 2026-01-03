@@ -1,0 +1,46 @@
+plugins {
+  id 'com.android.library'
+  id 'kotlin-android'
+}
+
+group = 'expo.modules.backgrounddownloader'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+def kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
+
+apply from: expoModulesCorePlugin
+
+applyKotlinExpoModulesCorePlugin()
+useDefaultAndroidSdkVersions()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace "expo.modules.backgrounddownloader"
+  
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+  
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+  
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+  implementation "com.squareup.okhttp3:okhttp:4.12.0"
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+}
+

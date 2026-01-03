@@ -2,12 +2,13 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.31.0",
+    "version": "0.50.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
     "jsEngine": "hermes",
+    "newArchEnabled": true,
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "requireFullScreen": true,
@@ -28,16 +29,12 @@
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.fredrikburmester.streamyfin",
-      "icon": {
-        "dark": "./assets/images/icon-ios-plain.png",
-        "light": "./assets/images/icon-ios-light.png",
-        "tinted": "./assets/images/icon-ios-tinted.png"
-      },
+      "icon": "./assets/images/icon-ios-liquid-glass.icon",
       "appleTeamId": "MWD5K362T8"
     },
     "android": {
       "jsEngine": "hermes",
-      "versionCode": 59,
+      "versionCode": 88,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
@@ -49,34 +46,23 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WRITE_SETTINGS"
       ],
+      "blockedPermissions": ["android.permission.ACTIVITY_RECOGNITION"],
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "@react-native-tvos/config-tv",
       "expo-router",
       "expo-font",
-      [
-        "react-native-video",
-        {
-          "enableNotificationControls": true,
-          "enableBackgroundAudio": true,
-          "androidExtensions": {
-            "useExoplayerRtsp": false,
-            "useExoplayerSmoothStreaming": false,
-            "useExoplayerHls": true,
-            "useExoplayerDash": false
-          }
-        }
-      ],
+      "./plugins/withExcludeMedia3Dash.js",
       [
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "deploymentTarget": "15.6"
           },
           "android": {
-            "compileSdkVersion": 35,
+            "buildArchs": ["arm64-v8a", "x86_64"],
+            "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
             "kotlinVersion": "2.0.21",
@@ -114,14 +100,10 @@
           }
         }
       ],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withAndroidManifest.js"],
-      ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#2e2e2e",
+          "backgroundColor": "#010101",
           "image": "./assets/images/icon-ios-plain.png",
           "imageWidth": 100
         }
@@ -133,8 +115,12 @@
           "color": "#9333EA"
         }
       ],
-      "./plugins/with-runtime-framework-headers.js",
-      "react-native-bottom-tabs"
+      "expo-web-browser",
+      ["./plugins/with-runtime-framework-headers.js"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
+      ["./plugins/withAndroidManifest.js"],
+      ["./plugins/withTrustLocalCerts.js"],
+      ["./plugins/withGradleProperties.js"]
     ],
     "experiments": {
       "typedRoutes": true
@@ -153,7 +139,6 @@
     },
     "updates": {
       "url": "https://u.expo.dev/e79219d1-797f-4fbe-9fa1-cfd360690a68"
-    },
-    "newArchEnabled": false
+    }
   }
 }

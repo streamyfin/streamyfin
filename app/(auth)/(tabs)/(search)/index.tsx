@@ -24,8 +24,6 @@ import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
-import { FilterButton } from "@/components/filters/FilterButton";
-import { Tag } from "@/components/GenreTags";
 import { ItemCardText } from "@/components/ItemCardText";
 import {
   JellyseerrSearchSort,
@@ -33,12 +31,15 @@ import {
 } from "@/components/jellyseerr/JellyseerrIndexPage";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
+import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
+import { SearchTabButtons } from "@/components/search/SearchTabButtons";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
 
@@ -71,7 +72,7 @@ export default function search() {
 
   const [api] = useAtom(apiAtom);
 
-  const [settings] = useSettings();
+  const { settings } = useSettings();
   const { jellyseerrApi } = useJellyseerr();
   const [jellyseerrOrderBy, setJellyseerrOrderBy] =
     useState<JellyseerrSearchSort>(
@@ -117,6 +118,54 @@ export default function search() {
 
           return (searchApi.data.Items as BaseItemDto[]) || [];
         }
+
+        if (searchEngine === "Streamystats") {
+          if (!settings?.streamyStatsServerUrl || !api.accessToken) {
+            return [];
+          }
+
+          const streamyStatsApi = createStreamystatsApi({
+            serverUrl: settings.streamyStatsServerUrl,
+            jellyfinToken: api.accessToken,
+          });
+
+          const typeMap: Record<BaseItemKind, string> = {
+            Movie: "movies",
+            Series: "series",
+            Episode: "episodes",
+            Person: "actors",
+            BoxSet: "movies",
+            Audio: "audio",
+          } as Record<BaseItemKind, string>;
+
+          const searchType = types.length === 1 ? typeMap[types[0]] : "media";
+          const response = await streamyStatsApi.searchIds(
+            query,
+            searchType as "movies" | "series" | "episodes" | "actors" | "media",
+            10,
+          );
+
+          const allIds: string[] = [
+            ...(response.data.movies || []),
+            ...(response.data.series || []),
+            ...(response.data.episodes || []),
+            ...(response.data.actors || []),
+            ...(response.data.audio || []),
+          ];
+
+          if (!allIds.length) {
+            return [];
+          }
+
+          const itemsResponse = await getItemsApi(api).getItems({
+            ids: allIds,
+            enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          });
+
+          return (itemsResponse.data.Items as BaseItemDto[]) || [];
+        }
+
+        // Marlin search
         if (!settings?.marlinServerUrl) {
           return [];
         }
@@ -141,12 +190,11 @@ export default function search() {
         });
 
         return (response2.data.Items as BaseItemDto[]) || [];
-      } catch (error) {
-        console.error("Error during search:", error);
-        return []; // Ensure an empty array is returned in case of an error
+      } catch (_error) {
+        return [];
       }
     },
-    [api, searchEngine, settings],
+    [api, searchEngine, settings, user?.Id],
   );
 
   type HeaderSearchBarRef = {
@@ -284,67 +332,30 @@ export default function search() {
       )}
       <View
         className='flex flex-col'
-        style={{
-          marginTop: Platform.OS === "android" ? 16 : 0,
-        }}
+        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
         {jellyseerrApi && (
-          <ScrollView
-            horizontal
-            className='flex flex-row flex-wrap space-x-2 px-4 mb-2'
-          >
-            <TouchableOpacity onPress={() => setSearchType("Library")}>
-              <Tag
-                text={t("search.library")}
-                textClass='p-1'
-                className={
-                  searchType === "Library" ? "bg-purple-600" : undefined
-                }
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setSearchType("Discover")}>
-              <Tag
-                text={t("search.discover")}
-                textClass='p-1'
-                className={
-                  searchType === "Discover" ? "bg-purple-600" : undefined
-                }
-              />
-            </TouchableOpacity>
+          <View className='pl-4 pr-4 flex flex-row'>
+            <SearchTabButtons
+              searchType={searchType}
+              setSearchType={setSearchType}
+              t={t}
+            />
             {searchType === "Discover" &&
               !loading &&
               noResults &&
               debouncedSearch.length > 0 && (
-                <View className='flex flex-row justify-end items-center space-x-1'>
-                  <FilterButton
-                    id={searchFilterId}
-                    queryKey='jellyseerr_search'
-                    queryFn={async () =>
-                      Object.keys(JellyseerrSearchSort).filter((v) =>
-                        Number.isNaN(Number(v)),
-                      )
-                    }
-                    set={(value) => setJellyseerrOrderBy(value[0])}
-                    values={[jellyseerrOrderBy]}
-                    title={t("library.filters.sort_by")}
-                    renderItemLabel={(item) =>
-                      t(`home.settings.plugins.jellyseerr.order_by.${item}`)
-                    }
-                    showSearch={false}
-                  />
-                  <FilterButton
-                    id={orderFilterId}
-                    queryKey='jellysearr_search'
-                    queryFn={async () => ["asc", "desc"]}
-                    set={(value) => setJellyseerrSortOrder(value[0])}
-                    values={[jellyseerrSortOrder]}
-                    title={t("library.filters.sort_order")}
-                    renderItemLabel={(item) => t(`library.filters.${item}`)}
-                    showSearch={false}
-                  />
-                </View>
+                <DiscoverFilters
+                  searchFilterId={searchFilterId}
+                  orderFilterId={orderFilterId}
+                  jellyseerrOrderBy={jellyseerrOrderBy}
+                  setJellyseerrOrderBy={setJellyseerrOrderBy}
+                  jellyseerrSortOrder={jellyseerrSortOrder}
+                  setJellyseerrSortOrder={setJellyseerrSortOrder}
+                  t={t}
+                />
               )}
-          </ScrollView>
+          </View>
         )}
 
         <View className='mt-2'>

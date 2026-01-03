@@ -1,52 +1,53 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
-import { TouchableOpacity, type ViewProps } from "react-native";
+import { TouchableOpacity, type ViewStyle } from "react-native";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import {
   HorizontalScroll,
   type HorizontalScrollRef,
-} from "../common/HorrizontalScroll";
+} from "../common/HorizontalScroll";
 import { ItemCardText } from "../ItemCardText";
 
-interface Props extends ViewProps {
+interface Props {
   item?: BaseItemDto | null;
   loading?: boolean;
   isOffline?: boolean;
+  style?: ViewStyle;
+  containerStyle?: ViewStyle;
 }
 
 export const SeasonEpisodesCarousel: React.FC<Props> = ({
   item,
   loading,
   isOffline,
-  ...props
+  style,
+  containerStyle,
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { getDownloadedItems } = useDownload();
-  const downloadedFiles = getDownloadedItems();
+  const downloadedFiles = useMemo(
+    () => getDownloadedItems(),
+    [getDownloadedItems],
+  );
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
   const scrollToIndex = (index: number) => {
-    scrollRef.current?.scrollToIndex(index, 16);
+    scrollRef.current?.scrollToIndex(index, -16);
   };
 
   const seasonId = useMemo(() => {
     return item?.SeasonId;
   }, [item]);
 
-  const {
-    data: episodes,
-    isLoading,
-    isFetching,
-  } = useQuery({
+  const { data: episodes, isPending } = useQuery({
     queryKey: ["episodes", seasonId, isOffline],
     queryFn: async () => {
       if (isOffline) {
@@ -61,6 +62,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
         userId: user.Id,
         seasonId: seasonId || undefined,
         seriesId: item.SeriesId,
+        enableUserData: true,
         fields: [
           "ItemCounts",
           "PrimaryImageAspectRatio",
@@ -74,48 +76,6 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     enabled: !!api && !!user?.Id && !!seasonId,
   });
 
-  /**
-   * Prefetch previous and next episode
-   */
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    if (!item?.Id || !item.IndexNumber || !episodes || episodes.length === 0) {
-      return;
-    }
-
-    const previousId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! - 1,
-    )?.Id;
-    if (previousId) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", previousId],
-        queryFn: async () =>
-          await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: previousId,
-          }),
-        staleTime: 60 * 1000 * 5,
-      });
-    }
-
-    const nextId = episodes?.find(
-      (ep) => ep.IndexNumber === item.IndexNumber! + 1,
-    )?.Id;
-    if (nextId) {
-      queryClient.prefetchQuery({
-        queryKey: ["item", nextId],
-        queryFn: async () =>
-          await getUserItemData({
-            api,
-            userId: user?.Id,
-            itemId: nextId,
-          }),
-        staleTime: 60 * 1000 * 5,
-      });
-    }
-  }, [episodes, api, user?.Id, item]);
-
   useEffect(() => {
     if (item?.Type === "Episode" && item.Id) {
       const index = episodes?.findIndex((ep) => ep.Id === item.Id);
@@ -127,12 +87,19 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     }
   }, [episodes, item]);
 
+  const snapOffsets = useMemo(() => {
+    const itemWidth = 184; // w-44 (176px) + mr-2 (8px)
+    return episodes?.map((_, index) => index * itemWidth) || [];
+  }, [episodes]);
+
   return (
     <HorizontalScroll
       ref={scrollRef}
       data={episodes}
       extraData={item}
-      loading={loading || isLoading || isFetching}
+      loading={loading || isPending}
+      style={style}
+      containerStyle={containerStyle}
       renderItem={(_item, _idx) => (
         <TouchableOpacity
           key={_item.Id}
@@ -147,7 +114,8 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           <ItemCardText item={_item} />
         </TouchableOpacity>
       )}
-      {...props}
+      snapToOffsets={snapOffsets}
+      decelerationRate='fast'
     />
   );
 };

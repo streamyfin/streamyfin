@@ -1,11 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import {
-  HardwareAccelerationType,
-  type SessionInfoDto,
-} from "@jellyfin/sdk/lib/generated-client";
+import { HardwareAccelerationType } from "@jellyfin/sdk/lib/generated-client";
 import {
   GeneralCommandType,
   PlaystateCommand,
+  SessionInfoDto,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { FlashList } from "@shopify/flash-list";
@@ -13,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -49,14 +47,13 @@ export default function page() {
     <FlashList
       contentInsetAdjustmentBehavior='automatic'
       contentContainerStyle={{
-        paddingTop: 17,
+        paddingTop: Platform.OS === "android" ? 17 : 0,
         paddingHorizontal: 17,
         paddingBottom: 150,
       }}
       data={sessions}
       renderItem={({ item }) => <SessionCard session={item} />}
       keyExtractor={(item) => item.Id || ""}
-      estimatedItemSize={200}
     />
   );
 }
@@ -99,15 +96,19 @@ const SessionCard = ({ session }: SessionCardProps) => {
     }
   }, [session]);
 
-  const { data: ipInfo } = useQuery({
+  const { data: ipInfo } = useQuery<{
+    cityName?: string;
+    countryCode?: string;
+  }>({
     queryKey: ["ipinfo", session.RemoteEndPoint],
-    cacheTime: Number.POSITIVE_INFINITY,
+    staleTime: Number.POSITIVE_INFINITY,
     queryFn: async () => {
-      const resp = await api.axiosInstance.get(
+      const resp = await api!.axiosInstance.get(
         `https://freeipapi.com/api/json/${session.RemoteEndPoint}`,
       );
       return resp.data;
     },
+    enabled: !!api,
   });
 
   // Handle session controls
@@ -464,6 +465,7 @@ const TranscodingStreamView = ({
 };
 
 const TranscodingView = ({ session }: SessionCardProps) => {
+  const { t } = useTranslation();
   const videoStream = useMemo(() => {
     return session.NowPlayingItem?.MediaStreams?.filter(
       (s) => s.Type === "Video",
@@ -497,7 +499,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
   return (
     <View className='flex flex-col bg-neutral-800 rounded-b-2xl p-4 pt-2'>
       <TranscodingStreamView
-        title='Video'
+        title={t("common.video")}
         properties={{
           resolution: videoStreamTitle(),
           bitrate: videoStream?.BitRate,
@@ -514,7 +516,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
       />
 
       <TranscodingStreamView
-        title='Audio'
+        title={t("common.audio")}
         properties={{
           language: audioStream?.Language,
           bitrate: audioStream?.BitRate,
@@ -532,7 +534,7 @@ const TranscodingView = ({ session }: SessionCardProps) => {
 
       {subtitleStream && (
         <TranscodingStreamView
-          title='Subtitle'
+          title={t("common.subtitle")}
           isTranscoding={false}
           properties={{
             language: subtitleStream?.Language,

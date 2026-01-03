@@ -1,11 +1,23 @@
 import { Api } from "@jellyfin/sdk";
 import { useQuery } from "@tanstack/react-query";
-import { useAtom } from "jotai";
-import { useDownload } from "@/providers/DownloadProvider";
+import React from "react";
 import { DownloadedItem, MediaTimeSegment } from "@/providers/Downloads/types";
-import { apiAtom } from "@/providers/JellyfinProvider";
 import { getAuthHeaders } from "./jellyfin/jellyfin";
 
+// New Jellyfin 10.11+ Media Segments API types
+interface MediaSegmentDto {
+  Id: string;
+  ItemId: string;
+  Type: "Intro" | "Outro" | "Recap" | "Commercial" | "Preview";
+  StartTicks: number;
+  EndTicks: number;
+}
+
+interface MediaSegmentsResponse {
+  Items: MediaSegmentDto[];
+}
+
+// Legacy API types (for fallback)
 interface IntroTimestamps {
   EpisodeId: string;
   HideSkipPromptAt: number;
@@ -28,11 +40,18 @@ interface CreditTimestamps {
   };
 }
 
-export const useSegments = (itemId: string, isOffline: boolean) => {
-  const [api] = useAtom(apiAtom);
-  const { downloadedFiles } = useDownload();
-  const downloadedItem = downloadedFiles?.find(
-    (d: DownloadedItem) => d.item.Id === itemId,
+const TICKS_PER_SECOND = 10000000;
+
+export const useSegments = (
+  itemId: string,
+  isOffline: boolean,
+  downloadedFiles: DownloadedItem[] | undefined,
+  api: Api | null,
+) => {
+  // Memoize the lookup so the array is only traversed when dependencies change
+  const downloadedItem = React.useMemo(
+    () => downloadedFiles?.find((d) => d.item.Id === itemId),
+    [downloadedFiles, itemId],
   );
 
   return useQuery({
@@ -46,7 +65,7 @@ export const useSegments = (itemId: string, isOffline: boolean) => {
       }
       return fetchAndParseSegments(itemId, api);
     },
-    enabled: !!api,
+    enabled: isOffline ? !!downloadedItem : !!api,
   });
 };
 
@@ -62,7 +81,66 @@ export const getSegmentsForItem = (
   };
 };
 
-export const fetchAndParseSegments = async (
+/**
+ * Converts Jellyfin ticks to seconds
+ */
+const ticksToSeconds = (ticks: number): number => ticks / TICKS_PER_SECOND;
+
+/**
+ * Fetches segments using the new Jellyfin 10.11+ MediaSegments API
+ */
+const fetchMediaSegments = async (
+  itemId: string,
+  api: Api,
+): Promise<{
+  introSegments: MediaTimeSegment[];
+  creditSegments: MediaTimeSegment[];
+} | null> => {
+  try {
+    const response = await api.axiosInstance.get<MediaSegmentsResponse>(
+      `${api.basePath}/MediaSegments/${itemId}`,
+      {
+        headers: getAuthHeaders(api),
+        params: {
+          includeSegmentTypes: ["Intro", "Outro"],
+        },
+      },
+    );
+
+    const introSegments: MediaTimeSegment[] = [];
+    const creditSegments: MediaTimeSegment[] = [];
+
+    response.data.Items.forEach((segment) => {
+      const timeSegment: MediaTimeSegment = {
+        startTime: ticksToSeconds(segment.StartTicks),
+        endTime: ticksToSeconds(segment.EndTicks),
+        text: segment.Type,
+      };
+
+      switch (segment.Type) {
+        case "Intro":
+          introSegments.push(timeSegment);
+          break;
+        case "Outro":
+          creditSegments.push(timeSegment);
+          break;
+        // Optionally handle other types like Recap, Commercial, Preview
+        default:
+          break;
+      }
+    });
+
+    return { introSegments, creditSegments };
+  } catch (_error) {
+    // Return null to indicate we should try legacy endpoints
+    return null;
+  }
+};
+
+/**
+ * Fetches segments using legacy pre-10.11 endpoints
+ */
+const fetchLegacySegments = async (
   itemId: string,
   api: Api,
 ): Promise<{
@@ -76,15 +154,11 @@ export const fetchAndParseSegments = async (
     const [introRes, creditRes] = await Promise.allSettled([
       api.axiosInstance.get<IntroTimestamps>(
         `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
-        {
-          headers: getAuthHeaders(api),
-        },
+        { headers: getAuthHeaders(api) },
       ),
       api.axiosInstance.get<CreditTimestamps>(
         `${api.basePath}/Episode/${itemId}/Timestamps`,
-        {
-          headers: getAuthHeaders(api),
-        },
+        { headers: getAuthHeaders(api) },
       ),
     ]);
 
@@ -107,8 +181,25 @@ export const fetchAndParseSegments = async (
       });
     }
   } catch (error) {
-    console.error("Failed to fetch segments", error);
+    console.error("Failed to fetch legacy segments", error);
   }
 
   return { introSegments, creditSegments };
+};
+
+export const fetchAndParseSegments = async (
+  itemId: string,
+  api: Api,
+): Promise<{
+  introSegments: MediaTimeSegment[];
+  creditSegments: MediaTimeSegment[];
+}> => {
+  // Try new API first (Jellyfin 10.11+)
+  const newSegments = await fetchMediaSegments(itemId, api);
+  if (newSegments) {
+    return newSegments;
+  }
+
+  // Fallback to legacy endpoints
+  return fetchLegacySegments(itemId, api);
 };

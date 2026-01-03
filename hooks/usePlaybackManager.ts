@@ -1,12 +1,15 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  PlaybackProgressInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi, getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useNetInfo } from "@react-native-community/netinfo";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useNetworkStatus } from "./useNetworkStatus";
 
 interface PlaybackManagerProps {
   item?: BaseItemDto | null;
@@ -65,12 +68,12 @@ export const usePlaybackManager = ({
 }: PlaybackManagerProps = {}) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const netInfo = useNetInfo();
+  const { isConnected } = useNetworkStatus();
   const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
     useDownload();
 
   /** Whether the device is online. actually it's connected to the internet. */
-  const isOnline = netInfo.isConnected;
+  const isOnline = isConnected;
 
   // Adjacent episodes logic
   const { data: adjacentItems } = useQuery({
@@ -141,13 +144,10 @@ export const usePlaybackManager = ({
    * @param positionTicks The current playback position in ticks.
    */
   const reportPlaybackProgress = async (
-    itemId: string,
-    positionTicks: number,
-    metadata?: {
-      AudioStreamIndex: number;
-      SubtitleStreamIndex: number;
-    },
+    playbackProgressInfo: PlaybackProgressInfo,
   ) => {
+    const positionTicks = playbackProgressInfo.PositionTicks || 0;
+    const itemId = playbackProgressInfo.ItemId!;
     const localItem = getDownloadedItemById(itemId);
 
     // Handle local state update for downloaded items
@@ -192,14 +192,7 @@ export const usePlaybackManager = ({
     if (isOnline && api) {
       try {
         await getPlaystateApi(api).reportPlaybackProgress({
-          playbackProgressInfo: {
-            ItemId: itemId,
-            PositionTicks: Math.floor(positionTicks),
-            ...(metadata && { AudioStreamIndex: metadata.AudioStreamIndex }),
-            ...(metadata && {
-              SubtitleStreamIndex: metadata.SubtitleStreamIndex,
-            }),
-          },
+          playbackProgressInfo,
         });
       } catch (error) {
         console.error("Failed to report playback progress", error);
@@ -244,6 +237,7 @@ export const usePlaybackManager = ({
         });
       } catch (error) {
         console.error("Failed to mark item as played on server", error);
+        throw error;
       }
     }
   };
@@ -285,6 +279,7 @@ export const usePlaybackManager = ({
         });
       } catch (error) {
         console.error("Failed to mark item as unplayed on server", error);
+        throw error;
       }
     }
   };

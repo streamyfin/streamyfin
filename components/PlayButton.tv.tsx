@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
@@ -15,8 +15,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useHaptic } from "@/hooks/useHaptic";
+import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { useSettings } from "@/utils/atoms/settings";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
@@ -24,6 +24,7 @@ import type { SelectedOptions } from "./ItemContent";
 interface Props extends React.ComponentProps<typeof Button> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
+  colors?: ThemeColors;
 }
 
 const ANIMATION_DURATION = 500;
@@ -32,19 +33,22 @@ const MIN_PLAYBACK_WIDTH = 15;
 export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
+  colors,
   ...props
 }: Props) => {
-  const [colorAtom] = useAtom(itemThemeColorAtom);
+  const [globalColorAtom] = useAtom(itemThemeColorAtom);
+
+  // Use colors prop if provided, otherwise fallback to global atom
+  const effectiveColors = colors || globalColorAtom;
 
   const router = useRouter();
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
-  const endColor = useSharedValue(colorAtom);
-  const startColor = useSharedValue(colorAtom);
+  const endColor = useSharedValue(effectiveColors);
+  const startColor = useSharedValue(effectiveColors);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
-  const [settings] = useSettings();
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
@@ -55,7 +59,6 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   const onPress = () => {
-    console.log("onpress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -101,7 +104,7 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   useAnimatedReaction(
-    () => colorAtom,
+    () => effectiveColors,
     (newColor) => {
       endColor.value = newColor;
       colorChangeProgress.value = 0;
@@ -110,19 +113,19 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.9, 0, 0.31, 0.99),
       });
     },
-    [colorAtom],
+    [effectiveColors],
   );
 
   useEffect(() => {
     const timeout_2 = setTimeout(() => {
-      startColor.value = colorAtom;
+      startColor.value = effectiveColors;
       startWidth.value = targetWidth.value;
     }, ANIMATION_DURATION);
 
     return () => {
       clearTimeout(timeout_2);
     };
-  }, [colorAtom, item]);
+  }, [effectiveColors, item]);
 
   /**
    * ANIMATED STYLES
@@ -189,7 +192,7 @@ export const PlayButton: React.FC<Props> = ({
       <View
         style={{
           borderWidth: 1,
-          borderColor: colorAtom.primary,
+          borderColor: effectiveColors.primary,
           borderStyle: "solid",
         }}
         className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
@@ -201,15 +204,6 @@ export const PlayButton: React.FC<Props> = ({
           <Animated.Text style={animatedTextStyle}>
             <Ionicons name='play-circle' size={24} />
           </Animated.Text>
-          {settings?.openInVLC && (
-            <Animated.Text style={animatedTextStyle}>
-              <MaterialCommunityIcons
-                name='vlc'
-                size={18}
-                color={animatedTextStyle.color}
-              />
-            </Animated.Text>
-          )}
         </View>
       </View>
     </TouchableOpacity>

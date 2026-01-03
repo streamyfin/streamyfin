@@ -29,15 +29,15 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { showActionSheetWithOptions } = useActionSheet();
 
   const base64Image = useMemo(() => {
-    return storage.getString(item?.Id!);
-  }, []);
+    return item?.Id ? storage.getString(item.Id) : undefined;
+  }, [item?.Id]);
 
   /**
    * Handles deleting the file with haptic feedback.
    */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
-      deleteFile(item.Id, "Movie");
+      deleteFile(item.Id);
     }
   }, [deleteFile, item.Id]);
 
@@ -77,8 +77,8 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
             style={{
               width: "100%",
               height: "100%",
-              resizeMode: "cover",
             }}
+            contentFit='cover'
           />
           <ProgressBar item={item} />
         </View>

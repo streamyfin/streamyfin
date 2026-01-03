@@ -46,6 +46,8 @@ export interface DownloadedItem {
   videoFilePath: string;
   /** The size of the video file in bytes. */
   videoFileSize: number;
+  /** The video filename (for easy File object reconstruction). Optional for backwards compatibility. */
+  videoFileName?: string;
   /** The local file path of the downloaded trickplay images. */
   trickPlayData?: TrickPlayData;
   /** The intro segments for the item. */
@@ -88,6 +90,8 @@ export interface DownloadsDatabase {
   movies: Record<string, DownloadedItem>;
   /** A map of series IDs to their downloaded series data. */
   series: Record<string, DownloadedSeries>;
+  /** A map of IDs to downloaded items that are neither movies nor episodes */
+  other: Record<string, DownloadedItem>;
 }
 
 /**
@@ -109,7 +113,6 @@ export type JobStatus = {
   /** Current status of the download job */
   status:
     | "downloading" // The job is actively downloading
-    | "paused" // The job is paused
     | "error" // The job encountered an error
     | "pending" // The job is waiting to start
     | "completed" // The job has finished downloading
@@ -129,4 +132,14 @@ export type JobStatus = {
   /** Estimated total size of the download in bytes (optional) this is used when we
    * download transcoded content because we don't know the size of the file until it's downloaded */
   estimatedTotalSizeBytes?: number;
+  /** Timestamp of when the download actually started (optional) */
+  startTime?: Date;
+  /** Whether the download is being transcoded (optional) */
+  isTranscoding?: boolean;
+  /** Pre-downloaded trickplay data (optional) - downloaded before video starts */
+  trickPlayData?: TrickPlayData;
+  /** Pre-downloaded intro segments (optional) - downloaded before video starts */
+  introSegments?: MediaTimeSegment[];
+  /** Pre-downloaded credit segments (optional) - downloaded before video starts */
+  creditSegments?: MediaTimeSegment[];
 };

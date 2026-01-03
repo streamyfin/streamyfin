@@ -11,7 +11,7 @@ import { orderBy } from "lodash";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
-import { HorizontalScroll } from "@/components/common/HorrizontalScroll";
+import { HorizontalScroll } from "@/components/common/HorizontalScroll";
 import { Text } from "@/components/common/Text";
 import { Tags } from "@/components/GenreTags";
 import { dateOpts } from "@/components/jellyseerr/DetailFacts";
@@ -47,9 +47,8 @@ const JellyseerrSeasonEpisodes: React.FC<{
       horizontal
       loading={isLoading}
       showsHorizontalScrollIndicator={false}
-      estimatedItemSize={50}
       data={seasonWithEpisodes?.episodes}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => item.id.toString()}
       renderItem={(item, index) => (
         <RenderItem key={index} item={item} index={index} />
       )}
@@ -284,7 +283,6 @@ const JellyseerrSeasons: React.FC<{
         </View>
       )}
       ItemSeparatorComponent={() => <View className='h-2' />}
-      estimatedItemSize={250}
       renderItem={({ item: season }) => (
         <>
           <TouchableOpacity

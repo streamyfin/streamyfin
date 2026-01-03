@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Linking,
@@ -16,6 +17,7 @@ interface Props extends ViewProps {
 }
 
 export const ItemActions = ({ item, ...props }: Props) => {
+  const { t } = useTranslation();
   const trailerLink = useMemo(() => {
     if ("RemoteTrailers" in item && item.RemoteTrailers?.[0]?.Url) {
       return item.RemoteTrailers[0].Url;
@@ -30,7 +32,7 @@ export const ItemActions = ({ item, ...props }: Props) => {
 
   const openTrailer = useCallback(async () => {
     if (!trailerLink) {
-      Alert.alert("No trailer available");
+      Alert.alert(t("common.no_trailer_available"));
       return;
     }
 
@@ -39,7 +41,7 @@ export const ItemActions = ({ item, ...props }: Props) => {
     } catch (err) {
       console.error("Failed to open trailer link:", err);
     }
-  }, [trailerLink]);
+  }, [trailerLink, t]);
 
   return (
     <View className='' {...props}>

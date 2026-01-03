@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface UseControlsTimeoutProps {
   showControls: boolean;
@@ -6,6 +6,7 @@ interface UseControlsTimeoutProps {
   episodeView: boolean;
   onHideControls: () => void;
   timeout?: number;
+  disabled?: boolean;
 }
 
 export const useControlsTimeout = ({
@@ -13,9 +14,10 @@ export const useControlsTimeout = ({
   isSliding,
   episodeView,
   onHideControls,
-  timeout = 4000,
+  timeout = 10000,
+  disabled = false,
 }: UseControlsTimeoutProps) => {
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const resetControlsTimeout = () => {
@@ -23,7 +25,7 @@ export const useControlsTimeout = ({
         clearTimeout(controlsTimeoutRef.current);
       }
 
-      if (showControls && !isSliding && !episodeView) {
+      if (!disabled && showControls && !isSliding && !episodeView) {
         controlsTimeoutRef.current = setTimeout(() => {
           onHideControls();
         }, timeout);
@@ -37,18 +39,18 @@ export const useControlsTimeout = ({
         clearTimeout(controlsTimeoutRef.current);
       }
     };
-  }, [showControls, isSliding, episodeView, timeout, onHideControls]);
+  }, [showControls, isSliding, episodeView, timeout, onHideControls, disabled]);
 
-  const handleControlsInteraction = () => {
-    if (showControls) {
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-      controlsTimeoutRef.current = setTimeout(() => {
-        onHideControls();
-      }, timeout);
+  const handleControlsInteraction = useCallback(() => {
+    if (disabled || !showControls) return;
+
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
     }
-  };
+    controlsTimeoutRef.current = setTimeout(() => {
+      onHideControls();
+    }, timeout);
+  }, [disabled, showControls, onHideControls, timeout]);
 
   return {
     handleControlsInteraction,

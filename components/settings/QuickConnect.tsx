@@ -2,7 +2,6 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
@@ -10,17 +9,19 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, View, type ViewProps } from "react-native";
+import { Alert, Platform, View, type ViewProps } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
+import { PinInput } from "../inputs/PinInput";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 interface Props extends ViewProps {}
 
 export const QuickConnect: React.FC<Props> = ({ ...props }) => {
+  const isTv = Platform.isTV;
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [quickConnectCode, setQuickConnectCode] = useState<string>();
@@ -73,11 +74,17 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
     }
   }, [api, user, quickConnectCode]);
 
+  if (isTv) return null;
+
   return (
     <View {...props}>
       <ListGroup title={t("home.settings.quick_connect.quick_connect_title")}>
         <ListItem
-          onPress={() => bottomSheetModalRef?.current?.present()}
+          onPress={() => {
+            // Reset the code when opening the sheet
+            setQuickConnectCode("");
+            bottomSheetModalRef?.current?.present();
+          }}
           title={t("home.settings.quick_connect.authorize_button")}
           textColor='blue'
         />
@@ -93,6 +100,9 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           backgroundColor: "#171717",
         }}
         backdropComponent={renderBackdrop}
+        keyboardBehavior='interactive'
+        keyboardBlurBehavior='restore'
+        android_keyboardInputMode='adjustResize'
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
@@ -102,16 +112,17 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
               </Text>
             </View>
             <View className='flex flex-col space-y-2'>
-              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full'>
-                <BottomSheetTextInput
-                  style={{ color: "white" }}
-                  clearButtonMode='always'
-                  placeholder={t(
+              <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 w-full space-y-4'>
+                <Text className='text-neutral-400 text-center'>
+                  {t(
                     "home.settings.quick_connect.enter_the_quick_connect_code",
                   )}
-                  placeholderTextColor='#9CA3AF'
-                  value={quickConnectCode}
+                </Text>
+                <PinInput
+                  value={quickConnectCode || ""}
                   onChangeText={setQuickConnectCode}
+                  style={{ paddingHorizontal: 16 }}
+                  autoFocus
                 />
               </View>
             </View>
