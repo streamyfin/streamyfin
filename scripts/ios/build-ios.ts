@@ -62,6 +62,9 @@ const DEFAULT_BUILD_TIMEOUT_MS = 30 * 60 * 1000;
 const DERIVED_DATA_APP_PATH_REGEX =
   /\/[\S]+\/DerivedData\/[\S]+\/Build\/Products\/[\S]+-[\S]+\/[\S]+\.app/;
 
+/** Name of the iOS directory */
+const IOS_DIR_NAME = "ios";
+
 /** Maximum build timeout in milliseconds (2 hours) */
 const MAX_BUILD_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
@@ -506,7 +509,7 @@ function assertPlatform(): void {
  * @throws Error if iOS directory is not found or not readable
  */
 function findXcodeProject(projectRoot: string): XcodeProject {
-  const iosPath = path.join(projectRoot, "ios");
+  const iosPath = path.join(projectRoot, IOS_DIR_NAME);
 
   try {
     if (!fs.existsSync(iosPath)) {
@@ -709,7 +712,7 @@ function resolveDevice(deviceName?: string): Device {
  * @param projectRoot - Project root directory
  */
 function installPods(projectRoot: string): void {
-  const iosPath = path.join(projectRoot, "ios");
+  const iosPath = path.join(projectRoot, IOS_DIR_NAME);
   const podfilePath = path.join(iosPath, "Podfile");
 
   if (!fs.existsSync(podfilePath)) {
@@ -1097,7 +1100,7 @@ function getBundleIdentifier(
   );
   const pbxprojPath = path.join(
     projectRoot,
-    "ios",
+    IOS_DIR_NAME,
     `${projectName}.xcodeproj`,
     "project.pbxproj",
   );
@@ -1184,7 +1187,7 @@ function runXcodeBuildCommand(
   log.info(`xcodebuild ${args.join(" ")}`);
 
   const result = spawnSync("xcodebuild", args, {
-    cwd: sanitizePath(path.join(options.projectRoot, "ios")),
+    cwd: sanitizePath(path.join(options.projectRoot, IOS_DIR_NAME)),
     stdio: options.verbose ? "inherit" : "pipe",
     maxBuffer: MAX_BUILD_BUFFER,
     timeout: options.noTimeout ? undefined : options.buildTimeout,
