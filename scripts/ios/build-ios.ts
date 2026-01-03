@@ -950,9 +950,17 @@ function getAppConfig(projectRoot: string): AppConfig {
   const appConfigTsPath = path.join(projectRoot, "app.config.ts");
 
   if (fs.existsSync(appJsonPath)) {
-    const content = fs.readFileSync(appJsonPath, "utf-8");
-    const parsed = JSON.parse(content);
-    return parsed.expo || parsed;
+    try {
+      const content = fs.readFileSync(appJsonPath, "utf-8");
+      const parsed = JSON.parse(content);
+      return parsed.expo || parsed;
+    } catch (error) {
+      log.warn(
+        `Failed to parse app.json: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+      log.info("Continuing with default configuration");
+      return {};
+    }
   }
 
   // For JS/TS configs, we'd need to evaluate them - just return defaults
