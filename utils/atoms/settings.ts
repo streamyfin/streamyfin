@@ -194,6 +194,8 @@ export type Settings = {
   mergeNextUpAndContinueWatching: boolean;
   // iOS video player selection
   videoPlayerIOS: VideoPlayerIOS;
+  // Appearance
+  hideRemoteSessionButton: boolean;
 };
 
 export interface Lockable<T> {
@@ -268,6 +270,8 @@ export const defaultValues: Settings = {
   mergeNextUpAndContinueWatching: false,
   // iOS video player selection - default to VLC
   videoPlayerIOS: VideoPlayerIOS.VLC,
+  // Appearance
+  hideRemoteSessionButton: false,
 };
 
 const loadSettings = (): Partial<Settings> => {

@@ -116,9 +116,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     {!Platform.isTV && (
                       <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
-                    {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
+                    {user?.Policy?.IsAdministrator &&
+                      !settings.hideRemoteSessionButton && (
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                      )}
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
@@ -134,9 +135,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     {!Platform.isTV && (
                       <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
-                    {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
+                    {user?.Policy?.IsAdministrator &&
+                      !settings.hideRemoteSessionButton && (
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                      )}
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
@@ -147,7 +149,13 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             )),
         });
       }
-    }, [item, navigation, user, itemWithSources]);
+    }, [
+      item,
+      navigation,
+      user,
+      itemWithSources,
+      settings.hideRemoteSessionButton,
+    ]);
 
     useEffect(() => {
       if (item) {

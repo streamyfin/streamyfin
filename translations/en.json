@@ -81,7 +81,8 @@
       },
       "appearance": {
         "title": "Appearance",
-        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up"
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
       },
       "user_info": {
         "user_info_title": "User Info",

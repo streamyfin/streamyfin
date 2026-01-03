@@ -67,6 +67,16 @@ export const AppearanceSettings: React.FC = () => {
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
+        <ListItem
+          title={t("home.settings.appearance.hide_remote_session_button")}
+        >
+          <Switch
+            value={settings.hideRemoteSessionButton}
+            onValueChange={(value) =>
+              updateSettings({ hideRemoteSessionButton: value })
+            }
+          />
+        </ListItem>
       </ListGroup>
     </DisabledSetting>
   );
