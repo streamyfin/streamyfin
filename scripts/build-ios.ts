@@ -111,6 +111,25 @@ function validateSchemeName(scheme: string): string {
   return scheme;
 }
 
+/**
+ * Validates a port number to ensure it's within valid range.
+ * Ports must be between 1024 and 65535 (avoiding privileged ports).
+ * @param port - The port number to validate
+ * @returns The validated port number
+ * @throws Error if port is invalid
+ */
+function validatePort(port: number): number {
+  if (!Number.isInteger(port)) {
+    throw new Error(`Port must be an integer, got: ${port}`);
+  }
+  if (port < 1024 || port > 65535) {
+    throw new Error(
+      `Port must be between 1024 and 65535 (got ${port}). Privileged ports (<1024) are not allowed.`,
+    );
+  }
+  return port;
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -198,9 +217,11 @@ function parseArgs(argv: string[]): BuildOptions {
         options.projectRoot = path.resolve(args[++i] || process.cwd());
         break;
       case "--port":
-      case "-p":
-        options.port = parseInt(args[++i], 10) || DEFAULT_METRO_PORT;
+      case "-p": {
+        const parsedPort = parseInt(args[++i], 10) || DEFAULT_METRO_PORT;
+        options.port = validatePort(parsedPort);
         break;
+      }
       case "--production":
         options.production = true;
         options.configuration = "Release";
