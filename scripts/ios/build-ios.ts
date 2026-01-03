@@ -475,6 +475,13 @@ function displayBuildError(
   }
 }
 
+/**
+ * Sleeps for a specified duration.
+ * @param ms - Duration in milliseconds
+ */
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 // =============================================================================
 // Platform Check
 // =============================================================================
@@ -878,7 +885,7 @@ async function waitForSimulatorBoot(
     }
 
     // Wait before next poll
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    await sleep(pollIntervalMs);
   }
 
   throw new Error(
