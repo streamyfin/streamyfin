@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import TrackPlayer, {
   Event,
+  type PlaybackActiveTrackChangedEvent,
   State,
   useActiveTrack,
   usePlaybackState,
@@ -63,15 +64,16 @@ export const MusicPlaybackEngine: React.FC = () => {
 
   // Listen for track end
   useEffect(() => {
-    const subscription = TrackPlayer.addEventListener(
-      Event.PlaybackActiveTrackChanged,
-      async (event) => {
-        // If there's no next track and the previous track ended, call onTrackEnd
-        if (event.lastTrack && !event.track) {
-          onTrackEnd();
-        }
-      },
-    );
+    const subscription =
+      TrackPlayer.addEventListener<PlaybackActiveTrackChangedEvent>(
+        Event.PlaybackActiveTrackChanged,
+        async (event) => {
+          // If there's no next track and the previous track ended, call onTrackEnd
+          if (event.lastTrack && !event.track) {
+            onTrackEnd();
+          }
+        },
+      );
 
     return () => subscription.remove();
   }, [onTrackEnd]);

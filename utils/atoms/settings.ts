@@ -266,8 +266,8 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
-  // iOS video player selection - default to KSPlayer
-  videoPlayerIOS: VideoPlayerIOS.KSPlayer,
+  // iOS video player selection - default to VLC
+  videoPlayerIOS: VideoPlayerIOS.VLC,
 };
 
 const loadSettings = (): Partial<Settings> => {

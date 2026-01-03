@@ -14,6 +14,7 @@ import React, {
 } from "react";
 import TrackPlayer, {
   Capability,
+  type Progress,
   RepeatMode as TPRepeatMode,
   type Track,
 } from "react-native-track-player";
@@ -699,7 +700,9 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   ]);
 
   const previous = useCallback(async () => {
-    const position = await TrackPlayer.getProgress().then((p) => p.position);
+    const position = await TrackPlayer.getProgress().then(
+      (p: Progress) => p.position,
+    );
 
     if (position > 3) {
       await TrackPlayer.seekTo(0);
@@ -940,8 +943,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
     // Remove all tracks except current
     const indicesToRemove = queue
-      .map((_, i) => i)
-      .filter((i) => i !== currentIndex);
+      .map((_: Track, i: number) => i)
+      .filter((i: number) => i !== currentIndex);
 
     // Remove in reverse order to not mess up indices
     for (const i of indicesToRemove.reverse()) {
