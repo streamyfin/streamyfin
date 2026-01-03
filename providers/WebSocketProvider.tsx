@@ -96,7 +96,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     newWebSocket.onmessage = (e) => {
       try {
         const message = JSON.parse(e.data);
-        console.log("[WS] Received message:", message);
         setLastMessage(message); // Store the last message in context
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
@@ -124,12 +123,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const handlePlayCommand = useCallback(
     (data: any) => {
       if (!data || !data.ItemIds || !data.ItemIds.length) {
-        console.warn("[WS] Received Play command with no items");
         return;
       }
 
       const itemId = data.ItemIds[0];
-      console.log(`[WS] Handling Play command for item: ${itemId}`);
 
       router.push({
         pathname: "/(auth)/player/direct-player",

@@ -18,7 +18,6 @@ interface BottomControlsProps {
   showRemoteBubble: boolean;
   currentTime: number;
   remainingTime: number;
-  isVlc: boolean;
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
@@ -67,7 +66,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showRemoteBubble,
   currentTime,
   remainingTime,
-  isVlc,
   showSkipButton,
   showSkipCreditButton,
   hasContentAfterCredits,
@@ -157,7 +155,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
                   ? false
                   : // Show during credits if no content after, OR near end of video
                     (showSkipCreditButton && !hasContentAfterCredits) ||
-                    (isVlc ? remainingTime < 10000 : remainingTime < 10)
+                    remainingTime < 10000
               }
               onFinish={handleNextEpisodeAutoPlay}
               onPress={handleNextEpisodeManual}
@@ -215,7 +213,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <TimeDisplay
             currentTime={currentTime}
             remainingTime={remainingTime}
-            isVlc={isVlc}
           />
         </View>
       </View>

@@ -60,7 +60,7 @@ export default function page() {
         ),
       });
     }
-  }, [navigation, value]);
+  }, [navigation, value, pluginSettings?.marlinServerUrl?.locked, t]);
 
   if (!settings) return null;
 
@@ -75,7 +75,10 @@ export default function page() {
       <DisabledSetting disabled={disabled} className='px-4'>
         <ListGroup>
           <DisabledSetting
-            disabled={pluginSettings?.searchEngine?.locked === true}
+            disabled={
+              pluginSettings?.searchEngine?.locked === true ||
+              !!pluginSettings?.streamyStatsServerUrl?.value
+            }
             showText={!pluginSettings?.marlinServerUrl?.locked}
           >
             <ListItem
@@ -89,6 +92,7 @@ export default function page() {
             >
               <Switch
                 value={settings.searchEngine === "Marlin"}
+                disabled={!!pluginSettings?.streamyStatsServerUrl?.value}
                 onValueChange={(value) => {
                   updateSettings({
                     searchEngine: value ? "Marlin" : "Jellyfin",

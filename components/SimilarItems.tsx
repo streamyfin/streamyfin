@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { HorizontalScroll } from "./common/HorizontalScroll";
 import { Text } from "./common/Text";
@@ -53,7 +54,7 @@ export const SimilarItems: React.FC<SimilarItemsProps> = ({
       <HorizontalScroll
         data={movies}
         loading={isLoading}
-        height={247}
+        height={POSTER_CAROUSEL_HEIGHT}
         noItemsText={t("item_card.no_similar_items_found")}
         renderItem={(item: BaseItemDto, idx: number) => (
           <TouchableItemRouter

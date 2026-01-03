@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { HorizontalScroll } from "../common/HorizontalScroll";
@@ -25,7 +26,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
       </Text>
       <HorizontalScroll
         data={[item]}
-        height={247}
+        height={POSTER_CAROUSEL_HEIGHT}
         renderItem={(item, _index) => (
           <TouchableOpacity
             key={item?.Id}
@@ -38,7 +39,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
               id={item?.Id}
               url={getPrimaryImageUrlById({ api, id: item?.ParentId })}
             />
-            <Text>{item?.SeriesName}</Text>
+            <Text numberOfLines={1}>{item?.SeriesName}</Text>
           </TouchableOpacity>
         )}
       />

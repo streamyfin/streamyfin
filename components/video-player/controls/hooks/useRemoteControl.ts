@@ -22,7 +22,6 @@ interface UseRemoteControlProps {
   progress: SharedValue<number>;
   min: SharedValue<number>;
   max: SharedValue<number>;
-  isVlc: boolean;
   showControls: boolean;
   isPlaying: boolean;
   seek: (value: number) => void;
@@ -34,11 +33,14 @@ interface UseRemoteControlProps {
   handleSeekBackward: (seconds: number) => void;
 }
 
+/**
+ * Hook to manage TV remote control interactions.
+ * MPV player uses milliseconds for time values.
+ */
 export function useRemoteControl({
   progress,
   min,
   max,
-  isVlc,
   showControls,
   isPlaying,
   seek,
@@ -61,21 +63,18 @@ export function useRemoteControl({
   const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const SCRUB_INTERVAL = isVlc
-    ? CONTROLS_CONSTANTS.SCRUB_INTERVAL_MS
-    : CONTROLS_CONSTANTS.SCRUB_INTERVAL_TICKS;
+  // MPV uses ms
+  const SCRUB_INTERVAL = CONTROLS_CONSTANTS.SCRUB_INTERVAL_MS;
 
-  const updateTime = useCallback(
-    (progressValue: number) => {
-      const progressInTicks = isVlc ? msToTicks(progressValue) : progressValue;
-      const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
-      const hours = Math.floor(progressInSeconds / 3600);
-      const minutes = Math.floor((progressInSeconds % 3600) / 60);
-      const seconds = progressInSeconds % 60;
-      setTime({ hours, minutes, seconds });
-    },
-    [isVlc],
-  );
+  const updateTime = useCallback((progressValue: number) => {
+    // Convert ms to ticks for calculation
+    const progressInTicks = msToTicks(progressValue);
+    const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
+    const hours = Math.floor(progressInSeconds / 3600);
+    const minutes = Math.floor((progressInSeconds % 3600) / 60);
+    const seconds = progressInSeconds % 60;
+    setTime({ hours, minutes, seconds });
+  }, []);
 
   // TV remote control handling (no-op on non-TV platforms)
   useTVEventHandler((evt) => {
@@ -102,7 +101,8 @@ export function useRemoteControl({
           Math.min(max.value, base + direction * SCRUB_INTERVAL),
         );
         remoteScrubProgress.value = updated;
-        const progressInTicks = isVlc ? msToTicks(updated) : updated;
+        // Convert ms to ticks for trickplay
+        const progressInTicks = msToTicks(updated);
         calculateTrickplayUrl(progressInTicks);
         updateTime(updated);
         break;
@@ -111,9 +111,8 @@ export function useRemoteControl({
         if (isRemoteScrubbing.value && remoteScrubProgress.value != null) {
           progress.value = remoteScrubProgress.value;
 
-          const seekTarget = isVlc
-            ? Math.max(0, remoteScrubProgress.value)
-            : Math.max(0, ticksToSeconds(remoteScrubProgress.value));
+          // MPV uses ms, seek expects ms
+          const seekTarget = Math.max(0, remoteScrubProgress.value);
 
           seek(seekTarget);
           if (isPlaying) play();
