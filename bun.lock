@@ -61,6 +61,7 @@
         "react-native-device-info": "^15.0.0",
         "react-native-edge-to-edge": "^1.7.0",
         "react-native-gesture-handler": "~2.28.0",
+        "react-native-glass-effect-view": "^1.0.0",
         "react-native-google-cast": "^4.9.1",
         "react-native-image-colors": "^2.4.0",
         "react-native-ios-context-menu": "^3.2.1",
@@ -1631,6 +1632,8 @@
     "react-native-edge-to-edge": ["react-native-edge-to-edge@1.7.0", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-ERegbsq28yoMndn/Uq49i4h6aAhMvTEjOfkFh50yX9H/dMjjCr/Tix/es/9JcPRvC+q7VzCMWfxWDUb6Jrq1OQ=="],
 
     "react-native-gesture-handler": ["react-native-gesture-handler@2.28.0", "", { "dependencies": { "@egjs/hammerjs": "^2.0.17", "hoist-non-react-statics": "^3.3.0", "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-0msfJ1vRxXKVgTgvL+1ZOoYw3/0z1R+Ked0+udoJhyplC2jbVKIJ8Z1bzWdpQRCV3QcQ87Op0zJVE5DhKK2A0A=="],
+
+    "react-native-glass-effect-view": ["react-native-glass-effect-view@1.0.0", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-ABYG0oIiqbXsxe2R/cMhNgDn3YgwDLz/2TIN2XOxQopXC+MiGsG9C32VYQvO2sYehcu5JmI3h3EzwLwl6lJhhA=="],
 
     "react-native-google-cast": ["react-native-google-cast@4.9.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-/HvIKAaWHtG6aTNCxrNrqA2ftWGkfH0M/2iN+28pdGUXpKmueb33mgL1m8D4zzwEODQMcmpfoCsym1IwDvugBQ=="],
 
