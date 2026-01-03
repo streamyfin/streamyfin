@@ -475,35 +475,48 @@ function assertPlatform(): void {
 function findXcodeProject(projectRoot: string): XcodeProject {
   const iosPath = path.join(projectRoot, "ios");
 
-  if (!fs.existsSync(iosPath)) {
-    log.error(`iOS directory not found at: ${iosPath}`);
+  try {
+    if (!fs.existsSync(iosPath)) {
+      log.error(`iOS directory not found at: ${iosPath}`);
+      log.info("Run `bunx expo prebuild` to generate the iOS project.");
+      process.exit(1);
+    }
+
+    let files: string[];
+    try {
+      files = fs.readdirSync(iosPath);
+    } catch (error: any) {
+      log.error(`Failed to read iOS directory: ${error.message}`);
+      log.info(`Check permissions for directory: ${iosPath}`);
+      process.exit(1);
+    }
+
+    // Prefer workspace over project
+    const workspace = files.find((f: string) => f.endsWith(".xcworkspace"));
+    if (workspace) {
+      return {
+        name: workspace,
+        isWorkspace: true,
+        path: path.join(iosPath, workspace),
+      };
+    }
+
+    const project = files.find((f: string) => f.endsWith(".xcodeproj"));
+    if (project) {
+      return {
+        name: project,
+        isWorkspace: false,
+        path: path.join(iosPath, project),
+      };
+    }
+
+    log.error("No Xcode project or workspace found in ios/ directory");
     log.info("Run `bunx expo prebuild` to generate the iOS project.");
     process.exit(1);
+  } catch (error: any) {
+    log.error(`Unexpected error finding Xcode project: ${error.message}`);
+    throw error;
   }
-
-  const files = fs.readdirSync(iosPath);
-
-  // Prefer workspace over project
-  const workspace = files.find((f: string) => f.endsWith(".xcworkspace"));
-  if (workspace) {
-    return {
-      name: workspace,
-      isWorkspace: true,
-      path: path.join(iosPath, workspace),
-    };
-  }
-
-  const project = files.find((f: string) => f.endsWith(".xcodeproj"));
-  if (project) {
-    return {
-      name: project,
-      isWorkspace: false,
-      path: path.join(iosPath, project),
-    };
-  }
-
-  log.error("No Xcode project or workspace found in ios/ directory");
-  process.exit(1);
 }
 
 // =============================================================================
