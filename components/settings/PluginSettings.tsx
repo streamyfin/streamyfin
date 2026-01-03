@@ -29,6 +29,11 @@ export const PluginSettings = () => {
         showArrow
       />
       <ListItem
+        onPress={() => router.push("/settings/plugins/streamystats/page")}
+        title='Streamystats'
+        showArrow
+      />
+      <ListItem
         onPress={() => router.push("/settings/plugins/kefinTweaks/page")}
         title='KefinTweaks'
         showArrow

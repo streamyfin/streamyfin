@@ -6,12 +6,14 @@ import { useTranslation } from "react-i18next";
 import { Switch, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
+import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { VideoPlayerSettings } from "./VideoPlayerSettings";
 
 export const PlaybackControlsSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -92,6 +94,21 @@ export const PlaybackControlsSettings: React.FC = () => {
     [settings?.maxAutoPlayEpisodeCount?.key, t, updateSettings],
   );
 
+  const playbackSpeedOptions = useMemo(
+    () => [
+      {
+        options: PLAYBACK_SPEEDS.map((speed) => ({
+          type: "radio" as const,
+          label: speed.label,
+          value: speed.value,
+          selected: speed.value === settings?.defaultPlaybackSpeed,
+          onPress: () => updateSettings({ defaultPlaybackSpeed: speed.value }),
+        })),
+      },
+    ],
+    [settings?.defaultPlaybackSpeed, updateSettings],
+  );
+
   if (!settings) return null;
 
   return (
@@ -159,6 +176,30 @@ export const PlaybackControlsSettings: React.FC = () => {
         </ListItem>
 
         <ListItem
+          title={t("home.settings.other.default_playback_speed")}
+          disabled={pluginSettings?.defaultPlaybackSpeed?.locked}
+        >
+          <PlatformDropdown
+            groups={playbackSpeedOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between pl-3 py-1.5'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {PLAYBACK_SPEEDS.find(
+                    (s) => s.value === settings.defaultPlaybackSpeed,
+                  )?.label ?? "1x"}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
+            }
+            title={t("home.settings.other.default_playback_speed")}
+          />
+        </ListItem>
+
+        <ListItem
           title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
         >
@@ -190,6 +231,8 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
       </ListGroup>
+
+      <VideoPlayerSettings />
     </DisabledSetting>
   );
 };

@@ -70,6 +70,7 @@ Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) To
   <a href="https://apps.apple.com/app/streamyfin/id6593660679?l=en-GB"><img height=50 alt="Get Streamyfin on App Store" src="./assets/Download_on_the_App_Store_Badge.png"/></a>
   <a href="https://play.google.com/store/apps/details?id=com.fredrikburmester.streamyfin"><img height=50 alt="Get Streamyfin on Google Play Store" src="./assets/Google_Play_Store_badge_EN.svg"/></a>
   <a href="https://github.com/streamyfin/streamyfin/releases/latest"><img height=50 alt="Get Streamyfin on Github" src="./assets/Download_on_Github_.png"/></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/streamyfin/streamyfin"><img height=50 alt="Add Streamyfin to Obtainium" src="./assets/Download_with_Obtainium.png"/></a>
 </div>
 
 ### 🧪 Beta Testing
@@ -104,6 +105,7 @@ You can contribute translations directly on our [Crowdin project page](https://c
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
 3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
+   - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `npm run ios:install-metal-toolchain` once
 4. Install BiomeJS extension in VSCode/Your IDE (https://biomejs.dev/)
 4. run `npm run prebuild`
 5. Create an expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app

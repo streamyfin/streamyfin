@@ -39,7 +39,6 @@ export default function index() {
     () =>
       data
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
-        .filter((l) => l.CollectionType !== "music")
         .filter((l) => l.CollectionType !== "books") || [],
     [data, settings?.hiddenLibraries],
   );
