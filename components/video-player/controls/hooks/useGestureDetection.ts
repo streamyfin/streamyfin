@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { GestureResponderEvent } from "react-native";
 
-const DOUBLE_TAP_DELAY_MS = 300;
+const DOUBLE_TAP_DELAY_MS = 230;
 
 export interface SwipeGestureOptions {
   minDistance?: number;
