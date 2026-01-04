@@ -5,15 +5,18 @@ import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicAlbumCard } from "@/components/music/MusicAlbumCard";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
+import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
+import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { writeDebugLog } from "@/utils/log";
 
@@ -28,6 +31,24 @@ export default function SuggestionsScreen() {
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+
+  const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
+  const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+
+  const handleTrackOptionsPress = useCallback((track: BaseItemDto) => {
+    setSelectedTrack(track);
+    setTrackOptionsOpen(true);
+  }, []);
+
+  const handleAddToPlaylist = useCallback(() => {
+    setPlaylistPickerOpen(true);
+  }, []);
+
+  const handleCreateNewPlaylist = useCallback(() => {
+    setCreatePlaylistOpen(true);
+  }, []);
 
   const isReady = Boolean(api && user?.Id && libraryId);
 
@@ -211,7 +232,8 @@ export default function SuggestionsScreen() {
     );
   }
 
-  if (isLoading) {
+  // Only show loading if we have no cached data to display
+  if (isLoading && sections.length === 0) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
         <Loader />
@@ -219,7 +241,12 @@ export default function SuggestionsScreen() {
     );
   }
 
-  if (isLatestError || isRecentlyPlayedError || isFrequentError) {
+  // Only show error if we have no cached data to display
+  // This allows offline access to previously cached suggestions
+  if (
+    (isLatestError || isRecentlyPlayedError || isFrequentError) &&
+    sections.length === 0
+  ) {
     const msg =
       (latestError as Error | undefined)?.message ||
       (recentlyPlayedError as Error | undefined)?.message ||
@@ -268,20 +295,38 @@ export default function SuggestionsScreen() {
                 renderItem={(item) => <MusicAlbumCard album={item} />}
               />
             ) : (
-              <View className='px-4'>
-                {section.data.slice(0, 5).map((track, index, _tracks) => (
+              section.data
+                .slice(0, 5)
+                .map((track, index, _tracks) => (
                   <MusicTrackItem
                     key={track.Id}
                     track={track}
                     index={index + 1}
                     queue={section.data}
+                    onOptionsPress={handleTrackOptionsPress}
                   />
-                ))}
-              </View>
+                ))
             )}
           </View>
         )}
         keyExtractor={(item) => item.title}
+      />
+      <TrackOptionsSheet
+        open={trackOptionsOpen}
+        setOpen={setTrackOptionsOpen}
+        track={selectedTrack}
+        onAddToPlaylist={handleAddToPlaylist}
+      />
+      <PlaylistPickerSheet
+        open={playlistPickerOpen}
+        setOpen={setPlaylistPickerOpen}
+        trackToAdd={selectedTrack}
+        onCreateNew={handleCreateNewPlaylist}
+      />
+      <CreatePlaylistModal
+        open={createPlaylistOpen}
+        setOpen={setCreatePlaylistOpen}
+        initialTrackId={selectedTrack?.Id}
       />
     </View>
   );

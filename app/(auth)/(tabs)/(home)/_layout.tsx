@@ -167,6 +167,24 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name='settings/music/page'
+        options={{
+          title: t("home.settings.music.title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Stack.Screen
         name='settings/appearance/hide-libraries/page'
         options={{
           title: t("home.settings.other.hide_libraries"),

@@ -123,7 +123,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
-                    <AddToWatchlist item={item} />
+                    {settings.streamyStatsServerUrl &&
+                      !settings.hideWatchlistsTab && (
+                        <AddToWatchlist item={item} />
+                      )}
                   </View>
                 )}
               </View>
@@ -142,7 +145,10 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
-                    <AddToWatchlist item={item} />
+                    {settings.streamyStatsServerUrl &&
+                      !settings.hideWatchlistsTab && (
+                        <AddToWatchlist item={item} />
+                      )}
                   </View>
                 )}
               </View>
@@ -155,6 +161,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       user,
       itemWithSources,
       settings.hideRemoteSessionButton,
+      settings.streamyStatsServerUrl,
+      settings.hideWatchlistsTab,
     ]);
 
     useEffect(() => {
