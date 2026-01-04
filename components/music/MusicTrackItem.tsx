@@ -1,11 +1,17 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import React, { useCallback, useMemo } from "react";
-import { TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import {
+  audioStorageEvents,
+  getLocalPath,
+  isPermanentDownloading,
+  isPermanentlyDownloaded,
+} from "@/providers/AudioStorage";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -16,6 +22,7 @@ interface Props {
   index?: number;
   queue?: BaseItemDto[];
   showArtwork?: boolean;
+  onOptionsPress?: (track: BaseItemDto) => void;
 }
 
 export const MusicTrackItem: React.FC<Props> = ({
@@ -23,11 +30,12 @@ export const MusicTrackItem: React.FC<Props> = ({
   index,
   queue,
   showArtwork = true,
+  onOptionsPress,
 }) => {
   const [api] = useAtom(apiAtom);
-  const { showActionSheetWithOptions } = useActionSheet();
-  const { playTrack, playNext, addToQueue, currentTrack, isPlaying } =
+  const { playTrack, currentTrack, isPlaying, loadingTrackId } =
     useMusicPlayer();
+  const { isConnected, serverConnected } = useNetworkStatus();
 
   const imageUrl = useMemo(() => {
     const albumId = track.AlbumId || track.ParentId;
@@ -38,6 +46,53 @@ export const MusicTrackItem: React.FC<Props> = ({
   }, [api, track]);
 
   const isCurrentTrack = currentTrack?.Id === track.Id;
+  const isTrackLoading = loadingTrackId === track.Id;
+
+  // Track download status with reactivity to completion events
+  // Only track permanent downloads - we don't show UI for auto-caching
+  const [downloadStatus, setDownloadStatus] = useState<
+    "none" | "downloading" | "downloaded"
+  >(() => {
+    if (isPermanentlyDownloaded(track.Id)) return "downloaded";
+    if (isPermanentDownloading(track.Id)) return "downloading";
+    return "none";
+  });
+
+  // Listen for download completion/error events (only for permanent downloads)
+  useEffect(() => {
+    const onComplete = (event: { itemId: string; permanent: boolean }) => {
+      if (event.itemId === track.Id && event.permanent) {
+        setDownloadStatus("downloaded");
+      }
+    };
+    const onError = (event: { itemId: string }) => {
+      if (event.itemId === track.Id) {
+        setDownloadStatus("none");
+      }
+    };
+
+    audioStorageEvents.on("complete", onComplete);
+    audioStorageEvents.on("error", onError);
+
+    return () => {
+      audioStorageEvents.off("complete", onComplete);
+      audioStorageEvents.off("error", onError);
+    };
+  }, [track.Id]);
+
+  // Also check periodically if permanent download started (for when download is triggered externally)
+  useEffect(() => {
+    if (downloadStatus === "none" && isPermanentDownloading(track.Id)) {
+      setDownloadStatus("downloading");
+    }
+  });
+
+  const _isDownloaded = downloadStatus === "downloaded";
+  // Check if available locally (either cached or permanently downloaded)
+  const isAvailableLocally = !!getLocalPath(track.Id);
+  // Consider offline if either no network connection OR server is unreachable
+  const isOffline = !isConnected || serverConnected === false;
+  const isUnavailableOffline = isOffline && !isAvailableLocally;
 
   const duration = useMemo(() => {
     if (!track.RunTimeTicks) return "";
@@ -45,36 +100,26 @@ export const MusicTrackItem: React.FC<Props> = ({
   }, [track.RunTimeTicks]);
 
   const handlePress = useCallback(() => {
+    if (isUnavailableOffline) return;
     playTrack(track, queue);
-  }, [playTrack, track, queue]);
+  }, [playTrack, track, queue, isUnavailableOffline]);
 
   const handleLongPress = useCallback(() => {
-    const options = ["Play Next", "Add to Queue", "Cancel"];
-    const cancelButtonIndex = 2;
+    onOptionsPress?.(track);
+  }, [onOptionsPress, track]);
 
-    showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-        title: track.Name ?? undefined,
-        message: (track.Artists?.join(", ") || track.AlbumArtist) ?? undefined,
-      },
-      (selectedIndex) => {
-        if (selectedIndex === 0) {
-          playNext(track);
-        } else if (selectedIndex === 1) {
-          addToQueue(track);
-        }
-      },
-    );
-  }, [showActionSheetWithOptions, track, playNext, addToQueue]);
+  const handleOptionsPress = useCallback(() => {
+    onOptionsPress?.(track);
+  }, [onOptionsPress, track]);
 
   return (
     <TouchableOpacity
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={300}
+      disabled={isUnavailableOffline}
       className={`flex flex-row items-center py-3 ${isCurrentTrack ? "bg-purple-900/20" : ""}`}
+      style={isUnavailableOffline ? { opacity: 0.5 } : undefined}
     >
       {index !== undefined && (
         <View className='w-8 items-center'>
@@ -109,10 +154,26 @@ export const MusicTrackItem: React.FC<Props> = ({
               <Ionicons name='musical-note' size={20} color='#737373' />
             </View>
           )}
+          {isTrackLoading && (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.6)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <ActivityIndicator size='small' color='white' />
+            </View>
+          )}
         </View>
       )}
 
-      <View className='flex-1 mr-4'>
+      <View className='flex-1 mr-3'>
         <Text
           numberOfLines={1}
           className={`text-sm ${isCurrentTrack ? "text-purple-400 font-medium" : "text-white"}`}
@@ -124,7 +185,34 @@ export const MusicTrackItem: React.FC<Props> = ({
         </Text>
       </View>
 
-      <Text className='text-neutral-500 text-xs'>{duration}</Text>
+      <Text className='text-neutral-500 text-xs mr-2'>{duration}</Text>
+
+      {/* Download status indicator */}
+      {downloadStatus === "downloading" && (
+        <ActivityIndicator
+          size={14}
+          color='#9334E9'
+          style={{ marginRight: 8 }}
+        />
+      )}
+      {downloadStatus === "downloaded" && (
+        <Ionicons
+          name='checkmark-circle'
+          size={16}
+          color='#22c55e'
+          style={{ marginRight: 8 }}
+        />
+      )}
+
+      {onOptionsPress && (
+        <TouchableOpacity
+          onPress={handleOptionsPress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className='p-1'
+        >
+          <Ionicons name='ellipsis-vertical' size={18} color='#737373' />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };

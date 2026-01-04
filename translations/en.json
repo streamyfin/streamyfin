@@ -81,7 +81,8 @@
       },
       "appearance": {
         "title": "Appearance",
-        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up"
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
       },
       "user_info": {
         "user_info_title": "User Info",
@@ -113,7 +114,11 @@
         "left_side_brightness": "Left Side Brightness Control",
         "left_side_brightness_description": "Swipe up/down on left side to adjust brightness",
         "right_side_volume": "Right Side Volume Control",
-        "right_side_volume_description": "Swipe up/down on right side to adjust volume"
+        "right_side_volume_description": "Swipe up/down on right side to adjust volume",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
       },
       "audio": {
         "audio_title": "Audio",
@@ -213,11 +218,23 @@
         "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable Haptic Feedback",
         "default_quality": "Default Quality",
+        "default_playback_speed": "Default Playback Speed",
         "max_auto_play_episode_count": "Max Auto Play Episode Count",
         "disabled": "Disabled"
       },
       "downloads": {
         "downloads_title": "Downloads"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Plugins",
@@ -271,6 +288,7 @@
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
           "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
           "recommended_movies": "Recommended Movies",
           "recommended_series": "Recommended Series",
@@ -291,7 +309,16 @@
         "app_usage": "App {{usedSpace}}%",
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} Used",
-        "delete_all_downloaded_files": "Delete All Downloaded Files"
+        "delete_all_downloaded_files": "Delete All Downloaded Files",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
         "title": "Intro",
@@ -384,7 +411,9 @@
     "subtitle": "Subtitle",
     "play": "Play",
     "none": "None",
-    "track": "Track"
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete"
   },
   "search": {
     "search": "Search...",
@@ -597,7 +626,8 @@
       "suggestions": "Suggestions",
       "albums": "Albums",
       "artists": "Artists",
-      "playlists": "Playlists"
+      "playlists": "Playlists",
+      "tracks": "tracks"
     },
     "filters": {
       "all": "All"
@@ -616,7 +646,41 @@
     "no_playlists": "No playlists found",
     "album_not_found": "Album not found",
     "artist_not_found": "Artist not found",
-    "playlist_not_found": "Playlist not found"
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    }
   },
   "watchlists": {
     "title": "Watchlists",
@@ -662,5 +726,15 @@
     "loading": "Loading watchlists...",
     "no_compatible_watchlists": "No compatible watchlists",
     "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

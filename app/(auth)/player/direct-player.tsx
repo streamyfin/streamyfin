@@ -24,9 +24,14 @@ import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
+import {
+  PlaybackSpeedScope,
+  updatePlaybackSpeedSettings,
+} from "@/components/video-player/controls/utils/playback-speed-settings";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
@@ -56,11 +61,11 @@ export default function page() {
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
-  const [isPipMode, _setIsPipMode] = useState(false);
+  const [isPipMode, setIsPipMode] = useState(false);
   const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
     "default",
   );
@@ -71,6 +76,7 @@ export default function page() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
+  const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -135,6 +141,31 @@ export default function page() {
     isLoading: true,
     isError: false,
   });
+
+  // Get the playback speed for this item based on settings
+  const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
+    item,
+    settings,
+  );
+
+  // Handler for changing playback speed
+  const handleSetPlaybackSpeed = useCallback(
+    async (speed: number, scope: PlaybackSpeedScope) => {
+      // Update settings based on scope
+      updatePlaybackSpeedSettings(
+        speed,
+        scope,
+        item ?? undefined,
+        settings,
+        updateSettings,
+      );
+
+      // Apply speed to the current player (MPV)
+      setCurrentPlaybackSpeed(speed);
+      await videoRef.current?.setSpeed?.(speed);
+    },
+    [item, settings, updateSettings],
+  );
 
   /** Gets the initial playback position from the URL. */
   const getInitialPlaybackTicks = useCallback((): number => {
@@ -629,6 +660,19 @@ export default function page() {
     [playbackManager, item?.Id, progress],
   );
 
+  /** PiP handler for MPV */
+  const onPictureInPictureChange = useCallback(
+    (e: { nativeEvent: { isActive: boolean } }) => {
+      const { isActive } = e.nativeEvent;
+      setIsPipMode(isActive);
+      // Hide controls when entering PiP
+      if (isActive) {
+        _setShowControls(false);
+      }
+    },
+    [],
+  );
+
   const [isMounted, setIsMounted] = useState(false);
 
   // Add useEffect to handle mounting
@@ -693,6 +737,20 @@ export default function page() {
     applySubtitleSettings();
   }, [isVideoLoaded, settings]);
 
+  // Apply initial playback speed when video loads
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current) return;
+
+    const applyInitialPlaybackSpeed = async () => {
+      if (initialPlaybackSpeed !== 1.0) {
+        setCurrentPlaybackSpeed(initialPlaybackSpeed);
+        await videoRef.current?.setSpeed?.(initialPlaybackSpeed);
+      }
+    };
+
+    applyInitialPlaybackSpeed();
+  }, [isVideoLoaded, initialPlaybackSpeed]);
+
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
     return (
@@ -752,6 +810,7 @@ export default function page() {
               style={{ width: "100%", height: "100%" }}
               onProgress={onProgress}
               onPlaybackStateChange={onPlaybackStateChanged}
+              onPictureInPictureChange={onPictureInPictureChange}
               onLoad={() => setIsVideoLoaded(true)}
               onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                 console.error("Video Error:", e.nativeEvent);
@@ -805,6 +864,8 @@ export default function page() {
               onZoomToggle={handleZoomToggle}
               api={api}
               downloadedFiles={downloadedFiles}
+              playbackSpeed={currentPlaybackSpeed}
+              setPlaybackSpeed={handleSetPlaybackSpeed}
             />
           )}
         </View>

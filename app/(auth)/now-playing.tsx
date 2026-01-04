@@ -1,27 +1,49 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
-  FlatList,
   Platform,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
+import DraggableFlatList, {
+  type RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
   useMusicPlayer,
 } from "@/providers/MusicPlayerProvider";
+import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
+
+const formatFileSize = (bytes?: number | null) => {
+  if (!bytes) return null;
+  const sizes = ["B", "KB", "MB", "GB"];
+  if (bytes === 0) return "0 B";
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${Math.round((bytes / 1024 ** i) * 100) / 100} ${sizes[i]}`;
+};
+
+const formatSampleRate = (sampleRate?: number | null) => {
+  if (!sampleRate) return null;
+  return `${(sampleRate / 1000).toFixed(1)} kHz`;
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ARTWORK_SIZE = SCREEN_WIDTH - 80;
@@ -39,10 +61,13 @@ export default function NowPlayingScreen() {
     queue,
     queueIndex,
     isPlaying,
+    isLoading,
     progress,
     duration,
     repeatMode,
     shuffleEnabled,
+    mediaSource,
+    isTranscoding,
     togglePlayPause,
     next,
     previous,
@@ -51,6 +76,7 @@ export default function NowPlayingScreen() {
     toggleShuffle,
     jumpToIndex,
     removeFromQueue,
+    reorderQueue,
     stop,
   } = useMusicPlayer();
 
@@ -96,7 +122,7 @@ export default function NowPlayingScreen() {
     router.back();
   }, [router]);
 
-  const handleStop = useCallback(() => {
+  const _handleStop = useCallback(() => {
     stop();
     router.back();
   }, [stop, router]);
@@ -184,14 +210,7 @@ export default function NowPlayingScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          onPress={handleStop}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className='p-2'
-        >
-          <Ionicons name='close' size={24} color='#666' />
-        </TouchableOpacity>
+        <View style={{ width: 16 }} />
       </View>
 
       {viewMode === "player" ? (
@@ -205,6 +224,7 @@ export default function NowPlayingScreen() {
           progressText={progressText}
           durationText={durationText}
           isPlaying={isPlaying}
+          isLoading={isLoading}
           repeatMode={repeatMode}
           shuffleEnabled={shuffleEnabled}
           canGoNext={canGoNext}
@@ -218,6 +238,8 @@ export default function NowPlayingScreen() {
           getRepeatIcon={getRepeatIcon}
           queue={queue}
           queueIndex={queueIndex}
+          mediaSource={mediaSource}
+          isTranscoding={isTranscoding}
         />
       ) : (
         <QueueView
@@ -226,6 +248,7 @@ export default function NowPlayingScreen() {
           queueIndex={queueIndex}
           onJumpToIndex={jumpToIndex}
           onRemoveFromQueue={removeFromQueue}
+          onReorderQueue={reorderQueue}
         />
       )}
     </View>
@@ -242,6 +265,7 @@ interface PlayerViewProps {
   progressText: string;
   durationText: string;
   isPlaying: boolean;
+  isLoading: boolean;
   repeatMode: RepeatMode;
   shuffleEnabled: boolean;
   canGoNext: boolean;
@@ -255,6 +279,8 @@ interface PlayerViewProps {
   getRepeatIcon: () => string;
   queue: BaseItemDto[];
   queueIndex: number;
+  mediaSource: MediaSourceInfo | null;
+  isTranscoding: boolean;
 }
 
 const PlayerView: React.FC<PlayerViewProps> = ({
@@ -266,6 +292,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   progressText,
   durationText,
   isPlaying,
+  isLoading,
   repeatMode,
   shuffleEnabled,
   canGoNext,
@@ -279,7 +306,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   getRepeatIcon,
   queue,
   queueIndex,
+  mediaSource,
+  isTranscoding,
 }) => {
+  const audioStream = useMemo(() => {
+    return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
+  }, [mediaSource]);
+
+  const fileSize = formatFileSize(mediaSource?.Size);
+  const codec = audioStream?.Codec?.toUpperCase();
+  const bitrate = formatBitrate(audioStream?.BitRate);
+  const sampleRate = formatSampleRate(audioStream?.SampleRate);
+  const playbackMethod = isTranscoding ? "Transcoding" : "Direct";
+
+  const hasAudioStats =
+    mediaSource && (fileSize || codec || bitrate || sampleRate);
   return (
     <ScrollView className='flex-1 px-6' showsVerticalScrollIndicator={false}>
       {/* Album artwork */}
@@ -325,6 +366,29 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             {currentTrack.Album}
           </Text>
         )}
+
+        {/* Audio Stats */}
+        {hasAudioStats && (
+          <View className='flex-row flex-wrap gap-1.5 mt-3'>
+            {fileSize && <Badge variant='gray' text={fileSize} />}
+            {codec && <Badge variant='gray' text={codec} />}
+            <Badge
+              variant='gray'
+              text={playbackMethod}
+              iconLeft={
+                <Ionicons
+                  name={isTranscoding ? "swap-horizontal" : "play"}
+                  size={12}
+                  color='white'
+                />
+              }
+            />
+            {bitrate && bitrate !== "N/A" && (
+              <Badge variant='gray' text={bitrate} />
+            )}
+            {sampleRate && <Badge variant='gray' text={sampleRate} />}
+          </View>
+        )}
       </View>
 
       {/* Progress slider */}
@@ -352,40 +416,45 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </View>
 
       {/* Main Controls */}
-      <View className='flex flex-row items-center justify-center mb-4'>
+      <View className='flex flex-row items-center justify-center mb-2'>
         <TouchableOpacity
           onPress={onPrevious}
-          disabled={!canGoPrevious}
+          disabled={!canGoPrevious || isLoading}
           className='p-4'
-          style={{ opacity: canGoPrevious ? 1 : 0.3 }}
+          style={{ opacity: canGoPrevious && !isLoading ? 1 : 0.3 }}
         >
           <Ionicons name='play-skip-back' size={32} color='white' />
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={onTogglePlayPause}
+          disabled={isLoading}
           className='mx-8 bg-white rounded-full p-4'
         >
-          <Ionicons
-            name={isPlaying ? "pause" : "play"}
-            size={36}
-            color='#121212'
-            style={isPlaying ? {} : { marginLeft: 4 }}
-          />
+          {isLoading ? (
+            <ActivityIndicator size={36} color='#121212' />
+          ) : (
+            <Ionicons
+              name={isPlaying ? "pause" : "play"}
+              size={36}
+              color='#121212'
+              style={isPlaying ? {} : { marginLeft: 4 }}
+            />
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={onNext}
-          disabled={!canGoNext}
+          disabled={!canGoNext || isLoading}
           className='p-4'
-          style={{ opacity: canGoNext ? 1 : 0.3 }}
+          style={{ opacity: canGoNext && !isLoading ? 1 : 0.3 }}
         >
           <Ionicons name='play-skip-forward' size={32} color='white' />
         </TouchableOpacity>
       </View>
 
       {/* Shuffle & Repeat Controls */}
-      <View className='flex flex-row items-center justify-center mb-6'>
+      <View className='flex flex-row items-center justify-center mb-2'>
         <TouchableOpacity onPress={onToggleShuffle} className='p-3 mx-4'>
           <Ionicons
             name='shuffle'
@@ -401,7 +470,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             color={repeatMode !== "off" ? "#9334E9" : "#666"}
           />
           {repeatMode === "one" && (
-            <View className='absolute -top-1 -right-1 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
+            <View className='absolute right-0 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
               <Text className='text-white text-[10px] font-bold'>1</Text>
             </View>
           )}
@@ -410,7 +479,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
       {/* Queue info */}
       {queue.length > 1 && (
-        <View className='items-center mb-8'>
+        <View className='items-center mb-4'>
           <Text className='text-neutral-500 text-sm'>
             {queueIndex + 1} of {queue.length}
           </Text>
@@ -426,6 +495,7 @@ interface QueueViewProps {
   queueIndex: number;
   onJumpToIndex: (index: number) => void;
   onRemoveFromQueue: (index: number) => void;
+  onReorderQueue: (newQueue: BaseItemDto[]) => void;
 }
 
 const QueueView: React.FC<QueueViewProps> = ({
@@ -434,9 +504,11 @@ const QueueView: React.FC<QueueViewProps> = ({
   queueIndex,
   onJumpToIndex,
   onRemoveFromQueue,
+  onReorderQueue,
 }) => {
   const renderQueueItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => {
+    ({ item, drag, isActive, getIndex }: RenderItemParams<BaseItemDto>) => {
+      const index = getIndex() ?? 0;
       const isCurrentTrack = index === queueIndex;
       const isPast = index < queueIndex;
 
@@ -448,80 +520,102 @@ const QueueView: React.FC<QueueViewProps> = ({
         : null;
 
       return (
-        <TouchableOpacity
-          onPress={() => onJumpToIndex(index)}
-          className={`flex-row items-center px-4 py-3 ${isCurrentTrack ? "bg-purple-900/30" : ""}`}
-          style={{ opacity: isPast ? 0.5 : 1 }}
-        >
-          {/* Track number / Now playing indicator */}
-          <View className='w-8 items-center'>
-            {isCurrentTrack ? (
-              <Ionicons name='musical-note' size={16} color='#9334E9' />
-            ) : (
-              <Text className='text-neutral-500 text-sm'>{index + 1}</Text>
-            )}
-          </View>
-
-          {/* Album art */}
-          <View className='w-12 h-12 rounded overflow-hidden bg-neutral-800 mr-3'>
-            {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit='cover'
-                cachePolicy='memory-disk'
-              />
-            ) : (
-              <View className='flex-1 items-center justify-center'>
-                <Ionicons name='musical-note' size={16} color='#666' />
-              </View>
-            )}
-          </View>
-
-          {/* Track info */}
-          <View className='flex-1 mr-2'>
-            <Text
-              numberOfLines={1}
-              className={`text-base ${isCurrentTrack ? "text-purple-400 font-semibold" : "text-white"}`}
-            >
-              {item.Name}
-            </Text>
-            <Text numberOfLines={1} className='text-neutral-500 text-sm'>
-              {item.Artists?.join(", ") || item.AlbumArtist}
-            </Text>
-          </View>
-
-          {/* Remove button (not for current track) */}
-          {!isCurrentTrack && (
+        <ScaleDecorator>
+          <TouchableOpacity
+            onPress={() => onJumpToIndex(index)}
+            onLongPress={drag}
+            disabled={isActive}
+            className='flex-row items-center px-4 py-3'
+            style={{
+              opacity: isPast && !isActive ? 0.5 : 1,
+              backgroundColor: isActive
+                ? "#2a2a2a"
+                : isCurrentTrack
+                  ? "rgba(147, 52, 233, 0.3)"
+                  : "#121212",
+            }}
+          >
+            {/* Drag handle */}
             <TouchableOpacity
-              onPress={() => onRemoveFromQueue(index)}
+              onPressIn={drag}
+              disabled={isActive}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              className='p-2'
+              className='pr-2'
             >
-              <Ionicons name='close' size={20} color='#666' />
+              <Ionicons
+                name='reorder-three'
+                size={20}
+                color={isActive ? "#9334E9" : "#666"}
+              />
             </TouchableOpacity>
-          )}
-        </TouchableOpacity>
+
+            {/* Album art */}
+            <View className='w-12 h-12 rounded overflow-hidden bg-neutral-800 mr-3'>
+              {imageUrl ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit='cover'
+                  cachePolicy='memory-disk'
+                />
+              ) : (
+                <View className='flex-1 items-center justify-center'>
+                  <Ionicons name='musical-note' size={16} color='#666' />
+                </View>
+              )}
+            </View>
+
+            {/* Track info */}
+            <View className='flex-1 mr-2'>
+              <Text
+                numberOfLines={1}
+                className={`text-base ${isCurrentTrack ? "text-purple-400 font-semibold" : "text-white"}`}
+              >
+                {item.Name}
+              </Text>
+              <Text numberOfLines={1} className='text-neutral-500 text-sm'>
+                {item.Artists?.join(", ") || item.AlbumArtist}
+              </Text>
+            </View>
+
+            {/* Now playing indicator */}
+            {isCurrentTrack && (
+              <Ionicons name='musical-note' size={16} color='#9334E9' />
+            )}
+
+            {/* Remove button (not for current track) */}
+            {!isCurrentTrack && (
+              <TouchableOpacity
+                onPress={() => onRemoveFromQueue(index)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                className='p-2'
+              >
+                <Ionicons name='close' size={20} color='#666' />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </ScaleDecorator>
       );
     },
     [api, queueIndex, onJumpToIndex, onRemoveFromQueue],
   );
 
-  const _upNext = queue.slice(queueIndex + 1);
+  const handleDragEnd = useCallback(
+    ({ data }: { data: BaseItemDto[] }) => {
+      onReorderQueue(data);
+    },
+    [onReorderQueue],
+  );
+
   const history = queue.slice(0, queueIndex);
 
   return (
-    <FlatList
+    <DraggableFlatList
       data={queue}
       keyExtractor={(item, index) => `${item.Id}-${index}`}
       renderItem={renderQueueItem}
+      onDragEnd={handleDragEnd}
       showsVerticalScrollIndicator={false}
-      initialScrollIndex={queueIndex > 2 ? queueIndex - 2 : 0}
-      getItemLayout={(_, index) => ({
-        length: 72,
-        offset: 72 * index,
-        index,
-      })}
       ListHeaderComponent={
         <View className='px-4 py-2'>
           <Text className='text-neutral-400 text-xs uppercase tracking-wider'>

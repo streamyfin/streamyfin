@@ -2,7 +2,9 @@ import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
@@ -188,8 +190,18 @@ export default function RootLayout() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30000,
+      staleTime: 30000, // 30 seconds - data is fresh
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep in cache for persistence
     },
+  },
+});
+
+// Create MMKV-based persister for offline support
+const mmkvPersister = createSyncStoragePersister({
+  storage: {
+    getItem: (key) => storage.getString(key) ?? null,
+    setItem: (key, value) => storage.set(key, value),
+    removeItem: (key) => storage.remove(key),
   },
 });
 
@@ -338,7 +350,19 @@ function Layout() {
   }, [user]);
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: mmkvPersister,
+        maxAge: 1000 * 60 * 60 * 24, // 24 hours max cache age
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => {
+            // Only persist successful queries
+            return query.state.status === "success";
+          },
+        },
+      }}
+    >
       <JellyfinProvider>
         <NetworkStatusProvider>
           <PlaySettingsProvider>
@@ -410,6 +434,6 @@ function Layout() {
           </PlaySettingsProvider>
         </NetworkStatusProvider>
       </JellyfinProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

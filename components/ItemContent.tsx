@@ -116,13 +116,17 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     {!Platform.isTV && (
                       <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
-                    {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
+                    {user?.Policy?.IsAdministrator &&
+                      !settings.hideRemoteSessionButton && (
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                      )}
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
-                    <AddToWatchlist item={item} />
+                    {settings.streamyStatsServerUrl &&
+                      !settings.hideWatchlistsTab && (
+                        <AddToWatchlist item={item} />
+                      )}
                   </View>
                 )}
               </View>
@@ -134,20 +138,32 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                     {!Platform.isTV && (
                       <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
-                    {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
+                    {user?.Policy?.IsAdministrator &&
+                      !settings.hideRemoteSessionButton && (
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                      )}
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
-                    <AddToWatchlist item={item} />
+                    {settings.streamyStatsServerUrl &&
+                      !settings.hideWatchlistsTab && (
+                        <AddToWatchlist item={item} />
+                      )}
                   </View>
                 )}
               </View>
             )),
         });
       }
-    }, [item, navigation, user, itemWithSources]);
+    }, [
+      item,
+      navigation,
+      user,
+      itemWithSources,
+      settings.hideRemoteSessionButton,
+      settings.streamyStatsServerUrl,
+      settings.hideWatchlistsTab,
+    ]);
 
     useEffect(() => {
       if (item) {

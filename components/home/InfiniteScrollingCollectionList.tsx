@@ -178,11 +178,11 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           decelerationRate='fast'
         >
           <View className='px-4 flex flex-row'>
-            {allItems.map((item) => (
+            {allItems.map((item, index) => (
               <TouchableItemRouter
                 item={item}
-                key={item.Id}
-                className={`mr-2 
+                key={`${item.Id}-${index}`}
+                className={`mr-2
                   ${orientation === "horizontal" ? "w-44" : "w-28"}
                 `}
               >

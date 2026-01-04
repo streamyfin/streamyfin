@@ -35,6 +35,7 @@ import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { useControlsTimeout } from "./useControlsTimeout";
+import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
@@ -54,12 +55,14 @@ interface Props {
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
-  setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   aspectRatio?: AspectRatio;
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
   api?: Api | null;
   downloadedFiles?: DownloadedItem[];
+  // Playback speed props
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
 }
 
 export const Controls: FC<Props> = ({
@@ -77,13 +80,14 @@ export const Controls: FC<Props> = ({
   showControls,
   setShowControls,
   mediaSource,
-  setVideoAspectRatio,
   aspectRatio = "default",
   isZoomedToFill = false,
   onZoomToggle,
   offline = false,
   api = null,
   downloadedFiles = undefined,
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
 }) => {
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
@@ -469,9 +473,10 @@ export const Controls: FC<Props> = ({
               previousItem={previousItem}
               nextItem={nextItem}
               aspectRatio={aspectRatio}
-              setVideoAspectRatio={setVideoAspectRatio}
               isZoomedToFill={isZoomedToFill}
               onZoomToggle={onZoomToggle}
+              playbackSpeed={playbackSpeed}
+              setPlaybackSpeed={setPlaybackSpeed}
             />
           </Animated.View>
           <Animated.View
