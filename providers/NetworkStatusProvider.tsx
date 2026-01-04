@@ -24,7 +24,7 @@ const NetworkStatusContext = createContext<NetworkStatusContextType | null>(
 async function checkApiReachable(basePath?: string): Promise<boolean> {
   if (!basePath) return false;
   try {
-    const response = await fetch(basePath, { method: "HEAD" });
+    const response = await fetch(basePath + "/", { method: "HEAD" });
     return response.ok;
   } catch {
     return false;
