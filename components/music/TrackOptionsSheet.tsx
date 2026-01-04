@@ -42,6 +42,8 @@ interface Props {
   setOpen: (open: boolean) => void;
   track: BaseItemDto | null;
   onAddToPlaylist: () => void;
+  playlistId?: string;
+  onRemoveFromPlaylist?: () => void;
 }
 
 export const TrackOptionsSheet: React.FC<Props> = ({
@@ -49,6 +51,8 @@ export const TrackOptionsSheet: React.FC<Props> = ({
   setOpen,
   track,
   onAddToPlaylist,
+  playlistId,
+  onRemoveFromPlaylist,
 }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const [api] = useAtom(apiAtom);
@@ -131,6 +135,13 @@ export const TrackOptionsSheet: React.FC<Props> = ({
       onAddToPlaylist();
     }, 300);
   }, [onAddToPlaylist, setOpen]);
+
+  const handleRemoveFromPlaylist = useCallback(() => {
+    if (onRemoveFromPlaylist) {
+      onRemoveFromPlaylist();
+      setOpen(false);
+    }
+  }, [onRemoveFromPlaylist, setOpen]);
 
   const handleDownload = useCallback(async () => {
     if (!track?.Id || !api || !user?.Id || isAlreadyDownloaded) return;
@@ -297,6 +308,21 @@ export const TrackOptionsSheet: React.FC<Props> = ({
               {t("music.track_options.add_to_playlist")}
             </Text>
           </TouchableOpacity>
+
+          {playlistId && (
+            <>
+              <View style={styles.separator} />
+              <TouchableOpacity
+                onPress={handleRemoveFromPlaylist}
+                className='flex-row items-center px-4 py-3.5'
+              >
+                <Ionicons name='trash-outline' size={22} color='#ef4444' />
+                <Text className='text-red-500 ml-4 text-base'>
+                  {t("music.track_options.remove_from_playlist")}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           <View style={styles.separator} />
 

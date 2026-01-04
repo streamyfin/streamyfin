@@ -21,6 +21,7 @@ import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
+import { useRemoveFromPlaylist } from "@/hooks/usePlaylistMutations";
 import { downloadTrack, getLocalPath } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
@@ -46,6 +47,8 @@ export default function PlaylistDetailScreen() {
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  const removeFromPlaylist = useRemoveFromPlaylist();
+
   const handleTrackOptionsPress = useCallback((track: BaseItemDto) => {
     setSelectedTrack(track);
     setTrackOptionsOpen(true);
@@ -58,6 +61,15 @@ export default function PlaylistDetailScreen() {
   const handleCreateNewPlaylist = useCallback(() => {
     setCreatePlaylistOpen(true);
   }, []);
+
+  const handleRemoveFromPlaylist = useCallback(() => {
+    if (selectedTrack?.Id && playlistId) {
+      removeFromPlaylist.mutate({
+        playlistId,
+        entryIds: [selectedTrack.PlaylistItemId ?? selectedTrack.Id],
+      });
+    }
+  }, [selectedTrack, playlistId, removeFromPlaylist]);
 
   const { data: playlist, isLoading: loadingPlaylist } = useQuery({
     queryKey: ["music-playlist", playlistId, user?.Id],
@@ -269,6 +281,8 @@ export default function PlaylistDetailScreen() {
             setOpen={setTrackOptionsOpen}
             track={selectedTrack}
             onAddToPlaylist={handleAddToPlaylist}
+            playlistId={playlistId}
+            onRemoveFromPlaylist={handleRemoveFromPlaylist}
           />
           <PlaylistPickerSheet
             open={playlistPickerOpen}

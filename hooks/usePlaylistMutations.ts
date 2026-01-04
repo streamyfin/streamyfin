@@ -136,6 +136,9 @@ export const useRemoveFromPlaylist = () => {
       queryClient.invalidateQueries({
         queryKey: ["music-playlist", variables.playlistId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["music-playlist-tracks", variables.playlistId],
+      });
       if (variables.playlistName) {
         toast.success(
           t("music.playlists.removed_from", { name: variables.playlistName }),
