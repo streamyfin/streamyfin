@@ -286,6 +286,7 @@
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
           "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
           "recommended_movies": "Recommended Movies",
           "recommended_series": "Recommended Series",

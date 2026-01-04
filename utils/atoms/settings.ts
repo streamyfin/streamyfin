@@ -202,6 +202,7 @@ export type Settings = {
   videoPlayerIOS: VideoPlayerIOS;
   // Appearance
   hideRemoteSessionButton: boolean;
+  hideWatchlistsTab: boolean;
   // Audio look-ahead caching
   audioLookaheadEnabled: boolean;
   audioLookaheadCount: number;
@@ -290,6 +291,7 @@ export const defaultValues: Settings = {
   videoPlayerIOS: VideoPlayerIOS.VLC,
   // Appearance
   hideRemoteSessionButton: false,
+  hideWatchlistsTab: false,
   // Audio look-ahead caching defaults
   audioLookaheadEnabled: true,
   audioLookaheadCount: 2,
