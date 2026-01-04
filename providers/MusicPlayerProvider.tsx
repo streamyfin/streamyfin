@@ -26,6 +26,7 @@ import {
   getLocalPath,
   initAudioStorage,
   isDownloading,
+  setMaxCacheSizeMB,
 } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { settingsAtom } from "@/utils/atoms/settings";
@@ -86,6 +87,7 @@ interface MusicPlayerContextType extends MusicPlayerState {
   playNext: (tracks: BaseItemDto | BaseItemDto[]) => void;
   removeFromQueue: (index: number) => void;
   moveInQueue: (fromIndex: number, toIndex: number) => void;
+  reorderQueue: (newQueue: BaseItemDto[]) => void;
   clearQueue: () => void;
   jumpToIndex: (index: number) => void;
 
@@ -286,7 +288,12 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         // Initialize audio storage for caching
         await initAudioStorage();
 
-        await TrackPlayer.setupPlayer();
+        await TrackPlayer.setupPlayer({
+          minBuffer: 120, // Minimum 2 minutes buffer for network resilience
+          maxBuffer: 240, // Maximum 4 minutes buffer
+          playBuffer: 5, // Start playback after 5 seconds buffered
+          backBuffer: 30, // Keep 30 seconds behind for seeking
+        });
         await TrackPlayer.updateOptions({
           capabilities: [
             Capability.Play,
@@ -312,6 +319,13 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
     setupPlayer();
   }, []);
+
+  // Update audio cache size when settings change
+  useEffect(() => {
+    if (settings?.audioMaxCacheSizeMB) {
+      setMaxCacheSizeMB(settings.audioMaxCacheSizeMB);
+    }
+  }, [settings?.audioMaxCacheSizeMB]);
 
   // Sync repeat mode to TrackPlayer
   useEffect(() => {
@@ -476,8 +490,14 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           const item = queue[i];
           if (!item.Id) continue;
 
-          // First check for cached version (for offline fallback)
+          // Check for cached/downloaded version
           const cachedUrl = getLocalPath(item.Id);
+
+          // If preferLocal and we have a local file, use it directly without server request
+          if (preferLocal && cachedUrl) {
+            tracks.push(itemToTrack(item, cachedUrl, api, true));
+            continue;
+          }
 
           // Try to get stream URL from server
           const result = await getAudioStreamUrl(api, user.Id, item.Id);
@@ -545,7 +565,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }));
 
         reportPlaybackStart(currentTrack, state.playSessionId);
-      } catch (_error) {
+      } catch (error) {
+        console.error("[MusicPlayer] Error loading queue:", error);
         setState((prev) => ({
           ...prev,
           isLoading: false,
@@ -1043,6 +1064,63 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     [],
   );
 
+  // Reorder queue with a new array (used by drag-to-reorder UI)
+  const reorderQueue = useCallback(
+    async (newQueue: BaseItemDto[]) => {
+      // Find where the current track ended up in the new order
+      const currentTrackId = state.currentTrack?.Id;
+      const newIndex = currentTrackId
+        ? newQueue.findIndex((t) => t.Id === currentTrackId)
+        : 0;
+
+      // Build the reordering operations for TrackPlayer
+      // We need to match TrackPlayer's queue to the new order
+      const tpQueue = await TrackPlayer.getQueue();
+
+      // Create a map of trackId -> current TrackPlayer index
+      const currentPositions = new Map<string, number>();
+      tpQueue.forEach((track, idx) => {
+        currentPositions.set(track.id, idx);
+      });
+
+      // Move tracks one by one to match the new order
+      // Work backwards to avoid index shifting issues
+      for (let targetIdx = newQueue.length - 1; targetIdx >= 0; targetIdx--) {
+        const trackId = newQueue[targetIdx].Id;
+        if (!trackId) continue;
+
+        const currentIdx = currentPositions.get(trackId);
+        if (currentIdx !== undefined && currentIdx !== targetIdx) {
+          await TrackPlayer.move(currentIdx, targetIdx);
+
+          // Update positions map after move
+          currentPositions.forEach((pos, id) => {
+            if (currentIdx < targetIdx) {
+              // Moving down: items between shift up
+              if (pos > currentIdx && pos <= targetIdx) {
+                currentPositions.set(id, pos - 1);
+              }
+            } else {
+              // Moving up: items between shift down
+              if (pos >= targetIdx && pos < currentIdx) {
+                currentPositions.set(id, pos + 1);
+              }
+            }
+          });
+          currentPositions.set(trackId, targetIdx);
+        }
+      }
+
+      setState((prev) => ({
+        ...prev,
+        queue: newQueue,
+        queueIndex: newIndex >= 0 ? newIndex : 0,
+        currentTrack: newIndex >= 0 ? newQueue[newIndex] : prev.currentTrack,
+      }));
+    },
+    [state.currentTrack?.Id],
+  );
+
   const clearQueue = useCallback(async () => {
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
     const queue = await TrackPlayer.getQueue();
@@ -1181,7 +1259,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     // For other modes, TrackPlayer handles it via repeat mode setting
   }, [state.repeatMode]);
 
-  // Cache current track + look-ahead: pre-cache current and next N tracks
+  // Look-ahead cache: pre-cache upcoming N tracks (excludes current track to avoid bandwidth competition)
   const triggerLookahead = useCallback(async () => {
     // Check if caching is enabled in settings
     if (settings?.audioLookaheadEnabled === false) return;
@@ -1192,10 +1270,10 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const currentIdx = await TrackPlayer.getActiveTrackIndex();
       if (currentIdx === undefined || currentIdx < 0) return;
 
-      // Cache current track + next N tracks (from settings, default 2)
-      const lookaheadCount = settings?.audioLookaheadCount ?? 2;
+      // Cache next N tracks (from settings, default 1) - excludes current to avoid bandwidth competition
+      const lookaheadCount = settings?.audioLookaheadCount ?? 1;
       const tracksToCache = tpQueue.slice(
-        currentIdx,
+        currentIdx + 1,
         currentIdx + 1 + lookaheadCount,
       );
 
@@ -1209,7 +1287,10 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
         // Only cache direct streams (not transcoding - can't cache dynamic content)
         if (result?.url && !result.isTranscoding) {
-          downloadTrack(itemId, result.url, { permanent: false }).catch(() => {
+          downloadTrack(itemId, result.url, {
+            permanent: false,
+            container: result.mediaSource?.Container || undefined,
+          }).catch(() => {
             // Silent fail - caching is best-effort
           });
         }
@@ -1242,6 +1323,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       playNext,
       removeFromQueue,
       moveInQueue,
+      reorderQueue,
       clearQueue,
       jumpToIndex,
       setRepeatMode,
@@ -1271,6 +1353,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       playNext,
       removeFromQueue,
       moveInQueue,
+      reorderQueue,
       clearQueue,
       jumpToIndex,
       setRepeatMode,

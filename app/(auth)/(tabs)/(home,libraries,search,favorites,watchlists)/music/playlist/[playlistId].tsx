@@ -146,7 +146,10 @@ export default function PlaylistDetailScreen() {
         if (!track.Id || getLocalPath(track.Id)) continue;
         const result = await getAudioStreamUrl(api, user.Id, track.Id);
         if (result?.url && !result.isTranscoding) {
-          await downloadTrack(track.Id, result.url, { permanent: true });
+          await downloadTrack(track.Id, result.url, {
+            permanent: true,
+            container: result.mediaSource?.Container || undefined,
+          });
         }
       }
     } catch {
@@ -157,7 +160,8 @@ export default function PlaylistDetailScreen() {
 
   const isLoading = loadingPlaylist || loadingTracks;
 
-  if (isLoading) {
+  // Only show loading if we have no cached data to display
+  if (isLoading && !playlist) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
         <Loader />

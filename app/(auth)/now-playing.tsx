@@ -10,13 +10,16 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
-  FlatList,
   Platform,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
+import DraggableFlatList, {
+  type RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge } from "@/components/Badge";
@@ -73,6 +76,7 @@ export default function NowPlayingScreen() {
     toggleShuffle,
     jumpToIndex,
     removeFromQueue,
+    reorderQueue,
     stop,
   } = useMusicPlayer();
 
@@ -244,6 +248,7 @@ export default function NowPlayingScreen() {
           queueIndex={queueIndex}
           onJumpToIndex={jumpToIndex}
           onRemoveFromQueue={removeFromQueue}
+          onReorderQueue={reorderQueue}
         />
       )}
     </View>
@@ -490,6 +495,7 @@ interface QueueViewProps {
   queueIndex: number;
   onJumpToIndex: (index: number) => void;
   onRemoveFromQueue: (index: number) => void;
+  onReorderQueue: (newQueue: BaseItemDto[]) => void;
 }
 
 const QueueView: React.FC<QueueViewProps> = ({
@@ -498,9 +504,11 @@ const QueueView: React.FC<QueueViewProps> = ({
   queueIndex,
   onJumpToIndex,
   onRemoveFromQueue,
+  onReorderQueue,
 }) => {
   const renderQueueItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => {
+    ({ item, drag, isActive, getIndex }: RenderItemParams<BaseItemDto>) => {
+      const index = getIndex() ?? 0;
       const isCurrentTrack = index === queueIndex;
       const isPast = index < queueIndex;
 
@@ -512,80 +520,102 @@ const QueueView: React.FC<QueueViewProps> = ({
         : null;
 
       return (
-        <TouchableOpacity
-          onPress={() => onJumpToIndex(index)}
-          className={`flex-row items-center px-4 py-3 ${isCurrentTrack ? "bg-purple-900/30" : ""}`}
-          style={{ opacity: isPast ? 0.5 : 1 }}
-        >
-          {/* Track number / Now playing indicator */}
-          <View className='w-8 items-center'>
-            {isCurrentTrack ? (
-              <Ionicons name='musical-note' size={16} color='#9334E9' />
-            ) : (
-              <Text className='text-neutral-500 text-sm'>{index + 1}</Text>
-            )}
-          </View>
-
-          {/* Album art */}
-          <View className='w-12 h-12 rounded overflow-hidden bg-neutral-800 mr-3'>
-            {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit='cover'
-                cachePolicy='memory-disk'
-              />
-            ) : (
-              <View className='flex-1 items-center justify-center'>
-                <Ionicons name='musical-note' size={16} color='#666' />
-              </View>
-            )}
-          </View>
-
-          {/* Track info */}
-          <View className='flex-1 mr-2'>
-            <Text
-              numberOfLines={1}
-              className={`text-base ${isCurrentTrack ? "text-purple-400 font-semibold" : "text-white"}`}
-            >
-              {item.Name}
-            </Text>
-            <Text numberOfLines={1} className='text-neutral-500 text-sm'>
-              {item.Artists?.join(", ") || item.AlbumArtist}
-            </Text>
-          </View>
-
-          {/* Remove button (not for current track) */}
-          {!isCurrentTrack && (
+        <ScaleDecorator>
+          <TouchableOpacity
+            onPress={() => onJumpToIndex(index)}
+            onLongPress={drag}
+            disabled={isActive}
+            className='flex-row items-center px-4 py-3'
+            style={{
+              opacity: isPast && !isActive ? 0.5 : 1,
+              backgroundColor: isActive
+                ? "#2a2a2a"
+                : isCurrentTrack
+                  ? "rgba(147, 52, 233, 0.3)"
+                  : "#121212",
+            }}
+          >
+            {/* Drag handle */}
             <TouchableOpacity
-              onPress={() => onRemoveFromQueue(index)}
+              onPressIn={drag}
+              disabled={isActive}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              className='p-2'
+              className='pr-2'
             >
-              <Ionicons name='close' size={20} color='#666' />
+              <Ionicons
+                name='reorder-three'
+                size={20}
+                color={isActive ? "#9334E9" : "#666"}
+              />
             </TouchableOpacity>
-          )}
-        </TouchableOpacity>
+
+            {/* Album art */}
+            <View className='w-12 h-12 rounded overflow-hidden bg-neutral-800 mr-3'>
+              {imageUrl ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit='cover'
+                  cachePolicy='memory-disk'
+                />
+              ) : (
+                <View className='flex-1 items-center justify-center'>
+                  <Ionicons name='musical-note' size={16} color='#666' />
+                </View>
+              )}
+            </View>
+
+            {/* Track info */}
+            <View className='flex-1 mr-2'>
+              <Text
+                numberOfLines={1}
+                className={`text-base ${isCurrentTrack ? "text-purple-400 font-semibold" : "text-white"}`}
+              >
+                {item.Name}
+              </Text>
+              <Text numberOfLines={1} className='text-neutral-500 text-sm'>
+                {item.Artists?.join(", ") || item.AlbumArtist}
+              </Text>
+            </View>
+
+            {/* Now playing indicator */}
+            {isCurrentTrack && (
+              <Ionicons name='musical-note' size={16} color='#9334E9' />
+            )}
+
+            {/* Remove button (not for current track) */}
+            {!isCurrentTrack && (
+              <TouchableOpacity
+                onPress={() => onRemoveFromQueue(index)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                className='p-2'
+              >
+                <Ionicons name='close' size={20} color='#666' />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </ScaleDecorator>
       );
     },
     [api, queueIndex, onJumpToIndex, onRemoveFromQueue],
   );
 
-  const _upNext = queue.slice(queueIndex + 1);
+  const handleDragEnd = useCallback(
+    ({ data }: { data: BaseItemDto[] }) => {
+      onReorderQueue(data);
+    },
+    [onReorderQueue],
+  );
+
   const history = queue.slice(0, queueIndex);
 
   return (
-    <FlatList
+    <DraggableFlatList
       data={queue}
       keyExtractor={(item, index) => `${item.Id}-${index}`}
       renderItem={renderQueueItem}
+      onDragEnd={handleDragEnd}
       showsVerticalScrollIndicator={false}
-      initialScrollIndex={queueIndex > 2 ? queueIndex - 2 : 0}
-      getItemLayout={(_, index) => ({
-        length: 72,
-        offset: 72 * index,
-        index,
-      })}
       ListHeaderComponent={
         <View className='px-4 py-2'>
           <Text className='text-neutral-400 text-xs uppercase tracking-wider'>

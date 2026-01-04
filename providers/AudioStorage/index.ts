@@ -34,7 +34,10 @@ const AUDIO_PERMANENT_DIR = "streamyfin-audio";
 
 // Default limits
 const DEFAULT_MAX_CACHE_TRACKS = 10;
-const DEFAULT_MAX_CACHE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
+const DEFAULT_MAX_CACHE_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
+
+// Configurable limits (can be updated at runtime)
+let configuredMaxCacheSizeBytes = DEFAULT_MAX_CACHE_SIZE_BYTES;
 
 // Event emitter for notifying about download completion
 class AudioStorageEventEmitter extends EventEmitter<{
@@ -128,6 +131,17 @@ async function ensureDirectories(): Promise<void> {
   } catch (error) {
     console.warn("[AudioStorage] Failed to create directories:", error);
   }
+}
+
+/**
+ * Set the maximum cache size in megabytes
+ * Call this when settings change
+ */
+export function setMaxCacheSizeMB(sizeMB: number): void {
+  configuredMaxCacheSizeBytes = sizeMB * 1024 * 1024;
+  console.log(
+    `[AudioStorage] Max cache size set to ${sizeMB}MB (${configuredMaxCacheSizeBytes} bytes)`,
+  );
 }
 
 /**
@@ -447,9 +461,11 @@ export async function downloadTrack(
     return;
   }
 
-  // Use .m4a extension - compatible with iOS/Android and most audio formats
-  const filename = `${itemId}.m4a`;
-  const destinationPath = `${targetDir.uri}/${filename}`.replace("file://", "");
+  // Use the actual container format as extension, fallback to m4a
+  const extension = options.container?.toLowerCase() || "m4a";
+  const filename = `${itemId}.${extension}`;
+  const destinationPath =
+    `${targetDir.uri.replace(/\/$/, "")}/${filename}`.replace("file://", "");
 
   console.log(
     `[AudioStorage] Starting download: ${itemId} (permanent=${permanent})`,
@@ -529,7 +545,7 @@ export async function deleteTrack(itemId: string): Promise<void> {
  */
 async function evictCacheIfNeeded(
   maxTracks: number = DEFAULT_MAX_CACHE_TRACKS,
-  maxSizeBytes: number = DEFAULT_MAX_CACHE_SIZE_BYTES,
+  maxSizeBytes: number = configuredMaxCacheSizeBytes,
 ): Promise<void> {
   const index = getStorageIndex();
 

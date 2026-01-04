@@ -139,7 +139,10 @@ export default function AlbumDetailScreen() {
         if (!track.Id || isPermanentlyDownloaded(track.Id)) continue;
         const result = await getAudioStreamUrl(api, user.Id, track.Id);
         if (result?.url && !result.isTranscoding) {
-          await downloadTrack(track.Id, result.url, { permanent: true });
+          await downloadTrack(track.Id, result.url, {
+            permanent: true,
+            container: result.mediaSource?.Container || undefined,
+          });
         }
       }
     } catch {
@@ -150,7 +153,8 @@ export default function AlbumDetailScreen() {
 
   const isLoading = loadingAlbum || loadingTracks;
 
-  if (isLoading) {
+  // Only show loading if we have no cached data to display
+  if (isLoading && !album) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
         <Loader />

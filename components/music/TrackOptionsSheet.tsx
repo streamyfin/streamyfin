@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useFavorite } from "@/hooks/useFavorite";
 import {
+  audioStorageEvents,
   downloadTrack,
   isCached,
   isPermanentDownloading,
@@ -62,6 +63,22 @@ export const TrackOptionsSheet: React.FC<Props> = ({
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [isDownloadingTrack, setIsDownloadingTrack] = useState(false);
+  // Counter to trigger re-evaluation of download status when storage changes
+  const [storageUpdateCounter, setStorageUpdateCounter] = useState(0);
+
+  // Listen for storage events to update download status
+  useEffect(() => {
+    const handleComplete = (event: { itemId: string }) => {
+      if (event.itemId === track?.Id) {
+        setStorageUpdateCounter((c) => c + 1);
+      }
+    };
+
+    audioStorageEvents.on("complete", handleComplete);
+    return () => {
+      audioStorageEvents.off("complete", handleComplete);
+    };
+  }, [track?.Id]);
 
   // Use a placeholder item for useFavorite when track is null
   const { isFavorite, toggleFavorite } = useFavorite(
@@ -70,15 +87,18 @@ export const TrackOptionsSheet: React.FC<Props> = ({
 
   const snapPoints = useMemo(() => ["65%"], []);
 
-  // Check download status
+  // Check download status (storageUpdateCounter triggers re-evaluation when download completes)
   const isAlreadyDownloaded = useMemo(
     () => isPermanentlyDownloaded(track?.Id),
-    [track?.Id],
+    [track?.Id, storageUpdateCounter],
   );
-  const isOnlyCached = useMemo(() => isCached(track?.Id), [track?.Id]);
+  const isOnlyCached = useMemo(
+    () => isCached(track?.Id),
+    [track?.Id, storageUpdateCounter],
+  );
   const isCurrentlyDownloading = useMemo(
     () => isPermanentDownloading(track?.Id),
-    [track?.Id],
+    [track?.Id, storageUpdateCounter],
   );
 
   const imageUrl = useMemo(() => {
@@ -150,7 +170,10 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     try {
       const result = await getAudioStreamUrl(api, user.Id, track.Id);
       if (result?.url && !result.isTranscoding) {
-        await downloadTrack(track.Id, result.url, { permanent: true });
+        await downloadTrack(track.Id, result.url, {
+          permanent: true,
+          container: result.mediaSource?.Container || undefined,
+        });
       }
     } catch {
       // Silent fail

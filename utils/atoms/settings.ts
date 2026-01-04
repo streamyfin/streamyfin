@@ -294,8 +294,8 @@ export const defaultValues: Settings = {
   hideWatchlistsTab: false,
   // Audio look-ahead caching defaults
   audioLookaheadEnabled: true,
-  audioLookaheadCount: 2,
-  audioMaxCacheSizeMB: 100,
+  audioLookaheadCount: 1,
+  audioMaxCacheSizeMB: 500,
   // Music playback
   preferLocalAudio: true,
 };

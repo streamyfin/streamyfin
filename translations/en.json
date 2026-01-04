@@ -232,7 +232,9 @@
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
         "caching_description": "Automatically cache upcoming tracks for smoother playback.",
-        "lookahead_enabled": "Enable Look-Ahead Caching"
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Plugins",

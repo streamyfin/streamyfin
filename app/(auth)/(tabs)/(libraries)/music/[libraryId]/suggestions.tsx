@@ -232,7 +232,8 @@ export default function SuggestionsScreen() {
     );
   }
 
-  if (isLoading) {
+  // Only show loading if we have no cached data to display
+  if (isLoading && sections.length === 0) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
         <Loader />
@@ -240,7 +241,12 @@ export default function SuggestionsScreen() {
     );
   }
 
-  if (isLatestError || isRecentlyPlayedError || isFrequentError) {
+  // Only show error if we have no cached data to display
+  // This allows offline access to previously cached suggestions
+  if (
+    (isLatestError || isRecentlyPlayedError || isFrequentError) &&
+    sections.length === 0
+  ) {
     const msg =
       (latestError as Error | undefined)?.message ||
       (recentlyPlayedError as Error | undefined)?.message ||

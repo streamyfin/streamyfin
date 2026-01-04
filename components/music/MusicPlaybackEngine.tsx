@@ -99,6 +99,7 @@ export const MusicPlaybackEngine: React.FC = () => {
                       currentIndex,
                     );
                     await TrackPlayer.skip(currentIndex);
+                    await TrackPlayer.play();
                   }
                 } catch (error) {
                   console.warn(

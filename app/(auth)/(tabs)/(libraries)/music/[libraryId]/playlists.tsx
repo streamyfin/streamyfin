@@ -124,7 +124,8 @@ export default function PlaylistsScreen() {
     );
   }
 
-  if (isLoading) {
+  // Only show loading if we have no cached data to display
+  if (isLoading && playlists.length === 0) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
         <Loader />
@@ -132,7 +133,9 @@ export default function PlaylistsScreen() {
     );
   }
 
-  if (isError) {
+  // Only show error if we have no cached data to display
+  // This allows offline access to previously cached playlists
+  if (isError && playlists.length === 0) {
     return (
       <View className='flex-1 justify-center items-center bg-black px-6'>
         <Text className='text-neutral-500 text-center'>

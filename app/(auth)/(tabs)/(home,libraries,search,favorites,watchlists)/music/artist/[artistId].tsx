@@ -120,7 +120,8 @@ export default function ArtistDetailScreen() {
 
   const isLoading = loadingArtist || loadingAlbums || loadingTracks;
 
-  if (isLoading) {
+  // Only show loading if we have no cached data to display
+  if (isLoading && !artist) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
         <Loader />
