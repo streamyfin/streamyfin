@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getMediaInfoApi, getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import React, {
   createContext,
@@ -21,9 +21,16 @@ import TrackPlayer, {
   RepeatMode as TPRepeatMode,
   type Track,
 } from "react-native-track-player";
+import {
+  downloadTrack,
+  getLocalPath,
+  initAudioStorage,
+  isDownloading,
+} from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { settingsAtom } from "@/utils/atoms/settings";
+import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { storage } from "@/utils/mmkv";
-import native from "@/utils/profiles/native";
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -93,6 +100,9 @@ interface MusicPlayerContextType extends MusicPlayerState {
   reportProgress: () => void;
   onTrackEnd: () => void;
   syncFromTrackPlayer: () => void;
+
+  // Audio caching
+  triggerLookahead: () => void;
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(
@@ -202,75 +212,33 @@ const shuffleArray = <T,>(array: T[], currentIndex: number): T[] => {
   return result;
 };
 
-const getAudioStreamUrl = async (
-  api: Api,
-  userId: string,
-  itemId: string,
-): Promise<{
-  url: string;
-  sessionId: string | null;
-  mediaSource: MediaSourceInfo | null;
-  isTranscoding: boolean;
-} | null> => {
-  try {
-    const res = await getMediaInfoApi(api).getPlaybackInfo(
-      { itemId },
-      {
-        method: "POST",
-        data: {
-          userId,
-          deviceProfile: native,
-          startTimeTicks: 0,
-          isPlayback: true,
-          autoOpenLiveStream: true,
-        },
-      },
-    );
-
-    const sessionId = res.data.PlaySessionId || null;
-    const mediaSource = res.data.MediaSources?.[0] || null;
-
-    if (mediaSource?.TranscodingUrl) {
-      return {
-        url: `${api.basePath}${mediaSource.TranscodingUrl}`,
-        sessionId,
-        mediaSource,
-        isTranscoding: true,
-      };
-    }
-
-    // Direct stream
-    const streamParams = new URLSearchParams({
-      static: "true",
-      container: mediaSource?.Container || "mp3",
-      mediaSourceId: mediaSource?.Id || "",
-      deviceId: api.deviceInfo.id,
-      api_key: api.accessToken,
-      userId,
-    });
-
-    return {
-      url: `${api.basePath}/Audio/${itemId}/stream?${streamParams.toString()}`,
-      sessionId,
-      mediaSource,
-      isTranscoding: false,
-    };
-  } catch {
-    return null;
-  }
-};
-
 // Convert BaseItemDto to TrackPlayer Track
-const itemToTrack = (item: BaseItemDto, url: string, api: Api): Track => {
+const itemToTrack = (
+  item: BaseItemDto,
+  url: string,
+  api: Api,
+  preferLocalAudio = true,
+): Track => {
   const albumId = item.AlbumId || item.ParentId;
   const artworkId = albumId || item.Id;
   const artwork = artworkId
     ? `${api.basePath}/Items/${artworkId}/Images/Primary?maxHeight=512&maxWidth=512&quality=90`
     : undefined;
 
+  // Check if track is cached locally (permanent downloads take precedence)
+  // getLocalPath returns full file:// URI if cached, null otherwise
+  const cachedUrl = preferLocalAudio ? getLocalPath(item.Id) : null;
+  const finalUrl = cachedUrl || url;
+
+  if (cachedUrl) {
+    console.log(
+      `[MusicPlayer] Using cached file for ${item.Name}: ${cachedUrl}`,
+    );
+  }
+
   return {
     id: item.Id || "",
-    url,
+    url: finalUrl,
     title: item.Name || "Unknown",
     artist: item.Artists?.join(", ") || item.AlbumArtist || "Unknown Artist",
     album: item.Album || undefined,
@@ -284,6 +252,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 }) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  const settings = useAtomValue(settingsAtom);
   const initializedRef = useRef(false);
   const playerSetupRef = useRef(false);
 
@@ -308,12 +277,15 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const lastReportRef = useRef<number>(0);
 
-  // Setup TrackPlayer
+  // Setup TrackPlayer and AudioStorage
   useEffect(() => {
     const setupPlayer = async () => {
       if (playerSetupRef.current) return;
 
       try {
+        // Initialize audio storage for caching
+        await initAudioStorage();
+
         await TrackPlayer.setupPlayer();
         await TrackPlayer.updateOptions({
           capabilities: [
@@ -498,12 +470,20 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         let startTrackMediaSource: MediaSourceInfo | null = null;
         let startTrackIsTranscoding = false;
 
+        const preferLocal = settings?.preferLocalAudio ?? true;
+
         for (let i = 0; i < queue.length; i++) {
           const item = queue[i];
           if (!item.Id) continue;
+
+          // First check for cached version (for offline fallback)
+          const cachedUrl = getLocalPath(item.Id);
+
+          // Try to get stream URL from server
           const result = await getAudioStreamUrl(api, user.Id, item.Id);
+
           if (result) {
-            tracks.push(itemToTrack(item, result.url, api));
+            tracks.push(itemToTrack(item, result.url, api, preferLocal));
             // Store media info for all tracks
             mediaInfoMap[item.Id] = {
               mediaSource: result.mediaSource,
@@ -521,6 +501,12 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
               startTrackMediaSource = result.mediaSource;
               startTrackIsTranscoding = result.isTranscoding;
             }
+          } else if (cachedUrl) {
+            // Fallback to cached version if server is unreachable
+            console.log(
+              `[MusicPlayer] Using cached file (offline) for ${item.Name}: ${cachedUrl}`,
+            );
+            tracks.push(itemToTrack(item, cachedUrl, api, true));
           }
         }
 
@@ -688,8 +674,11 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         state.currentTrack.Id!,
       );
       if (result) {
+        const preferLocal = settings?.preferLocalAudio ?? true;
         await TrackPlayer.reset();
-        await TrackPlayer.add(itemToTrack(state.currentTrack, result.url, api));
+        await TrackPlayer.add(
+          itemToTrack(state.currentTrack, result.url, api, preferLocal),
+        );
         await TrackPlayer.seekTo(state.progress);
         await TrackPlayer.play();
         setState((prev) => ({
@@ -703,7 +692,14 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       await TrackPlayer.play();
       setState((prev) => ({ ...prev, isPlaying: true }));
     }
-  }, [api, user?.Id, state.streamUrl, state.currentTrack, state.progress]);
+  }, [
+    api,
+    user?.Id,
+    state.streamUrl,
+    state.currentTrack,
+    state.progress,
+    settings?.preferLocalAudio,
+  ]);
 
   const togglePlayPause = useCallback(async () => {
     if (state.isPlaying) {
@@ -899,13 +895,22 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!api || !user?.Id) return;
 
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
+      const preferLocal = settings?.preferLocalAudio ?? true;
 
       // Add to TrackPlayer queue
       for (const item of tracksArray) {
         if (!item.Id) continue;
+        const cachedUrl = getLocalPath(item.Id);
         const result = await getAudioStreamUrl(api, user.Id, item.Id);
         if (result) {
-          await TrackPlayer.add(itemToTrack(item, result.url, api));
+          await TrackPlayer.add(
+            itemToTrack(item, result.url, api, preferLocal),
+          );
+        } else if (cachedUrl) {
+          console.log(
+            `[MusicPlayer] Using cached file (offline) for ${item.Name}: ${cachedUrl}`,
+          );
+          await TrackPlayer.add(itemToTrack(item, cachedUrl, api, true));
         }
       }
 
@@ -915,7 +920,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         originalQueue: [...prev.originalQueue, ...tracksArray],
       }));
     },
-    [api, user?.Id],
+    [api, user?.Id, settings?.preferLocalAudio],
   );
 
   const playNext = useCallback(
@@ -925,15 +930,25 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
       const insertIndex = (currentIndex ?? -1) + 1;
+      const preferLocal = settings?.preferLocalAudio ?? true;
 
       // Add to TrackPlayer queue after current track
       for (let i = tracksArray.length - 1; i >= 0; i--) {
         const item = tracksArray[i];
         if (!item.Id) continue;
+        const cachedUrl = getLocalPath(item.Id);
         const result = await getAudioStreamUrl(api, user.Id, item.Id);
         if (result) {
           await TrackPlayer.add(
-            itemToTrack(item, result.url, api),
+            itemToTrack(item, result.url, api, preferLocal),
+            insertIndex,
+          );
+        } else if (cachedUrl) {
+          console.log(
+            `[MusicPlayer] Using cached file (offline) for ${item.Name}: ${cachedUrl}`,
+          );
+          await TrackPlayer.add(
+            itemToTrack(item, cachedUrl, api, true),
             insertIndex,
           );
         }
@@ -954,7 +969,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         };
       });
     },
-    [api, user?.Id],
+    [api, user?.Id, settings?.preferLocalAudio],
   );
 
   const removeFromQueue = useCallback(async (index: number) => {
@@ -1166,6 +1181,49 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     // For other modes, TrackPlayer handles it via repeat mode setting
   }, [state.repeatMode]);
 
+  // Cache current track + look-ahead: pre-cache current and next N tracks
+  const triggerLookahead = useCallback(async () => {
+    // Check if caching is enabled in settings
+    if (settings?.audioLookaheadEnabled === false) return;
+    if (!api || !user?.Id) return;
+
+    try {
+      const tpQueue = await TrackPlayer.getQueue();
+      const currentIdx = await TrackPlayer.getActiveTrackIndex();
+      if (currentIdx === undefined || currentIdx < 0) return;
+
+      // Cache current track + next N tracks (from settings, default 2)
+      const lookaheadCount = settings?.audioLookaheadCount ?? 2;
+      const tracksToCache = tpQueue.slice(
+        currentIdx,
+        currentIdx + 1 + lookaheadCount,
+      );
+
+      for (const track of tracksToCache) {
+        const itemId = track.id;
+        // Skip if already stored locally or currently downloading
+        if (!itemId || getLocalPath(itemId) || isDownloading(itemId)) continue;
+
+        // Get stream URL for this track
+        const result = await getAudioStreamUrl(api, user.Id, itemId);
+
+        // Only cache direct streams (not transcoding - can't cache dynamic content)
+        if (result?.url && !result.isTranscoding) {
+          downloadTrack(itemId, result.url, { permanent: false }).catch(() => {
+            // Silent fail - caching is best-effort
+          });
+        }
+      }
+    } catch {
+      // Silent fail - look-ahead caching is best-effort
+    }
+  }, [
+    api,
+    user?.Id,
+    settings?.audioLookaheadEnabled,
+    settings?.audioLookaheadCount,
+  ]);
+
   const value = useMemo(
     () => ({
       ...state,
@@ -1194,6 +1252,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       reportProgress: reportPlaybackProgress,
       onTrackEnd,
       syncFromTrackPlayer,
+      triggerLookahead,
     }),
     [
       state,
@@ -1222,6 +1281,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       reportPlaybackProgress,
       onTrackEnd,
       syncFromTrackPlayer,
+      triggerLookahead,
     ],
   );
 

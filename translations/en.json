@@ -225,6 +225,15 @@
       "downloads": {
         "downloads_title": "Downloads"
       },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching"
+      },
       "plugins": {
         "plugins_title": "Plugins",
         "jellyseerr": {
@@ -297,7 +306,16 @@
         "app_usage": "App {{usedSpace}}%",
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} Used",
-        "delete_all_downloaded_files": "Delete All Downloaded Files"
+        "delete_all_downloaded_files": "Delete All Downloaded Files",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
         "title": "Intro",
@@ -627,7 +645,15 @@
     "track_options": {
       "play_next": "Play Next",
       "add_to_queue": "Add to Queue",
-      "add_to_playlist": "Add to Playlist"
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites"
     },
     "playlists": {
       "create_playlist": "Create Playlist",

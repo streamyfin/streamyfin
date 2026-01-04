@@ -2,9 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import {
+  audioStorageEvents,
+  getLocalPath,
+  isPermanentDownloading,
+  isPermanentlyDownloaded,
+} from "@/providers/AudioStorage";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -28,6 +35,7 @@ export const MusicTrackItem: React.FC<Props> = ({
   const [api] = useAtom(apiAtom);
   const { playTrack, currentTrack, isPlaying, loadingTrackId } =
     useMusicPlayer();
+  const { isConnected, serverConnected } = useNetworkStatus();
 
   const imageUrl = useMemo(() => {
     const albumId = track.AlbumId || track.ParentId;
@@ -40,14 +48,61 @@ export const MusicTrackItem: React.FC<Props> = ({
   const isCurrentTrack = currentTrack?.Id === track.Id;
   const isTrackLoading = loadingTrackId === track.Id;
 
+  // Track download status with reactivity to completion events
+  // Only track permanent downloads - we don't show UI for auto-caching
+  const [downloadStatus, setDownloadStatus] = useState<
+    "none" | "downloading" | "downloaded"
+  >(() => {
+    if (isPermanentlyDownloaded(track.Id)) return "downloaded";
+    if (isPermanentDownloading(track.Id)) return "downloading";
+    return "none";
+  });
+
+  // Listen for download completion/error events (only for permanent downloads)
+  useEffect(() => {
+    const onComplete = (event: { itemId: string; permanent: boolean }) => {
+      if (event.itemId === track.Id && event.permanent) {
+        setDownloadStatus("downloaded");
+      }
+    };
+    const onError = (event: { itemId: string }) => {
+      if (event.itemId === track.Id) {
+        setDownloadStatus("none");
+      }
+    };
+
+    audioStorageEvents.on("complete", onComplete);
+    audioStorageEvents.on("error", onError);
+
+    return () => {
+      audioStorageEvents.off("complete", onComplete);
+      audioStorageEvents.off("error", onError);
+    };
+  }, [track.Id]);
+
+  // Also check periodically if permanent download started (for when download is triggered externally)
+  useEffect(() => {
+    if (downloadStatus === "none" && isPermanentDownloading(track.Id)) {
+      setDownloadStatus("downloading");
+    }
+  });
+
+  const _isDownloaded = downloadStatus === "downloaded";
+  // Check if available locally (either cached or permanently downloaded)
+  const isAvailableLocally = !!getLocalPath(track.Id);
+  // Consider offline if either no network connection OR server is unreachable
+  const isOffline = !isConnected || serverConnected === false;
+  const isUnavailableOffline = isOffline && !isAvailableLocally;
+
   const duration = useMemo(() => {
     if (!track.RunTimeTicks) return "";
     return formatDuration(track.RunTimeTicks);
   }, [track.RunTimeTicks]);
 
   const handlePress = useCallback(() => {
+    if (isUnavailableOffline) return;
     playTrack(track, queue);
-  }, [playTrack, track, queue]);
+  }, [playTrack, track, queue, isUnavailableOffline]);
 
   const handleLongPress = useCallback(() => {
     onOptionsPress?.(track);
@@ -62,7 +117,9 @@ export const MusicTrackItem: React.FC<Props> = ({
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={300}
+      disabled={isUnavailableOffline}
       className={`flex flex-row items-center py-3 ${isCurrentTrack ? "bg-purple-900/20" : ""}`}
+      style={isUnavailableOffline ? { opacity: 0.5 } : undefined}
     >
       {index !== undefined && (
         <View className='w-8 items-center'>
@@ -129,6 +186,23 @@ export const MusicTrackItem: React.FC<Props> = ({
       </View>
 
       <Text className='text-neutral-500 text-xs mr-2'>{duration}</Text>
+
+      {/* Download status indicator */}
+      {downloadStatus === "downloading" && (
+        <ActivityIndicator
+          size={14}
+          color='#9334E9'
+          style={{ marginRight: 8 }}
+        />
+      )}
+      {downloadStatus === "downloaded" && (
+        <Ionicons
+          name='checkmark-circle'
+          size={16}
+          color='#22c55e'
+          style={{ marginRight: 8 }}
+        />
+      )}
 
       {onOptionsPress && (
         <TouchableOpacity

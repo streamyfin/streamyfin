@@ -67,7 +67,6 @@ export default function PlaylistsScreen() {
     queryFn: async ({ pageParam = 0 }) => {
       const response = await getItemsApi(api!).getItems({
         userId: user?.Id,
-        parentId: libraryId,
         includeItemTypes: ["Playlist"],
         sortBy: ["SortName"],
         sortOrder: ["Ascending"],

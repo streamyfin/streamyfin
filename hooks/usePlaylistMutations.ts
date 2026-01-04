@@ -27,10 +27,12 @@ export const useCreatePlaylist = () => {
       }
 
       const response = await getPlaylistsApi(api).createPlaylist({
-        name,
-        ids: trackIds,
-        userId: user.Id,
-        mediaType: "Audio",
+        createPlaylistDto: {
+          Name: name,
+          Ids: trackIds,
+          UserId: user.Id,
+          MediaType: "Audio",
+        },
       });
 
       return response.data.Id;
@@ -38,6 +40,7 @@ export const useCreatePlaylist = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["music-playlists"],
+        refetchType: "all",
       });
       toast.success(t("music.playlists.created"));
     },

@@ -411,7 +411,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </View>
 
       {/* Main Controls */}
-      <View className='flex flex-row items-center justify-center mb-4'>
+      <View className='flex flex-row items-center justify-center mb-2'>
         <TouchableOpacity
           onPress={onPrevious}
           disabled={!canGoPrevious || isLoading}
@@ -449,7 +449,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </View>
 
       {/* Shuffle & Repeat Controls */}
-      <View className='flex flex-row items-center justify-center mb-6'>
+      <View className='flex flex-row items-center justify-center mb-2'>
         <TouchableOpacity onPress={onToggleShuffle} className='p-3 mx-4'>
           <Ionicons
             name='shuffle'
@@ -465,7 +465,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             color={repeatMode !== "off" ? "#9334E9" : "#666"}
           />
           {repeatMode === "one" && (
-            <View className='absolute -top-1 -right-1 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
+            <View className='absolute right-0 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
               <Text className='text-white text-[10px] font-bold'>1</Text>
             </View>
           )}
@@ -474,7 +474,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
       {/* Queue info */}
       {queue.length > 1 && (
-        <View className='items-center mb-8'>
+        <View className='items-center mb-4'>
           <Text className='text-neutral-500 text-sm'>
             {queueIndex + 1} of {queue.length}
           </Text>

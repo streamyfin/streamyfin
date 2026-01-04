@@ -7,14 +7,34 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { useFavorite } from "@/hooks/useFavorite";
+import {
+  downloadTrack,
+  isCached,
+  isPermanentDownloading,
+  isPermanentlyDownloaded,
+} from "@/providers/AudioStorage";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 interface Props {
@@ -32,11 +52,30 @@ export const TrackOptionsSheet: React.FC<Props> = ({
 }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
+  const router = useRouter();
   const { playNext, addToQueue } = useMusicPlayer();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const [isDownloadingTrack, setIsDownloadingTrack] = useState(false);
 
-  const snapPoints = useMemo(() => ["45%"], []);
+  // Use a placeholder item for useFavorite when track is null
+  const { isFavorite, toggleFavorite } = useFavorite(
+    track ?? ({ Id: "", UserData: { IsFavorite: false } } as BaseItemDto),
+  );
+
+  const snapPoints = useMemo(() => ["65%"], []);
+
+  // Check download status
+  const isAlreadyDownloaded = useMemo(
+    () => isPermanentlyDownloaded(track?.Id),
+    [track?.Id],
+  );
+  const isOnlyCached = useMemo(() => isCached(track?.Id), [track?.Id]);
+  const isCurrentlyDownloading = useMemo(
+    () => isPermanentDownloading(track?.Id),
+    [track?.Id],
+  );
 
   const imageUrl = useMemo(() => {
     if (!track) return null;
@@ -92,6 +131,55 @@ export const TrackOptionsSheet: React.FC<Props> = ({
       onAddToPlaylist();
     }, 300);
   }, [onAddToPlaylist, setOpen]);
+
+  const handleDownload = useCallback(async () => {
+    if (!track?.Id || !api || !user?.Id || isAlreadyDownloaded) return;
+
+    setIsDownloadingTrack(true);
+    try {
+      const result = await getAudioStreamUrl(api, user.Id, track.Id);
+      if (result?.url && !result.isTranscoding) {
+        await downloadTrack(track.Id, result.url, { permanent: true });
+      }
+    } catch {
+      // Silent fail
+    }
+    setIsDownloadingTrack(false);
+    setOpen(false);
+  }, [track?.Id, api, user?.Id, isAlreadyDownloaded, setOpen]);
+
+  const handleGoToArtist = useCallback(() => {
+    const artistId = track?.ArtistItems?.[0]?.Id;
+    if (artistId) {
+      setOpen(false);
+      router.push({
+        pathname: "/music/artist/[artistId]",
+        params: { artistId },
+      });
+    }
+  }, [track?.ArtistItems, router, setOpen]);
+
+  const handleGoToAlbum = useCallback(() => {
+    const albumId = track?.AlbumId || track?.ParentId;
+    if (albumId) {
+      setOpen(false);
+      router.push({
+        pathname: "/music/album/[albumId]",
+        params: { albumId },
+      });
+    }
+  }, [track?.AlbumId, track?.ParentId, router, setOpen]);
+
+  const handleToggleFavorite = useCallback(() => {
+    if (track) {
+      toggleFavorite();
+      setOpen(false);
+    }
+  }, [track, toggleFavorite, setOpen]);
+
+  // Check if navigation options are available
+  const hasArtist = !!track?.ArtistItems?.[0]?.Id;
+  const hasAlbum = !!(track?.AlbumId || track?.ParentId);
 
   if (!track) return null;
 
@@ -155,7 +243,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
           </View>
         </View>
 
-        {/* Options */}
+        {/* Playback Options */}
         <View className='flex-col rounded-xl overflow-hidden bg-neutral-800'>
           <TouchableOpacity
             onPress={handlePlayNext}
@@ -178,6 +266,25 @@ export const TrackOptionsSheet: React.FC<Props> = ({
               {t("music.track_options.add_to_queue")}
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Library Options */}
+        <View className='flex-col rounded-xl overflow-hidden bg-neutral-800 mt-3'>
+          <TouchableOpacity
+            onPress={handleToggleFavorite}
+            className='flex-row items-center px-4 py-3.5'
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={22}
+              color={isFavorite ? "#ec4899" : "white"}
+            />
+            <Text className='text-white ml-4 text-base'>
+              {isFavorite
+                ? t("music.track_options.remove_from_favorites")
+                : t("music.track_options.add_to_favorites")}
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.separator} />
 
@@ -190,7 +297,84 @@ export const TrackOptionsSheet: React.FC<Props> = ({
               {t("music.track_options.add_to_playlist")}
             </Text>
           </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          <TouchableOpacity
+            onPress={handleDownload}
+            disabled={
+              isAlreadyDownloaded ||
+              isCurrentlyDownloading ||
+              isDownloadingTrack
+            }
+            className='flex-row items-center px-4 py-3.5'
+          >
+            {isCurrentlyDownloading || isDownloadingTrack ? (
+              <ActivityIndicator size={22} color='white' />
+            ) : (
+              <Ionicons
+                name={
+                  isAlreadyDownloaded ? "checkmark-circle" : "download-outline"
+                }
+                size={22}
+                color={isAlreadyDownloaded ? "#22c55e" : "white"}
+              />
+            )}
+            <Text
+              className={`ml-4 text-base ${isAlreadyDownloaded ? "text-green-500" : "text-white"}`}
+            >
+              {isCurrentlyDownloading || isDownloadingTrack
+                ? t("music.track_options.downloading")
+                : isAlreadyDownloaded
+                  ? t("music.track_options.downloaded")
+                  : t("music.track_options.download")}
+            </Text>
+          </TouchableOpacity>
+
+          {isOnlyCached && !isAlreadyDownloaded && (
+            <>
+              <View style={styles.separator} />
+              <View className='flex-row items-center px-4 py-3.5'>
+                <Ionicons name='cloud-done-outline' size={22} color='#737373' />
+                <Text className='text-neutral-500 ml-4 text-base'>
+                  {t("music.track_options.cached")}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
+
+        {/* Navigation Options */}
+        {(hasArtist || hasAlbum) && (
+          <View className='flex-col rounded-xl overflow-hidden bg-neutral-800 mt-3'>
+            {hasArtist && (
+              <>
+                <TouchableOpacity
+                  onPress={handleGoToArtist}
+                  className='flex-row items-center px-4 py-3.5'
+                >
+                  <Ionicons name='person-outline' size={22} color='white' />
+                  <Text className='text-white ml-4 text-base'>
+                    {t("music.track_options.go_to_artist")}
+                  </Text>
+                </TouchableOpacity>
+                {hasAlbum && <View style={styles.separator} />}
+              </>
+            )}
+
+            {hasAlbum && (
+              <TouchableOpacity
+                onPress={handleGoToAlbum}
+                className='flex-row items-center px-4 py-3.5'
+              >
+                <Ionicons name='disc-outline' size={22} color='white' />
+                <Text className='text-white ml-4 text-base'>
+                  {t("music.track_options.go_to_album")}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </BottomSheetView>
     </BottomSheetModal>
   );

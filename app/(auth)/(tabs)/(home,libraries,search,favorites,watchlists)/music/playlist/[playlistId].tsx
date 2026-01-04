@@ -8,7 +8,12 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -16,8 +21,10 @@ import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
+import { downloadTrack, getLocalPath } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -37,6 +44,7 @@ export default function PlaylistDetailScreen() {
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleTrackOptionsPress = useCallback((track: BaseItemDto) => {
     setSelectedTrack(track);
@@ -111,6 +119,30 @@ export default function PlaylistDetailScreen() {
     }
   }, [playQueue, tracks]);
 
+  // Check if all tracks are already downloaded
+  const allTracksDownloaded = useMemo(() => {
+    if (!tracks || tracks.length === 0) return false;
+    return tracks.every((track) => !!getLocalPath(track.Id));
+  }, [tracks]);
+
+  const handleDownloadPlaylist = useCallback(async () => {
+    if (!tracks || !api || !user?.Id || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      for (const track of tracks) {
+        if (!track.Id || getLocalPath(track.Id)) continue;
+        const result = await getAudioStreamUrl(api, user.Id, track.Id);
+        if (result?.url && !result.isTranscoding) {
+          await downloadTrack(track.Id, result.url, { permanent: true });
+        }
+      }
+    } catch {
+      // Silent fail
+    }
+    setIsDownloading(false);
+  }, [tracks, api, user?.Id, isDownloading]);
+
   const isLoading = loadingPlaylist || loadingTracks;
 
   if (isLoading) {
@@ -180,7 +212,7 @@ export default function PlaylistDetailScreen() {
           </Text>
 
           {/* Play buttons */}
-          <View className='flex flex-row mt-4'>
+          <View className='flex flex-row mt-4 items-center'>
             <TouchableOpacity
               onPress={handlePlayAll}
               className='flex flex-row items-center bg-purple-600 px-6 py-3 rounded-full mr-3'
@@ -192,12 +224,31 @@ export default function PlaylistDetailScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleShuffle}
-              className='flex flex-row items-center bg-neutral-800 px-6 py-3 rounded-full'
+              className='flex flex-row items-center bg-neutral-800 px-6 py-3 rounded-full mr-3'
             >
               <Ionicons name='shuffle' size={20} color='white' />
               <Text className='text-white font-medium ml-2'>
                 {t("music.shuffle")}
               </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDownloadPlaylist}
+              disabled={allTracksDownloaded || isDownloading}
+              className='flex items-center justify-center bg-neutral-800 p-3 rounded-full'
+            >
+              {isDownloading ? (
+                <ActivityIndicator size={20} color='white' />
+              ) : (
+                <Ionicons
+                  name={
+                    allTracksDownloaded
+                      ? "checkmark-circle"
+                      : "download-outline"
+                  }
+                  size={20}
+                  color={allTracksDownloaded ? "#22c55e" : "white"}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>

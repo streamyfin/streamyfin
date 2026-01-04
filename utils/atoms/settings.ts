@@ -202,6 +202,12 @@ export type Settings = {
   videoPlayerIOS: VideoPlayerIOS;
   // Appearance
   hideRemoteSessionButton: boolean;
+  // Audio look-ahead caching
+  audioLookaheadEnabled: boolean;
+  audioLookaheadCount: number;
+  audioMaxCacheSizeMB: number;
+  // Music playback
+  preferLocalAudio: boolean;
 };
 
 export interface Lockable<T> {
@@ -284,6 +290,12 @@ export const defaultValues: Settings = {
   videoPlayerIOS: VideoPlayerIOS.VLC,
   // Appearance
   hideRemoteSessionButton: false,
+  // Audio look-ahead caching defaults
+  audioLookaheadEnabled: true,
+  audioLookaheadCount: 2,
+  audioMaxCacheSizeMB: 100,
+  // Music playback
+  preferLocalAudio: true,
 };
 
 const loadSettings = (): Partial<Settings> => {
