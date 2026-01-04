@@ -19,6 +19,7 @@ import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicTrackItem } from "@/components/music/MusicTrackItem";
+import { PlaylistOptionsSheet } from "@/components/music/PlaylistOptionsSheet";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { useRemoveFromPlaylist } from "@/hooks/usePlaylistMutations";
@@ -45,6 +46,7 @@ export default function PlaylistDetailScreen() {
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+  const [playlistOptionsOpen, setPlaylistOptionsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const removeFromPlaylist = useRemoveFromPlaylist();
@@ -101,6 +103,14 @@ export default function PlaylistDetailScreen() {
       headerTransparent: true,
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setPlaylistOptionsOpen(true)}
+          className='p-1.5'
+        >
+          <Ionicons name='ellipsis-horizontal' size={24} color='white' />
+        </TouchableOpacity>
+      ),
     });
   }, [playlist?.Name, navigation]);
 
@@ -298,6 +308,11 @@ export default function PlaylistDetailScreen() {
             open={createPlaylistOpen}
             setOpen={setCreatePlaylistOpen}
             initialTrackId={selectedTrack?.Id}
+          />
+          <PlaylistOptionsSheet
+            open={playlistOptionsOpen}
+            setOpen={setPlaylistOptionsOpen}
+            playlist={playlist}
           />
         </>
       }

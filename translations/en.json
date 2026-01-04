@@ -411,7 +411,9 @@
     "subtitle": "Subtitle",
     "play": "Play",
     "none": "None",
-    "track": "Track"
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete"
   },
   "search": {
     "search": "Search...",
@@ -673,7 +675,11 @@
       "create_new": "Create New Playlist",
       "failed_to_add": "Failed to add to playlist",
       "failed_to_remove": "Failed to remove from playlist",
-      "failed_to_create": "Failed to create playlist"
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
     }
   },
   "watchlists": {

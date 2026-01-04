@@ -1,4 +1,4 @@
-import { getPlaylistsApi } from "@jellyfin/sdk/lib/utils/api";
+import { getLibraryApi, getPlaylistsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
@@ -149,6 +149,43 @@ export const useRemoveFromPlaylist = () => {
     },
     onError: (error: Error) => {
       toast.error(error.message || t("music.playlists.failed_to_remove"));
+    },
+  });
+
+  return mutation;
+};
+
+/**
+ * Hook to delete a playlist
+ */
+export const useDeletePlaylist = () => {
+  const api = useAtomValue(apiAtom);
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      playlistId,
+    }: {
+      playlistId: string;
+    }): Promise<void> => {
+      if (!api) {
+        throw new Error("API not configured");
+      }
+
+      await getLibraryApi(api).deleteItem({
+        itemId: playlistId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["music-playlists"],
+        refetchType: "all",
+      });
+      toast.success(t("music.playlists.deleted"));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || t("music.playlists.failed_to_delete"));
     },
   });
 
