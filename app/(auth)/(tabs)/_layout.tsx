@@ -106,7 +106,8 @@ export default function TabLayout() {
           name='(watchlists)'
           options={{
             title: t("watchlists.title"),
-            tabBarItemHidden: !settings?.streamyStatsServerUrl,
+            tabBarItemHidden:
+              !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/list.png")
