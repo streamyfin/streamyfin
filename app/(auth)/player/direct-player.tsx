@@ -103,10 +103,9 @@ export default function page() {
     : require("react-native-volume-manager");
 
   const downloadUtils = useDownload();
-  const downloadedFiles = useMemo(
-    () => downloadUtils.getDownloadedItems(),
-    [downloadUtils.getDownloadedItems],
-  );
+  // PERFORMANCE FIX: Use cached downloadedItems from provider instead of calling getDownloadedItems()
+  // This avoids expensive database parsing and unnecessary re-renders
+  const downloadedFiles = downloadUtils.downloadedItems;
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 

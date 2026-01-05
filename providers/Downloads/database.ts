@@ -4,28 +4,75 @@ import type { DownloadedItem, DownloadsDatabase } from "./types";
 
 const DOWNLOADS_DATABASE_KEY = "downloads.v2.json";
 
+// Performance optimization: Cache the parsed database to avoid repeated JSON.parse calls
+let cachedDb: DownloadsDatabase | null = null;
+let cacheVersion = 0;
+
+// Performance optimization: Cache the flattened items array
+let cachedItems: DownloadedItem[] | null = null;
+let itemsCacheVersion = -1;
+
+// Performance optimization: Index for O(1) item lookups by ID
+let itemIndex: Map<string, DownloadedItem> | null = null;
+let indexCacheVersion = -1;
+
+/**
+ * Invalidate all caches when database is modified
+ */
+function invalidateCaches(): void {
+  cachedDb = null;
+  cachedItems = null;
+  itemIndex = null;
+  cacheVersion++;
+}
+
 /**
  * Get the downloads database from storage
+ * PERFORMANCE: Caches the parsed database to avoid repeated JSON.parse calls
  */
 export function getDownloadsDatabase(): DownloadsDatabase {
+  // Return cached database if available
+  if (cachedDb !== null) {
+    return cachedDb;
+  }
+
+  // Parse from storage and cache the result
   const file = storage.getString(DOWNLOADS_DATABASE_KEY);
   if (file) {
-    return JSON.parse(file) as DownloadsDatabase;
+    cachedDb = JSON.parse(file) as DownloadsDatabase;
+    return cachedDb;
   }
-  return { movies: {}, series: {}, other: {} };
+
+  const emptyDb = { movies: {}, series: {}, other: {} };
+  cachedDb = emptyDb;
+  return emptyDb;
 }
 
 /**
  * Save the downloads database to storage
+ * PERFORMANCE: Updates cache and invalidates derived caches
  */
 export function saveDownloadsDatabase(db: DownloadsDatabase): void {
   storage.set(DOWNLOADS_DATABASE_KEY, JSON.stringify(db));
+  // Update the cache with the new database
+  cachedDb = db;
+  // Invalidate derived caches (items array and index)
+  cachedItems = null;
+  itemIndex = null;
+  cacheVersion++;
 }
 
 /**
  * Get all downloaded items as a flat array
+ * PERFORMANCE: Caches the flattened array to avoid rebuilding on every call
  */
 export function getAllDownloadedItems(): DownloadedItem[] {
+  // Return cached items if available and up-to-date
+  if (cachedItems !== null && itemsCacheVersion === cacheVersion) {
+    return cachedItems;
+  }
+
+  // Build the items array from the database
   const db = getDownloadsDatabase();
   const items: DownloadedItem[] = [];
 
@@ -47,34 +94,41 @@ export function getAllDownloadedItems(): DownloadedItem[] {
     }
   }
 
+  // Cache the result
+  cachedItems = items;
+  itemsCacheVersion = cacheVersion;
+
   return items;
 }
 
 /**
- * Get a downloaded item by its ID
+ * Build or refresh the item index for O(1) lookups
  */
-export function getDownloadedItemById(id: string): DownloadedItem | undefined {
-  const db = getDownloadsDatabase();
-
-  if (db.movies[id]) {
-    return db.movies[id];
+function ensureItemIndex(): void {
+  if (itemIndex !== null && indexCacheVersion === cacheVersion) {
+    return; // Index is up-to-date
   }
 
-  for (const series of Object.values(db.series)) {
-    for (const season of Object.values(series.seasons)) {
-      for (const episode of Object.values(season.episodes)) {
-        if (episode.item.Id === id) {
-          return episode;
-        }
-      }
+  // Build new index from all items
+  itemIndex = new Map<string, DownloadedItem>();
+  const items = getAllDownloadedItems();
+
+  for (const item of items) {
+    if (item.item.Id) {
+      itemIndex.set(item.item.Id, item);
     }
   }
 
-  if (db.other?.[id]) {
-    return db.other[id];
-  }
+  indexCacheVersion = cacheVersion;
+}
 
-  return undefined;
+/**
+ * Get a downloaded item by its ID
+ * PERFORMANCE: Uses O(1) index lookup instead of O(n²) iteration
+ */
+export function getDownloadedItemById(id: string): DownloadedItem | undefined {
+  ensureItemIndex();
+  return itemIndex!.get(id);
 }
 
 /**
@@ -221,4 +275,5 @@ export function updateDownloadedItem(
  */
 export function clearAllDownloadedItems(): void {
   saveDownloadsDatabase({ movies: {}, series: {}, other: {} });
+  // saveDownloadsDatabase already invalidates caches
 }

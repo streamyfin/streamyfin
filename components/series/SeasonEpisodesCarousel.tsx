@@ -31,11 +31,9 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
+  // PERFORMANCE FIX: Use cached downloadedItems from provider instead of calling getDownloadedItems()
+  // This avoids expensive database parsing and unnecessary re-renders
+  const { downloadedItems: downloadedFiles } = useDownload();
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 

@@ -55,11 +55,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, []);
 
-  const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
+  // PERFORMANCE FIX: Use cached downloadedItems from provider instead of calling getDownloadedItems()
+  // This avoids expensive database parsing and unnecessary re-renders
+  const { downloadedItems: downloadedFiles } = useDownload();
 
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
 
