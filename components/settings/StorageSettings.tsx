@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
@@ -6,6 +6,7 @@ import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import {
   clearCache,
   clearPermanentDownloads,
@@ -18,7 +19,7 @@ import { ListItem } from "../list/ListItem";
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
 

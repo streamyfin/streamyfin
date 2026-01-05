@@ -1,12 +1,12 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useHaptic } from "./useHaptic";
 import { usePlaybackManager } from "./usePlaybackManager";
 import { useInvalidatePlaybackProgressCache } from "./useRevalidatePlaybackProgressCache";
 
 export const useMarkAsPlayed = (items: BaseItemDto[]) => {
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const lightHapticFeedback = useHaptic("light");
   const { markItemPlayed, markItemUnplayed } = usePlaybackManager();
   const invalidatePlaybackProgressCache = useInvalidatePlaybackProgressCache();

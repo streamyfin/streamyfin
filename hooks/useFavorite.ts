@@ -1,12 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 export const useFavorite = (item: BaseItemDto) => {
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [isFavorite, setIsFavorite] = useState<boolean | undefined>(
