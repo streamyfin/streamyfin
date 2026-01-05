@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { AnimatedEqualizer } from "@/components/music/AnimatedEqualizer";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import {
   audioStorageEvents,
@@ -37,6 +38,7 @@ export const MusicTrackItem: React.FC<Props> = ({
   const { playTrack, currentTrack, isPlaying, loadingTrackId } =
     useMusicPlayer();
   const { isConnected, serverConnected } = useNetworkStatus();
+  const haptic = useHaptic("light");
 
   const imageUrl = useMemo(() => {
     const albumId = track.AlbumId || track.ParentId;
@@ -110,8 +112,9 @@ export const MusicTrackItem: React.FC<Props> = ({
   }, [onOptionsPress, track]);
 
   const handleOptionsPress = useCallback(() => {
+    haptic();
     onOptionsPress?.(track);
-  }, [onOptionsPress, track]);
+  }, [haptic, onOptionsPress, track]);
 
   return (
     <TouchableOpacity
