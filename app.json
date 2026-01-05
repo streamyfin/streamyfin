@@ -12,11 +12,6 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "requireFullScreen": true,
-      "entitlements": {
-        "com.apple.security.application-groups": [
-          "group.com.fredrikburmester.streamyfin.widgets"
-        ]
-      },
       "infoPlist": {
         "NSCameraUsageDescription": "The app needs access to your camera to scan barcodes.",
         "NSMicrophoneUsageDescription": "The app needs access to your microphone.",
