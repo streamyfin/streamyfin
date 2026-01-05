@@ -31,8 +31,13 @@ const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const { setServer, login, removeServer, initiateQuickConnect } =
-    useJellyfin();
+  const {
+    setServer,
+    login,
+    removeServer,
+    initiateQuickConnect,
+    loginWithSavedCredential,
+  } = useJellyfin();
 
   const {
     apiUrl: _apiUrl,
@@ -100,7 +105,7 @@ const Login: React.FC = () => {
     try {
       const result = CredentialsSchema.safeParse(credentials);
       if (result.success) {
-        await login(credentials.username, credentials.password);
+        await login(credentials.username, credentials.password, serverName);
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -114,6 +119,10 @@ const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickLoginWithSavedCredential = async (serverUrl: string) => {
+    await loginWithSavedCredential(serverUrl);
   };
 
   /**
@@ -380,9 +389,10 @@ const Login: React.FC = () => {
                   }}
                 />
                 <PreviousServersList
-                  onServerSelect={async (s: any) => {
+                  onServerSelect={async (s) => {
                     await handleConnect(s.address);
                   }}
+                  onQuickLogin={handleQuickLoginWithSavedCredential}
                 />
               </View>
             </View>
@@ -535,6 +545,7 @@ const Login: React.FC = () => {
                 onServerSelect={async (s) => {
                   await handleConnect(s.address);
                 }}
+                onQuickLogin={handleQuickLoginWithSavedCredential}
               />
             </View>
           </View>

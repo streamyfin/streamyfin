@@ -32,7 +32,12 @@
     "clear_button": "Clear",
     "search_for_local_servers": "Search for Local Servers",
     "searching": "Searching...",
-    "servers": "Servers"
+    "servers": "Servers",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time."
   },
   "home": {
     "checking_server_connection": "Checking server connection...",
@@ -413,7 +418,9 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
-    "delete": "Delete"
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove"
   },
   "search": {
     "search": "Search...",
