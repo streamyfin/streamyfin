@@ -7,17 +7,17 @@ import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Dimensions,
-  RefreshControl,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { RefreshControl, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicPlaylistCard } from "@/components/music/MusicPlaylistCard";
+import {
+  type PlaylistSortOption,
+  type PlaylistSortOrder,
+  PlaylistSortSheet,
+} from "@/components/music/PlaylistSortSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const ITEMS_PER_PAGE = 40;
@@ -36,8 +36,19 @@ export default function PlaylistsScreen() {
   const { t } = useTranslation();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<PlaylistSortOption>("SortName");
+  const [sortOrder, setSortOrder] = useState<PlaylistSortOrder>("Ascending");
 
   const isReady = Boolean(api && user?.Id && libraryId);
+
+  const handleSortChange = useCallback(
+    (newSortBy: PlaylistSortOption, newSortOrder: PlaylistSortOrder) => {
+      setSortBy(newSortBy);
+      setSortOrder(newSortOrder);
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -63,13 +74,13 @@ export default function PlaylistsScreen() {
     isFetchingNextPage,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ["music-playlists", libraryId, user?.Id],
+    queryKey: ["music-playlists", libraryId, user?.Id, sortBy, sortOrder],
     queryFn: async ({ pageParam = 0 }) => {
       const response = await getItemsApi(api!).getItems({
         userId: user?.Id,
         includeItemTypes: ["Playlist"],
-        sortBy: ["SortName"],
-        sortOrder: ["Ascending"],
+        sortBy: [sortBy],
+        sortOrder: [sortOrder],
         limit: ITEMS_PER_PAGE,
         startIndex: pageParam,
         recursive: true,
@@ -92,13 +103,6 @@ export default function PlaylistsScreen() {
   const playlists = useMemo(() => {
     return data?.pages.flatMap((page) => page.items) || [];
   }, [data]);
-
-  const numColumns = 2;
-  const screenWidth = Dimensions.get("window").width;
-  const gap = 12;
-  const padding = 16;
-  const itemWidth =
-    (screenWidth - padding * 2 - gap * (numColumns - 1)) / numColumns;
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -171,11 +175,10 @@ export default function PlaylistsScreen() {
     <View className='flex-1 bg-black'>
       <FlashList
         data={playlists}
-        numColumns={numColumns}
         contentContainerStyle={{
           paddingBottom: insets.bottom + 100,
-          paddingTop: 16,
-          paddingHorizontal: padding,
+          paddingTop: 8,
+          paddingHorizontal: 16,
         }}
         refreshControl={
           <RefreshControl
@@ -186,17 +189,26 @@ export default function PlaylistsScreen() {
         }
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
-        renderItem={({ item, index }) => (
-          <View
-            style={{
-              width: itemWidth,
-              marginRight: index % numColumns === 0 ? gap : 0,
-              marginBottom: gap,
-            }}
+        ListHeaderComponent={
+          <TouchableOpacity
+            onPress={() => setSortSheetOpen(true)}
+            className='flex-row items-center mb-2 py-1'
           >
-            <MusicPlaylistCard playlist={item} width={itemWidth} />
-          </View>
-        )}
+            <Ionicons name='swap-vertical' size={18} color='#9334E9' />
+            <Text className='text-purple-500 text-sm ml-1.5'>
+              {t(
+                `music.sort.${sortBy === "SortName" ? "alphabetical" : "date_created"}`,
+              )}
+            </Text>
+            <Ionicons
+              name={sortOrder === "Ascending" ? "arrow-up" : "arrow-down"}
+              size={14}
+              color='#9334E9'
+              style={{ marginLeft: 4 }}
+            />
+          </TouchableOpacity>
+        }
+        renderItem={({ item }) => <MusicPlaylistCard playlist={item} />}
         keyExtractor={(item) => item.Id!}
         ListFooterComponent={
           isFetchingNextPage ? (
@@ -209,6 +221,13 @@ export default function PlaylistsScreen() {
       <CreatePlaylistModal
         open={createModalOpen}
         setOpen={setCreateModalOpen}
+      />
+      <PlaylistSortSheet
+        open={sortSheetOpen}
+        setOpen={setSortSheetOpen}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
     </View>
   );

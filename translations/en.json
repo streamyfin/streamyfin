@@ -680,6 +680,11 @@
       "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
       "deleted": "Playlist deleted",
       "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
     }
   },
   "watchlists": {

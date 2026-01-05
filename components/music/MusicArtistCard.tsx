@@ -13,7 +13,9 @@ interface Props {
   size?: number;
 }
 
-export const MusicArtistCard: React.FC<Props> = ({ artist, size = 100 }) => {
+const IMAGE_SIZE = 48;
+
+export const MusicArtistCard: React.FC<Props> = ({ artist }) => {
   const [api] = useAtom(apiAtom);
   const router = useRouter();
 
@@ -32,14 +34,13 @@ export const MusicArtistCard: React.FC<Props> = ({ artist, size = 100 }) => {
   return (
     <TouchableOpacity
       onPress={handlePress}
-      style={{ width: size }}
-      className='flex flex-col items-center'
+      className='flex-row items-center py-2'
     >
       <View
         style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
+          width: IMAGE_SIZE,
+          height: IMAGE_SIZE,
+          borderRadius: IMAGE_SIZE / 2,
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
         }}
@@ -53,13 +54,13 @@ export const MusicArtistCard: React.FC<Props> = ({ artist, size = 100 }) => {
           />
         ) : (
           <View className='flex-1 items-center justify-center bg-neutral-800'>
-            <Text className='text-3xl'>👤</Text>
+            <Text className='text-xl'>👤</Text>
           </View>
         )}
       </View>
       <Text
-        numberOfLines={2}
-        className='text-white text-xs font-medium mt-2 text-center'
+        numberOfLines={1}
+        className='text-white text-base font-medium ml-3 flex-1'
       >
         {artist.Name}
       </Text>

@@ -227,7 +227,7 @@ export default function ArtistDetailScreen() {
           {section.type === "albums" ? (
             <HorizontalScroll
               data={section.data}
-              height={200}
+              height={178}
               keyExtractor={(item) => item.Id!}
               renderItem={(item) => <MusicAlbumCard album={item} />}
             />

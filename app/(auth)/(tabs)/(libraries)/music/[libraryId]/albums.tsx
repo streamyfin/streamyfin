@@ -6,11 +6,11 @@ import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
-import { MusicAlbumCard } from "@/components/music/MusicAlbumCard";
+import { MusicAlbumRowCard } from "@/components/music/MusicAlbumRowCard";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const ITEMS_PER_PAGE = 40;
@@ -65,13 +65,6 @@ export default function AlbumsScreen() {
     return data?.pages.flatMap((page) => page.items) || [];
   }, [data]);
 
-  const numColumns = 2;
-  const screenWidth = Dimensions.get("window").width;
-  const gap = 12;
-  const padding = 16;
-  const itemWidth =
-    (screenWidth - padding * 2 - gap * (numColumns - 1)) / numColumns;
-
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
@@ -98,11 +91,10 @@ export default function AlbumsScreen() {
     <View className='flex-1 bg-black'>
       <FlashList
         data={albums}
-        numColumns={numColumns}
         contentContainerStyle={{
           paddingBottom: insets.bottom + 100,
-          paddingTop: 16,
-          paddingHorizontal: padding,
+          paddingTop: 8,
+          paddingHorizontal: 16,
         }}
         refreshControl={
           <RefreshControl
@@ -113,17 +105,7 @@ export default function AlbumsScreen() {
         }
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
-        renderItem={({ item, index }) => (
-          <View
-            style={{
-              width: itemWidth,
-              marginRight: index % numColumns === 0 ? gap : 0,
-              marginBottom: gap,
-            }}
-          >
-            <MusicAlbumCard album={item} width={itemWidth} />
-          </View>
-        )}
+        renderItem={({ item }) => <MusicAlbumRowCard album={item} />}
         keyExtractor={(item) => item.Id!}
         ListFooterComponent={
           isFetchingNextPage ? (
