@@ -1,5 +1,29 @@
 import SwiftUI
 import WidgetKit
+import AppIntents
+import MediaPlayer
+
+// MARK: - App Intents
+
+struct TogglePlaybackIntent: AppIntent {
+    static var title: LocalizedStringResource = "Toggle Playback"
+    static var description = IntentDescription("Play or pause the current track")
+
+    func perform() async throws -> some IntentResult {
+        MPRemoteCommandCenter.shared().togglePlayPauseCommand.send()
+        return .result()
+    }
+}
+
+struct NextTrackIntent: AppIntent {
+    static var title: LocalizedStringResource = "Next Track"
+    static var description = IntentDescription("Skip to next track")
+
+    func perform() async throws -> some IntentResult {
+        MPRemoteCommandCenter.shared().nextTrackCommand.send()
+        return .result()
+    }
+}
 
 // MARK: - Data Models
 
@@ -17,7 +41,7 @@ struct NowPlayingEntry: TimelineEntry {
     let title: String
     let artist: String
     let album: String
-    let artworkUrl: String?
+    let artworkImage: UIImage?  // Store actual image, not URL (AsyncImage doesn't work in widgets)
     let isPlaying: Bool
     let isEmpty: Bool
 
@@ -27,7 +51,7 @@ struct NowPlayingEntry: TimelineEntry {
             title: "Not Playing",
             artist: "Open Streamyfin to play music",
             album: "",
-            artworkUrl: nil,
+            artworkImage: nil,
             isPlaying: false,
             isEmpty: true
         )
@@ -45,7 +69,7 @@ struct NowPlayingProvider: TimelineProvider {
             title: "Song Title",
             artist: "Artist Name",
             album: "Album",
-            artworkUrl: nil,
+            artworkImage: nil,
             isPlaying: true,
             isEmpty: false
         )
@@ -71,12 +95,20 @@ struct NowPlayingProvider: TimelineProvider {
             return .empty
         }
 
+        // Download artwork synchronously (AsyncImage doesn't work in widgets)
+        var artworkImage: UIImage? = nil
+        if let urlString = nowPlaying.artworkUrl,
+           let url = URL(string: urlString),
+           let imageData = try? Data(contentsOf: url) {
+            artworkImage = UIImage(data: imageData)
+        }
+
         return NowPlayingEntry(
             date: Date(),
             title: nowPlaying.title,
             artist: nowPlaying.artist,
             album: nowPlaying.album,
-            artworkUrl: nowPlaying.artworkUrl,
+            artworkImage: artworkImage,
             isPlaying: nowPlaying.isPlaying,
             isEmpty: false
         )
@@ -86,27 +118,15 @@ struct NowPlayingProvider: TimelineProvider {
 // MARK: - Artwork Image View
 
 struct ArtworkView: View {
-    let url: String?
+    let image: UIImage?
     let size: CGFloat
 
     var body: some View {
         Group {
-            if let urlString = url, let imageUrl = URL(string: urlString) {
-                AsyncImage(url: imageUrl) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    case .failure(_):
-                        placeholderView
-                    case .empty:
-                        placeholderView
-                            .overlay(ProgressView().tint(.white))
-                    @unknown default:
-                        placeholderView
-                    }
-                }
+            if let uiImage = image {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
             } else {
                 placeholderView
             }
@@ -125,6 +145,23 @@ struct ArtworkView: View {
     }
 }
 
+// MARK: - Control Button
+
+struct ControlButton: View {
+    let systemName: String
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.15))
+            Image(systemName: systemName)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundColor(.white)
+        }
+    }
+}
+
 // MARK: - Small Widget View
 
 struct SmallWidgetView: View {
@@ -135,7 +172,7 @@ struct SmallWidgetView: View {
             ZStack {
                 // Background artwork (blurred)
                 if !entry.isEmpty {
-                    ArtworkView(url: entry.artworkUrl, size: geometry.size.width)
+                    ArtworkView(image: entry.artworkImage, size: geometry.size.width)
                         .blur(radius: 20)
                         .opacity(0.6)
                 }
@@ -146,7 +183,7 @@ struct SmallWidgetView: View {
 
                     // Small artwork
                     if !entry.isEmpty {
-                        ArtworkView(url: entry.artworkUrl, size: 48)
+                        ArtworkView(image: entry.artworkImage, size: 48)
                             .shadow(radius: 4)
                     } else {
                         Image(systemName: "music.note.house.fill")
@@ -167,15 +204,16 @@ struct SmallWidgetView: View {
                         .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
 
-                    // Playing indicator
-                    if entry.isPlaying && !entry.isEmpty {
-                        HStack(spacing: 2) {
-                            ForEach(0..<3) { _ in
-                                RoundedRectangle(cornerRadius: 1)
-                                    .fill(Color(hex: "#9333EA"))
-                                    .frame(width: 3, height: 8)
-                            }
+                    // Play/Pause button
+                    if !entry.isEmpty {
+                        Button(intent: TogglePlaybackIntent()) {
+                            ControlButton(
+                                systemName: entry.isPlaying ? "pause.fill" : "play.fill",
+                                size: 14
+                            )
+                            .frame(width: 32, height: 32)
                         }
+                        .buttonStyle(.plain)
                         .padding(.top, 4)
                     }
                 }
@@ -197,7 +235,7 @@ struct MediumWidgetView: View {
     var body: some View {
         HStack(spacing: 16) {
             // Artwork
-            ArtworkView(url: entry.artworkUrl, size: 100)
+            ArtworkView(image: entry.artworkImage, size: 100)
                 .shadow(radius: 8)
 
             // Track info
@@ -221,24 +259,25 @@ struct MediumWidgetView: View {
 
                 Spacer()
 
-                // Playing indicator
-                if entry.isPlaying && !entry.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "#9333EA"))
-                        Text("Now Playing")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(Color(hex: "#9333EA"))
-                    }
-                } else if !entry.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "pause.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.5))
-                        Text("Paused")
-                            .font(.system(size: 11))
-                            .foregroundColor(.white.opacity(0.5))
+                // Playback controls
+                if !entry.isEmpty {
+                    HStack(spacing: 12) {
+                        // Play/Pause button
+                        Button(intent: TogglePlaybackIntent()) {
+                            ControlButton(
+                                systemName: entry.isPlaying ? "pause.fill" : "play.fill",
+                                size: 18
+                            )
+                            .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Next button
+                        Button(intent: NextTrackIntent()) {
+                            ControlButton(systemName: "forward.fill", size: 14)
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -329,7 +368,7 @@ extension Color {
         title: "Bohemian Rhapsody",
         artist: "Queen",
         album: "A Night at the Opera",
-        artworkUrl: nil,
+        artworkImage: nil,
         isPlaying: true,
         isEmpty: false
     )
@@ -344,7 +383,7 @@ extension Color {
         title: "Bohemian Rhapsody",
         artist: "Queen",
         album: "A Night at the Opera",
-        artworkUrl: nil,
+        artworkImage: nil,
         isPlaying: true,
         isEmpty: false
     )
