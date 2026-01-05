@@ -63,16 +63,16 @@ class VlcPlayerModule : Module() {
         view.seekTo(time)
       }
 
-      AsyncFunction("setAudioTrack") { view: VlcPlayerView, trackIndex: Int ->
-        view.setAudioTrack(trackIndex)
+      AsyncFunction("setAudioTrack") { view: VlcPlayerView, trackId: String ->
+        view.setAudioTrack(trackId)
       }
 
       AsyncFunction("getAudioTracks") { view: VlcPlayerView ->
         view.getAudioTracks()
       }
 
-      AsyncFunction("setSubtitleTrack") { view: VlcPlayerView, trackIndex: Int ->
-        view.setSubtitleTrack(trackIndex)
+      AsyncFunction("setSubtitleTrack") { view: VlcPlayerView, trackId: String ->
+        view.setSubtitleTrack(trackId)
       }
 
       AsyncFunction("getSubtitleTracks") { view: VlcPlayerView ->

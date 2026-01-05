@@ -234,6 +234,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         libVLC = LibVLC(context, initOptions)
         mediaPlayer = MediaPlayer(libVLC)
         mediaPlayer?.attachViews(videoLayout, null, false, false)
+        mediaPlayer?.setVideoScale(MediaPlayer.ScaleType.SURFACE_BEST_FIT)
         mediaPlayer?.setEventListener(this)
 
         log.debug("Loading network file: $uri")
@@ -294,38 +295,26 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
     }
 
-    fun setAudioTrack(trackIndex: Int) {
-        mediaPlayer?.setAudioTrack(trackIndex)
+    fun setAudioTrack(trackId: String) {
+        // TODO: VLC 4.0 API - need to find correct method
+        log.debug("setAudioTrack called with $trackId - not yet implemented for VLC 4.0")
     }
 
     fun getAudioTracks(): List<Map<String, Any>>? {
-        log.debug("getAudioTracks ${mediaPlayer?.audioTracks}")
-        val trackDescriptions = mediaPlayer?.audioTracks ?: return null
-
-        return trackDescriptions.map { trackDescription ->
-            mapOf("name" to trackDescription.name, "index" to trackDescription.id)
-        }
+        // TODO: VLC 4.0 API - need to find correct method
+        log.debug("getAudioTracks - not yet implemented for VLC 4.0")
+        return emptyList()
     }
 
-    fun setSubtitleTrack(trackIndex: Int) {
-        mediaPlayer?.setSpuTrack(trackIndex)
+    fun setSubtitleTrack(trackId: String) {
+        // TODO: VLC 4.0 API - need to find correct method
+        log.debug("setSubtitleTrack called with $trackId - not yet implemented for VLC 4.0")
     }
-
-    // fun getSubtitleTracks(): List<Map<String, Any>>? {
-    //     return mediaPlayer?.getSpuTracks()?.map { trackDescription ->
-    //         mapOf("name" to trackDescription.name, "index" to trackDescription.id)
-    //     }
-    // }
 
     fun getSubtitleTracks(): List<Map<String, Any>>? {
-        val subtitleTracks = mediaPlayer?.spuTracks?.map { trackDescription ->
-            mapOf("name" to trackDescription.name, "index" to trackDescription.id)
-        }
-
-        // Debug statement to print the result
-        log.debug("Subtitle Tracks: $subtitleTracks")
-
-        return subtitleTracks
+        // TODO: VLC 4.0 API - need to find correct method
+        log.debug("getSubtitleTracks - not yet implemented for VLC 4.0")
+        return emptyList()
     }
 
     fun setSubtitleURL(subtitleURL: String, name: String) {
