@@ -63,7 +63,7 @@
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64"],
             "compileSdkVersion": 36,
-            "targetSdkVersion": 34,
+            "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
             "kotlinVersion": "2.0.21",
             "minSdkVersion": 24,
