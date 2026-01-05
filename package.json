@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "submodule-reload": "git submodule update --init --remote --recursive",
-    "clean": "echo y | expo prebuild --clean",
+    "clean": "echo y | expo prebuild --clean && node scripts/fix-widget-icon.js",
     "start": "bun run submodule-reload && expo start",
     "prebuild": "cross-env EXPO_TV=0 bun run clean",
     "prebuild:tv": "cross-env EXPO_TV=1 bun run clean",
@@ -24,6 +24,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@bacons/apple-targets": "^3.0.6",
     "@bottom-tabs/react-navigation": "1.1.0",
     "@expo/metro-runtime": "~6.1.1",
     "@expo/react-native-action-sheet": "^4.1.1",

@@ -1,3 +1,4 @@
+import { ExtensionStorage } from "@bacons/apple-targets";
 import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
@@ -15,6 +16,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Platform } from "react-native";
 import TrackPlayer, {
   Capability,
   type Progress,
@@ -32,6 +34,12 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { storage } from "@/utils/mmkv";
+
+// Widget storage for iOS
+const widgetStorage =
+  Platform.OS === "ios"
+    ? new ExtensionStorage("group.com.fredrikburmester.streamyfin.widgets")
+    : null;
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -387,6 +395,38 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       saveProgress(state.progress);
     }
   }, [state.progress, state.currentTrack]);
+
+  // Sync now playing data to iOS widget
+  useEffect(() => {
+    if (!widgetStorage) return;
+
+    if (state.currentTrack && api) {
+      const albumId = state.currentTrack.AlbumId || state.currentTrack.ParentId;
+      const artworkId = albumId || state.currentTrack.Id;
+      const artworkUrl = artworkId
+        ? `${api.basePath}/Items/${artworkId}/Images/Primary?maxHeight=300`
+        : null;
+
+      widgetStorage.set(
+        "nowPlaying",
+        JSON.stringify({
+          title: state.currentTrack.Name || "Unknown Track",
+          artist:
+            state.currentTrack.Artists?.join(", ") ||
+            state.currentTrack.AlbumArtist ||
+            "Unknown Artist",
+          album: state.currentTrack.Album || "",
+          artworkUrl,
+          isPlaying: state.isPlaying,
+          updatedAt: Date.now(),
+        }),
+      );
+      ExtensionStorage.reloadWidget();
+    } else {
+      widgetStorage.set("nowPlaying", undefined);
+      ExtensionStorage.reloadWidget();
+    }
+  }, [state.currentTrack?.Id, state.isPlaying, api]);
 
   const reportPlaybackStart = useCallback(
     async (track: BaseItemDto, sessionId: string | null) => {
