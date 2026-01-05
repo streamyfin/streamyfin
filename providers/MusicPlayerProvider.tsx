@@ -29,6 +29,7 @@ import {
   setMaxCacheSizeMB,
 } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { storage } from "@/utils/mmkv";
@@ -47,6 +48,14 @@ export type RepeatMode = "off" | "all" | "one";
 interface TrackMediaInfo {
   mediaSource: MediaSourceInfo | null;
   isTranscoding: boolean;
+}
+
+interface PreparedTrack {
+  track: Track;
+  sessionId: string | null;
+  mediaSource: MediaSourceInfo | null;
+  isTranscoding: boolean;
+  mediaInfo: TrackMediaInfo | null;
 }
 
 interface MusicPlayerState {
@@ -214,6 +223,20 @@ const shuffleArray = <T,>(array: T[], currentIndex: number): T[] => {
   return result;
 };
 
+// Filter queue to only include downloaded items (for offline playback)
+const filterQueueForOffline = (
+  queue: BaseItemDto[],
+  startIndex: number,
+): { queue: BaseItemDto[]; startIndex: number } => {
+  const startItem = queue[startIndex];
+  const downloadedOnly = queue.filter((item) => getLocalPath(item.Id) !== null);
+  const newStartIndex = downloadedOnly.findIndex((t) => t.Id === startItem?.Id);
+  return {
+    queue: downloadedOnly,
+    startIndex: newStartIndex >= 0 ? newStartIndex : 0,
+  };
+};
+
 // Convert BaseItemDto to TrackPlayer Track
 const itemToTrack = (
   item: BaseItemDto,
@@ -255,6 +278,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const settings = useAtomValue(settingsAtom);
+  const { isConnected, serverConnected } = useNetworkStatus();
+  const isOffline = !isConnected || serverConnected === false;
   const initializedRef = useRef(false);
   const playerSetupRef = useRef(false);
 
@@ -466,71 +491,139 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     [api, user?.Id],
   );
 
+  // Helper to prepare a single track - checks cache first, then fetches from server
+  const prepareTrack = useCallback(
+    async (
+      item: BaseItemDto,
+      preferLocal: boolean,
+    ): Promise<PreparedTrack | null> => {
+      if (!api || !user?.Id || !item.Id) return null;
+
+      // Check for local/cached version first
+      const cachedUrl = preferLocal ? getLocalPath(item.Id) : null;
+
+      if (cachedUrl) {
+        // Downloaded track - instant return, no API call needed
+        return {
+          track: itemToTrack(item, cachedUrl, api, false), // false to avoid redundant cache check
+          sessionId: null,
+          mediaSource: null,
+          isTranscoding: false,
+          mediaInfo: null,
+        };
+      }
+
+      // Not downloaded - need to fetch stream URL from server
+      try {
+        const result = await getAudioStreamUrl(api, user.Id, item.Id);
+        if (!result) return null;
+
+        return {
+          track: itemToTrack(item, result.url, api, false),
+          sessionId: result.sessionId,
+          mediaSource: result.mediaSource,
+          isTranscoding: result.isTranscoding,
+          mediaInfo: {
+            mediaSource: result.mediaSource,
+            isTranscoding: result.isTranscoding,
+          },
+        };
+      } catch (error) {
+        console.warn(
+          `[MusicPlayer] Failed to prepare track ${item.Id}:`,
+          error,
+        );
+        // If server unreachable, check for cached version as fallback
+        const fallbackCached = getLocalPath(item.Id);
+        if (fallbackCached) {
+          return {
+            track: itemToTrack(item, fallbackCached, api, false),
+            sessionId: null,
+            mediaSource: null,
+            isTranscoding: false,
+            mediaInfo: null,
+          };
+        }
+        return null;
+      }
+    },
+    [api, user?.Id],
+  );
+
+  // Load remaining tracks in the background without blocking playback
+  const loadRemainingTracksInBackground = useCallback(
+    async (queue: BaseItemDto[], startIndex: number, preferLocal: boolean) => {
+      if (!api || !user?.Id) return;
+
+      const mediaInfoMap: Record<string, TrackMediaInfo> = {};
+
+      // Process tracks BEFORE the start index (insert at position 0, pushing current track forward)
+      const beforeTracks: Track[] = [];
+      for (let i = 0; i < startIndex; i++) {
+        const item = queue[i];
+        if (!item.Id) continue;
+
+        const prepared = await prepareTrack(item, preferLocal);
+        if (prepared) {
+          beforeTracks.push(prepared.track);
+          if (prepared.mediaInfo) {
+            mediaInfoMap[item.Id] = prepared.mediaInfo;
+          }
+        }
+      }
+
+      // Insert tracks before current track (they go at index 0)
+      if (beforeTracks.length > 0) {
+        await TrackPlayer.add(beforeTracks, 0);
+        // Update queue index since we inserted tracks before the current one
+        setState((prev) => ({
+          ...prev,
+          queueIndex: beforeTracks.length,
+          trackMediaInfoMap: { ...prev.trackMediaInfoMap, ...mediaInfoMap },
+        }));
+      }
+
+      // Process tracks AFTER the start index (append to end)
+      for (let i = startIndex + 1; i < queue.length; i++) {
+        const item = queue[i];
+        if (!item.Id) continue;
+
+        const prepared = await prepareTrack(item, preferLocal);
+        if (prepared) {
+          await TrackPlayer.add(prepared.track); // Append to end
+          if (prepared.mediaInfo && item.Id) {
+            setState((prev) => ({
+              ...prev,
+              trackMediaInfoMap: {
+                ...prev.trackMediaInfoMap,
+                [item.Id!]: prepared.mediaInfo!,
+              },
+            }));
+          }
+        }
+      }
+    },
+    [api, user?.Id, prepareTrack],
+  );
+
   const loadAndPlayQueue = useCallback(
     async (queue: BaseItemDto[], startIndex: number) => {
       if (!api || !user?.Id || queue.length === 0) return;
 
-      const trackToLoad = queue[startIndex];
+      const targetItem = queue[startIndex];
       setState((prev) => ({
         ...prev,
         isLoading: true,
-        loadingTrackId: trackToLoad?.Id ?? null,
+        loadingTrackId: targetItem?.Id ?? null,
       }));
 
       try {
-        // Get stream URLs for all tracks
-        const tracks: Track[] = [];
-        const mediaInfoMap: Record<string, TrackMediaInfo> = {};
-        let startTrackMediaSource: MediaSourceInfo | null = null;
-        let startTrackIsTranscoding = false;
-
         const preferLocal = settings?.preferLocalAudio ?? true;
 
-        for (let i = 0; i < queue.length; i++) {
-          const item = queue[i];
-          if (!item.Id) continue;
+        // PHASE 1: Prepare and play the target track immediately
+        const targetTrackResult = await prepareTrack(targetItem, preferLocal);
 
-          // Check for cached/downloaded version
-          const cachedUrl = getLocalPath(item.Id);
-
-          // If preferLocal and we have a local file, use it directly without server request
-          if (preferLocal && cachedUrl) {
-            tracks.push(itemToTrack(item, cachedUrl, api, true));
-            continue;
-          }
-
-          // Try to get stream URL from server
-          const result = await getAudioStreamUrl(api, user.Id, item.Id);
-
-          if (result) {
-            tracks.push(itemToTrack(item, result.url, api, preferLocal));
-            // Store media info for all tracks
-            mediaInfoMap[item.Id] = {
-              mediaSource: result.mediaSource,
-              isTranscoding: result.isTranscoding,
-            };
-            // Store first track's session ID
-            if (tracks.length === 1) {
-              setState((prev) => ({
-                ...prev,
-                playSessionId: result.sessionId,
-              }));
-            }
-            // Store media source info for the starting track
-            if (i === startIndex) {
-              startTrackMediaSource = result.mediaSource;
-              startTrackIsTranscoding = result.isTranscoding;
-            }
-          } else if (cachedUrl) {
-            // Fallback to cached version if server is unreachable
-            console.log(
-              `[MusicPlayer] Using cached file (offline) for ${item.Name}: ${cachedUrl}`,
-            );
-            tracks.push(itemToTrack(item, cachedUrl, api, true));
-          }
-        }
-
-        if (tracks.length === 0) {
+        if (!targetTrackResult) {
           setState((prev) => ({
             ...prev,
             isLoading: false,
@@ -539,32 +632,40 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           return;
         }
 
-        // Reset TrackPlayer and add new queue
+        // Reset and start playback immediately with just the target track
         await TrackPlayer.reset();
-        await TrackPlayer.add(tracks);
-        await TrackPlayer.skip(startIndex);
+        await TrackPlayer.add(targetTrackResult.track);
         await TrackPlayer.play();
 
-        const currentTrack = queue[startIndex];
+        // Update state for immediate playback
         setState((prev) => ({
           ...prev,
           queue,
           originalQueue: queue,
-          queueIndex: startIndex,
-          currentTrack,
+          queueIndex: 0, // Target track is at index 0 in TrackPlayer initially
+          currentTrack: targetItem,
           isLoading: false,
           loadingTrackId: null,
           isPlaying: true,
-          streamUrl: tracks[startIndex]?.url || null,
-          duration: currentTrack?.RunTimeTicks
-            ? Math.floor(currentTrack.RunTimeTicks / 10000000)
+          streamUrl: targetTrackResult.track.url || null,
+          playSessionId: targetTrackResult.sessionId,
+          duration: targetItem?.RunTimeTicks
+            ? Math.floor(targetItem.RunTimeTicks / 10000000)
             : 0,
-          mediaSource: startTrackMediaSource,
-          isTranscoding: startTrackIsTranscoding,
-          trackMediaInfoMap: mediaInfoMap,
+          mediaSource: targetTrackResult.mediaSource,
+          isTranscoding: targetTrackResult.isTranscoding,
+          trackMediaInfoMap:
+            targetTrackResult.mediaInfo && targetItem.Id
+              ? { [targetItem.Id]: targetTrackResult.mediaInfo }
+              : {},
         }));
 
-        reportPlaybackStart(currentTrack, state.playSessionId);
+        reportPlaybackStart(targetItem, targetTrackResult.sessionId);
+
+        // PHASE 2: Load remaining tracks in background (non-blocking)
+        if (queue.length > 1) {
+          loadRemainingTracksInBackground(queue, startIndex, preferLocal);
+        }
       } catch (error) {
         console.error("[MusicPlayer] Error loading queue:", error);
         setState((prev) => ({
@@ -574,7 +675,14 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         }));
       }
     },
-    [api, user?.Id, reportPlaybackStart, state.playSessionId],
+    [
+      api,
+      user?.Id,
+      reportPlaybackStart,
+      settings?.preferLocalAudio,
+      prepareTrack,
+      loadRemainingTracksInBackground,
+    ],
   );
 
   const playTrack = useCallback(
@@ -615,9 +723,23 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       let finalQueue = queue;
       let finalIndex = startIndex;
 
+      // When offline, filter to downloaded items only
+      if (isOffline) {
+        const filtered = filterQueueForOffline(queue, startIndex);
+        finalQueue = filtered.queue;
+        finalIndex = filtered.startIndex;
+
+        if (finalQueue.length === 0) {
+          console.warn(
+            "[MusicPlayer] No downloaded tracks available for offline playback",
+          );
+          return;
+        }
+      }
+
       // Apply shuffle if enabled
       if (state.shuffleEnabled) {
-        finalQueue = shuffleArray(queue, startIndex);
+        finalQueue = shuffleArray(finalQueue, finalIndex);
         finalIndex = 0;
       }
 
@@ -630,6 +752,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       state.shuffleEnabled,
       reportPlaybackStopped,
       loadAndPlayQueue,
+      isOffline,
     ],
   );
 
@@ -1158,6 +1281,50 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       )
         return;
 
+      // Check if the track exists in TrackPlayer queue (might not be loaded yet due to background loading)
+      const tpQueue = await TrackPlayer.getQueue();
+      const targetItem = state.queue[index];
+
+      if (index >= tpQueue.length) {
+        // Track not loaded yet - need to load it first
+        if (!targetItem) return;
+
+        setState((prev) => ({
+          ...prev,
+          isLoading: true,
+          loadingTrackId: targetItem?.Id ?? null,
+        }));
+
+        const preferLocal = settings?.preferLocalAudio ?? true;
+        const prepared = await prepareTrack(targetItem, preferLocal);
+
+        if (!prepared) {
+          setState((prev) => ({
+            ...prev,
+            isLoading: false,
+            loadingTrackId: null,
+          }));
+          return;
+        }
+
+        // Add the track at the correct position
+        await TrackPlayer.add(prepared.track, index);
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          loadingTrackId: null,
+          ...(prepared.mediaInfo && targetItem.Id
+            ? {
+                trackMediaInfoMap: {
+                  ...prev.trackMediaInfoMap,
+                  [targetItem.Id]: prepared.mediaInfo,
+                },
+              }
+            : {}),
+        }));
+      }
+
+      // Report stop for current track
       if (state.currentTrack && state.playSessionId) {
         reportPlaybackStopped(
           state.currentTrack,
@@ -1169,14 +1336,13 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       await TrackPlayer.skip(index);
 
       setState((prev) => {
-        const targetTrack = prev.queue[index];
-        const mediaInfo = targetTrack?.Id
-          ? prev.trackMediaInfoMap[targetTrack.Id]
+        const mediaInfo = targetItem?.Id
+          ? prev.trackMediaInfoMap[targetItem.Id]
           : null;
         return {
           ...prev,
           queueIndex: index,
-          currentTrack: targetTrack,
+          currentTrack: targetItem,
           mediaSource: mediaInfo?.mediaSource ?? null,
           isTranscoding: mediaInfo?.isTranscoding ?? false,
         };
@@ -1189,6 +1355,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       state.playSessionId,
       state.progress,
       reportPlaybackStopped,
+      settings?.preferLocalAudio,
+      prepareTrack,
     ],
   );
 
