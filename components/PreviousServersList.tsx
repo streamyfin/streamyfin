@@ -8,6 +8,10 @@ import { ListItem } from "./list/ListItem";
 
 interface Server {
   address: string;
+  serverName?: string;
+  serverId?: string;
+  lastUsername?: string;
+  savedToken?: string;
 }
 
 interface PreviousServersListProps {
@@ -26,6 +30,20 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
 
   const { t } = useTranslation();
 
+  const getServerDisplayName = (server: Server) => {
+    if (server.serverName) {
+      return `${server.serverName}`;
+    }
+    return server.address;
+  };
+
+  const getServerSubtitle = (server: Server) => {
+    if (server.lastUsername) {
+      return `${server.address} • ${server.lastUsername}`;
+    }
+    return server.address;
+  };
+
   if (!previousServers.length) return null;
 
   return (
@@ -35,7 +53,9 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
           <ListItem
             key={s.address}
             onPress={() => onServerSelect(s)}
-            title={s.address}
+            title={getServerDisplayName(s)}
+            subtitle={getServerSubtitle(s)}
+            icon={s.savedToken ? "key" : "server"}
             showArrow
           />
         ))}

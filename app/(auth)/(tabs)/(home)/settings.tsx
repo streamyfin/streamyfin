@@ -7,8 +7,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { AddNewServer } from "@/components/settings/AddNewServer";
 import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { QuickConnect } from "@/components/settings/QuickConnect";
+import { ServerSwitcher } from "@/components/settings/ServerSwitcher";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { UserInfo } from "@/components/settings/UserInfo";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
@@ -51,6 +53,10 @@ export default function settings() {
         <View className='mb-4'>
           <UserInfo />
         </View>
+
+        <ServerSwitcher className='mb-4' />
+
+        <AddNewServer className='mb-4' />
 
         <QuickConnect className='mb-4' />
 

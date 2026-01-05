@@ -30,6 +30,10 @@ import { store } from "@/utils/store";
 
 interface Server {
   address: string;
+  serverName?: string;
+  serverId?: string;
+  lastUsername?: string;
+  savedToken?: string;
 }
 
 export const apiAtom = atom<Api | null>(null);
@@ -40,7 +44,9 @@ interface JellyfinContextValue {
   discoverServers: (url: string) => Promise<Server[]>;
   setServer: (server: Server) => Promise<void>;
   removeServer: () => void;
-  login: (username: string, password: string) => Promise<void>;
+  switchServer: (server: Server) => Promise<void>;
+  addNewServer: (server: Server) => Promise<void>;
+  login: (username: string, password: string, saveCredentials?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
 }
@@ -190,6 +196,21 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
       if (!apiInstance?.basePath) throw new Error("Failed to connect");
 
+      // Get server info to obtain serverId and serverName
+      try {
+        const response = await fetch(
+          `${server.address}/System/Info/Public`,
+          { mode: "cors" }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          server.serverId = data.Id;
+          server.serverName = data.ServerName;
+        }
+      } catch (error) {
+        console.warn("Could not get server info:", error);
+      }
+
       setApi(apiInstance);
       storage.set("serverUrl", server.address);
     },
@@ -225,9 +246,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async ({
       username,
       password,
+      saveCredentials = true,
     }: {
       username: string;
       password: string;
+      saveCredentials?: boolean;
     }) => {
       if (!api || !jellyfin) throw new Error("API not initialized");
 
@@ -239,6 +262,26 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           storage.set("user", JSON.stringify(auth.data.User));
           setApi(jellyfin.createApi(api?.basePath, auth.data?.AccessToken));
           storage.set("token", auth.data?.AccessToken);
+
+          // Save token to the current server if requested
+          if (saveCredentials && api.basePath) {
+            const previousServers = JSON.parse(
+              storage.getString("previousServers") || "[]",
+            ) as Server[];
+            
+            const updatedServers = previousServers.map((server) => {
+              if (server.address === api.basePath) {
+                return {
+                  ...server,
+                  lastUsername: username,
+                  savedToken: auth.data.AccessToken
+                };
+              }
+              return server;
+            });
+            
+            storage.set("previousServers", JSON.stringify(updatedServers));
+          }
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           if (recentPluginSettings?.jellyseerrServerUrl?.value) {
@@ -307,6 +350,112 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  const switchServerMutation = useMutation({
+    mutationFn: async (server: Server) => {
+      // Get current server info for comparison
+      const currentServerId = await getCurrentServerId();
+      
+      // If switching to same server (different URL), try auto-login with saved token
+      if (server.serverId && server.serverId === currentServerId && server.savedToken) {
+        try {
+          // Create API instance with saved token
+          const apiInstance = jellyfin?.createApi(server.address, server.savedToken);
+          if (!apiInstance) throw new Error("Failed to create API instance");
+          
+          // Validate the token by making an authenticated request
+          const userApi = getUserApi(apiInstance);
+          const userResponse = await userApi.getCurrentUser();
+          
+          if (userResponse.data) {
+            // Token is valid, update the API and user
+            setApi(apiInstance);
+            setUser(userResponse.data);
+            storage.set("serverUrl", server.address);
+            storage.set("token", server.savedToken);
+            storage.set("user", JSON.stringify(userResponse.data));
+            return;
+          }
+        } catch (error) {
+          console.warn("Saved token is invalid, falling back to manual login:", error);
+          // Remove invalid token from server
+          const previousServers = JSON.parse(
+            storage.getString("previousServers") || "[]",
+          ) as Server[];
+          
+          const updatedServers = previousServers.map((s) => {
+            if (s.address === server.address) {
+              const { savedToken, ...serverWithoutToken } = s;
+              return serverWithoutToken;
+            }
+            return s;
+          });
+          
+          storage.set("previousServers", JSON.stringify(updatedServers));
+        }
+      }
+      
+      // For different servers or if auto-login fails, do the normal logout → set server flow
+      await logoutMutation.mutateAsync();
+      await setServerMutation.mutateAsync(server);
+    },
+    onError: (error) => {
+      console.error("Failed to switch server:", error);
+    },
+  });
+
+  const addNewServerMutation = useMutation({
+    mutationFn: async (server: Server) => {
+      // Add a new server to the list without switching to it
+      const previousServers = JSON.parse(
+        storage.getString("previousServers") || "[]",
+      ) as Server[];
+      
+      // Get server info first
+      try {
+        const response = await fetch(
+          `${server.address}/System/Info/Public`,
+          { mode: "cors" }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          server.serverId = data.Id;
+          server.serverName = data.ServerName;
+        }
+      } catch (error) {
+        console.warn("Could not get server info:", error);
+      }
+      
+      const updatedServers = [
+        server,
+        ...previousServers.filter((s: Server) => s.address !== server.address),
+      ];
+      storage.set(
+        "previousServers",
+        JSON.stringify(updatedServers.slice(0, 5)),
+      );
+    },
+    onError: (error) => {
+      console.error("Failed to add new server:", error);
+    },
+  });
+
+  const getCurrentServerId = async (): Promise<string | null> => {
+    if (!api?.basePath) return null;
+    try {
+      const response = await fetch(
+        `${api.basePath}/System/Info/Public`,
+        { mode: "cors" }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        return data.Id;
+      }
+    } catch (error) {
+      console.warn("Could not get current server ID:", error);
+    }
+    return null;
+  };
+
   const [loaded, setLoaded] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
@@ -321,6 +470,23 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!jellyfin) return;
 
       try {
+        // Migrate any existing savedCredentials to remove them
+        const previousServers = JSON.parse(
+          storage.getString("previousServers") || "[]",
+        ) as any[];
+        
+        if (previousServers.length > 0) {
+          const migratedServers = previousServers.map((server) => {
+            if (server.savedCredentials) {
+              // Remove savedCredentials field for security
+              const { savedCredentials, ...serverWithoutCredentials } = server;
+              return serverWithoutCredentials;
+            }
+            return server;
+          });
+          storage.set("previousServers", JSON.stringify(migratedServers));
+        }
+
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
         const storedUser = getUserFromStorage();
@@ -350,8 +516,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     discoverServers,
     setServer: (server) => setServerMutation.mutateAsync(server),
     removeServer: () => removeServerMutation.mutateAsync(),
-    login: (username, password) =>
-      loginMutation.mutateAsync({ username, password }),
+    switchServer: (server) => switchServerMutation.mutateAsync(server),
+    addNewServer: (server) => addNewServerMutation.mutateAsync(server),
+    login: (username, password, saveCredentials = true) =>
+      loginMutation.mutateAsync({ username, password, saveCredentials }),
     logout: () => logoutMutation.mutateAsync(),
     initiateQuickConnect,
   };
