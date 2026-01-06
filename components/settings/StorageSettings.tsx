@@ -1,17 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
-import {
-  clearCache,
-  clearPermanentDownloads,
-  getStorageStats,
-} from "@/providers/AudioStorage";
 import { useDownload } from "@/providers/DownloadProvider";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -19,7 +12,6 @@ import { ListItem } from "../list/ListItem";
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
   const { t } = useTranslation();
-  const queryClient = useNetworkAwareQueryClient();
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
 
@@ -37,11 +29,6 @@ export const StorageSettings = () => {
     },
   });
 
-  const { data: musicCacheStats } = useQuery({
-    queryKey: ["musicCacheStats"],
-    queryFn: () => getStorageStats(),
-  });
-
   const onDeleteClicked = async () => {
     try {
       await deleteAllFiles();
@@ -51,32 +38,6 @@ export const StorageSettings = () => {
       toast.error(t("home.settings.toasts.error_deleting_files"));
     }
   };
-
-  const onClearMusicCacheClicked = useCallback(async () => {
-    try {
-      await clearCache();
-      queryClient.invalidateQueries({ queryKey: ["musicCacheStats"] });
-      queryClient.invalidateQueries({ queryKey: ["appSize"] });
-      successHapticFeedback();
-      toast.success(t("home.settings.storage.music_cache_cleared"));
-    } catch (_e) {
-      errorHapticFeedback();
-      toast.error(t("home.settings.toasts.error_deleting_files"));
-    }
-  }, [queryClient, successHapticFeedback, errorHapticFeedback, t]);
-
-  const onDeleteDownloadedSongsClicked = useCallback(async () => {
-    try {
-      await clearPermanentDownloads();
-      queryClient.invalidateQueries({ queryKey: ["musicCacheStats"] });
-      queryClient.invalidateQueries({ queryKey: ["appSize"] });
-      successHapticFeedback();
-      toast.success(t("home.settings.storage.downloaded_songs_deleted"));
-    } catch (_e) {
-      errorHapticFeedback();
-      toast.error(t("home.settings.toasts.error_deleting_files"));
-    }
-  }, [queryClient, successHapticFeedback, errorHapticFeedback, t]);
 
   const calculatePercentage = (value: number, total: number) => {
     return ((value / total) * 100).toFixed(2);
@@ -141,41 +102,13 @@ export const StorageSettings = () => {
         </View>
       </View>
       {!Platform.isTV && (
-        <>
-          <ListGroup
-            title={t("home.settings.storage.music_cache_title")}
-            description={
-              <Text className='text-[#8E8D91] text-xs'>
-                {t("home.settings.storage.music_cache_description")}
-              </Text>
-            }
-          >
-            <ListItem
-              onPress={onClearMusicCacheClicked}
-              title={t("home.settings.storage.clear_music_cache")}
-              subtitle={t("home.settings.storage.music_cache_size", {
-                size: (musicCacheStats?.cacheSize ?? 0).bytesToReadable(),
-              })}
-            />
-          </ListGroup>
-          <ListGroup>
-            <ListItem
-              textColor='red'
-              onPress={onDeleteDownloadedSongsClicked}
-              title={t("home.settings.storage.delete_all_downloaded_songs")}
-              subtitle={t("home.settings.storage.downloaded_songs_size", {
-                size: (musicCacheStats?.permanentSize ?? 0).bytesToReadable(),
-              })}
-            />
-          </ListGroup>
-          <ListGroup>
-            <ListItem
-              textColor='red'
-              onPress={onDeleteClicked}
-              title={t("home.settings.storage.delete_all_downloaded_files")}
-            />
-          </ListGroup>
-        </>
+        <ListGroup>
+          <ListItem
+            textColor='red'
+            onPress={onDeleteClicked}
+            title={t("home.settings.storage.delete_all_downloaded_files")}
+          />
+        </ListGroup>
       )}
     </View>
   );
