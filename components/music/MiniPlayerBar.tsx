@@ -26,7 +26,7 @@ import { Text } from "@/components/common/Text";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 
-const HORIZONTAL_MARGIN = Platform.OS === "android" ? 8 : 16;
+const HORIZONTAL_MARGIN = Platform.OS === "android" ? 12 : 20;
 const BOTTOM_TAB_HEIGHT = Platform.OS === "android" ? 56 : 52;
 const BAR_HEIGHT = Platform.OS === "android" ? 58 : 50;
 
