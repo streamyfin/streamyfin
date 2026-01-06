@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@bottom-tabs/react-navigation": "1.1.0",
+    "@douglowder/expo-av-route-picker-view": "^0.0.5",
     "@expo/metro-runtime": "~6.1.1",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "0.2.0-beta.9",

@@ -1,3 +1,4 @@
+import { ExpoAvRoutePickerView } from "@douglowder/expo-av-route-picker-view";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import type {
@@ -7,7 +8,13 @@ import type {
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -21,6 +28,7 @@ import DraggableFlatList, {
   type RenderItemParams,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
+import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { VolumeResult } from "react-native-volume-manager";
@@ -30,7 +38,8 @@ import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { useFavorite } from "@/hooks/useFavorite";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { useMusicCast } from "@/hooks/useMusicCast";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
   useMusicPlayer,
@@ -63,12 +72,22 @@ type ViewMode = "player" | "queue";
 
 export default function NowPlayingScreen() {
   const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>("player");
   const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+
+  const {
+    isConnected: isCastConnected,
+    castQueue,
+    castState,
+  } = useMusicCast({
+    api,
+    userId: user?.Id,
+  });
 
   const {
     currentTrack,
@@ -92,6 +111,7 @@ export default function NowPlayingScreen() {
     removeFromQueue,
     reorderQueue,
     stop,
+    pause,
   } = useMusicPlayer();
 
   const { isFavorite, toggleFavorite } = useFavorite(
@@ -109,6 +129,21 @@ export default function NowPlayingScreen() {
   useEffect(() => {
     sliderMax.value = duration > 0 ? duration : 1;
   }, [duration, sliderMax]);
+
+  // Auto-cast queue when Chromecast becomes connected and pause local playback
+  const prevCastState = useRef<CastState | null | undefined>(null);
+  useEffect(() => {
+    if (
+      castState === CastState.CONNECTED &&
+      prevCastState.current !== CastState.CONNECTED &&
+      queue.length > 0
+    ) {
+      // Just connected - pause local playback and cast the queue
+      pause();
+      castQueue({ queue, startIndex: queueIndex });
+    }
+    prevCastState.current = castState;
+  }, [castState, queue, queueIndex, castQueue, pause]);
 
   const imageUrl = useMemo(() => {
     if (!api || !currentTrack) return null;
@@ -281,6 +316,7 @@ export default function NowPlayingScreen() {
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
             onOptionsPress={handleOptionsPress}
+            isCastConnected={isCastConnected}
           />
         ) : (
           <QueueView
@@ -342,6 +378,7 @@ interface PlayerViewProps {
   isFavorite: boolean | undefined;
   onToggleFavorite: () => void;
   onOptionsPress: () => void;
+  isCastConnected: boolean;
 }
 
 const PlayerView: React.FC<PlayerViewProps> = ({
@@ -370,6 +407,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   isFavorite,
   onToggleFavorite,
   onOptionsPress,
+  isCastConnected,
 }) => {
   const audioStream = useMemo(() => {
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
@@ -447,7 +485,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             <Text numberOfLines={1} className='text-white text-2xl font-bold'>
               {currentTrack.Name}
             </Text>
-            <Text numberOfLines={1} className='text-neutral-400 text-lg mt-1'>
+            <Text numberOfLines={1} className='text-neutral-400 text-lg'>
               {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
             </Text>
           </View>
@@ -577,7 +615,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
       {/* Volume Slider */}
       {!isTv && VolumeManager && (
-        <View className='flex-row items-center mb-4'>
+        <View className='flex-row items-center mb-6'>
           <Ionicons name='volume-low' size={20} color='#666' />
           <View className='flex-1 mx-3'>
             <Slider
@@ -596,6 +634,39 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             />
           </View>
           <Ionicons name='volume-high' size={20} color='#666' />
+        </View>
+      )}
+
+      {/* AirPlay & Chromecast Buttons */}
+      {!isTv && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 32,
+            marginBottom: 16,
+          }}
+        >
+          {/* AirPlay (iOS only) */}
+          {Platform.OS === "ios" && (
+            <View style={{ transform: [{ scale: 2.8 }] }}>
+              <ExpoAvRoutePickerView
+                style={{ width: 24, height: 24 }}
+                tintColor='#666666'
+                activeTintColor='#9334E9'
+              />
+            </View>
+          )}
+          {/* Chromecast */}
+          <CastButton
+            style={{
+              width: 24,
+              height: 24,
+              tintColor: isCastConnected ? "#9334E9" : "#666",
+              transform: [{ translateY: 1 }],
+            }}
+          />
         </View>
       )}
     </ScrollView>
