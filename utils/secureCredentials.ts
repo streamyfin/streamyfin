@@ -137,6 +137,18 @@ export function getPreviousServers(): SavedServer[] {
 }
 
 /**
+ * Remove a server from the previous servers list and delete its credentials.
+ */
+export async function removeServerFromList(serverUrl: string): Promise<void> {
+  // First delete any saved credentials
+  await deleteServerCredential(serverUrl);
+  // Then remove from the list
+  const previousServers = getPreviousServers();
+  const filtered = previousServers.filter((s) => s.address !== serverUrl);
+  storage.set("previousServers", JSON.stringify(filtered));
+}
+
+/**
  * Migrate existing previousServers to new format (add hasCredentials: false).
  * Should be called on app startup.
  */
