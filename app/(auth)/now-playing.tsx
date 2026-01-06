@@ -31,6 +31,7 @@ import DraggableFlatList, {
 import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import TextTicker from "react-native-text-ticker";
 import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
@@ -482,12 +483,39 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       <View className='mb-6'>
         <View className='flex-row items-start justify-between'>
           <View className='flex-1 mr-4'>
-            <Text numberOfLines={1} className='text-white text-2xl font-bold'>
+            <TextTicker
+              style={{ color: "white", fontSize: 24, fontWeight: "bold" }}
+              duration={Math.max(4000, (currentTrack.Name?.length || 0) * 250)}
+              loop
+              bounce={false}
+              repeatSpacer={80}
+              marqueeDelay={1500}
+              scroll={false}
+              animationType='scroll'
+              easing={(t) => t}
+            >
               {currentTrack.Name}
-            </Text>
-            <Text numberOfLines={1} className='text-neutral-400 text-lg'>
+            </TextTicker>
+            <TextTicker
+              style={{ color: "#a3a3a3", fontSize: 18 }}
+              duration={Math.max(
+                4000,
+                (
+                  currentTrack.Artists?.join(", ") ||
+                  currentTrack.AlbumArtist ||
+                  ""
+                ).length * 250,
+              )}
+              loop
+              bounce={false}
+              repeatSpacer={80}
+              marqueeDelay={2000}
+              scroll={false}
+              animationType='scroll'
+              easing={(t) => t}
+            >
               {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
-            </Text>
+            </TextTicker>
           </View>
           <TouchableOpacity
             onPress={onToggleFavorite}
