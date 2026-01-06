@@ -23,11 +23,13 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
+import { useFavorite } from "@/hooks/useFavorite";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
@@ -35,6 +37,11 @@ import {
 } from "@/providers/MusicPlayerProvider";
 import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
+
+// Conditionally require VolumeManager (not available on TV)
+const VolumeManager = Platform.isTV
+  ? null
+  : require("react-native-volume-manager");
 
 const formatFileSize = (bytes?: number | null) => {
   if (!bytes) return null;
@@ -87,6 +94,10 @@ export default function NowPlayingScreen() {
     stop,
   } = useMusicPlayer();
 
+  const { isFavorite, toggleFavorite } = useFavorite(
+    currentTrack ?? ({ Id: "" } as BaseItemDto),
+  );
+
   const sliderProgress = useSharedValue(0);
   const sliderMin = useSharedValue(0);
   const sliderMax = useSharedValue(1);
@@ -113,10 +124,16 @@ export default function NowPlayingScreen() {
     return formatDuration(progressTicks);
   }, [progress]);
 
-  const durationText = useMemo(() => {
+  const _durationText = useMemo(() => {
     const durationTicks = duration * 10000000;
     return formatDuration(durationTicks);
   }, [duration]);
+
+  const remainingText = useMemo(() => {
+    const remaining = Math.max(0, duration - progress);
+    const remainingTicks = remaining * 10000000;
+    return `-${formatDuration(remainingTicks)}`;
+  }, [duration, progress]);
 
   const handleSliderComplete = useCallback(
     (value: number) => {
@@ -232,13 +249,8 @@ export default function NowPlayingScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            onPress={handleOptionsPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className='p-2'
-          >
-            <Ionicons name='ellipsis-horizontal' size={24} color='white' />
-          </TouchableOpacity>
+          {/* Empty placeholder to balance header layout */}
+          <View className='p-2' style={{ width: 44 }} />
         </View>
 
         {viewMode === "player" ? (
@@ -250,7 +262,7 @@ export default function NowPlayingScreen() {
             sliderMin={sliderMin}
             sliderMax={sliderMax}
             progressText={progressText}
-            durationText={durationText}
+            remainingText={remainingText}
             isPlaying={isPlaying}
             isLoading={isLoading}
             repeatMode={repeatMode}
@@ -264,10 +276,11 @@ export default function NowPlayingScreen() {
             onCycleRepeat={cycleRepeatMode}
             onToggleShuffle={toggleShuffle}
             getRepeatIcon={getRepeatIcon}
-            queue={queue}
-            queueIndex={queueIndex}
             mediaSource={mediaSource}
             isTranscoding={isTranscoding}
+            isFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
+            onOptionsPress={handleOptionsPress}
           />
         ) : (
           <QueueView
@@ -310,7 +323,7 @@ interface PlayerViewProps {
   sliderMin: any;
   sliderMax: any;
   progressText: string;
-  durationText: string;
+  remainingText: string;
   isPlaying: boolean;
   isLoading: boolean;
   repeatMode: RepeatMode;
@@ -324,10 +337,11 @@ interface PlayerViewProps {
   onCycleRepeat: () => void;
   onToggleShuffle: () => void;
   getRepeatIcon: () => string;
-  queue: BaseItemDto[];
-  queueIndex: number;
   mediaSource: MediaSourceInfo | null;
   isTranscoding: boolean;
+  isFavorite: boolean | undefined;
+  onToggleFavorite: () => void;
+  onOptionsPress: () => void;
 }
 
 const PlayerView: React.FC<PlayerViewProps> = ({
@@ -337,7 +351,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   sliderMin,
   sliderMax,
   progressText,
-  durationText,
+  remainingText,
   isPlaying,
   isLoading,
   repeatMode,
@@ -351,14 +365,40 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onCycleRepeat,
   onToggleShuffle,
   getRepeatIcon,
-  queue,
-  queueIndex,
   mediaSource,
   isTranscoding,
+  isFavorite,
+  onToggleFavorite,
+  onOptionsPress,
 }) => {
   const audioStream = useMemo(() => {
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
   }, [mediaSource]);
+
+  // Volume slider state
+  const volumeProgress = useSharedValue(0);
+  const volumeMin = useSharedValue(0);
+  const volumeMax = useSharedValue(1);
+  const isTv = Platform.isTV;
+
+  useEffect(() => {
+    if (isTv || !VolumeManager) return;
+    // Get initial volume
+    VolumeManager.getVolume().then(({ volume }: { volume: number }) => {
+      volumeProgress.value = volume;
+    });
+    // Listen to volume changes
+    const listener = VolumeManager.addVolumeListener((result: VolumeResult) => {
+      volumeProgress.value = result.volume;
+    });
+    return () => listener.remove();
+  }, [isTv, volumeProgress]);
+
+  const handleVolumeChange = useCallback((value: number) => {
+    if (VolumeManager) {
+      VolumeManager.setVolume(value);
+    }
+  }, []);
 
   const fileSize = formatFileSize(mediaSource?.Size);
   const codec = audioStream?.Codec?.toUpperCase();
@@ -400,19 +440,33 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         )}
       </View>
 
-      {/* Track info */}
+      {/* Track info with actions */}
       <View className='mb-6'>
-        <Text numberOfLines={1} className='text-white text-2xl font-bold'>
-          {currentTrack.Name}
-        </Text>
-        <Text numberOfLines={1} className='text-purple-400 text-lg mt-1'>
-          {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
-        </Text>
-        {currentTrack.Album && (
-          <Text numberOfLines={1} className='text-neutral-500 text-sm mt-1'>
-            {currentTrack.Album}
-          </Text>
-        )}
+        <View className='flex-row items-start justify-between'>
+          <View className='flex-1 mr-4'>
+            <Text numberOfLines={1} className='text-white text-2xl font-bold'>
+              {currentTrack.Name}
+            </Text>
+            <Text numberOfLines={1} className='text-neutral-400 text-lg mt-1'>
+              {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={onToggleFavorite}
+            className='p-2'
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorite ? "#ec4899" : "white"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onOptionsPress} className='p-2'>
+            <Ionicons name='ellipsis-horizontal' size={24} color='white' />
+          </TouchableOpacity>
+        </View>
 
         {/* Audio Stats */}
         {hasAudioStats && (
@@ -442,28 +496,36 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       <View className='mb-4'>
         <Slider
           theme={{
-            maximumTrackTintColor: "#333",
-            minimumTrackTintColor: "#9334E9",
-            bubbleBackgroundColor: "#9334E9",
-            bubbleTextColor: "#fff",
+            maximumTrackTintColor: "rgba(255,255,255,0.2)",
+            minimumTrackTintColor: "#fff",
+            bubbleBackgroundColor: "#fff",
+            bubbleTextColor: "#666",
           }}
           progress={sliderProgress}
           minimumValue={sliderMin}
           maximumValue={sliderMax}
           onSlidingComplete={onSliderComplete}
-          thumbWidth={16}
-          sliderHeight={6}
-          containerStyle={{ borderRadius: 10 }}
+          renderThumb={() => null}
+          sliderHeight={8}
+          containerStyle={{ borderRadius: 100 }}
           renderBubble={() => null}
         />
-        <View className='flex flex-row justify-between px-1 mt-2'>
+        <View className='flex flex-row justify-between mt-2'>
           <Text className='text-neutral-500 text-xs'>{progressText}</Text>
-          <Text className='text-neutral-500 text-xs'>{durationText}</Text>
+          <Text className='text-neutral-500 text-xs'>{remainingText}</Text>
         </View>
       </View>
 
-      {/* Main Controls */}
-      <View className='flex flex-row items-center justify-center mb-2'>
+      {/* Main Controls with Shuffle & Repeat */}
+      <View className='flex flex-row items-center justify-center mb-6'>
+        <TouchableOpacity onPress={onToggleShuffle} className='p-3'>
+          <Ionicons
+            name='shuffle'
+            size={24}
+            color={shuffleEnabled ? "#9334E9" : "#666"}
+          />
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={onPrevious}
           disabled={!canGoPrevious || isLoading}
@@ -476,7 +538,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         <TouchableOpacity
           onPress={onTogglePlayPause}
           disabled={isLoading}
-          className='mx-8 bg-white rounded-full p-4'
+          className='mx-4 bg-white rounded-full p-4'
         >
           {isLoading ? (
             <ActivityIndicator size={36} color='#121212' />
@@ -498,38 +560,42 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         >
           <Ionicons name='play-skip-forward' size={32} color='white' />
         </TouchableOpacity>
-      </View>
 
-      {/* Shuffle & Repeat Controls */}
-      <View className='flex flex-row items-center justify-center mb-2'>
-        <TouchableOpacity onPress={onToggleShuffle} className='p-3 mx-4'>
-          <Ionicons
-            name='shuffle'
-            size={24}
-            color={shuffleEnabled ? "#9334E9" : "#666"}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={onCycleRepeat} className='p-3 mx-4 relative'>
+        <TouchableOpacity onPress={onCycleRepeat} className='p-3 relative'>
           <Ionicons
             name={getRepeatIcon() as any}
             size={24}
             color={repeatMode !== "off" ? "#9334E9" : "#666"}
           />
           {repeatMode === "one" && (
-            <View className='absolute right-0 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
+            <View className='absolute right-0 top-1 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
               <Text className='text-white text-[10px] font-bold'>1</Text>
             </View>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Queue info */}
-      {queue.length > 1 && (
-        <View className='items-center mb-4'>
-          <Text className='text-neutral-500 text-sm'>
-            {queueIndex + 1} of {queue.length}
-          </Text>
+      {/* Volume Slider */}
+      {!isTv && VolumeManager && (
+        <View className='flex-row items-center mb-4'>
+          <Ionicons name='volume-low' size={20} color='#666' />
+          <View className='flex-1 mx-3'>
+            <Slider
+              theme={{
+                maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                minimumTrackTintColor: "#fff",
+              }}
+              progress={volumeProgress}
+              minimumValue={volumeMin}
+              maximumValue={volumeMax}
+              onSlidingComplete={handleVolumeChange}
+              renderThumb={() => null}
+              sliderHeight={8}
+              containerStyle={{ borderRadius: 100 }}
+              renderBubble={() => null}
+            />
+          </View>
+          <Ionicons name='volume-high' size={20} color='#666' />
         </View>
       )}
     </ScrollView>
