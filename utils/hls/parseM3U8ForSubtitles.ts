@@ -45,9 +45,8 @@ export async function parseM3U8ForSubtitles(
 function parseAttributes(line: string): { [key: string]: string } {
   const attributes: { [key: string]: string } = {};
   const regex = /([A-Z-]+)=(?:"([^"]*)"|([^,]*))/g;
-  let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(line)) !== null) {
+  for (const match of line.matchAll(regex)) {
     const key = match[1];
     const value = match[2] ?? match[3]; // quoted or unquoted
     attributes[key] = value;
