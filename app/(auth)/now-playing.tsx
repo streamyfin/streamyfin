@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -24,6 +25,9 @@ import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
+import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
+import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
+import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
@@ -55,6 +59,9 @@ export default function NowPlayingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>("player");
+  const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
 
   const {
     currentTrack,
@@ -134,6 +141,18 @@ export default function NowPlayingScreen() {
     setRepeatMode(nextMode);
   }, [repeatMode, setRepeatMode]);
 
+  const handleOptionsPress = useCallback(() => {
+    setTrackOptionsOpen(true);
+  }, []);
+
+  const handleAddToPlaylist = useCallback(() => {
+    setPlaylistPickerOpen(true);
+  }, []);
+
+  const handleCreateNewPlaylist = useCallback(() => {
+    setCreatePlaylistOpen(true);
+  }, []);
+
   const getRepeatIcon = (): string => {
     switch (repeatMode) {
       case "one":
@@ -150,108 +169,136 @@ export default function NowPlayingScreen() {
 
   if (!currentTrack) {
     return (
+      <BottomSheetModalProvider>
+        <View
+          className='flex-1 bg-[#121212] items-center justify-center'
+          style={{
+            paddingTop: Platform.OS === "android" ? insets.top : 0,
+            paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
+          }}
+        >
+          <Text className='text-neutral-500'>No track playing</Text>
+        </View>
+      </BottomSheetModalProvider>
+    );
+  }
+
+  return (
+    <BottomSheetModalProvider>
       <View
-        className='flex-1 bg-[#121212] items-center justify-center'
+        className='flex-1 bg-[#121212]'
         style={{
           paddingTop: Platform.OS === "android" ? insets.top : 0,
           paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
         }}
       >
-        <Text className='text-neutral-500'>No track playing</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View
-      className='flex-1 bg-[#121212]'
-      style={{
-        paddingTop: Platform.OS === "android" ? insets.top : 0,
-        paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
-      }}
-    >
-      {/* Header */}
-      <View className='flex-row items-center justify-between px-4 pt-3 pb-2'>
-        <TouchableOpacity
-          onPress={handleClose}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className='p-2'
-        >
-          <Ionicons name='chevron-down' size={28} color='white' />
-        </TouchableOpacity>
-
-        <View className='flex-row'>
+        {/* Header */}
+        <View className='flex-row items-center justify-between px-4 pt-3 pb-2'>
           <TouchableOpacity
-            onPress={() => setViewMode("player")}
-            className='px-3 py-1'
+            onPress={handleClose}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className='p-2'
           >
-            <Text
-              className={
-                viewMode === "player"
-                  ? "text-white font-semibold"
-                  : "text-neutral-500"
-              }
-            >
-              Now Playing
-            </Text>
+            <Ionicons name='chevron-down' size={28} color='white' />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setViewMode("queue")}
-            className='px-3 py-1'
-          >
-            <Text
-              className={
-                viewMode === "queue"
-                  ? "text-white font-semibold"
-                  : "text-neutral-500"
-              }
+
+          <View className='flex-row'>
+            <TouchableOpacity
+              onPress={() => setViewMode("player")}
+              className='px-3 py-1'
             >
-              Queue ({queue.length})
-            </Text>
+              <Text
+                className={
+                  viewMode === "player"
+                    ? "text-white font-semibold"
+                    : "text-neutral-500"
+                }
+              >
+                Now Playing
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setViewMode("queue")}
+              className='px-3 py-1'
+            >
+              <Text
+                className={
+                  viewMode === "queue"
+                    ? "text-white font-semibold"
+                    : "text-neutral-500"
+                }
+              >
+                Queue ({queue.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            onPress={handleOptionsPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className='p-2'
+          >
+            <Ionicons name='ellipsis-horizontal' size={24} color='white' />
           </TouchableOpacity>
         </View>
-        <View style={{ width: 16 }} />
-      </View>
 
-      {viewMode === "player" ? (
-        <PlayerView
-          api={api}
-          currentTrack={currentTrack}
-          imageUrl={imageUrl}
-          sliderProgress={sliderProgress}
-          sliderMin={sliderMin}
-          sliderMax={sliderMax}
-          progressText={progressText}
-          durationText={durationText}
-          isPlaying={isPlaying}
-          isLoading={isLoading}
-          repeatMode={repeatMode}
-          shuffleEnabled={shuffleEnabled}
-          canGoNext={canGoNext}
-          canGoPrevious={canGoPrevious}
-          onSliderComplete={handleSliderComplete}
-          onTogglePlayPause={togglePlayPause}
-          onNext={next}
-          onPrevious={previous}
-          onCycleRepeat={cycleRepeatMode}
-          onToggleShuffle={toggleShuffle}
-          getRepeatIcon={getRepeatIcon}
-          queue={queue}
-          queueIndex={queueIndex}
-          mediaSource={mediaSource}
-          isTranscoding={isTranscoding}
+        {viewMode === "player" ? (
+          <PlayerView
+            api={api}
+            currentTrack={currentTrack}
+            imageUrl={imageUrl}
+            sliderProgress={sliderProgress}
+            sliderMin={sliderMin}
+            sliderMax={sliderMax}
+            progressText={progressText}
+            durationText={durationText}
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            repeatMode={repeatMode}
+            shuffleEnabled={shuffleEnabled}
+            canGoNext={canGoNext}
+            canGoPrevious={canGoPrevious}
+            onSliderComplete={handleSliderComplete}
+            onTogglePlayPause={togglePlayPause}
+            onNext={next}
+            onPrevious={previous}
+            onCycleRepeat={cycleRepeatMode}
+            onToggleShuffle={toggleShuffle}
+            getRepeatIcon={getRepeatIcon}
+            queue={queue}
+            queueIndex={queueIndex}
+            mediaSource={mediaSource}
+            isTranscoding={isTranscoding}
+          />
+        ) : (
+          <QueueView
+            api={api}
+            queue={queue}
+            queueIndex={queueIndex}
+            onJumpToIndex={jumpToIndex}
+            onRemoveFromQueue={removeFromQueue}
+            onReorderQueue={reorderQueue}
+          />
+        )}
+
+        <TrackOptionsSheet
+          open={trackOptionsOpen}
+          setOpen={setTrackOptionsOpen}
+          track={currentTrack}
+          onAddToPlaylist={handleAddToPlaylist}
         />
-      ) : (
-        <QueueView
-          api={api}
-          queue={queue}
-          queueIndex={queueIndex}
-          onJumpToIndex={jumpToIndex}
-          onRemoveFromQueue={removeFromQueue}
-          onReorderQueue={reorderQueue}
+        <PlaylistPickerSheet
+          open={playlistPickerOpen}
+          setOpen={setPlaylistPickerOpen}
+          trackToAdd={currentTrack}
+          onCreateNew={handleCreateNewPlaylist}
         />
-      )}
-    </View>
+        <CreatePlaylistModal
+          open={createPlaylistOpen}
+          setOpen={setCreatePlaylistOpen}
+          initialTrackId={currentTrack?.Id}
+        />
+      </View>
+    </BottomSheetModalProvider>
   );
 }
 
