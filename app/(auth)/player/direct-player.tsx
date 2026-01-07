@@ -833,6 +833,7 @@ export default function page() {
         setIsPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
+        setTracksReady(true); // VLC tracks are ready when playback starts
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -1053,6 +1054,7 @@ export default function page() {
       mediaSource={stream?.mediaSource}
       isVideoLoaded={isVideoLoaded}
       tracksReady={tracksReady}
+      useVlcPlayer={useVlcPlayer}
     >
       <VideoProvider>
         <View
@@ -1082,8 +1084,9 @@ export default function page() {
                 onVideoStateChange={onPlaybackStateChangedVlc}
                 onPipStarted={onPipStartedVlc}
                 onVideoLoadEnd={() => {
+                  // Note: VLC only fires this on error, not on successful load
+                  // tracksReady is set in onPlaybackStateChangedVlc when state is "Playing"
                   setIsVideoLoaded(true);
-                  setTracksReady(true);
                 }}
                 onVideoError={(e: PlaybackStatePayload) => {
                   console.error("Video Error:", e.nativeEvent);
