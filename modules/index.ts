@@ -1,5 +1,38 @@
-import type {
+// Background Downloader
+export type {
+  ActiveDownload,
+  DownloadCompleteEvent,
+  DownloadErrorEvent,
+  DownloadProgressEvent,
+  DownloadStartedEvent,
+} from "./background-downloader";
+export { default as BackgroundDownloader } from "./background-downloader";
+
+// Streamyfin Player (KSPlayer-based) - GPU acceleration + native PiP (iOS)
+export type {
+  AudioTrack as SfAudioTrack,
+  OnErrorEventPayload as SfOnErrorEventPayload,
+  OnLoadEventPayload as SfOnLoadEventPayload,
+  OnPictureInPictureChangePayload as SfOnPictureInPictureChangePayload,
+  OnPlaybackStateChangePayload as SfOnPlaybackStateChangePayload,
+  OnProgressEventPayload as SfOnProgressEventPayload,
+  OnTracksReadyEventPayload as SfOnTracksReadyEventPayload,
+  SfPlayerViewProps,
+  SfPlayerViewRef,
+  SubtitleTrack as SfSubtitleTrack,
+  VideoSource as SfVideoSource,
+} from "./sf-player";
+export {
+  getHardwareDecode,
+  SfPlayerView,
+  setHardwareDecode,
+} from "./sf-player";
+
+// VLC Player (Android)
+export type {
   ChapterInfo,
+  NowPlayingMetadata,
+  PipStartedPayload,
   PlaybackStatePayload,
   ProgressUpdatePayload,
   TrackInfo,
@@ -10,32 +43,4 @@ import type {
   VlcPlayerViewProps,
   VlcPlayerViewRef,
 } from "./VlcPlayer.types";
-import VlcPlayerView from "./VlcPlayerView";
-
-export type {
-  ActiveDownload,
-  DownloadCompleteEvent,
-  DownloadErrorEvent,
-  DownloadProgressEvent,
-  DownloadStartedEvent,
-} from "./background-downloader";
-// Background Downloader
-export { default as BackgroundDownloader } from "./background-downloader";
-
-// Component
-export { VlcPlayerView };
-
-// Component Types
-export type { VlcPlayerViewProps, VlcPlayerViewRef };
-
-// Media Types
-export type { ChapterInfo, TrackInfo, VlcPlayerSource };
-
-// Playback Events (alphabetically sorted)
-export type {
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  VideoLoadStartPayload,
-  VideoProgressPayload,
-  VideoStateChangePayload,
-};
+export { default as VlcPlayerView } from "./VlcPlayerView";

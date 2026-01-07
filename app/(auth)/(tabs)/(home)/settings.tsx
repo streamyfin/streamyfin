@@ -71,6 +71,11 @@ export default function settings() {
               title={t("home.settings.audio_subtitles.title")}
             />
             <ListItem
+              onPress={() => router.push("/settings/music/page")}
+              showArrow
+              title={t("home.settings.music.title")}
+            />
+            <ListItem
               onPress={() => router.push("/settings/appearance/page")}
               showArrow
               title={t("home.settings.appearance.title")}

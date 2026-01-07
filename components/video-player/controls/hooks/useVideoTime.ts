@@ -4,21 +4,18 @@ import {
   type SharedValue,
   useAnimatedReaction,
 } from "react-native-reanimated";
-import { ticksToSeconds } from "@/utils/time";
 
 interface UseVideoTimeProps {
   progress: SharedValue<number>;
   max: SharedValue<number>;
   isSeeking: SharedValue<boolean>;
-  isVlc: boolean;
 }
 
-export function useVideoTime({
-  progress,
-  max,
-  isSeeking,
-  isVlc,
-}: UseVideoTimeProps) {
+/**
+ * Hook to manage video time display.
+ * MPV player uses milliseconds for time values.
+ */
+export function useVideoTime({ progress, max, isSeeking }: UseVideoTimeProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(Number.POSITIVE_INFINITY);
 
@@ -27,19 +24,16 @@ export function useVideoTime({
 
   const updateTimes = useCallback(
     (currentProgress: number, maxValue: number) => {
-      const current = isVlc ? currentProgress : ticksToSeconds(currentProgress);
-      const remaining = isVlc
-        ? maxValue - currentProgress
-        : ticksToSeconds(maxValue - currentProgress);
+      // MPV uses milliseconds
+      const current = currentProgress;
+      const remaining = maxValue - currentProgress;
 
       // Only update state if the displayed time actually changed (avoid sub-second updates)
-      const currentSeconds = Math.floor(current / (isVlc ? 1000 : 1));
-      const remainingSeconds = Math.floor(remaining / (isVlc ? 1000 : 1));
-      const lastCurrentSeconds = Math.floor(
-        lastCurrentTimeRef.current / (isVlc ? 1000 : 1),
-      );
+      const currentSeconds = Math.floor(current / 1000);
+      const remainingSeconds = Math.floor(remaining / 1000);
+      const lastCurrentSeconds = Math.floor(lastCurrentTimeRef.current / 1000);
       const lastRemainingSeconds = Math.floor(
-        lastRemainingTimeRef.current / (isVlc ? 1000 : 1),
+        lastRemainingTimeRef.current / 1000,
       );
 
       if (
@@ -52,7 +46,7 @@ export function useVideoTime({
         lastRemainingTimeRef.current = remaining;
       }
     },
-    [isVlc],
+    [],
   );
 
   useAnimatedReaction(

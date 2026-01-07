@@ -90,6 +90,10 @@ class VlcPlayerModule : Module() {
       AsyncFunction("setVideoScaleFactor") { view: VlcPlayerView, scaleFactor: Float ->
         view.setVideoScaleFactor(scaleFactor)
       }
+
+      AsyncFunction("setRate") { view: VlcPlayerView, rate: Float ->
+        view.setRate(rate)
+      }
     }
   }
 }

@@ -96,8 +96,6 @@ export const useWebSocket = ({
       | Record<string, string>
       | undefined; // Arguments are Dictionary<string, string>
 
-    console.log("[WS] ~ ", lastMessage);
-
     if (command === "PlayPause") {
       console.log("Command ~ PlayPause");
       togglePlay();

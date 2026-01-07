@@ -1,5 +1,5 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
@@ -280,7 +280,6 @@ export const PlayButton: React.FC<Props> = ({
   ]);
 
   const onPress = useCallback(async () => {
-    console.log("onPress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -474,52 +473,6 @@ export const PlayButton: React.FC<Props> = ({
     ),
   }));
 
-  // if (Platform.OS === "ios")
-  //   return (
-  //     <Host
-  //       style={{
-  //         height: 50,
-  //         flex: 1,
-  //         flexShrink: 0,
-  //       }}
-  //     >
-  //       <Button
-  //         variant='glassProminent'
-  //         onPress={onPress}
-  //         color={effectiveColors.primary}
-  //         modifiers={[fixedSize()]}
-  //       >
-  //         <View className='flex flex-row items-center space-x-2 h-full w-full justify-center -mb-3.5 '>
-  //           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-  //             {runtimeTicksToMinutes(
-  //               (item?.RunTimeTicks || 0) -
-  //                 (item?.UserData?.PlaybackPositionTicks || 0),
-  //             )}
-  //             {(item?.UserData?.PlaybackPositionTicks || 0) > 0 && " left"}
-  //           </Animated.Text>
-  //           <Animated.Text style={animatedTextStyle}>
-  //             <Ionicons name='play-circle' size={24} />
-  //           </Animated.Text>
-  //           {client && (
-  //             <Animated.Text style={animatedTextStyle}>
-  //               <Feather name='cast' size={22} />
-  //               <CastButton tintColor='transparent' />
-  //             </Animated.Text>
-  //           )}
-  //           {!client && settings?.openInVLC && (
-  //             <Animated.Text style={animatedTextStyle}>
-  //               <MaterialCommunityIcons
-  //                 name='vlc'
-  //                 size={18}
-  //                 color={animatedTextStyle.color}
-  //               />
-  //             </Animated.Text>
-  //           )}
-  //         </View>
-  //       </Button>
-  //     </Host>
-  //   );
-
   return (
     <TouchableOpacity
       disabled={!item}
@@ -567,15 +520,6 @@ export const PlayButton: React.FC<Props> = ({
             <Animated.Text style={animatedTextStyle}>
               <Feather name='cast' size={22} />
               <CastButton tintColor='transparent' />
-            </Animated.Text>
-          )}
-          {!client && settings?.openInVLC && (
-            <Animated.Text style={animatedTextStyle}>
-              <MaterialCommunityIcons
-                name='vlc'
-                size={18}
-                color={animatedTextStyle.color}
-              />
             </Animated.Text>
           )}
         </View>
