@@ -354,7 +354,7 @@ export default function page() {
     } else {
       videoRef.current?.play();
       const progressInfo = currentPlayStateInfo();
-      if (progressInfo && api) {
+      if (!offline && api) {
         await getPlaystateApi(api).reportPlaybackStart({
           playbackStartInfo: progressInfo,
         });
